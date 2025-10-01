@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container">
+    <!-- Breadcrumbs -->
+    {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+    
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6">Import Outcomes</h1>
+
+        <div class="bg-white shadow rounded-lg overflow-hidden mb-6">
+            <form method="post" enctype="multipart/form-data" class="p-6">
+                {% csrf_token %}
+                
+                <div class="mb-6">
+                    <label for="file" class="block text-sm font-medium text-gray-700 mb-1">Upload File</label>
+                    <input type="file" name="file" id="file" required class="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                    <p class="mt-1 text-sm text-gray-500">Upload a CSV or Excel file with outcomes data.</p>
+                </div>
+                
+                <div class="mb-6">
+                    <label for="group" class="block text-sm font-medium text-gray-700 mb-1">Target Group (Optional)</label>
+                    <select name="group" id="group" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="">-- Select a group --</option>
+                        {% for group in parent_groups %}
+                            <option value="{{ group.id }}">{{ group.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <p class="mt-1 text-sm text-gray-500">If selected, imported outcomes will be added to this group.</p>
+                </div>
+                
+                <div class="flex justify-end space-x-3">
+                    <a href="{% url 'lms_outcomes:manage' %}" class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                        Cancel
+                    </a>
+                    <button type="submit" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                        Import
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-medium text-gray-800">Outcomes Import Format Documentation</h2>
+            </div>
+            <div class="p-6">
+                <p class="text-gray-600 mb-4">Learning outcomes can be updated in bulk by using the Outcomes Import API. Each row in a CSV file represents either a learning outcome or a learning outcome group to create or update.</p>
+                
+                <h3 class="text-md font-medium text-gray-800 mt-6 mb-2">CSV Format</h3>
+                <p class="text-gray-600 mb-3">Standard CSV rules apply (including adherence to the CSV RFC 4180 format):</p>
+                <ul class="list-disc pl-5 space-y-1 text-gray-600 mb-4">
+                    <li>The first row will be interpreted as a header defining the ordering of your columns. This header row is mandatory.</li>
+                    <li>Fields that contain a comma must be surrounded by double-quotes.</li>
+                    <li>Fields that contain double-quotes must also be surrounded by double-quotes, with the internal double-quotes doubled. Example: Chevy "The Man" Chase would be included in the CSV as "Chevy ""The Man"" Chase".</li>
+                    <li>All text should be UTF-8 encoded.</li>
+                </ul>
+                <p class="text-gray-600 mb-4">All timestamps are sent and returned in ISO 8601 format. All timestamps default to UTC time zone unless specified: <code class="bg-gray-100 px-1 py-0.5 text-sm rounded">YYYY-MM-DDTHH:MM:SSZ</code></p>
+                
+                <h3 class="text-md font-medium text-gray-800 mt-6 mb-2">Required Fields</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead>
+                            <tr>
+                                <th class="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Field Name</th>
+                                <th class="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data Type</th>
+                                <th class="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Required</th>
+                                <th class="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <tr>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">vendor_guid</td>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500">text</td>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500">✓</td>
+                                <td class="px-3 py-2 text-sm text-gray-500">A value that uniquely identifies this learning outcome or learning outcome group. Cannot contain spaces.</td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">object_type</td>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500">text</td>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500">✓</td>
+                                <td class="px-3 py-2 text-sm text-gray-500">A value of "outcome" indicates this is a learning outcome. A value of "group" indicates this is a learning outcome group.</td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">title</td>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500">text</td>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500">✓</td>
+                                <td class="px-3 py-2 text-sm text-gray-500">The title of the learning outcome or learning outcome group.</td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">description</td>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500">text</td>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500"></td>
+                                <td class="px-3 py-2 text-sm text-gray-500">The description of the learning outcome or learning outcome group (optional, defaults to blank).</td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">friendly_description</td>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500">text</td>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500"></td>
+                                <td class="px-3 py-2 text-sm text-gray-500">Display description in "friendly" language for students and parents (optional, <255 characters).</td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">display_name</td>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500">text</td>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500"></td>
+                                <td class="px-3 py-2 text-sm text-gray-500">The display name (or friendly name) of the learning outcome. Not applicable to groups.</td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">calculation_method</td>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500">text</td>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500"></td>
+                                <td class="px-3 py-2 text-sm text-gray-500">One of: "decaying_average", "n_mastery", "highest", "latest", "average", or "weighted_average".</td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">calculation_int</td>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500">integer</td>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500"></td>
+                                <td class="px-3 py-2 text-sm text-gray-500">For "decaying_average": 1-99. For "n_mastery": 1-10. For "weighted_average": 1-99. For others: leave blank.</td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">parent_guids</td>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500">text</td>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500"></td>
+                                <td class="px-3 py-2 text-sm text-gray-500">Space-separated list of vendor_guid values of parent learning outcome groups.</td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">mastery_points</td>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500">number</td>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500"></td>
+                                <td class="px-3 py-2 text-sm text-gray-500">The number of points that define mastery for this learning outcome.</td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">ratings</td>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500">multiple columns</td>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500"></td>
+                                <td class="px-3 py-2 text-sm text-gray-500">Alternating point/description columns for scoring tiers (see sample below).</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <h3 class="text-md font-medium text-gray-800 mt-6 mb-2">Sample CSV Format</h3>
+                <div class="bg-gray-50 p-3 rounded overflow-x-auto">
+                    <pre class="text-xs text-gray-700">vendor_guid,object_type,title,description,display_name,calculation_method,calculation_int,workflow_state,parent_guids,ratings,,,,,,,
+a,group,Parent group,parent group description,G-1,,,active,,,,,,,,,
+b,group,Child group,child group description,G-1.1,,,active,a,,,,,,,,
+c,outcome,Learning Standard,outcome description,LS-100,decaying_average,40,active,a b,3,Excellent,2,Better,1,Good,,</pre>
+                </div>
+                
+                <div class="mt-6">
+                    <a href="{% url 'lms_outcomes:download_template' %}" class="text-blue-600 hover:text-blue-800 font-medium">Download sample template</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

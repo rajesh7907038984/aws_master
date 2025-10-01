@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Certificates{% endblock %}
+
+{% block extra_css %}
+<style>
+    .certificate-box .card-body {
+        padding: 1.5rem;
+    }
+    .certificate-box .card-title {
+        margin-top: 0.75rem;
+        margin-bottom: 0.75rem;
+    }
+    .certificate-box .card-text {
+        margin-bottom: 1rem;
+    }
+    .certificate-box {
+        border: none !important;
+        transition: transform 0.3s;
+    }
+    .certificate-box:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+    }
+    .certificate-box.card {
+        border: none !important;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05) !important;
+    }
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        margin: 30px 0;
+    }
+    .empty-state i {
+        font-size: 3rem;
+        color: #dee2e6;
+        margin-bottom: 20px;
+    }
+    /* Fix for date field spacing */
+    .card-text small {
+        white-space: nowrap;
+        letter-spacing: normal;
+        padding: 0;
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs container-fluid">
+    <div class="container">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                {% for breadcrumb in breadcrumbs %}
+                {% if breadcrumb.url %}
+                <li class="breadcrumb-item">
+                    <a href="{{ breadcrumb.url }}">
+                        <i class="fas {{ breadcrumb.icon }}"></i> {{ breadcrumb.label }}
+                    </a>
+                </li>
+                {% else %}
+                <li class="breadcrumb-item active" aria-current="page">
+                    <i class="fas {{ breadcrumb.icon }}"></i> {{ breadcrumb.label }}
+                </li>
+                {% endif %}
+                {% endfor %}
+            </ol>
+        </nav>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Breadcrumb -->
+<div class="mb-6">
+    {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+</div>
+
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3">My Certificates</h1>
+            <p class="text-muted">View and download your earned course certificates</p>
+        </div>
+    </div>
+    
+    <!-- Issued Certificates Section -->
+    {% if issued_certificates %}
+    <div class="row">
+        {% for certificate in issued_certificates %}
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 shadow-sm certificate-box">
+                <div class="card-body">
+                    <h5 class="card-title">{{ certificate.course_name }}</h5>
+                    <p class="card-text text-muted">
+                        <small>Issued on {{ certificate.issue_date|date:"d/m/Y" }}</small>
+                    </p>
+                    
+                    <div class="d-grid gap-2">
+                        {% if certificate.certificate_file %}
+                        <a href="{{ certificate.certificate_file.url }}" class="btn btn-primary" target="_blank">
+                            <i class="fas fa-eye"></i> View Certificate
+                        </a>
+                        {% else %}
+                        <a href="{% url 'certificates:view_certificate' certificate.id %}?generate=true" class="btn btn-primary" target="_blank">
+                            <i class="fas fa-eye"></i> View Certificate
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-certificate"></i>
+        <h3>No Certificates Yet</h3>
+        <p class="text-muted">Complete courses to earn certificates that will appear here.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %} 

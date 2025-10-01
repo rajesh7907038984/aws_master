@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold text-gray-800 mb-2">Grade Quiz: {{ quiz.title }}</h1>
+        <p class="text-gray-600">{{ quiz.topic.courses.first.title }} > {{ quiz.topic.title }}</p>
+    </div>
+
+    {% if attempts %}
+        {% for attempt in attempts %}
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6 border border-gray-200">
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800">
+                        {{ attempt.user.get_full_name }}
+                    </h3>
+                    <p class="text-gray-600">
+                        Submitted: {{ attempt.completed_at|date:"M d, Y H:i" }}
+                    </p>
+                </div>
+                <div>
+                    <span class="text-lg font-bold {% if quiz.is_vak_test %}text-blue-400{% elif attempt.score >= quiz.passing_score %}text-green-400{% else %}text-red-400{% endif %}">
+                        {{ attempt.score|floatformat:1 }}%
+                    </span>
+                </div>
+            </div>
+
+            <form method="post" class="space-y-6">
+                {% csrf_token %}
+                <input type="hidden" name="attempt_id" value="{{ attempt.id }}">
+                
+                {% for response in attempt.responses.all %}
+                    {# Essay questions removed - no longer supported #}
+                {% endfor %}
+
+                <!-- Additional Feedback -->
+                <div class="bg-gray-100 rounded-lg p-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Overall Feedback
+                    </label>
+                    <textarea name="overall_feedback"
+                              class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-800 h-32"
+                              placeholder="Provide overall feedback for this attempt...">{{ attempt.feedback }}</textarea>
+                </div>
+
+                <!-- Grading Options -->
+                <div class="flex items-center justify-between bg-gray-100 rounded-lg p-4">
+                    <div class="flex items-center space-x-4">
+                        <label class="flex items-center space-x-2">
+                            <input type="checkbox" 
+                                   name="override_auto_grade"
+                                   class="form-checkbox bg-white border-gray-300 text-blue-500">
+                            <span class="text-gray-700">Override Auto-graded Scores</span>
+                        </label>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <label class="text-gray-700">Status:</label>
+                        <select name="grading_status"
+                                class="bg-white border border-gray-300 rounded px-3 py-2 text-gray-800">
+                            <option value="in_progress" {% if attempt.status == 'in_progress' %}selected{% endif %}>
+                                In Progress
+                            </option>
+                            <option value="completed" {% if attempt.status == 'completed' %}selected{% endif %}>
+                                Completed
+                            </option>
+                            <option value="needs_review" {% if attempt.status == 'needs_review' %}selected{% endif %}>
+                                Needs Review
+                            </option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex justify-end">
+                    <button type="submit"
+                            class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
+                        Save Grades
+                    </button>
+                </div>
+            </form>
+        </div>
+        {% endfor %}
+
+    {% else %}
+        <div class="text-center py-12 bg-white rounded-lg border border-gray-200">
+            <p class="text-gray-600">No attempts to grade yet.</p>
+        </div>
+    {% endif %}
+
+    <!-- Grading Guide -->
+    <div class="mt-8 bg-white rounded-lg shadow-lg p-6 border border-gray-200">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Grading Guide</h2>
+        <div class="space-y-4 text-gray-700">
+            <p>• Multiple choice and fill-in-blank questions are auto-graded</p>
+            <p>• Review all responses carefully before submitting grades</p>
+        </div>
+    </div>
+</div>
+
+<script>
+// Score validation
+document.querySelectorAll('input[type="number"]').forEach(input => {
+    input.addEventListener('change', function() {
+        const max = parseFloat(this.getAttribute('max'));
+        const value = parseFloat(this.value);
+        if (value > max) {
+            this.value = max;
+            alert(`Maximum score for this question is ${max}`);
+        }
+        if (value < 0) {
+            this.value = 0;
+            alert('Score cannot be negative');
+        }
+    });
+});
+
+// Form validation
+document.querySelectorAll('form').forEach(form => {
+    form.addEventListener('submit', function(e) {
+        const scores = this.querySelectorAll('input[type="number"]');
+        let valid = true;
+        
+        scores.forEach(score => {
+            if (score.value === '') {
+                valid = false;
+            }
+        });
+        
+        if (!valid) {
+            e.preventDefault();
+            alert('Please enter scores for all questions before saving.');
+        }
+    });
+});
+
+// Auto-save draft
+let autoSaveTimeout;
+const autoSave = (form) => {
+    clearTimeout(autoSaveTimeout);
+    autoSaveTimeout = setTimeout(() => {
+        const formData = new FormData(form);
+        formData.append('auto_save', 'true');
+        
+        fetch(window.location.href, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        });
+    }, 30000); // Auto-save after 30 seconds of inactivity
+};
+
+document.querySelectorAll('form').forEach(form => {
+    form.addEventListener('input', () => autoSave(form));
+});
+</script>
+{% endblock %}

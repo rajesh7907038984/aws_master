@@ -1,0 +1,74 @@
+{% for activity in recent_activities %}
+<div class="dashboard-activity-item" style="cursor: pointer;" 
+     {% if activity.type == 'grade' and activity.assignment %}
+     onclick="window.location.href='{% url 'assignments:assignment_detail' activity.assignment.id %}'"
+     {% elif activity.type == 'course' and activity.course and activity.course.id and activity.course.id != '' %}
+     onclick="window.location.href='{% url 'courses:course_view' activity.course.id %}'"
+     {% elif activity.type == 'conference' %}
+     onclick="window.location.href='{% url 'conferences:conference_list' %}'"
+     {% elif activity.type == 'discussion' %}
+     onclick="window.location.href='{% url 'discussions:discussion_list' %}'"
+     {% elif activity.type == 'assignment' %}
+     onclick="window.location.href='{% url 'assignments:assignment_list' %}'"
+     {% else %}
+     onclick="window.location.href='{% url 'dashboard_instructor' %}'"
+     {% endif %}>
+    <div class="dashboard-activity-icon">
+        {% if activity.type == 'grade' %}
+            <i class="fas fa-graduation-cap" style="color: #f59e0b;"></i>
+        {% elif activity.type == 'course' %}
+            {% if activity.action == 'review' %}
+                <i class="fas fa-chart-line" style="color: #8b5cf6;"></i>
+            {% else %}
+                <i class="fas fa-clock" style="color: #3b82f6;"></i>
+            {% endif %}
+        {% elif activity.type == 'conference' %}
+            <i class="fas fa-video" style="color: #8b5cf6;"></i>
+        {% elif activity.type == 'discussion' %}
+            <i class="fas fa-comments" style="color: #10b981;"></i>
+        {% elif activity.type == 'assignment' %}
+            <i class="fas fa-file-alt" style="color: #f59e0b;"></i>
+        {% else %}
+            <i class="fas fa-tasks" style="color: #2f80ed;"></i>
+        {% endif %}
+    </div>
+    <div class="dashboard-activity-content">
+        <div class="dashboard-activity-title">
+            <span class="dashboard-link">{{ activity.item.title }}</span>
+        </div>
+        <div class="dashboard-activity-description">
+            {{ activity.description|safe }}
+        </div>
+        <div class="dashboard-activity-time">
+            {% if activity.type == 'grade' %}
+                <span style="color: {% if activity.priority == 'high' %}#ef4444{% else %}#f59e0b{% endif %};">
+                    {{ activity.time|timesince }} ago
+                </span>
+            {% elif activity.type == 'course' and activity.action == 'prepare' %}
+                <span style="color: {% if activity.priority == 'high' %}#ef4444{% else %}#f59e0b{% endif %};">
+                    {{ activity.time|date:"M d, Y" }}
+                </span>
+            {% elif activity.type == 'conference' %}
+                <span style="color: #8b5cf6;">
+                    {{ activity.time|date:"M d, Y" }}
+                </span>
+            {% elif activity.type == 'discussion' %}
+                <span style="color: #10b981;">
+                    {{ activity.time|timesince }} ago
+                </span>
+            {% elif activity.type == 'assignment' %}
+                <span style="color: #f59e0b;">
+                    Due {{ activity.time|date:"M d, Y" }}
+                </span>
+            {% else %}
+                <span style="color: #6b7280;">
+                    Needs attention
+                </span>
+            {% endif %}
+        </div>
+    </div>
+    <div class="dashboard-activity-arrow" style="flex-shrink: 0; color: #9ca3af;">
+        <i class="fas fa-chevron-right"></i>
+    </div>
+</div>
+{% endfor %} 

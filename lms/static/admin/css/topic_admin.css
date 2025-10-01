@@ -1,0 +1,957 @@
+.content-fields {
+    background: #1a1a1a;
+    padding: 15px;
+    margin: 10px 0;
+    border: 1px solid #333;
+    border-radius: 4px;
+}
+
+/* Style for stacked inline forms */
+.dynamic-inline.stacked .form-row {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.dynamic-inline.stacked .inline-related {
+    margin-bottom: 20px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.dynamic-inline.stacked h3 {
+    background: #f5f5f5;
+    padding: 10px;
+    margin: 0;
+    border-bottom: 1px solid #ddd;
+    border-radius: 4px 4px 0 0;
+}
+
+/* Content fields styling */
+.dynamic-inline .content-fields {
+    background: #1a1a1a;
+    padding: 15px;
+    margin-top: 10px;
+    border-radius: 4px;
+    border: 1px solid #333;
+}
+
+.dynamic-inline .content-fields .form-row {
+    margin-bottom: 10px;
+    color: #fff;
+}
+
+/* Field visibility control */
+.field-text_content,
+.field-content_file,
+.field-web_url,
+.field-quizzes,
+.field-assignments,
+.field-embed_code,
+.field-scorm_implementation {
+    display: none;  /* Hide by default */
+    margin: 1em 0;
+    padding: 1em;
+    border: 1px solid #333;
+    border-radius: 4px;
+    background: #1a1a1a;
+}
+
+/* Style for the content type select */
+.content-type-select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #333;
+    border-radius: 4px;
+    background: #1a1a1a;
+    color: #fff;
+    margin-bottom: 1em;
+}
+
+/* Form field styling */
+.content-fields input[type="text"],
+.content-fields input[type="number"],
+.content-fields textarea,
+.content-fields select,
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid #4a5568;
+    border-radius: 6px;
+    background-color: #1a1a1a;
+    color: #ffffff;
+    font-size: 15px;
+    line-height: 1.6;
+    transition: all 0.2s ease;
+}
+
+/* Focus states */
+.content-fields input[type="text"]:focus,
+.content-fields input[type="number"]:focus,
+.content-fields textarea:focus,
+.content-fields select:focus,
+.form-group input[type="text"]:focus,
+.form-group input[type="number"]:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+    border-color: #4299e1;
+    box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.3);
+    outline: none;
+}
+
+/* Label styling */
+.content-fields label,
+.form-group label {
+    color: #f3f4f6;
+    font-weight: 500;
+    margin-bottom: 10px;
+    display: block;
+    font-size: 15px;
+    letter-spacing: 0.01em;
+}
+
+/* Help text styling */
+.content-fields .help,
+.form-group .help-text {
+    color: #d1d5db;
+    font-size: 13px;
+    margin-top: 6px;
+    line-height: 1.5;
+}
+
+/* Error message styling */
+.errorlist {
+    color: #f87171;
+    background: rgba(248, 113, 113, 0.1);
+    border: 1px solid #f87171;
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin: 6px 0;
+    list-style: none;
+    font-size: 14px;
+}
+
+/* Required field styling */
+.required label:after {
+    content: "*";
+    color: #ff6b6b;
+    margin-left: 4px;
+}
+
+/* Description text styling */
+.content-fields .description {
+    color: #e5e7eb;
+    font-style: italic;
+    margin: 12px 0;
+    padding: 12px;
+    background: #2a2a2a;
+    border-radius: 6px;
+    border: 1px solid #4a5568;
+    line-height: 1.6;
+}
+
+/* Style for text areas */
+.vLargeTextField,
+textarea.cke_source {
+    min-height: 150px;
+    background-color: #000000 !important;
+    color: #ffffff !important;
+}
+
+/* Description text styling */
+.inline-related .description {
+    padding: 10px;
+    margin: 5px 0;
+    color: #aaa;
+    font-style: italic;
+    background: #1a1a1a;
+    border-radius: 4px;
+    border: 1px solid #333;
+}
+
+/* Form field styling */
+.dynamic-inline input[type="text"],
+.dynamic-inline textarea,
+.dynamic-inline select,
+.vLargeTextField,
+.vTextField,
+textarea.cke_source {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #333;
+    border-radius: 4px;
+    box-sizing: border-box;
+    background-color: #1a1a1a;
+    color: #fff;
+}
+
+.dynamic-inline .field-order input {
+    width: 100px;
+}
+
+/* Delete button styling */
+.dynamic-inline .delete {
+    padding: 10px;
+    background: #2a2a2a;
+    border-top: 1px solid #333;
+    color: #fff;
+}
+
+/* Responsive design */
+@media (max-width: 1024px) {
+    .dynamic-inline.stacked .form-row {
+        padding: 8px;
+    }
+    
+    .dynamic-inline .content-fields {
+        padding: 10px;
+    }
+}
+
+/* Help text styling */
+.field-quizzes .help,
+.field-assignments .help {
+    color: #666;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+/* Style for the content type message */
+#content-type-message {
+    margin-top: 10px;
+    padding: 8px;
+    background: #e8f5e9;
+    border: 1px solid #c8e6c9;
+    border-radius: 4px;
+    color: #2e7d32;
+}
+
+/* Quiz and Assignment fields styling */
+.field-quizzes,
+.field-assignments {
+    margin: 1em 0;
+    padding: 1em;
+    border: 1px solid #4a5568;
+    border-radius: 4px;
+    background: #1a1a1a;
+}
+
+/* Select with create button container */
+.select-with-create {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 10px;
+    width: 100%;
+}
+
+/* Single select styling */
+.select-with-create select {
+    flex: 1;
+    width: auto !important;
+    height: 38px !important;
+    padding: 8px !important;
+    border: 1px solid #4a5568 !important;
+    border-radius: 4px !important;
+    background-color: #1a1a1a !important;
+    color: #fff !important;
+    font-size: 14px !important;
+    line-height: 1.5 !important;
+    appearance: auto !important;
+    -webkit-appearance: auto !important;
+    -moz-appearance: auto !important;
+}
+
+/* Create new button */
+.create-new-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px;
+    border: 1px solid #4a5568;
+    border-radius: 4px;
+    background-color: #2d3748;
+    color: #fff;
+    text-decoration: none;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    height: 38px;
+}
+
+/* Refresh button */
+.refresh-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    width: 38px;
+    height: 38px;
+    border: 1px solid #4a5568;
+    border-radius: 4px;
+    background-color: #2d3748;
+    color: #fff;
+    text-decoration: none;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+/* Button hover states */
+.create-new-button:hover,
+.refresh-button:hover {
+    background-color: #4a5568;
+    border-color: #718096;
+    color: #fff;
+    text-decoration: none;
+}
+
+/* Button icons */
+.create-new-button i {
+    margin-right: 6px;
+}
+
+/* Loading animation for refresh button */
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.refresh-button.loading i {
+    animation: spin 1s linear infinite;
+}
+
+/* Help text styling */
+.field-quizzes .help,
+.field-assignments .help {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #a0aec0;
+}
+
+/* Label styling */
+.field-quizzes label,
+.field-assignments label {
+    display: block;
+    margin-bottom: 8px;
+    color: #e5e7eb;
+    font-weight: 500;
+}
+
+/* Style for the content type message */
+#content-type-message {
+    margin-top: 10px;
+    padding: 8px;
+    background: #e8f5e9;
+    border: 1px solid #c8e6c9;
+    border-radius: 4px;
+    color: #2e7d32;
+}
+
+/* Quiz and Assignment fields styling */
+.field-quizzes .selector,
+.field-assignments .selector {
+    display: block !important;
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 10px;
+    background: #1a1a1a;
+}
+
+.field-quizzes select,
+.field-assignments select,
+.field-quizzes .selector select,
+.field-assignments .selector select {
+    width: 100% !important;
+    max-width: none !important;
+    height: 300px !important;
+    border: 1px solid #4a5568 !important;
+    border-radius: 4px;
+    padding: 5px;
+    background: #1a1a1a;
+    color: #fff;
+}
+
+/* Hide the selector chooser and second select */
+.field-quizzes .selector-chooser,
+.field-assignments .selector-chooser,
+.field-quizzes .selector-chosen,
+.field-assignments .selector-chosen {
+    display: none !important;
+}
+
+/* Make the available section take full width */
+.field-quizzes .selector-available,
+.field-assignments .selector-available {
+    width: 100% !important;
+    float: none !important;
+}
+
+.field-quizzes .selector-available h2,
+.field-assignments .selector-available h2 {
+    background: #2a2a2a;
+    color: #fff;
+    padding: 8px;
+    margin: 0;
+    border-radius: 4px 4px 0 0;
+    border: 1px solid #4a5568;
+    border-bottom: none;
+}
+
+.field-quizzes .selector-filter,
+.field-assignments .selector-filter {
+    background: #1a1a1a;
+    border: 1px solid #4a5568;
+    border-top: none;
+    border-bottom: none;
+    padding: 8px;
+}
+
+.field-quizzes .selector-filter input,
+.field-assignments .selector-filter input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #4a5568;
+    border-radius: 4px;
+    background: #1a1a1a;
+    color: #fff;
+}
+
+/* Hide the choose all/clear all links */
+.selector-chooseall,
+.selector-clearall {
+    display: none !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .field-quizzes .selector,
+    .field-assignments .selector {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .field-quizzes .selector-chooser,
+    .field-assignments .selector-chooser {
+        flex-direction: row;
+        justify-content: center;
+    }
+
+    .field-quizzes .selector select,
+    .field-assignments .selector select {
+        height: 200px !important;
+    }
+}
+
+/* Selected items counter */
+.selector-chosen p.selector-filter {
+    color: #666;
+    font-size: 12px;
+}
+
+/* Fix for inline forms */
+.dynamic-inline .field-quizzes,
+.dynamic-inline .field-assignments {
+    margin: 0.5em 0;
+    padding: 0.5em;
+}
+
+.dynamic-inline .field-quizzes .selector,
+.dynamic-inline .field-assignments .selector {
+    max-width: 100%;
+}
+
+.dynamic-inline .field-quizzes .selector select,
+.dynamic-inline .field-assignments .selector select {
+    height: 200px !important;
+}
+
+/* Fix for popup forms */
+.related-popup .field-quizzes,
+.related-popup .field-assignments {
+    margin: 0.5em;
+    padding: 0.5em;
+}
+
+.related-popup .field-quizzes .selector,
+.related-popup .field-assignments .selector {
+    max-width: 100%;
+}
+
+/* Fix for stacked inline forms */
+.stacked .field-quizzes,
+.stacked .field-assignments {
+    background: #fff;
+    border: 1px solid #eee;
+    margin: 0.5em 0;
+    padding: 1em;
+}
+
+/* Fix for tabular inline forms */
+.tabular .field-quizzes,
+.tabular .field-assignments {
+    padding: 0.5em;
+    margin: 0;
+}
+
+/* Fix for required fields */
+.required .field-quizzes label,
+.required .field-assignments label {
+    font-weight: bold;
+}
+
+.required .field-quizzes label:after,
+.required .field-assignments label:after {
+    content: "*";
+    color: #e02020;
+    margin-left: 3px;
+    font-weight: bold;
+}
+
+/* Ensure selectors are visible when content type is selected */
+.field-quizzes.visible,
+.field-assignments.visible {
+    display: block !important;
+}
+
+/* Override any conflicting styles */
+.field-quizzes,
+.field-assignments {
+    position: relative !important;
+    z-index: 1;
+}
+
+.field-quizzes .selector,
+.field-assignments .selector {
+    position: relative !important;
+    z-index: 2;
+}
+
+/* Help text */
+.field-quizzes .help,
+.field-assignments .help {
+    color: #666;
+    font-size: 12px;
+    margin-top: 5px;
+    padding: 5px;
+    background: #1a1a1a;
+    border-radius: 4px;
+}
+
+/* Required field indicators */
+.required .field-quizzes label,
+.required .field-assignments label {
+    font-weight: bold;
+}
+
+.required .field-quizzes label:after,
+.required .field-assignments label:after {
+    content: "*";
+    color: #e02020;
+    margin-left: 3px;
+}
+
+/* Selector chooser buttons styling */
+.selector-chooser {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    list-style: none;
+}
+
+.selector-chooser li {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.selector-chooser a {
+    display: block;
+    width: 22px;
+    height: 22px;
+    text-indent: -9999px;
+    background: #fff url(/static/admin/img/selector-icons.svg) 0 0 no-repeat;
+    cursor: pointer;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    position: relative;
+    overflow: hidden;
+}
+
+.selector-chooser .selector-add {
+    background-position: 0 -96px;
+}
+
+.selector-chooser .selector-remove {
+    background-position: 0 -64px;
+}
+
+.selector-chooser a:hover,
+.selector-chooser a:focus {
+    border-color: #999;
+    background-color: #e6e6e6;
+}
+
+/* Fix selector layout */
+.field-quizzes .selector,
+.field-assignments .selector {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 15px;
+    align-items: center;
+    padding: 10px;
+    background: #1a1a1a;
+    border: 1px solid #1a1a1a;
+    border-radius: 4px;
+}
+
+.selector-available,
+.selector-chosen {
+    width: 100%;
+}
+
+.selector-available h2,
+.selector-chosen h2 {
+    background: #f8f8f8;
+    color: #666;
+    border: 1px solid #ccc;
+    border-radius: 4px 4px 0 0;
+    padding: 8px;
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.selector-available select,
+.selector-chosen select {
+    width: 100% !important;
+    height: 300px !important;
+    border: 1px solid #ccc !important;
+    border-radius: 0 0 4px 4px;
+    margin: 0;
+    padding: 5px;
+}
+
+/* Fix filter styling */
+.selector-filter {
+    border: 1px solid #ccc;
+    border-top: none;
+    border-bottom: none;
+    padding: 8px;
+    background: #fff;
+}
+
+.selector-filter input {
+    width: 100%;
+    padding: 5px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.selector-filter label {
+    display: none;
+}
+
+/* Choose/Remove all links */
+.selector-chooseall,
+.selector-clearall {
+    display: inline-block;
+    color: #447e9b;
+    text-decoration: none;
+    padding: 3px 8px;
+    margin: 8px 0;
+    font-size: 13px;
+}
+
+.selector-chooseall:hover,
+.selector-clearall:hover {
+    color: #036;
+    background: #f0f0f0;
+    border-radius: 3px;
+}
+
+const form = contentTypeSelect.closest('form') || contentTypeSelect.closest('.dynamic-topics');
+const allFields = form.querySelectorAll('.field-content_file, .field-text_content, .field-web_url, .field-quizzes, .field-assignments');
+
+if (contentType === 'Text') {
+    const textField = form.querySelector('.field-text_content');
+    if (textField) {
+        const textarea = textField.querySelector('textarea');
+        if (textarea) {
+            // Use Quill Editor instead of CKEditor
+            console.log('Quill Editor should be used instead of CKEditor');
+            // Initialize Quill if needed
+        }
+    }
+}
+
+.content-type-field {
+    display: none;
+    transition: all 0.3s ease;
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    background-color: rgba(255, 255, 255, 0.05);
+    opacity: 0;
+    visibility: hidden;
+    height: 0;
+    overflow: hidden;
+}
+
+.content-type-field.active {
+    display: block;
+    opacity: 1;
+    visibility: visible;
+    height: auto;
+    overflow: visible;
+}
+
+/* File upload styling */
+.content-type-field input[type="file"] {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.25rem;
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Text editor styling */
+.content-type-field .cke_chrome {
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Quiz and Assignment selector styling */
+.content-type-field .selector {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.content-type-field .selector select {
+    width: 100%;
+    min-height: 200px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.25rem;
+    background-color: rgba(255, 255, 255, 0.05);
+    color: #fff;
+}
+
+.content-type-field .selector-chooser {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.content-type-field .selector-chooser a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.25rem;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    text-decoration: none;
+    transition: background-color 0.2s ease;
+}
+
+.content-type-field .selector-chooser a:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.content-type-field .selector-filter input {
+    width: 100%;
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.25rem;
+    background-color: rgba(255, 255, 255, 0.05);
+    color: #fff;
+}
+
+/* Helper text styling */
+.content-type-field .help-text {
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .content-type-field .selector {
+        grid-template-columns: 1fr;
+    }
+    
+    .content-type-field .selector-chooser {
+        flex-direction: row;
+        justify-content: center;
+        padding: 1rem 0;
+    }
+}
+
+/* Label styling */
+.dynamic-inline label {
+    color: #fff;
+    font-weight: 500;
+}
+
+/* Help text styling */
+.dynamic-inline .help {
+    color: #aaa;
+}
+
+/* Selector styling */
+.selector {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 4px;
+}
+
+.selector h2 {
+    background: #2a2a2a;
+    color: #fff;
+    border-bottom: 1px solid #333;
+}
+
+.selector select {
+    background: #1a1a1a;
+    color: #fff;
+    border: 1px solid #333;
+}
+
+.selector-available h2, 
+.selector-chosen h2 {
+    background: #2a2a2a;
+    color: #fff;
+    border: 1px solid #333;
+}
+
+/* Content type field styling */
+.content-type-field {
+    background-color: #1a1a1a;
+    padding: 16px;
+    margin-top: 16px;
+    border-radius: 8px;
+    border: 1px solid #4a5568;
+    display: none;
+    opacity: 0;
+    visibility: hidden;
+    height: 0;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+/* Error message styling */
+.errorlist {
+    color: #f87171;
+    background: rgba(248, 113, 113, 0.1);
+    border: 1px solid #f87171;
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin: 6px 0;
+    list-style: none;
+    font-size: 14px;
+}
+
+/* Quiz and Assignment fields styling with create button */
+.select-with-create {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    margin-bottom: 10px;
+    width: 100%;
+}
+
+.select-with-create select {
+    flex: 1;
+    width: auto !important;
+}
+
+.create-new-button,
+.refresh-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px;
+    border: 1px solid #4a5568;
+    border-radius: 4px;
+    background-color: #2d3748;
+    color: #fff;
+    text-decoration: none;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    height: 38px;
+}
+
+.create-new-button:hover,
+.refresh-button:hover {
+    background-color: #4a5568;
+    border-color: #718096;
+    color: #fff;
+    text-decoration: none;
+}
+
+.create-new-button i,
+.refresh-button i {
+    margin-right: 6px;
+}
+
+.refresh-button {
+    padding: 8px;
+    width: 38px;
+}
+
+.refresh-button i {
+    margin: 0;
+}
+
+/* Loading state for refresh button */
+.refresh-button.loading {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.refresh-button.loading i {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Hide Django admin selector elements */
+.field-quizzes .selector,
+.field-quizzes .selector-available,
+.field-quizzes .selector-chosen,
+.field-quizzes .selector-chooser,
+.field-quizzes .selector-filter,
+.field-assignments .selector,
+.field-assignments .selector-available,
+.field-assignments .selector-chosen,
+.field-assignments .selector-chooser,
+.field-assignments .selector-filter {
+    display: none !important;
+}
+
+/* Hide multi-select elements */
+.field-quizzes select[multiple],
+.field-assignments select[multiple] {
+    display: none !important;
+} 

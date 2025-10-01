@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumbs -->
+    {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h1 class="text-xl font-semibold text-gray-900">
+                {% if category %}Edit Category{% else %}Create New Category{% endif %}
+            </h1>
+        </div>
+
+        <div class="p-6">
+            <form method="post" class="space-y-6" id="categoryForm">
+                {% csrf_token %}
+                
+                {% for field in form %}
+                <div class="grid grid-cols-12 gap-6 items-start">
+                    <label for="{{ field.id_for_label }}" class="col-span-2 block text-sm font-medium text-gray-700 pt-2">
+                        {{ field.label }}
+                    </label>
+                    <div class="col-span-10">
+                        {% if field.name == 'slug' %}
+                            <div class="relative">
+                                {{ field }}
+                                <div class="absolute inset-y-0 right-0 flex items-center pr-3">
+                                    <span class="text-gray-400 text-sm">Auto-generated</span>
+                                </div>
+                            </div>
+                            <p class="mt-1 text-sm text-gray-500">Auto-generated from name. You can edit if needed.</p>
+                        {% elif field.name == 'is_active' %}
+                            <div class="flex items-center">
+                                {{ field }}
+                                <span class="ml-2 text-sm text-gray-600">Active</span>
+                            </div>
+                        {% else %}
+                            {{ field }}
+                        {% endif %}
+                        {% if field.help_text and field.name != 'slug' %}
+                            <p class="mt-1 text-sm text-gray-500">{{ field.help_text }}</p>
+                        {% endif %}
+                        {% if field.errors %}
+                            <div class="mt-1 text-sm text-red-600">
+                                {{ field.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+
+                <div class="pt-5 border-t border-gray-200">
+                    <div class="flex justify-end space-x-3">
+                        <a href="{% url 'categories:category_list' %}" 
+                           class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            Cancel
+                        </a>
+                        <button type="submit" 
+                                class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            {% if category %}Update{% else %}Create{% endif %}
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const nameInput = document.getElementById('id_name');
+    const slugInput = document.getElementById('id_slug');
+    const form = document.getElementById('categoryForm');
+    
+    if (nameInput && slugInput) {
+        // Only auto-generate slug if it's empty or matches the name
+        const generateSlug = () => {
+            const name = nameInput.value.trim();
+            if (!name) return;
+            
+            const currentSlug = slugInput.value.trim();
+            const nameSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+            
+            // Only update if slug is empty or matches the name
+            if (!currentSlug || currentSlug === nameSlug) {
+                slugInput.value = nameSlug;
+            }
+        };
+        
+        // Generate slug on name input
+        nameInput.addEventListener('input', generateSlug);
+        
+        // Allow manual slug editing
+        slugInput.addEventListener('input', function() {
+            const slug = this.value.trim();
+            if (slug) {
+                // Clean the slug
+                this.value = slug.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+            }
+        });
+    }
+    
+    // Form validation
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const name = nameInput.value.trim();
+            if (!name) {
+                e.preventDefault();
+                alert('Category name is required');
+                nameInput.focus();
+                return false;
+            }
+        });
+    }
+});
+</script>
+{% endblock %} 

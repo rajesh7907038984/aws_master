@@ -1,0 +1,196 @@
+<!-- Educator Notes Tab Content -->
+<div id="educator-notes-tab" class="ilp-tab-content" style="display: none;">
+    <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+        <h4 class="text-lg font-semibold text-gray-900 mb-4">Educator Notes</h4>
+        
+        <div class="space-y-6">
+            <!-- Initial Assessment Notes -->
+            <div class="form-group">
+                <label for="educator_initial_notes" class="form-label">Initial Assessment Notes</label>
+                <textarea id="educator_initial_notes" name="educator_initial_notes" 
+                          class="form-textarea" rows="4" 
+                          placeholder="Initial observations and assessment notes">{% if is_edit_mode and profile_user.educatornotes %}{{ profile_user.educatornotes.educator_initial_notes|default:'' }}{% endif %}</textarea>
+                <div class="form-help-text">Record initial observations about the learner's abilities, attitude, and learning needs</div>
+            </div>
+            
+            <!-- Teaching Strategies -->
+            <div class="form-group">
+                <label for="educator_teaching_strategies" class="form-label">Teaching Strategies</label>
+                <textarea id="educator_teaching_strategies" name="educator_teaching_strategies" 
+                          class="form-textarea" rows="3" 
+                          placeholder="Recommended teaching strategies for this learner">{% if is_edit_mode and profile_user.educatornotes %}{{ profile_user.educatornotes.educator_teaching_strategies|default:'' }}{% endif %}</textarea>
+                <div class="form-help-text">Document effective teaching methods and strategies that work best for this learner</div>
+            </div>
+            
+            <!-- Progress Monitoring -->
+            <div class="form-group">
+                <label for="educator_progress_monitoring" class="form-label">Progress Monitoring</label>
+                <textarea id="educator_progress_monitoring" name="educator_progress_monitoring" 
+                          class="form-textarea" rows="2" 
+                          placeholder="How to monitor and track this learner's progress">{% if is_edit_mode and profile_user.educatornotes %}{{ profile_user.educatornotes.educator_progress_monitoring|default:'' }}{% endif %}</textarea>
+                <div class="form-help-text">Outline methods for tracking and monitoring the learner's progress effectively</div>
+            </div>
+            
+            <!-- Additional Observations -->
+            <div class="form-group">
+                <label for="educator_additional_observations" class="form-label">Additional Observations</label>
+                <textarea id="educator_additional_observations" name="educator_additional_observations" 
+                          class="form-textarea" rows="4" 
+                          placeholder="Any additional observations about the learner's behavior, motivation, or learning style">{% if is_edit_mode and profile_user.educatornotes %}{{ profile_user.educatornotes.educator_additional_observations|default:'' }}{% endif %}</textarea>
+                <div class="form-help-text">Record any other relevant observations about the learner's behavior, motivation, or unique characteristics</div>
+            </div>
+            
+            <!-- Support Required -->
+            <div class="form-group">
+                <label for="educator_support_required" class="form-label">Support Required</label>
+                <textarea id="educator_support_required" name="educator_support_required" 
+                          class="form-textarea" rows="3" 
+                          placeholder="What additional support does this learner need?">{% if is_edit_mode and profile_user.educatornotes %}{{ profile_user.educatornotes.educator_support_required|default:'' }}{% endif %}</textarea>
+                <div class="form-help-text">Identify any additional support, resources, or interventions the learner may need</div>
+            </div>
+            
+            <!-- Strengths and Areas for Development -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="form-group">
+                    <label for="educator_learner_strengths" class="form-label">Learner Strengths</label>
+                    <textarea id="educator_learner_strengths" name="educator_learner_strengths" 
+                              class="form-textarea" rows="4" 
+                              placeholder="What are this learner's key strengths?">{% if is_edit_mode and profile_user.educatornotes %}{{ profile_user.educatornotes.educator_learner_strengths|default:'' }}{% endif %}</textarea>
+                    <div class="form-help-text">Highlight the learner's academic, personal, and social strengths</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="educator_areas_development" class="form-label">Areas for Development</label>
+                    <textarea id="educator_areas_development" name="educator_areas_development" 
+                              class="form-textarea" rows="4" 
+                              placeholder="What areas need further development?">{% if is_edit_mode and profile_user.educatornotes %}{{ profile_user.educatornotes.educator_areas_development|default:'' }}{% endif %}</textarea>
+                    <div class="form-help-text">Identify specific areas where the learner needs improvement or additional focus</div>
+                </div>
+            </div>
+            
+            <!-- Engagement and Motivation -->
+            <div class="form-group">
+                <label for="educator_engagement_motivation" class="form-label">Engagement & Motivation</label>
+                <textarea id="educator_engagement_motivation" name="educator_engagement_motivation" 
+                          class="form-textarea" rows="3" 
+                          placeholder="How engaged and motivated is this learner? What motivates them?">{% if is_edit_mode and profile_user.educatornotes %}{{ profile_user.educatornotes.educator_engagement_motivation|default:'' }}{% endif %}</textarea>
+                <div class="form-help-text">Assess the learner's level of engagement and identify what motivates them to learn</div>
+            </div>
+            
+            <!-- Recommended Actions -->
+            <div class="form-group">
+                <label for="educator_recommended_actions" class="form-label">Recommended Actions</label>
+                <textarea id="educator_recommended_actions" name="educator_recommended_actions" 
+                          class="form-textarea" rows="4" 
+                          placeholder="What specific actions do you recommend for this learner?">{% if is_edit_mode and profile_user.educatornotes %}{{ profile_user.educatornotes.educator_recommended_actions|default:'' }}{% endif %}</textarea>
+                <div class="form-help-text">Provide specific recommendations for supporting this learner's success</div>
+            </div>
+            
+            <!-- Privacy and Access Control -->
+            <div class="form-group">
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-lock text-yellow-600"></i>
+                        </div>
+                        <div class="ml-3">
+                            <h5 class="text-sm font-medium text-yellow-800">Privacy Settings</h5>
+                            <div class="mt-2">
+                                <label class="flex items-center">
+                                    <input type="checkbox" id="educator_notes_private" name="educator_notes_private" 
+                                           class="form-checkbox mr-2" value="1"
+                                           {% if is_edit_mode and profile_user.educatornotes.educator_notes_private %}checked{% endif %}>
+                                    <span class="text-sm text-yellow-700">Private Notes (Only visible to staff)</span>
+                                </label>
+                                <p class="text-xs text-yellow-600 mt-1">When checked, these notes will only be visible to instructors, admins, and staff members</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Notes Metadata -->
+            <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <h5 class="text-sm font-medium text-gray-800 mb-3">Notes Information</h5>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+                    <div>
+                        <label class="block font-medium">Last Updated By</label>
+                        <input type="text" class="form-input text-sm mt-1" name="educator_notes_updated_by" 
+                               value="{{ user.get_full_name|default:user.username }}" readonly>
+                    </div>
+                    <div>
+                        <label class="block font-medium">Date Updated</label>
+                        <input type="date" class="form-input text-sm mt-1" name="educator_notes_date_updated" 
+                               value="{% now 'Y-m-d' %}">
+                    </div>
+                    <div>
+                        <label class="block font-medium">Review Required</label>
+                        <select class="form-select text-sm mt-1" name="educator_notes_review_required">
+                            <option value="no" {% if is_edit_mode and profile_user.educatornotes.educator_notes_review_required == 'no' %}selected{% endif %}>No</option>
+                            <option value="yes" {% if is_edit_mode and profile_user.educatornotes.educator_notes_review_required == 'yes' %}selected{% endif %}>Yes</option>
+                            <option value="urgent" {% if is_edit_mode and profile_user.educatornotes.educator_notes_review_required == 'urgent' %}selected{% endif %}>Urgent</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Ensure tab state is preserved when making updates in this tab
+document.addEventListener('DOMContentLoaded', function() {
+    // Set tab state for form submission
+    function updateTabState() {
+        // Update global tab state explicitly for this tab
+        if (typeof currentTabState !== 'undefined') {
+            currentTabState.mainTab = 'ilp-tab';
+            currentTabState.subTab = 'educator-notes-tab';
+            
+            console.log('Educator Notes tab: Setting tab state to:', currentTabState);
+            
+            // Update hidden form fields directly
+            var activeTabField = document.getElementById('activeTabField');
+            var activeSubTabField = document.getElementById('activeSubTabField');
+            
+            if (activeTabField) activeTabField.value = currentTabState.mainTab;
+            if (activeSubTabField) activeSubTabField.value = currentTabState.subTab;
+        }
+    }
+    
+    // Update tab state when the tab becomes visible
+    var tabElement = document.getElementById('educator-notes-tab');
+    if (tabElement) {
+        // Create a mutation observer to detect when the tab becomes visible
+        var observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && 
+                    mutation.attributeName === 'style' &&
+                    tabElement.style.display !== 'none') {
+                    updateTabState();
+                }
+                
+                if (mutation.type === 'attributes' && 
+                    mutation.attributeName === 'class' &&
+                    tabElement.classList.contains('active')) {
+                    updateTabState();
+                }
+            });
+        });
+        
+        observer.observe(tabElement, { attributes: true });
+        
+        // Also check if it's already visible
+        if (tabElement.style.display !== 'none' || tabElement.classList.contains('active')) {
+            updateTabState();
+        }
+    }
+    
+    // Add input listeners to all form elements in this tab
+    var formElements = document.querySelectorAll('#educator-notes-tab input, #educator-notes-tab textarea, #educator-notes-tab select');
+    formElements.forEach(function(element) {
+        element.addEventListener('focus', updateTabState);
+        element.addEventListener('change', updateTabState);
+    });
+});
+</script> 

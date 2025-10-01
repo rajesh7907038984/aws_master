@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Add New Topic{% endblock %}
+
+{% block extra_css %}
+<style>
+    .modal-content {
+        background: white;
+        padding: 2rem;
+        border-radius: 0.5rem;
+        width: 100%;
+        max-width: 600px;
+        margin: 2rem auto;
+    }
+    .form-group {
+        margin-bottom: 1rem;
+    }
+    .form-label {
+        display: block;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+    .form-control {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #ddd;
+        border-radius: 0.25rem;
+    }
+    .form-check {
+        margin: 0.5rem 0;
+    }
+    .date-input {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #ddd;
+        border-radius: 0.25rem;
+    }
+    .radio-group {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+    .status-group {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+    }
+    .btn {
+        padding: 0.5rem 1rem;
+        border-radius: 0.25rem;
+        cursor: pointer;
+    }
+    .btn-primary {
+        background-color: #4a90e2;
+        color: white;
+        border: none;
+    }
+    .btn-secondary {
+        background-color: #f5f5f5;
+        border: 1px solid #ddd;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-2xl mx-auto">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div class="p-6">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">Add New Discussion Topic</h2>
+                <form method="post" class="space-y-6">
+                    {% csrf_token %}
+                    {{ form.as_p }}
+                    
+                    <!-- Course Selection Field -->
+                    <div class="form-group">
+                        <label for="course" class="form-label">Course</label>
+                        <select name="course" id="course" class="form-control">
+                            <option value="">-- Select Course --</option>
+                            {% for available_course in available_courses %}
+                                <option value="{{ available_course.id }}" {% if course and course.id == available_course.id %}selected{% endif %}>
+                                    {{ available_course.title }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-4">
+                        <a href="{% url 'discussions:discussion_list' %}" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                            Cancel
+                        </a>
+                        <button type="submit" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                            Create Topic
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

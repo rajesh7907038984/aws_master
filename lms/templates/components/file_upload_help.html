@@ -1,0 +1,47 @@
+<!-- File Upload Help Component -->
+<!-- Usage: {% include 'components/file_upload_help.html' with show_examples=True category='image' %} -->
+
+<div class="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm">
+    <div class="flex items-start space-x-2">
+        <svg class="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+        </svg>
+        <div>
+            <p class="text-blue-800 font-medium mb-1">File Upload Guidelines</p>
+            <ul class="text-blue-700 space-y-1">
+                
+                {% if show_examples|default:True %}
+                <li>• <strong>Good filenames:</strong> 
+                    {% if category == 'image' %}
+                        "course image.jpg", "My Photo (2024).png", "intro-slide.jpeg"
+                    {% elif category == 'video' %}
+                        "lesson_1.mp4", "Course Intro (Final).webm", "demo-video.ogg"
+                    {% elif category == 'document' %}
+                        "assignment_1.pdf", "Course Syllabus (2024).docx", "notes-week1.txt"
+                    {% elif category == 'scorm' %}
+                        "my_course_package.zip", "SCORM Package (v2).zip"
+                    {% else %}
+                        "my_file.pdf", "Course Material (2024).docx", "lesson-1_intro.mp4"
+                    {% endif %}
+                </li>
+                {% endif %}
+                
+                <li>• <strong>Any filename allowed</strong> - no character restrictions</li>
+                
+                {% if category == 'image' %}
+                <li>• <strong>Image formats:</strong> JPG, PNG, JPEG only • <strong>Max size:</strong> 10MB</li>
+                {% elif category == 'video' %}
+                <li>• <strong>Video formats:</strong> MP4, WEBM only • <strong>Max size:</strong> 500MB</li>
+                {% elif category == 'document' %}
+                <li>• <strong>Document formats:</strong> PDF, DOC, DOCX, TXT, RTF, XLS, XLSX • <strong>Max size:</strong> 50MB</li>
+                {% elif category == 'scorm' %}
+                <li>• <strong>SCORM format:</strong> ZIP files only • <strong>Max size:</strong> 600MB</li>
+                {% else %}
+                <li>• <strong>File formats:</strong> Most common formats supported • <strong>Max size:</strong> varies by type</li>
+                {% endif %}
+                
+                <li>• <strong>Security:</strong> Executable files (.exe, .bat, .php, etc.) are blocked for your protection</li>
+            </ul>
+        </div>
+    </div>
+</div>

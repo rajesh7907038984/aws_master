@@ -1,0 +1,438 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load course_tags %}
+{% load i18n %}
+{% load tz %}
+
+{% block title %}Course Users - {{ course.title }}{% endblock %}
+
+{% block extra_css %}
+<link href="{% static 'core/css/course_create.css' %}" rel="stylesheet">
+<link href="{% static 'core/css/courses/course_edit.css' %}" rel="stylesheet">
+<style>
+    /* Custom styles for the user table */
+    .user-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    
+    .user-table th {
+        color: #374151;
+        font-weight: 500;
+        text-align: left;
+        padding: 0.75rem 1rem;
+        background-color: #F9FAFB;
+        font-size: 0.875rem;
+        border-bottom: 1px solid #E5E7EB;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    .user-table td {
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+        border-bottom: 1px solid #E5E7EB;
+        text-align: left;
+    }
+
+    .user-table tr:nth-child(odd) td {
+        background-color: #F9FAFB;
+    }
+
+    .user-table tr:nth-child(even) td {
+        background-color: #FFFFFF;
+    }
+    
+    .user-table tr:hover td {
+        background-color: #F3F4F6;
+    }
+    
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.125rem 0.625rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+    
+    .status-badge.completed {
+        background-color: #d1fae5;
+        color: #065f46;
+    }
+    
+    .status-badge.in-progress {
+        background-color: #e0f2fe;
+        color: #0369a1;
+    }
+    
+    .status-badge.not-started {
+        background-color: #f3f4f6;
+        color: #4b5563;
+    }
+    
+    .status-badge.expired {
+        background-color: #fee2e2;
+        color: #b91c1c;
+    }
+    
+    .action-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 0.375rem;
+        color: #4b5563;
+        background-color: transparent;
+        transition: all 0.2s;
+    }
+    
+    .action-btn:hover {
+        background-color: #f3f4f6;
+        color: #1f2937;
+    }
+
+    /* Role select styles */
+    .role-select {
+        padding: 0.5rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        color: #374151;
+        background-color: white;
+    }
+
+    .role-select:focus {
+        border-color: #3b82f6;
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <!-- Main container -->
+    <div class="bg-white rounded-lg shadow-md">
+        <div class="w-full px-8 py-6">
+            <!-- Breadcrumbs -->
+            {% with breadcrumbs=breadcrumbs %}
+                {% include 'components/breadcrumb.html' %}
+            {% endwith %}
+
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">{{ course.title }} - Users</h1>
+                    <!-- Enhanced Role-based User Summary -->
+                    <div class="mt-2 flex flex-wrap gap-4 text-sm text-gray-600">
+                        <span class="flex items-center">
+                            <i class="fas fa-graduation-cap text-blue-500 mr-1"></i>
+                            <strong>{{ total_learners }} Learners</strong>
+                        </span>
+                        <span class="flex items-center">
+                            <i class="fas fa-chalkboard-teacher text-green-500 mr-1"></i>
+                            {{ total_instructors }} Instructors
+                        </span>
+                        {% if request.user.is_superuser or request.user.role == 'admin' %}
+                        <span class="flex items-center">
+                            <i class="fas fa-user-cog text-purple-500 mr-1"></i>
+                            {{ total_admins }} Admins
+                        </span>
+                        {% endif %}
+                        {% if total_others > 0 %}
+                        <span class="flex items-center">
+                            <i class="fas fa-users text-gray-500 mr-1"></i>
+                            {{ total_others }} Others
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <a href="{% url 'courses:course_edit' course.id %}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200">
+                        Back to Course
+                    </a>
+                    <a href="{% url 'users:user_create' %}" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+                        <i class="fas fa-user-plus mr-1"></i>Create New User
+                    </a>
+                    <a href="{% url 'courses:course_add_users' course.id %}" class="px-4 py-2 bg-[#1c2261] text-white rounded-md hover:bg-[#282e7f]">
+                        <i class="fas fa-user-plus mr-1"></i>Add Existing User
+                    </a>
+                </div>
+            </div>
+            
+
+            <!-- Desktop User table -->
+            <div class="hidden md:block overflow-x-auto mt-4">
+                <table class="user-table">
+                    <thead>
+                        <tr>
+                            <th class="w-10"></th>
+                            <th>User</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Enrollment Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for enrollment in enrollments %}
+                        <tr>
+                            <td>
+                                {% if enrollment.user.profile_image %}
+                                <img src="{{ enrollment.user.profile_image.url }}" alt="{{ enrollment.user.get_full_name }}" class="h-10 w-10 rounded-full object-cover">
+                                {% else %}
+                                <div class="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
+                                    <span class="text-lg">{{ enrollment.user.get_initials }}</span>
+                                </div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="font-medium text-gray-900">{{ enrollment.user.get_full_name }}</div>
+                                <div class="text-sm text-gray-500">@{{ enrollment.user.username }}</div>
+                            </td>
+                            <td>{{ enrollment.user.email }}</td>
+                            <td>
+                                {% if enrollment.user.role == 'learner' %}
+                                    <span class="status-badge bg-blue-100 text-blue-800">
+                                        <i class="fas fa-graduation-cap mr-1"></i>Learner
+                                    </span>
+                                {% elif enrollment.user.role == 'instructor' %}
+                                    <span class="status-badge bg-green-100 text-green-800">
+                                        <i class="fas fa-chalkboard-teacher mr-1"></i>Instructor
+                                    </span>
+                                {% elif enrollment.user.role == 'admin' %}
+                                    {% if request.user.is_superuser or request.user.role == 'admin' %}
+                                    <span class="status-badge bg-purple-100 text-purple-800">
+                                        <i class="fas fa-user-cog mr-1"></i>Admin
+                                    </span>
+                                    {% else %}
+                                    <span class="status-badge bg-gray-100 text-gray-800">{{ enrollment.user.role|capfirst }}</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="status-badge bg-gray-100 text-gray-800">{{ enrollment.user.role|capfirst }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ enrollment.enrolled_at|date:"M d, Y" }}</td>
+                            <td class="py-3 px-4">
+                                <div class="flex items-center gap-2">
+                                    <a href="{% url 'reports:user_detail_report' enrollment.user.id %}" 
+                                       class="text-blue-600 hover:text-blue-800">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                    <button class="text-red-600 hover:text-red-800 unenroll-btn"
+                                            data-user-id="{{ enrollment.user.id }}"
+                                            data-user-name="{{ enrollment.user.get_full_name|default:enrollment.user.username }}">
+                                        <i class="fas fa-user-minus"></i> Unenroll
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-8">
+                                <div class="text-gray-500">No users found</div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Mobile Card View -->
+            <div class="block md:hidden mt-4">
+                <div class="space-y-4">
+                    {% for enrollment in enrollments %}
+                    <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+                        <!-- User Header -->
+                        <div class="flex items-center space-x-3 mb-3">
+                            {% if enrollment.user.profile_image %}
+                            <img src="{{ enrollment.user.profile_image.url }}" alt="{{ enrollment.user.get_full_name }}" class="h-12 w-12 rounded-full object-cover">
+                            {% else %}
+                            <div class="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
+                                <span class="text-lg">{{ enrollment.user.get_initials }}</span>
+                            </div>
+                            {% endif %}
+                            <div class="flex-1">
+                                <h3 class="font-medium text-gray-900">{{ enrollment.user.get_full_name }}</h3>
+                                <p class="text-sm text-gray-500">@{{ enrollment.user.username }}</p>
+                            </div>
+                            {% if enrollment.user.role == 'learner' %}
+                                <span class="status-badge bg-blue-100 text-blue-800">
+                                    <i class="fas fa-graduation-cap mr-1"></i>Learner
+                                </span>
+                            {% elif enrollment.user.role == 'instructor' %}
+                                <span class="status-badge bg-green-100 text-green-800">
+                                    <i class="fas fa-chalkboard-teacher mr-1"></i>Instructor
+                                </span>
+                            {% elif enrollment.user.role == 'admin' %}
+                                {% if request.user.is_superuser or request.user.role == 'admin' %}
+                                <span class="status-badge bg-purple-100 text-purple-800">
+                                    <i class="fas fa-user-cog mr-1"></i>Admin
+                                </span>
+                                {% else %}
+                                <span class="status-badge bg-gray-100 text-gray-800">{{ enrollment.user.role|capfirst }}</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="status-badge bg-gray-100 text-gray-800">{{ enrollment.user.role|capfirst }}</span>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- User Details -->
+                        <div class="grid grid-cols-1 gap-2 mb-3">
+                            <div>
+                                <div class="text-xs font-medium text-gray-500 uppercase tracking-wider">Email</div>
+                                <div class="text-sm text-gray-900 mt-1 break-all">{{ enrollment.user.email }}</div>
+                            </div>
+                            <div>
+                                <div class="text-xs font-medium text-gray-500 uppercase tracking-wider">Enrollment Date</div>
+                                <div class="text-sm text-gray-900 mt-1">{{ enrollment.enrolled_at|date:"M d, Y" }}</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Actions -->
+                        <div class="border-t border-gray-200 pt-3">
+                            <div class="flex space-x-2">
+                                <a href="{% url 'reports:user_detail_report' enrollment.user.id %}" 
+                                   class="flex-1 inline-flex items-center justify-center px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">
+                                    <i class="fas fa-eye mr-2"></i>
+                                    View Details
+                                </a>
+                                <button class="flex-1 inline-flex items-center justify-center px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 unenroll-btn"
+                                        data-user-id="{{ enrollment.user.id }}"
+                                        data-user-name="{{ enrollment.user.get_full_name|default:enrollment.user.username }}">
+                                    <i class="fas fa-user-minus mr-2"></i>
+                                    Unenroll
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="text-center py-8">
+                        <div class="text-gray-500">No users found</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Pagination -->
+            {% if paginator.num_pages > 1 %}
+            <div class="mt-6 flex justify-center">
+                <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                    {% if enrollments_page.has_previous %}
+                        <a href="?page={{ enrollments_page.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                            <span class="sr-only">Previous</span>
+                            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                            </svg>
+                        </a>
+                    {% endif %}
+                    
+                    {% for num in paginator.page_range %}
+                        {% if num == enrollments_page.number %}
+                            <span class="relative inline-flex items-center px-4 py-2 border border-[#1c2261] bg-[#1c2261] text-sm font-medium text-white">
+                                {{ num }}
+                            </span>
+                        {% elif num > enrollments_page.number|add:'-3' and num < enrollments_page.number|add:'3' %}
+                            <a href="?page={{ num }}{% if search_query %}&q={{ search_query }}{% endif %}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                {{ num }}
+                            </a>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if enrollments_page.has_next %}
+                        <a href="?page={{ enrollments_page.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                            <span class="sr-only">Next</span>
+                            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                            </svg>
+                        </a>
+                    {% endif %}
+                </nav>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'core/js/utils/notifications.js' %}"></script>
+<script>
+    $(document).ready(function() {
+        // Define courseId variable from Django template
+        const courseId = {{ course.id }};
+        
+        // Handle unenroll
+        $('.unenroll-btn').on('click', function() {
+            const userId = $(this).data('user-id');
+            const userName = $(this).data('user-name');
+            
+            // Confirm before unenrolling
+            if (confirm(`Are you sure you want to unenroll ${userName} from this course?`)) {
+                // Show loading indicator
+                $(this).addClass('opacity-50 cursor-not-allowed');
+                
+                // Call API to unenroll user
+                $.ajax({
+                    url: `/courses/${courseId}/unenroll/${userId}/`,
+                    method: 'POST',
+                    data: {
+                        csrfmiddlewaretoken: '{{ csrf_token }}'
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            // Show success message
+                            showNotification('User unenrolled successfully', 'success');
+                            // Refresh page after a delay
+                            setTimeout(function() {
+                                window.location.reload();
+                            }, 1000);
+                        } else {
+                            showNotification('Error: ' + response.message, 'error');
+                        }
+                    },
+                    error: function() {
+                        showNotification('Failed to unenroll user', 'error');
+                    },
+                    complete: function() {
+                        // Remove loading indicator
+                        $('.unenroll-btn').removeClass('opacity-50 cursor-not-allowed');
+                    }
+                });
+            }
+        });
+        
+        // Function to show notifications
+        function showNotification(message, type) {
+            // Disable notifications in development mode
+            const isDevelopment = false || 
+                                 false ||
+                                 window.location.hostname.includes('192.168.') ||
+                                 window.location.hostname.includes('.local');
+            
+            if (isDevelopment) {
+                console.log(`[DEV] Notification suppressed: ${message} (${type})`);
+                return;
+            }
+            
+            const notification = $('<div></div>')
+                .addClass('notification')
+                .addClass(type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800')
+                .addClass('fixed top-4 right-4 p-4 rounded-md shadow-md z-50')
+                .text(message);
+            
+            $('body').append(notification);
+            
+            // Remove notification after 3 seconds
+            setTimeout(function() {
+                notification.fadeOut(300, function() {
+                    $(this).remove();
+                });
+            }, 3000);
+        }
+    });
+</script>
+{% endblock %} 

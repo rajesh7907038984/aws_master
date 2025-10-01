@@ -1,0 +1,814 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdn.quilljs.com/1.3.7/quill.snow.css">
+<style>
+    /* Proficiency rating styling */
+    .proficiency-ratings-container {
+        min-height: 50px;
+    }
+    .rating-row {
+        transition: all 0.3s ease;
+    }
+    .rating-row.removing {
+        opacity: 0.5;
+        transform: scale(0.95);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Breadcrumbs -->
+    {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+    
+    <div class="max-w-4xl mx-auto">
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">{% if outcome %}Edit{% else %}Create{% endif %} Outcome</h1>
+        </div>
+
+        <div class="flex justify-between items-center mb-6">
+            <div class="flex">
+                <button type="button" onclick="window.location.href='{% url 'lms_outcomes:manage' %}'" class="ml-2 text-gray-500 hover:text-gray-800">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+            <form method="post" class="p-6" id="create-outcome-form" {% if edit_mode %}action="{% url 'lms_outcomes:edit_outcome' outcome.id %}"{% endif %}>
+                {% csrf_token %}
+                
+                <div class="grid grid-cols-2 gap-6 mb-6">
+                    <!-- Name field -->
+                    <div>
+                        <label for="title" class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                        <input type="text" name="title" id="title" required placeholder="Enter name or code" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value="{% if edit_mode %}{{ outcome.title }}{% endif %}">
+                    </div>
+                    
+                    <!-- Friendly Name field -->
+                    <div>
+                        <label for="friendly_name" class="block text-sm font-medium text-gray-700 mb-1">Friendly Name</label>
+                        <input type="text" name="friendly_name" id="friendly_name" placeholder="Create a friendly display name" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value="{% if edit_mode %}{{ outcome.friendly_name }}{% endif %}">
+                    </div>
+                </div>
+                
+                <!-- Description field -->
+                <div class="mb-6">
+                    <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <textarea name="description" id="description" placeholder="Enter outcome description" rows="6" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">{% if edit_mode %}{{ outcome.description }}{% endif %}</textarea>
+                </div>
+                
+                <!-- Friendly description field -->
+                <div class="mb-6">
+                    <label for="friendly_description" class="block text-sm font-medium text-gray-700 mb-1">Friendly description (for parent/student display)</label>
+                    <textarea name="friendly_description" id="friendly_description" placeholder="Enter your friendly description here" rows="3" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">{% if edit_mode %}{{ outcome.friendly_description }}{% endif %}</textarea>
+                </div>
+                
+                <!-- Proficiency rating -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-3">Proficiency rating</label>
+                    <div class="proficiency-ratings-container space-y-2" id="proficiency-ratings">
+                        {% if edit_mode and outcome.proficiency_ratings %}
+                            {% for rating in outcome.proficiency_ratings %}
+                                <div class="rating-row grid grid-cols-12 gap-4 items-center" data-rating-index="{{ forloop.counter }}">
+                                    <div class="col-span-10">
+                                        <input type="text" name="rating_{{ forloop.counter }}" value="{{ rating.name }}" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Rating name">
+                                    </div>
+                                    <div class="col-span-1 text-center">
+                                        <input type="number" name="points_{{ forloop.counter }}" value="{{ rating.points }}" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-center" placeholder="Points">
+                                    </div>
+                                    <div class="col-span-1 text-center">
+                                        <button type="button" class="delete-rating-btn text-gray-400 hover:text-red-600 transition-colors" onclick="removeRating(this)">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                        <div class="rating-row grid grid-cols-12 gap-4 items-center" data-rating-index="5">
+                            <div class="col-span-10">
+                                <input type="text" name="rating_5" value="Exceeds Mastery" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Rating name">
+                            </div>
+                            <div class="col-span-1 text-center">
+                                <input type="number" name="points_5" value="4" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-center" placeholder="Points">
+                            </div>
+                            <div class="col-span-1 text-center">
+                                <button type="button" class="delete-rating-btn text-gray-400 hover:text-red-600 transition-colors" onclick="removeRating(this)">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="rating-row grid grid-cols-12 gap-4 items-center" data-rating-index="4">
+                            <div class="col-span-10">
+                                <input type="text" name="rating_4" value="Mastery" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Rating name">
+                            </div>
+                            <div class="col-span-1 text-center">
+                                <input type="number" name="points_4" value="3" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-center" placeholder="Points">
+                            </div>
+                            <div class="col-span-1 text-center">
+                                <button type="button" class="delete-rating-btn text-gray-400 hover:text-red-600 transition-colors" onclick="removeRating(this)">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="rating-row grid grid-cols-12 gap-4 items-center" data-rating-index="3">
+                            <div class="col-span-10">
+                                <input type="text" name="rating_3" value="Near Mastery" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Rating name">
+                            </div>
+                            <div class="col-span-1 text-center">
+                                <input type="number" name="points_3" value="2" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-center" placeholder="Points">
+                            </div>
+                            <div class="col-span-1 text-center">
+                                <button type="button" class="delete-rating-btn text-gray-400 hover:text-red-600 transition-colors" onclick="removeRating(this)">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="rating-row grid grid-cols-12 gap-4 items-center" data-rating-index="2">
+                            <div class="col-span-10">
+                                <input type="text" name="rating_2" value="Below Mastery" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Rating name">
+                            </div>
+                            <div class="col-span-1 text-center">
+                                <input type="number" name="points_2" value="1" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-center" placeholder="Points">
+                            </div>
+                            <div class="col-span-1 text-center">
+                                <button type="button" class="delete-rating-btn text-gray-400 hover:text-red-600 transition-colors" onclick="removeRating(this)">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="rating-row grid grid-cols-12 gap-4 items-center" data-rating-index="1">
+                            <div class="col-span-10">
+                                <input type="text" name="rating_1" value="No Evidence" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Rating name">
+                            </div>
+                            <div class="col-span-1 text-center">
+                                <input type="number" name="points_1" value="0" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-center" placeholder="Points">
+                            </div>
+                            <div class="col-span-1 text-center">
+                                <button type="button" class="delete-rating-btn text-gray-400 hover:text-red-600 transition-colors" onclick="removeRating(this)">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Add rating button and Mastery at -->
+                    <div class="flex items-center mt-4">
+                        <button type="button" id="add-rating-btn" class="inline-flex items-center justify-center w-8 h-8 rounded-full text-white mr-4 transition-colors" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'" onclick="addNewRating()">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                            </svg>
+                        </button>
+                        <span class="text-gray-700 mr-2">Mastery at</span>
+                        <input type="number" name="mastery_points" value="{% if edit_mode %}{{ outcome.mastery_points }}{% else %}3{% endif %}" class="w-16 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-center mr-2">
+                        <span class="text-gray-700">points</span>
+                    </div>
+                </div>
+                
+                <!-- Calculation method -->
+                <div class="mb-6 grid grid-cols-2 gap-6">
+                    <div>
+                        <label for="calculation_method" class="block text-sm font-medium text-gray-700 mb-1">Calculation method</label>
+                        <select name="calculation_method" id="calculation_method" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" onchange="handleCalculationMethodChange()">
+                            <option value="weighted_average" {% if edit_mode and outcome.calculation_method == 'weighted_average' %}selected{% endif %}>Weighted Average</option>
+                            <option value="decaying_average" {% if edit_mode and outcome.calculation_method == 'decaying_average' %}selected{% endif %}>Decaying Average</option>
+                            <option value="n_times" {% if edit_mode and outcome.calculation_method == 'n_times' %}selected{% endif %}>n Number of Times</option>
+                            <option value="most_recent" {% if edit_mode and outcome.calculation_method == 'most_recent' %}selected{% endif %}>Most Recent Score</option>
+                            <option value="highest" {% if edit_mode and outcome.calculation_method == 'highest' %}selected{% endif %}>Highest score</option>
+                            <option value="average" {% if edit_mode and outcome.calculation_method == 'average' %}selected{% endif %}>Average</option>
+                            <option value="no_point" {% if edit_mode and outcome.calculation_method == 'no_point' %}selected{% endif %}>No Point</option>
+                        </select>
+                    </div>
+                    <div id="weighting_container">
+                        <label for="weighting" class="block text-sm font-medium text-gray-700 mb-1">% weighting for last item <span class="text-xs text-gray-500">(must be between 1 and 99)</span></label>
+                        <input type="number" name="weighting" id="weighting" min="1" max="99" value="{% if edit_mode and outcome.calculation_method in 'weighted_average,decaying_average' %}{{ outcome.last_item_weight }}{% else %}65{% endif %}" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div id="n_times_container" class="hidden">
+                        <label for="times_to_achieve" class="block text-sm font-medium text-gray-700 mb-1"># of times <span class="text-xs text-gray-500">(must be between 1 and 10)</span></label>
+                        <input type="number" name="times_to_achieve" id="times_to_achieve" min="1" max="10" value="{% if edit_mode and outcome.calculation_method == 'n_times' %}{{ outcome.times_to_achieve }}{% else %}5{% endif %}" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                </div>
+                
+                <!-- Example section -->
+                <div class="mb-6 bg-gray-50 p-4 rounded-md">
+                    <h3 class="text-sm font-medium text-gray-700 mb-2">Example</h3>
+                    <div id="weighted_average_example">
+                        <p class="text-sm text-gray-600 mb-2"><strong>Weighted Average:</strong> Most recent result gets 65% weight, average of all other results gets 35% weight. Emphasizes recent performance while considering historical data.</p>
+                        <p class="text-sm text-gray-600 mb-1"><strong>Example:</strong> Student Scores: [2.0, 3.0, 4.0]</p>
+                        <p class="text-sm text-gray-600 mb-1">Calculation: Latest (4.0) × 0.65 + Average of others (2.5) × 0.35</p>
+                        <p class="text-sm text-gray-600">Final Score: <span class="font-semibold">3.5</span> (4.0 × 0.65 + 2.5 × 0.35)</p>
+                    </div>
+                    <div id="decaying_average_example" class="hidden">
+                        <p class="text-sm text-gray-600 mb-2"><strong>Decaying Average:</strong> Exponential decay where each older assessment gets progressively less weight. Recent performance has exponentially more influence.</p>
+                        <p class="text-sm text-gray-600 mb-1"><strong>Example:</strong> Student Scores: [2.0, 3.0, 4.0] with 65% decay factor</p>
+                        <p class="text-sm text-gray-600 mb-1">Calculation: 4.0×1.0 + 3.0×0.65 + 2.0×0.65²</p>
+                        <p class="text-sm text-gray-600">Final Score: <span class="font-semibold">3.6</span> (4.0 + 1.95 + 0.845 ÷ 2.795)</p>
+                    </div>
+                    <div id="n_times_example" class="hidden">
+                        <p class="text-sm text-gray-600 mb-2"><strong>n Number of Times:</strong> Student must achieve mastery (≥3.0 points) at least 5 times. Only scores meeting mastery are counted in the average.</p>
+                        <p class="text-sm text-gray-600 mb-1"><strong>Example:</strong> Student Scores: [2.0, 3.5, 2.5, 4.0, 3.5, 3.2, 2.8] (Mastery = 3.0)</p>
+                        <p class="text-sm text-gray-600 mb-1">Mastery scores: [3.5, 4.0, 3.5, 3.2] = 4 times ≥ 3.0</p>
+                        <p class="text-sm text-gray-600">Result: <span class="font-semibold">Not Achieved</span> (need 5 times, only achieved 4)</p>
+                    </div>
+                    <div id="most_recent_example" class="hidden">
+                        <p class="text-sm text-gray-600 mb-2"><strong>Most Recent Score:</strong> Only the latest assessment result counts. Reflects current performance level.</p>
+                        <p class="text-sm text-gray-600 mb-1"><strong>Example:</strong> Student Scores: [2.0, 3.0, 4.0]</p>
+                        <p class="text-sm text-gray-600">Final Score: <span class="font-semibold">4.0</span> (most recent)</p>
+                    </div>
+                    <div id="highest_example" class="hidden">
+                        <p class="text-sm text-gray-600 mb-2"><strong>Highest Score:</strong> Best performance achieved across all assessments. Shows peak capability.</p>
+                        <p class="text-sm text-gray-600 mb-1"><strong>Example:</strong> Student Scores: [2.0, 4.0, 3.0, 2.5]</p>
+                        <p class="text-sm text-gray-600">Final Score: <span class="font-semibold">4.0</span> (highest achieved)</p>
+                    </div>
+                    <div id="average_example" class="hidden">
+                        <p class="text-sm text-gray-600 mb-2"><strong>Simple Average:</strong> Sum of all scores divided by count. Equal weight to all attempts.</p>
+                        <div class="bg-amber-50 border border-amber-200 rounded p-2 mb-2">
+                            <p class="text-xs text-amber-800"><strong>⚠️ Warning:</strong> May penalize students with early poor performance. Not recommended for mastery-based learning.</p>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-1"><strong>Example:</strong> Student Scores: [2.0, 3.0, 4.0]</p>
+                        <p class="text-sm text-gray-600">Final Score: <span class="font-semibold">3.0</span> ((2.0 + 3.0 + 4.0) ÷ 3)</p>
+                    </div>
+                    <div id="no_point_example" class="hidden">
+                        <p class="text-sm text-gray-600 mb-2"><strong>No Point (Binary):</strong> Use this when you are using criteria against Met or Not Met/Refer</p>
+                        <p class="text-sm text-gray-600">We recommend using this measure when there are no specific grade descriptors (e.g. Pass, Merit or Distinction)</p>
+                    </div>
+                </div>
+                
+                <!-- Location -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-3">Location</label>
+                    <div class="bg-gray-50 border border-gray-300 rounded-lg">
+                        <div class="p-3 flex items-center border-b border-gray-300">
+                            <button type="button" class="flex items-center text-gray-700 hover:text-gray-900" onclick="window.location.href='{% url 'lms_outcomes:manage' %}'">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-1">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                                </svg>
+                                Back
+                            </button>
+                        </div>
+                        
+                        {% if group_hierarchy %}
+                        <div class="p-3 bg-gray-200 text-gray-700 border-b border-gray-300">
+                            <div class="flex items-center">
+                                <span class="font-medium">Group Path:</span>
+                                {% for group in group_hierarchy %}
+                                    {% if not forloop.last %}
+                                    <span class="mx-1">{{ group.name }}</span>
+                                    <span class="mx-1">/</span>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="p-3 {% if selected_group or outcome.group %}bg-gray-700 text-white{% else %}bg-gray-100 text-gray-500{% endif %}">
+                            <div class="flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                {% if selected_group %}
+                                    {{ selected_group.name }}
+                                {% elif outcome.group %}
+                                    {{ outcome.group.name }}
+                                {% else %}
+                                    No group selected
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="p-3 border-t border-gray-300">
+                            <button type="button" class="flex items-center text-blue-600 hover:text-blue-800" onclick="openCreateGroupModal()">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-1">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                </svg>
+                                Create new group
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Hidden group field -->
+                    <input type="hidden" name="group" id="group" value="{% if selected_group %}{{ selected_group.id }}{% elif outcome.group %}{{ outcome.group.id }}{% elif groups and groups|length > 0 %}{{ groups.0.id }}{% endif %}">
+                </div>
+                
+                <!-- Group Creation Modal -->
+                <div id="createGroupModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+                    <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-medium text-gray-900">Create New Group</h3>
+                            <button type="button" onclick="closeCreateGroupModal()" class="text-gray-400 hover:text-gray-500">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label for="new_group_name" class="block text-sm font-medium text-gray-700 mb-1">Group Name</label>
+                                <input type="text" id="new_group_name" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
+                            
+                            <div>
+                                <label for="new_group_parent" class="block text-sm font-medium text-gray-700 mb-1">Parent Group (Optional)</label>
+                                <select id="new_group_parent" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                    <option value="">No Parent</option>
+                                    {% for group in groups %}
+                                    <option value="{{ group.id }}" {% if selected_group and selected_group.id == group.id %}selected{% endif %}>{{ group.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-6 flex justify-end space-x-3">
+                            <button type="button" onclick="closeCreateGroupModal()" class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                                Cancel
+                            </button>
+                            <button type="button" onclick="createNewGroup()" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                                Create
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-between pt-4 border-t border-gray-200">
+                    <a href="{% url 'lms_outcomes:manage' %}" class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                        Cancel
+                    </a>
+                    <div class="flex space-x-3">
+                        {% if not edit_mode %}
+                        <button type="submit" name="action" value="create_and_add_new" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700">
+                            Create and Add New
+                        </button>
+                        {% endif %}
+                        <button type="submit" name="action" value="create" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                            {% if edit_mode %}Update{% else %}Create{% endif %}
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Store original ratings for restoration
+    storeOriginalRatings();
+    
+    // Initialize calculation method change handler
+    handleCalculationMethodChange();
+    
+    // Initialize form submission handler
+    initializeFormSubmission();
+});
+
+
+
+// Calculation Method Change Handler
+function handleCalculationMethodChange() {
+    const selectElement = document.getElementById('calculation_method');
+    const weightingContainer = document.getElementById('weighting_container');
+    const nTimesContainer = document.getElementById('n_times_container');
+    const selectedValue = selectElement.value;
+    
+    // If switching away from no_point back to other methods, restore original ratings
+    if (lastCalculationMethod === 'no_point' && selectedValue !== 'no_point') {
+        restoreOriginalRatings();
+    }
+    // If switching to no_point from other methods, store current ratings first
+    else if (lastCalculationMethod !== 'no_point' && selectedValue === 'no_point') {
+        storeCurrentRatings();
+    }
+    
+    // Update last calculation method
+    lastCalculationMethod = selectedValue;
+    
+    // Hide all example sections first
+    const exampleSections = [
+        'weighted_average_example',
+        'decaying_average_example', 
+        'n_times_example',
+        'most_recent_example',
+        'highest_example',
+        'average_example',
+        'no_point_example'
+    ];
+    
+    exampleSections.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.classList.add('hidden');
+        }
+    });
+    
+    // Handle mastery points field visibility
+    const masteryPointsContainer = document.querySelector('.flex.items-center.mt-4');
+    const masteryPointsInput = document.querySelector('input[name="mastery_points"]');
+    const addRatingButton = document.getElementById('add-rating-btn');
+    
+    // Show appropriate containers and examples based on selected method
+    if (selectedValue === 'weighted_average' || selectedValue === 'decaying_average') {
+        weightingContainer.classList.remove('hidden');
+        nTimesContainer.classList.add('hidden');
+        if (masteryPointsContainer) masteryPointsContainer.style.display = 'flex';
+        if (addRatingButton) {
+            addRatingButton.disabled = false;
+            addRatingButton.classList.remove('opacity-50', 'cursor-not-allowed');
+            addRatingButton.classList.add('hover:bg-blue-700');
+        }
+        
+        const exampleId = selectedValue + '_example';
+        const exampleElement = document.getElementById(exampleId);
+        if (exampleElement) {
+            exampleElement.classList.remove('hidden');
+        }
+    } else if (selectedValue === 'n_times') {
+        weightingContainer.classList.add('hidden');
+        nTimesContainer.classList.remove('hidden');
+        if (masteryPointsContainer) masteryPointsContainer.style.display = 'flex';
+        if (addRatingButton) {
+            addRatingButton.disabled = false;
+            addRatingButton.classList.remove('opacity-50', 'cursor-not-allowed');
+            addRatingButton.classList.add('hover:bg-blue-700');
+        }
+        
+        const exampleElement = document.getElementById('n_times_example');
+        if (exampleElement) {
+            exampleElement.classList.remove('hidden');
+        }
+    } else if (selectedValue === 'no_point') {
+        weightingContainer.classList.add('hidden');
+        nTimesContainer.classList.add('hidden');
+        if (masteryPointsContainer) masteryPointsContainer.style.display = 'none';
+        
+        // Disable add rating button for no_point method
+        if (addRatingButton) {
+            addRatingButton.disabled = true;
+            addRatingButton.classList.add('opacity-50', 'cursor-not-allowed');
+            addRatingButton.classList.remove('hover:bg-blue-700');
+        }
+        
+        // Update proficiency ratings to only "Met" and "Not met"
+        updateProficiencyRatingsForNoPoint();
+        
+        const exampleElement = document.getElementById('no_point_example');
+        if (exampleElement) {
+            exampleElement.classList.remove('hidden');
+        }
+    } else {
+        weightingContainer.classList.add('hidden');
+        nTimesContainer.classList.add('hidden');
+        if (masteryPointsContainer) masteryPointsContainer.style.display = 'flex';
+        if (addRatingButton) {
+            addRatingButton.disabled = false;
+            addRatingButton.classList.remove('opacity-50', 'cursor-not-allowed');
+            addRatingButton.classList.add('hover:bg-blue-700');
+        }
+        
+        const exampleId = selectedValue + '_example';
+        const exampleElement = document.getElementById(exampleId);
+        if (exampleElement) {
+            exampleElement.classList.remove('hidden');
+        }
+    }
+}
+
+// Function to update proficiency ratings for no_point method
+function updateProficiencyRatingsForNoPoint() {
+    const container = document.getElementById('proficiency-ratings');
+    if (!container) return;
+    
+    // Clear existing ratings
+    container.innerHTML = '';
+    
+    // Add "Met" rating
+    const metRatingHtml = `
+        <div class="rating-row grid grid-cols-12 gap-4 items-center" data-rating-index="1">
+            <div class="col-span-10">
+                <input type="text" name="rating_1" value="Met" 
+                       class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" 
+                       placeholder="Rating name" readonly>
+            </div>
+            <div class="col-span-1 text-center">
+                <input type="number" name="points_1" value="1" 
+                       class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-center" 
+                       placeholder="Points" readonly>
+            </div>
+            <div class="col-span-1 text-center">
+                <button type="button" class="delete-rating-btn text-gray-300 cursor-not-allowed" disabled onclick="removeRating(this)">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 713.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    `;
+    
+    // Add "Not met" rating
+    const notMetRatingHtml = `
+        <div class="rating-row grid grid-cols-12 gap-4 items-center" data-rating-index="2">
+            <div class="col-span-10">
+                <input type="text" name="rating_2" value="Not met" 
+                       class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" 
+                       placeholder="Rating name" readonly>
+            </div>
+            <div class="col-span-1 text-center">
+                <input type="number" name="points_2" value="0" 
+                       class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-center" 
+                       placeholder="Points" readonly>
+            </div>
+            <div class="col-span-1 text-center">
+                <button type="button" class="delete-rating-btn text-gray-300 cursor-not-allowed" disabled onclick="removeRating(this)">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 713.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = metRatingHtml + notMetRatingHtml;
+    
+    // Don't reset rating counter - it will be restored when switching back
+}
+
+// Proficiency Rating Management
+let ratingCounter = 5; // Start from 5 as default ratings go from 5 to 1
+let originalRatings = []; // Store original ratings for restoration
+let lastCalculationMethod = ''; // Track last calculation method
+
+// Store original ratings on page load
+function storeOriginalRatings() {
+    const container = document.getElementById('proficiency-ratings');
+    const ratingRows = container.querySelectorAll('.rating-row');
+    originalRatings = [];
+    
+    ratingRows.forEach((row, index) => {
+        const nameInput = row.querySelector('input[name^="rating_"]');
+        const pointsInput = row.querySelector('input[name^="points_"]');
+        
+        if (nameInput && pointsInput) {
+            const rating = {
+                name: nameInput.value,
+                points: pointsInput.value,
+                index: parseInt(nameInput.name.replace('rating_', ''))
+            };
+            originalRatings.push(rating);
+        }
+    });
+    
+    // Update rating counter based on highest index
+    if (originalRatings.length > 0) {
+        ratingCounter = Math.max(...originalRatings.map(r => r.index));
+    }
+    
+    // Set initial calculation method
+    const selectElement = document.getElementById('calculation_method');
+    if (selectElement) {
+        lastCalculationMethod = selectElement.value;
+    }
+}
+
+// Store current ratings (before switching to no_point)
+function storeCurrentRatings() {
+    const container = document.getElementById('proficiency-ratings');
+    const ratingRows = container.querySelectorAll('.rating-row');
+    originalRatings = [];
+    
+    ratingRows.forEach((row, index) => {
+        const nameInput = row.querySelector('input[name^="rating_"]');
+        const pointsInput = row.querySelector('input[name^="points_"]');
+        
+        if (nameInput && pointsInput && nameInput.value.trim() && pointsInput.value.trim()) {
+            const rating = {
+                name: nameInput.value,
+                points: pointsInput.value,
+                index: parseInt(nameInput.name.replace('rating_', ''))
+            };
+            originalRatings.push(rating);
+        }
+    });
+    
+    // Update rating counter based on highest index
+    if (originalRatings.length > 0) {
+        ratingCounter = Math.max(...originalRatings.map(r => r.index));
+    }
+}
+
+// Restore original ratings
+function restoreOriginalRatings() {
+    const container = document.getElementById('proficiency-ratings');
+    if (!container || originalRatings.length === 0) return;
+    
+    container.innerHTML = '';
+    
+    originalRatings.forEach(rating => {
+        const ratingHtml = `
+            <div class="rating-row grid grid-cols-12 gap-4 items-center" data-rating-index="${rating.index}">
+                <div class="col-span-10">
+                    <input type="text" name="rating_${rating.index}" value="${rating.name}" 
+                           class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" 
+                           placeholder="Rating name">
+                </div>
+                <div class="col-span-1 text-center">
+                    <input type="number" name="points_${rating.index}" value="${rating.points}" 
+                           class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-center" 
+                           placeholder="Points">
+                </div>
+                <div class="col-span-1 text-center">
+                    <button type="button" class="delete-rating-btn text-gray-400 hover:text-red-600 transition-colors" onclick="removeRating(this)">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 713.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', ratingHtml);
+    });
+    
+    // Restore rating counter
+    if (originalRatings.length > 0) {
+        ratingCounter = Math.max(...originalRatings.map(r => r.index));
+    }
+}
+
+function addNewRating() {
+    // Prevent adding ratings when using no_point method
+    const calculationMethod = document.getElementById('calculation_method').value;
+    if (calculationMethod === 'no_point') {
+        alert('Cannot add ratings for "No Point" calculation method. Only "Met" and "Not met" are allowed.');
+        return;
+    }
+    
+    // Find the highest existing rating number to ensure unique numbering
+    const container = document.getElementById('proficiency-ratings');
+    const existingRatings = container.querySelectorAll('input[name^="rating_"]');
+    let maxRatingNumber = 0;
+    
+    existingRatings.forEach(input => {
+        const ratingNumber = parseInt(input.name.replace('rating_', ''));
+        if (ratingNumber > maxRatingNumber) {
+            maxRatingNumber = ratingNumber;
+        }
+    });
+    
+    ratingCounter = maxRatingNumber + 1;
+    
+    const newRatingHtml = `
+        <div class="rating-row grid grid-cols-12 gap-4 items-center" data-rating-index="${ratingCounter}">
+            <div class="col-span-10">
+                <input type="text" name="rating_${ratingCounter}" value="" 
+                       class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" 
+                       placeholder="Rating name">
+            </div>
+            <div class="col-span-1 text-center">
+                <input type="number" name="points_${ratingCounter}" value="" 
+                       class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-center" 
+                       placeholder="Points">
+            </div>
+            <div class="col-span-1 text-center">
+                <button type="button" class="delete-rating-btn text-gray-400 hover:text-red-600 transition-colors" onclick="removeRating(this)">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 713.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    `;
+    
+    container.insertAdjacentHTML('beforeend', newRatingHtml);
+    
+    // Focus on the new rating name input
+    const newRatingInputs = container.querySelectorAll(`input[name="rating_${ratingCounter}"]`);
+    if (newRatingInputs.length > 0) {
+        newRatingInputs[0].focus();
+    }
+}
+
+function removeRating(button) {
+    // Prevent removing ratings when using no_point method
+    const calculationMethod = document.getElementById('calculation_method').value;
+    if (calculationMethod === 'no_point') {
+        alert('Cannot remove ratings for "No Point" calculation method. Only "Met" and "Not met" are allowed.');
+        return;
+    }
+    
+    const ratingRow = button.closest('.rating-row');
+    const container = document.getElementById('proficiency-ratings');
+    const allRatings = container.querySelectorAll('.rating-row');
+    
+    // Prevent removing if only one rating remains
+    if (allRatings.length <= 1) {
+        alert('You must have at least one proficiency rating.');
+        return;
+    }
+    
+    // Add removing animation
+    ratingRow.classList.add('removing');
+    
+    // Remove after animation
+    setTimeout(() => {
+        ratingRow.remove();
+    }, 300);
+}
+
+// Form Submission Handler
+function initializeFormSubmission() {
+    const form = document.getElementById('create-outcome-form');
+    form.addEventListener('submit', function(e) {
+        // Basic validation
+        const title = document.getElementById('title').value.trim();
+        if (!title) {
+            e.preventDefault();
+            alert('Please enter a title for the outcome.');
+            return false;
+        }
+        
+        // Validate proficiency ratings
+        const ratings = document.querySelectorAll('.rating-row');
+        let hasValidRating = false;
+        
+        ratings.forEach(rating => {
+            const nameInput = rating.querySelector('input[name^="rating_"]');
+            const pointsInput = rating.querySelector('input[name^="points_"]');
+            
+            if (nameInput && nameInput.value.trim() && pointsInput && pointsInput.value.trim()) {
+                hasValidRating = true;
+            }
+        });
+        
+        if (!hasValidRating) {
+            e.preventDefault();
+            alert('Please enter at least one complete proficiency rating (name and points).');
+            return false;
+        }
+    });
+}
+
+// Group Creation Modal Functions
+function openCreateGroupModal() {
+    const modal = document.getElementById('createGroupModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        document.getElementById('new_group_name').focus();
+    }
+}
+
+function closeCreateGroupModal() {
+    const modal = document.getElementById('createGroupModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        document.getElementById('new_group_name').value = '';
+    }
+}
+
+function createNewGroup() {
+    const name = document.getElementById('new_group_name').value.trim();
+    const parentId = document.getElementById('new_group_parent').value;
+    
+    if (!name) {
+        alert('Please enter a group name.');
+        return;
+    }
+    
+    // Here you would typically make an AJAX call to create the group
+    // For now, just close the modal
+    closeCreateGroupModal();
+    alert('Group creation functionality needs to be implemented in the backend.');
+}
+
+// Close modal when clicking outside
+document.addEventListener('click', function(e) {
+    const modal = document.getElementById('createGroupModal');
+    if (modal && e.target === modal) {
+        closeCreateGroupModal();
+    }
+});
+</script>
+{% endblock %} 

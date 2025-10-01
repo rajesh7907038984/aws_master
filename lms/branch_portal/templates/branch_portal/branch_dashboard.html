@@ -1,0 +1,689 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load branch_portal_tags %}
+
+{% block title %}Branch Dashboard{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" type="text/css" href="{% static 'css/dashboard-shared.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="flex-1 overflow-x-hidden overflow-y-auto bg-white">
+    <!-- Loading overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-white bg-opacity-75 z-50 hidden">
+        <div class="flex items-center justify-center h-full">
+            <div class="text-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                <p class="mt-4 text-gray-600">Loading dashboard...</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="p-6 space-y-6 bg-white">
+        <!-- Breadcrumb -->
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+        <!-- Main Content -->
+        <div class="container mx-auto">
+            <!-- Page Title -->
+            <div class="mb-6 flex justify-between items-center">
+                <div>
+                    <h1 class="dashboard-page-title">
+                        {% if showing_all_branches %}
+                            All Branch Portals
+                        {% elif showing_business_filter %}
+                            Business Branch Portals
+                        {% else %}
+                            Branch Dashboard
+                        {% endif %}
+                    </h1>
+                    {% if request.user.role == 'globaladmin' or request.user.is_superuser %}
+                        {% if showing_all_branches %}
+                        <p class="mt-1 text-sm text-gray-600">
+                            <i class="fas fa-globe mr-1"></i> 
+                            Viewing all {{ branch_stats|length }} branch portal{{ branch_stats|length|pluralize }} system-wide
+                        </p>
+                        {% elif showing_business_filter %}
+                        <p class="mt-1 text-sm text-gray-600">
+                            <i class="fas fa-building mr-1"></i> 
+                            Viewing {{ branch_stats|length }} branch portal{{ branch_stats|length|pluralize }} for selected business
+                            {% if selected_business_id %}
+                                {% for business in all_businesses %}
+                                    {% if business.id|stringformat:"s" == selected_business_id %}
+                                        ({{ business.name }})
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                        </p>
+                        {% else %}
+                        <p class="mt-1 text-sm text-gray-600">
+                            <i class="fas fa-filter mr-1"></i> 
+                            Filtered view - showing specific branch portal
+                        </p>
+                        {% endif %}
+                    {% elif request.user.role == 'superadmin' %}
+                    <p class="mt-1 text-sm text-gray-600">
+                        <i class="fas fa-info-circle mr-1"></i> 
+                        Showing branches from your assigned businesses only
+                    </p>
+                    {% endif %}
+                </div>
+                
+                <div class="flex space-x-4">
+                    {% if request.user.role == 'globaladmin' or request.user.is_superuser %}
+                        <!-- Global admin can see orders button for all branches -->
+                        <a href="{% url 'branch_portal:branch_orders' %}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#050c50] hover:bg-[#02071e]">
+                            <i class="fas fa-shopping-bag mr-2"></i> Manage Orders
+                        </a>
+                    {% elif branch_stats %}
+                        <!-- For other users, check if any branch has order management enabled -->
+                        {% for stats in branch_stats %}
+                            {% if stats.order_management_enabled %}
+                                <a href="{% url 'branch_portal:branch_orders' %}" class="manage-orders-btn inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#050c50] hover:bg-[#02071e]">
+                                    <i class="fas fa-shopping-bag mr-2"></i> Manage Orders
+                                </a>
+                            {% endif %}
+                        {% endfor %}
+                        <!-- CSS to show only the first manage orders button -->
+                        <style>
+                            .manage-orders-btn:not(:first-of-type) {
+                                display: none !important;
+                            }
+                        </style>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Business and Branch Filters (for Global Admin and Super Admin) -->
+            {% if request.user.role == 'globaladmin' or request.user.is_superuser or request.user.role == 'superadmin' %}
+            <div class="mb-6 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Business Filter (Global Admin Only) -->
+                    {% if all_businesses and request.user.role == 'globaladmin' or request.user.is_superuser %}
+                    <div>
+                        <div class="flex items-center mb-2">
+                            <i class="fas fa-building text-gray-500 mr-2"></i>
+                            <label for="business-filter" class="text-sm font-medium text-gray-700">Filter by Business:</label>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <select id="business-filter" onchange="filterByBusiness()" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                <option value="">All Businesses ({{ all_businesses|length }})</option>
+                                {% for business in all_businesses %}
+                                <option value="{{ business.id }}" {% if selected_business_id == business.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ business.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            {% if selected_business_id %}
+                            <a href="{% url 'branch_portal:branch_dashboard' %}" class="inline-flex items-center px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                                <i class="fas fa-times"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Branch Filter -->
+                    {% if all_branches and all_branches|length > 1 %}
+                    <div>
+                        <div class="flex items-center mb-2">
+                            <i class="fas fa-code-branch text-gray-500 mr-2"></i>
+                            <label for="branch-filter" class="text-sm font-medium text-gray-700">Filter by Branch:</label>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <select id="branch-filter" onchange="filterByBranch()" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                <option value="">
+                                    {% if request.user.role == 'globaladmin' or request.user.is_superuser %}
+                                        All Branches ({{ all_branches|length }})
+                                    {% else %}
+                                        All Available Branches ({{ all_branches|length }})
+                                    {% endif %}
+                                </option>
+                                {% for branch in all_branches %}
+                                <option value="{{ branch.id }}" {% if selected_branch_id == branch.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ branch.name }}{% if branch.business %} - {{ branch.business.name }}{% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            {% if selected_branch_id %}
+                            <a href="{% url 'branch_portal:branch_dashboard' %}{% if selected_business_id %}?business={{ selected_business_id }}{% endif %}" class="inline-flex items-center px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                                <i class="fas fa-times"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Clear All Filters -->
+                {% if selected_business_id or selected_branch_id %}
+                <div class="mt-4 pt-4 border-t border-gray-200">
+                    <a href="{% url 'branch_portal:branch_dashboard' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                        <i class="fas fa-refresh mr-2"></i> Clear All Filters
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Branch Statistics -->
+            {% for stats in branch_stats %}
+            <div class="bg-white shadow-sm rounded-lg overflow-hidden border border-gray-200 mb-8">
+                <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                    <div>
+                        <h2 class="dashboard-section-header">{{ stats.branch.name }}</h2>
+                        {% if request.user.role == 'superadmin' and stats.branch.business %}
+                        <p class="text-sm text-gray-500">
+                            <i class="fas fa-building mr-1"></i> {{ stats.branch.business.name }}
+                        </p>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="flex space-x-2">
+                        {% if stats.portal_url %}
+                        <a href="{{ stats.portal_url }}" target="_blank" class="inline-flex items-center px-3 py-1 border border-transparent rounded-md text-sm font-medium text-white bg-[#050c50] hover:bg-[#02071e]">
+                            <i class="fas fa-external-link-alt mr-1"></i> View Portal
+                        </a>
+                        {% endif %}
+                        
+                        <!-- Branch Management Actions -->
+                        {% if request.user.role == 'globaladmin' or request.user.is_superuser or request.user.role == 'superadmin' %}
+                        <div class="flex items-center space-x-2">
+                            <!-- Edit Branch Button -->
+                            <button onclick="editBranch({{ stats.branch.id }}, '{{ stats.branch.name }}', '{{ stats.branch.description|default:'' }}', {{ stats.branch.sharepoint_integration_enabled|yesno:'true,false' }}, {{ stats.branch.order_management_enabled|yesno:'true,false' }})"
+                                    class="inline-flex items-center px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 bg-white hover:bg-gray-50"
+                                    title="Edit Branch">
+                                <i class="fas fa-edit w-3 h-3"></i>
+                            </button>
+                            
+                            <!-- Delete Branch Button -->
+                            {% if stats.user_stats.total_users == 0 %}
+                            <button onclick="confirmDeleteBranch({{ stats.branch.id }}, '{{ stats.branch.name }}')"
+                                    class="inline-flex items-center px-2 py-1 border border-red-300 rounded text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100"
+                                    title="Delete Branch">
+                                <i class="fas fa-trash w-3 h-3"></i>
+                            </button>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-400 bg-gray-50"
+                                  title="Cannot delete branch with active users ({{ stats.user_stats.total_users }} users)">
+                                <i class="fas fa-lock w-3 h-3"></i>
+                            </span>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="p-6">
+                    <!-- Portal Status -->
+                    <div class="mb-8">
+                        <h3 class="dashboard-subsection-header">Portal Information</h3>
+                        
+                        {% if stats.portal %}
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                                <div class="bg-gray-50 p-4 rounded-lg">
+                                    <div class="flex items-center">
+                                        {% if stats.portal.logo %}
+                                            <img src="{{ stats.portal.logo.url }}" alt="{{ stats.portal.business_name }}" class="h-10 w-10 object-contain bg-white rounded mr-3">
+                                        {% else %}
+                                            <div class="h-10 w-10 rounded bg-gray-200 flex items-center justify-center text-gray-500 mr-3">
+                                                <i class="fas fa-building"></i>
+                                            </div>
+                                        {% endif %}
+                                        <div>
+                                            <h4 class="font-medium">{{ stats.portal.business_name }}</h4>
+                                            <p class="text-sm text-gray-500">Last updated: {{ stats.portal.updated_at|date:"M d, Y" }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="bg-gray-50 p-4 rounded-lg">
+                                    <dl class="grid grid-cols-2 gap-x-4 gap-y-2">
+                                        <div class="col-span-1">
+                                            <dt class="text-sm font-medium text-gray-500">Status</dt>
+                                            <dd class="mt-1 text-sm text-gray-900">
+                                                {% if stats.portal.is_active %}
+                                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Active</span>
+                                                {% else %}
+                                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Inactive</span>
+                                                {% endif %}
+                                            </dd>
+                                        </div>
+                                        <div class="col-span-1">
+                                            <dt class="text-sm font-medium text-gray-500">URL Slug</dt>
+                                            <dd class="mt-1 text-sm text-gray-900">{{ stats.portal.slug }}</dd>
+                                        </div>
+                                    </dl>
+                                </div>
+                            </div>
+                            
+                            {% if request.user.role == 'superadmin' or request.user.role == 'globaladmin' or request.user.is_superuser %}
+                            <div class="mt-4">
+                                <a href="{% url 'branch_portal:manage_portal_for_branch' stats.branch.id %}" class="text-sm font-medium text-indigo-600 hover:text-indigo-900">
+                                    <i class="fas fa-cog mr-1"></i> Manage Portal Settings
+                                </a>
+                            </div>
+                            {% endif %}
+                        {% else %}
+                            <div class="bg-yellow-50 p-4 rounded-lg">
+                                <div class="flex">
+                                    <div class="flex-shrink-0">
+                                        <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+                                    </div>
+                                    <div class="ml-3">
+                                        <h3 class="text-sm font-medium text-yellow-800">Portal Not Configured</h3>
+                                        <div class="mt-2 text-sm text-yellow-700">
+                                            {% if request.user.role == 'superadmin' or request.user.role == 'globaladmin' or request.user.is_superuser %}
+                                                <p>You haven't set up your branch portal yet.</p>
+                                            {% else %}
+                                                <p>The branch portal has not been configured yet. Contact your Super Admin to set up the portal.</p>
+                                            {% endif %}
+                                        </div>
+                                        {% if request.user.role == 'superadmin' or request.user.role == 'globaladmin' or request.user.is_superuser %}
+                                        <div class="mt-4">
+                                            <a href="{% url 'branch_portal:manage_portal_for_branch' stats.branch.id %}" class="text-sm font-medium text-yellow-800 hover:text-yellow-900">
+                                                <i class="fas fa-plus-circle mr-1"></i> Set Up Portal Now
+                                            </a>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Statistics Cards -->
+                    {% if stats.order_management_enabled %}
+                    <div>
+                        <h3 class="dashboard-subsection-header">Branch Statistics</h3>
+                        
+                        <div class="dashboard-grid dashboard-grid-overview">
+                            <!-- Orders Card -->
+                            <div class="dashboard-overview-card">
+                                <div class="dashboard-overview-icon">
+                                    <i class="fas fa-shopping-bag"></i>
+                                </div>
+                                <div class="dashboard-overview-content">
+                                    <div class="dashboard-overview-value">{{ stats.total_orders }}</div>
+                                    <div class="dashboard-overview-label">Total Orders</div>
+                                </div>
+                            </div>
+
+                            
+                            <!-- Courses Card -->
+                            <div class="dashboard-overview-card">
+                                <div class="dashboard-overview-icon">
+                                    <i class="fas fa-book"></i>
+                                </div>
+                                <div class="dashboard-overview-content">
+                                    <div class="dashboard-overview-value">{{ stats.total_courses }}</div>
+                                    <div class="dashboard-overview-label">Total Courses</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Users Card -->
+                            <div class="dashboard-overview-card">
+                                <div class="dashboard-overview-icon">
+                                    <i class="fas fa-users"></i>
+                                </div>
+                                <div class="dashboard-overview-content">
+                                    <div class="dashboard-overview-value">{{ stats.user_stats.total_users }}</div>
+                                    <div class="dashboard-overview-label">Total Users</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Delete Orders Modal - Only show if global admin or any branch has order management enabled -->
+{% if request.user.role == 'globaladmin' or request.user.is_superuser %}
+    <!-- Global admin can always see the modal -->
+    <div id="deleteOrdersModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3 text-center">
+                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                    <i class="fas fa-exclamation-triangle text-red-600"></i>
+                </div>
+                                        <h3 class="dashboard-subsection-header mt-5">Delete Pending Orders</h3>
+                <p class="mt-2 px-7 py-3 text-sm text-gray-500">
+                    Are you sure you want to delete all pending orders? This action cannot be undone.
+                </p>
+                <div class="items-center px-4 py-3">
+                    <form id="deleteOrdersForm" method="post" action="">
+                        {% csrf_token %}
+                        <button type="submit" class="px-4 py-2 bg-red-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300">
+                            Yes, Delete All Pending Orders
+                        </button>
+                    </form>
+                    <button onclick="hideDeleteOrdersModal()" class="mt-3 px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+{% else %}
+    <!-- For other users, check if any branch has order management enabled -->
+    <!-- Use JavaScript to determine if modal should be shown -->
+    <div id="deleteOrdersModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3 text-center">
+                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                    <i class="fas fa-exclamation-triangle text-red-600"></i>
+                </div>
+                                        <h3 class="dashboard-subsection-header mt-5">Delete Pending Orders</h3>
+                <p class="mt-2 px-7 py-3 text-sm text-gray-500">
+                    Are you sure you want to delete all pending orders? This action cannot be undone.
+                </p>
+                <div class="items-center px-4 py-3">
+                    <form id="deleteOrdersForm" method="post" action="">
+                        {% csrf_token %}
+                        <button type="submit" class="px-4 py-2 bg-red-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300">
+                            Yes, Delete All Pending Orders
+                        </button>
+                    </form>
+                    <button onclick="hideDeleteOrdersModal()" class="mt-3 px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Hide modal if no branches have order management enabled
+        document.addEventListener('DOMContentLoaded', function() {
+            var hasOrderManagement = false;
+            {% for stats in branch_stats %}
+                {% if stats.order_management_enabled %}
+                    hasOrderManagement = true;
+                {% endif %}
+            {% endfor %}
+            
+            if (!hasOrderManagement) {
+                var modal = document.getElementById('deleteOrdersModal');
+                if (modal) {
+                    modal.style.display = 'none';
+                }
+            }
+        });
+    </script>
+{% endif %}
+
+<!-- Delete Branch Confirmation Modal -->
+<div id="deleteBranchModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3 text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                <i class="fas fa-exclamation-triangle text-red-600"></i>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 mt-5">Delete Branch</h3>
+            <p class="mt-2 px-7 py-3 text-sm text-gray-500">
+                Are you sure you want to delete the branch "<span id="deleteBranchName"></span>"? This action cannot be undone.
+            </p>
+            <div class="items-center px-4 py-3">
+                <form id="deleteBranchForm" method="post" action="">
+                    {% csrf_token %}
+                    <button type="submit" class="px-4 py-2 bg-red-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300">
+                        Yes, Delete Branch
+                    </button>
+                </form>
+                <button onclick="hideDeleteBranchModal()" class="mt-3 px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Branch Modal -->
+<div id="editBranchModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Edit Branch</h3>
+            
+            <form id="editBranchForm" method="POST">
+                {% csrf_token %}
+                <div class="mb-4">
+                    <label for="edit_branch_name" class="block text-sm font-medium text-gray-700 mb-2">Branch Name</label>
+                    <input type="text" id="edit_branch_name" name="branch_name" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                
+                <div class="mb-4">
+                    <label for="edit_description" class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                    <textarea id="edit_description" name="description" rows="3"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="flex items-center">
+                        <input type="checkbox" id="edit_sharepoint_integration" name="sharepoint_integration_enabled"
+                               class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                        <span class="ml-2 text-sm text-gray-700">Enable SharePoint Integration</span>
+                    </label>
+                </div>
+                
+                <div class="mb-6">
+                    <label class="flex items-center">
+                        <input type="checkbox" id="edit_order_management" name="order_management_enabled"
+                               class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                        <span class="ml-2 text-sm text-gray-700">Enable Order Management</span>
+                    </label>
+                </div>
+                
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="hideEditBranchModal()" 
+                            class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                            class="px-4 py-2 text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        Update Branch
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Branch Management Functions
+function confirmDeleteBranch(branchId, branchName) {
+    const modal = document.getElementById('deleteBranchModal');
+    const form = document.getElementById('deleteBranchForm');
+    const nameSpan = document.getElementById('deleteBranchName');
+    
+    if (!modal || !form || !nameSpan) {
+        console.error('Delete branch modal elements not found');
+        return;
+    }
+    
+    // Set branch name in the confirmation message
+    nameSpan.textContent = branchName;
+    
+    // Set the form action URL to the branches app delete endpoint
+    form.action = `/branches/${branchId}/delete/`;
+    
+    // Show the modal
+    modal.classList.remove('hidden');
+}
+
+function hideDeleteBranchModal() {
+    const modal = document.getElementById('deleteBranchModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+function editBranch(branchId, name, description, sharepoint, orderManagement) {
+    const modal = document.getElementById('editBranchModal');
+    const form = document.getElementById('editBranchForm');
+    
+    if (!modal || !form) {
+        console.error('Edit branch modal elements not found');
+        return;
+    }
+    
+    // Populate form fields
+    document.getElementById('edit_branch_name').value = name;
+    document.getElementById('edit_description').value = description || '';
+    document.getElementById('edit_sharepoint_integration').checked = sharepoint;
+    document.getElementById('edit_order_management').checked = orderManagement;
+    
+    // Set the form action URL to the branches app edit endpoint
+    form.action = `/branches/${branchId}/edit/`;
+    
+    // Show the modal
+    modal.classList.remove('hidden');
+}
+
+function hideEditBranchModal() {
+    const modal = document.getElementById('editBranchModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+// Close modals when clicking outside or pressing Escape
+document.addEventListener('DOMContentLoaded', function() {
+    // Delete Branch Modal
+    const deleteBranchModal = document.getElementById('deleteBranchModal');
+    if (deleteBranchModal) {
+        deleteBranchModal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                hideDeleteBranchModal();
+            }
+        });
+    }
+    
+    // Edit Branch Modal  
+    const editBranchModal = document.getElementById('editBranchModal');
+    if (editBranchModal) {
+        editBranchModal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                hideEditBranchModal();
+            }
+        });
+    }
+    
+    // Escape key handler
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            hideDeleteBranchModal();
+            hideEditBranchModal();
+        }
+    });
+});
+
+function showDeleteOrdersModal(branchId) {
+    const modal = document.getElementById('deleteOrdersModal');
+    const form = document.getElementById('deleteOrdersForm');
+    
+    // Check if modal exists (order management might be disabled)
+    if (!modal || !form) {
+        console.log('Order management modal not available - order management may be disabled');
+        return;
+    }
+    
+    form.action = '{% url "branch_portal:delete_pending_orders" %}';
+    
+    // Add branch ID as hidden input
+    let branchInput = form.querySelector('input[name="branch_id"]');
+    if (!branchInput) {
+        branchInput = document.createElement('input');
+        branchInput.type = 'hidden';
+        branchInput.name = 'branch_id';
+        form.appendChild(branchInput);
+    }
+    branchInput.value = branchId;
+    
+    modal.classList.remove('hidden');
+}
+
+function hideDeleteOrdersModal() {
+    const modal = document.getElementById('deleteOrdersModal');
+    
+    // Check if modal exists (order management might be disabled)
+    if (!modal) {
+        return;
+    }
+    
+    modal.classList.add('hidden');
+}
+
+function showLoading() {
+    document.getElementById('loading-overlay').classList.remove('hidden');
+}
+
+function filterByBusiness() {
+    showLoading();
+    const businessSelect = document.getElementById('business-filter');
+    const businessId = businessSelect.value;
+    
+    if (businessId) {
+        // Redirect to business filtered view
+        window.location.href = '{% url "branch_portal:branch_dashboard" %}?business=' + businessId;
+    } else {
+        // Redirect to view all branches
+        window.location.href = '{% url "branch_portal:branch_dashboard" %}';
+    }
+}
+
+function filterByBranch() {
+    showLoading();
+    const branchSelect = document.getElementById('branch-filter');
+    const businessSelect = document.getElementById('business-filter');
+    const branchId = branchSelect.value;
+    const businessId = businessSelect ? businessSelect.value : '';
+    
+    let url = '{% url "branch_portal:branch_dashboard" %}';
+    const params = [];
+    
+    if (businessId) {
+        params.push('business=' + businessId);
+    }
+    
+    if (branchId) {
+        params.push('branch=' + branchId);
+    }
+    
+    if (params.length > 0) {
+        url += '?' + params.join('&');
+    }
+    
+    window.location.href = url;
+}
+
+// Add loading state to all filter actions
+document.addEventListener('DOMContentLoaded', function() {
+    // Add loading to clear filter links
+    const clearFilterLinks = document.querySelectorAll('a[href*="branch_dashboard"]');
+    clearFilterLinks.forEach(link => {
+        if (link.innerText.includes('Clear')) {
+            link.addEventListener('click', showLoading);
+        }
+    });
+});
+
+// Close modal when clicking outside
+const deleteOrdersModal = document.getElementById('deleteOrdersModal');
+if (deleteOrdersModal) {
+    deleteOrdersModal.addEventListener('click', function(e) {
+        if (e.target === this) {
+            hideDeleteOrdersModal();
+        }
+    });
+}
+</script>
+{% endblock %} 

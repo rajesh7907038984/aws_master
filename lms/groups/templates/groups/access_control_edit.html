@@ -1,0 +1,339 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Edit Access Control - LMS{% endblock %}
+
+{% block extra_css %}
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    /* Update Select2 styling */
+    .select2-container--default .select2-selection--multiple {
+        border-color: #e5e7eb;
+        border-radius: 0.375rem;
+        min-height: 42px;
+        padding: 4px;
+    }
+    
+    .select2-container--default .select2-selection--multiple .select2-selection__choice {
+        background-color: #f3f4f6;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.25rem;
+        padding: 2px 8px;
+        margin-top: 4px;
+        margin-right: 5px;
+        color: #4b5563;
+        font-size: 0.875rem;
+    }
+    
+    .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+        color: #9ca3af;
+        margin-right: 5px;
+    }
+    
+    .select2-container--default.select2-container--focus .select2-selection--multiple {
+        border-color: #93c5fd;
+        outline: 0;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+    }
+    
+    .select2-dropdown {
+        border-color: #e5e7eb;
+        border-radius: 0.375rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    
+    .select2-container--default .select2-results__option {
+        padding: 8px 12px;
+        font-size: 0.875rem;
+        color: #4b5563;
+    }
+    
+    .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        background-color: #3b82f6;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex-1 overflow-x-hidden overflow-y-auto bg-white">
+    <div class="p-6 space-y-6 bg-white">
+        <!-- Breadcrumb -->
+        {% include 'components/breadcrumb.html' with items=breadcrumbs %}
+
+        <!-- Main Content -->
+        <div class="container mx-auto">
+            <div class="bg-white rounded-lg shadow-sm p-6">
+                <h1 class="text-2xl font-bold text-gray-900 mb-6">Edit Access Control</h1>
+
+                <form method="post" class="space-y-6">
+                    {% csrf_token %}
+                    
+                    <!-- User Role Selection (Multiple Checkboxes) -->
+                    <div class="form-group">
+                        <label class="block text-sm font-medium text-gray-900 mb-2">
+                            User Role (Select multiple)
+                        </label>
+                        <div class="mt-1 flex flex-wrap gap-4">
+                            {% for role in available_roles %}
+                            <div class="flex items-center">
+                                <input type="checkbox" name="user_role[]" id="role_{{ role.value }}" 
+                                       value="{{ role.value }}" class="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                                       {% if current_role_type|stringformat:"s" == role.value|stringformat:"s" or role.value in current_role_types %}checked{% endif %}>
+                                <label for="role_{{ role.value }}" class="ml-2 text-sm text-gray-900">{{ role.name }}</label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Custom Role Permissions (hidden by default, shown when custom role is selected) -->
+                    <div id="customRoleOptions" class="space-y-4 hidden">
+                        <h3 class="text-lg font-medium text-gray-900">Custom Role Permissions</h3>
+                        
+                        <div class="form-group">
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5">
+                                    <input type="checkbox" name="can_edit" id="can_edit" 
+                                          class="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                                          {% if current_role and current_role.can_edit %}checked{% endif %}>
+                                </div>
+                                <div class="ml-3">
+                                    <label for="can_edit" class="text-sm font-medium text-gray-900">Can Edit Content</label>
+                                    <p class="text-sm text-gray-500">Allow users to edit course content</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5">
+                                    <input type="checkbox" name="can_manage_members" id="can_manage_members" 
+                                          class="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                                          {% if current_role and current_role.can_manage_members %}checked{% endif %}>
+                                </div>
+                                <div class="ml-3">
+                                    <label for="can_manage_members" class="text-sm font-medium text-gray-900">Can Manage Members</label>
+                                    <p class="text-sm text-gray-500">Allow users to manage group members</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5">
+                                    <input type="checkbox" name="can_manage_content" id="can_manage_content" 
+                                          class="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                                          {% if current_role and current_role.can_manage_content %}checked{% endif %}>
+                                </div>
+                                <div class="ml-3">
+                                    <label for="can_manage_content" class="text-sm font-medium text-gray-900">Can Manage Content</label>
+                                    <p class="text-sm text-gray-500">Allow users to manage course content</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Course Group Selection -->
+                    <div class="form-group">
+                        <label for="course_group" class="block text-sm font-medium text-gray-900 mb-2">
+                            Course Group <span class="text-red-500">*</span>
+                        </label>
+                        <div class="mt-1">
+                            <select name="course_group" id="course_group" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" required>
+                                <option value="">Select Course Group</option>
+                                {% for group in course_groups %}
+                                    <option value="{{ group.id }}" {% if current_course_group|stringformat:"i" == group.id|stringformat:"i" %}selected{% endif %}>
+                                        {{ group.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <p class="mt-1 text-sm text-blue-600">Select the course group to apply this role to</p>
+                        </div>
+                    </div>
+
+                    <!-- Users Group Selection -->
+                    <div class="form-group">
+                        <label for="users_group" class="block text-sm font-medium text-gray-900 mb-2">
+                            Users Group <span class="text-red-500">*</span>
+                        </label>
+                        <div class="mt-1">
+                            <select name="users_group" id="users_group" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" required>
+                                <option value="">Select Users Group</option>
+                                {% for group in user_groups %}
+                                    <option value="{{ group.id }}" {% if current_user_groups_ids and group.id == current_user_groups_ids.0 %}selected{% endif %}>
+                                        {{ group.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <p class="mt-1 text-sm text-blue-600">Select the user group containing users that should receive this role</p>
+                        </div>
+                    </div>
+
+                    <!-- Success message when both groups are selected -->
+                    <div id="groupSelectionSuccess" class="hidden bg-green-50 p-4 rounded-md border border-green-200 my-4">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <svg class="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm font-medium text-green-800">
+                                    Groups successfully linked! Users in the selected user group will receive this role in the selected course group.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Auto Enrollment -->
+                    <div class="form-group bg-yellow-50 p-4 rounded-md border border-yellow-200">
+                        <div class="flex items-start">
+                            <div class="flex items-center h-5">
+                                <input type="checkbox" name="auto_enroll" id="auto_enroll" 
+                                       class="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                       {% if current_role and current_role.auto_enroll %}checked{% else %}checked{% endif %}>
+                            </div>
+                            <div class="ml-3">
+                                <label for="auto_enroll" class="text-sm font-bold text-gray-900">Enable Auto-Enrollment (Recommended)</label>
+                                <p class="text-sm text-gray-700">Automatically enroll users in courses when assigned this role. This ensures users have immediate access to course content.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div class="flex justify-end pt-6 space-x-4 border-t border-gray-200">
+                        <a href="{% url 'groups:group_list' %}?tab=access-control" 
+                           class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors">
+                            Cancel
+                        </a>
+                        <button type="submit" 
+                                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                            Save Changes
+                        </button>
+                    </div>
+                    
+                    <!-- Hidden tab field to maintain tab context -->
+                    <input type="hidden" name="tab" value="access-control">
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Select2 JS -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // Initialize Select2 for dropdowns
+        $('#course_group, #users_group').select2({
+            theme: 'default',
+            width: '100%',
+            placeholder: 'Select a group'
+        });
+
+        // Show/hide custom role options based on role selection
+        function toggleCustomRoleOptions() {
+            const customRoleSelected = $('input[name="user_role[]"]:checked').filter(function() {
+                return $(this).val().startsWith('custom_');
+            }).length > 0;
+            $('#customRoleOptions').toggleClass('hidden', !customRoleSelected);
+        }
+
+        // Initial check
+        toggleCustomRoleOptions();
+
+        // Listen for changes
+        $('input[name="user_role[]"]').change(toggleCustomRoleOptions);
+        
+        // Ensure auto-enrollment is checked
+        $('#auto_enroll').prop('checked', true);
+        
+        // Highlight the importance of auto-enrollment when user tries to uncheck
+        $('#auto_enroll').on('click', function(e) {
+            if (!$(this).prop('checked')) {
+                const confirm = window.confirm('Disabling auto-enrollment is not recommended as users may not have access to courses. Are you sure you want to disable it?');
+                if (!confirm) {
+                    e.preventDefault();
+                    $(this).prop('checked', true);
+                }
+            }
+        });
+        
+        // Highlight corresponding course group and user group
+        function highlightMatchingGroups() {
+            let courseGroup = $('#course_group').val();
+            let userGroup = $('#users_group').val();
+            
+            if (courseGroup && userGroup) {
+                // Both selections made, show success message
+                $('#groupSelectionSuccess').removeClass('hidden');
+            } else {
+                $('#groupSelectionSuccess').addClass('hidden');
+            }
+        }
+        
+        // Add selection highlight
+        $('#course_group, #users_group').on('change', highlightMatchingGroups);
+        
+        // Check initially
+        highlightMatchingGroups();
+        
+        // Apply highlighting to roles section
+        $('.form-group:has(input[name="user_role[]"])').addClass('bg-blue-50 p-4 rounded-md border border-blue-200 mb-6');
+        
+        // Add helper text for roles selection
+        $('.form-group:has(input[name="user_role[]"]) label').first().append(' <span class="text-blue-600 font-normal">(Select all that apply)</span>');
+        
+        // Pre-tick important roles based on permissions
+        function updateRoleSelections() {
+            // Get currently selected roles
+            let selectedRoles = $('input[name="user_role[]"]:checked').map(function() {
+                return $(this).val();
+            }).get();
+            
+            // If instructor is selected, suggest admin role
+            if (selectedRoles.includes('instructor') && !selectedRoles.includes('admin')) {
+                $('#role_admin').parent().addClass('bg-yellow-100 p-2 rounded');
+            } else {
+                $('#role_admin').parent().removeClass('bg-yellow-100 p-2 rounded');
+            }
+            
+            // Update custom permissions based on role selections
+            let hasManagementRole = selectedRoles.includes('instructor') || 
+                                   selectedRoles.includes('admin') || 
+                                   selectedRoles.includes('superadmin');
+            
+            if (hasManagementRole) {
+                $('#can_edit').prop('checked', true);
+                $('#can_manage_members').prop('checked', true);
+                $('#can_manage_content').prop('checked', true);
+            }
+            
+            // Add visual indication for learner role
+            if (!selectedRoles.includes('learner') && !hasManagementRole && selectedRoles.length == 0) {
+                // If no role selected, highlight learner as an option but don't auto-select
+                $('#role_learner').parent().addClass('bg-blue-50 p-2 rounded');
+            } else {
+                $('#role_learner').parent().removeClass('bg-blue-50 p-2 rounded');
+            }
+        }
+        
+        // Initial update
+        updateRoleSelections();
+        
+        // Listen for role changes
+        $('input[name="user_role[]"]').change(updateRoleSelections);
+        
+        // Add note about role selection
+        $('.form-group:has(input[name="user_role[]"]) label').first().after(
+            '<p class="text-sm text-gray-600 mt-1 mb-3">Select the user roles that should be applied. Each role grants specific permissions.</p>'
+        );
+    });
+</script>
+{% endblock %} 

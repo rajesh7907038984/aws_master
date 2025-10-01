@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Your Email - {{ site_name }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #2c3e50;
+            margin: 0;
+        }
+        .brand-name {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        .verify-btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);  
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: bold;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .verify-btn:hover {
+            opacity: 0.9;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+        }
+        .welcome-info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Welcome to {{ site_name }}!</h1>
+            <p class="brand-name">Email Verification Required</p>
+        </div>
+        
+        <div class="content">
+            <p>Hello <strong>{{ user.get_full_name|default:user.username }}</strong>,</p>
+            
+            <p>Thank you for registering with {{ site_name }}! To complete your registration and activate your account, please verify your email address by clicking the button below:</p>
+            
+            <div style="text-align: center;">
+                <a href="{{ verify_url }}" class="verify-btn">Verify My Email</a>
+            </div>
+            
+            <div class="warning">
+                <strong>⚠️ Important:</strong> This verification link will expire on <strong>{{ expires_at|date:"F j, Y \a\t g:i A" }}</strong> (in 24 hours).
+            </div>
+            
+            <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
+            <p style="word-break: break-all; color: #666; font-size: 14px;">{{ verify_url }}</p>
+            
+            <div class="welcome-info">
+                <strong>🎉 What's Next?</strong> Once you verify your email, you'll be able to:
+                <ul>
+                    <li>Access your learning dashboard</li>
+                    <li>Enroll in courses</li>
+                    <li>Track your progress</li>
+                    <li>Connect with instructors and peers</li>
+                </ul>
+            </div>
+            
+            {% if branch %}
+            <p>You've been registered for the <strong>{{ branch.name }}</strong> portal and will have access to courses and resources specific to this branch.</p>
+            {% endif %}
+        </div>
+        
+        <div class="footer">
+            <p>This email was sent to {{ user.email }} as part of your {{ site_name }} registration.</p>
+            <p>&copy; {{ "now"|date:"Y" }} {{ site_name }}. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html> 

@@ -1,0 +1,2265 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+{% load user_profile_tags %}
+
+{% block title %}{% if is_edit_mode and profile_user %}Edit User - {{ profile_user.get_full_name|default:profile_user.username }}{% else %}Create New User{% endif %}{% endblock %}
+
+{% block extra_css %}
+<link href="{% static 'users/css/create_user_styles.css' %}" rel="stylesheet">
+<style>
+    .main-content {
+        background-color: #ffffff;
+    }
+
+    .form-section {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    }
+
+    .form-header {
+        border-bottom: 1px solid #E5E7EB;
+        padding: 1.5rem;
+    }
+
+    .form-content {
+        padding: 1.5rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+        display: block;
+        color: #374151;
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-input, .form-select, .form-textarea {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #D1D5DB;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        color: #111827;
+    }
+
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+        outline: none;
+        border-color: #2563EB;
+        box-shadow: 0 0 0 1px #2563EB;
+    }
+
+    .form-select {
+        padding-right: 2.5rem;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+        background-position: right 0.5rem center;
+        background-repeat: no-repeat;
+        background-size: 1.5em 1.5em;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+    }
+
+    /* Disabled form elements styling */
+    .form-select:disabled, .form-input:disabled {
+        background-color: #F3F4F6;
+        color: #6B7280;
+        cursor: not-allowed;
+        opacity: 0.8;
+    }
+
+    .form-select:disabled {
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239CA3AF' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    }
+
+    .form-textarea {
+        resize: vertical;
+        min-height: 6rem;
+    }
+
+    .error-message {
+        color: #DC2626;
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+    }
+
+    /* Success notification styles */
+    .success-notification {
+        transform: translateX(100%);
+        opacity: 0;
+        transition: all 0.3s ease-in-out;
+        z-index: 9999;
+    }
+
+    .success-notification.show {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    /* Loading button animation */
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+
+    .form-input.error, .form-select.error, .form-textarea.error {
+        border-color: #DC2626;
+    }
+
+    .form-help-text {
+        color: #6B7280;
+        font-size: 0.75rem;
+        margin-top: 0.25rem;
+    }
+
+    /* Tab styling */
+    .tab-container {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+
+    .tab-buttons {
+        display: flex;
+        border-bottom: 1px solid #E5E7EB;
+        overflow-x: auto;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        background-color: #F9FAFB;
+    }
+
+    .tab-buttons::-webkit-scrollbar {
+        display: none;
+    }
+
+    .tab-button {
+        background-color: inherit;
+        border: none;
+        outline: none;
+        cursor: pointer;
+        padding: 1rem 1.5rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #6B7280;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+        min-width: max-content;
+    }
+
+    .tab-button:hover {
+        color: #374151;
+        background-color: #F3F4F6;
+    }
+
+    .tab-button.active {
+        color: #2563EB;
+        border-bottom: 2px solid #2563EB;
+        background-color: white;
+    }
+
+    /* Mobile Accordion Styles */
+    @media (max-width: 768px) {
+        .tab-container {
+            border-radius: 0.5rem !important;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1) !important;
+            background-color: white !important;
+            border: 1px solid #E5E7EB !important;
+        }
+        
+        .tab-buttons {
+            display: block !important;
+            border-bottom: none !important;
+            background-color: transparent !important;
+        }
+        
+        .tab-button {
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            width: 100% !important;
+            padding: 1rem 1.5rem !important;
+            background-color: #F9FAFB !important;
+            border: none !important;
+            border-bottom: 1px solid #E5E7EB !important;
+            border-radius: 0 !important;
+            color: #374151 !important;
+            font-weight: 500 !important;
+            font-size: 0.9rem !important;
+            text-align: left !important;
+            cursor: pointer !important;
+            transition: all 0.2s ease !important;
+            position: relative !important;
+            white-space: normal !important;
+            min-width: auto !important;
+        }
+        
+        .tab-button:last-child {
+            border-bottom: none !important;
+        }
+        
+        .tab-button:hover {
+            background-color: #F3F4F6 !important;
+            color: #1F2937 !important;
+        }
+        
+        .tab-button.active {
+            background-color: #EBF5FF !important;
+            color: #1D4ED8 !important;
+            border-bottom-color: #E5E7EB !important;
+        }
+        
+        /* Accordion arrows */
+        .tab-button::after {
+            content: "\f078" !important; /* Font Awesome chevron-down */
+            font-family: "Font Awesome 5 Free" !important;
+            font-weight: 900 !important;
+            font-size: 0.8rem !important;
+            color: #6B7280 !important;
+            transition: transform 0.2s ease !important;
+        }
+        
+        .tab-button.active::after {
+            transform: rotate(180deg) !important;
+            color: #1D4ED8 !important;
+        }
+        
+        /* Tab content adjustments for mobile */
+        .tab-content {
+            display: none !important;
+            padding: 0 !important;
+            border-radius: 0 !important;
+            border-top: 1px solid #E5E7EB !important;
+            background-color: white !important;
+            margin-bottom: 1rem !important;
+        }
+        
+        .tab-content.active {
+            display: block !important;
+            animation: slideDown 0.3s ease-out !important;
+        }
+        
+        /* Content inner padding */
+        .tab-content > div {
+            padding: 1.5rem !important;
+        }
+        
+        /* Slide down animation for accordion */
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                max-height: 0;
+                overflow: hidden;
+            }
+            to {
+                opacity: 1;
+                max-height: 1000px;
+                overflow: visible;
+            }
+        }
+    }
+
+    .tab-content {
+        display: none;
+        animation: fadeIn 0.3s ease-in;
+    }
+
+    .tab-content.active {
+        display: block;
+    }
+    
+    /* Prevent inactive tab content from creating blank space */
+    .tab-content:not(.active) {
+        height: 0 !important;
+        overflow: hidden !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    /* Ensure form submit button area is always accessible */
+    .form-submit-area {
+        position: relative;
+        z-index: 1000;
+        background: white;
+        border-top: 1px solid #E5E7EB;
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+    }
+
+    /* Ensure nested tab content doesn't overflow and hide buttons */
+    .ilp-tab-content {
+        max-height: none;
+        overflow: visible;
+        padding-bottom: 2rem;
+    }
+
+    .learning-profile-tab-content {
+        max-height: none;
+        overflow: visible;
+        padding-bottom: 1rem;
+    }
+
+    /* Fix any potential z-index issues with nested tabs */
+    .learning-profile-tabs {
+        position: relative;
+        z-index: 1;
+    }
+
+    .learning-profile-tab-content {
+        position: relative;
+        z-index: 1;
+        min-height: auto;
+        overflow: visible;
+    }
+
+    /* Ensure no elements can overlap the save button area */
+    .form-submit-area button {
+        pointer-events: auto !important;
+        z-index: 1001 !important;
+        position: relative !important;
+    }
+
+    /* Fix potential tab content height issues */
+    .tab-content {
+        min-height: auto;
+        overflow: visible;
+    }
+
+    /* Required field marker */
+    .required-field::after {
+        content: "*";
+        color: #DC2626;
+        margin-left: 0.25rem;
+    }
+
+    /* File input styling */
+    .file-input-container {
+        position: relative;
+    }
+
+    .file-input-button {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background-color: #F3F4F6;
+        border: 1px solid #D1D5DB;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        color: #374151;
+        cursor: pointer;
+    }
+
+    .file-input-button:hover {
+        background-color: #E5E7EB;
+    }
+
+    .file-input {
+        position: absolute;
+        left: 0;
+        top: 0;
+        opacity: 0;
+        width: 100%;
+        height: 100%;
+        cursor: pointer;
+    }
+
+    .file-name {
+        margin-left: 0.5rem;
+        font-size: 0.875rem;
+        color: #6B7280;
+    }
+
+    /* ILP nested tabs styling */
+    .ilp-tabs {
+        margin-top: 1rem;
+    }
+
+    .ilp-main-tabs {
+        background-color: #f0f4f8;
+        border-radius: 0.375rem;
+        border: 1px solid #dbe7f3;
+    }
+
+    .ilp-tab-button {
+        background-color: inherit;
+        border: none;
+        outline: none;
+        cursor: pointer;
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #6B7280;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+    }
+
+    .ilp-tab-button:hover {
+        color: #374151;
+        background-color: #F3F4F6;
+    }
+
+    .ilp-tab-button.active {
+        color: #2563EB;
+        border-bottom: 2px solid #2563EB;
+        background-color: #ffffff;
+    }
+
+    .ilp-tab-content {
+        display: none;
+        padding: 1rem;
+        background-color: #ffffff;
+        border-radius: 0.5rem;
+        margin-top: 1rem;
+    }
+
+    .ilp-tab-content.active {
+        display: block !important;
+        visibility: visible !important;
+    }
+
+    /* Learning Profile nested tab content styling */
+    .learning-profile-tab-content {
+        display: none;
+        max-height: none;
+        overflow: visible;
+        padding-bottom: 1rem;
+    }
+
+    .learning-profile-tab-content.active {
+        display: block !important;
+        visibility: visible !important;
+    }
+
+    /* Button styling */
+    .btn {
+        padding: 0.5rem 1rem;
+        border-radius: 0.375rem;
+        font-weight: 500;
+        font-size: 0.875rem;
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+
+    .btn-primary {
+        background-color: #059669;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background-color: #047857;
+    }
+
+    .btn-secondary {
+        background-color: #6B7280;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background-color: #4B5563;
+    }
+
+    .btn-outline {
+        background-color: white;
+        color: #6b7280;
+        border: 1px solid #d1d5db;
+    }
+
+    .btn-outline:hover {
+        background-color: #f9fafb;
+        color: #374151;
+    }
+
+    /* Education and employment entry styling */
+    .education-entry, .employment-entry {
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        background: white;
+    }
+
+    .education-entry .form-group, .employment-entry .form-group {
+        margin-bottom: 1rem;
+    }
+
+    /* Hide containers by default for conditional fields */
+    .sex-other-container,
+    .sexual-orientation-other-container,
+    .ethnicity-other-container,
+    .study-area-other-container,
+    .grades-other-container,
+    .industry-other-container,
+    .learning-difficulty-details {
+        display: none;
+    }
+
+    /* Profile completion animation */
+    @keyframes slideInDown {
+        from {
+            transform: translateY(-20px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .profile-completion-section {
+        animation: slideInDown 0.5s ease-out;
+    }
+
+    /* Saved tab indicator */
+    .tab-saved {
+        position: relative;
+    }
+
+    .tab-saved::after {
+        content: "✓";
+        position: absolute;
+        top: 50%;
+        right: 0.5rem;
+        transform: translateY(-50%);
+        color: #059669;
+        font-weight: bold;
+        font-size: 0.875rem;
+    }
+
+    /* Success notification */
+    .notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 1rem 1.5rem;
+        border-radius: 0.5rem;
+        color: white;
+        font-size: 0.875rem;
+        font-weight: 500;
+        z-index: 1000;
+        opacity: 0;
+        transform: translateX(100%);
+        transition: all 0.3s ease;
+    }
+
+    .notification.show {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    .notification.success {
+        background-color: #059669;
+    }
+
+    .notification.error {
+        background-color: #DC2626;
+    }
+
+    /* Profile completion progress bar styling */
+    .profile-completion-section {
+        animation: slideInDown 0.5s ease-out;
+    }
+
+    @keyframes slideInDown {
+        from {
+            transform: translateY(-20px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .profile-completion-section .progress-bar {
+        background: linear-gradient(90deg, #3B82F6 0%, #10B981 100%);
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+    }
+
+    .profile-completion-section .category-progress {
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .profile-completion-section .category-progress:hover {
+        transform: translateY(-1px);
+    }
+
+    /* Progress bar animations */
+    @keyframes progressFill {
+        from {
+            width: 0%;
+        }
+    }
+
+    .profile-completion-section .bg-gradient-to-r {
+        animation: progressFill 1s ease-out;
+    }
+
+    .profile-completion-section .bg-blue-500,
+    .profile-completion-section .bg-green-500,
+    .profile-completion-section .bg-purple-500,
+    .profile-completion-section .bg-orange-500,
+    .profile-completion-section .bg-red-500,
+    .profile-completion-section .bg-indigo-500 {
+        animation: progressFill 0.8s ease-out;
+    }
+
+    /* Education Accordion Styling */
+    .education-record {
+        transition: all 0.3s ease;
+    }
+
+    .education-record:hover {
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .education-header {
+        transition: all 0.2s ease;
+    }
+
+    .education-header:hover {
+        background-color: #f9fafb !important;
+    }
+
+    .education-header.bg-blue-50 {
+        background-color: #eff6ff !important;
+    }
+
+    .accordion-icon {
+        transition: transform 0.3s ease;
+    }
+
+    .education-content {
+        transition: all 0.3s ease;
+    }
+
+    .education-status-badge {
+        font-weight: 500;
+        letter-spacing: 0.025em;
+    }
+
+    /* Form styling improvements */
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .form-input.border-red-500 {
+        border-color: #dc2626;
+        box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+    }
+
+    /* Button hover effects */
+    .transition-colors {
+        transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
+    }
+
+    /* Notification animations */
+    @keyframes slideInRight {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    @keyframes slideOutRight {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+    }
+
+    .notification-enter {
+        animation: slideInRight 0.3s ease-out;
+    }
+
+    .notification-exit {
+        animation: slideOutRight 0.3s ease-in;
+    }
+
+    /* Animation for tab switching */
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-7xl mx-auto">
+        <!-- Global Breadcrumbs -->
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+        
+        <!-- Header -->
+        <div class="bg-white rounded-lg shadow-sm mb-8">
+            <div class="border-b border-gray-200 px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">
+                            {% if is_edit_mode and profile_user %}
+                                Edit User - {{ profile_user.get_full_name|default:profile_user.username }}
+                            {% else %}
+                                Create New User
+                            {% endif %}
+                        </h1>
+                        <p class="text-sm text-gray-600 mt-1">Update user information and settings</p>
+                    </div>
+                   
+                    {% if is_edit_mode %}
+                        {% if request.user.id == profile_user.id %}
+                        <!-- Self Password Reset Button -->
+                        <div class="flex gap-2">
+                            <button type="button" id="send-self-password-reset-btn" class="px-4 py-2 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition-colors" onclick="sendSelfPasswordReset()">
+                                <i class="fas fa-envelope mr-2"></i>Send Password Reset Email
+                            </button>
+                            <div id="self-password-reset-status" class="mt-2 text-sm" style="display: none;"></div>
+                        </div>
+                        {% elif request.user.role in 'globaladmin,superadmin,admin' and request.user.id != profile_user.id %}
+                        <!-- Admin Password Reset Button -->
+                        <div class="flex gap-2">
+                            <button type="button" id="send-admin-password-reset-btn" class="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors" onclick="sendAdminPasswordReset()">
+                                <i class="fas fa-envelope mr-2"></i>Send Password Reset Email to User
+                            </button>
+                            <div id="admin-password-reset-status" class="mt-2 text-sm" style="display: none;"></div>
+                        </div>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Completion Section -->
+        {% if is_edit_mode and profile_completion and profile_user.role == 'learner' %}
+        <div class="profile-completion-section mb-6">
+            <div class="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900">Profile Completion</h3>
+                        <p class="text-sm text-gray-600">Complete your profile to improve your experience</p>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-2xl font-bold text-blue-600">{{ profile_completion.overall_percentage }}%</div>
+                        <div class="text-xs text-gray-500">Complete</div>
+                    </div>
+                </div>
+                
+                <!-- Main Progress Bar -->
+                <div class="w-full bg-gray-200 rounded-full h-3 mb-4">
+                    <div class="bg-gradient-to-r from-blue-500 to-green-500 h-3 rounded-full transition-all duration-500 ease-out" 
+                         style="width: {{ profile_completion.overall_percentage }}%"></div>
+                </div>
+                
+                <!-- Category Breakdown -->
+                <div class="grid grid-cols-2 md:grid-cols-6 gap-3 text-sm">
+                    <!-- Account Category -->
+                    <div class="text-center category-progress" data-category="Account" data-tab="account-tab" onclick="navigateToCategoryTab(this)">
+                        <div class="mb-1 font-medium text-gray-700">Account</div>
+                        <div class="w-full bg-gray-200 rounded-full h-2 mb-1">
+                            <div class="bg-blue-500 h-2 rounded-full transition-all duration-300" 
+                                 style="width: {{ profile_completion.categories.account }}%"></div>
+                        </div>
+                        <div class="text-xs text-gray-600">{{ profile_completion.categories.account }}%</div>
+                    </div>
+                    
+                    <!-- Personal Category -->
+                    <div class="text-center category-progress" data-category="Personal" data-tab="personal-tab" onclick="navigateToCategoryTab(this)">
+                        <div class="mb-1 font-medium text-gray-700">Personal</div>
+                        <div class="w-full bg-gray-200 rounded-full h-2 mb-1">
+                            <div class="bg-green-500 h-2 rounded-full transition-all duration-300" 
+                                 style="width: {{ profile_completion.categories.personal }}%"></div>
+                        </div>
+                        <div class="text-xs text-gray-600">{{ profile_completion.categories.personal }}%</div>
+                    </div>
+                    
+                    <!-- Education Category -->
+                    <div class="text-center category-progress" data-category="Education" data-tab="education-tab" onclick="navigateToCategoryTab(this)">
+                        <div class="mb-1 font-medium text-gray-700">Education</div>
+                        <div class="w-full bg-gray-200 rounded-full h-2 mb-1">
+                            <div class="bg-purple-500 h-2 rounded-full transition-all duration-300" 
+                                 style="width: {{ profile_completion.categories.education }}%"></div>
+                        </div>
+                        <div class="text-xs text-gray-600">{{ profile_completion.categories.education }}%</div>
+                    </div>
+                    
+                    <!-- Employment Category -->
+                    <div class="text-center category-progress" data-category="Employment" data-tab="employment-tab" onclick="navigateToCategoryTab(this)">
+                        <div class="mb-1 font-medium text-gray-700">Employment</div>
+                        <div class="w-full bg-gray-200 rounded-full h-2 mb-1">
+                            <div class="bg-orange-500 h-2 rounded-full transition-all duration-300" 
+                                 style="width: {{ profile_completion.categories.employment }}%"></div>
+                        </div>
+                        <div class="text-xs text-gray-600">{{ profile_completion.categories.employment }}%</div>
+                    </div>
+                    
+                    <!-- Additional Category -->
+                    <div class="text-center category-progress" data-category="Additional" data-tab="additional-tab" onclick="navigateToCategoryTab(this)">
+                        <div class="mb-1 font-medium text-gray-700">Additional</div>
+                        <div class="w-full bg-gray-200 rounded-full h-2 mb-1">
+                            <div class="bg-red-500 h-2 rounded-full transition-all duration-300" 
+                                 style="width: {{ profile_completion.categories.additional }}%"></div>
+                        </div>
+                        <div class="text-xs text-gray-600">{{ profile_completion.categories.additional }}%</div>
+                    </div>
+                    
+                    <!-- ILP Category -->
+                    <div class="text-center category-progress" data-category="ILP" data-tab="ilp-tab" onclick="navigateToCategoryTab(this)">
+                        <div class="mb-1 font-medium text-gray-700">ILP</div>
+                        <div class="w-full bg-gray-200 rounded-full h-2 mb-1">
+                            <div class="bg-indigo-500 h-2 rounded-full transition-all duration-300" 
+                                 style="width: {{ profile_completion.categories.ilp }}%"></div>
+                        </div>
+                        <div class="text-xs text-gray-600">{{ profile_completion.categories.ilp }}%</div>
+                    </div>
+                </div>
+                
+                <!-- Motivational Message -->
+                {% if profile_completion.overall_percentage < 50 %}
+                <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3 text-sm text-blue-700">
+                            <strong>Getting Started:</strong> Complete more sections to unlock additional features and improve your learning experience.
+                        </div>
+                    </div>
+                </div>
+                {% elif profile_completion.overall_percentage < 80 %}
+                <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3 text-sm text-yellow-700">
+                            <strong>Almost There:</strong> You're making great progress! Complete a few more fields to reach 100%.
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3 text-sm text-green-700">
+                            <strong>Excellent!</strong> Your profile is well-completed. This helps us provide you with the best possible experience.
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Form Section -->
+        <div class="form-section mb-8">
+            <form method="post" enctype="multipart/form-data" id="userForm" novalidate>
+                {% csrf_token %}
+                <!-- Hidden fields to track all active tab levels for redirect after form submission -->
+                <input type="hidden" name="active_tab" id="activeTabField" value="{{ active_tab }}">
+                <input type="hidden" name="active_subtab" id="activeSubTabField" value="{{ active_subtab }}">
+                <input type="hidden" name="active_nestedtab" id="activeNestedTabField" value="{{ active_nestedtab }}">
+
+                <!-- Tab Navigation -->
+                <div class="tab-container">
+                    <div class="tab-buttons">
+                        <button type="button" class="tab-button {% if active_tab == 'account-tab' %}active{% endif %}" onclick="openTab(event, 'account-tab')">Account</button>
+                        <!-- Additional tabs only for learner role users -->
+                        {% if is_edit_mode and profile_user.role == 'learner' %}
+                        <button type="button" class="tab-button {% if active_tab == 'personal-tab' %}active{% endif %}" onclick="openTab(event, 'personal-tab')">Personal Information</button>
+                        <button type="button" class="tab-button {% if active_tab == 'education-tab' %}active{% endif %}" onclick="openTab(event, 'education-tab')">Academic Records</button>
+                        <button type="button" class="tab-button {% if active_tab == 'employment-tab' %}active{% endif %}" onclick="openTab(event, 'employment-tab')">Work Experience Records</button>
+                        <button type="button" class="tab-button {% if active_tab == 'additional-tab' %}active{% endif %}" onclick="openTab(event, 'additional-tab')">Application Documents</button>
+                        <button type="button" class="tab-button {% if active_tab == 'ilp-tab' %}active{% endif %}" onclick="openTab(event, 'ilp-tab')">Learning Development Plan</button>
+                        {% endif %}
+                        <!-- For creation mode, tabs will be shown/hidden by JavaScript based on role selection -->
+                        {% if not is_edit_mode %}
+                        <button type="button" class="tab-button learner-only-tab {% if active_tab == 'personal-tab' %}active{% endif %}" onclick="openTab(event, 'personal-tab')" style="display: none;">Personal Information</button>
+                        <button type="button" class="tab-button learner-only-tab {% if active_tab == 'education-tab' %}active{% endif %}" onclick="openTab(event, 'education-tab')" style="display: none;">Academic Records</button>
+                        <button type="button" class="tab-button learner-only-tab {% if active_tab == 'employment-tab' %}active{% endif %}" onclick="openTab(event, 'employment-tab')" style="display: none;">Work Experience Records</button>
+                        <button type="button" class="tab-button learner-only-tab {% if active_tab == 'additional-tab' %}active{% endif %}" onclick="openTab(event, 'additional-tab')" style="display: none;">Application Documents</button>
+                        <button type="button" class="tab-button learner-only-tab {% if active_tab == 'ilp-tab' %}active{% endif %}" onclick="openTab(event, 'ilp-tab')" style="display: none;">Learning Development Plan</button>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Form Error Messages -->
+                {% if form.non_field_errors %}
+                <div class="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg">
+                    {{ form.non_field_errors }}
+                </div>
+                {% endif %}
+
+                <!-- Tab Contents -->
+                {% include 'users/tabs/account_tab.html' %}
+                {% include 'users/tabs/personal_tab.html' %}
+                {% include 'users/tabs/education_tab.html' %}
+                {% include 'users/tabs/employment_tab.html' %}
+                {% include 'users/tabs/additional_tab.html' %}
+                {% include 'users/tabs/ilp_tab.html' %}
+
+                <!-- Submit Buttons -->
+                <div class="form-submit-area flex justify-between items-center mt-8 pt-6 border-t border-gray-200">
+                    <a href="{% url 'users:user_list' %}" class="btn-secondary">
+                        <i class="fas fa-arrow-left"></i>Back to Users
+                    </a>
+                    <button type="submit" name="save_and_continue" class="btn-primary" id="saveAndContinueBtn">
+                        <i class="fas fa-save" id="buttonIcon"></i>
+                        <span id="buttonText">{% if is_edit_mode %}Save & Continue Editing{% else %}Create User{% endif %}</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Simplified Tab Management System - Complete Rewrite
+class TabManager {
+    constructor() {
+        this.state = {
+            mainTab: 'account-tab',
+            subTab: '',
+            nestedTab: ''
+        };
+        this.isInitialized = false;
+        this.userChangedTab = false;
+        this.isMobile = this.checkMobileView();
+        
+        this.init();
+        this.setupMobileAccordion();
+    }
+    
+    checkMobileView() {
+        return window.innerWidth <= 768;
+    }
+    
+    setupMobileAccordion() {
+        // Update mobile status on window resize
+        window.addEventListener('resize', () => {
+            const wasMobile = this.isMobile;
+            this.isMobile = this.checkMobileView();
+            
+            // If switching from desktop to mobile or vice versa, update UI
+            if (wasMobile !== this.isMobile) {
+                this.updateMainTabUI();
+            }
+        });
+        
+        // Override tab button clicks for mobile accordion behavior
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', (e) => {
+                if (!this.isMobile) return; // Let default behavior handle desktop
+                
+                e.preventDefault();
+                const onclick = button.getAttribute('onclick');
+                const match = onclick.match(/openTab\([^,]+,\s*['"]([^'"]+)['"]/);
+                if (match) {
+                    this.handleMobileTabClick(match[1], button);
+                }
+            });
+        });
+        
+        // Override ILP tab button clicks for mobile accordion behavior
+        document.querySelectorAll('.ilp-tab-button').forEach(button => {
+            button.addEventListener('click', (e) => {
+                if (!this.isMobile) return;
+                
+                e.preventDefault();
+                const onclick = button.getAttribute('onclick');
+                const match = onclick.match(/openILPTab\([^,]+,\s*['"]([^'"]+)['"]/);
+                if (match) {
+                    this.handleMobileILPTabClick(match[1], button);
+                }
+            });
+        });
+        
+        // Override learning profile tab button clicks for mobile accordion behavior
+        document.querySelectorAll('.learning-profile-tab-button').forEach(button => {
+            button.addEventListener('click', (e) => {
+                if (!this.isMobile) return;
+                
+                e.preventDefault();
+                const onclick = button.getAttribute('onclick');
+                const match = onclick.match(/openLearningProfileTab\([^,]+,\s*['"]([^'"]+)['"]/);
+                if (match) {
+                    this.handleMobileLearningProfileTabClick(match[1], button);
+                }
+            });
+        });
+    }
+    
+    handleMobileTabClick(tabName, button) {
+        const isCurrentlyActive = button.classList.contains('active');
+        
+        if (isCurrentlyActive) {
+            // Accordion behavior: collapse if clicking on active tab
+            const tabContent = document.getElementById(tabName);
+            if (tabContent && tabContent.classList.contains('active')) {
+                // Don't allow collapsing - always keep one tab open
+                return;
+            }
+        }
+        
+        // Normal tab switching behavior
+        this.openMainTab(tabName);
+    }
+    
+    handleMobileILPTabClick(tabName, button) {
+        const isCurrentlyActive = button.classList.contains('active');
+        
+        if (isCurrentlyActive) {
+            // Don't allow collapsing ILP sub-tabs
+            return;
+        }
+        
+        // Normal sub-tab switching behavior
+        this.openSubTab(tabName);
+    }
+    
+    handleMobileLearningProfileTabClick(tabName, button) {
+        const isCurrentlyActive = button.classList.contains('active');
+        
+        if (isCurrentlyActive) {
+            // Don't allow collapsing nested tabs
+            return;
+        }
+        
+        // Normal nested tab switching behavior
+        this.openNestedTab(tabName);
+    }
+    
+    init() {
+        // Initialize from URL parameters first, then template values
+        this.loadStateFromURL();
+        
+        // Set up event listeners
+        this.setupEventListeners();
+        
+        // Initialize the UI
+        this.initializeUI();
+        
+        this.isInitialized = true;
+        console.log('TabManager initialized with state:', this.state);
+    }
+    
+    loadStateFromURL() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlTab = urlParams.get('tab');
+        const urlSubtab = urlParams.get('subtab');
+        const urlNestedtab = urlParams.get('nestedtab');
+        
+        // Use URL parameters if available, otherwise use template defaults
+        if (urlTab) {
+            this.state.mainTab = urlTab;
+            this.state.subTab = urlSubtab || '';
+            this.state.nestedTab = urlNestedtab || '';
+        } else {
+            // Use template defaults
+            this.state.mainTab = '{{ active_tab|default:"account-tab" }}' || 'account-tab';
+            this.state.subTab = '{{ active_subtab|default:"" }}' || '';
+            this.state.nestedTab = '{{ active_nestedtab|default:"" }}' || '';
+        }
+        
+        // Validate and set defaults for nested tabs
+        if (this.state.mainTab === 'ilp-tab' && !this.state.subTab) {
+            this.state.subTab = 'overview-tab';
+        }
+        if (this.state.subTab === 'learning-profile-tab' && !this.state.nestedTab) {
+            this.state.nestedTab = 'assessment-data-tab';
+        }
+        
+        console.log('Tab state loaded:', this.state);
+    }
+    
+    setupEventListeners() {
+        // Setup main tab buttons
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const onclick = button.getAttribute('onclick');
+                const match = onclick.match(/openTab\([^,]+,\s*['"]([^'"]+)['"]/);
+                if (match) {
+                    e.preventDefault();
+                    this.openMainTab(match[1]);
+                }
+            });
+        });
+        
+        // Setup ILP tab buttons
+        document.querySelectorAll('.ilp-tab-button').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const onclick = button.getAttribute('onclick');
+                const match = onclick.match(/openILPTab\([^,]+,\s*['"]([^'"]+)['"]/);
+                if (match) {
+                    e.preventDefault();
+                    this.openSubTab(match[1]);
+                }
+            });
+        });
+        
+        // Setup Learning Profile tab buttons
+        document.querySelectorAll('.learning-profile-tab-button').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const onclick = button.getAttribute('onclick');
+                const match = onclick.match(/openLearningProfileTab\([^,]+,\s*['"]([^'"]+)['"]/);
+                if (match) {
+                    e.preventDefault();
+                    this.openNestedTab(match[1]);
+                }
+            });
+        });
+        
+        // Setup keyboard navigation
+        this.setupKeyboardNavigation();
+        
+        // Initialize accessibility attributes
+        this.initializeAccessibility();
+    }
+    
+    openMainTab(tabName) {
+        console.log('Opening main tab:', tabName);
+        this.userChangedTab = true;
+        
+        // Update state
+        this.state.mainTab = tabName;
+        
+        // Reset sub-tabs when switching main tabs
+        if (tabName !== 'ilp-tab') {
+            this.state.subTab = '';
+            this.state.nestedTab = '';
+        } else if (!this.state.subTab) {
+            this.state.subTab = 'overview-tab';
+        }
+        
+        // Update UI
+        this.updateMainTabUI();
+        this.updateURL();
+        this.updateHiddenFields();
+    }
+    
+    openSubTab(tabName) {
+        console.log('Opening sub tab:', tabName);
+        this.userChangedTab = true;
+        
+        // Update state
+        this.state.subTab = tabName;
+        
+        // Reset nested tabs when switching sub-tabs
+        if (tabName !== 'learning-profile-tab') {
+            this.state.nestedTab = '';
+        } else if (!this.state.nestedTab) {
+            this.state.nestedTab = 'assessment-data-tab';
+        }
+        
+        // Update UI
+        this.updateSubTabUI();
+        this.updateURL();
+        this.updateHiddenFields();
+    }
+    
+    openNestedTab(tabName) {
+        console.log('Opening nested tab:', tabName);
+        this.userChangedTab = true;
+        
+        // Update state
+        this.state.nestedTab = tabName;
+        
+        // Update UI
+        this.updateNestedTabUI();
+        this.updateURL();
+        this.updateHiddenFields();
+    }
+    
+    updateMainTabUI() {
+        // Hide all main tab content
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
+            content.setAttribute('aria-hidden', 'true');
+        });
+        
+        // Remove active from all main tab buttons
+        document.querySelectorAll('.tab-container > .tab-buttons > .tab-button').forEach(button => {
+            button.classList.remove('active');
+            button.setAttribute('aria-selected', 'false');
+        });
+        
+        // Show selected tab content
+        const selectedTab = document.getElementById(this.state.mainTab);
+        if (selectedTab) {
+            selectedTab.classList.add('active');
+            selectedTab.setAttribute('aria-hidden', 'false');
+        }
+        
+        // Activate selected button
+        const selectedButton = document.querySelector(`.tab-button[onclick*="${this.state.mainTab}"]`);
+        if (selectedButton) {
+            selectedButton.classList.add('active');
+            selectedButton.setAttribute('aria-selected', 'true');
+        }
+        
+        // If switching to ILP tab, also update sub-tabs
+        if (this.state.mainTab === 'ilp-tab') {
+            setTimeout(() => this.updateSubTabUI(), 50);
+        } else {
+            // Hide all ILP content when not on ILP tab
+            this.hideAllILPContent();
+        }
+    }
+    
+    updateSubTabUI() {
+        if (this.state.mainTab !== 'ilp-tab') return;
+        
+        // Hide all ILP tab content
+        document.querySelectorAll('.ilp-tab-content').forEach(content => {
+            content.style.display = 'none';
+            content.classList.remove('active');
+            content.setAttribute('aria-hidden', 'true');
+        });
+        
+        // Remove active from all ILP tab buttons
+        document.querySelectorAll('.ilp-tab-button').forEach(button => {
+            button.classList.remove('active');
+            button.setAttribute('aria-selected', 'false');
+        });
+        
+        // Show selected ILP tab content
+        const selectedTab = document.getElementById(this.state.subTab);
+        if (selectedTab) {
+            selectedTab.style.display = 'block';
+            selectedTab.classList.add('active');
+            selectedTab.setAttribute('aria-hidden', 'false');
+        }
+        
+        // Activate selected button
+        const selectedButton = document.querySelector(`.ilp-tab-button[onclick*="${this.state.subTab}"]`);
+        if (selectedButton) {
+            selectedButton.classList.add('active');
+            selectedButton.setAttribute('aria-selected', 'true');
+        }
+        
+        // If switching to learning-profile-tab, also update nested tabs
+        if (this.state.subTab === 'learning-profile-tab') {
+            setTimeout(() => this.updateNestedTabUI(), 50);
+        } else {
+            // Hide all learning profile content when not on learning profile tab
+            this.hideAllLearningProfileContent();
+        }
+    }
+    
+    updateNestedTabUI() {
+        if (this.state.subTab !== 'learning-profile-tab') return;
+        
+        // Hide all learning profile tab content
+        document.querySelectorAll('.learning-profile-tab-content').forEach(content => {
+            content.style.display = 'none';
+            content.classList.remove('active');
+            content.setAttribute('aria-hidden', 'true');
+        });
+        
+        // Remove active from all learning profile tab buttons
+        document.querySelectorAll('.learning-profile-tab-button').forEach(button => {
+            button.classList.remove('active');
+            button.setAttribute('aria-selected', 'false');
+        });
+        
+        // Show selected learning profile tab content
+        const selectedTab = document.getElementById(this.state.nestedTab);
+        if (selectedTab) {
+            selectedTab.style.display = 'block';
+            selectedTab.classList.add('active');
+            selectedTab.setAttribute('aria-hidden', 'false');
+        }
+        
+        // Activate selected button
+        const selectedButton = document.querySelector(`.learning-profile-tab-button[onclick*="${this.state.nestedTab}"]`);
+        if (selectedButton) {
+            selectedButton.classList.add('active');
+            selectedButton.setAttribute('aria-selected', 'true');
+        }
+    }
+    
+    hideAllILPContent() {
+        document.querySelectorAll('.ilp-tab-content').forEach(content => {
+            content.style.display = 'none';
+            content.classList.remove('active');
+            content.setAttribute('aria-hidden', 'true');
+        });
+        document.querySelectorAll('.ilp-tab-button').forEach(button => {
+            button.classList.remove('active');
+            button.setAttribute('aria-selected', 'false');
+        });
+        this.hideAllLearningProfileContent();
+    }
+    
+    hideAllLearningProfileContent() {
+        document.querySelectorAll('.learning-profile-tab-content').forEach(content => {
+            content.style.display = 'none';
+            content.classList.remove('active');
+            content.setAttribute('aria-hidden', 'true');
+        });
+        document.querySelectorAll('.learning-profile-tab-button').forEach(button => {
+            button.classList.remove('active');
+            button.setAttribute('aria-selected', 'false');
+        });
+    }
+    
+    updateURL() {
+        if (!this.userChangedTab) return;
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        // Always set main tab
+        urlParams.set('tab', this.state.mainTab);
+        
+        // Clear and set sub-tabs conditionally
+        urlParams.delete('subtab');
+        urlParams.delete('nestedtab');
+        
+        if (this.state.mainTab === 'ilp-tab' && this.state.subTab) {
+            urlParams.set('subtab', this.state.subTab);
+            
+            if (this.state.subTab === 'learning-profile-tab' && this.state.nestedTab) {
+                urlParams.set('nestedtab', this.state.nestedTab);
+            }
+        }
+        
+        const newURL = window.location.pathname + '?' + urlParams.toString();
+        window.history.replaceState({}, '', newURL);
+        console.log('URL updated to:', newURL);
+    }
+    
+    updateHiddenFields() {
+        const activeTabField = document.getElementById('activeTabField');
+        const activeSubTabField = document.getElementById('activeSubTabField');
+        const activeNestedTabField = document.getElementById('activeNestedTabField');
+        
+        if (activeTabField) activeTabField.value = this.state.mainTab;
+        if (activeSubTabField) activeSubTabField.value = this.state.subTab || '';
+        if (activeNestedTabField) activeNestedTabField.value = this.state.nestedTab || '';
+        
+        console.log('Hidden fields updated:', this.state);
+    }
+    
+    initializeUI() {
+        // Force initial state
+        this.updateMainTabUI();
+        this.updateHiddenFields();
+        
+        // Ensure Account tab is default if no explicit tab is set
+        if (!this.state.mainTab || this.state.mainTab === '') {
+            this.state.mainTab = 'account-tab';
+            this.state.subTab = '';
+            this.state.nestedTab = '';
+            this.updateMainTabUI();
+            this.updateHiddenFields();
+        }
+    }
+    
+    setupKeyboardNavigation() {
+        document.addEventListener('keydown', (e) => {
+            const activeElement = document.activeElement;
+            const isTabButton = activeElement && (
+                activeElement.classList.contains('tab-button') ||
+                activeElement.classList.contains('ilp-tab-button') ||
+                activeElement.classList.contains('learning-profile-tab-button')
+            );
+            
+            if (!isTabButton) return;
+            
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                e.preventDefault();
+                this.navigateKeyboard(activeElement, e.key === 'ArrowRight');
+            }
+            
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                activeElement.click();
+            }
+        });
+        
+        // Make tab buttons focusable and add focus styles
+        document.querySelectorAll('.tab-button, .ilp-tab-button, .learning-profile-tab-button').forEach(button => {
+            button.setAttribute('tabindex', '0');
+            button.setAttribute('role', 'tab');
+            
+            button.addEventListener('focus', () => {
+                button.style.outline = '2px solid #2563EB';
+                button.style.outlineOffset = '2px';
+            });
+            
+            button.addEventListener('blur', () => {
+                button.style.outline = '';
+                button.style.outlineOffset = '';
+            });
+        });
+    }
+    
+    navigateKeyboard(currentButton, forward) {
+        let buttons = [];
+        
+        if (currentButton.classList.contains('tab-button')) {
+            buttons = Array.from(document.querySelectorAll('.tab-button:not([style*="display: none"])'));
+        } else if (currentButton.classList.contains('ilp-tab-button')) {
+            buttons = Array.from(document.querySelectorAll('.ilp-tab-button:not([style*="display: none"])'));
+        } else if (currentButton.classList.contains('learning-profile-tab-button')) {
+            buttons = Array.from(document.querySelectorAll('.learning-profile-tab-button:not([style*="display: none"])'));
+        }
+        
+        const currentIndex = buttons.indexOf(currentButton);
+        if (currentIndex === -1) return;
+        
+        const nextIndex = forward 
+            ? (currentIndex + 1) % buttons.length
+            : (currentIndex - 1 + buttons.length) % buttons.length;
+        
+        if (buttons[nextIndex]) {
+            buttons[nextIndex].focus();
+            buttons[nextIndex].click();
+        }
+    }
+    
+    // Public method to navigate to a specific category
+    navigateToCategory(tabName) {
+        console.log('Navigating to category tab:', tabName);
+        this.openMainTab(tabName);
+        
+        const tabButton = document.querySelector(`.tab-button[onclick*="${tabName}"]`);
+        if (tabButton) {
+            tabButton.focus();
+        }
+    }
+
+    initializeAccessibility() {
+        // Initialize ARIA attributes for main tabs
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.setAttribute('role', 'tab');
+            button.setAttribute('aria-label', button.textContent);
+            const onclick = button.getAttribute('onclick');
+            if (onclick) {
+                const match = onclick.match(/openTab\([^,]+,\s*['"]([^'"]+)['"]/);
+                if (match && match[1]) {
+                    button.setAttribute('aria-controls', match[1]);
+                }
+            }
+            button.setAttribute('aria-selected', button.classList.contains('active') ? 'true' : 'false');
+        });
+
+        // Initialize ARIA attributes for ILP tabs
+        document.querySelectorAll('.ilp-tab-button').forEach(button => {
+            button.setAttribute('role', 'tab');
+            button.setAttribute('aria-label', button.textContent);
+            const onclick = button.getAttribute('onclick');
+            if (onclick) {
+                const match = onclick.match(/openILPTab\([^,]+,\s*['"]([^'"]+)['"]/);
+                if (match && match[1]) {
+                    button.setAttribute('aria-controls', match[1]);
+                }
+            }
+            button.setAttribute('aria-selected', button.classList.contains('active') ? 'true' : 'false');
+        });
+
+        // Initialize ARIA attributes for Learning Profile tabs
+        document.querySelectorAll('.learning-profile-tab-button').forEach(button => {
+            button.setAttribute('role', 'tab');
+            button.setAttribute('aria-label', button.textContent);
+            const onclick = button.getAttribute('onclick');
+            if (onclick) {
+                const match = onclick.match(/openLearningProfileTab\([^,]+,\s*['"]([^'"]+)['"]/);
+                if (match && match[1]) {
+                    button.setAttribute('aria-controls', match[1]);
+                }
+            }
+            button.setAttribute('aria-selected', button.classList.contains('active') ? 'true' : 'false');
+        });
+
+        // Initialize ARIA attributes for tab panels
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.setAttribute('role', 'tabpanel');
+            content.setAttribute('aria-hidden', 'true');
+        });
+
+        document.querySelectorAll('.tab-content.active').forEach(content => {
+            content.setAttribute('aria-hidden', 'false');
+        });
+
+        document.querySelectorAll('.ilp-tab-content').forEach(content => {
+            content.setAttribute('role', 'tabpanel');
+            content.setAttribute('aria-hidden', 'true');
+        });
+
+        document.querySelectorAll('.ilp-tab-content.active').forEach(content => {
+            content.setAttribute('aria-hidden', 'false');
+        });
+
+        document.querySelectorAll('.learning-profile-tab-content').forEach(content => {
+            content.setAttribute('role', 'tabpanel');
+            content.setAttribute('aria-hidden', 'true');
+        });
+
+        document.querySelectorAll('.learning-profile-tab-content.active').forEach(content => {
+            content.setAttribute('aria-hidden', 'false');
+        });
+    }
+}
+
+// Initialize TabManager when DOM is ready
+let tabManager;
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Initializing TabManager...');
+    tabManager = new TabManager();
+    
+    // Make global functions available for backward compatibility
+    window.openTab = function(evt, tabName) {
+        if (tabManager.isMobile) {
+            const button = evt.target.closest('.tab-button');
+            if (button) {
+                tabManager.handleMobileTabClick(tabName, button);
+                return;
+            }
+        }
+        tabManager.openMainTab(tabName);
+    };
+    
+    window.openILPTab = function(evt, tabName) {
+        if (tabManager.isMobile) {
+            const button = evt.target.closest('.ilp-tab-button');
+            if (button) {
+                tabManager.handleMobileILPTabClick(tabName, button);
+                return;
+            }
+        }
+        tabManager.openSubTab(tabName);
+    };
+    
+    window.openLearningProfileTab = function(evt, tabName) {
+        if (tabManager.isMobile) {
+            const button = evt.target.closest('.learning-profile-tab-button');
+            if (button) {
+                tabManager.handleMobileLearningProfileTabClick(tabName, button);
+                return;
+            }
+        }
+        tabManager.openNestedTab(tabName);
+    };
+    
+    window.navigateToCategoryTab = function(element) {
+        const tabName = element.getAttribute('data-tab');
+        if (tabName) {
+            tabManager.navigateToCategory(tabName);
+        }
+    };
+    
+    // Debug function
+    window.debugTabState = function() {
+        // Debug function disabled in production
+        console.log('Hidden field values:');
+        console.log('- activeTabField:', document.getElementById('activeTabField')?.value);
+        console.log('- activeSubTabField:', document.getElementById('activeSubTabField')?.value);
+        console.log('- activeNestedTabField:', document.getElementById('activeNestedTabField')?.value);
+        console.log('=====================');
+    };
+});
+
+// Simplified Form Submission System
+class FormManager {
+    constructor() {
+        this.form = document.getElementById('userForm');
+        this.submitBtn = document.getElementById('saveAndContinueBtn');
+        this.buttonIcon = document.getElementById('buttonIcon');
+        this.buttonText = document.getElementById('buttonText');
+        
+        if (this.form && this.submitBtn) {
+            this.init();
+        }
+    }
+    
+    init() {
+        this.form.addEventListener('submit', (e) => this.handleSubmit(e));
+        this.submitBtn.addEventListener('click', (e) => this.handleButtonClick(e));
+        console.log('FormManager initialized');
+    }
+    
+    handleSubmit(e) {
+        console.log('Form submit event');
+        
+        // Clean up any disabled placeholder fields that might interfere with validation
+        this.cleanupPlaceholderFields();
+        
+        // Ensure tab state is preserved
+        if (tabManager) {
+            tabManager.updateHiddenFields();
+        }
+        
+        // Show loading state
+        this.showLoadingState();
+        
+        // Allow normal form submission
+        return true;
+    }
+    
+    handleButtonClick(e) {
+        console.log('Submit button clicked');
+        
+        // Clean up any disabled placeholder fields that might interfere with validation
+        this.cleanupPlaceholderFields();
+        
+        // Basic validation
+        if (!this.validateEssentialFields()) {
+            e.preventDefault();
+            return false;
+        }
+        
+        // Ensure tab state is preserved
+        if (tabManager) {
+            tabManager.updateHiddenFields();
+        }
+        
+        // Let form submit naturally
+        return true;
+    }
+    
+    validateEssentialFields() {
+        const requiredFields = [
+            { name: 'username', label: 'Username' },
+            { name: 'email', label: 'Email' },
+            { name: 'given_name', label: 'Given Name' },
+            { name: 'family_name', label: 'Family Name' },
+            { name: 'role', label: 'Role' }
+        ];
+        
+        const isEditMode = {% if is_edit_mode %}true{% else %}false{% endif %};
+        
+        // Add password fields for create mode
+        if (!isEditMode) {
+            requiredFields.push(
+                { name: 'password1', label: 'Password' },
+                { name: 'password2', label: 'Confirm Password' }
+            );
+        }
+        
+        const missingFields = [];
+        
+        for (const field of requiredFields) {
+            const element = document.querySelector(`[name="${field.name}"]`);
+            if (!element || !element.value.trim()) {
+                missingFields.push(field.label);
+            }
+        }
+        
+        // Check password match in create mode
+        if (!isEditMode) {
+            const password1 = document.querySelector('[name="password1"]');
+            const password2 = document.querySelector('[name="password2"]');
+            if (password1 && password2 && password1.value !== password2.value) {
+                missingFields.push('Password confirmation (passwords do not match)');
+            }
+        }
+        
+        // Check role restrictions
+        if (typeof validateRoleSelection === 'function' && !validateRoleSelection()) {
+            missingFields.push('Role (invalid selection)');
+        }
+        
+        if (missingFields.length > 0) {
+            alert('Please fill in the following required fields: ' + missingFields.join(', '));
+            return false;
+        }
+        
+        return true;
+    }
+    
+    cleanupPlaceholderFields() {
+        // Remove any hidden template fields that have placeholder names to prevent validation issues
+        const placeholderFields = document.querySelectorAll('input[name*="_template_"], textarea[name*="_template_"]');
+        placeholderFields.forEach(field => {
+            // Remove the field entirely to prevent validation conflicts
+            field.remove();
+        });
+        
+        // Also remove any disabled fields in hidden template rows
+        const templateRows = document.querySelectorAll('#new-assessment-row-template');
+        templateRows.forEach(row => {
+            const disabledFields = row.querySelectorAll('input[disabled], textarea[disabled]');
+            disabledFields.forEach(field => {
+                field.remove();
+            });
+        });
+        
+        console.log('Cleaned up placeholder fields before form submission');
+    }
+    
+    showLoadingState() {
+        if (this.submitBtn && this.buttonIcon && this.buttonText) {
+            this.submitBtn.disabled = true;
+            this.buttonIcon.className = 'fas fa-spinner fa-spin';
+            this.buttonText.textContent = 'Saving...';
+            
+            // Failsafe to re-enable button
+            setTimeout(() => {
+                if (this.submitBtn.disabled) {
+                    this.submitBtn.disabled = false;
+                    this.buttonIcon.className = 'fas fa-save';
+                    this.buttonText.textContent = {% if is_edit_mode %}'Save & Continue Editing'{% else %}'Create User'{% endif %};
+                }
+            }, 10000);
+        }
+    }
+}
+
+// Initialize FormManager when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    new FormManager();
+});
+
+// Role Management System
+document.addEventListener('DOMContentLoaded', function() {
+    const roleSelect = document.getElementById('{{ form.role.id_for_label }}');
+    const roleRestrictionMessage = document.getElementById('role-restriction-message');
+    const userRole = '{{ user.role|escapejs }}';
+    
+    window.validateRoleSelection = function() {
+        if (!roleSelect || !roleRestrictionMessage) {
+            return true;
+        }
+        
+        const selectedValue = roleSelect.value;
+        let isRestricted = false;
+        let errorMessage = '';
+        
+        if (selectedValue) {
+            if (userRole === 'superadmin' && (selectedValue === 'globaladmin' || selectedValue === 'superadmin')) {
+                isRestricted = true;
+                errorMessage = 'Super admin users are not allowed to create global admin or super admin users.';
+            } else if (userRole === 'admin' && (selectedValue === 'superadmin' || selectedValue === 'globaladmin')) {
+                isRestricted = true;
+                errorMessage = 'Admin users are not allowed to create super admin or global admin users.';
+            }
+        }
+        
+        if (isRestricted) {
+            roleRestrictionMessage.textContent = errorMessage;
+            roleRestrictionMessage.style.display = 'block';
+            roleSelect.classList.add('error');
+        } else {
+            roleRestrictionMessage.style.display = 'none';
+            roleSelect.classList.remove('error');
+        }
+        
+        return !isRestricted;
+    };
+    
+    function toggleLearnerOnlyTabs() {
+        const selectedRole = roleSelect ? roleSelect.value : '';
+        const learnerOnlyTabs = document.querySelectorAll('.learner-only-tab');
+        const isEditMode = {% if is_edit_mode %}true{% else %}false{% endif %};
+        
+        if (!isEditMode) {
+            learnerOnlyTabs.forEach(function(tab) {
+                if (selectedRole === 'learner') {
+                    tab.style.display = 'inline-block';
+                } else {
+                    tab.style.display = 'none';
+                    
+                    // If user is currently on a learner-only tab, switch to Account tab
+                    if (tab.classList.contains('active') && tabManager) {
+                        tabManager.openMainTab('account-tab');
+                    }
+                }
+            });
+        }
+    }
+    
+    if (roleSelect) {
+        roleSelect.addEventListener('change', function() {
+            validateRoleSelection();
+            toggleLearnerOnlyTabs();
+        });
+        
+        // Initial call
+        toggleLearnerOnlyTabs();
+        
+        // Remove restricted options - global admins can see all roles
+        const options = roleSelect.querySelectorAll('option');
+        options.forEach(option => {
+            if (userRole === 'superadmin' && (option.value === 'globaladmin' || option.value === 'superadmin')) {
+                option.remove();
+            } else if (userRole === 'admin' && (option.value === 'superadmin' || option.value === 'globaladmin')) {
+                option.remove();
+            }
+        });
+    }
+});
+
+// Quiz Assignment Functions (simplified)
+function showAddQuizModal(assignmentType) {
+    const modalHtml = `
+        <div id="add-quiz-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                <div class="mt-3">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">
+                        Add ${assignmentType === 'initial_assessment' ? 'Initial Assessment' : 'VAK Test'}
+                    </h3>
+                    <form id="add-quiz-form">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Select Quiz</label>
+                            <select id="quiz-selector" class="w-full border border-gray-300 rounded-md px-3 py-2" required>
+                                <option value="">Loading quizzes...</option>
+                            </select>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Item Name</label>
+                            <input type="text" id="item-name" class="w-full border border-gray-300 rounded-md px-3 py-2" 
+                                   placeholder="Default: Quiz name">
+                            <p class="text-sm text-gray-500 mt-1">Leave blank to use quiz name</p>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+                            <textarea id="assignment-notes" class="w-full border border-gray-300 rounded-md px-3 py-2" rows="3" placeholder="Optional notes about this assignment"></textarea>
+                        </div>
+                        <div class="flex justify-end space-x-3">
+                            <button type="button" onclick="closeAddQuizModal()" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                                Cancel
+                            </button>
+                            <button type="submit" class="px-4 py-2 text-white rounded-md" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                                Assign Quiz
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    loadQuizzesForAssignment(assignmentType);
+    
+    document.getElementById('add-quiz-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        submitQuizAssignment(assignmentType);
+    });
+}
+
+function loadQuizzesForAssignment(assignmentType) {
+    const selector = document.getElementById('quiz-selector');
+    const userId = {% if profile_user %}{{ profile_user.id|escapejs }}{% else %}null{% endif %};
+    
+    fetch(`{% url 'users:get_available_quizzes' %}?type=${assignmentType}&user_id=${userId}`)
+        .then(response => {
+            if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+        .then(data => {
+            selector.innerHTML = '<option value="">Select a quiz...</option>';
+            if (data.success && data.quizzes && data.quizzes.length > 0) {
+                data.quizzes.forEach(quiz => {
+                    selector.innerHTML += `<option value="${quiz.id}">${quiz.title}</option>`;
+                });
+            } else {
+                selector.innerHTML = '<option value="">No quizzes available</option>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading quizzes:', error);
+            selector.innerHTML = '<option value="">Error loading quizzes</option>';
+        });
+}
+
+function submitQuizAssignment(assignmentType) {
+    const quizId = document.getElementById('quiz-selector').value;
+    const itemName = document.getElementById('item-name').value;
+    const notes = document.getElementById('assignment-notes').value;
+    const userId = {% if profile_user %}{{ profile_user.id|escapejs }}{% else %}null{% endif %};
+    
+    if (!quizId) {
+        alert('Please select a quiz to assign.');
+        return;
+    }
+    
+    const assignmentData = {
+        quiz_id: quizId,
+        user_id: userId,
+        assignment_type: assignmentType,
+        item_name: itemName || '',
+        notes: notes || '',
+        csrfmiddlewaretoken: document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+    };
+    
+    fetch('{% url "users:add_quiz_assignment" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': assignmentData.csrfmiddlewaretoken
+        },
+        body: JSON.stringify(assignmentData)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            closeAddQuizModal();
+            window.location.reload();
+        } else {
+            alert(data.message || 'Error creating quiz assignment');
+        }
+    })
+    .catch(error => {
+        console.error('Error creating assignment:', error);
+        alert('Error creating quiz assignment. Please try again.');
+    });
+}
+
+function closeAddQuizModal() {
+    const modal = document.getElementById('add-quiz-modal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+function editQuizAssignment(assignmentId) {
+    fetch(`/users/quiz-assignment/${assignmentId}/edit/`)
+        .then(response => {
+            if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+        .then(data => {
+            if (data.success) {
+                showEditQuizModal(data.assignment);
+            } else {
+                alert('Error loading assignment details: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching assignment:', error);
+            alert('Error loading assignment details');
+        });
+}
+
+function showEditQuizModal(assignment) {
+    const modalHtml = `
+        <div id="edit-quiz-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                <div class="mt-3">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">
+                        Edit ${assignment.assignment_type === 'initial_assessment' ? 'Initial Assessment' : 'VAK Test'}
+                    </h3>
+                    <form id="edit-quiz-form">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Quiz</label>
+                            <div class="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-gray-700">
+                                ${assignment.quiz_title}
+                            </div>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Item Name</label>
+                            <input type="text" id="edit-item-name" class="w-full border border-gray-300 rounded-md px-3 py-2" 
+                                   value="${assignment.item_name}" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+                            <textarea id="edit-assignment-notes" class="w-full border border-gray-300 rounded-md px-3 py-2" rows="3">${assignment.notes}</textarea>
+                        </div>
+                        <div class="flex justify-end space-x-3">
+                            <button type="button" onclick="closeEditQuizModal()" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                                Cancel
+                            </button>
+                            <button type="submit" class="px-4 py-2 text-white rounded-md" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                                Update Assignment
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    document.getElementById('edit-quiz-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        submitEditQuizAssignment(assignment.id);
+    });
+}
+
+function submitEditQuizAssignment(assignmentId) {
+    const itemName = document.getElementById('edit-item-name').value;
+    const notes = document.getElementById('edit-assignment-notes').value;
+    
+    if (!itemName.trim()) {
+        alert('Item name is required.');
+        return;
+    }
+    
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+    if (!csrfToken) {
+        alert('Security token not found. Please refresh the page and try again.');
+        return;
+    }
+    
+    const updateData = {
+        item_name: itemName,
+        notes: notes,
+        csrfmiddlewaretoken: csrfToken
+    };
+    
+    fetch(`/users/quiz-assignment/${assignmentId}/edit/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify(updateData)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            closeEditQuizModal();
+            window.location.reload();
+        } else {
+            alert(data.message || 'Error updating assignment');
+        }
+    })
+    .catch(error => {
+        console.error('Error updating assignment:', error);
+        alert('Error updating assignment. Please try again.');
+    });
+}
+
+function closeEditQuizModal() {
+    const modal = document.getElementById('edit-quiz-modal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+function deleteQuizAssignment(assignmentId, assignmentName) {
+    if (confirm(`Are you sure you want to delete the assignment "${assignmentName}"? This action cannot be undone.`)) {
+        fetch(`/users/quiz-assignment/${assignmentId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert(data.message || 'Error deleting assignment');
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting assignment:', error);
+            alert('Error deleting assignment. Please try again.');
+        });
+    }
+}
+
+// Notification function
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        border-radius: 4px;
+        color: white;
+        font-weight: bold;
+        z-index: 10000;
+        ${type === 'error' ? 'background-color: #dc2626;' : 'background-color: #059669;'}
+    `;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        if (notification.parentNode) {
+            document.body.removeChild(notification);
+        }
+    }, 3000);
+}
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Inject Django URLs for use by static JavaScript files
+    window.POSTCODE_LOOKUP_URL = "{% url 'users:lookup_postcode_addresses' %}";
+    
+    // Function to send self password reset email
+    function sendSelfPasswordReset() {
+        const button = document.getElementById('send-self-password-reset-btn');
+        const statusDiv = document.getElementById('self-password-reset-status');
+        
+        // Disable button and show loading state
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
+        
+        // Make AJAX request to send self password reset email
+        fetch('{% url "users:send_self_password_reset" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Show status message
+            statusDiv.style.display = 'block';
+            
+            if (data.success) {
+                statusDiv.innerHTML = '<div class="text-green-600"><i class="fas fa-check-circle mr-1"></i>' + data.message + '</div>';
+            } else {
+                statusDiv.innerHTML = '<div class="text-red-600"><i class="fas fa-exclamation-circle mr-1"></i>' + data.message + '</div>';
+            }
+            
+            // Re-enable button
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-envelope mr-2"></i>Send Password Reset Email';
+            
+            // Hide status message after 5 seconds
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 5000);
+        })
+        .catch(error => {
+            console.error('Error sending self password reset email:', error);
+            
+            // Show error message
+            statusDiv.style.display = 'block';
+            statusDiv.innerHTML = '<div class="text-red-600"><i class="fas fa-exclamation-circle mr-1"></i>Failed to send password reset email. Please try again.</div>';
+            
+            // Re-enable button
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-envelope mr-2"></i>Send Password Reset Email';
+            
+            // Hide status message after 5 seconds
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 5000);
+        });
+    }
+    
+    // Function to send admin password reset email to another user
+    function sendAdminPasswordReset() {
+        const button = document.getElementById('send-admin-password-reset-btn');
+        const statusDiv = document.getElementById('admin-password-reset-status');
+        
+        // Show confirmation dialog
+        if (!confirm('Are you sure you want to send a password reset email to {% if profile_user %}{{ profile_user.get_full_name|default:profile_user.username }}{% else %}this user{% endif %}?')) {
+            return;
+        }
+        
+        // Disable button and show loading state
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
+        
+        // Make AJAX request to send admin password reset email
+        fetch('{% if profile_user %}{% url "users:admin_send_forgot_password" profile_user.id %}{% else %}#{% endif %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Show status message
+            statusDiv.style.display = 'block';
+            
+            if (data.success) {
+                statusDiv.innerHTML = '<div class="text-green-600"><i class="fas fa-check-circle mr-1"></i>Password reset email sent successfully{% if profile_user %} to {{ profile_user.email }}{% endif %}</div>';
+            } else {
+                statusDiv.innerHTML = '<div class="text-red-600"><i class="fas fa-exclamation-circle mr-1"></i>' + data.message + '</div>';
+            }
+            
+            // Re-enable button
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-envelope mr-2"></i>Send Password Reset Email to User';
+            
+            // Hide status message after 5 seconds
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 5000);
+        })
+        .catch(error => {
+            console.error('Error sending admin password reset email:', error);
+            
+            // Show error message
+            statusDiv.style.display = 'block';
+            statusDiv.innerHTML = '<div class="text-red-600"><i class="fas fa-exclamation-circle mr-1"></i>Failed to send password reset email. Please try again.</div>';
+            
+            // Re-enable button
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-envelope mr-2"></i>Send Password Reset Email to User';
+            
+            // Hide status message after 5 seconds
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 5000);
+        });
+    }
+</script>
+<script src="{% static 'core/js/form_tabs.js' %}"></script>
+<script src="{% static 'core/js/dynamic_forms.js' %}"></script>
+<script src="{% static 'core/js/postcode_lookup.js' %}"></script>
+<script src="{% static 'core/js/cv_extraction.js' %}"></script>
+<script src="{% static 'core/js/ilp_tabs.js' %}"></script>
+{% endblock %} 

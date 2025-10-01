@@ -1,0 +1,754 @@
+{% load static %}
+<!-- Account Tab Content -->
+<div id="account-tab" class="tab-content active">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="form-group">
+            <label for="{{ form.username.id_for_label }}" class="form-label required-field">Username</label>
+            <input type="text" name="{{ form.username.name }}" id="{{ form.username.id_for_label }}" 
+                   class="form-input" value="{{ form.username.value|default:'' }}" required>
+            {% if form.username.errors %}
+            <div class="error-message">{{ form.username.errors.0 }}</div>
+            {% endif %}
+            <div class="form-help-text">{{ form.username.help_text }}</div>
+            <div id="username-duplicate-warning" class="error-message" style="display: none;"></div>
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.role.id_for_label }}" class="form-label required-field">Role</label>
+            {% if is_edit_mode and request.user.id == profile_user.id %}
+                <!-- Self-editing mode: Show role as read-only -->
+                <input type="text" class="form-input" value="{{ profile_user.get_role_display }}" disabled readonly>
+                <input type="hidden" name="{{ form.role.name }}" value="{{ form.role.value }}">
+                <div class="form-help-text text-gray-500">You cannot change your own role</div>
+            {% elif is_edit_mode %}
+                <!-- Editing another user: Show editable role dropdown -->
+                <select name="{{ form.role.name }}" id="{{ form.role.id_for_label }}" class="form-select" required>
+                    <option value="">Select a role...</option>
+                    {% for value, label in roles %}
+                        <option value="{{ value }}" {% if form.role.value == value %}selected{% endif %}
+                                data-restricted-for-globaladmin="false"
+                                data-restricted-for-superadmin="{% if value == 'globaladmin' or value == 'superadmin' %}true{% else %}false{% endif %}"
+                                data-restricted-for-admin="{% if value in 'superadmin,globaladmin' %}true{% else %}false{% endif %}">
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <div class="form-help-text">Select the user's role in the system</div>
+            {% else %}
+                <!-- Create mode: Show normal dropdown -->
+                <select name="{{ form.role.name }}" id="{{ form.role.id_for_label }}" class="form-select" required>
+                    <option value="">Select a role...</option>
+                    {% for value, label in roles %}
+                        <option value="{{ value }}" {% if form.role.value == value %}selected{% endif %}
+                                data-restricted-for-globaladmin="false"
+                                data-restricted-for-superadmin="{% if value == 'globaladmin' or value == 'superadmin' %}true{% else %}false{% endif %}"
+                                data-restricted-for-admin="{% if value in 'superadmin,globaladmin' %}true{% else %}false{% endif %}">
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <div class="form-help-text">Select the user's role in the system</div>
+            {% endif %}
+            {% if form.role.errors %}
+            <div class="error-message">{{ form.role.errors.0 }}</div>
+            {% endif %}
+            <div id="role-restriction-message" class="error-message" style="display: none;"></div>
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.given_name.id_for_label }}" class="form-label required-field">Given Name</label>
+            <input type="text" name="{{ form.given_name.name }}" id="{{ form.given_name.id_for_label }}" 
+                   class="form-input" value="{{ form.given_name.value|default:'' }}" required 
+                   placeholder="e.g., Jane">
+            {% if form.given_name.errors %}
+            <div class="error-message">{{ form.given_name.errors.0 }}</div>
+            {% endif %}
+            <div class="form-help-text">{{ form.given_name.help_text }}</div>
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.family_name.id_for_label }}" class="form-label required-field">Family Name</label>
+            <input type="text" name="{{ form.family_name.name }}" id="{{ form.family_name.id_for_label }}" 
+                   class="form-input" value="{{ form.family_name.value|default:'' }}" required 
+                   placeholder="e.g., Doe">
+            {% if form.family_name.errors %}
+            <div class="error-message">{{ form.family_name.errors.0 }}</div>
+            {% endif %}
+            <div class="form-help-text">{{ form.family_name.help_text }}</div>
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.email.id_for_label }}" class="form-label required-field">Email</label>
+            <input type="email" name="{{ form.email.name }}" id="{{ form.email.id_for_label }}" 
+                   class="form-input" value="{{ form.email.value|default:'' }}" required 
+                   placeholder="e.g., jane.doe@email.com">
+            {% if form.email.errors %}
+            <div class="error-message">{{ form.email.errors.0 }}</div>
+            {% endif %}
+            <div class="form-help-text">{{ form.email.help_text }}</div>
+            <div id="email-duplicate-warning" class="error-message" style="display: none;"></div>
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.phone_number.id_for_label }}" class="form-label">Phone Number</label>
+            {{ form.phone_number }}
+            {% if form.phone_number.errors %}
+            <div class="error-message">{{ form.phone_number.errors.0 }}</div>
+            {% endif %}
+            <div class="form-help-text">{{ form.phone_number.help_text }}</div>
+        </div>
+
+        <!-- Profile Image Field -->
+        <div class="form-group">
+            <label for="{{ form.profile_image.id_for_label }}" class="form-label">Profile Picture</label>
+            <div class="profile-image-upload">
+                {% if is_edit_mode and profile_user.profile_image %}
+                    <div class="current-image mb-3">
+                        <img src="{{ profile_user.profile_image.url }}" alt="Current profile picture" class="profile-preview-img" style="width: 100px; height: 100px; object-fit: cover; border-radius: 50%; border: 3px solid #e5e7eb;">
+                        <p class="text-sm text-gray-600 mt-2">Current profile picture</p>
+                    </div>
+                {% endif %}
+                <div class="file-input-container">
+                    <label class="file-input-button">
+                        Choose File
+                        {{ form.profile_image }}
+                    </label>
+                    <span class="file-name" id="profile-image-name">
+                        {% if is_edit_mode and profile_user.profile_image %}{{ profile_user.profile_image.name }}{% else %}No file chosen{% endif %}
+                    </span>
+                </div>
+                {% if form.profile_image.errors %}
+                <div class="error-message">{{ form.profile_image.errors.0 }}</div>
+                {% endif %}
+                <div class="form-help-text">{{ form.profile_image.help_text }}</div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.contact_preference.id_for_label }}" class="form-label">Contact Preference</label>
+            {{ form.contact_preference }}
+            {% if form.contact_preference.errors %}
+            <div class="error-message">{{ form.contact_preference.errors.0 }}</div>
+            {% endif %}
+            <div class="form-help-text">{{ form.contact_preference.help_text }}</div>
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.timezone.id_for_label }}" class="form-label required-field">Timezone</label>
+            <select name="{{ form.timezone.name }}" id="{{ form.timezone.id_for_label }}" class="form-select" required>
+                <option value="">Select timezone...</option>
+                {% for value, label in form.timezone.field.choices %}
+                    <option value="{{ value }}" {% if form.timezone.value == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            {% if form.timezone.errors %}
+            <div class="error-message">{{ form.timezone.errors.0 }}</div>
+            {% endif %}
+            <div class="form-help-text">Select user's preferred timezone</div>
+        </div>
+
+        {% if not is_edit_mode %}
+        <div class="form-group">
+            <label for="{{ form.password1.id_for_label }}" class="form-label required-field">Password</label>
+            {{ form.password1 }}
+            {% if form.password1.errors %}
+            <div class="error-message">{{ form.password1.errors.0 }}</div>
+            {% endif %}
+            <div class="form-help-text">{{ form.password1.help_text }}</div>
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.password2.id_for_label }}" class="form-label required-field">Confirm Password</label>
+            {{ form.password2 }}
+            {% if form.password2.errors %}
+            <div class="error-message">{{ form.password2.errors.0 }}</div>
+            {% endif %}
+            <div class="form-help-text">Enter the same password as before, for verification</div>
+        </div>
+        {% endif %}
+
+        <!-- Branch selection (shown for all users except when self-editing non-global-admin users) -->
+        <div class="form-group" id="branch-selection">
+            <label for="{{ form.branch.id_for_label }}" class="form-label">Branch</label>
+            {% if is_edit_mode and request.user.id == profile_user.id and request.user.role != 'globaladmin' %}
+                <!-- Self-editing mode (non-global-admin): Show branch as read-only -->
+                {% if profile_user.branch %}
+                    <input type="text" class="form-input" value="{{ profile_user.branch.name }}" disabled readonly>
+                    <input type="hidden" name="{{ form.branch.name }}" value="{{ profile_user.branch.id }}">
+                    <div class="form-help-text text-gray-500">You cannot change your own branch assignment</div>
+                {% else %}
+                    <input type="text" class="form-input" value="No branch assigned" disabled readonly>
+                    <div class="form-help-text text-gray-500">You are not assigned to any branch</div>
+                {% endif %}
+            {% else %}
+                <!-- Editing another user, create mode, or global admin self-editing: Show selectable dropdown -->
+                <select name="{{ form.branch.name }}" id="{{ form.branch.id_for_label }}" class="form-select">
+                    <option value="">Select branch...</option>
+                    {% for branch in form.branch.field.queryset %}
+                        <option value="{{ branch.pk }}" {% if form.branch.value == branch.pk %}selected{% endif %}>{{ branch.name }}</option>
+                    {% endfor %}
+                </select>
+                {% if request.user.role == 'globaladmin' %}
+                    <div class="form-help-text">As Global Admin, you can assign users to any branch or leave unassigned</div>
+                {% elif request.user.role == 'superadmin' %}
+                    <div class="form-help-text">Select the branch this user belongs to (not required for Super Admin users)</div>
+                {% else %}
+                    <div class="form-help-text">Select the branch this user belongs to</div>
+                {% endif %}
+            {% endif %}
+            {% if form.branch.errors %}
+            <div class="error-message">{{ form.branch.errors.0 }}</div>
+            {% endif %}
+        </div>
+
+        <!-- Business selection (for Super Admin role only) -->
+        {% if request.user.role == 'globaladmin' or request.user.role == 'superadmin' %}
+        <div class="form-group" id="business-selection" style="display: none;">
+            <label for="{{ form.business.id_for_label }}" class="form-label required-field">Business</label>
+            {% if is_edit_mode and request.user.id == profile_user.id and profile_user.role == 'superadmin' %}
+                <!-- Super Admin self-editing mode: Show business as read-only -->
+                {% if user_business %}
+                    <input type="text" class="form-input" value="{{ user_business.name }}" disabled readonly>
+                    <input type="hidden" name="{{ form.business.name }}" value="{{ user_business.id }}">
+                    <div class="form-help-text text-gray-500">You cannot change your own business assignment</div>
+                {% else %}
+                    <input type="text" class="form-input" value="No business assigned" disabled readonly>
+                    <div class="form-help-text text-gray-500">You are not assigned to any business</div>
+                {% endif %}
+            {% else %}
+                <!-- Global Admin or Super Admin editing Super Admin user or create mode: Show selectable dropdown -->
+                <select name="{{ form.business.name }}" id="{{ form.business.id_for_label }}" class="form-select">
+                    <option value="">Select business...</option>
+                    {% if businesses %}
+                        {% for business in businesses %}
+                            <option value="{{ business.pk }}" 
+                                {% if form.business.value == business.pk %}selected{% endif %}
+                                {% if user_business and user_business.pk == business.pk %}selected{% endif %}>
+                                {{ business.name }}
+                            </option>
+                        {% endfor %}
+                    {% endif %}
+                </select>
+                <div class="form-help-text">Select the business for Super Admin assignment</div>
+            {% endif %}
+            {% if form.business.errors %}
+            <div class="error-message">{{ form.business.errors.0 }}</div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% if is_edit_mode %}
+        <div class="form-group">
+            <label class="form-label flex items-center space-x-2">
+                {{ form.is_active }}
+                <span>Active</span>
+            </label>
+            {% if form.is_active.errors %}
+            <div class="error-message">{{ form.is_active.errors.0 }}</div>
+            {% endif %}
+            <div class="form-help-text">Uncheck to deactivate this user account</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Password Change Section (Edit Mode Only) -->
+    {% if is_edit_mode %}
+    <div class="mt-6 border-t pt-6">
+        <h4 class="text-lg font-medium text-gray-900 mb-4">Change Password</h4>
+        <p class="text-sm text-gray-600 mb-4">Leave blank to keep current password unchanged.</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {% if form.password1 %}
+            <div class="form-group">
+                <label for="{{ form.password1.id_for_label }}" class="form-label">New Password</label>
+                {{ form.password1 }}
+                {% if form.password1.errors %}
+                <div class="error-message">{{ form.password1.errors.0 }}</div>
+                {% endif %}
+                <div class="form-help-text">{{ form.password1.help_text }}</div>
+            </div>
+            {% endif %}
+
+            {% if form.password2 %}
+            <div class="form-group">
+                <label for="{{ form.password2.id_for_label }}" class="form-label">Confirm New Password</label>
+                {{ form.password2 }}
+                {% if form.password2.errors %}
+                <div class="error-message">{{ form.password2.errors.0 }}</div>
+                {% endif %}
+                <div class="form-help-text">{{ form.password2.help_text }}</div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Password validation feedback will be added by JavaScript -->
+        
+        <!-- Send Forgot Password Email -->
+        <div class="mt-4 pt-4 border-t border-gray-200">
+            <h5 class="text-md font-medium text-gray-900 mb-2">Password Reset</h5>
+            {% if request.user.role in 'globaladmin,superadmin,admin' and request.user.id != profile_user.id %}
+            <p class="text-sm text-gray-600 mb-3">Send a forgot password email to this user to allow them to reset their password.</p>
+            <button type="button" id="send-forgot-password-btn" class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-colors" onclick="sendForgotPasswordEmail()">
+                <i class="fas fa-envelope mr-2"></i>Send Password Reset Email
+            </button>
+            <div id="forgot-password-status" class="mt-2 text-sm" style="display: none;"></div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+// Ensure tab state is preserved when making updates in this tab
+document.addEventListener('DOMContentLoaded', function() {
+    // Debug logging for business field context
+    console.log('Account tab loaded with context:');
+    {% if is_edit_mode %}
+    console.log('Edit mode: true');
+    console.log('Profile user role: {{ profile_user.role|escapejs }}');
+    
+    // Ensure password fields are not required in edit mode
+    const password1Field = document.querySelector('[name="password1"]');
+    const password2Field = document.querySelector('[name="password2"]');
+    
+    if (password1Field) {
+        password1Field.removeAttribute('required');
+        console.log('Removed required attribute from password1 field');
+    }
+    
+    if (password2Field) {
+        password2Field.removeAttribute('required');
+        console.log('Removed required attribute from password2 field');
+    }
+    {% if user_business %}
+    console.log('User business: {{ user_business.name|escapejs }} (ID: {{ user_business.id|escapejs }})');
+    {% else %}
+    console.log('No user business assigned');
+    {% endif %}
+    {% endif %}
+    console.log('Available businesses count: {{ businesses|length|escapejs }}');
+
+    // Set tab state for form submission
+    function updateTabState() {
+        // Update global tab state explicitly for this tab
+        if (typeof currentTabState !== 'undefined') {
+            currentTabState.mainTab = 'account-tab';
+            
+            console.log('Account tab: Setting tab state to:', currentTabState);
+            
+            // Update hidden form fields directly
+            var activeTabField = document.getElementById('activeTabField');
+            if (activeTabField) activeTabField.value = currentTabState.mainTab;
+        }
+    }
+    
+    // Handle role selection to show/hide branch/business fields
+    function toggleBranchBusinessSelection() {
+        var roleSelect = document.getElementById('{{ form.role.id_for_label }}');
+        var branchSelection = document.getElementById('branch-selection');
+        var businessSelection = document.getElementById('business-selection');
+        var branchField = document.getElementById('{{ form.branch.id_for_label }}');
+        var businessField = document.getElementById('{{ form.business.id_for_label }}');
+        
+        if (!roleSelect) return;
+        
+        // Check if this is self-editing mode
+        var isSelfEdit = {% if is_edit_mode and request.user.id == profile_user.id %}true{% else %}false{% endif %};
+        
+        // If self-editing, don't modify field visibility as they're handled by server-side logic
+        if (isSelfEdit) {
+            return;
+        }
+        
+        // Get the selected role value, handling disabled fields in edit mode
+        var selectedRole = roleSelect.value;
+        {% if is_edit_mode %}
+        if (roleSelect.disabled) {
+            // In edit mode, get role from the hidden field
+            var hiddenRoleField = document.querySelector('input[name="{{ form.role.name }}"][type="hidden"]');
+            selectedRole = hiddenRoleField ? hiddenRoleField.value : roleSelect.value;
+        }
+        {% endif %}
+        
+        // Fallback: If still no role detected, try to get from user being edited
+        {% if is_edit_mode and profile_user.role %}
+        if (!selectedRole) {
+            selectedRole = '{{ profile_user.role }}';
+        }
+        {% endif %}
+        
+        console.log('Toggle function - detected role:', selectedRole, 'isSelfEdit:', isSelfEdit);
+        
+        if (selectedRole === 'superadmin') {
+            console.log('Showing business field for superadmin role');
+            // Show business selection for superadmin, but keep branch visible for global admin
+            var currentUserRole = '{{ request.user.role }}';
+            if (branchSelection && currentUserRole !== 'globaladmin') {
+                branchSelection.style.display = 'none';
+                if (branchField) {
+                    branchField.removeAttribute('required');
+                    branchField.value = '';  // Clear branch value for Super Admin
+                }
+            } else if (branchSelection && currentUserRole === 'globaladmin') {
+                // Global admin can still see and modify branch for superadmin users
+                branchSelection.style.display = 'block';
+                if (branchField) {
+                    branchField.removeAttribute('required');
+                }
+            }
+            
+            if (businessSelection) {
+                businessSelection.style.display = 'block';
+                console.log('Business field should now be visible');
+                if (businessField) {
+                    businessField.setAttribute('required', 'required');
+                    
+                    // For edit mode, ensure the current business value is preserved
+                    {% if is_edit_mode and user_business %}
+                    if (!businessField.value) {
+                        businessField.value = '{{ user_business.id }}';
+                        console.log('Set business field value to:', {{ user_business.id|escapejs }});
+                    }
+                    {% endif %}
+                }
+            }
+        } else {
+            console.log('Hiding business field for role:', selectedRole);
+            // Show branch selection, hide business selection
+            if (branchSelection) {
+                branchSelection.style.display = 'block';
+                if (branchField && selectedRole !== 'globaladmin') {
+                    branchField.setAttribute('required', 'required');
+                } else if (branchField && selectedRole === 'globaladmin') {
+                    // Global admin users don't need branch but can choose one
+                    branchField.removeAttribute('required');
+                }
+            }
+            
+            if (businessSelection) {
+                businessSelection.style.display = 'none';
+                if (businessField) {
+                    businessField.removeAttribute('required');
+                    businessField.value = '';  // Clear business value for non-Super Admin
+                }
+            }
+        }
+    }
+    
+    // Add role selection change listener
+    var roleSelect = document.getElementById('{{ form.role.id_for_label }}');
+    if (roleSelect) {
+        var isSelfEdit = {% if is_edit_mode and request.user.id == profile_user.id %}true{% else %}false{% endif %};
+        
+        {% if not is_edit_mode %}
+        // Only add change listener if not in edit mode (role not disabled)
+        if (!isSelfEdit) {
+            roleSelect.addEventListener('change', toggleBranchBusinessSelection);
+        }
+        {% else %}
+        // In edit mode, only add listener if not self-editing
+        if (!isSelfEdit) {
+            roleSelect.addEventListener('change', toggleBranchBusinessSelection);
+        }
+        {% endif %}
+        
+        // Always run initial check to ensure proper field visibility
+        // Add small delay to ensure DOM is fully rendered
+        setTimeout(function() {
+            console.log('Running initial toggleBranchBusinessSelection...');
+            toggleBranchBusinessSelection();
+        }, 100);
+        
+        // Also run immediately in case timeout doesn't work
+        toggleBranchBusinessSelection();
+    }
+    
+    // Update tab state when the tab becomes visible
+    var tabElement = document.getElementById('account-tab');
+    if (tabElement) {
+        // Create a mutation observer to detect when the tab becomes visible
+        var observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && 
+                    mutation.attributeName === 'style' &&
+                    tabElement.style.display !== 'none') {
+                    updateTabState();
+                }
+                
+                if (mutation.type === 'attributes' && 
+                    mutation.attributeName === 'class' &&
+                    tabElement.classList.contains('active')) {
+                    updateTabState();
+                }
+            });
+        });
+        
+        observer.observe(tabElement, { attributes: true });
+        
+        // Also check if it's already visible
+        if (tabElement.style.display !== 'none' || tabElement.classList.contains('active')) {
+            updateTabState();
+        }
+    }
+    
+    // Add input listeners to all form elements in this tab
+    var formElements = document.querySelectorAll('#account-tab input, #account-tab textarea, #account-tab select');
+    formElements.forEach(function(element) {
+        element.addEventListener('focus', updateTabState);
+        element.addEventListener('change', updateTabState);
+    });
+
+    // Handle profile image file input feedback
+    var profileImageInput = document.querySelector('#account-tab input[type="file"][name="profile_image"]');
+    var profileImageNameSpan = document.getElementById('profile-image-name');
+    
+    if (profileImageInput && profileImageNameSpan) {
+        profileImageInput.addEventListener('change', function(e) {
+            if (e.target.files && e.target.files.length > 0) {
+                var fileName = e.target.files[0].name;
+                profileImageNameSpan.textContent = fileName;
+            } else {
+                profileImageNameSpan.textContent = 'No file chosen';
+            }
+        });
+    }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const emailField = document.getElementById('{{ form.email.id_for_label }}');
+    const usernameField = document.getElementById('{{ form.username.id_for_label }}');
+    const roleField = document.getElementById('{{ form.role.id_for_label }}');
+    const branchField = document.getElementById('{{ form.branch.id_for_label }}');
+    const emailWarning = document.getElementById('email-duplicate-warning');
+    const usernameWarning = document.getElementById('username-duplicate-warning');
+    
+    // Debounce function to limit API calls
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+    
+    // Check for duplicate user role accounts
+    function checkDuplicateUserRole() {
+        const email = emailField ? emailField.value.trim() : '';
+        const username = usernameField ? usernameField.value.trim() : '';
+        
+        // Get role value - handle disabled field in edit mode
+        let role = '';
+        if (roleField) {
+            if (roleField.disabled) {
+                // In edit mode, get role from hidden field
+                const hiddenRoleField = document.querySelector('input[name="{{ form.role.name }}"][type="hidden"]');
+                role = hiddenRoleField ? hiddenRoleField.value : '';
+            } else {
+                role = roleField.value;
+            }
+        }
+        
+        const branch = branchField ? branchField.value : '';
+        
+        if (!email && !username || !role) {
+            emailWarning.style.display = 'none';
+            usernameWarning.style.display = 'none';
+            return;
+        }
+        
+        // Prepare data for checking
+        const checkData = {
+            email: email,
+            username: username,
+            role: role,
+            branch: branch,
+            {% if is_edit_mode and profile_user %}
+            exclude_user_id: {{ profile_user.pk }}
+            {% endif %}
+        };
+        
+        // Make AJAX request to check for duplicates
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+        if (!csrfToken) {
+            console.error('CSRF token not found');
+            return;
+        }
+        
+        fetch('{% url "users:check_duplicate_user_role" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify(checkData)
+        })
+        .then(response => {
+            if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+        .then(data => {
+            // Handle email duplicate warning
+            if (data.email_duplicate) {
+                emailWarning.textContent = data.email_message;
+                emailWarning.style.display = 'block';
+                emailField.classList.add('border-red-300');
+            } else {
+                emailWarning.style.display = 'none';
+                emailField.classList.remove('border-red-300');
+            }
+            
+            // Handle username duplicate warning
+            if (data.username_duplicate) {
+                usernameWarning.textContent = data.username_message;
+                usernameWarning.style.display = 'block';
+                usernameField.classList.add('border-red-300');
+            } else {
+                usernameWarning.style.display = 'none';
+                usernameField.classList.remove('border-red-300');
+            }
+        })
+        .catch(error => {
+            console.error('Error checking duplicate user role:', error);
+        });
+    }
+    
+    // Debounced version of the check function
+    const debouncedCheck = debounce(checkDuplicateUserRole, 500);
+    
+    // Add event listeners
+    if (emailField) emailField.addEventListener('input', debouncedCheck);
+    if (usernameField) usernameField.addEventListener('input', debouncedCheck);  
+    if (roleField) roleField.addEventListener('change', debouncedCheck);
+    if (branchField) branchField.addEventListener('change', debouncedCheck);
+});
+
+// Function to send self password reset email
+function sendSelfPasswordReset() {
+    const button = document.getElementById('send-self-password-reset-btn');
+    const statusDiv = document.getElementById('self-password-reset-status');
+    
+    // Disable button and show loading state
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
+    
+    // Make AJAX request to send self password reset email
+    fetch('{% url "users:send_self_password_reset" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Show status message
+        statusDiv.style.display = 'block';
+        
+        if (data.success) {
+            statusDiv.innerHTML = '<div class="text-green-600"><i class="fas fa-check-circle mr-1"></i>' + data.message + '</div>';
+        } else {
+            statusDiv.innerHTML = '<div class="text-red-600"><i class="fas fa-exclamation-circle mr-1"></i>' + data.message + '</div>';
+        }
+        
+        // Re-enable button
+        button.disabled = false;
+        button.innerHTML = '<i class="fas fa-envelope mr-2"></i>Send Password Reset Email';
+        
+        // Hide status message after 5 seconds
+        setTimeout(() => {
+            statusDiv.style.display = 'none';
+        }, 5000);
+    })
+    .catch(error => {
+        console.error('Error sending self password reset email:', error);
+        
+        // Show error message
+        statusDiv.style.display = 'block';
+        statusDiv.innerHTML = '<div class="text-red-600"><i class="fas fa-exclamation-circle mr-1"></i>Failed to send password reset email. Please try again.</div>';
+        
+        // Re-enable button
+        button.disabled = false;
+        button.innerHTML = '<i class="fas fa-envelope mr-2"></i>Send Password Reset Email';
+        
+        // Hide status message after 5 seconds
+        setTimeout(() => {
+            statusDiv.style.display = 'none';
+        }, 5000);
+    });
+}
+
+{% if is_edit_mode and request.user.role in 'globaladmin,superadmin,admin' and request.user.id != profile_user.id %}
+// Function to send forgot password email
+function sendForgotPasswordEmail() {
+    const button = document.getElementById('send-forgot-password-btn');
+    const statusDiv = document.getElementById('forgot-password-status');
+    
+    // Disable button and show loading state
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
+    
+    // Make AJAX request to send forgot password email
+    fetch('{% url "users:admin_send_forgot_password" profile_user.id %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Show status message
+        statusDiv.style.display = 'block';
+        
+        if (data.success) {
+            statusDiv.innerHTML = '<div class="text-green-600"><i class="fas fa-check-circle mr-1"></i>' + data.message + '</div>';
+        } else {
+            statusDiv.innerHTML = '<div class="text-red-600"><i class="fas fa-exclamation-circle mr-1"></i>' + data.message + '</div>';
+        }
+        
+        // Re-enable button
+        button.disabled = false;
+        button.innerHTML = '<i class="fas fa-envelope mr-2"></i>Send Password Reset Email';
+        
+        // Hide status message after 5 seconds
+        setTimeout(() => {
+            statusDiv.style.display = 'none';
+        }, 5000);
+    })
+    .catch(error => {
+        console.error('Error sending forgot password email:', error);
+        
+        // Show error message
+        statusDiv.style.display = 'block';
+        statusDiv.innerHTML = '<div class="text-red-600"><i class="fas fa-exclamation-circle mr-1"></i>Failed to send password reset email. Please try again.</div>';
+        
+        // Re-enable button
+        button.disabled = false;
+        button.innerHTML = '<i class="fas fa-envelope mr-2"></i>Send Password Reset Email';
+        
+        // Hide status message after 5 seconds
+        setTimeout(() => {
+            statusDiv.style.display = 'none';
+        }, 5000);
+    });
+}
+{% endif %}
+</script>
+
+<!-- Password Validation Script -->
+<script src="{% static 'users/js/password_validation.js' %}"></script> 

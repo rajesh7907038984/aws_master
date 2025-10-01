@@ -1,0 +1,585 @@
+{% load static %}
+
+<!-- Right Column - Dashboard Sidebar -->
+<div class="sticky top-20">
+    <!-- Toggle Button -->
+    <button id="rightSidebarToggle" class="fixed right-0 top-24 w-6 h-6 bg-[#1C2260] rounded-full flex items-center justify-center shadow-lg border border-gray-600 hover:bg-[#232a75] transition-all z-[999]">
+        <svg id="expandIcon" class="w-4 h-4 text-white transform transition-transform hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"></path>
+        </svg>
+        <svg id="collapseIcon" class="w-4 h-4 text-white transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path>
+        </svg>
+    </button>
+
+    <div id="rightSidebar" class="space-y-6 transition-all duration-300 relative">
+        
+        <!-- Recently Updated Activity Calendar -->
+        <div class="dashboard-card">
+            <div class="dashboard-card-header">
+                <h3 class="dashboard-card-title">
+                    <i class="fas fa-calendar-alt mr-2 text-blue-600"></i>
+                    Activity Calendar
+                </h3>
+                <span class="dashboard-card-subtitle">Recently Updated</span>
+            </div>
+            
+            <div class="dashboard-card-content">
+                <!-- Mini Calendar View -->
+                <div class="mini-calendar">
+                    <div class="mini-calendar-header">
+                        <span id="currentMonth">{{ "now"|date:"F Y" }}</span>
+                    </div>
+                    
+                    <!-- Calendar Grid -->
+                    <div class="calendar-grid-simple">
+                        <div class="day-header">S</div>
+                        <div class="day-header">M</div>
+                        <div class="day-header">T</div>
+                        <div class="day-header">W</div>
+                        <div class="day-header">T</div>
+                        <div class="day-header">F</div>
+                        <div class="day-header">S</div>
+                        
+                        <!-- Current week highlight -->
+                        {% for day in week_days %}
+                        <div class="calendar-day-simple {% if day.is_today %}today{% endif %} {% if day.has_events %}has-events{% endif %}">
+                            {{ day.day }}
+                            {% if day.has_events %}<div class="event-dot"></div>{% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <!-- Recent Activity List -->
+                <div class="recent-activities">
+                    <h4 class="recent-title">Upcoming This Week</h4>
+                    <div class="activity-list">
+                        {% for activity in recent_calendar_activities|slice:":4" %}
+                        <div class="activity-item">
+                            <div class="activity-icon bg-blue-100">
+                                <i class="fas fa-{{ activity.icon|default:'calendar' }} text-blue-600"></i>
+                            </div>
+                            <div class="activity-details">
+                                <div class="activity-name">{{ activity.title|truncatechars:20 }}</div>
+                                <div class="activity-time">{{ activity.date|date:"M d, Y" }}</div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="no-activities">
+                            <i class="fas fa-calendar text-gray-400 mb-2"></i>
+                            <p>No upcoming activities</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recently Updated Todo List -->
+        <div class="dashboard-card">
+            <div class="dashboard-card-header">
+                <h3 class="dashboard-card-title">
+                    <i class="fas fa-tasks mr-2 text-green-600"></i>
+                    Todo List
+                </h3>
+                <span class="dashboard-card-subtitle">Recently Updated</span>
+            </div>
+            
+            <div class="dashboard-card-content">
+                <!-- Quick Stats -->
+                <div class="todo-stats">
+                    <div class="stat-item">
+                        <span class="stat-number">{{ total_todos|default:0 }}</span>
+                        <span class="stat-label">Total</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">{{ pending_todos|default:0 }}</span>
+                        <span class="stat-label">Pending</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">{{ completed_today|default:0 }}</span>
+                        <span class="stat-label">Today</span>
+                    </div>
+                </div>
+                
+                <!-- Recent Todo Items -->
+                <div class="recent-todos">
+                    <h4 class="recent-title">Recent Tasks</h4>
+                    <div class="todo-list">
+                        {% for task in recent_todos|slice:":5" %}
+                        <div class="todo-item">
+                            <div class="todo-priority priority-{{ task.priority|default:'low' }}"></div>
+                            <div class="todo-content">
+                                <div class="todo-title">{{ task.title|truncatechars:22 }}</div>
+                                <div class="todo-meta">
+                                    <span class="todo-type">{{ task.type|default:'Task' }}</span>
+                                    <span class="todo-due">{{ task.due_date|date:"M d"|default:'No due date' }}</span>
+                                </div>
+                            </div>
+                            <div class="todo-actions">
+                                <a href="{{ task.url|default:'#' }}" class="todo-link">
+                                    <i class="fas fa-arrow-right"></i>
+                                </a>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="no-todos">
+                            <i class="fas fa-check-circle text-gray-400 mb-2"></i>
+                            <p>No recent tasks</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<style>
+    /* Dashboard Card Styles */
+    .dashboard-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        overflow: hidden;
+    }
+    
+    .dashboard-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .dashboard-card-header {
+        padding: 1rem 1.25rem 0.75rem;
+        border-bottom: 1px solid #f1f5f9;
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    }
+    
+    .dashboard-card-title {
+        display: flex;
+        align-items: center;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin: 0 0 0.25rem 0;
+    }
+    
+    .dashboard-card-subtitle {
+        font-size: 0.75rem;
+        color: #64748b;
+        font-weight: 500;
+    }
+    
+    .dashboard-card-content {
+        padding: 1.25rem;
+    }
+
+    /* Mini Calendar Styles */
+    .mini-calendar {
+        margin-bottom: 1.5rem;
+    }
+    
+    .mini-calendar-header {
+        text-align: center;
+        margin-bottom: 0.75rem;
+    }
+    
+    .mini-calendar-header span {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #374151;
+    }
+    
+    .calendar-grid-simple {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 2px;
+        background: #f1f5f9;
+        border-radius: 6px;
+        padding: 4px;
+    }
+    
+    .day-header {
+        background: #e2e8f0;
+        padding: 0.25rem;
+        text-align: center;
+        font-size: 0.625rem;
+        font-weight: 600;
+        color: #64748b;
+        border-radius: 3px;
+    }
+    
+    .calendar-day-simple {
+        background: white;
+        min-height: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: #475569;
+        border-radius: 3px;
+        position: relative;
+        transition: all 0.2s ease;
+    }
+    
+    .calendar-day-simple.today {
+        background: #3b82f6;
+        color: white;
+        font-weight: 600;
+    }
+    
+    .calendar-day-simple.has-events {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+    
+    .calendar-day-simple.today.has-events {
+        background: #1d4ed8;
+        color: white;
+    }
+    
+    .event-dot {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        width: 4px;
+        height: 4px;
+        background: #ef4444;
+        border-radius: 50%;
+    }
+    
+    .calendar-day-simple.today .event-dot {
+        background: #fbbf24;
+    }
+
+    /* Recent Activities Styles */
+    .recent-title {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #374151;
+        margin: 0 0 0.75rem 0;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    
+    .activity-list {
+        space-y: 0.5rem;
+    }
+    
+    .activity-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem;
+        background: #f8fafc;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+        margin-bottom: 0.5rem;
+    }
+    
+    .activity-item:hover {
+        background: #f1f5f9;
+        transform: translateX(2px);
+    }
+    
+    .activity-icon {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    
+    .activity-details {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .activity-name {
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: #1e293b;
+        margin-bottom: 0.125rem;
+    }
+    
+    .activity-time {
+        font-size: 0.7rem;
+        color: #64748b;
+    }
+    
+    .no-activities {
+        text-align: center;
+        padding: 1.5rem;
+        color: #9ca3af;
+    }
+    
+    .no-activities i {
+        font-size: 1.5rem;
+        display: block;
+    }
+    
+    .no-activities p {
+        font-size: 0.8rem;
+        margin: 0;
+    }
+
+    /* Todo Stats Styles */
+    .todo-stats {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        padding: 1rem;
+        background: #f8fafc;
+        border-radius: 6px;
+    }
+    
+    .stat-item {
+        text-align: center;
+        flex: 1;
+    }
+    
+    .stat-number {
+        display: block;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1e293b;
+        line-height: 1;
+    }
+    
+    .stat-label {
+        display: block;
+        font-size: 0.7rem;
+        color: #64748b;
+        font-weight: 500;
+        margin-top: 0.25rem;
+    }
+
+    /* Todo List Styles */
+    .todo-list {
+        space-y: 0.5rem;
+    }
+    
+    .todo-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem;
+        background: #f8fafc;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+        margin-bottom: 0.5rem;
+    }
+    
+    .todo-item:hover {
+        background: #f1f5f9;
+        transform: translateX(2px);
+    }
+    
+    .todo-priority {
+        width: 4px;
+        height: 100%;
+        border-radius: 2px;
+        flex-shrink: 0;
+        min-height: 2.5rem;
+    }
+    
+    .priority-high {
+        background: #ef4444;
+    }
+    
+    .priority-medium {
+        background: #f59e0b;
+    }
+    
+    .priority-low {
+        background: #10b981;
+    }
+    
+    .todo-content {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .todo-title {
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: #1e293b;
+        margin-bottom: 0.25rem;
+    }
+    
+    .todo-meta {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+    
+    .todo-type {
+        font-size: 0.65rem;
+        color: #6366f1;
+        background: #eef2ff;
+        padding: 0.125rem 0.375rem;
+        border-radius: 10px;
+        font-weight: 500;
+    }
+    
+    .todo-due {
+        font-size: 0.7rem;
+        color: #64748b;
+    }
+    
+    .todo-actions {
+        flex-shrink: 0;
+    }
+    
+    .todo-link {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.5rem;
+        height: 1.5rem;
+        background: #e2e8f0;
+        border-radius: 50%;
+        color: #64748b;
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+    
+    .todo-link:hover {
+        background: #3b82f6;
+        color: white;
+        transform: scale(1.1);
+    }
+    
+    .no-todos {
+        text-align: center;
+        padding: 1.5rem;
+        color: #9ca3af;
+    }
+    
+    .no-todos i {
+        font-size: 1.5rem;
+        display: block;
+    }
+    
+    .no-todos p {
+        font-size: 0.8rem;
+        margin: 0;
+    }
+
+    /* Sidebar Toggle Styles */
+    #rightSidebar.collapsed {
+        transform: translateX(100%);
+        opacity: 0;
+        visibility: hidden;
+        margin-right: -100%;
+    }
+
+    #rightSidebar {
+        transform: translateX(0);
+        transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+    }
+
+    #rightSidebarToggle {
+        cursor: pointer;
+        transform: translateX(-50%);
+        transition: all 0.3s ease-in-out;
+    }
+
+    #rightSidebarToggle:hover {
+        background-color: #232a75;
+    }
+
+    #rightSidebar.collapsed ~ #rightSidebarToggle {
+        transform: translateX(0);
+    }
+
+    #rightSidebar.collapsed ~ #rightSidebarToggle #expandIcon {
+        display: block;
+    }
+
+    #rightSidebar.collapsed ~ #rightSidebarToggle #collapseIcon {
+        display: none;
+    }
+
+    #rightSidebar:not(.collapsed) ~ #rightSidebarToggle #expandIcon {
+        display: none;
+    }
+
+    #rightSidebar:not(.collapsed) ~ #rightSidebarToggle #collapseIcon {
+        display: block;
+    }
+
+    @media (max-width: 1024px) {
+        #rightSidebarToggle {
+            display: none;
+        }
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const rightSidebar = document.getElementById('rightSidebar');
+    const rightToggleBtn = document.getElementById('rightSidebarToggle');
+    const expandIcon = document.getElementById('expandIcon');
+    const collapseIcon = document.getElementById('collapseIcon');
+    const mainContent = document.querySelector('.lg\\:col-span-8');
+    
+    // Check for saved state, default to collapsed if no saved state
+    const savedState = localStorage.getItem('rightSidebarCollapsed');
+    const isCollapsed = savedState === null ? true : savedState === 'true';
+    
+    // Set initial state
+    if (isCollapsed) {
+        rightSidebar.classList.add('collapsed');
+        if (mainContent) {
+            mainContent.classList.remove('lg:col-span-8');
+            mainContent.classList.add('lg:col-span-12');
+        }
+        expandIcon.classList.remove('hidden');
+        collapseIcon.classList.add('hidden');
+    }
+    
+    // Save default state if not previously saved
+    if (savedState === null) {
+        localStorage.setItem('rightSidebarCollapsed', 'true');
+    }
+
+    // Toggle functionality
+    rightToggleBtn.addEventListener('click', function() {
+        rightSidebar.classList.toggle('collapsed');
+        
+        // Toggle icons
+        expandIcon.classList.toggle('hidden');
+        collapseIcon.classList.toggle('hidden');
+        
+        // Toggle main content width
+        if (mainContent) {
+            mainContent.classList.toggle('lg:col-span-8');
+            mainContent.classList.toggle('lg:col-span-12');
+        }
+        
+        // Save state
+        localStorage.setItem('rightSidebarCollapsed', rightSidebar.classList.contains('collapsed'));
+    });
+    
+    // Dashboard refresh functionality - refresh data every 5 minutes
+    function refreshDashboardData() {
+        // You can add AJAX calls here to refresh dashboard data if needed
+        console.log('Dashboard data refreshed');
+    }
+    
+    // Auto-refresh every 5 minutes
+    setInterval(refreshDashboardData, 300000);
+    
+    // Initial refresh after 2 seconds
+    setTimeout(refreshDashboardData, 2000);
+});
+</script>

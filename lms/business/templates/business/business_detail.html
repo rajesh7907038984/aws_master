@@ -1,0 +1,395 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ business.name }} - Business Detail{% endblock %}
+
+{% block extra_css %}
+<style>
+    .business-card {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+    .business-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    }
+    .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    .stat-card.branches {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    .stat-card.admins {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+    .stat-card.users {
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    }
+    .breadcrumb-container {
+        background: #F8FAFC;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #E2E8F0;
+        margin-bottom: 2rem;
+    }
+    .breadcrumb-item {
+        display: inline-flex;
+        align-items: center;
+        font-size: 0.875rem;
+        color: #64748B;
+    }
+    .breadcrumb-icon {
+        width: 2rem;
+        height: 2rem;
+        background: #EBF3FE;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 0.5rem;
+        transition: all 0.2s;
+    }
+    .breadcrumb-icon i {
+        color: #2563EB;
+        font-size: 0.875rem;
+    }
+    .breadcrumb-separator {
+        margin: 0 0.75rem;
+        color: #94A3B8;
+    }
+    .breadcrumb-active {
+        color: #2563EB;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white text-black min-h-screen">
+    <div class="container mx-auto px-4 py-6">
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+        <!-- Business Header -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+            <div class="flex justify-between items-start">
+                <div class="flex-1">
+                    <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ business.name }}</h1>
+                    {% if business.description %}
+                    <p class="text-gray-600 mb-4">{{ business.description }}</p>
+                    {% endif %}
+                    
+                    <div class="flex items-center space-x-4">
+                        {% if business.is_active %}
+                        <span class="px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                            <i class="fas fa-check-circle mr-1"></i>Active
+                        </span>
+                        {% else %}
+                        <span class="px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
+                            <i class="fas fa-times-circle mr-1"></i>Inactive
+                        </span>
+                        {% endif %}
+                        <span class="text-sm text-gray-500">Created {{ business.created_at|date:"M d, Y" }}</span>
+                    </div>
+                </div>
+                
+                <div class="flex space-x-3">
+                    {% if user_role == 'globaladmin' or user_role == 'superadmin' %}
+                    <a href="{% url 'business:business_edit' business.id %}" 
+                       class="px-4 py-2 border border-blue-300 text-sm rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100">
+                        <i class="fas fa-edit mr-1"></i>Edit Business
+                    </a>
+                    {% endif %}
+                    {% if user_role == 'globaladmin' %}
+                    <button type="button" 
+                            onclick="confirmDeleteBusiness({{ business.id }}, '{{ business.name|escapejs }}')"
+                            class="px-4 py-2 border border-red-300 text-sm rounded-md text-red-700 bg-red-50 hover:bg-red-100">
+                        <i class="fas fa-trash mr-1"></i>Delete Business
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+            <div class="stat-card branches rounded-lg p-6 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-white opacity-80 text-sm">Branches</p>
+                        <p class="text-3xl font-bold">{{ statistics.branches_count }}</p>
+                    </div>
+                    <i class="fas fa-building text-white opacity-50 text-2xl"></i>
+                </div>
+            </div>
+            
+            <div class="stat-card admins rounded-lg p-6 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-white opacity-80 text-sm">Super Admins</p>
+                        <p class="text-3xl font-bold">{{ statistics.super_admins_count }}</p>
+                    </div>
+                    <i class="fas fa-user-shield text-white opacity-50 text-2xl"></i>
+                </div>
+            </div>
+            
+            <div class="stat-card users rounded-lg p-6 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-white opacity-80 text-sm">Total Users</p>
+                        <p class="text-3xl font-bold">{{ statistics.total_users }}</p>
+                    </div>
+                    <i class="fas fa-users text-white opacity-50 text-2xl"></i>
+                </div>
+            </div>
+            
+            <div class="stat-card rounded-lg p-6 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-white opacity-80 text-sm">Total Courses</p>
+                        <p class="text-3xl font-bold">{{ statistics.total_courses }}</p>
+                    </div>
+                    <i class="fas fa-book text-white opacity-50 text-2xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Business Information -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Business Information</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-4">
+                    {% if business.address_line1 %}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Address</label>
+                        <div class="text-gray-900">
+                            {{ business.address_line1 }}
+                            {% if business.address_line2 %}
+                                <br>{{ business.address_line2 }}
+                            {% endif %}
+                            {% if business.city %}
+                                <br>{{ business.city }}{% if business.state_province %}, {{ business.state_province }}{% endif %}
+                            {% endif %}
+                            {% if business.postal_code %}
+                                <br>{{ business.postal_code }}
+                            {% endif %}
+                            {% if business.country %}
+                                <br>{{ business.country }}
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="space-y-4">
+                    {% if business.phone %}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Phone</label>
+                        <div class="text-gray-900">{{ business.phone }}</div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if business.email %}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Email</label>
+                        <div class="text-gray-900">
+                            <a href="mailto:{{ business.email }}" class="text-blue-600 hover:text-blue-800">
+                                {{ business.email }}
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if business.website %}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Website</label>
+                        <div class="text-gray-900">
+                            <a href="{{ business.website }}" target="_blank" class="text-blue-600 hover:text-blue-800">
+                                {{ business.website }}
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Super Admins Section -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-gray-900">Super Admins</h2>
+                {% if user_role == 'globaladmin' and available_super_admins %}
+                <button type="button" 
+                        onclick="openAssignModal()"
+                        class="px-4 py-2 text-white text-sm rounded-md" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                    <i class="fas fa-plus mr-1"></i>Assign Super Admin
+                </button>
+                {% endif %}
+            </div>
+            
+            {% if super_admins %}
+            <div class="space-y-3">
+                {% for assignment in super_admins %}
+                <div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                            <i class="fas fa-user-shield text-blue-600"></i>
+                        </div>
+                        <div>
+                            <div class="font-medium text-gray-900">{{ assignment.user.get_full_name }}</div>
+                            <div class="text-sm text-gray-500">{{ assignment.user.email }}</div>
+                            <div class="text-xs text-gray-400">
+                                Assigned {{ assignment.assigned_at|date:"M d, Y" }} by {{ assignment.assigned_by.get_full_name }}
+                            </div>
+                        </div>
+                    </div>
+                    {% if user_role == 'globaladmin' %}
+                    <button type="button" 
+                            onclick="unassignUser({{ assignment.user.id }})"
+                            class="px-3 py-1 text-red-600 border border-red-300 rounded-md hover:bg-red-50 text-sm">
+                        <i class="fas fa-times mr-1"></i>Unassign
+                    </button>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-8">
+                <i class="fas fa-user-shield text-gray-400 text-4xl mb-4"></i>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">No Super Admins Assigned</h3>
+                <p class="text-gray-500">This business doesn't have any super admins assigned yet.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Branches Section -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-gray-900">Branches</h2>
+            </div>
+            
+            {% if branches %}
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {% for branch in branches %}
+                <div class="border border-gray-200 rounded-lg p-4">
+                    <h3 class="font-medium text-gray-900 mb-2">{{ branch.name }}</h3>
+                    {% if branch.description %}
+                    <p class="text-gray-600 text-sm mb-3">{{ branch.description|striptags|truncatewords:15 }}</p>
+                    {% endif %}
+                    
+                    <div class="grid grid-cols-3 gap-2 text-center">
+                        <div class="bg-blue-50 p-2 rounded">
+                            <div class="text-lg font-bold text-blue-600">{{ branch.admins_count }}</div>
+                            <div class="text-xs text-blue-800">Admins</div>
+                        </div>
+                        <div class="bg-green-50 p-2 rounded">
+                            <div class="text-lg font-bold text-green-600">{{ branch.instructors_count }}</div>
+                            <div class="text-xs text-green-800">Instructors</div>
+                        </div>
+                        <div class="bg-purple-50 p-2 rounded">
+                            <div class="text-lg font-bold text-purple-600">{{ branch.learners_count }}</div>
+                            <div class="text-xs text-purple-800">Learners</div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-8">
+                <i class="fas fa-building text-gray-400 text-4xl mb-4"></i>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">No Branches</h3>
+                <p class="text-gray-500">This business doesn't have any branches yet.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Assign Super Admin Modal -->
+{% if user_role == 'globaladmin' and available_super_admins %}
+<div id="assignModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="p-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Assign Super Admin</h3>
+            <form id="assignForm" method="post" action="{% url 'business:assign_user' business.id %}">
+                {% csrf_token %}
+                <div class="mb-4">
+                    <label for="user_id" class="block text-sm font-medium text-gray-700 mb-2">Select Super Admin</label>
+                    <select id="user_id" name="user_id" required class="w-full border border-gray-300 rounded-md px-3 py-2">
+                        <option value="">Choose a super admin...</option>
+                        {% for user in available_super_admins %}
+                        <option value="{{ user.id }}">{{ user.get_full_name }} ({{ user.email }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="closeAssignModal()" 
+                            class="px-4 py-2 border border-gray-300 text-sm rounded-md text-gray-700 hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                            class="px-4 py-2 text-white text-sm rounded-md" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                        Assign
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+function openAssignModal() {
+    document.getElementById('assignModal').classList.remove('hidden');
+    document.getElementById('assignModal').classList.add('flex');
+}
+
+function closeAssignModal() {
+    document.getElementById('assignModal').classList.add('hidden');
+    document.getElementById('assignModal').classList.remove('flex');
+}
+
+function unassignUser(userId) {
+    if (confirm('Are you sure you want to unassign this super admin from this business?')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/business/${businessId}/unassign-user/${userId}/`;
+        
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = csrfToken;
+        
+        form.appendChild(csrfInput);
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Close modal when clicking outside
+document.getElementById('assignModal')?.addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeAssignModal();
+    }
+});
+
+function confirmDeleteBusiness(businessId, businessName) {
+    if (confirm(`Are you sure you want to delete the business "${businessName}"?\n\nThis action cannot be undone and will affect all associated branches, users, and data.`)) {
+        // Create a form and submit it
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/business/${businessId}/delete/`;
+        
+        // Add CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = csrfToken;
+        form.appendChild(csrfInput);
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
+{% endblock %} 

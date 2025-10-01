@@ -1,0 +1,1171 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}User Management - LMS{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Search box styles */
+    .search-box {
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        background-color: #fff;
+        min-width: 200px;
+        height: 40px;
+        width: 100%;
+        max-width: 300px;
+    }
+    
+    @media (max-width: 640px) {
+        .search-box {
+            min-width: 160px;
+            max-width: 100%;
+        }
+    }
+    
+    .search-box input {
+        border: none;
+        outline: none;
+        width: 100%;
+        height: 100%;
+        padding: 0;
+        font-size: 14px;
+        color: #374151;
+        background: transparent;
+    }
+    
+    .search-box input::placeholder {
+        color: #9CA3AF;
+    }
+    
+    .search-box .search-icon {
+        color: #6B7280;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    /* Table styles for desktop */
+    .user-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    
+    .user-table th {
+        color: #374151;
+        font-weight: 500;
+        text-align: left;
+        padding: 0.75rem 1rem;
+        background-color: #F9FAFB;
+        font-size: 0.875rem;
+        border-bottom: 1px solid #E5E7EB;
+    }
+    
+    .user-table td {
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+        border-bottom: 1px solid #E5E7EB;
+        text-align: left;
+    }
+
+    .user-table tr:nth-child(odd) td {
+        background-color: #F9FAFB;
+    }
+
+    .user-table tr:nth-child(even) td {
+        background-color: #FFFFFF;
+    }
+    
+    .user-table tr:hover td {
+        background-color: #F3F4F6;
+    }
+
+    /* Mobile responsive table styles */
+    @media (max-width: 768px) {
+        .table-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .user-table {
+            min-width: 600px;
+        }
+        
+        .user-table th,
+        .user-table td {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.8rem;
+        }
+        
+        .user-table th:nth-child(4),
+        .user-table td:nth-child(4),
+        .user-table th:nth-child(5),
+        .user-table td:nth-child(5) {
+            display: none;
+        }
+    }
+
+    /* Very small screens - card layout */
+    @media (max-width: 640px) {
+        .table-container {
+            overflow: visible;
+        }
+        
+        .user-table,
+        .user-table thead,
+        .user-table tbody,
+        .user-table th,
+        .user-table td,
+        .user-table tr {
+            display: block;
+        }
+        
+        .user-table {
+            min-width: unset;
+        }
+        
+        .user-table thead tr {
+            position: absolute;
+            top: -9999px;
+            left: -9999px;
+        }
+        
+        .user-table tr {
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: white;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        }
+        
+        .user-table td {
+            border: none;
+            border-bottom: 1px solid #E5E7EB;
+            position: relative;
+            padding: 0.5rem 0;
+            text-align: left !important;
+        }
+        
+        .user-table td:last-child {
+            border-bottom: none;
+            padding-top: 1rem;
+        }
+        
+        .user-table td:before {
+            content: attr(data-label) ": ";
+            font-weight: 600;
+            color: #374151;
+            display: inline-block;
+            min-width: 80px;
+        }
+        
+        .user-table td:last-child:before {
+            content: "";
+        }
+        
+        .user-table tr:nth-child(odd) td,
+        .user-table tr:nth-child(even) td {
+            background-color: transparent;
+        }
+        
+        .user-table tr:hover td {
+            background-color: transparent;
+        }
+    }
+
+    /* Action buttons */
+    .action-btn {
+        padding: 0.5rem;
+        border-radius: 0.375rem;
+        transition: all 0.2s;
+        color: #6B7280;
+        min-width: 36px;
+        min-height: 36px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .action-btn:hover {
+        background-color: #F3F4F6;
+        color: #374151;
+    }
+
+    @media (max-width: 640px) {
+        .action-btn {
+            padding: 0.75rem;
+            min-width: 44px;
+            min-height: 44px;
+        }
+    }
+
+    /* User info styles */
+    .user-name {
+        color: #111827;
+        font-weight: 500;
+        font-size: 0.875rem;
+    }
+
+    .user-email, .user-type, .user-date {
+        color: #6B7280;
+        font-size: 0.875rem;
+    }
+
+    /* Header controls responsive */
+    .header-controls {
+        gap: 0.5rem;
+    }
+    
+    @media (max-width: 640px) {
+        .header-controls {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .header-controls > div {
+            width: 100%;
+        }
+        
+        .header-controls .flex {
+            justify-content: center;
+        }
+    }
+
+    /* Button responsive adjustments */
+    @media (max-width: 640px) {
+        .add-user-btn,
+        .bulk-import-btn {
+            width: 100%;
+            justify-content: center;
+        }
+        
+        .filter-container {
+            width: auto;
+        }
+    }
+    
+    /* Filter styles */
+    .filter-container {
+        position: relative;
+        display: inline-block;
+    }
+
+    .filter-dropdown {
+        position: absolute;
+        top: calc(100% + 0.5rem);
+        right: 0;
+        background: white;
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        width: 280px;
+        z-index: 50;
+        display: none;
+    }
+
+    .filter-dropdown.show {
+        display: block;
+    }
+
+    .filter-section {
+        padding: 1rem;
+        border-bottom: 1px solid #E5E7EB;
+    }
+
+    .filter-section:last-child {
+        border-bottom: none;
+    }
+
+    .filter-title {
+        font-weight: 500;
+        color: #374151;
+        margin-bottom: 0.75rem;
+    }
+
+    .filter-options {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .filter-option {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #6B7280;
+        cursor: pointer;
+        padding: 0.25rem;
+    }
+
+    .filter-option:hover {
+        background-color: #F3F4F6;
+        border-radius: 4px;
+    }
+
+    .filter-option input[type="checkbox"] {
+        display: none;
+    }
+
+    .filter-option input[type="checkbox"] + span:before {
+        content: '';
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid #E5E7EB;
+        border-radius: 4px;
+        margin-right: 8px;
+        vertical-align: middle;
+    }
+
+    .filter-option input[type="checkbox"]:checked + span:before {
+        background-color: #2563EB;
+        border-color: #2563EB;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='white'%3E%3Cpath fill-rule='evenodd' d='M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z' clip-rule='evenodd'/%3E%3C/svg%3E");
+    }
+
+    /* Add user button */
+    .add-user-btn {
+        background-color: #fff;
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        transition: all 0.2s;
+    }
+    
+    .add-user-btn:hover {
+        background-color: #F3F4F6;
+    }
+
+    /* Updated pagination styles */
+    .pagination-select {
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        padding: 0.5rem;
+        background-color: #fff;
+        outline: none;
+        cursor: pointer;
+        height: 40px;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 0.5rem center;
+        background-size: 1em;
+        padding-right: 2.5rem;
+    }
+    
+    .page-btn {
+        min-width: 40px;
+        height: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        background-color: #fff;
+        transition: all 0.2s;
+        color: #374151;
+        font-size: 0.875rem;
+        cursor: pointer;
+    }
+    
+    .page-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .page-nav {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .page-info {
+        color: #6B7280;
+        font-size: 0.875rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white text-black min-h-screen">
+    <div class="container mx-auto px-4 py-6">
+        <!-- Breadcrumbs -->
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+        <!-- Main grid with 70-30 split -->
+        <div class="grid grid-cols-12 gap-4 md:gap-6">
+            <!-- Left Column (70%) -->
+            <div class="col-span-12 lg:col-span-8 transition-all duration-300">
+                <!-- Header section with search form -->
+                <div class="mb-6">
+                    {% if user.role == 'instructor' %}
+                    <h1 class="text-2xl font-semibold text-gray-900 mb-4">Learner Management</h1>
+                    {% else %}
+                    <h1 class="text-2xl font-semibold text-gray-900 mb-4">User Management</h1>
+                    {% endif %}
+                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center header-controls">
+                        <div class="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 mb-4 sm:mb-0">
+                            <form id="searchForm" method="GET" class="m-0 w-full sm:w-auto">
+                                <div class="search-box flex items-center px-3 py-1.5">
+                                    <div class="search-icon mr-2">
+                                        <i class="fas fa-search"></i>
+                                    </div>
+                                    <input type="text" 
+                                           placeholder="Search" 
+                                           name="q" 
+                                           value="{{ request.GET.q|default:'' }}"
+                                           autocomplete="off"
+                                           id="searchInput">
+                                </div>
+                            </form>
+                            
+                            <div class="filter-container">
+                                <button id="filterButton" class="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 w-full sm:w-auto">
+                                    <i class="fas fa-filter text-gray-600"></i>
+                                    <span class="ml-2 sm:hidden">Filters</span>
+                                </button>
+                                <!-- Filter Dropdown -->
+                                <div id="filterDropdown" class="filter-dropdown">
+                                    <div class="filter-section">
+                                        <h3 class="filter-title">Status</h3>
+                                        <div class="filter-options">
+                                            <label class="filter-option">
+                                                <input type="checkbox" name="status" value="active" {% if 'active' in selected_status %}checked{% endif %}>
+                                                <span>Active</span>
+                                            </label>
+                                            <label class="filter-option">
+                                                <input type="checkbox" name="status" value="inactive" {% if 'inactive' in selected_status %}checked{% endif %}>
+                                                <span>Inactive</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    {% if user.role != 'instructor' and available_roles|length > 1 %}
+                                    <div class="filter-section">
+                                        <h3 class="filter-title">Role</h3>
+                                        <div class="filter-options">
+                                            {% for role_value, role_label in available_roles %}
+                                            <label class="filter-option">
+                                                <input type="checkbox" name="role" value="{{ role_value }}" {% if role_value in selected_roles %}checked{% endif %}>
+                                                <span>{{ role_label }}</span>
+                                            </label>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    {% if user.role != 'instructor' %}
+                                    <div class="filter-section">
+                                        <h3 class="filter-title">Branch</h3>
+                                        <div class="filter-options">
+                                            {% for branch in branches %}
+                                            <label class="filter-option">
+                                                <input type="checkbox" name="branch" value="{{ branch.id }}" {% if branch.id|stringformat:"s" in selected_branches %}checked{% endif %}>
+                                                <span>{{ branch.name }}</span>
+                                            </label>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    <div class="filter-section">
+                                        <h3 class="filter-title">Group</h3>
+                                        <div class="filter-options">
+                                            {% for group in groups %}
+                                            <label class="filter-option">
+                                                <input type="checkbox" name="group" value="{{ group.id }}" {% if group.id|stringformat:"s" in selected_groups %}checked{% endif %}>
+                                                <span>{{ group.name }}</span>
+                                            </label>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
+                            {% if can_delete_user %}
+                            <button id="bulkDeleteBtn" class="bulk-delete-btn inline-flex items-center justify-center px-4 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50 w-full sm:w-auto" disabled>
+                                <svg class="mr-2 h-5 w-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                <span id="bulkDeleteText">Delete Selected (0)</span>
+                            </button>
+                            {% endif %}
+                            {% if user.role != 'instructor' %}
+                            <button id="bulkImportBtn" class="bulk-import-btn inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 w-full sm:w-auto">
+                                <svg class="mr-2 h-5 w-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                Bulk Import
+                            </button>
+                            {% endif %}
+                            <a href="{% url 'users:user_create' %}" class="add-user-btn inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 w-full sm:w-auto">
+                                <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                </svg>
+                                {% if user.role == 'instructor' %}
+                                Add Learner
+                                {% else %}
+                                Add User
+                                {% endif %}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filter Tags -->
+                <div id="filterTags" class="filter-tags mb-4"></div>
+
+                <!-- Users table -->
+                <div id="usersTableContainer" class="bg-white rounded-lg shadow-sm border border-gray-200">
+                    <div class="table-container">
+                        <table class="user-table">
+                            <thead>
+                                <tr>
+                                    {% if can_delete_user %}
+                                    <th style="width: 40px;">
+                                        <input type="checkbox" id="selectAllUsers" class="bulk-select-checkbox">
+                                    </th>
+                                    {% endif %}
+                                    <th>User</th>
+                                    <th>Email</th>
+                                    {% if user.role == 'instructor' %}
+                                    <th>Status</th>
+                                    {% else %}
+                                    <th>Role</th>
+                                    {% endif %}
+                                    <th>Registration</th>
+                                    <th>Last login</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user_obj in users %}
+                                <tr>
+                                    {% if can_delete_user %}
+                                    <td style="width: 40px;">
+                                        <input type="checkbox" class="user-select-checkbox" value="{{ user_obj.id }}" data-user-name="{{ user_obj.get_full_name|default:user_obj.username }}">
+                                    </td>
+                                    {% endif %}
+                                    <td class="user-name" data-label="User">{{ user_obj.get_full_name|default:user_obj.username }}</td>
+                                    <td class="user-email" data-label="Email">{{ user_obj.email }}</td>
+                                    {% if user.role == 'instructor' %}
+                                    <td class="user-type" data-label="Status">{% if user_obj.is_active %}Active{% else %}Inactive{% endif %}</td>
+                                    {% else %}
+                                    <td class="user-type" data-label="Role">{{ user_obj.get_role_display }}</td>
+                                    {% endif %}
+                                    <td class="user-date" data-label="Registration">{{ user_obj.date_joined|date:"d/m/Y" }}</td>
+                                    <td class="user-date" data-label="Last login">{{ user_obj.last_login|date:"d/m/Y"|default:"Never" }}</td>
+                                    <td>
+                                    <div class="flex justify-start space-x-2">
+                                        <a href="{% url 'users:user_profile' user_obj.id %}" class="action-btn" title="View">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        {% if can_edit_user %}
+                                            {% if user.role == 'instructor' and user_obj.role == 'learner' and user_obj.branch == user.branch %}
+                                            <a href="{% url 'users:edit_user' user_obj.id %}" class="action-btn" title="Edit Learner Profile">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{% url 'users:password_change' user_obj.id %}" class="action-btn" title="Change Password">
+                                                <i class="fas fa-key"></i>
+                                            </a>
+                                            {% elif user.role in 'globaladmin,superadmin,admin' %}
+                                            <a href="{% url 'users:edit_user' user_obj.id %}" class="action-btn" title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{% url 'users:password_change' user_obj.id %}" class="action-btn" title="Change Password">
+                                                <i class="fas fa-key"></i>
+                                            </a>
+                                            {% endif %}
+                                        {% endif %}
+                                        {% if can_delete_user %}
+                                        <button class="action-btn" title="Delete" 
+                                                onclick="return confirmDelete('{{ user_obj.id }}', '{{ user_obj.get_full_name|default:user_obj.username }}');">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center py-8">
+                                    <div class="flex flex-col items-center justify-center">
+                                        <div class="w-16 h-16 mb-4 text-gray-300">
+                                            <i class="fas fa-users text-4xl"></i>
+                                        </div>
+                                        <h3 class="text-lg font-medium text-gray-900 mb-2">No Users Found</h3>
+                                        <p class="text-sm text-gray-500">There are no users matching your criteria.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Pagination -->
+                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mt-6 space-y-4 sm:space-y-0">
+                    <div class="flex items-center justify-center sm:justify-start gap-2">
+                        <select class="pagination-select text-sm text-gray-600 w-20" id="perPageSelect">
+                            <option value="10">10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                        <span class="text-sm text-gray-500">per page</span>
+                    </div>
+                    
+                    <div class="page-nav justify-center sm:justify-end">
+                        <button class="page-btn" {% if not users.has_previous %}disabled{% endif %}
+                                onclick="window.location.href='?page={% if users.has_previous %}{{ users.previous_page_number }}{% else %}1{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}'">
+                            <i class="fas fa-angle-left"></i>
+                        </button>
+                        
+                        <div class="flex items-center gap-2">
+                            <select class="pagination-select text-sm text-gray-600 w-16" id="pageSelect">
+                                {% with ''|center:users.paginator.num_pages as range %}
+                                {% for _ in range %}
+                                    {% with forloop.counter as i %}
+                                    <option value="{{ i }}" {% if users.number == i %}selected{% endif %}>{{ i }}</option>
+                                    {% endwith %}
+                                {% endfor %}
+                                {% endwith %}
+                            </select>
+                            <span class="text-sm text-gray-500">of {{ users.paginator.num_pages }}</span>
+                        </div>
+                        
+                        <button class="page-btn" {% if not users.has_next %}disabled{% endif %}
+                                onclick="window.location.href='?page={% if users.has_next %}{{ users.next_page_number }}{% else %}{{ users.paginator.num_pages }}{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}'">
+                            <i class="fas fa-angle-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column (30%) -->
+            <div class="col-span-12 lg:col-span-4 transition-all duration-300">
+                {% include 'components/right_sidebar.html' %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <h3 class="text-lg font-medium text-gray-900 mb-4">Confirm Delete</h3>
+        <p class="text-sm text-gray-500 mb-6">Are you sure you want to delete <span id="deleteUserName" class="font-medium"></span>? This action cannot be undone.</p>
+        <div class="flex justify-end gap-4 mt-6">
+            <button onclick="closeDeleteModal()" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors">
+                Cancel
+            </button>
+            <form id="deleteForm" method="POST" class="inline">
+                {% csrf_token %}
+                <input type="hidden" name="confirmed" value="true">
+                <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">
+                    Delete
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Delete Modal -->
+<div id="bulkDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+    <div class="bg-white rounded-lg p-6 max-w-md w-full">
+        <h3 class="text-lg font-medium text-gray-900 mb-4">Confirm Bulk Delete</h3>
+        <p class="text-sm text-gray-500 mb-6">Are you sure you want to delete <span id="bulkDeleteCount" class="font-medium"></span> selected users? This action cannot be undone.</p>
+        <div class="mb-4">
+            <p class="text-sm text-gray-600 mb-2">Selected users:</p>
+            <div id="bulkDeleteUserList" class="max-h-32 overflow-y-auto text-sm text-gray-500"></div>
+        </div>
+        <div class="flex justify-end gap-4">
+            <button onclick="closeBulkDeleteModal()" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200">
+                Cancel
+            </button>
+            <button id="confirmBulkDelete" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+                Delete All
+            </button>
+        </div>
+    </div>
+</div>
+
+{% include 'users/shared/bulk_import_modal.html' %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function confirmDelete(userId, userName) {
+        // Force simple confirmation without detailed warnings
+        document.getElementById('deleteUserName').textContent = userName;
+        document.getElementById('deleteForm').action = `/users/${userId}/delete/`;
+        document.getElementById('deleteModal').classList.remove('hidden');
+        
+        // Prevent any other event handlers from interfering
+        event.stopPropagation();
+        event.preventDefault();
+        return false;
+    }
+    
+    function closeDeleteModal() {
+        document.getElementById('deleteModal').classList.add('hidden');
+    }
+    
+    // Bulk selection functionality
+    let selectedUsers = new Set();
+    
+    // Initialize bulk selection
+    document.addEventListener('DOMContentLoaded', function() {
+        const selectAllCheckbox = document.getElementById('selectAllUsers');
+        const userCheckboxes = document.querySelectorAll('.user-select-checkbox');
+        const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+        
+        // Select all functionality
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', function() {
+                const isChecked = this.checked;
+                userCheckboxes.forEach(checkbox => {
+                    checkbox.checked = isChecked;
+                    if (isChecked) {
+                        selectedUsers.add(checkbox.value);
+                    } else {
+                        selectedUsers.delete(checkbox.value);
+                    }
+                });
+                updateBulkDeleteButton();
+            });
+        }
+        
+        // Individual checkbox functionality
+        userCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                if (this.checked) {
+                    selectedUsers.add(this.value);
+                } else {
+                    selectedUsers.delete(this.value);
+                }
+                updateSelectAllState();
+                updateBulkDeleteButton();
+            });
+        });
+        
+        // Bulk delete button functionality
+        if (bulkDeleteBtn) {
+            bulkDeleteBtn.addEventListener('click', function() {
+                showBulkDeleteModal();
+            });
+        }
+        
+        // Confirm bulk delete
+        const confirmBulkDelete = document.getElementById('confirmBulkDelete');
+        if (confirmBulkDelete) {
+            confirmBulkDelete.addEventListener('click', function() {
+                performBulkDelete();
+            });
+        }
+    });
+    
+    function updateSelectAllState() {
+        const selectAllCheckbox = document.getElementById('selectAllUsers');
+        const userCheckboxes = document.querySelectorAll('.user-select-checkbox');
+        
+        if (selectAllCheckbox && userCheckboxes.length > 0) {
+            const checkedCount = document.querySelectorAll('.user-select-checkbox:checked').length;
+            if (checkedCount === 0) {
+                selectAllCheckbox.indeterminate = false;
+                selectAllCheckbox.checked = false;
+            } else if (checkedCount === userCheckboxes.length) {
+                selectAllCheckbox.indeterminate = false;
+                selectAllCheckbox.checked = true;
+            } else {
+                selectAllCheckbox.indeterminate = true;
+                selectAllCheckbox.checked = false;
+            }
+        }
+    }
+    
+    function updateBulkDeleteButton() {
+        const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+        const bulkDeleteText = document.getElementById('bulkDeleteText');
+        
+        if (bulkDeleteBtn && bulkDeleteText) {
+            const count = selectedUsers.size;
+            if (count > 0) {
+                bulkDeleteBtn.disabled = false;
+                bulkDeleteText.textContent = `Delete Selected (${count})`;
+            } else {
+                bulkDeleteBtn.disabled = true;
+                bulkDeleteText.textContent = 'Delete Selected (0)';
+            }
+        }
+    }
+    
+    function showBulkDeleteModal() {
+        const modal = document.getElementById('bulkDeleteModal');
+        const countSpan = document.getElementById('bulkDeleteCount');
+        const userListDiv = document.getElementById('bulkDeleteUserList');
+        
+        if (modal && countSpan && userListDiv) {
+            const count = selectedUsers.size;
+            countSpan.textContent = count;
+            
+            // Get selected user names
+            const selectedUserNames = [];
+            document.querySelectorAll('.user-select-checkbox:checked').forEach(checkbox => {
+                selectedUserNames.push(checkbox.dataset.userName);
+            });
+            
+            userListDiv.innerHTML = selectedUserNames.map(name => 
+                `<div class="py-1">• ${name}</div>`
+            ).join('');
+            
+            modal.classList.remove('hidden');
+        }
+    }
+    
+    function closeBulkDeleteModal() {
+        const modal = document.getElementById('bulkDeleteModal');
+        if (modal) {
+            modal.classList.add('hidden');
+        }
+    }
+    
+    function performBulkDelete() {
+        const userIds = Array.from(selectedUsers);
+        
+        if (userIds.length === 0) {
+            alert('No users selected for deletion.');
+            return;
+        }
+        
+        // Show loading state
+        const confirmBtn = document.getElementById('confirmBulkDelete');
+        const originalText = confirmBtn.textContent;
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Deleting...';
+        
+        // Send AJAX request
+        fetch('{% url "users:bulk_delete_users" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({
+                user_ids: userIds
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show success message
+                showNotification(data.message, 'success');
+                
+                // Remove deleted users from the table
+                userIds.forEach(userId => {
+                    const checkbox = document.querySelector(`.user-select-checkbox[value="${userId}"]`);
+                    if (checkbox) {
+                        const row = checkbox.closest('tr');
+                        if (row) {
+                            row.remove();
+                        }
+                    }
+                });
+                
+                // Reset selection
+                selectedUsers.clear();
+                document.querySelectorAll('.user-select-checkbox').forEach(cb => cb.checked = false);
+                document.getElementById('selectAllUsers').checked = false;
+                updateBulkDeleteButton();
+                
+                // Close modal
+                closeBulkDeleteModal();
+                
+                // Reload page if no users left
+                if (document.querySelectorAll('.user-select-checkbox').length === 0) {
+                    setTimeout(() => window.location.reload(), 1000);
+                }
+            } else {
+                showNotification(data.message || 'An error occurred while deleting users.', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('An error occurred while deleting users.', 'error');
+        })
+        .finally(() => {
+            // Reset button state
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = originalText;
+        });
+    }
+    
+    function showNotification(message, type = 'info') {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `fixed top-4 right-4 z-50 p-4 rounded-md shadow-lg max-w-sm ${
+            type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
+            type === 'error' ? 'bg-red-100 text-red-800 border border-red-200' :
+            'bg-blue-100 text-blue-800 border border-blue-200'
+        }`;
+        notification.innerHTML = `
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium">${message}</p>
+                </div>
+                <div class="ml-auto pl-3">
+                    <button onclick="this.parentElement.parentElement.parentElement.remove()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 5000);
+    }
+    
+    document.getElementById('deleteModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeDeleteModal();
+        }
+    });
+
+    // Auto-search functionality
+    let searchTimeout;
+    const searchInput = document.getElementById('searchInput');
+    const searchForm = document.getElementById('searchForm');
+    const perPageSelect = document.getElementById('perPageSelect');
+    const pageSelect = document.getElementById('pageSelect');
+
+    searchInput.addEventListener('input', function(e) {
+        clearTimeout(searchTimeout);
+        
+        // Show loading state
+        const searchIcon = searchInput.previousElementSibling.querySelector('i');
+        searchIcon.classList.remove('fa-search');
+        searchIcon.classList.add('fa-spinner', 'fa-spin');
+        
+        searchTimeout = setTimeout(() => {
+            searchForm.submit();
+        }, 500);
+    });
+
+    // Handle per page change
+    perPageSelect.addEventListener('change', function() {
+        window.location.href = updateQueryStringParameter(window.location.href, 'per_page', this.value);
+    });
+
+    // Handle page change
+    pageSelect.addEventListener('change', function() {
+        window.location.href = updateQueryStringParameter(window.location.href, 'page', this.value);
+    });
+
+    // Helper function to update URL parameters
+    function updateQueryStringParameter(uri, key, value) {
+        var re = new RegExp("([?&])" + key + "=.*?(&|$)", "i");
+        var separator = uri.indexOf('?') !== -1 ? "&" : "?";
+        if (uri.match(re)) {
+            return uri.replace(re, '$1' + key + "=" + value + '$2');
+        }
+        else {
+            return uri + separator + key + "=" + value;
+        }
+    }
+
+    // Filter functionality
+    const filterButton = document.getElementById('filterButton');
+    const filterDropdown = document.getElementById('filterDropdown');
+    const filterTags = document.getElementById('filterTags');
+    const filterOptions = document.querySelectorAll('.filter-option input');
+
+    // Toggle filter dropdown
+    filterButton.addEventListener('click', function(e) {
+        e.stopPropagation();
+        filterDropdown.classList.toggle('show');
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!filterDropdown.contains(e.target) && !filterButton.contains(e.target)) {
+            filterDropdown.classList.remove('show');
+        }
+    });
+
+    // Handle filter option selection
+    filterOptions.forEach(option => {
+        option.addEventListener('change', function() {
+            updateFilterTags();
+            applyFilters();
+        });
+    });
+
+    function updateFilterTags() {
+        filterTags.innerHTML = '';
+        const activeFilters = [];
+
+        filterOptions.forEach(option => {
+            if (option.checked) {
+                const filterName = option.name;
+                const filterValue = option.value;
+                const filterLabel = option.nextElementSibling.textContent.trim();
+                
+                const tag = document.createElement('div');
+                tag.className = 'filter-tag';
+                tag.innerHTML = `
+                    <span>${filterLabel}</span>
+                    <button type="button" onclick="removeFilter('${filterName}', '${filterValue}')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                filterTags.appendChild(tag);
+                activeFilters.push({ name: filterName, value: filterValue });
+            }
+        });
+
+        // Update filter options styling
+        filterOptions.forEach(option => {
+            const filterOption = option.closest('.filter-option');
+            if (option.checked) {
+                filterOption.classList.add('active-filter');
+            } else {
+                filterOption.classList.remove('active-filter');
+            }
+        });
+
+        return activeFilters;
+    }
+
+    function removeFilter(name, value) {
+        const option = document.querySelector(`.filter-option input[name="${name}"][value="${value}"]`);
+        if (option) {
+            option.checked = false;
+            updateFilterTags();
+            applyFilters();
+        }
+    }
+
+    function applyFilters() {
+        const filters = {};
+        filterOptions.forEach(option => {
+            if (option.checked) {
+                if (!filters[option.name]) {
+                    filters[option.name] = [];
+                }
+                filters[option.name].push(option.value);
+            }
+        });
+
+        let url = new URL(window.location.href);
+        
+        // Preserve existing query parameters
+        const existingParams = new URLSearchParams(url.search);
+        const paramsToKeep = ['q', 'per_page', 'page'];
+        
+        // Clear all filter-related parameters
+        url.search = '';
+        let newParams = new URLSearchParams();
+        
+        // Keep non-filter parameters
+        paramsToKeep.forEach(param => {
+            if (existingParams.has(param)) {
+                newParams.append(param, existingParams.get(param));
+            }
+        });
+        
+        // Add filter parameters
+        Object.keys(filters).forEach(key => {
+            if (filters[key].length) {
+                newParams.append(key, filters[key].join(','));
+            }
+        });
+        
+        url.search = newParams.toString();
+        window.location.href = url.toString();
+    }
+
+    // Initialize filter tags on page load
+    updateFilterTags();
+
+    // Add CSS for filter tags
+    const style = document.createElement('style');
+    style.textContent = `
+        .filter-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0.75rem;
+            background-color: #EBF5FF;
+            color: #2563EB;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .filter-tag button {
+            color: currentColor;
+            opacity: 0.5;
+            cursor: pointer;
+            border: none;
+            background: none;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .filter-tag button:hover {
+            opacity: 1;
+        }
+        
+        .active-filter {
+            background-color: #EBF5FF;
+            color: #2563EB;
+            border-radius: 4px;
+        }
+    `;
+    document.head.appendChild(style);
+
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Page loaded, checking bulk import functionality...');
+        
+        // Check if the modal exists
+        const modal = document.getElementById('bulkImportModal');
+        console.log('Bulk import modal element:', modal);
+        
+        // Add click event listener to bulk import button
+        const bulkImportBtn = document.getElementById('bulkImportBtn');
+        console.log('Bulk import button:', bulkImportBtn);
+        
+        if (bulkImportBtn) {
+            console.log('Adding click event listener to bulk import button');
+            bulkImportBtn.addEventListener('click', function(e) {
+                console.log('Bulk import button clicked');
+                if (typeof showBulkImportModal === 'function') {
+                    showBulkImportModal();
+                } else {
+                    console.error('showBulkImportModal function not found!');
+                }
+            });
+        } else {
+            console.error('Bulk import button not found!');
+        }
+    });
+</script>
+<script src="{% static 'core/js/bulk_import.js' %}"></script>
+{% endblock %} 

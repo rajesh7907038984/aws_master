@@ -1,0 +1,616 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Users Admin - Nexsy LMS{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" type="text/css" href="{% static 'css/dashboard-shared.css' %}">
+<style>
+    /* Custom styles for users admin dashboard */
+    .users-admin-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 1.5rem;
+    }
+    
+    .user-table,
+    .stats-table {
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .user-table table,
+    .stats-table table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .user-table th,
+    .stats-table th {
+        background: #f8fafc;
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: #374151;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .user-table td,
+    .stats-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #f3f4f6;
+        vertical-align: middle;
+    }
+    
+    .user-table tr:last-child td,
+    .stats-table tr:last-child td {
+        border-bottom: none;
+    }
+    
+    .user-table tr:hover,
+    .stats-table tr:hover {
+        background: #f9fafb;
+    }
+    
+    /* Stats table specific styling */
+    .stats-table th:last-child,
+    .stats-table td.stats-value {
+        text-align: right;
+        font-weight: 600;
+    }
+    
+    .stats-table td.stats-value {
+        font-size: 1.1em;
+    }
+    
+    /* Responsive table styling */
+    @media (max-width: 768px) {
+        .stats-table th,
+        .stats-table td {
+            padding: 0.75rem 0.5rem;
+        }
+        
+        .stats-table td.stats-value {
+            font-size: 1em;
+        }
+    }
+    
+    .user-role-badge {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: capitalize;
+    }
+    
+    .role-admin { background: #fef3c7; color: #92400e; }
+    .role-instructor { background: #dbeafe; color: #1e40af; }
+    .role-learner { background: #d1fae5; color: #065f46; }
+    .role-superadmin { background: #fce7f3; color: #be185d; }
+    .role-globaladmin { background: #e0e7ff; color: #3730a3; }
+    
+    .status-active {
+        color: #065f46;
+        font-weight: 500;
+    }
+    
+    .status-inactive {
+        color: #dc2626;
+        font-weight: 500;
+    }
+    
+    .todo-section {
+        background: white;
+        border-radius: 8px;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        max-height: 500px;
+        overflow-y: auto;
+    }
+    
+    .todo-item {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+        transition: all 0.2s;
+        text-decoration: none;
+        color: inherit;
+    }
+    
+    .todo-item:hover {
+        background: #f9fafb;
+        border-color: #d1d5db;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        text-decoration: none;
+        color: inherit;
+    }
+    
+    .todo-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 0.75rem;
+        font-size: 0.875rem;
+    }
+    
+    .todo-icon.priority-high {
+        background: #fef2f2;
+        color: #dc2626;
+    }
+    
+    .todo-icon.priority-medium {
+        background: #fef3c7;
+        color: #d97706;
+    }
+    
+    .todo-icon.priority-low {
+        background: #ecfdf5;
+        color: #059669;
+    }
+    
+    .todo-content {
+        flex: 1;
+    }
+    
+    .todo-title {
+        font-weight: 600;
+        color: #111827;
+        margin-bottom: 0.2rem;
+        font-size: 0.813rem;
+    }
+    
+    .todo-description {
+        font-size: 0.75rem;
+        color: #6b7280;
+        margin-bottom: 0.2rem;
+    }
+    
+    .todo-meta {
+        font-size: 0.625rem;
+        color: #9ca3af;
+    }
+    
+    .chart-container {
+        background: white;
+        border-radius: 8px;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        height: 300px;
+    }
+    
+    /* Standardized section spacing */
+    .dashboard-section {
+        margin-bottom: 2rem;
+    }
+    
+    .dashboard-section:last-child {
+        margin-bottom: 0;
+    }
+    
+    /* Main layout containers spacing */
+    .dashboard-grid.dashboard-grid-main {
+        margin-bottom: 2.5rem;
+    }
+    
+    .dashboard-grid.dashboard-grid-two-col {
+        margin-bottom: 2.5rem;
+    }
+    
+    /* Consistent spacing between major layout sections */
+    .users-admin-container > .dashboard-grid + .dashboard-grid,
+    .users-admin-container > .dashboard-grid + .dashboard-section,
+    .users-admin-container > .dashboard-section + .dashboard-section {
+        margin-top: 2.5rem;
+    }
+    
+    /* Breadcrumb spacing */
+    .users-admin-container > *:first-child {
+        margin-bottom: 1.5rem;
+    }
+    
+    /* Internal section content spacing */
+    .dashboard-section-header {
+        margin-bottom: 1.5rem;
+    }
+    
+    /* Standardized overview card heights */
+    .dashboard-overview-card {
+        margin-bottom: 1rem;
+        min-height: 120px;
+        height: 120px;
+        display: flex;
+        align-items: center;
+        background: white;
+        border-radius: 8px;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        border: 1px solid #e5e7eb;
+        transition: all 0.2s ease;
+    }
+    
+    .dashboard-overview-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        transform: translateY(-2px);
+        border-color: #d1d5db;
+    }
+    
+    .dashboard-overview-card .dashboard-overview-icon {
+        width: 48px;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #667eea;
+        font-size: 1.5rem;
+        margin-right: 1rem;
+        flex-shrink: 0;
+    }
+    
+    .dashboard-overview-card .dashboard-overview-content {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .dashboard-overview-card .dashboard-overview-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1f2937;
+        line-height: 1.2;
+        margin-bottom: 0.25rem;
+    }
+    
+    .dashboard-overview-card .dashboard-overview-label {
+        font-size: 0.875rem;
+        color: #6b7280;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
+    }
+    
+    .dashboard-overview-card:last-child,
+    .dashboard-stats-item,
+    .todo-item {
+        margin-bottom: 1rem;
+    }
+    
+    .dashboard-overview-card:last-child,
+    .dashboard-stats-item:last-child,
+    .todo-item:last-child {
+        margin-bottom: 0;
+    }
+    
+    /* Ensure consistent spacing in flex containers */
+    .dashboard-flex.dashboard-flex-col > * + * {
+        margin-top: 1.5rem;
+    }
+    
+    /* Grid gap standardization */
+    .dashboard-grid.dashboard-grid-main,
+    .dashboard-grid.dashboard-grid-two-col,
+    .dashboard-grid.dashboard-grid-overview {
+        gap: 1.5rem;
+    }
+    
+    /* Overview grid specific styling for consistent card heights */
+    .dashboard-grid.dashboard-grid-overview {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        align-items: stretch;
+    }
+    
+    /* Remove conflicting margins in grid layouts */
+    .dashboard-grid > .dashboard-section {
+        margin-bottom: 0;
+        margin-top: 0;
+    }
+    
+    /* Responsive spacing adjustments */
+    @media (max-width: 768px) {
+        .users-admin-container {
+            padding: 1rem;
+        }
+        
+        .dashboard-section {
+            margin-bottom: 1.5rem;
+        }
+        
+        .users-admin-container > .dashboard-grid + .dashboard-grid,
+        .users-admin-container > .dashboard-grid + .dashboard-section,
+        .users-admin-container > .dashboard-section + .dashboard-section {
+            margin-top: 1.5rem;
+        }
+        
+        .dashboard-grid.dashboard-grid-main,
+        .dashboard-grid.dashboard-grid-two-col {
+            margin-bottom: 1.5rem;
+            gap: 1rem;
+        }
+        
+        .dashboard-section-header {
+            margin-bottom: 1rem;
+        }
+        
+        /* Mobile overview card adjustments */
+        .dashboard-overview-card {
+            min-height: 100px;
+            height: 100px;
+            padding: 1rem;
+        }
+        
+        .dashboard-overview-card .dashboard-overview-icon {
+            width: 40px;
+            height: 40px;
+            font-size: 1.25rem;
+            margin-right: 0.75rem;
+        }
+        
+        .dashboard-overview-card .dashboard-overview-value {
+            font-size: 1.5rem;
+        }
+        
+        .dashboard-overview-card .dashboard-overview-label {
+            font-size: 0.75rem;
+        }
+        
+        /* Mobile grid adjustments */
+        .dashboard-grid.dashboard-grid-overview {
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        }
+    }
+    
+    /* Tablet responsive adjustments */
+    @media (max-width: 1024px) and (min-width: 769px) {
+        .dashboard-grid.dashboard-grid-overview {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="users-admin-container">
+    <!-- Breadcrumb -->
+    {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+    <!-- Main Content Grid -->
+    <div class="dashboard-grid dashboard-grid-main">
+        <!-- Left Column (60%) -->
+        <div class="dashboard-flex dashboard-flex-col">
+            <!-- Overview Cards -->
+            <div class="dashboard-section">
+                <h2 class="dashboard-section-header">User Statistics</h2>
+                <div class="dashboard-grid dashboard-grid-overview">
+                    <div class="dashboard-overview-card">
+                        <div class="dashboard-overview-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="dashboard-overview-content">
+                            <div class="dashboard-overview-value">{{ total_users }}</div>
+                            <div class="dashboard-overview-label">Total Users</div>
+                        </div>
+                    </div>
+                    
+                    <div class="dashboard-overview-card">
+                        <div class="dashboard-overview-icon">
+                            <i class="fas fa-user-check"></i>
+                        </div>
+                        <div class="dashboard-overview-content">
+                            <div class="dashboard-overview-value">{{ active_users }}</div>
+                            <div class="dashboard-overview-label">Active Users</div>
+                        </div>
+                    </div>
+                    
+                    <div class="dashboard-overview-card">
+                        <div class="dashboard-overview-icon">
+                            <i class="fas fa-user-plus"></i>
+                        </div>
+                        <div class="dashboard-overview-content">
+                            <div class="dashboard-overview-value">{{ new_users_this_week }}</div>
+                            <div class="dashboard-overview-label">New This Week</div>
+                        </div>
+                    </div>
+                    
+                    <div class="dashboard-overview-card">
+                        <div class="dashboard-overview-icon">
+                            <i class="fas fa-sign-in-alt"></i>
+                        </div>
+                        <div class="dashboard-overview-content">
+                            <div class="dashboard-overview-value">{{ recent_logins }}</div>
+                            <div class="dashboard-overview-label">Recent Logins</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column (40%) -->
+        <div class="dashboard-flex dashboard-flex-col">
+            <!-- To-Do List Section -->
+            <div class="dashboard-section">
+                <div class="dashboard-flex dashboard-flex-between dashboard-mb-lg">
+                    <h2 class="dashboard-section-header dashboard-mb-0">Admin To-Do List</h2>
+                    <div class="dashboard-text-small dashboard-text-muted">
+                        <span>{{ total_todo_count }} active tasks</span>
+                    </div>
+                </div>
+                
+                <div class="todo-section">
+                    {% if todo_items %}
+                        {% for task in todo_items %}
+                        <a href="{{ task.url }}" class="todo-item">
+                            <div class="todo-icon priority-{{ task.priority }}">
+                                <i class="fas fa-{{ task.icon }}"></i>
+                            </div>
+                            <div class="todo-content">
+                                <div class="todo-title">{{ task.title }}</div>
+                                <div class="todo-description">{{ task.description|safe }}</div>
+                                <div class="todo-meta">
+                                    {% if task.user %}{{ task.user }} • {% endif %}{{ task.due_date }}
+                                </div>
+                            </div>
+                            <div class="dashboard-text-muted">
+                                <i class="fas fa-chevron-right"></i>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-8 text-gray-500">
+                            <i class="fas fa-tasks text-4xl mb-4"></i>
+                            <h3 class="text-lg font-medium mb-2">All caught up!</h3>
+                            <p>No pending tasks at the moment.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Role Distribution and Quick Stats in Two Columns -->
+    <div class="dashboard-grid dashboard-grid-two-col">
+        <!-- User Role Distribution -->
+        <div class="dashboard-section">
+            <h2 class="dashboard-section-header">User Role Distribution</h2>
+            <div class="stats-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Role</th>
+                            <th>Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for role in role_stats %}
+                        <tr>
+                            <td>
+                                <span class="user-role-badge role-{{ role.role }}">{{ role.role|title }}</span>
+                            </td>
+                            <td class="stats-value">{{ role.count }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="2" class="text-center text-gray-500 py-4">
+                                No role data available
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="dashboard-section">
+            <h2 class="dashboard-section-header">Quick Stats</h2>
+            <div class="stats-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Inactive Users</td>
+                            <td class="stats-value" style="color: #dc2626;">{{ inactive_users }}</td>
+                        </tr>
+                        <tr>
+                            <td>Pending Reviews</td>
+                            <td class="stats-value" style="color: #d97706;">{{ pending_submissions_count }}</td>
+                        </tr>
+                        <tr>
+                            <td>Branches</td>
+                            <td class="stats-value">{{ branches|length }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Full Width Recent Users Section -->
+    <div class="dashboard-section">
+        <div class="dashboard-flex dashboard-flex-between dashboard-mb-lg">
+            <h2 class="dashboard-section-header dashboard-mb-0">Recent Users</h2>
+            <a href="{% url 'users:user_list' %}" class="dashboard-link">View All →</a>
+        </div>
+        
+        <div class="user-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Role</th>
+                        <th>Branch</th>
+                        <th>Status</th>
+                        <th>Joined</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in recent_users %}
+                    <tr>
+                        <td>
+                            <div>
+                                <div class="font-medium">{{ user.get_full_name|default:user.username }}</div>
+                                <div class="text-sm text-gray-500">{{ user.email }}</div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="user-role-badge role-{{ user.role }}">{{ user.role }}</span>
+                        </td>
+                        <td>{{ user.branch.name|default:"No Branch" }}</td>
+                        <td>
+                            {% if user.is_active %}
+                                <span class="status-active">Active</span>
+                            {% else %}
+                                <span class="status-inactive">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ user.date_joined|date:"M d, Y" }}</td>
+                        <td>
+                            <a href="{% url 'users:user_profile' user.id %}" class="dashboard-link text-sm">View</a>
+                            <a href="{% url 'users:edit_user' user.id %}" class="dashboard-link text-sm ml-2">Edit</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-gray-500 py-8">
+                            <i class="fas fa-users text-2xl mb-2"></i>
+                            <div>No users found</div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add any interactive functionality here
+    console.log('Users Admin Dashboard loaded');
+    
+    // Optional: Add click tracking for analytics
+    document.querySelectorAll('.todo-item').forEach(function(element) {
+        element.addEventListener('click', function() {
+            // You can add analytics tracking here
+            console.log('User interaction:', this.href || this.textContent);
+        });
+    });
+});
+</script>
+{% endblock %} 

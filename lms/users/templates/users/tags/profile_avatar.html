@@ -1,0 +1,20 @@
+{% if user.profile_image %}
+    <img src="{{ user.profile_image.url }}" alt="{{ user.get_full_name|default:user.username }}" 
+         class="avatar avatar-{{ size }} rounded-circle"
+         {% if size == 'sm' %}style="width: 32px; height: 32px; object-fit: cover;"{% endif %}
+         {% if size == 'md' %}style="width: 64px; height: 64px; object-fit: cover;"{% endif %}
+         {% if size == 'lg' %}style="width: 128px; height: 128px; object-fit: cover;"{% endif %}>
+{% elif avatar_url %}
+    <img src="{{ avatar_url }}" alt="{{ user.get_full_name|default:user.username }}" 
+         class="avatar avatar-{{ size }} rounded-circle"
+         {% if size == 'sm' %}style="width: 32px; height: 32px; object-fit: cover;"{% endif %}
+         {% if size == 'md' %}style="width: 64px; height: 64px; object-fit: cover;"{% endif %}
+         {% if size == 'lg' %}style="width: 128px; height: 128px; object-fit: cover;"{% endif %}>
+{% else %}
+    <div class="avatar avatar-{{ size }} rounded-circle d-flex align-items-center justify-content-center bg-light text-secondary"
+         {% if size == 'sm' %}style="width: 32px; height: 32px; font-size: 0.8rem;"{% endif %}
+         {% if size == 'md' %}style="width: 64px; height: 64px; font-size: 1.5rem;"{% endif %}
+         {% if size == 'lg' %}style="width: 128px; height: 128px; font-size: 3rem;"{% endif %}>
+        {{ user.username|first|upper }}
+    </div>
+{% endif %} 

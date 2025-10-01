@@ -1,0 +1,87 @@
+{% for activity in recent_activities %}
+<div class="dashboard-activity-item" style="cursor: pointer;"
+     {% if activity.type == 'business' %}
+     onclick="window.location.href='{% url 'business:business_list' %}'"
+     {% elif activity.type == 'admin' %}
+     onclick="window.location.href='{% url 'users:user_list' %}'"
+     {% elif activity.type == 'grading' %}
+     onclick="window.location.href='{% url 'assignments:assignment_list' %}'"
+     {% elif activity.type == 'growth' %}
+     onclick="window.location.href='{% url 'users:user_list' %}'"
+     {% elif activity.type == 'performance' %}
+     onclick="window.location.href='{% url 'reports:branch_report' %}'"
+     {% elif activity.type == 'system' %}
+     onclick="window.location.href='{% url 'admin:index' %}'"
+     {% elif activity.type == 'user' %}
+     onclick="window.location.href='{% url 'users:user_list' %}'"
+     {% elif activity.type == 'branch' %}
+     onclick="window.location.href='{% url 'branches:branch_list' %}'"
+     {% elif activity.type == 'course' %}
+     onclick="window.location.href='{% url 'courses:course_list' %}'"
+     {% else %}
+     onclick="window.location.href='{% url 'dashboard_globaladmin' %}'"
+     {% endif %}>
+    <div class="dashboard-activity-icon" style="background-color: #f3f4f6;">
+        <i class="fas fa-{{ activity.icon|default:'info' }}" style="color: 
+            {% if activity.type == 'business' %}#10b981
+            {% elif activity.type == 'admin' %}#ef4444
+            {% elif activity.type == 'grading' %}#3b82f6
+            {% elif activity.type == 'growth' %}#8b5cf6
+            {% elif activity.type == 'performance' %}#f59e0b
+            {% elif activity.type == 'system' %}#ef4444
+            {% elif activity.type == 'user' %}#10b981
+            {% elif activity.type == 'branch' %}#8b5cf6
+            {% elif activity.type == 'course' %}#3b82f6
+            {% else %}#2563eb{% endif %};"></i>
+    </div>
+    <div class="dashboard-activity-content">
+        <div class="dashboard-activity-title">{{ activity.description|safe }}</div>
+        <div class="dashboard-activity-time">
+            {% if activity.type == 'business' %}
+                <span style="color: {% if activity.priority == 'high' %}#ef4444{% else %}#10b981{% endif %};">
+                    {{ activity.timestamp|timesince }} ago
+                </span>
+            {% elif activity.type == 'admin' %}
+                <span style="color: {% if activity.priority == 'high' %}#ef4444{% else %}#f59e0b{% endif %};">
+                    Requires attention
+                </span>
+            {% elif activity.type == 'grading' %}
+                <span style="color: {% if activity.priority == 'high' %}#ef4444{% else %}#3b82f6{% endif %};">
+                    System monitoring
+                </span>
+            {% elif activity.type == 'growth' %}
+                <span style="color: #8b5cf6;">
+                    Resource planning
+                </span>
+            {% elif activity.type == 'performance' %}
+                <span style="color: #f59e0b;">
+                    Performance review
+                </span>
+            {% elif activity.type == 'system' %}
+                <span style="color: #ef4444;">
+                    System alert
+                </span>
+            {% elif activity.type == 'user' %}
+                <span style="color: #10b981;">
+                    {{ activity.timestamp|timesince }} ago
+                </span>
+            {% elif activity.type == 'branch' %}
+                <span style="color: #8b5cf6;">
+                    {{ activity.timestamp|timesince }} ago
+                </span>
+            {% elif activity.type == 'course' %}
+                <span style="color: #3b82f6;">
+                    {{ activity.timestamp|timesince }} ago
+                </span>
+            {% else %}
+                <span style="color: #6b7280;">
+                    {{ activity.timestamp|timesince }} ago
+                </span>
+            {% endif %}
+        </div>
+    </div>
+    <div class="dashboard-activity-arrow" style="flex-shrink: 0; color: #9ca3af;">
+        <i class="fas fa-chevron-right"></i>
+    </div>
+</div>
+{% endfor %} 

@@ -1,0 +1,70 @@
+/* Custom styles for Question admin form */
+.field-blank_answers {
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #eee;
+    border-radius: 4px;
+}
+
+.field-blank_answers textarea {
+    width: 100%;
+    font-family: monospace;
+}
+
+.inline-group {
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #eee;
+    border-radius: 4px;
+}
+
+/* Style for question type select */
+#id_question_type {
+    width: 100%;
+    padding: 4px;
+    margin-bottom: 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+/* Style for matching pairs */
+.inline-related.dynamic-matchingpair_set {
+    background-color: #f9f9f9;
+    margin-bottom: 10px;
+    padding: 10px;
+    border-radius: 4px;
+}
+
+/* Style for question options */
+.inline-related.dynamic-questionoption_set {
+    background-color: #f9f9f9;
+    margin-bottom: 10px;
+    padding: 10px;
+    border-radius: 4px;
+}
+
+/* Highlight required fields */
+.required label {
+    font-weight: bold;
+}
+
+.required label:after {
+    content: " *";
+    color: #e32;
+}
+
+/* Better spacing for inline forms */
+.inline-group .tabular tr.add-row td {
+    padding: 15px 10px;
+}
+
+.inline-group .tabular tr td {
+    padding: 10px;
+}
+
+/* Style for help text */
+.help {
+    color: #666;
+    font-size: 0.9em;
+    margin-top: 5px;
+} 

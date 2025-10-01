@@ -1,0 +1,119 @@
+<!-- Global User Progress Chart Component -->
+<div class="chart-container" data-chart-template="true" style="min-height: 500px;">
+    <div class="chart-title">
+        <h3>{{ chart_title|default:"User Progress" }}</h3>
+        <div class="chart-controls">
+            <!-- Chart Type Toggle - Removed as requested -->
+            
+            <!-- Export Button - Removed as requested -->
+        </div>
+    </div>
+    
+    <!-- Chart Container -->
+    <div id="chart-container" class="chart-canvas-wrapper" style="height: 300px;">
+        <canvas id="user-progress-chart" width="400" height="300"></canvas>
+    </div>
+    
+    <!-- List View Container (hidden by default) -->
+    <div id="list-view-container" class="hidden">
+        <div class="overflow-hidden">
+            <div class="max-h-96 overflow-y-auto">
+                <div id="user-progress-list" class="space-y-3">
+                    <!-- User progress items will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Legend -->
+    <div id="chart-legend" class="chart-legend">
+        <div class="chart-legend-item">
+            <span class="chart-legend-color" style="background-color: #10b981;"></span>
+            <span>Completed (<span id="completed-count">0</span>)</span>
+        </div>
+        <div class="chart-legend-item">
+            <span class="chart-legend-color" style="background-color: #f59e0b;"></span>
+            <span>In Progress (<span id="in-progress-count">0</span>)</span>
+        </div>
+        <div class="chart-legend-item">
+            <span class="chart-legend-color" style="background-color: #ef4444;"></span>
+            <span>Not Passed (<span id="not-passed-count">0</span>)</span>
+        </div>
+        <div class="chart-legend-item">
+            <span class="chart-legend-color" style="background-color: #9ca3af;"></span>
+            <span>Not Started (<span id="not-started-count">0</span>)</span>
+        </div>
+    </div>
+    
+    <!-- Summary Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-4 border-t border-gray-200">
+        <div class="text-center">
+            <div class="text-2xl font-bold text-gray-900" id="total-users">0</div>
+            <div class="text-sm text-gray-500">Total Users</div>
+        </div>
+        <div class="text-center">
+            <div class="text-2xl font-bold text-green-600" id="completion-rate">0%</div>
+            <div class="text-sm text-gray-500">Completion Rate</div>
+        </div>
+        <div class="text-center">
+            <div class="text-2xl font-bold text-blue-600" id="avg-score">0%</div>
+            <div class="text-sm text-gray-500">Average Score</div>
+        </div>
+        <div class="text-center">
+            <div class="text-2xl font-bold text-purple-600" id="active-users">0</div>
+            <div class="text-sm text-gray-500">Active Users</div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Initialize the user progress chart component
+(function() {
+    console.log('User progress chart initialization starting...');
+    
+    function initializeUserProgressChart() {
+        // Check if Chart.js is available
+        if (typeof Chart === 'undefined') {
+            console.log('Chart.js not ready for user progress chart, retrying in 100ms...');
+            setTimeout(initializeUserProgressChart, 100);
+            return;
+        }
+        
+        // Check if UserProgressChart class is available
+        if (typeof UserProgressChart === 'undefined') {
+            console.log('UserProgressChart class not ready, retrying in 100ms...');
+            setTimeout(initializeUserProgressChart, 100);
+            return;
+        }
+        
+        // Check if canvas exists
+        const canvas = document.getElementById('user-progress-chart');
+        if (!canvas) {
+            console.log('User progress chart canvas not found, retrying in 100ms...');
+            setTimeout(initializeUserProgressChart, 100);
+            return;
+        }
+        
+        console.log('Initializing user progress chart...');
+        
+        // Get user progress data from Django template context
+        const userProgressData = {% if enhanced_user_progress_json %}{{ enhanced_user_progress_json|safe }}{% else %}[]{% endif %};
+        
+        // Initialize the chart using the object method
+        if (typeof UserProgressChart.create === 'function') {
+            window.userProgressChart = UserProgressChart.create('user-progress-chart', userProgressData);
+        } else {
+            console.error('UserProgressChart.create method not found');
+        }
+    }
+    
+    // Start initialization
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(initializeUserProgressChart, 100);
+        });
+    } else {
+        setTimeout(initializeUserProgressChart, 100);
+    }
+})();
+</script>

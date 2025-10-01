@@ -1,0 +1,1528 @@
+{% extends "admin_base.html" %}
+{% load static %}
+{% load user_profile_tags %}
+
+{% block title %}{{ profile_user.get_full_name|default:profile_user.username }} - Profile{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'users/css/profile_styles.css' %}">
+<style>
+    .main-content {
+        background-color: #ffffff;
+    }
+
+    .profile-section {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    }
+
+    .profile-header {
+        border-bottom: 1px solid #E5E7EB;
+        padding: 1.5rem;
+    }
+
+    .profile-content {
+        padding: 1.5rem;
+    }
+
+    .info-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .info-label {
+        color: #6B7280;
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+    }
+
+    .info-value {
+        color: #111827;
+        font-size: 0.875rem;
+        font-weight: 400;
+        padding: 0.5rem 0.75rem;
+        background-color: #F9FAFB;
+        border: 1px solid #E5E7EB;
+        border-radius: 0.375rem;
+    }
+
+    .info-value.empty {
+        color: #9CA3AF;
+        font-style: italic;
+    }
+
+    /* Tab styling */
+    .tab-container {
+        overflow: hidden;
+        border-bottom: 1px solid #E5E7EB;
+        background-color: #F9FAFB;
+        border-top-left-radius: 0.5rem;
+        border-top-right-radius: 0.5rem;
+    }
+
+    .tab-buttons {
+        display: flex;
+        overflow-x: auto;
+        scrollbar-width: none; /* Firefox */
+    }
+
+    .tab-buttons::-webkit-scrollbar {
+        display: none; /* Chrome, Safari, Edge */
+    }
+
+    .tab-button {
+        background-color: inherit;
+        border: none;
+        outline: none;
+        cursor: pointer;
+        padding: 1rem 1.5rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #6B7280;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+    }
+
+    .tab-button:hover {
+        color: #374151;
+        background-color: #F3F4F6;
+    }
+
+    .tab-button.active {
+        color: #2563EB;
+        border-bottom: 2px solid #2563EB;
+    }
+
+    .tab-content {
+        display: none;
+        padding: 1.5rem;
+        border-bottom-left-radius: 0.5rem;
+        border-bottom-right-radius: 0.5rem;
+    }
+
+    .tab-content.active {
+        display: block;
+    }
+
+    .btn-primary {
+        background-color: #2563EB;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 0.375rem;
+        border: none;
+        font-weight: 500;
+        cursor: pointer;
+        text-decoration: none;
+        transition: background-color 0.2s;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .btn-primary:hover {
+        background-color: #1D4ED8;
+    }
+
+    .btn-secondary {
+        background-color: #F3F4F6;
+        color: #374151;
+        padding: 0.5rem 1rem;
+        border-radius: 0.375rem;
+        border: 1px solid #D1D5DB;
+        font-weight: 500;
+        cursor: pointer;
+        text-decoration: none;
+        transition: background-color 0.2s;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .btn-secondary:hover {
+        background-color: #E5E7EB;
+    }
+
+    .profile-avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        border: 3px solid #E5E7EB;
+        object-fit: cover;
+    }
+
+    .profile-avatar.default {
+        background-color: #F3F4F6;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        color: #6B7280;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .status-active {
+        background-color: #D1FAE5;
+        color: #065F46;
+    }
+
+    .status-inactive {
+        background-color: #FEE2E2;
+        color: #991B1B;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        text-align: center;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1E293B;
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
+        color: #64748B;
+    }
+
+    .progress-bar {
+        width: 100%;
+        height: 0.5rem;
+        background-color: #E5E7EB;
+        border-radius: 9999px;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background-color: #2563EB;
+        transition: width 0.3s ease;
+    }
+
+    .badge-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+        gap: 1rem;
+    }
+
+    .badge-item {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        text-align: center;
+        transition: transform 0.2s ease;
+    }
+
+    .badge-item:hover {
+        transform: translateY(-2px);
+    }
+
+    .badge-icon {
+        width: 40px;
+        height: 40px;
+        margin: 0 auto 0.5rem;
+        border-radius: 50%;
+        background: #2563EB;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+    }
+
+    .badge-name {
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: #374151;
+    }
+
+    .assessment-section {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .assessment-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 0.75rem;
+    }
+
+    .score-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .score-item {
+        text-align: center;
+        padding: 0.5rem;
+        background: white;
+        border-radius: 0.375rem;
+        border: 1px solid #E2E8F0;
+    }
+
+    .score-label {
+        font-size: 0.75rem;
+        color: #6B7280;
+        margin-bottom: 0.25rem;
+    }
+
+    .score-value {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #1E293B;
+    }
+
+    /* ILP nested tabs styling */
+    .ilp-tabs {
+        margin-top: 1rem;
+    }
+
+    .ilp-main-tabs {
+        background-color: #f0f4f8;
+        border-radius: 0.375rem;
+        border: 1px solid #dbe7f3;
+        display: flex;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .ilp-main-tabs::-webkit-scrollbar {
+        display: none;
+    }
+
+    .ilp-tab-button {
+        background-color: inherit;
+        border: none;
+        outline: none;
+        cursor: pointer;
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #6B7280;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+        min-width: max-content;
+    }
+
+    .ilp-tab-button:hover {
+        color: #374151;
+        background-color: #F3F4F6;
+    }
+
+    .ilp-tab-button.active {
+        color: #2563EB;
+        border-bottom: 2px solid #2563EB;
+        background-color: #ffffff;
+    }
+
+    .ilp-tab-content {
+        display: none;
+        padding: 1rem;
+        background-color: #ffffff;
+        border-radius: 0.5rem;
+        margin-top: 1rem;
+    }
+
+    .ilp-tab-content.active {
+        display: block !important;
+        visibility: visible !important;
+    }
+
+    /* Learning Profile nested tabs styling */
+    .learning-profile-tabs {
+        margin-top: 1rem;
+    }
+
+    .learning-profile-main-tabs {
+        background-color: #f0f4f8;
+        border-radius: 0.375rem;
+        border: 1px solid #dbe7f3;
+    }
+
+    .learning-profile-tab-button {
+        background-color: inherit;
+        border: none;
+        outline: none;
+        cursor: pointer;
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #6B7280;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+    }
+
+    .learning-profile-tab-button:hover {
+        color: #374151;
+        background-color: #F3F4F6;
+    }
+
+    .learning-profile-tab-button.active {
+        color: #2563EB;
+        border-bottom: 2px solid #2563EB;
+        background-color: #ffffff;
+    }
+
+    .learning-profile-tab-content {
+        display: none;
+        padding: 1rem;
+        background-color: #ffffff;
+        border-radius: 0.5rem;
+        margin-top: 1rem;
+        max-height: none;
+        overflow: visible;
+    }
+
+    .learning-profile-tab-content.active {
+        display: block !important;
+        visibility: visible !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-6xl">
+    <!-- Breadcrumbs -->
+    {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-white mb-2">User Profile</h1>
+        <p class="text-gray-300">View and manage user information</p>
+    </div>
+
+    <!-- Profile Section -->
+    <div class="profile-section">
+        <div class="profile-header">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <!-- Profile Avatar -->
+                    <div class="profile-avatar {% if not profile_user.profile_image %}default{% endif %}">
+                        {% if profile_user.profile_image %}
+                            <img src="{{ profile_user.profile_image.url }}" alt="{{ profile_user.get_full_name }}" class="profile-avatar" style="width: 80px; height: 80px; object-fit: cover; border-radius: 50%;">
+                        {% else %}
+                            <i class="fas fa-user"></i>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-semibold text-gray-900">
+                            {{ profile_user.get_full_name|default:profile_user.username }}
+                        </h2>
+                        <p class="text-gray-600">{{ profile_user.email }}</p>
+                        <div class="flex gap-2 mt-2">
+                            <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                                {{ profile_user.role|title }}
+                            </span>
+                            {% if profile_user.branch %}
+                            <span class="bg-purple-100 text-purple-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                                {{ profile_user.branch.name }}
+                            </span>
+                            {% endif %}
+                            <span class="status-badge {% if profile_user.is_active %}status-active{% else %}status-inactive{% endif %}">
+                                {% if profile_user.is_active %}Active{% else %}Inactive{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                {% if can_edit %}
+                <div class="flex gap-2">
+                    <a href="{% url 'users:edit_user' profile_user.id %}" class="btn-primary">
+                        <i class="fas fa-edit mr-2"></i>Edit Profile
+                    </a>
+                    <a href="{% url 'users:password_change' profile_user.id %}" class="btn-secondary">
+                        <i class="fas fa-key mr-2"></i>Change Password
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tab-container">
+            <div class="tab-buttons">
+                <button type="button" class="tab-button active" onclick="openTab(event, 'account-tab')">Account</button>
+                <!-- Additional tabs only shown when viewing a learner's profile -->
+                {% if profile_user.role == 'learner' %}
+                <button type="button" class="tab-button" onclick="openTab(event, 'personal-tab')">Personal Information</button>
+                <button type="button" class="tab-button" onclick="openTab(event, 'education-tab')">Academic Records</button>
+                <button type="button" class="tab-button" onclick="openTab(event, 'employment-tab')">Work Experience Records</button>
+                <button type="button" class="tab-button" onclick="openTab(event, 'additional-tab')">Application Documents</button>
+                <button type="button" class="tab-button" onclick="openTab(event, 'ilp-tab')">Learning Development Plan</button>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Tab Content: Account -->
+        <div class="tab-content active" id="account-tab">
+            <!-- Account Information -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="info-group">
+                    <div class="info-label">Username</div>
+                    <div class="info-value">{{ profile_user.username }}</div>
+                </div>
+
+                <div class="info-group">
+                    <div class="info-label">Role</div>
+                    <div class="info-value">{{ profile_user.role|title }}</div>
+                </div>
+
+                <div class="info-group">
+                    <div class="info-label">Given Name</div>
+                    <div class="info-value {% if not profile_user.given_names %}empty{% endif %}">{{ profile_user.given_names|default:"Not provided" }}</div>
+                </div>
+
+                <div class="info-group">
+                    <div class="info-label">Family Name</div>
+                    <div class="info-value {% if not profile_user.family_name %}empty{% endif %}">{{ profile_user.family_name|default:"Not provided" }}</div>
+                </div>
+
+                <div class="info-group">
+                    <div class="info-label">Email</div>
+                    <div class="info-value {% if not profile_user.email %}empty{% endif %}">{{ profile_user.email|default:"Not provided" }}</div>
+                </div>
+
+                <div class="info-group">
+                    <div class="info-label">Phone Number</div>
+                    <div class="info-value {% if not profile_user.phone_number %}empty{% endif %}">
+                        {{ profile_user.phone_number|default:"Not provided" }}
+                    </div>
+                </div>
+
+                <div class="info-group">
+                    <div class="info-label">Contact Preference</div>
+                    <div class="info-value {% if not profile_user.contact_preference %}empty{% endif %}">
+                        {{ profile_user.get_contact_preference_display|default:"Not specified" }}
+                    </div>
+                </div>
+
+                <div class="info-group">
+                    <div class="info-label">Timezone</div>
+                    <div class="info-value {% if not profile_user.timezone %}empty{% endif %}">{{ profile_user.timezone|default:"UTC" }}</div>
+                </div>
+
+                <div class="info-group">
+                    <div class="info-label">Branch</div>
+                    <div class="info-value {% if not profile_user.branch %}empty{% endif %}">{{ profile_user.branch.name|default:"Not assigned" }}</div>
+                </div>
+
+                <div class="info-group">
+                    <div class="info-label">Account Status</div>
+                    <div class="info-value">
+                        <span class="status-badge {% if profile_user.is_active %}status-active{% else %}status-inactive{% endif %}">
+                            {% if profile_user.is_active %}Active{% else %}Inactive{% endif %}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="info-group">
+                    <div class="info-label">Last Login</div>
+                    <div class="info-value">{% last_login_display profile_user %}</div>
+                </div>
+
+                <div class="info-group">
+                    <div class="info-label">Date Joined</div>
+                    <div class="info-value">{{ profile_user.date_joined|date:"F j, Y" }}</div>
+                </div>
+            </div>
+
+
+        </div>
+
+        <!-- Tab Content: Personal Information -->
+        <div class="tab-content" id="personal-tab">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="info-group">
+                    <div class="info-label">CV/Resume File</div>
+                    <div class="info-value {% if not profile_user.cv_file %}empty{% endif %}">
+                        {% if profile_user.cv_file %}
+                            <a href="{{ profile_user.cv_file.url }}" target="_blank" class="text-blue-600 hover:text-blue-800">
+                                <i class="fas fa-download mr-1"></i>Download CV
+                            </a>
+                        {% else %}
+                            Not provided
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="info-group">
+                    <div class="info-label">Unique Learner Number (ULN)</div>
+                    <div class="info-value {% if not profile_user.unique_learner_number %}empty{% endif %}">
+                        {{ profile_user.unique_learner_number|default:"Not provided" }}
+                    </div>
+                </div>
+
+                <div class="info-group">
+                    <div class="info-label">Date of Birth</div>
+                    <div class="info-value {% if not profile_user.date_of_birth %}empty{% endif %}">
+                        {{ profile_user.date_of_birth|date:"F j, Y"|default:"Not provided" }}
+                    </div>
+                </div>
+
+                <div class="info-group">
+                    <div class="info-label">Gender</div>
+                    <div class="info-value {% if not profile_user.sex %}empty{% endif %}">
+                        {{ profile_user.get_sex_display|default:"Not provided" }}
+                        {% if profile_user.sex == 'Other' and profile_user.sex_other %}
+                            ({{ profile_user.sex_other }})
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="info-group">
+                    <div class="info-label">Sexual Orientation</div>
+                    <div class="info-value {% if not profile_user.sexual_orientation %}empty{% endif %}">
+                        {{ profile_user.get_sexual_orientation_display|default:"Not provided" }}
+                        {% if profile_user.sexual_orientation == 'Other sexual orientation' and profile_user.sexual_orientation_other %}
+                            ({{ profile_user.sexual_orientation_other }})
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="info-group">
+                    <div class="info-label">Ethnicity</div>
+                    <div class="info-value {% if not profile_user.ethnicity %}empty{% endif %}">
+                        {{ profile_user.get_ethnicity_display|default:"Not provided" }}
+                        {% if profile_user.ethnicity == 'Other' and profile_user.ethnicity_other %}
+                            ({{ profile_user.ethnicity_other }})
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="info-group">
+                    <div class="info-label">Postcode</div>
+                    <div class="info-value {% if not profile_user.current_postcode %}empty{% endif %}">
+                        {{ profile_user.current_postcode|default:"Not provided" }}
+                    </div>
+                </div>
+
+                <div class="info-group">
+                    <div class="info-label">Address Location</div>
+                    <div class="info-value {% if not profile_user.is_non_uk_address %}empty{% endif %}">
+                        {% if profile_user.is_non_uk_address %}Non-UK Address{% else %}UK Address{% endif %}
+                    </div>
+                </div>
+
+                <div class="info-group">
+                    <div class="info-label">Country</div>
+                    <div class="info-value {% if not profile_user.country %}empty{% endif %}">
+                        {{ profile_user.country|default:"Not provided" }}
+                    </div>
+                </div>
+
+                <div class="info-group md:col-span-2">
+                    <div class="info-label">Address</div>
+                    <div class="info-value {% if not profile_user.address_line1 %}empty{% endif %}">
+                        {% if profile_user.address_line1 %}
+                            {{ profile_user.address_line1 }}{% if profile_user.address_line2 %}, {{ profile_user.address_line2 }}{% endif %}
+                            {% if profile_user.city %}<br>{{ profile_user.city }}{% endif %}
+                            {% if profile_user.current_postcode %} {{ profile_user.current_postcode }}{% endif %}
+                            {% if profile_user.county %}<br>{{ profile_user.county }}{% endif %}
+                            {% if profile_user.country %}<br>{{ profile_user.country }}{% endif %}
+                        {% else %}
+                            Not provided
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content: Education Background -->
+        <div class="tab-content" id="education-tab">
+            <div class="space-y-6">
+                <!-- Current Education Information -->
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-900">Current Education Information</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="info-group">
+                            <div class="info-label">Study Area</div>
+                            <div class="info-value {% if not profile_user.study_area %}empty{% endif %}">
+                                {{ profile_user.get_study_area_display|default:"Not provided" }}
+                                {% if profile_user.study_area == 'Other' and profile_user.study_area_other %}
+                                    ({{ profile_user.study_area_other }})
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="info-group">
+                            <div class="info-label">Level of Study</div>
+                            <div class="info-value {% if not profile_user.level_of_study %}empty{% endif %}">
+                                {{ profile_user.get_level_of_study_display|default:"Not provided" }}
+                            </div>
+                        </div>
+
+                        <div class="info-group">
+                            <div class="info-label">Grades</div>
+                            <div class="info-value {% if not profile_user.grades %}empty{% endif %}">
+                                {{ profile_user.grades|default:"Not provided" }}
+                            </div>
+                        </div>
+
+                        <div class="info-group">
+                            <div class="info-label">Date Achieved</div>
+                            <div class="info-value {% if not profile_user.date_achieved %}empty{% endif %}">
+                                {{ profile_user.date_achieved|date:"F j, Y"|default:"Not provided" }}
+                            </div>
+                        </div>
+
+                        <div class="info-group">
+                            <div class="info-label">Learning Difficulty</div>
+                            <div class="info-value {% if not profile_user.has_learning_difficulty %}empty{% endif %}">
+                                {{ profile_user.get_has_learning_difficulty_display|default:"Not provided" }}
+                            </div>
+                        </div>
+
+                        <div class="info-group md:col-span-2">
+                            <div class="info-label">Learning Difficulty Details</div>
+                            <div class="info-value {% if not profile_user.learning_difficulty_details %}empty{% endif %}">
+                                {{ profile_user.learning_difficulty_details|default:"Not provided" }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Education History -->
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-900">Education History</h3>
+                    {% if profile_user.education_data %}
+                        <div class="space-y-4">
+                            {% for edu in profile_user.education_data %}
+                            <div class="bg-white p-4 rounded-lg border border-gray-200">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div class="info-group">
+                                        <div class="info-label">Institution</div>
+                                        <div class="info-value">{{ edu.institution|default:"Not provided" }}</div>
+                                    </div>
+                                    <div class="info-group">
+                                        <div class="info-label">Qualification</div>
+                                        <div class="info-value">{{ edu.qualification|default:"Not provided" }}</div>
+                                    </div>
+                                    <div class="info-group">
+                                        <div class="info-label">Subject</div>
+                                        <div class="info-value">{{ edu.subject|default:"Not provided" }}</div>
+                                    </div>
+                                    <div class="info-group">
+                                        <div class="info-label">Grade</div>
+                                        <div class="info-value">{{ edu.grade|default:"Not provided" }}</div>
+                                    </div>
+                                    <div class="info-group">
+                                        <div class="info-label">Year</div>
+                                        <div class="info-value">{{ edu.year|default:"Not provided" }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="info-value empty">No education history available</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content: Employment History -->
+        <div class="tab-content" id="employment-tab">
+            <div class="space-y-6">
+                <!-- Current Employment Information -->
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-900">Current Employment Information</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="info-group">
+                            <div class="info-label">Job Role</div>
+                            <div class="info-value {% if not profile_user.job_role %}empty{% endif %}">
+                                {{ profile_user.job_role|default:"Not provided" }}
+                            </div>
+                        </div>
+
+                        <div class="info-group">
+                            <div class="info-label">Industry</div>
+                            <div class="info-value {% if not profile_user.industry %}empty{% endif %}">
+                                {{ profile_user.get_industry_display|default:"Not provided" }}
+                                {% if profile_user.industry == 'Other' and profile_user.industry_other %}
+                                    ({{ profile_user.industry_other }})
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="info-group">
+                            <div class="info-label">Duration</div>
+                            <div class="info-value {% if not profile_user.duration %}empty{% endif %}">
+                                {{ profile_user.get_duration_display|default:"Not provided" }}
+                            </div>
+                        </div>
+
+                        <div class="info-group">
+                            <div class="info-label">Resume/CV</div>
+                            <div class="info-value {% if not profile_user.cv_file %}empty{% endif %}">
+                                {% if profile_user.cv_file %}
+                                    <a href="{{ profile_user.cv_file.url }}" target="_blank" class="text-blue-600 hover:text-blue-800">
+                                        <i class="fas fa-download mr-1"></i>Download Resume
+                                    </a>
+                                {% else %}
+                                    Not provided
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="info-group md:col-span-2">
+                            <div class="info-label">Key Skills</div>
+                            <div class="info-value {% if not profile_user.key_skills %}empty{% endif %}">
+                                {{ profile_user.key_skills|default:"Not provided" }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Employment History -->
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-900">Employment History</h3>
+                    {% if profile_user.employment_data %}
+                        <div class="space-y-4">
+                            {% for emp in profile_user.employment_data %}
+                            <div class="bg-white p-4 rounded-lg border border-gray-200">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div class="info-group">
+                                        <div class="info-label">Company</div>
+                                        <div class="info-value">{{ emp.company|default:"Not provided" }}</div>
+                                    </div>
+                                    <div class="info-group">
+                                        <div class="info-label">Position</div>
+                                        <div class="info-value">{{ emp.position|default:"Not provided" }}</div>
+                                    </div>
+                                    <div class="info-group">
+                                        <div class="info-label">Start Date</div>
+                                        <div class="info-value">{{ emp.start_date|default:"Not provided" }}</div>
+                                    </div>
+                                    <div class="info-group">
+                                        <div class="info-label">End Date</div>
+                                        <div class="info-value">{{ emp.end_date|default:"Current" }}</div>
+                                    </div>
+                                    <div class="info-group md:col-span-2">
+                                        <div class="info-label">Description</div>
+                                        <div class="info-value">{{ emp.description|default:"Not provided" }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="info-value empty">No employment history available</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content: Individual Learning Plan -->
+        <div class="tab-content" id="ilp-tab">
+            <div class="space-y-6">
+                <!-- ILP Overview -->
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-blue-800">Individual Learning Plan</h3>
+                            <div class="mt-2 text-sm text-blue-700">
+                                <p>View the Individual Learning Plan for this user including their learning preferences, goals, and accommodations.</p>
+                                {% if profile_user.individual_learning_plan %}
+                                <p class="mt-1 text-blue-600">Individual Learning Plan configured.</p>
+                                {% else %}
+                                <p class="mt-1 text-blue-600">No ILP created yet.</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {% if profile_user.individual_learning_plan %}
+                <!-- ILP Nested Tabs -->
+                <div class="ilp-tabs">
+                    <div class="tab-buttons ilp-main-tabs">
+                        <button type="button" class="ilp-tab-button active" onclick="openILPTab(event, 'overview-tab')">
+                            Learning Journey Overview
+                        </button>
+                        <button type="button" class="ilp-tab-button" onclick="openILPTab(event, 'learning-profile-tab')">
+                            Learning Assessment & Planning
+                        </button>
+                        <button type="button" class="ilp-tab-button" onclick="openILPTab(event, 'induction-checklist-tab')">
+                            Induction Checklist
+                        </button>
+                        <button type="button" class="ilp-tab-button" onclick="openILPTab(event, 'health-safety-tab')">
+                            Health & Safety Questionnaire
+                        </button>
+                        <button type="button" class="ilp-tab-button" onclick="openILPTab(event, 'learning-needs-tab')">
+                            Ongoing Learning Support
+                        </button>
+                        <button type="button" class="ilp-tab-button" onclick="openILPTab(event, 'learning-goal-tab')">
+                            Goals & Progress Tracking
+                        </button>
+                        <button type="button" class="ilp-tab-button" onclick="openILPTab(event, 'educator-notes-tab')">
+                            Educator Notes
+                        </button>
+                        <button type="button" class="ilp-tab-button" onclick="openILPTab(event, 'course-review-tab')">
+                            Internal Course Review
+                        </button>
+                    </div>
+
+                    <!-- Overview Tab -->
+                    {% include 'users/tabs/ilp/overview_tab.html' %}
+
+                    <!-- Learning Profile Tab -->
+                    <div id="learning-profile-tab" class="ilp-tab-content">
+                        <div class="space-y-6">
+                            <!-- Learning Profile Nested Tabs -->
+                            <div class="learning-profile-tabs">
+                                <div class="tab-buttons learning-profile-main-tabs">
+                                    <button type="button" class="tab-button learning-profile-tab-button active" onclick="openLearningProfileTab(event, 'assessment-data-tab')">
+                                        Assessment Data
+                                    </button>
+                                    <button type="button" class="tab-button learning-profile-tab-button" onclick="openLearningProfileTab(event, 'learning-preferences-tab')">
+                                        Learning Preferences (VAK)
+                                    </button>
+                                    <button type="button" class="tab-button learning-profile-tab-button" onclick="openLearningProfileTab(event, 'send-accommodations-tab')">
+                                        SEND
+                                    </button>
+                                    <button type="button" class="tab-button learning-profile-tab-button" onclick="openLearningProfileTab(event, 'statement-purpose-tab')">
+                                        Learning Motivation & Goals
+                                    </button>
+                                    <button type="button" class="tab-button learning-profile-tab-button" onclick="openLearningProfileTab(event, 'strengths-weaknesses-tab')">
+                                        Skills & Competency Analysis
+                                    </button>
+                                </div>
+
+                                <!-- Assessment Data Tab -->
+                                {% include 'users/tabs/ilp/learning_profile/assessment_data_tab.html' %}
+
+                                <!-- Learning Preferences Tab -->
+                                {% include 'users/tabs/ilp/learning_profile/learning_preferences_tab.html' %}
+
+                                <!-- SEND Accommodations Tab -->
+                                <div id="send-accommodations-tab" class="learning-profile-tab-content">
+                                    <div class="space-y-4">
+                                        <h4 class="text-lg font-semibold">SEND Accommodations</h4>
+                                        {% if profile_user.individual_learning_plan.send_accommodations.all %}
+                                            <div class="space-y-3">
+                                                {% for accommodation in profile_user.individual_learning_plan.send_accommodations.all %}
+                                                <div class="info-value">
+                                                    <strong>{{ accommodation.get_accommodation_type_display }}:</strong>
+                                                    <span class="inline-block px-2 py-1 text-xs rounded-full ml-2
+                                                        {% if accommodation.is_active %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                                                        {% if accommodation.is_active %}Active{% else %}Inactive{% endif %}
+                                                    </span>
+                                                    <br>{{ accommodation.description }}
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        {% else %}
+                                            <div class="info-value empty">No SEND accommodations configured</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <!-- Statement of Purpose Tab -->
+                                <div id="statement-purpose-tab" class="learning-profile-tab-content">
+                                    <div class="space-y-4">
+                                        <h4 class="text-lg font-semibold">Learning Motivation & Goals</h4>
+                                        {% if profile_user.individual_learning_plan.statement_of_purpose %}
+                                            {% with sop=profile_user.individual_learning_plan.statement_of_purpose %}
+                                            <div class="space-y-3">
+                                                {% if sop.reason_for_course %}
+                                                <div class="info-value">
+                                                    <strong>Reason for Course:</strong><br>
+                                                    {{ sop.reason_for_course }}
+                                                </div>
+                                                {% endif %}
+                                                {% if sop.career_objectives %}
+                                                <div class="info-value">
+                                                    <strong>Career Objectives:</strong><br>
+                                                    {{ sop.career_objectives }}
+                                                </div>
+                                                {% endif %}
+                                                {% if sop.relevant_experience %}
+                                                <div class="info-value">
+                                                    <strong>Relevant Experience:</strong><br>
+                                                    {{ sop.relevant_experience }}
+                                                </div>
+                                                {% endif %}
+                                                {% if sop.sop_file %}
+                                                <div class="info-value">
+                                                    <strong>Statement of Purpose File:</strong><br>
+                                                    <a href="{{ sop.sop_file.url }}" target="_blank" class="text-blue-600 hover:text-blue-800">
+                                                        <i class="fas fa-download mr-1"></i>Download SOP File
+                                                    </a>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                            {% endwith %}
+                                        {% else %}
+                                            <div class="info-value empty">No statement of purpose available</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <!-- Skills & Competency Analysis Tab -->
+                                {% include 'users/tabs/ilp/learning_profile/strengths_weaknesses_tab.html' %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Induction Checklist Tab -->
+                    {% include 'users/tabs/ilp/induction_checklist_tab.html' %}
+
+                    <!-- Health & Safety Tab -->
+                    {% include 'users/tabs/ilp/health_safety_tab.html' %}
+
+                    <!-- Learning Needs Tab -->
+                    {% include 'users/tabs/ilp/learning_needs_tab.html' %}
+
+                    <!-- Learning Goals Tab -->
+                    <div id="learning-goal-tab" class="ilp-tab-content">
+                        <div class="space-y-6">
+                            <!-- Career Goals -->
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <h4 class="text-lg font-semibold mb-3">Career Goals</h4>
+                                {% if profile_user.individual_learning_plan.career_goal %}
+                                    {% with career_goal=profile_user.individual_learning_plan.career_goal %}
+                                    <div class="space-y-3">
+                                        {% if career_goal.short_term_goal %}
+                                        <div class="info-value">
+                                            <strong>Short-term Goal (1-2 years):</strong><br>
+                                            {{ career_goal.short_term_goal }}
+                                        </div>
+                                        {% endif %}
+                                        {% if career_goal.long_term_goal %}
+                                        <div class="info-value">
+                                            <strong>Long-term Goal (5+ years):</strong><br>
+                                            {{ career_goal.long_term_goal }}
+                                        </div>
+                                        {% endif %}
+                                        {% if career_goal.target_industry %}
+                                        <div class="info-value">
+                                            <strong>Target Industry:</strong> {{ career_goal.target_industry }}
+                                        </div>
+                                        {% endif %}
+                                        {% if career_goal.required_skills %}
+                                        <div class="info-value">
+                                            <strong>Required Skills:</strong><br>
+                                            {{ career_goal.required_skills }}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    {% endwith %}
+                                {% else %}
+                                    <div class="info-value empty">No career goals set</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Learning Goals Summary -->
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <h4 class="text-lg font-semibold mb-3">Learning Goals ({{ profile_user.individual_learning_plan.learning_goals.all|length }})</h4>
+                                {% if profile_user.individual_learning_plan.learning_goals.all %}
+                                    <div class="space-y-3">
+                                        {% for goal in profile_user.individual_learning_plan.learning_goals.all %}
+                                        <div class="info-value">
+                                            <div class="flex justify-between items-start">
+                                                <div>
+                                                    <strong>{{ goal.title }}</strong>
+                                                    <span class="inline-block px-2 py-1 text-xs rounded-full ml-2
+                                                        {% if goal.status == 'completed' %}bg-green-100 text-green-800
+                                                        {% elif goal.status == 'in_progress' %}bg-blue-100 text-blue-800
+                                                        {% elif goal.status == 'on_hold' %}bg-yellow-100 text-yellow-800
+                                                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                                        {{ goal.get_status_display }}
+                                                    </span>
+                                                    <br><small class="text-gray-600">{{ goal.description|truncatewords:20 }}</small>
+                                                </div>
+                                                <div class="text-sm text-gray-500">
+                                                    {{ goal.get_goal_type_display }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <div class="info-value empty">No learning goals set</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Educator Notes Tab -->
+                    {% include 'users/tabs/ilp/educator_notes_tab.html' %}
+
+                    <!-- Internal Course Review Tab -->
+                    {% include 'users/tabs/ilp/course_review_tab.html' %}
+
+                    <!-- Strengths & Weaknesses Tab -->
+                    <div id="strengths-weaknesses-tab" class="ilp-tab-content">
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h4 class="text-lg font-semibold mb-3">Strengths & Weaknesses</h4>
+                            {% if profile_user.individual_learning_plan.strengths_weaknesses.all %}
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <h5 class="font-medium text-green-700 mb-2">Strengths</h5>
+                                        {% for item in profile_user.individual_learning_plan.strengths_weaknesses.all %}
+                                            {% if item.type == 'strength' %}
+                                            <div class="info-value mb-2">
+                                                {{ item.description }}
+                                                <small class="text-gray-500 block">Source: {{ item.get_source_display }}</small>
+                                            </div>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                    <div>
+                                        <h5 class="font-medium text-red-700 mb-2">Areas for Improvement</h5>
+                                        {% for item in profile_user.individual_learning_plan.strengths_weaknesses.all %}
+                                            {% if item.type == 'weakness' %}
+                                            <div class="info-value mb-2">
+                                                {{ item.description }}
+                                                <small class="text-gray-500 block">Source: {{ item.get_source_display }}</small>
+                                            </div>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="info-value empty">No strengths or weaknesses identified</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-8">
+                    <div class="text-gray-500 mb-4">
+                        <i class="fas fa-user-graduate text-4xl"></i>
+                    </div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">No Individual Learning Plan</h3>
+                    <p class="text-gray-500 mb-4">This user doesn't have an Individual Learning Plan set up yet.</p>
+                    {% if can_edit %}
+                    <a href="{% url 'users:edit_user' profile_user.id %}?tab=ilp-tab" class="btn-primary">
+                        <i class="fas fa-plus mr-2"></i>Create ILP
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Tab Content: Additional Information -->
+        <div class="tab-content" id="additional-tab">
+            <div class="space-y-6">
+                <div class="info-group">
+                    <div class="info-label">Special Interests and Strengths</div>
+                    <div class="info-value {% if not profile_user.special_interests_and_strengths %}empty{% endif %}">
+                        {{ profile_user.special_interests_and_strengths|default:"Not provided" }}
+                    </div>
+                </div>
+
+                <div class="info-group">
+                    <div class="info-label">Achievements and Awards</div>
+                    <div class="info-value {% if not profile_user.achievements_and_awards %}empty{% endif %}">
+                        {{ profile_user.achievements_and_awards|default:"Not provided" }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Simplified Tab Management for Profile View
+class ProfileTabManager {
+    constructor() {
+        this.currentTab = 'account-tab';
+        this.init();
+    }
+    
+    init() {
+        // Initialize from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlTab = urlParams.get('tab');
+        
+        if (urlTab) {
+            this.currentTab = urlTab;
+        }
+        
+        // Set up event listeners
+        this.setupEventListeners();
+        
+        // Initialize UI
+        this.showTab(this.currentTab);
+        
+        console.log('ProfileTabManager initialized with tab:', this.currentTab);
+    }
+    
+    setupEventListeners() {
+        // Setup main tab buttons
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const onclick = button.getAttribute('onclick');
+                const match = onclick.match(/openTab\([^,]+,\s*['"]([^'"]+)['"]/);
+                if (match) {
+                    e.preventDefault();
+                    this.openTab(match[1]);
+                }
+            });
+        });
+        
+        // Setup ILP tab buttons
+        document.querySelectorAll('.ilp-tab-button').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const onclick = button.getAttribute('onclick');
+                const match = onclick.match(/openILPTab\([^,]+,\s*['"]([^'"]+)['"]/);
+                if (match) {
+                    e.preventDefault();
+                    this.openILPTab(match[1]);
+                }
+            });
+        });
+        
+        // Setup Learning Profile tab buttons
+        document.querySelectorAll('.learning-profile-tab-button').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const onclick = button.getAttribute('onclick');
+                const match = onclick.match(/openLearningProfileTab\([^,]+,\s*['"]([^'"]+)['"]/);
+                if (match) {
+                    e.preventDefault();
+                    this.openLearningProfileTab(match[1]);
+                }
+            });
+        });
+        
+        // Add keyboard navigation
+        this.setupKeyboardNavigation();
+        
+        // Initialize accessibility attributes
+        this.initializeAccessibility();
+    }
+    
+    openTab(tabName) {
+        console.log('Opening tab:', tabName);
+        this.currentTab = tabName;
+        this.showTab(tabName);
+        this.updateURL();
+    }
+    
+    openILPTab(tabName) {
+        console.log('Opening ILP tab:', tabName);
+        this.showILPTab(tabName);
+    }
+    
+    openLearningProfileTab(tabName) {
+        console.log('Opening Learning Profile tab:', tabName);
+        this.showLearningProfileTab(tabName);
+    }
+    
+    showTab(tabName) {
+        // Hide all main tab content
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
+            content.setAttribute('aria-hidden', 'true');
+        });
+        
+        // Remove active from all main tab buttons
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.classList.remove('active');
+            button.setAttribute('aria-selected', 'false');
+        });
+        
+        // Show selected tab
+        const selectedTab = document.getElementById(tabName);
+        if (selectedTab) {
+            selectedTab.classList.add('active');
+            selectedTab.setAttribute('aria-hidden', 'false');
+        }
+        
+        // Activate selected button
+        const selectedButton = document.querySelector(`.tab-button[onclick*="${tabName}"]`);
+        if (selectedButton) {
+            selectedButton.classList.add('active');
+            selectedButton.setAttribute('aria-selected', 'true');
+        }
+        
+        // If not ILP tab, hide all ILP content
+        if (tabName !== 'ilp-tab') {
+            this.hideAllILPContent();
+        }
+    }
+    
+    showILPTab(tabName) {
+        // Hide all ILP tab content
+        document.querySelectorAll('.ilp-tab-content').forEach(content => {
+            content.style.display = 'none';
+            content.classList.remove('active');
+            content.setAttribute('aria-hidden', 'true');
+        });
+        
+        // Remove active from all ILP tab buttons
+        document.querySelectorAll('.ilp-tab-button').forEach(button => {
+            button.classList.remove('active');
+            button.setAttribute('aria-selected', 'false');
+        });
+        
+        // Show selected ILP tab
+        const selectedTab = document.getElementById(tabName);
+        if (selectedTab) {
+            selectedTab.style.display = 'block';
+            selectedTab.classList.add('active');
+            selectedTab.setAttribute('aria-hidden', 'false');
+        }
+        
+        // Activate selected button
+        const selectedButton = document.querySelector(`.ilp-tab-button[onclick*="${tabName}"]`);
+        if (selectedButton) {
+            selectedButton.classList.add('active');
+            selectedButton.setAttribute('aria-selected', 'true');
+        }
+        
+        // If not learning profile tab, hide all learning profile content
+        if (tabName !== 'learning-profile-tab') {
+            this.hideAllLearningProfileContent();
+        }
+    }
+    
+    showLearningProfileTab(tabName) {
+        // Hide all learning profile tab content
+        document.querySelectorAll('.learning-profile-tab-content').forEach(content => {
+            content.style.display = 'none';
+            content.classList.remove('active');
+            content.setAttribute('aria-hidden', 'true');
+        });
+        
+        // Remove active from all learning profile tab buttons
+        document.querySelectorAll('.learning-profile-tab-button').forEach(button => {
+            button.classList.remove('active');
+            button.setAttribute('aria-selected', 'false');
+        });
+        
+        // Show selected learning profile tab
+        const selectedTab = document.getElementById(tabName);
+        if (selectedTab) {
+            selectedTab.style.display = 'block';
+            selectedTab.classList.add('active');
+            selectedTab.setAttribute('aria-hidden', 'false');
+        }
+        
+        // Activate selected button
+        const selectedButton = document.querySelector(`.learning-profile-tab-button[onclick*="${tabName}"]`);
+        if (selectedButton) {
+            selectedButton.classList.add('active');
+            selectedButton.setAttribute('aria-selected', 'true');
+        }
+    }
+    
+    hideAllILPContent() {
+        document.querySelectorAll('.ilp-tab-content').forEach(content => {
+            content.style.display = 'none';
+            content.classList.remove('active');
+            content.setAttribute('aria-hidden', 'true');
+        });
+        document.querySelectorAll('.ilp-tab-button').forEach(button => {
+            button.classList.remove('active');
+            button.setAttribute('aria-selected', 'false');
+        });
+        this.hideAllLearningProfileContent();
+    }
+    
+    hideAllLearningProfileContent() {
+        document.querySelectorAll('.learning-profile-tab-content').forEach(content => {
+            content.style.display = 'none';
+            content.classList.remove('active');
+            content.setAttribute('aria-hidden', 'true');
+        });
+        document.querySelectorAll('.learning-profile-tab-button').forEach(button => {
+            button.classList.remove('active');
+            button.setAttribute('aria-selected', 'false');
+        });
+    }
+    
+    updateURL() {
+        const urlParams = new URLSearchParams(window.location.search);
+        urlParams.set('tab', this.currentTab);
+        
+        const newURL = window.location.pathname + '?' + urlParams.toString();
+        window.history.replaceState({}, '', newURL);
+    }
+    
+    setupKeyboardNavigation() {
+        document.addEventListener('keydown', (e) => {
+            const activeElement = document.activeElement;
+            const isTabButton = activeElement && (
+                activeElement.classList.contains('tab-button') ||
+                activeElement.classList.contains('ilp-tab-button') ||
+                activeElement.classList.contains('learning-profile-tab-button')
+            );
+            
+            if (!isTabButton) return;
+            
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                e.preventDefault();
+                this.navigateKeyboard(activeElement, e.key === 'ArrowRight');
+            }
+            
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                activeElement.click();
+            }
+        });
+        
+        // Make tab buttons focusable and add focus styles
+        document.querySelectorAll('.tab-button, .ilp-tab-button, .learning-profile-tab-button').forEach(button => {
+            button.setAttribute('tabindex', '0');
+            button.setAttribute('role', 'tab');
+            button.setAttribute('aria-label', button.textContent.trim());
+            
+            button.addEventListener('focus', () => {
+                button.style.outline = '2px solid #2563EB';
+                button.style.outlineOffset = '2px';
+            });
+            
+            button.addEventListener('blur', () => {
+                button.style.outline = '';
+                button.style.outlineOffset = '';
+            });
+        });
+    }
+    
+    navigateKeyboard(currentButton, forward) {
+        let buttons = [];
+        
+        if (currentButton.classList.contains('tab-button')) {
+            buttons = Array.from(document.querySelectorAll('.tab-button:not([style*="display: none"])'));
+        } else if (currentButton.classList.contains('ilp-tab-button')) {
+            buttons = Array.from(document.querySelectorAll('.ilp-tab-button:not([style*="display: none"])'));
+        } else if (currentButton.classList.contains('learning-profile-tab-button')) {
+            buttons = Array.from(document.querySelectorAll('.learning-profile-tab-button:not([style*="display: none"])'));
+        }
+        
+        const currentIndex = buttons.indexOf(currentButton);
+        if (currentIndex === -1) return;
+        
+        const nextIndex = forward 
+            ? (currentIndex + 1) % buttons.length
+            : (currentIndex - 1 + buttons.length) % buttons.length;
+        
+        if (buttons[nextIndex]) {
+            buttons[nextIndex].focus();
+            buttons[nextIndex].click();
+        }
+    }
+
+    initializeAccessibility() {
+        // Initialize ARIA attributes for main tabs
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.setAttribute('role', 'tab');
+            const onclick = button.getAttribute('onclick');
+            if (onclick) {
+                const match = onclick.match(/openTab\([^,]+,\s*['"]([^'"]+)['"]/);
+                if (match) {
+                    button.setAttribute('aria-controls', match[1]);
+                }
+            }
+            button.setAttribute('aria-selected', button.classList.contains('active') ? 'true' : 'false');
+        });
+
+        // Initialize ARIA attributes for ILP tabs
+        document.querySelectorAll('.ilp-tab-button').forEach(button => {
+            button.setAttribute('role', 'tab');
+            const onclick = button.getAttribute('onclick');
+            if (onclick) {
+                const match = onclick.match(/openILPTab\([^,]+,\s*['"]([^'"]+)['"]/);
+                if (match) {
+                    button.setAttribute('aria-controls', match[1]);
+                }
+            }
+            button.setAttribute('aria-selected', button.classList.contains('active') ? 'true' : 'false');
+        });
+
+        // Initialize ARIA attributes for Learning Profile tabs
+        document.querySelectorAll('.learning-profile-tab-button').forEach(button => {
+            button.setAttribute('role', 'tab');
+            const onclick = button.getAttribute('onclick');
+            if (onclick) {
+                const match = onclick.match(/openLearningProfileTab\([^,]+,\s*['"]([^'"]+)['"]/);
+                if (match) {
+                    button.setAttribute('aria-controls', match[1]);
+                }
+            }
+            button.setAttribute('aria-selected', button.classList.contains('active') ? 'true' : 'false');
+        });
+
+        // Initialize ARIA attributes for tab panels
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.setAttribute('role', 'tabpanel');
+            content.setAttribute('aria-hidden', content.classList.contains('active') ? 'false' : 'true');
+        });
+
+        document.querySelectorAll('.ilp-tab-content').forEach(content => {
+            content.setAttribute('role', 'tabpanel');
+            content.setAttribute('aria-hidden', content.classList.contains('active') ? 'false' : 'true');
+        });
+
+        document.querySelectorAll('.learning-profile-tab-content').forEach(content => {
+            content.setAttribute('role', 'tabpanel');
+            content.setAttribute('aria-hidden', content.classList.contains('active') ? 'false' : 'true');
+        });
+    }
+}
+
+// Initialize ProfileTabManager when DOM is ready
+let profileTabManager;
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Initializing ProfileTabManager...');
+    profileTabManager = new ProfileTabManager();
+    
+    // Make global functions available for backward compatibility
+    window.openTab = function(evt, tabName) {
+        profileTabManager.openTab(tabName);
+    };
+    
+    window.openILPTab = function(evt, tabName) {
+        profileTabManager.openILPTab(tabName);
+    };
+    
+    window.openLearningProfileTab = function(evt, tabName) {
+        profileTabManager.openLearningProfileTab(tabName);
+    };
+    
+    // Initialize any additional components
+    if (typeof initializeCircularProgress === 'function') {
+        initializeCircularProgress();
+    }
+    
+    if (typeof initializeLevelProgress === 'function') {
+        initializeLevelProgress();
+    }
+});
+</script>
+{% endblock %} 

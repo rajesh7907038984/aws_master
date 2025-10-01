@@ -1,0 +1,36 @@
+{% load static %}
+
+<div class="user-badges">
+  {% if badges %}
+    <div class="badges-container">
+      {% for user_badge in badges %}
+        <div class="badge-item earned">
+          <div class="badge-img {% if user_badge.badge.level == 1 %}gold{% elif user_badge.badge.level == 2 %}silver{% elif user_badge.badge.level == 3 %}bronze{% endif %}">
+            {% if user_badge.badge.image %}
+              <img src="{{ user_badge.badge.image.url }}" alt="{{ user_badge.badge.name }}" class="img-fluid">
+            {% else %}
+              <i class="fas fa-medal fa-2x text-warning"></i>
+            {% endif %}
+          </div>
+          <div class="badge-details">
+            <h6 class="badge-name">{{ user_badge.badge.name }}</h6>
+            <div class="badge-earned-date">
+              {{ user_badge.earned_date|date:"M d, Y" }}
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+    
+    {% if total_count > badges|length %}
+      <div class="mt-2 text-center">
+        <a href="#" class="view-all-badges">View all {{ total_count }} badges</a>
+      </div>
+    {% endif %}
+  {% elif show_empty %}
+    <div class="empty-badges text-center p-3">
+      <i class="fas fa-medal fa-2x text-muted mb-3"></i>
+      <p class="text-muted">No badges earned yet</p>
+    </div>
+  {% endif %}
+</div> 

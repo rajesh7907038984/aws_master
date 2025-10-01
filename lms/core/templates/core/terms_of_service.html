@@ -1,0 +1,294 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terms of Service - Nexsy LMS</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="{% static 'css/style.css' %}" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body {
+            background: #f8fafc;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+        }
+        
+        .terms-container {
+            max-width: 4xl;
+            margin: 0 auto;
+            background: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .terms-header {
+            background: linear-gradient(135deg, #1c2260 0%, #2d3785 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+        
+        .terms-content {
+            padding: 2rem;
+            color: #374151;
+        }
+        
+        .terms-content h2 {
+            color: #1c2260;
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 2rem 0 1rem 0;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 0.5rem;
+        }
+        
+        .terms-content h3 {
+            color: #4b5563;
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 1.5rem 0 0.75rem 0;
+        }
+        
+        .terms-content p {
+            margin-bottom: 1rem;
+            text-align: justify;
+        }
+        
+        .terms-content ul {
+            margin: 1rem 0;
+            padding-left: 2rem;
+        }
+        
+        .terms-content li {
+            margin-bottom: 0.5rem;
+        }
+        
+        .contact-info {
+            background: #f3f4f6;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            margin: 2rem 0;
+        }
+        
+        .last-updated {
+            color: #6b7280;
+            font-size: 0.875rem;
+            font-style: italic;
+            text-align: center;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        @media (max-width: 768px) {
+            .terms-container {
+                margin: 1rem;
+            }
+            
+            .terms-header,
+            .terms-content {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="min-h-screen py-8 px-4">
+        <div class="terms-container">
+            <div class="terms-header">
+                <h1 class="text-3xl font-bold mb-2">Terms of Service</h1>
+                <p class="text-blue-200">Nexsy Learning Management System</p>
+            </div>
+            
+            <div class="terms-content">
+                <h2>1. Acceptance of Terms</h2>
+                <p>
+                    By accessing and using the Nexsy Learning Management System ("LMS", "Service", "Platform"), 
+                    you accept and agree to be bound by the terms and provision of this agreement. If you do not 
+                    agree to abide by these terms, please do not use this service.
+                </p>
+
+                <h2>2. Use License</h2>
+                <p>
+                    Permission is granted to temporarily access and use the Nexsy LMS for personal, 
+                    non-commercial educational purposes. This is the grant of a license, not a transfer of title, and under this license you may:
+                </p>
+                <ul>
+                    <li>Access learning materials and courses assigned to you</li>
+                    <li>Participate in discussions and collaborative activities</li>
+                    <li>Submit assignments and take assessments as required</li>
+                    <li>Use communication tools provided within the platform</li>
+                </ul>
+                <p>You may not:</p>
+                <ul>
+                    <li>Modify or copy the materials without explicit permission</li>
+                    <li>Use the materials for any commercial purpose or for any public display</li>
+                    <li>Attempt to reverse engineer any software contained in the platform</li>
+                    <li>Remove any copyright or other proprietary notations from the materials</li>
+                </ul>
+
+                <h2>3. Account Responsibilities</h2>
+                <h3>3.1 Account Security</h3>
+                <p>
+                    You are responsible for maintaining the confidentiality of your account credentials and for all 
+                    activities that occur under your account. You must notify us immediately of any unauthorized use 
+                    of your account.
+                </p>
+                
+                <h3>3.2 Accurate Information</h3>
+                <p>
+                    You agree to provide accurate, current, and complete information during the registration process 
+                    and to update such information to keep it accurate, current, and complete.
+                </p>
+
+                <h2>4. Privacy and Data Protection</h2>
+                <p>
+                    Your privacy is important to us. We collect and use information in accordance with our Privacy Policy. 
+                    By using our service, you consent to the collection and use of information as outlined in our Privacy Policy.
+                </p>
+                
+                <h3>4.1 Data Collection</h3>
+                <p>We collect information you provide directly to us, such as:</p>
+                <ul>
+                    <li>Personal information (name, email address, phone number)</li>
+                    <li>Educational data (course progress, assessment results, learning preferences)</li>
+                    <li>Usage data (login times, feature usage, navigation patterns)</li>
+                </ul>
+                
+                <h3>4.2 Data Use</h3>
+                <p>We use collected data to:</p>
+                <ul>
+                    <li>Provide and improve our educational services</li>
+                    <li>Track learning progress and provide personalized learning experiences</li>
+                    <li>Communicate with you about your learning activities</li>
+                    <li>Ensure platform security and prevent unauthorized access</li>
+                </ul>
+
+                <h2>5. Intellectual Property</h2>
+                <p>
+                    The service and its original content, features, and functionality are and will remain the exclusive 
+                    property of Nexsy LMS and its licensors. The service is protected by copyright, trademark, and other laws.
+                </p>
+
+                <h2>6. User Conduct</h2>
+                <p>You agree not to:</p>
+                <ul>
+                    <li>Use the service for any unlawful purpose or to solicit unlawful activity</li>
+                    <li>Harm, threaten, or harass other users</li>
+                    <li>Share inappropriate content or spam</li>
+                    <li>Violate any applicable laws or regulations</li>
+                    <li>Interfere with or disrupt the service or servers</li>
+                </ul>
+
+                <h2>7. Service Availability</h2>
+                <p>
+                    We strive to maintain high availability of our service, but cannot guarantee uninterrupted access. 
+                    The service may be temporarily unavailable for maintenance, updates, or due to technical issues.
+                </p>
+
+                <h2>8. Limitation of Liability</h2>
+                <p>
+                    In no event shall Nexsy LMS, nor its directors, employees, partners, agents, suppliers, or affiliates, 
+                    be liable for any indirect, incidental, special, consequential, or punitive damages, including without 
+                    limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from your use 
+                    of the service.
+                </p>
+
+                <h2>9. Modifications to Terms</h2>
+                <p>
+                    We reserve the right, at our sole discretion, to modify or replace these Terms at any time. 
+                    If a revision is material, we will try to provide at least 30 days' notice prior to any new terms taking effect.
+                </p>
+
+                <h2>10. Termination</h2>
+                <p>
+                    We may terminate or suspend your account and bar access to the service immediately, without prior notice 
+                    or liability, under our sole discretion, for any reason whatsoever and without limitation, including but 
+                    not limited to a breach of the Terms.
+                </p>
+
+                <div class="contact-info">
+                    <h2 style="margin-top: 0; border: none; padding: 0;">Contact Information</h2>
+                    <p style="margin-bottom: 0;">
+                        If you have any questions about these Terms of Service, please contact us at:
+                    </p>
+                    <p style="margin-bottom: 0;">
+                        <strong>Email:</strong> support@nexsy.io<br>
+                        <strong>Address:</strong> Nexsy LMS Support Team<br>
+                        <strong>Phone:</strong> Available through platform support system
+                    </p>
+                </div>
+
+                <div class="last-updated">
+                    <p>Last updated: {% now "F d, Y" %}</p>
+                    <p>Effective date: {% now "F d, Y" %}</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Enhanced Navigation -->
+        <div class="text-center mt-6">
+            <button id="backButton" onclick="smartGoBack()" class="inline-flex items-center px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors duration-200">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Go Back
+            </button>
+            <a href="/login/" class="ml-4 inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors duration-200">
+                <i class="fas fa-sign-in-alt mr-2"></i>
+                Login
+            </a>
+        </div>
+    </div>
+
+    <script>
+        function smartGoBack() {
+            try {
+                // Check if there's history to go back to
+                if (window.history.length > 1) {
+                    // Try to go back in history
+                    window.history.back();
+                    
+                    // Set a timeout to check if the navigation happened
+                    // If we're still on the same page after 500ms, use fallback
+                    setTimeout(function() {
+                        if (document.referrer && document.referrer !== window.location.href) {
+                            // If there's a referrer and we're still here, go to referrer
+                            window.location.href = document.referrer;
+                        } else {
+                            // Fallback to login page
+                            window.location.href = "/login/";
+                        }
+                    }, 500);
+                } else if (document.referrer && document.referrer !== window.location.href) {
+                    // No history but there's a referrer, go to referrer
+                    window.location.href = document.referrer;
+                } else {
+                    // No history and no referrer, go to login
+                    window.location.href = "/login/";
+                }
+            } catch (error) {
+                // If any error occurs, fallback to login page
+                console.log('Navigation error, redirecting to login:', error);
+                window.location.href = "/login/";
+            }
+        }
+
+        // Update button text based on navigation context
+        document.addEventListener('DOMContentLoaded', function() {
+            const backButton = document.getElementById('backButton');
+            const buttonIcon = backButton.querySelector('i');
+            const buttonText = backButton.childNodes[2];
+            
+            if (window.history.length <= 1 && (!document.referrer || document.referrer === window.location.href)) {
+                // No back navigation available, change button to suggest login
+                buttonIcon.className = 'fas fa-sign-in-alt mr-2';
+                buttonText.textContent = 'Go to Login';
+                backButton.className = backButton.className.replace('bg-gray-600', 'bg-blue-600').replace('hover:bg-gray-700', 'hover:bg-blue-700');
+                backButton.onclick = function() { window.location.href = '/login/'; };
+            }
+        });
+    </script>
+</body>
+</html>

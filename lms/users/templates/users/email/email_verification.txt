@@ -1,0 +1,21 @@
+Welcome to {{ site_name }}! - Email Verification Required
+
+Hello {{ user.get_full_name|default:user.username }},
+
+Thank you for registering with {{ site_name }}! To complete your registration and activate your account, please verify your email address by clicking on the link below:
+
+{{ verify_url }}
+
+IMPORTANT: This verification link will expire on {{ expires_at|date:"F j, Y \a\t g:i A" }} (in 24 hours).
+
+What's Next? Once you verify your email, you'll be able to:
+- Access your learning dashboard
+- Enroll in courses  
+- Track your progress
+- Connect with instructors and peers
+
+{% if branch %}You've been registered for the {{ branch.name }} portal and will have access to courses and resources specific to this branch.{% endif %}
+
+---
+This email was sent to {{ user.email }} as part of your {{ site_name }} registration.
+© {{ "now"|date:"Y" }} {{ site_name }}. All rights reserved. 

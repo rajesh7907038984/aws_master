@@ -1,0 +1,250 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+    {% if is_create %}Add{% else %}Edit{% endif %} Educator Note - {{ target_user.get_full_name|default:target_user.username }}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        max-width: 800px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        padding: 30px;
+    }
+    
+    .form-group {
+        margin-bottom: 24px;
+    }
+    
+    .form-label {
+        display: block;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 8px;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 16px;
+        transition: border-color 0.2s;
+    }
+    
+    .form-control:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    
+    .form-check {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .form-check-input {
+        width: 18px;
+        height: 18px;
+        margin: 0;
+        accent-color: #3b82f6;
+    }
+    
+    .form-check-label {
+        margin: 0;
+        font-weight: 500;
+        color: #374151;
+        cursor: pointer;
+    }
+    
+    .btn {
+        padding: 12px 24px;
+        border-radius: 6px;
+        font-weight: 600;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        display: inline-block;
+        transition: all 0.2s;
+    }
+    
+    .btn-primary {
+        background-color: #3b82f6;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background-color: #2563eb;
+        color: white;
+    }
+    
+    .btn-secondary {
+        background-color: #6b7280;
+        color: white;
+    }
+    
+    .btn-secondary:hover {
+        background-color: #4b5563;
+        color: white;
+    }
+    
+    .form-help {
+        font-size: 14px;
+        color: #6b7280;
+        margin-top: 4px;
+    }
+    
+    .form-error {
+        color: #ef4444;
+        font-size: 14px;
+        margin-top: 4px;
+    }
+    
+    .note-info {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 16px;
+        margin-bottom: 20px;
+    }
+    
+    .note-info h3 {
+        margin: 0 0 8px 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: #1e293b;
+    }
+    
+    .note-info p {
+        margin: 0;
+        font-size: 14px;
+        color: #64748b;
+    }
+    
+    .privacy-notice {
+        background: #fef3c7;
+        border: 1px solid #f59e0b;
+        border-radius: 6px;
+        padding: 12px;
+        margin-top: 8px;
+        display: flex;
+        align-items: start;
+        gap: 8px;
+    }
+    
+    .privacy-notice i {
+        color: #f59e0b;
+        margin-top: 2px;
+    }
+    
+    .privacy-notice p {
+        margin: 0;
+        font-size: 14px;
+        color: #92400e;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50">
+    <div class="p-6">
+        <!-- Breadcrumb -->
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+        <!-- Form Container -->
+        <div class="form-container">
+            <div class="mb-6">
+                <h1 class="text-2xl font-bold text-gray-900">
+                    {% if is_create %}Add{% else %}Edit{% endif %} Educator Note
+                </h1>
+                <p class="text-gray-600 mt-2">
+                    Add observations, feedback, or notes about {{ target_user.get_full_name|default:target_user.username }}'s Individual Learning Plan.
+                </p>
+            </div>
+
+            <!-- Note Information -->
+            <div class="note-info">
+                <h3><i class="fas fa-sticky-note mr-2 text-blue-600"></i>Educator Notes</h3>
+                <p>Use this space to document observations, provide feedback, or note important information about the learner's progress and ILP development.</p>
+            </div>
+
+            <!-- Form -->
+            <form method="post">
+                {% csrf_token %}
+                
+                <!-- Note Content -->
+                <div class="form-group">
+                    <label for="id_note" class="form-label">
+                        Note Content <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.note }}
+                    {% if form.note.errors %}
+                        <div class="form-error">{{ form.note.errors.0 }}</div>
+                    {% endif %}
+                    <div class="form-help">
+                        Document observations, feedback, suggestions, or any relevant information about the learner's ILP.
+                    </div>
+                </div>
+
+                <!-- Privacy Setting -->
+                <div class="form-group">
+                    <div class="form-check">
+                        {{ form.is_private }}
+                        <label for="id_is_private" class="form-check-label">
+                            Make this note private (only visible to educators and administrators)
+                        </label>
+                    </div>
+                    {% if form.is_private.errors %}
+                        <div class="form-error">{{ form.is_private.errors.0 }}</div>
+                    {% endif %}
+                    <div class="privacy-notice" id="privacy-notice" style="display: none;">
+                        <i class="fas fa-lock"></i>
+                        <p>This note will be private and only visible to educators and administrators. The learner will not be able to see this note.</p>
+                    </div>
+                    <div class="form-help">
+                        Check this box if the note contains sensitive information that should not be visible to the learner.
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="flex items-center justify-between pt-6 border-t border-gray-200">
+                    <a href="{% url 'users:role_based_redirect' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left mr-2"></i>Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save mr-2"></i>
+                        {% if is_create %}Add Note{% else %}Update Note{% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const privateCheckbox = document.getElementById('id_is_private');
+    const privacyNotice = document.getElementById('privacy-notice');
+    
+    // Show/hide privacy notice based on checkbox state
+    function togglePrivacyNotice() {
+        if (privateCheckbox.checked) {
+            privacyNotice.style.display = 'flex';
+        } else {
+            privacyNotice.style.display = 'none';
+        }
+    }
+    
+    // Initial state
+    togglePrivacyNotice();
+    
+    // Listen for changes
+    privateCheckbox.addEventListener('change', togglePrivacyNotice);
+});
+</script>
+{% endblock %} 

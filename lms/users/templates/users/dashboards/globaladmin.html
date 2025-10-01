@@ -1,0 +1,363 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dashboard - Nexsy LMS{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" type="text/css" href="{% static 'css/dashboard-shared.css' %}?v=20250930183000">
+<link rel="stylesheet" type="text/css" href="{% static 'css/dashboard-roles-unified.css' %}">
+<style>
+    /* Global Admin specific overrides only */
+    .dashboard-main {
+        background-color: var(--globaladmin-background) !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-main">
+        <!-- Breadcrumbs -->
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+        
+        <!-- Global Admin Header -->
+        <div class="dashboard-mb-lg p-6 global-admin-primary text-white rounded-lg">
+            <div class="dashboard-flex dashboard-flex-between">
+                <div>
+                    <h1 class="dashboard-heading-primary text-white">Global Admin Dashboard</h1>
+                    <p class="text-blue-100 mt-1">System-wide oversight and management</p>
+                </div>
+                <div class="text-right">
+                    <div class="text-3xl font-bold">{{ total_businesses|default:"0" }}</div>
+                    <div class="text-blue-100">Business{{ total_businesses|pluralize }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Health Overview -->
+        <div class="dashboard-section dashboard-mb-lg">
+            <h2 class="dashboard-section-header">System Health</h2>
+            <div class="dashboard-grid-three-col">
+                <div class="health-item">
+                    <div class="dashboard-flex" style="align-items: center;">
+                        <span class="status-indicator status-healthy"></span>
+                        <span class="dashboard-text-semibold">Database</span>
+                    </div>
+                    <span class="text-green-600 dashboard-text-semibold">Healthy</span>
+                </div>
+                <div class="health-item">
+                    <div class="dashboard-flex" style="align-items: center;">
+                        <span class="status-indicator status-healthy"></span>
+                        <span class="dashboard-text-semibold">Cache System</span>
+                    </div>
+                    <span class="text-green-600 dashboard-text-semibold">Operational</span>
+                </div>
+                <div class="health-item">
+                    <div class="dashboard-flex" style="align-items: center;">
+                        <span class="status-indicator status-warning"></span>
+                        <span class="dashboard-text-semibold">Storage</span>
+                    </div>
+                    <span class="text-yellow-600 dashboard-text-semibold">{{ storage_usage|default:"75" }}% Used</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Global Statistics -->
+        <div class="dashboard-section dashboard-mb-lg">
+            <h2 class="dashboard-section-header">Global Overview</h2>
+            <div class="dashboard-grid dashboard-grid-overview">
+                <div class="dashboard-overview-card">
+                    <div class="dashboard-overview-icon">
+                        <i class="fas fa-building"></i>
+                    </div>
+                    <div class="dashboard-overview-content">
+                        <div class="dashboard-overview-value">{{ total_businesses|default:"0" }}</div>
+                        <div class="dashboard-overview-label">Total Businesses</div>
+                    </div>
+                </div>
+                
+                <div class="dashboard-overview-card">
+                    <div class="dashboard-overview-icon">
+                        <i class="fas fa-code-branch"></i>
+                    </div>
+                    <div class="dashboard-overview-content">
+                        <div class="dashboard-overview-value">{{ total_branches|default:"0" }}</div>
+                        <div class="dashboard-overview-label">Total Branches</div>
+                    </div>
+                </div>
+                
+                <div class="dashboard-overview-card">
+                    <div class="dashboard-overview-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="dashboard-overview-content">
+                        <div class="dashboard-overview-value">{{ total_users|default:"0" }}</div>
+                        <div class="dashboard-overview-label">Total Users</div>
+                    </div>
+                </div>
+                
+                <div class="dashboard-overview-card">
+                    <div class="dashboard-overview-icon">
+                        <i class="fas fa-book"></i>
+                    </div>
+                    <div class="dashboard-overview-content">
+                        <div class="dashboard-overview-value">{{ total_courses|default:"0" }}</div>
+                        <div class="dashboard-overview-label">Total Courses</div>
+                    </div>
+                </div>
+                
+                <div class="dashboard-overview-card">
+                    <div class="dashboard-overview-icon">
+                        <i class="fas fa-graduation-cap"></i>
+                    </div>
+                    <div class="dashboard-overview-content">
+                        <div class="dashboard-overview-value">{{ total_enrollments|default:"0" }}</div>
+                        <div class="dashboard-overview-label">Total Enrollments</div>
+                    </div>
+                </div>
+                
+                <div class="dashboard-overview-card">
+                    <div class="dashboard-overview-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="dashboard-overview-content">
+                        <div class="dashboard-overview-value">{{ completion_rate|default:"0" }}%</div>
+                        <div class="dashboard-overview-label">Global Completion Rate</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="dashboard-grid dashboard-grid-main">
+            <!-- First Column (60%) -->
+            <div class="dashboard-flex dashboard-flex-col">
+                
+                <!-- Quick Access Controls -->
+                <div class="dashboard-section">
+                    <h2 class="dashboard-section-header">Global Admin Controls</h2>
+                    <div class="dashboard-grid-actions">
+                        <a href="{% url 'business:business_list' %}" class="dashboard-quick-action dashboard-role-globaladmin">
+                            <div class="dashboard-quick-action-icon">
+                                <i class="fas fa-building"></i>
+                            </div>
+                            <div class="dashboard-quick-action-text">Manage Businesses</div>
+                        </a>
+                        <a href="{% url 'branches:branch_list' %}" class="dashboard-quick-action dashboard-role-globaladmin">
+                            <div class="dashboard-quick-action-icon">
+                                <i class="fas fa-code-branch"></i>
+                            </div>
+                            <div class="dashboard-quick-action-text">Manage Branches</div>
+                        </a>
+                        <a href="{% url 'users:user_list' %}" class="dashboard-quick-action dashboard-role-globaladmin">
+                            <div class="dashboard-quick-action-icon">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <div class="dashboard-quick-action-text">User Management</div>
+                        </a>
+                        <a href="{% url 'role_management:role_list' %}" class="dashboard-quick-action dashboard-role-globaladmin">
+                            <div class="dashboard-quick-action-icon">
+                                <i class="fas fa-user-shield"></i>
+                            </div>
+                            <div class="dashboard-quick-action-text">Role Management</div>
+                        </a>
+                        <a href="{% url 'account_settings:settings' %}" class="dashboard-quick-action dashboard-role-globaladmin">
+                            <div class="dashboard-quick-action-icon">
+                                <i class="fas fa-cogs"></i>
+                            </div>
+                            <div class="dashboard-quick-action-text">System Settings</div>
+                        </a>
+                        <a href="{% url 'reports:overview' %}" class="dashboard-quick-action dashboard-role-globaladmin">
+                            <div class="dashboard-quick-action-icon">
+                                <i class="fas fa-chart-bar"></i>
+                            </div>
+                            <div class="dashboard-quick-action-text">Global Reports</div>
+                        </a>
+                        <a href="{% url 'business:global_performance' %}" class="dashboard-quick-action dashboard-role-globaladmin">
+                            <div class="dashboard-quick-action-icon">
+                                <i class="fas fa-chart-line"></i>
+                            </div>
+                            <div class="dashboard-quick-action-text">Business Performance</div>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Business Performance Overview -->
+                <div class="dashboard-section">
+                    <div class="dashboard-flex dashboard-flex-between dashboard-mb-lg">
+                        <h2 class="dashboard-section-header dashboard-mb-0">Business Performance Overview</h2>
+                        <a href="{% url 'business:global_performance' %}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-chart-line me-1"></i> View Full Analytics
+                        </a>
+                    </div>
+                        <div class="dashboard-activity-list">
+                        {% for business in top_businesses %}
+                        <div class="dashboard-flex dashboard-flex-between" style="padding: 0.75rem; margin-bottom: 0.5rem; background-color: #f9fafb; border-radius: 8px;">
+                            <div class="dashboard-flex" style="align-items: center; min-width: 0; flex-grow: 1;">
+                                <div class="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold mr-3" style="flex-shrink: 0;">
+                                    {{ business.name|first|upper }}
+                                </div>
+                                <div style="min-width: 0; flex-grow: 1;">
+                                    <div class="dashboard-text-bold text-gray-900" style="text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">{{ business.name }}</div>
+                                    <div class="dashboard-text-small text-gray-500">{{ business.branches_count }} branch{{ business.branches_count|pluralize }}</div>
+                                </div>
+                            </div>
+                            <div class="text-right" style="flex-shrink: 0;">
+                                <div class="dashboard-text-bold text-gray-900">{{ business.users_count }}</div>
+                                <div class="dashboard-text-small text-gray-500">Users</div>
+                                <div class="mt-1">
+                                    <a href="{% url 'business:business_detail_performance' business.id %}" class="text-blue-600 hover:text-blue-800 text-xs">
+                                        <i class="fas fa-chart-line me-1"></i>View Performance
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="dashboard-text-center dashboard-text-small" style="padding: 2rem 1rem; color: #6b7280;">
+                            <i class="fas fa-building text-4xl mb-4 text-gray-300"></i>
+                            <p>No businesses found. Create your first business to get started.</p>
+                            <a href="{% url 'business:business_create' %}" class="mt-2 inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                                Create Business
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Performance Quick Stats -->
+                <div class="dashboard-section">
+                    <h2 class="dashboard-section-header">Performance Quick Stats</h2>
+                    <div class="dashboard-grid-two-col">
+                        <div class="p-4 bg-gradient-to-r from-green-50 to-green-100 rounded-lg border border-green-200">
+                            <div class="dashboard-flex" style="align-items: center; justify-content: space-between;">
+                                <div>
+                                    <div class="dashboard-text-bold text-green-800">{{ recent_logins|default:"0" }}</div>
+                                    <div class="dashboard-text-small text-green-600">Recent Logins (7 days)</div>
+                                </div>
+                                <i class="fas fa-sign-in-alt text-green-500 text-xl"></i>
+                            </div>
+                        </div>
+                        <div class="p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border border-blue-200">
+                            <div class="dashboard-flex" style="align-items: center; justify-content: space-between;">
+                                <div>
+                                    <div class="dashboard-text-bold text-blue-800">{{ recent_completions|default:"0" }}</div>
+                                    <div class="dashboard-text-small text-blue-600">Course Completions (7 days)</div>
+                                </div>
+                                <i class="fas fa-graduation-cap text-blue-500 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Second Column (40%) -->
+            <div class="dashboard-flex dashboard-flex-col">
+
+                <!-- Top Super Admins -->
+                <div class="dashboard-section">
+                    <h2 class="dashboard-section-header">Super Administrators</h2>
+                    <div class="dashboard-activity-list">
+                        {% for admin in super_admins %}
+                        <div class="dashboard-flex dashboard-flex-between" style="padding: 0.75rem; margin-bottom: 0.5rem; background-color: #f9fafb; border-radius: 8px;">
+                            <div class="dashboard-flex" style="align-items: center; min-width: 0; flex-grow: 1;">
+                                <div class="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-pink-600 flex items-center justify-center text-white font-bold text-xs mr-3" style="flex-shrink: 0;">
+                                    {{ admin.first_name|first|default:admin.username|first|upper }}
+                                </div>
+                                <div style="min-width: 0; flex-grow: 1;">
+                                    <div class="dashboard-text-small dashboard-text-bold text-gray-900" style="text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">{{ admin.get_full_name|default:admin.username }}</div>
+                                    <div class="dashboard-text-xs text-gray-500" style="text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">
+                                        {% with admin.business_assignments.first as business_assignment %}
+                                            {% if business_assignment and business_assignment.is_active %}
+                                                {{ business_assignment.business.name }}
+                                            {% else %}
+                                                No Business
+                                            {% endif %}
+                                        {% endwith %}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="text-right" style="flex-shrink: 0;">
+                                <div class="dashboard-text-xs text-gray-500">
+                                    {% if admin.last_login %}
+                                        {{ admin.last_login|timesince }} ago
+                                    {% else %}
+                                        Never logged in
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="dashboard-text-center dashboard-text-small" style="padding: 1.5rem 1rem; color: #6b7280;">
+                            <i class="fas fa-user-shield text-3xl mb-3 text-gray-300"></i>
+                            <p>No super administrators found</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Global Alerts -->
+                <div class="dashboard-section">
+                    <h2 class="dashboard-section-header">System Alerts</h2>
+                    <div class="dashboard-activity-list">
+                        {% for alert in system_alerts %}
+                        <div class="dashboard-flex p-3 border-l-4 border-{{ alert.type }}-500 bg-{{ alert.type }}-50 rounded-r-lg">
+                            <div class="w-6 h-6 rounded-full bg-{{ alert.type }}-100 flex items-center justify-center mr-3 mt-0.5">
+                                <i class="fas fa-{{ alert.icon }}" 
+                                   style="color: #{% if alert.type == 'red' %}dc2626{% elif alert.type == 'yellow' %}f59e0b{% else %}10b981{% endif %};"></i>
+                            </div>
+                            <div class="dashboard-activity-content">
+                                <div class="dashboard-activity-title text-{{ alert.type }}-900">{{ alert.title }}</div>
+                                <div class="dashboard-text-xs text-{{ alert.type }}-700 mt-1">{{ alert.message }}</div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="dashboard-text-center dashboard-text-small" style="padding: 1.5rem 1rem; color: #6b7280;">
+                            <i class="fas fa-check-circle text-3xl mb-3 text-green-500"></i>
+                            <p>All systems operational</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<script>
+// Fixed JavaScript for Dashboard Performance
+(function() {
+    'use strict';
+    
+    // Global variables
+    let chartInstance = null;
+    
+    // Utility function to safely get CSRF token
+    function getCSRFToken() {
+        return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+    }
+    
+    // Safe Math.max function
+    function safeMax(arr, fallback = 10) {
+        if (!Array.isArray(arr) || arr.length === 0) return fallback;
+        try {
+            const max = Math.max(...arr.filter(n => typeof n === 'number' && !isNaN(n)));
+            return isFinite(max) ? max : fallback;
+        } catch (e) {
+            console.warn('Error calculating max:', e);
+            return fallback;
+        }
+    }
+    
+    
+    // Auto-load with safety checks
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Dashboard JavaScript loaded');
+    });
+    
+})();
+</script>
+{% endblock %} 

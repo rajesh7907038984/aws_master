@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{{ error_title }} - Assignments{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'core/css/assignments/detail.css' %}">
+{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item">
+            <a href="{% url 'users:role_based_redirect' %}" class="text-blue-600 hover:text-blue-800">
+                <i class="fas fa-home mr-1"></i>Dashboard
+            </a>
+        </li>
+        <li class="breadcrumb-item">
+            <a href="{% url 'assignments:assignment_list' %}" class="text-blue-600 hover:text-blue-800">
+                <i class="fas fa-tasks mr-1"></i>Assignments
+            </a>
+        </li>
+        <li class="breadcrumb-item active" aria-current="page">
+            <i class="fas fa-exclamation-triangle mr-1"></i>Error
+        </li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-6 py-6">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body text-center p-6">
+                    <!-- Error Icon -->
+                    <div class="mb-4">
+                        <div class="mx-auto w-20 h-20 bg-red-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-exclamation-triangle text-red-500 text-3xl"></i>
+                        </div>
+                    </div>
+                    
+                    <!-- Error Title -->
+                    <h1 class="text-2xl font-semibold text-gray-900 mb-3">
+                        {{ error_title|default:"Assignment Error" }}
+                    </h1>
+                    
+                    <!-- Error Message -->
+                    <p class="text-gray-600 mb-4 text-lg">
+                        {{ error_message|default:"We encountered an issue while trying to load the assignment." }}
+                    </p>
+                    
+                    {% if error_details %}
+                    <!-- Error Details (for debugging) -->
+                    <details class="mb-4 text-left">
+                        <summary class="text-sm text-gray-500 cursor-pointer hover:text-gray-700">
+                            Technical Details
+                        </summary>
+                        <div class="mt-2 p-3 bg-gray-50 rounded text-sm text-gray-600 border">
+                            {{ error_details }}
+                        </div>
+                    </details>
+                    {% endif %}
+                    
+                    <!-- Action Buttons -->
+                    <div class="space-y-3">
+                        <div>
+                            <a href="{{ back_url|default:'/assignments/' }}" 
+                               class="btn btn-primary px-6 py-2 inline-flex items-center">
+                                <i class="fas fa-arrow-left mr-2"></i>
+                                {{ back_text|default:"Back to Assignments" }}
+                            </a>
+                        </div>
+                        
+                        <div>
+                            <button onclick="window.location.reload()" 
+                                    class="btn btn-outline-secondary px-6 py-2 inline-flex items-center">
+                                <i class="fas fa-refresh mr-2"></i>
+                                Try Again
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Help Text -->
+                    <div class="mt-6 text-sm text-gray-500">
+                        <p>If this issue persists, please contact your system administrator or try again later.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-retry after 5 seconds if it's a temporary connection issue
+    setTimeout(function() {
+        if (document.querySelector('[data-error-type="database_connection"]')) {
+            console.log('Auto-retrying database connection...');
+            window.location.reload();
+        }
+    }, 5000);
+</script>
+{% endblock %}

@@ -1,0 +1,321 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load discussion_extras %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .student-row:hover {
+        background-color: #f9fafb;
+    }
+    .student-checkbox:checked + .student-card {
+        border-color: #3b82f6;
+        background-color: #eff6ff;
+    }
+    .comment-count-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        font-weight: 500;
+        padding: 0.125rem 0.5rem;
+        border-radius: 9999px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen">
+    <div class="container mx-auto px-4 py-6">
+        <!-- Main Content -->
+        <div class="bg-white rounded-lg shadow-sm p-4 md:p-6 mb-6">
+            <!-- Breadcrumbs -->
+            {% with breadcrumbs=breadcrumbs %}
+                {% include 'components/breadcrumb.html' %}
+            {% endwith %}
+            
+            <div class="mb-6">
+                <h1 class="text-2xl font-bold text-gray-800 mb-2">{{ discussion.title }}</h1>
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">Bulk Evaluate Students</h2>
+                
+                <div class="mb-4">
+                    <a href="{% url 'discussions:discussion_detail' discussion_id=discussion.id %}" class="text-blue-600 hover:text-blue-800">
+                        <i class="fas fa-arrow-left mr-1"></i> Back to Discussion
+                    </a>
+                    <a href="{% url 'discussions:discussion_scores' discussion_id=discussion.id %}" class="ml-4 text-blue-600 hover:text-blue-800">
+                        <i class="fas fa-chart-bar mr-1"></i> View Student Scores
+                    </a>
+                </div>
+            </div>
+            
+            {% if enrolled_students %}
+                <form method="post" action="{% url 'discussions:bulk_evaluate' discussion_id=discussion.id %}">
+                    {% csrf_token %}
+                    
+                    <div class="mb-6">
+                        <h3 class="text-lg font-medium text-gray-800 mb-3">1. Select Students to Evaluate</h3>
+                        
+                        <div class="flex mb-3">
+                            <button type="button" id="select-all" class="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">Select All</button>
+                            <button type="button" id="select-none" class="ml-2 px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300">Clear Selection</button>
+                            <button type="button" id="select-with-comments" class="ml-2 px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700">Select With Comments</button>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {% for student in enrolled_students %}
+                            {% with interaction=student_interaction_data|get_item:student.id %}
+                            <div class="student-row relative">
+                                <input type="checkbox" name="selected_students" value="{{ student.id }}" id="student-{{ student.id }}" class="student-checkbox absolute top-3 left-3 h-4 w-4 z-10 cursor-pointer" data-has-comments="{% if interaction.comment_count > 0 or interaction.reply_count > 0 %}true{% else %}false{% endif %}">
+                                <label for="student-{{ student.id }}" class="student-card block border border-gray-200 rounded-lg p-4 cursor-pointer">
+                                    <div class="flex items-center mb-2">
+                                        <div class="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-white font-bold mr-3">
+                                            {{ student.first_name|first|upper }}
+                                        </div>
+                                        <div>
+                                            <div class="font-medium">{{ student.get_full_name }}</div>
+                                            <div class="text-xs text-gray-500">{{ student.email }}</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="grid grid-cols-3 gap-2 mt-3 text-center">
+                                        <div>
+                                            <div class="comment-count-badge bg-green-100 text-green-800">
+                                                <i class="fas fa-comment-alt mr-1"></i> {{ interaction.comment_count }}
+                                            </div>
+                                            <div class="text-xs mt-1">Comments</div>
+                                        </div>
+                                        <div>
+                                            <div class="comment-count-badge bg-blue-100 text-blue-800">
+                                                <i class="fas fa-reply mr-1"></i> {{ interaction.reply_count }}
+                                            </div>
+                                            <div class="text-xs mt-1">Replies</div>
+                                        </div>
+                                        <div>
+                                            <div class="comment-count-badge bg-purple-100 text-purple-800">
+                                                <i class="fas fa-thumbs-up mr-1"></i> {{ interaction.likes_given }}
+                                            </div>
+                                            <div class="text-xs mt-1">Likes</div>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                            {% endwith %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <h3 class="text-lg font-medium text-gray-800 mb-3">2. Assign Rubric Scores</h3>
+                        
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Criterion</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Rating</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Points</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Comments</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    {% for criterion in rubric.criteria.all %}
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-normal">
+                                            <div class="text-sm font-medium text-gray-900">{{ criterion.description }}</div>
+                                            <div class="text-xs text-gray-500">Max points: {{ criterion.points }}</div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-normal">
+                                            {% if criterion.use_range %}
+                                                <div class="text-sm text-gray-500">Range: 0 to {{ criterion.points }} pts</div>
+                                                <input type="hidden" id="bulk_rating_{{ criterion.id }}" value="" data-criterion-id="{{ criterion.id }}">
+                                            {% else %}
+                                                <select id="bulk_rating_{{ criterion.id }}" 
+                                                        class="bulk-rating mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                                        data-criterion-id="{{ criterion.id }}">
+                                                    <option value="">Select a rating</option>
+                                                    {% for rating in criterion.ratings.all %}
+                                                    <option value="{{ rating.id }}" data-points="{{ rating.points }}">
+                                                        {{ rating.title }} ({{ rating.points }} pts) - {{ rating.description|truncatechars:30 }}
+                                                    </option>
+                                                    {% endfor %}
+                                                </select>
+                                            {% endif %}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-normal">
+                                            <input type="number" 
+                                                   id="bulk_points_{{ criterion.id }}"
+                                                   class="bulk-points mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" 
+                                                   min="0" 
+                                                   max="{{ criterion.points }}" 
+                                                   step="0.1" 
+                                                   value="0"
+                                                   data-criterion-id="{{ criterion.id }}">
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-normal">
+                                            <textarea id="bulk_comments_{{ criterion.id }}"
+                                                     class="bulk-comments mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                                     rows="2"
+                                                     data-criterion-id="{{ criterion.id }}"></textarea>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Hidden inputs for student-specific values -->
+                    <div id="student-criterion-values" class="hidden">
+                        {% for student in enrolled_students %}
+                            {% for criterion in rubric.criteria.all %}
+                                <input type="hidden" name="rating_{{ criterion.id }}_{{ student.id }}" id="rating_{{ criterion.id }}_{{ student.id }}" value="">
+                                <input type="hidden" name="points_{{ criterion.id }}_{{ student.id }}" id="points_{{ criterion.id }}_{{ student.id }}" value="0">
+                                <input type="hidden" name="comments_{{ criterion.id }}_{{ student.id }}" id="comments_{{ criterion.id }}_{{ student.id }}" value="">
+                            {% endfor %}
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="flex justify-end mt-6">
+                        <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                            Save Evaluations for Selected Students
+                        </button>
+                    </div>
+                </form>
+            {% else %}
+                <div class="bg-gray-100 p-4 rounded-lg text-center">
+                    <p class="text-gray-700">No enrolled students found for this discussion.</p>
+                    <a href="{% url 'discussions:discussion_detail' discussion_id=discussion.id %}" class="mt-2 inline-block text-blue-600 hover:text-blue-800">
+                        Return to discussion
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Select/deselect all buttons
+        const selectAllBtn = document.getElementById('select-all');
+        const selectNoneBtn = document.getElementById('select-none');
+        const selectWithCommentsBtn = document.getElementById('select-with-comments');
+        const studentCheckboxes = document.querySelectorAll('.student-checkbox');
+        
+        if (selectAllBtn) {
+            selectAllBtn.addEventListener('click', function() {
+                studentCheckboxes.forEach(checkbox => {
+                    checkbox.checked = true;
+                });
+            });
+        }
+        
+        if (selectNoneBtn) {
+            selectNoneBtn.addEventListener('click', function() {
+                studentCheckboxes.forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+            });
+        }
+        
+        if (selectWithCommentsBtn) {
+            selectWithCommentsBtn.addEventListener('click', function() {
+                studentCheckboxes.forEach(checkbox => {
+                    checkbox.checked = checkbox.dataset.hasComments === 'true';
+                });
+            });
+        }
+        
+        // Sync bulk values to individual student values
+        const bulkPoints = document.querySelectorAll('.bulk-points');
+        const bulkComments = document.querySelectorAll('.bulk-comments');
+        const bulkRatings = document.querySelectorAll('.bulk-rating');
+        
+        function updateStudentValues() {
+            // Get selected students
+            const selectedStudents = Array.from(studentCheckboxes)
+                .filter(checkbox => checkbox.checked)
+                .map(checkbox => checkbox.value);
+            
+            // For each criterion...
+            bulkRatings.forEach(select => {
+                const criterionId = select.dataset.criterionId;
+                const ratingValue = select.value;
+                
+                // Update the hidden input for each selected student
+                selectedStudents.forEach(studentId => {
+                    const studentInput = document.getElementById(`rating_${criterionId}_${studentId}`);
+                    if (studentInput) {
+                        studentInput.value = ratingValue;
+                    }
+                });
+            });
+            
+            bulkPoints.forEach(input => {
+                const criterionId = input.dataset.criterionId;
+                const pointsValue = input.value;
+                
+                // Update the hidden input for each selected student
+                selectedStudents.forEach(studentId => {
+                    const studentInput = document.getElementById(`points_${criterionId}_${studentId}`);
+                    if (studentInput) {
+                        studentInput.value = pointsValue;
+                    }
+                });
+            });
+            
+            bulkComments.forEach(textarea => {
+                const criterionId = textarea.dataset.criterionId;
+                const commentsValue = textarea.value;
+                
+                // Update the hidden input for each selected student
+                selectedStudents.forEach(studentId => {
+                    const studentInput = document.getElementById(`comments_${criterionId}_${studentId}`);
+                    if (studentInput) {
+                        studentInput.value = commentsValue;
+                    }
+                });
+            });
+        }
+        
+        // Auto-fill points when rating is selected
+        bulkRatings.forEach(select => {
+            select.addEventListener('change', function() {
+                const option = this.options[this.selectedIndex];
+                if (option.value) {
+                    const points = parseFloat(option.dataset.points);
+                    if (!isNaN(points)) {
+                        const criterionId = this.dataset.criterionId;
+                        const pointsInput = document.getElementById(`bulk_points_${criterionId}`);
+                        if (pointsInput) {
+                            pointsInput.value = points;
+                        }
+                    }
+                }
+                updateStudentValues();
+            });
+        });
+        
+        // Update student values when bulk values change
+        bulkPoints.forEach(input => {
+            input.addEventListener('change', updateStudentValues);
+            input.addEventListener('input', updateStudentValues);
+        });
+        
+        bulkComments.forEach(textarea => {
+            textarea.addEventListener('change', updateStudentValues);
+            textarea.addEventListener('input', updateStudentValues);
+        });
+        
+        // Update when selection changes
+        studentCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', updateStudentValues);
+        });
+        
+        // Initial update
+        updateStudentValues();
+    });
+</script>
+{% endblock %} 

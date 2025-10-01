@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Create Business{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Breadcrumb styles */
+    .breadcrumb-container {
+        background: #F8FAFC;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #E2E8F0;
+        margin-bottom: 2rem;
+    }
+
+    .breadcrumb-item {
+        display: inline-flex;
+        align-items: center;
+        font-size: 0.875rem;
+        color: #64748B;
+    }
+
+    .breadcrumb-icon {
+        width: 2rem;
+        height: 2rem;
+        background: #EBF3FE;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 0.5rem;
+        transition: all 0.2s;
+    }
+
+    .breadcrumb-icon i {
+        color: #2563EB;
+        font-size: 0.875rem;
+    }
+
+    .breadcrumb-separator {
+        margin: 0 0.75rem;
+        color: #94A3B8;
+    }
+
+    .breadcrumb-active {
+        color: #2563EB;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50">
+    <!-- Breadcrumb -->
+    <div class="breadcrumb-container">
+        <nav class="flex items-center">
+            {% for breadcrumb in breadcrumbs %}
+                <div class="breadcrumb-item">
+                    {% if breadcrumb.url %}
+                        <a href="{{ breadcrumb.url }}" class="flex items-center hover:opacity-80 transition-opacity">
+                            <div class="breadcrumb-icon">
+                                <i class="fas {{ breadcrumb.icon }}"></i>
+                            </div>
+                            <span>{{ breadcrumb.label }}</span>
+                        </a>
+                        <span class="breadcrumb-separator">/</span>
+                    {% else %}
+                        <span class="breadcrumb-active">{{ breadcrumb.label }}</span>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </nav>
+    </div>
+
+    <div class="p-6">
+        <div class="container mx-auto max-w-2xl">
+            <div class="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Create New Business</h3>
+                <form method="post" class="space-y-4">
+                    {% csrf_token %}
+                    <div>
+                        <label for="name" class="block text-sm font-medium text-gray-700 mb-2">Business Name</label>
+                        <input type="text" 
+                               id="name" 
+                               name="name" 
+                               required 
+                               placeholder="Enter business name"
+                               class="block w-full rounded border border-gray-300 bg-white text-gray-900 px-3 py-2">
+                    </div>
+                    <div class="flex justify-end gap-4">
+                        <a href="{% url 'business:business_list' %}" 
+                           class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200">
+                            Cancel
+                        </a>
+                        <button type="submit" class="px-4 py-2 text-white rounded-md" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                            Create Business
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Form validation
+    const form = document.querySelector('form');
+    const nameInput = document.getElementById('name');
+    
+    form.addEventListener('submit', function(e) {
+        if (!nameInput.value.trim()) {
+            e.preventDefault();
+            alert('Business name is required!');
+            nameInput.focus();
+            return false;
+        }
+    });
+});
+</script>
+{% endblock %} 

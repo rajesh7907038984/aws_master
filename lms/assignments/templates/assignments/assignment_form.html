@@ -1,0 +1,2186 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if is_edit %}Edit{% else %}Create{% endif %} Assignment{% endblock %}
+
+{% block extra_css %}
+{{ form.media.css }}
+<link href="{% static 'core/css/course_create.css' %}" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<link rel="stylesheet" href="{% static 'tinymce_editor/css/tinymce-fixes.css' %}">
+<link rel="stylesheet" href="{% static 'tinymce_editor/css/force-toolbar.css' %}">
+{% endblock %}
+
+{% block content %}
+<!-- Unsaved Changes Warning Banner (hidden by default) -->
+<div id="unsavedChangesWarning" class="unsaved-changes-warning" style="display: none;">
+    <div class="warning-content">
+        <svg class="warning-icon h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <span>You have unsaved changes. Please click "{% if is_edit %}Save Changes{% else %}Create Assignment{% endif %}" to save your changes.</span>
+    </div>
+    <div class="close-warning" id="closeWarningBtn">
+        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+    </div>
+</div>
+
+<!-- Form validation error display -->
+{% if messages %}
+    {% for message in messages %}
+        {% if message.tags == 'error' or 'error' in message.tags %}
+<div class="fixed top-0 left-0 right-0 z-50 bg-red-100 border-b border-red-300 text-red-700 px-4 py-3 shadow-lg" role="alert">
+    <div class="flex items-center justify-between container mx-auto">
+        <div class="flex items-center">
+            <svg class="h-6 w-6 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+            <div>
+                <p class="font-bold">{{ message }}</p>
+                {% if form.errors %}
+                <p class="text-sm">Please check the form for errors and correct them before submitting.</p>
+                {% endif %}
+            </div>
+        </div>
+        <button class="text-red-700 hover:text-red-900" onclick="this.parentElement.parentElement.remove()">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
+    </div>
+</div>
+        {% elif message.tags == 'success' or 'success' in message.tags %}
+<div class="fixed top-0 left-0 right-0 z-50 bg-green-100 border-b border-green-300 text-green-700 px-4 py-3 shadow-lg" role="alert">
+    <div class="flex items-center justify-between container mx-auto">
+        <div class="flex items-center">
+            <svg class="h-6 w-6 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <div>
+                <p class="font-bold">{{ message }}</p>
+            </div>
+        </div>
+        <button class="text-green-700 hover:text-green-900" onclick="this.parentElement.parentElement.remove()">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
+    </div>
+</div>
+        {% endif %}
+    {% endfor %}
+{% endif %}
+
+<!-- Django Form Validation Errors -->
+{% if form.errors %}
+<div class="fixed top-16 left-0 right-0 z-40 bg-red-50 border-b-2 border-red-200 px-4 py-3 shadow-lg" role="alert" id="formErrorAlert">
+    <div class="container mx-auto">
+        <div class="flex items-start">
+            <svg class="h-6 w-6 text-red-500 mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+            <div class="flex-1">
+                <h3 class="text-red-800 font-bold mb-2">Please correct the following errors:</h3>
+                <div class="text-red-700 space-y-1">
+                    {% for field_name, errors in form.errors.items %}
+                        {% if field_name != '__all__' %}
+                            {% for error in errors %}
+                                <div class="flex items-start">
+                                    <span class="font-medium mr-2">
+                                        {% if field_name == 'title' %}Title:{% endif %}
+                                        {% if field_name == 'description' %}Description:{% endif %}
+                                        {% if field_name == 'instructions' %}Instructions:{% endif %}
+                                        {% if field_name == 'attachments' %}File Attachments:{% endif %}
+                                        {% if field_name == 'due_date' %}Due Date:{% endif %}
+                                        {% if field_name == 'max_score' %}Max Score:{% endif %}
+                                        {% if field_name == 'course_ids' %}Courses:{% endif %}
+                                    </span>
+                                    <span>{{ error }}</span>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endfor %}
+                    {% for error in form.non_field_errors %}
+                        <div class="text-red-700">{{ error }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+            <button onclick="document.getElementById('formErrorAlert').remove()" class="text-red-600 hover:text-red-800 ml-4">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumbs -->
+    {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <!-- Form Header -->
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h1 class="text-xl font-semibold text-gray-900">
+                        {% if is_edit %}Edit{% else %}Create{% endif %} Assignment
+                    </h1>
+                    <p class="mt-1 text-sm text-gray-600">
+                        Fill in the details below to {% if is_edit %}update{% else %}create{% endif %} your assignment.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-6">
+            <form method="post" enctype="multipart/form-data" class="space-y-8" id="assignmentForm" action="{% if is_edit %}{% url 'assignments:edit_assignment' assignment.id %}{% else %}{% url 'assignments:create_assignment' %}{% endif %}" autocomplete="off">
+                {% csrf_token %}
+
+                <!-- Basic Information Section -->
+                <div class="space-y-6">
+                    <div class="flex items-center gap-2 text-gray-900">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <h2 class="text-lg font-semibold">Basic Information</h2>
+                    </div>
+
+                    <!-- Title Field -->
+                    <div class="bg-gray-50 p-4 rounded-lg border {% if form.title.errors %}border-red-300{% else %}border-gray-200{% endif %}">
+                        <label for="{{ form.title.id_for_label }}" class="block text-sm font-medium {% if form.title.errors %}text-red-700{% else %}text-gray-700{% endif %} mb-2">
+                            Assignment Title <span class="text-red-500">*</span> (Required)
+                        </label>
+                        {{ form.title }}
+                        {% if form.title.errors %}
+                            <div class="mt-1 text-sm text-red-500 bg-red-50 p-2 rounded border border-red-200">
+                                <strong>Error:</strong> {{ form.title.errors }}
+                                <p class="text-sm mt-1">Please enter a title for this assignment.</p>
+                            </div>
+                        {% else %}
+                            <p class="mt-1 text-xs text-gray-500">Enter a clear, descriptive title for your assignment.</p>
+                        {% endif %}
+                    </div>
+                    
+
+                    
+                    <!-- Related Courses Display (only shown if courses exist) -->
+                    {% if is_edit and assignment_related_courses %}
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Related Courses
+                        </label>
+                        <div class="mt-1">
+                            {% for course in assignment_related_courses %}
+                            <div class="mb-1 flex items-center">
+                                <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-md text-sm mr-2">
+                                    {{ course.title }}
+                                </span>
+                                {% if course.is_primary %}
+                                <span class="px-2 py-1 bg-green-100 text-green-800 rounded-md text-xs">Primary</span>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <p class="mt-1 text-xs text-gray-500">This assignment is related to the courses shown above.</p>
+                    </div>
+                    {% elif topic_course %}
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Related Course
+                        </label>
+                        <div class="mt-1">
+                            <div class="px-2 py-1 bg-blue-100 text-blue-800 rounded-md text-sm inline-block">
+                                {{ topic_course.title }}
+                            </div>
+                        </div>
+                        <p class="mt-1 text-xs text-gray-500">This assignment will be related to the course shown above.</p>
+                    </div>
+                    {% else %}
+                    <!-- Course Selection Fields -->
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200" style="display: none;">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Select Course(s) (Optional)
+                        </label>
+                        {{ form.course_ids }}
+                        <p class="mt-2 text-sm text-gray-500">
+                            Select one or more courses for this assignment. Hold Ctrl (Windows) or Cmd (Mac) to select multiple courses. You can leave this empty to create a standalone assignment.
+                        </p>
+                        {% if form.course_ids.errors %}
+                            <div class="mt-1 text-sm text-red-500 bg-red-50 p-2 rounded border border-red-200">
+                                <strong>Error:</strong> {{ form.course_ids.errors }}
+                                <p class="text-sm mt-1">Please select at least one course for this assignment.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Legacy course field (hidden) -->
+                    <div style="display: none;">
+                        {{ form.course }}
+                    </div>
+                    
+                    <!-- Related Topics Display (only shown if topics exist) -->
+                    {% if is_edit and assignment_related_topics %}
+                    <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                        <h3 class="text-sm font-medium text-blue-800 mb-2">Related Topics</h3>
+                        <div class="space-y-2">
+                            {% for topic in assignment_related_topics %}
+                            <div class="flex items-center justify-between p-2 bg-white rounded border border-blue-100">
+                                <div>
+                                    <span class="text-sm font-medium text-blue-700">{{ topic.title }}</span>
+                                    <span class="text-xs text-blue-500 ml-2">({{ topic.get_content_type_display }})</span>
+                                </div>
+                                <a href="{% url 'courses:topic_edit' topic.id %}" 
+                                   class="text-blue-600 hover:text-blue-800 text-xs"
+                                   target="_blank">
+                                    Edit Topic
+                                </a>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <p class="mt-2 text-xs text-blue-600">
+                            This assignment is linked to the above topics. Course associations are managed through topic relationships.
+                        </p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Topic Selection Section -->
+                <div class="space-y-6" style="display: none;">
+                    <div class="flex items-center gap-2 text-gray-900">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                        </svg>
+                        <h2 class="text-lg font-semibold">Course Topics</h2>
+                    </div>
+                    
+                    <!-- Topic Selection Field -->
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <label for="id_topic_ids" class="block text-sm font-medium text-gray-700 mb-2">
+                            Select Topics
+                        </label>
+                        {{ form.topic_ids }}
+                        {% if form.topic_ids.errors %}
+                            <div class="mt-1 text-sm text-red-500">{{ form.topic_ids.errors }}</div>
+                        {% endif %}
+                        <p class="mt-2 text-sm text-gray-500">
+                            Select one or more topics to associate with this assignment. Hold Ctrl (Windows) or Cmd (Mac) to select multiple topics.
+                        </p>
+                    </div>
+                    
+                    <!-- Hidden topic fields -->
+                    <div style="display: none;">
+                        {{ form.topic_ids }}
+                    </div>
+                </div>
+
+                <!-- Content Section -->
+                <div class="space-y-6">
+                    <div class="flex items-center gap-2 text-gray-900">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        <h2 class="text-lg font-semibold">Content</h2>
+                    </div>
+
+                    <!-- Description Field -->
+                    <div class="bg-gray-50 p-4 rounded-lg border {% if form.description.errors %}border-red-300{% else %}border-gray-200{% endif %}">
+                        <label for="id_description" class="block text-sm font-medium {% if form.description.errors %}text-red-700{% else %}text-gray-700{% endif %} mb-2">
+                            Description <span class="text-red-500">*</span> (Required)
+                        </label>
+                        
+                        <div class="mt-1">
+                            {{ form.description }}
+                        </div>
+                        
+                        {% if form.description.errors %}
+                            <div class="mt-1 text-sm text-red-500 bg-red-50 p-2 rounded border border-red-200">
+                                <strong>Error:</strong> {{ form.description.errors }}
+                                <p class="text-sm mt-1">Please enter a description for this assignment. Use the editor above to provide details about what students need to do.</p>
+                            </div>
+                        {% else %}
+                            <p class="mt-1 text-xs text-gray-500">Provide a clear description of the assignment objectives and what students need to accomplish.</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Instructions Field -->
+                    <div class="bg-gray-50 p-4 rounded-lg border {% if form.instructions.errors %}border-red-300{% else %}border-gray-200{% endif %}">
+                        <label for="id_instructions" class="block text-sm font-medium {% if form.instructions.errors %}text-red-700{% else %}text-gray-700{% endif %} mb-2">
+                            Instructions <span class="text-red-500">*</span> (Required)
+                        </label>
+                        
+                        <div class="mt-1">
+                            {{ form.instructions }}
+                        </div>
+                        
+                        {% if form.instructions.errors %}
+                            <div class="mt-1 text-sm text-red-500 bg-red-50 p-2 rounded border border-red-200">
+                                <strong>Error:</strong> {{ form.instructions.errors }}
+                                <p class="text-sm mt-1">Please provide detailed instructions for students. Explain step-by-step what they need to do to complete this assignment.</p>
+                            </div>
+                        {% else %}
+                            <p class="mt-1 text-xs text-gray-500">Provide detailed, step-by-step instructions for students to complete this assignment successfully.</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Rubric Section -->
+                <div class="space-y-6">
+                    <div class="flex items-center gap-2 text-gray-900">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                        </svg>
+                        <h2 class="text-lg font-semibold">Grading Rubric</h2>
+                    </div>
+
+                    <!-- Rubric Selection Field -->
+                    <div class="bg-gray-50 p-4 rounded-lg border {% if form.rubric.errors %}border-red-300{% else %}border-gray-200{% endif %}">
+                        <label for="{{ form.rubric.id_for_label }}" class="block text-sm font-medium {% if form.rubric.errors %}text-red-700{% else %}text-gray-700{% endif %} mb-2">
+                            Select Rubric (Optional but Recommended)
+                        </label>
+                        {{ form.rubric }}
+                        <p class="mt-2 text-sm text-gray-500">
+                            Select a rubric to use for grading this assignment or 
+                            <a href="{% url 'lms_rubrics:create' %}" class="text-blue-600 hover:text-blue-800" target="_blank">
+                                create a new one
+                            </a>. A rubric helps ensure consistent grading.
+                        </p>
+                        {% if form.rubric.errors %}
+                            <div class="mt-1 text-sm text-red-500 bg-red-50 p-2 rounded border border-red-200">
+                                <strong>Error:</strong> {{ form.rubric.errors }}
+                                <p class="text-sm mt-1">Please select a rubric for grading this assignment.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Settings Section -->
+                <div class="space-y-6">
+                    <div class="flex items-center gap-2 text-gray-900">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        <h2 class="text-lg font-semibold">Settings</h2>
+                    </div>
+
+                    <!-- Status Field -->
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <div class="flex items-center">
+                            {{ form.status }}
+                            <label for="{{ form.status.id_for_label }}" class="ml-2 block text-sm font-medium text-gray-700">
+                                {{ form.status.label }}
+                            </label>
+                        </div>
+                        {% if form.status.help_text %}
+                            <p class="mt-1 text-sm text-gray-500">{{ form.status.help_text }}</p>
+                        {% endif %}
+                        {% if form.status.errors %}
+                            <div class="mt-1 text-sm text-red-500">{{ form.status.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Due Date and Max Score -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <label for="{{ form.due_date.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Due Date
+                            </label>
+                            {{ form.due_date }}
+                            {% if form.due_date.errors %}
+                                <div class="mt-1 text-sm text-red-500">{{ form.due_date.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <label for="{{ form.max_score.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Maximum Score
+                            </label>
+                            {{ form.max_score }}
+                            {% if form.max_score.errors %}
+                                <div class="mt-1 text-sm text-red-500">{{ form.max_score.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Submission Settings -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <label for="{{ form.submission_type.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Assignment Type
+                            </label>
+                            {{ form.submission_type }}
+                            {% if form.submission_type.errors %}
+                                <div class="mt-1 text-sm text-red-500">{{ form.submission_type.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200" id="allowedFileTypesContainer">
+                            <label for="{{ form.allowed_file_types.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Allowed File Types
+                            </label>
+                            {{ form.allowed_file_types }}
+                            <p class="mt-2 text-sm text-gray-500">Enter file extensions separated by commas (e.g., .pdf,.doc,.docx)</p>
+                            {% if form.allowed_file_types.errors %}
+                                <div class="mt-1 text-sm text-red-500">{{ form.allowed_file_types.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Attachments Section -->
+                    <div class="space-y-6" id="attachmentsSection">
+                        <div class="flex items-center gap-2 text-gray-900">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                            </svg>
+                            <h2 class="text-lg font-semibold">Attachments</h2>
+                        </div>
+
+                        <!-- File Upload Field -->
+                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200" id="fileUploadContainer">
+                            <label for="{{ form.attachments.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Upload Files
+                            </label>
+                            
+                            <!-- Custom File Upload Area -->
+                            <div class="relative">
+                                <input type="file" 
+                                       name="attachments" 
+                                       id="{{ form.attachments.id_for_label }}"
+                                       multiple
+                                       class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                       accept=".pdf,.doc,.docx,.txt,.ppt,.pptx,.mp4,.mov,.avi,.wmv,.jpg,.jpeg,.png,.gif"
+                                       onchange="handleFileSelection(event)">
+                                
+                                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors duration-200" 
+                                     id="fileDropZone"
+                                     ondrop="handleFileDrop(event)" 
+                                     ondragover="handleDragOver(event)" 
+                                     ondragenter="handleDragEnter(event)" 
+                                     ondragleave="handleDragLeave(event)">
+                                    <div class="space-y-2" id="uploadPrompt">
+                                        <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                        <div class="text-sm text-gray-600">
+                                            <span class="font-medium text-blue-600 hover:text-blue-500">Click to upload</span>
+                                            or drag and drop
+                                        </div>
+                                        <p class="text-xs text-gray-500">Multiple files supported</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Selected Files Display -->
+                            <div id="selectedFiles" class="mt-4 space-y-2 hidden">
+                                <h4 class="text-sm font-medium text-gray-700">Selected Files:</h4>
+                                <div id="fileList" class="space-y-2"></div>
+                            </div>
+                            
+                            <p class="mt-2 text-sm text-gray-500">
+                                You can upload multiple supporting documents for the assignment. Maximum file size: 100 MB per file.
+                            </p>
+                            
+                            <!-- File Size Warning Area -->
+                            <div id="fileSizeWarning" class="hidden mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                                <div class="flex">
+                                    <div class="flex-shrink-0">
+                                        <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                        </svg>
+                                    </div>
+                                    <div class="ml-3">
+                                        <h3 class="text-sm font-medium text-red-800">File Size Warning</h3>
+                                        <div class="mt-2 text-sm text-red-700" id="fileSizeWarningMessage">
+                                            <!-- Warning message will be inserted here -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- File Size Success Area -->
+                            <div id="fileSizeSuccess" class="hidden mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                <div class="flex">
+                                    <div class="flex-shrink-0">
+                                        <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                        </svg>
+                                    </div>
+                                    <div class="ml-3">
+                                        <h3 class="text-sm font-medium text-green-800">Files Valid</h3>
+                                        <div class="mt-2 text-sm text-green-700" id="fileSizeSuccessMessage">
+                                            All selected files are within the size limit.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {% if form.attachments.errors %}
+                                <div class="mt-1 text-sm text-red-500 bg-red-50 p-2 rounded border border-red-200">
+                                    <strong>File Upload Error:</strong> 
+                                    {% for error in form.attachments.errors %}
+                                        {{ error }}{% if not forloop.last %}<br>{% endif %}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            
+                            <!-- Show non-field errors for file uploads -->
+                            {% if form.non_field_errors %}
+                                {% for error in form.non_field_errors %}
+                                    {% if 'file' in error|lower or 'attachment' in error|lower %}
+                                        <div class="mt-1 text-sm text-red-500 bg-red-50 p-2 rounded border border-red-200">
+                                            <strong>File Upload Error:</strong> {{ error }}
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                            
+                            <div class="mt-2 text-xs text-gray-500">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                File attachments are optional for instructors. Students may be required to upload files based on submission type.
+                            </div>
+                        </div>
+
+                        <!-- Existing Attachments (for edit mode) -->
+                        {% if is_edit and existing_attachments %}
+                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <h3 class="text-sm font-medium text-gray-700 mb-3">Current Attachments</h3>
+                            <div class="space-y-2">
+                                {% for attachment in existing_attachments %}
+                                <div class="flex items-center justify-between p-3 bg-white rounded border border-gray-200">
+                                    <div class="flex items-center space-x-3">
+                                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                                        </svg>
+                                        <span class="text-sm text-gray-700">{{ attachment.file_name }}</span>
+                                        <span class="text-xs text-gray-500">({{ attachment.created_at|date:"M d, Y" }})</span>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <a href="{{ attachment.file.url }}" 
+                                           class="text-blue-600 hover:text-blue-800 text-sm"
+                                           download>
+                                            Download
+                                        </a>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" 
+                                                   name="delete_attachments" 
+                                                   value="{{ attachment.id }}"
+                                                   class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded">
+                                            <span class="ml-2 text-sm text-red-600">Delete</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                Check the "Delete" box next to any attachment you want to remove.
+                            </p>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Text Submission Fields -->
+                    <div id="textSubmissionFieldsContainer" class="bg-gray-50 p-4 rounded-lg border border-gray-200" style="display: none;">
+                        <div class="flex justify-between items-center mb-3">
+                            <label class="block text-sm font-medium text-gray-700">
+                               Quiz Questions
+                            </label>
+                            <button type="button" id="addTextFieldBtn" class="text-blue-600 hover:text-blue-800 flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                                </svg>
+                                Add Question
+                            </button>
+                        </div>
+                        
+                        {% if form.instructions.errors %}
+                            <div class="text-red-500 text-sm mt-1">{{ form.instructions.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Additional fields for text questions -->
+                <div id="textQuestionsContainer" class="space-y-6" style="display: none;">
+                    <div class="text-fields-container">
+                        <!-- Text fields will be added here dynamically -->
+                        <!-- Container starts empty and is populated by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Hidden fields for tracking text questions -->
+                <input type="hidden" name="tempTextQuestions" id="tempTextQuestions" value="">
+                <input type="hidden" name="deletedQuestions" id="deletedQuestions" value="">
+                <!-- Add missing hidden field for text submission fields -->
+                <input type="hidden" name="text_submission_fields" id="text_submission_fields" value="">
+
+                <!-- Form Actions -->
+                <div class="pt-5 border-t border-gray-200">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <a href="{{ back_url }}" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                <svg class="-ml-1 mr-2 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                                </svg>
+                                Back
+                            </a>
+                        </div>
+                        <div class="flex space-x-3">
+                            <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                                <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                </svg>
+                                {% if is_edit %}Save Changes{% else %}Create Assignment{% endif %}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+{{ form.media.js }}
+<script src="{% static 'tinymce_editor/tinymce/tinymce.min.js' %}"></script>
+<script src="{% static 'tinymce_editor/js/tinymce-widget.js' %}"></script>
+<script src="{% static 'tinymce_editor/js/tinymce-json-handler.js' %}"></script>
+<script src="{% static 'tinymce_editor/js/toolbar-fixer.js' %}"></script>
+<script>
+    console.log('ASSIGNMENT FORM: JavaScript file loaded');
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('ASSIGNMENT FORM: DOMContentLoaded event fired');
+        // IMMEDIATE FIX: Show/hide quiz containers based on submission type
+        setTimeout(function() {
+            console.log('ASSIGNMENT FORM: 50ms timeout - checking elements');
+            const immediateSubmissionSelect = document.getElementById('id_submission_type');
+            const immediateTextContainer = document.getElementById('textSubmissionFieldsContainer');
+            const immediateQuestionsContainer = document.getElementById('textQuestionsContainer');
+            
+            console.log('ASSIGNMENT FORM: Elements found:');
+            console.log('- id_submission_type:', !!immediateSubmissionSelect);
+            console.log('- textSubmissionFieldsContainer:', !!immediateTextContainer);
+            console.log('- textQuestionsContainer:', !!immediateQuestionsContainer);
+            
+            console.log('IMMEDIATE CHECK - Submission type:', immediateSubmissionSelect ? immediateSubmissionSelect.value : 'null');
+            
+            if (immediateSubmissionSelect) {
+                const hasExistingQuestions = {% if existing_text_fields %}{{ existing_text_fields|length|escapejs }}{% else %}0{% endif %} > 0;
+                console.log('ASSIGNMENT FORM: Has existing questions:', hasExistingQuestions);
+                console.log('ASSIGNMENT FORM: Submission type value is:', immediateSubmissionSelect.value);
+                console.log('ASSIGNMENT FORM: Should show questions?', immediateSubmissionSelect.value === 'text' || immediateSubmissionSelect.value === 'both' || hasExistingQuestions);
+                
+                if (immediateSubmissionSelect.value === 'text' || immediateSubmissionSelect.value === 'both' || hasExistingQuestions) {
+                    // Show for text, both, or when there are existing questions
+                    if (immediateTextContainer) {
+                        immediateTextContainer.style.display = 'block';
+                        console.log('IMMEDIATE: Made textSubmissionFieldsContainer visible');
+                    }
+                    if (immediateQuestionsContainer) {
+                        immediateQuestionsContainer.style.display = 'block';
+                        console.log('IMMEDIATE: Made textQuestionsContainer visible');
+                    }
+                            } else {
+                // Hide for file upload only (and no existing questions)
+                if (immediateTextContainer) {
+                    immediateTextContainer.style.display = 'none';
+                    console.log('IMMEDIATE: Hidden textSubmissionFieldsContainer');
+                }
+                if (immediateQuestionsContainer) {
+                    immediateQuestionsContainer.style.display = 'none';
+                    console.log('IMMEDIATE: Hidden textQuestionsContainer');
+                }
+            }
+            }
+        }, 50);
+        
+        // Process JSON content for TinyMCE editors
+        const descriptionInput = document.getElementById('id_description');
+        const instructionsInput = document.getElementById('id_instructions');
+        
+        // Enhanced content processing for TinyMCE editors
+        function processContentField(inputElement) {
+            if (!inputElement) {
+                console.warn('processContentField: Input element not found');
+                return;
+            }
+            
+            const rawContent = inputElement.value;
+            console.log(`Processing content for ${inputElement.id}:`, rawContent ? `${rawContent.length} chars` : 'empty');
+            
+            if (!rawContent) {
+                console.log(`No content to process for ${inputElement.id}`);
+                return;
+            }
+            
+            try {
+                // Try to parse as JSON first
+                const jsonData = JSON.parse(rawContent);
+                if (jsonData && typeof jsonData === 'object' && jsonData.html) {
+                    // It's JSON with html property, extract the HTML
+                    inputElement.value = jsonData.html;
+                    console.log(`Processed JSON content for ${inputElement.id}`);
+                } else if (jsonData && typeof jsonData === 'object') {
+                    console.log(`JSON content for ${inputElement.id} has no html property, leaving as is`);
+                }
+                // If it's JSON but no html property, leave as is
+            } catch (e) {
+                // Not JSON, it's likely HTML - leave as is
+                console.log(`Content for ${inputElement.id} is HTML, not JSON - no processing needed`);
+            }
+            
+            // Fix common image path issues
+            let content = inputElement.value;
+            const originalContent = content;
+            
+            // Fix various image path formats
+            content = content.replace(/src="\.\.\/\.\.\/media\//g, 'src="/media/');
+            content = content.replace(/src="media\//g, 'src="/media/');
+            content = content.replace(/src="https?:\/\/(localhost|127\.0\.0\.1):[0-9]+\/media\//g, 'src="/media/');
+            
+            // Fix any malformed src attributes
+            content = content.replace(/src="([^"]*)""/g, 'src="$1"');
+            content = content.replace(/src="([^"]*)\/""/g, 'src="$1"');
+            
+            if (content !== originalContent) {
+                inputElement.value = content;
+                inputElement.dataset.pathsFixed = 'true';
+                console.log(`Fixed image paths in ${inputElement.id}`);
+            }
+        }
+        
+        // Enhanced TinyMCE initialization and content setting
+        function initializeTinyMCEAndSetContent() {
+            console.log('Starting TinyMCE initialization and content setting');
+            
+            // Process both description and instructions fields
+            if (descriptionInput) {
+                processContentField(descriptionInput);
+            }
+            
+            if (instructionsInput) {
+                processContentField(instructionsInput);
+            }
+            
+            console.log('Main content fields processed');
+            
+            // Wait for TinyMCE to be fully loaded
+            if (typeof tinymce === 'undefined') {
+                console.log('TinyMCE not loaded yet, retrying in 300ms...');
+                setTimeout(initializeTinyMCEAndSetContent, 300);
+                return;
+            }
+            
+            // Use TinyMCE widget system to initialize editors
+            if (window.TinyMCEWidget && window.TinyMCEWidget.initializeAll) {
+                console.log('Using TinyMCE widget system for initialization');
+                window.TinyMCEWidget.initializeAll();
+                
+                // Set content after editors are initialized
+                setTimeout(function() {
+                    updateTinyMCEContent();
+                }, 1000);
+            } else {
+                console.log('TinyMCE widget system not available, trying direct initialization');
+                // Fallback: try direct initialization
+                setTimeout(function() {
+                    updateTinyMCEContent();
+                }, 500);
+            }
+        }
+        
+        // Function to update TinyMCE editor content
+        function updateTinyMCEContent() {
+            console.log('Updating TinyMCE editor content');
+            
+            // Update description editor
+            if (descriptionInput && descriptionInput.value) {
+                const descEditor = tinymce.get('id_description');
+                if (descEditor) {
+                    descEditor.setContent(descriptionInput.value);
+                    console.log('Updated TinyMCE description editor with content');
+                    
+                    if (descriptionInput.dataset.pathsFixed === 'true') {
+                        console.log('Description image paths were automatically corrected');
+                    }
+                } else {
+                    console.warn('Description editor not found, retrying...');
+                    // Retry once more after a delay
+                    setTimeout(function() {
+                        const retryDescEditor = tinymce.get('id_description');
+                        if (retryDescEditor && descriptionInput.value) {
+                            retryDescEditor.setContent(descriptionInput.value);
+                            console.log('Updated description editor on retry');
+                        }
+                    }, 1000);
+                }
+            }
+            
+            // Update instructions editor
+            if (instructionsInput && instructionsInput.value) {
+                const instEditor = tinymce.get('id_instructions');
+                if (instEditor) {
+                    instEditor.setContent(instructionsInput.value);
+                    console.log('Updated TinyMCE instructions editor with content');
+                    
+                    if (instructionsInput.dataset.pathsFixed === 'true') {
+                        console.log('Instructions image paths were automatically corrected');
+                    }
+                } else {
+                    console.warn('Instructions editor not found, retrying...');
+                    // Retry once more after a delay
+                    setTimeout(function() {
+                        const retryInstEditor = tinymce.get('id_instructions');
+                        if (retryInstEditor && instructionsInput.value) {
+                            retryInstEditor.setContent(instructionsInput.value);
+                            console.log('Updated instructions editor on retry');
+                        }
+                    }, 1000);
+                }
+            }
+            
+            // Force toolbar visibility after content is set
+            setTimeout(function() {
+                forceToolbarVisibility();
+            }, 500);
+        }
+        
+        // Enhanced toolbar visibility function
+        function forceToolbarVisibility() {
+            console.log('Forcing toolbar visibility');
+            
+            const toolbarElements = document.querySelectorAll('.tox-toolbar__primary, .tox-toolbar__group, .tox-tbtn, .tox-editor-header, .tox-toolbar-overlord');
+            if (toolbarElements && toolbarElements.length > 0) {
+                toolbarElements.forEach(function(el) {
+                    el.style.display = el.classList.contains('tox-toolbar__group') || el.classList.contains('tox-tbtn') ? 'flex' : 'block';
+                    el.style.visibility = 'visible';
+                    el.style.opacity = '1';
+                });
+                console.log(`Made ${toolbarElements.length} toolbar elements visible`);
+            }
+            
+            // Hide overflow buttons
+            const overflowButtons = document.querySelectorAll('.tox-tbtn[aria-label="More..."], .tox-tbtn[data-mce-name="overflow-button"]');
+            if (overflowButtons && overflowButtons.length > 0) {
+                overflowButtons.forEach(function(el) {
+                    el.style.display = 'none';
+                });
+                console.log(`Hidden ${overflowButtons.length} overflow buttons`);
+            }
+            
+            // Trigger resize on all active editors
+            if (typeof tinymce !== 'undefined') {
+                if (tinymce.activeEditor) {
+                    tinymce.activeEditor.fire('ResizeEditor');
+                }
+                if (tinymce.editors && Array.isArray(tinymce.editors)) {
+                    tinymce.editors.forEach(function(editor) {
+                        if (editor && typeof editor.fire === 'function') {
+                            editor.fire('ResizeEditor');
+                        }
+                    });
+                }
+                console.log('Triggered ResizeEditor on all editors');
+            }
+        }
+        
+        // Start the initialization process
+        setTimeout(initializeTinyMCEAndSetContent, 200);
+        
+        // Initialize existing text questions after main fields are processed
+        setTimeout(function() {
+            initializeExistingTextQuestions();
+        }, 400);
+        
+        // Get DOM elements
+        const submissionTypeSelect = document.getElementById('id_submission_type');
+        const allowedFileTypesContainer = document.getElementById('allowedFileTypesContainer');
+        const textSubmissionFieldsContainer = document.getElementById('textSubmissionFieldsContainer');
+        const textQuestionsContainer = document.getElementById('textQuestionsContainer');
+        const addTextFieldBtn = document.getElementById('addTextFieldBtn');
+        const textFieldsContainer = document.querySelector('.text-fields-container');
+        const attachmentsSection = document.getElementById('attachmentsSection');
+        
+        // Set initial visibility of attachments section
+        if (attachmentsSection && submissionTypeSelect) {
+            if (submissionTypeSelect.value === 'file' || submissionTypeSelect.value === 'text') {
+                attachmentsSection.style.display = 'block';
+            } else {
+                attachmentsSection.style.display = 'none';
+            }
+        }
+        
+        // Add event listener to submission type select
+        if (submissionTypeSelect) {
+            submissionTypeSelect.addEventListener('change', handleSubmissionTypeChange);
+            console.log('ASSIGNMENT FORM: Added change event listener to submission type select');
+            
+            // Also call the function immediately to set initial state
+            handleSubmissionTypeChange();
+            console.log('ASSIGNMENT FORM: Called handleSubmissionTypeChange on page load');
+        }
+
+        // Add event listener to Add Question button
+        if (addTextFieldBtn) {
+            addTextFieldBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                console.log('ASSIGNMENT FORM: Add Question button clicked');
+                addNewTextQuestion();
+            });
+            console.log('ASSIGNMENT FORM: Added click event listener to Add Question button');
+        } else {
+            console.error('ASSIGNMENT FORM: addTextFieldBtn not found');
+        }
+        
+        // Store existing field data in JavaScript variables
+        const existingFieldsData = [
+            {% for field in existing_text_fields %}
+            {
+                id: {{ field.id }},
+                content: {{ field.content|safe }},
+                order: {{ forloop.counter0 }}
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ];
+        
+        // Initialize existing text questions
+        function initializeExistingTextQuestions() {
+            // Check if we have existing text fields
+            {% if existing_text_fields %}
+            console.log('ASSIGNMENT FORM: Initializing {{ existing_text_fields|length|escapejs }} existing text fields');
+            console.log('ASSIGNMENT FORM: Existing fields data:', existingFieldsData);
+            
+            // Ensure TinyMCE is loaded before proceeding
+            if (typeof tinymce === 'undefined') {
+                console.log('ASSIGNMENT FORM: TinyMCE not loaded yet, retrying in 500ms...');
+                setTimeout(initializeExistingTextQuestions, 500);
+                return;
+            }
+            
+            // First, ensure the containers are visible for existing questions
+            if (textSubmissionFieldsContainer) {
+                textSubmissionFieldsContainer.style.display = 'block';
+                console.log('Made textSubmissionFieldsContainer visible for existing questions');
+                
+                // Force visibility by setting inline style
+                textSubmissionFieldsContainer.setAttribute('style', 'display: block !important;');
+            } else {
+                console.warn('textSubmissionFieldsContainer not found');
+            }
+            
+            if (textQuestionsContainer) {
+                textQuestionsContainer.style.display = 'block';
+                console.log('Made textQuestionsContainer visible for existing questions');
+                
+                // Force visibility by setting inline style  
+                textQuestionsContainer.setAttribute('style', 'display: block !important;');
+            } else {
+                console.warn('textQuestionsContainer not found');
+            }
+            
+            if (textFieldsContainer) {
+                // Clear any existing content to prevent duplication
+                textFieldsContainer.innerHTML = '';
+                console.log('Cleared text fields container before adding existing fields');
+                
+                // Add existing text fields using the stored data
+                existingFieldsData.forEach((fieldData, questionIndex) => {
+                    console.log(`ASSIGNMENT FORM: Creating field ${questionIndex} with data:`, fieldData);
+                    
+                    const newField = document.createElement('div');
+                    newField.className = 'text-question-field mb-6 p-4 bg-white border border-gray-300 rounded-lg';
+                    newField.dataset.index = questionIndex;
+                    newField.dataset.id = fieldData.id;
+                    
+                    newField.innerHTML = `
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="text-gray-700 font-medium">Question ${questionIndex + 1}</h3>
+                            <button type="button" class="remove-question-btn text-red-600 hover:text-red-800">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="mb-3">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Question Text</label>
+                            <textarea id="question_text_editor_${questionIndex}" name="question_text_${questionIndex}" rows="3" class="block w-full rounded-lg border border-gray-300 bg-white text-gray-900 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-colors duration-200 tinymce-editor" placeholder="Enter question text" data-existing-content="${htmlContent.replace(/"/g, '&quot;')}"></textarea>
+                        </div>
+                    `;
+                    
+                    textFieldsContainer.appendChild(newField);
+                    
+                    // Initialize TinyMCE on the newly added textarea
+                    const textarea = newField.querySelector(`#question_text_editor_${questionIndex}`);
+                    if (textarea) {
+                        // Process the content for this specific field
+                        let fieldContent = fieldData.content;
+                        let htmlContent = '';
+                        
+                        console.log(`ASSIGNMENT FORM: Processing field ${questionIndex} content:`, typeof fieldContent, fieldContent);
+                        
+                        try {
+                            // Handle the field content properly - now it's a proper JavaScript object
+                            if (fieldContent) {
+                                // If content is an object with html property
+                                if (typeof fieldContent === 'object' && fieldContent.html) {
+                                    htmlContent = fieldContent.html;
+                                    console.log(`ASSIGNMENT FORM: Extracted HTML from object for field ${questionIndex}`);
+                                } 
+                                // If content is a string (fallback)
+                                else if (typeof fieldContent === 'string') {
+                                    // Try to parse as JSON if it looks like JSON
+                                    if (fieldContent.startsWith('{')) {
+                                        try {
+                                            let contentObj = JSON.parse(fieldContent);
+                                            if (contentObj && contentObj.html) {
+                                                htmlContent = contentObj.html;
+                                                console.log(`ASSIGNMENT FORM: Extracted HTML from JSON string for field ${questionIndex}`);
+                                            } else {
+                                                htmlContent = fieldContent;
+                                                console.log(`ASSIGNMENT FORM: Using JSON string as HTML for field ${questionIndex}`);
+                                            }
+                                        } catch (jsonError) {
+                                            console.warn(`ASSIGNMENT FORM: JSON parse error for field ${questionIndex}, using as HTML:`, jsonError);
+                                            htmlContent = fieldContent;
+                                        }
+                                    } else {
+                                        // Regular string content
+                                        htmlContent = fieldContent;
+                                        console.log(`ASSIGNMENT FORM: Using string content as-is for field ${questionIndex}`);
+                                    }
+                                } 
+                                // Otherwise convert to string
+                                else {
+                                    htmlContent = String(fieldContent);
+                                    console.log(`ASSIGNMENT FORM: Converting content to string for field ${questionIndex}`);
+                                }
+                            }
+                            
+                            // Fix image paths
+                            htmlContent = htmlContent.replace(/src="\.\.\/\.\.\/media\//g, 'src="/media/');
+                            htmlContent = htmlContent.replace(/src="media\//g, 'src="/media/');
+                            htmlContent = htmlContent.replace(/src="https?:\/\/(localhost|127\.0\.0\.1):[0-9]+\/media\//g, 'src="/media/');
+                            
+                            textarea.value = htmlContent;
+                            console.log(`ASSIGNMENT FORM: Set content for question ${questionIndex + 1}: ${htmlContent.length} chars`);
+                        } catch (e) {
+                            console.error(`ASSIGNMENT FORM: Error processing field content for question ${questionIndex}:`, e);
+                            textarea.value = fieldContent || '';
+                        }
+                    
+                        // Initialize TinyMCE with proper content loading
+                        setTimeout(() => {
+                            initializeTinyMCEForQuestionField(textarea.id, htmlContent);
+                        }, 500); // Single timeout, no staggering needed
+                    }
+                    
+                    // Add event listener to remove button
+                    const removeBtn = newField.querySelector('.remove-question-btn');
+                    removeBtn.addEventListener('click', function() {
+                        // If using TinyMCE, remove the editor instance before removing the element
+                        if (typeof tinymce !== 'undefined') {
+                            const textareaId = `question_text_editor_${newField.dataset.index}`;
+                            const editor = tinymce.get(textareaId);
+                            if (editor) {
+                                tinymce.remove(editor);
+                            }
+                        }
+                        
+                        newField.remove();
+                        // Update question numbers
+                        updateQuestionNumbers();
+                    });
+                });
+            }
+            {% endif %}
+        }
+        
+        // Function to initialize TinyMCE for question fields - exactly matching Instructions field implementation
+        function initializeTinyMCEForQuestionField(textareaId, content = null) {
+            const textarea = document.getElementById(textareaId);
+            if (!textarea) {
+                console.error('Textarea not found:', textareaId);
+                return;
+            }
+            
+            // Remove any existing editor instance first
+            if (typeof tinymce !== 'undefined' && tinymce.get(textareaId)) {
+                tinymce.remove(`#${textareaId}`);
+            }
+            
+            // Set content before initializing TinyMCE if provided
+            if (content && content.trim()) {
+                textarea.value = content;
+                console.log(`ASSIGNMENT FORM: Set content for ${textareaId} before TinyMCE init: ${content.length} chars`);
+            }
+            
+            // Apply the exact same pattern as Instructions field
+            textarea.classList.add('tinymce-editor');
+            
+            // Set the same TinyMCE configuration as Instructions field (from TinyMCEWidget default config)
+            const defaultConfig = {
+                height: 400,
+                menubar: 'edit view insert format tools',
+                plugins: [
+                    'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                    'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                    'insertdatetime', 'table', 'wordcount', 'aiwriter'
+                ],
+                toolbar: 'undo redo | blocks | ' +
+                        'bold italic forecolor | alignleft aligncenter ' +
+                        'alignright alignjustify | bullist numlist outdent indent | ' +
+                        'removeformat | image media | code fullscreen | aiwriter',
+                content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                image_advtab: true,
+                image_uploadtab: true,
+                images_upload_url: '/courses/upload-editor-image/',
+                automatic_uploads: true,
+                file_picker_types: 'image media',
+                media_upload_url: '/tinymce/upload_media_file/',
+                media_live_embeds: true,
+                media_filter_html: false,
+                browser_spellcheck: true,
+                contextmenu: false,
+                statusbar: true,
+                resize: true,
+                branding: false,
+                promotion: false,
+                external_plugins: {
+                    'aiwriter': '/static/tinymce_editor/js/plugins/aiwriter/plugin.js',
+                    'media': '/static/tinymce_editor/tinymce/plugins/media/plugin.min.js'
+                }
+            };
+            
+            textarea.setAttribute('data-tinymce-config', JSON.stringify(defaultConfig));
+            
+            // Use the global TinyMCE widget system exactly like Instructions field
+            if (window.TinyMCEWidget && window.TinyMCEWidget.initialize) {
+                // Initialize this specific textarea using the widget system
+                window.TinyMCEWidget.initialize(textarea);
+                console.log('Initialized TinyMCE for question field using widget system:', textareaId);
+            } else {
+                console.warn('TinyMCE Widget system not available, trying direct initialization');
+                // Direct initialization with exact same config as TinyMCEWidget
+                if (typeof tinymce !== 'undefined') {
+                    tinymce.init({
+                        selector: `#${textareaId}`,
+                        ...defaultConfig,
+                        setup: function(editor) {
+                            editor.on('change', function() {
+                                editor.save();
+                            });
+                            
+                            editor.on('init', function() {
+                                const textarea = document.getElementById(editor.id);
+                                if (textarea && textarea.value) {
+                                    editor.setContent(textarea.value);
+                                    console.log('Set existing content on init:', editor.id);
+                                }
+                                
+                                // Also ensure content is loaded if passed as parameter
+                                if (content && content.trim()) {
+                                    setTimeout(() => {
+                                        editor.setContent(content);
+                                        console.log(`ASSIGNMENT FORM: Content loaded into TinyMCE editor ${editor.id}: ${content.length} chars`);
+                                    }, 100);
+                                }
+                            });
+                        }
+                    });
+                }
+            }
+        }
+        
+        // Function to handle submission type change
+        function handleSubmissionTypeChange() {
+            if (!submissionTypeSelect) {
+                console.error('handleSubmissionTypeChange: submissionTypeSelect not found');
+                return;
+            }
+            
+            const selectedValue = submissionTypeSelect.value;
+            console.log('handleSubmissionTypeChange: Submission type is:', selectedValue);
+            
+            // Show/hide attachments section based on submission type
+            const attachmentsSection = document.getElementById('attachmentsSection');
+            if (attachmentsSection) {
+                if (selectedValue === 'file' || selectedValue === 'both' || selectedValue === 'text') {
+                    attachmentsSection.style.display = 'block';
+                } else {
+                    attachmentsSection.style.display = 'none';
+                }
+            }
+
+            // Show/hide allowed file types container
+            if (selectedValue === 'file' || selectedValue === 'both') {
+                if (allowedFileTypesContainer) {
+                    allowedFileTypesContainer.style.display = 'block';
+                }
+            } else {
+                if (allowedFileTypesContainer) {
+                    allowedFileTypesContainer.style.display = 'none';
+                }
+            }
+            
+            // Check for existing questions
+            const hasExistingQuestions = {% if existing_text_fields %}{{ existing_text_fields|length|escapejs }}{% else %}0{% endif %} > 0;
+            
+            // Show/hide text submission fields container and questions container based on submission type
+            if (selectedValue === 'text' || selectedValue === 'both' || hasExistingQuestions) {
+                // Show Quiz Questions section for text, both, or when there are existing questions
+                console.log('handleSubmissionTypeChange: Showing quiz questions for type:', selectedValue, 'or existing questions:', hasExistingQuestions);
+                if (textSubmissionFieldsContainer) {
+                    textSubmissionFieldsContainer.style.display = 'block';
+                    console.log('handleSubmissionTypeChange: Made textSubmissionFieldsContainer visible');
+                }
+                if (textQuestionsContainer) {
+                    textQuestionsContainer.style.display = 'block';
+                    console.log('handleSubmissionTypeChange: Made textQuestionsContainer visible');
+                }
+            } else {
+                // Hide Quiz Questions section for file upload only (and no existing questions)
+                console.log('handleSubmissionTypeChange: Hiding quiz questions for type:', selectedValue);
+                if (textSubmissionFieldsContainer) {
+                    textSubmissionFieldsContainer.style.display = 'none';
+                    console.log('handleSubmissionTypeChange: Hidden textSubmissionFieldsContainer');
+                }
+                if (textQuestionsContainer) {
+                    textQuestionsContainer.style.display = 'none';
+                    console.log('handleSubmissionTypeChange: Hidden textQuestionsContainer');
+                }
+            }
+        }
+
+        // Function to add a new text question field
+        function addNewTextQuestion() {
+            console.log('ASSIGNMENT FORM: Adding new text question');
+            
+            if (!textFieldsContainer) {
+                console.error('ASSIGNMENT FORM: textFieldsContainer not found');
+                return;
+            }
+
+            // Ensure the containers are visible
+            if (textSubmissionFieldsContainer) {
+                textSubmissionFieldsContainer.style.display = 'block';
+            }
+            if (textQuestionsContainer) {
+                textQuestionsContainer.style.display = 'block';
+            }
+
+            // Get the current number of questions
+            const existingFields = textFieldsContainer.querySelectorAll('.text-question-field');
+            const questionIndex = existingFields.length;
+            
+            console.log(`ASSIGNMENT FORM: Creating new question ${questionIndex + 1}`);
+            
+            // Create new question field
+            const newField = document.createElement('div');
+            newField.className = 'text-question-field mb-6 p-4 bg-white border border-gray-300 rounded-lg';
+            newField.dataset.index = questionIndex;
+            newField.dataset.id = 'new'; // Mark as new field
+            
+            newField.innerHTML = `
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-gray-700 font-medium">Question ${questionIndex + 1}</h3>
+                    <button type="button" class="remove-question-btn text-red-600 hover:text-red-800">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="mb-3">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Question Text</label>
+                    <textarea id="question_text_editor_${questionIndex}" name="question_text_${questionIndex}" rows="3" class="block w-full rounded-lg border border-gray-300 bg-white text-gray-900 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-colors duration-200 tinymce-editor" placeholder="Enter question text"></textarea>
+                </div>
+            `;
+            
+            // Add the new field to the container
+            textFieldsContainer.appendChild(newField);
+            
+            // Initialize TinyMCE on the newly added textarea
+            const textareaId = `question_text_editor_${questionIndex}`;
+            setTimeout(() => {
+                initializeTinyMCEForQuestionField(textareaId);
+            }, 100);
+            
+            // Add event listener to remove button
+            const removeBtn = newField.querySelector('.remove-question-btn');
+            removeBtn.addEventListener('click', function() {
+                // If using TinyMCE, remove the editor instance before removing the element
+                if (typeof tinymce !== 'undefined') {
+                    const editor = tinymce.get(textareaId);
+                    if (editor) {
+                        tinymce.remove(editor);
+                    }
+                }
+                
+                newField.remove();
+                // Update question numbers
+                updateQuestionNumbers();
+            });
+
+            console.log(`ASSIGNMENT FORM: Successfully added question ${questionIndex + 1}`);
+        }
+
+        // Function to update question numbers after adding/removing questions
+        function updateQuestionNumbers() {
+            console.log('ASSIGNMENT FORM: Updating question numbers');
+            
+            if (!textFieldsContainer) {
+                console.error('ASSIGNMENT FORM: textFieldsContainer not found');
+                return;
+            }
+
+            const questionFields = textFieldsContainer.querySelectorAll('.text-question-field');
+            
+            questionFields.forEach((field, index) => {
+                // Update the question header
+                const questionHeader = field.querySelector('h3');
+                if (questionHeader) {
+                    questionHeader.textContent = `Question ${index + 1}`;
+                }
+
+                // Update the field index
+                field.dataset.index = index;
+
+                // Update textarea id and name
+                const textarea = field.querySelector('textarea');
+                if (textarea) {
+                    const oldId = textarea.id;
+                    const newId = `question_text_editor_${index}`;
+                    const newName = `question_text_${index}`;
+                    
+                    // Update TinyMCE editor if it exists
+                    if (typeof tinymce !== 'undefined' && oldId !== newId) {
+                        const editor = tinymce.get(oldId);
+                        if (editor) {
+                            const content = editor.getContent();
+                            tinymce.remove(editor);
+                            
+                            textarea.id = newId;
+                            textarea.name = newName;
+                            
+                            // Re-initialize TinyMCE with new ID and restore content
+                            setTimeout(() => {
+                                // First set the content in the textarea
+                                textarea.value = content;
+                                // Then initialize TinyMCE which will pick up the content automatically
+                                initializeTinyMCEForQuestionField(newId);
+                            }, 100);
+                        } else {
+                            textarea.id = newId;
+                            textarea.name = newName;
+                        }
+                    }
+                }
+            });
+
+            console.log(`ASSIGNMENT FORM: Updated ${questionFields.length} question numbers`);
+        }
+
+        // Function to collect all question data before form submission
+        function collectQuestionData() {
+            console.log('ASSIGNMENT FORM: Collecting question data for submission');
+            
+            if (!textFieldsContainer) {
+                console.log('ASSIGNMENT FORM: No text fields container found');
+                return [];
+            }
+
+            const questionFields = textFieldsContainer.querySelectorAll('.text-question-field');
+            const questionsData = [];
+
+            questionFields.forEach((field, index) => {
+                const fieldId = field.dataset.id;
+                const textareaId = `question_text_editor_${index}`;
+                let content = '';
+
+                // Get content from TinyMCE editor if available
+                if (typeof tinymce !== 'undefined') {
+                    const editor = tinymce.get(textareaId);
+                    if (editor) {
+                        content = editor.getContent();
+                    } else {
+                        // Fallback to textarea value
+                        const textarea = field.querySelector('textarea');
+                        content = textarea ? textarea.value : '';
+                    }
+                } else {
+                    // Fallback to textarea value
+                    const textarea = field.querySelector('textarea');
+                    content = textarea ? textarea.value : '';
+                }
+
+                // Create question data object
+                const questionData = {
+                    id: fieldId === 'new' ? `new_${index}` : fieldId,
+                    label: `Question ${index + 1}`,
+                    placeholder: 'Enter your answer here...',
+                    order: index,
+                    content: JSON.stringify({
+                        delta: {},
+                        html: content
+                    })
+                };
+
+                questionsData.push(questionData);
+                console.log(`ASSIGNMENT FORM: Collected data for question ${index + 1}:`, questionData);
+            });
+
+            console.log(`ASSIGNMENT FORM: Collected ${questionsData.length} questions`);
+            return questionsData;
+        }
+
+        // Add form submission handler to collect question data
+        const assignmentForm = document.querySelector('#assignmentForm');
+        if (assignmentForm) {
+            assignmentForm.addEventListener('submit', function(e) {
+                console.log('ASSIGNMENT FORM: Form submission started');
+                
+                // Collect question data
+                const questionsData = collectQuestionData();
+                
+                // Serialize to JSON and store in hidden field
+                const hiddenField = document.getElementById('text_submission_fields');
+                if (hiddenField) {
+                    hiddenField.value = JSON.stringify(questionsData);
+                    console.log('ASSIGNMENT FORM: Set text_submission_fields value:', hiddenField.value);
+                } else {
+                    console.error('ASSIGNMENT FORM: Hidden field text_submission_fields not found');
+                }
+                
+                console.log('ASSIGNMENT FORM: Form submission continuing...');
+            });
+            console.log('ASSIGNMENT FORM: Added form submission handler');
+        } else {
+            console.error('ASSIGNMENT FORM: Assignment form not found');
+        }
+        
+        // Client-side validation for required fields
+        function setupFieldValidation() {
+            console.log('ASSIGNMENT FORM: Setting up field validation');
+            
+            // Get required form fields
+            const titleField = document.getElementById('id_title');
+            const descriptionField = document.getElementById('id_description');  
+            const instructionsField = document.getElementById('id_instructions');
+            const submitButton = document.querySelector('button[type="submit"]');
+            
+            // Function to validate a single field
+            function validateField(field, fieldName, errorMessage) {
+                if (!field) return true;
+                
+                const value = field.value.trim();
+                const fieldContainer = field.closest('.bg-gray-50');
+                const existingError = fieldContainer ? fieldContainer.querySelector('.validation-error') : null;
+                
+                // Remove existing error message
+                if (existingError) {
+                    existingError.remove();
+                }
+                
+                if (!value) {
+                    // Add error styling
+                    if (fieldContainer) {
+                        fieldContainer.classList.remove('border-gray-200');
+                        fieldContainer.classList.add('border-red-300');
+                        
+                        const label = fieldContainer.querySelector('label');
+                        if (label) {
+                            label.classList.remove('text-gray-700');
+                            label.classList.add('text-red-700');
+                        }
+                    }
+                    
+                    // Add error message
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'validation-error mt-1 text-sm text-red-500 bg-red-50 p-2 rounded border border-red-200';
+                    errorDiv.innerHTML = `<strong>Required:</strong> ${errorMessage}`;
+                    
+                    if (fieldContainer) {
+                        fieldContainer.appendChild(errorDiv);
+                    }
+                    
+                    return false;
+                } else {
+                    // Remove error styling
+                    if (fieldContainer) {
+                        fieldContainer.classList.remove('border-red-300');
+                        fieldContainer.classList.add('border-gray-200');
+                        
+                        const label = fieldContainer.querySelector('label');
+                        if (label) {
+                            label.classList.remove('text-red-700');
+                            label.classList.add('text-gray-700');
+                        }
+                    }
+                    
+                    return true;
+                }
+            }
+            
+            // Function to validate TinyMCE fields
+            function validateTinyMCEField(fieldId, fieldName, errorMessage) {
+                let content = '';
+                
+                // Try to get content from TinyMCE editor
+                if (typeof tinymce !== 'undefined') {
+                    const editor = tinymce.get(fieldId);
+                    if (editor) {
+                        content = editor.getContent({format: 'text'}).trim();
+                    }
+                }
+                
+                // Fallback to textarea content
+                if (!content) {
+                    const textarea = document.getElementById(fieldId);
+                    if (textarea) {
+                        content = textarea.value.trim();
+                        // Strip HTML tags for validation
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = content;
+                        content = tempDiv.textContent || tempDiv.innerText || '';
+                        content = content.trim();
+                    }
+                }
+                
+                const fieldContainer = document.getElementById(fieldId) ? document.getElementById(fieldId).closest('.bg-gray-50') : null;
+                const existingError = fieldContainer ? fieldContainer.querySelector('.validation-error') : null;
+                
+                // Remove existing error message
+                if (existingError) {
+                    existingError.remove();
+                }
+                
+                if (!content) {
+                    // Add error styling
+                    if (fieldContainer) {
+                        fieldContainer.classList.remove('border-gray-200');
+                        fieldContainer.classList.add('border-red-300');
+                        
+                        const label = fieldContainer.querySelector('label');
+                        if (label) {
+                            label.classList.remove('text-gray-700');
+                            label.classList.add('text-red-700');
+                        }
+                    }
+                    
+                    // Add error message
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'validation-error mt-1 text-sm text-red-500 bg-red-50 p-2 rounded border border-red-200';
+                    errorDiv.innerHTML = `<strong>Required:</strong> ${errorMessage}`;
+                    
+                    if (fieldContainer) {
+                        fieldContainer.appendChild(errorDiv);
+                    }
+                    
+                    return false;
+                } else {
+                    // Remove error styling
+                    if (fieldContainer) {
+                        fieldContainer.classList.remove('border-red-300');
+                        fieldContainer.classList.add('border-gray-200');
+                        
+                        const label = fieldContainer.querySelector('label');
+                        if (label) {
+                            label.classList.remove('text-red-700');
+                            label.classList.add('text-gray-700');
+                        }
+                    }
+                    
+                    return true;
+                }
+            }
+            
+            // Function to validate all required fields
+            function validateAllFields() {
+                let isValid = true;
+                
+                // Clear any existing server-side error highlights first
+                clearServerSideErrors();
+                
+                // Validate title
+                if (!validateField(titleField, 'Title', 'Please enter a title for this assignment.')) {
+                    isValid = false;
+                }
+                
+                // Validate description (TinyMCE field)
+                if (!validateTinyMCEField('id_description', 'Description', 'Please enter a description for this assignment.')) {
+                    isValid = false;
+                }
+                
+                // Validate instructions (TinyMCE field)
+                if (!validateTinyMCEField('id_instructions', 'Instructions', 'Please provide detailed instructions for students.')) {
+                    isValid = false;
+                }
+                
+                // Validate file uploads if any are selected (only validate file size/type, not requirement)
+                const fileInput = document.querySelector('input[name="attachments"]');
+                if (fileInput && fileInput.files && fileInput.files.length > 0) {
+                    if (!validateFiles(fileInput.files)) {
+                        isValid = false;
+                    }
+                }
+                
+                // Note: File uploads are NOT required for instructors creating assignments
+                // Students will have separate validation when submitting assignments
+                
+                return isValid;
+            }
+            
+            // Function to clear server-side validation error styling
+            function clearServerSideErrors() {
+                // Remove error styling from form fields
+                const formFields = document.querySelectorAll('.bg-gray-50');
+                formFields.forEach(field => {
+                    field.classList.remove('border-red-300', 'bg-red-50');
+                    field.classList.add('border-gray-200');
+                });
+                
+                // Clear validation error messages
+                const existingErrors = document.querySelectorAll('.validation-error');
+                existingErrors.forEach(error => {
+                    error.remove();
+                });
+            }
+            
+            // Function to highlight fields with server-side errors
+            function highlightServerSideErrors() {
+                // This will run when the page loads to highlight any server errors
+                const formErrorAlert = document.getElementById('formErrorAlert');
+                if (formErrorAlert) {
+                    // Find and highlight fields with errors
+                    const titleError = document.querySelector('[name="title"]');
+                    const descriptionError = document.querySelector('#id_description');
+                    const instructionsError = document.querySelector('#id_instructions');
+                    const attachmentsError = document.querySelector('[name="attachments"]');
+                    
+                    {% if form.errors %}
+                        {% for field_name, errors in form.errors.items %}
+                            {% if field_name == 'title' %}
+                                if (titleError) {
+                                    const container = titleError.closest('.bg-gray-50');
+                                    if (container) {
+                                        container.classList.remove('border-gray-200');
+                                        container.classList.add('border-red-300', 'bg-red-50');
+                                    }
+                                }
+                            {% endif %}
+                            {% if field_name == 'description' %}
+                                if (descriptionError) {
+                                    const container = descriptionError.closest('.bg-gray-50');
+                                    if (container) {
+                                        container.classList.remove('border-gray-200');
+                                        container.classList.add('border-red-300', 'bg-red-50');
+                                    }
+                                }
+                            {% endif %}
+                            {% if field_name == 'instructions' %}
+                                if (instructionsError) {
+                                    const container = instructionsError.closest('.bg-gray-50');
+                                    if (container) {
+                                        container.classList.remove('border-gray-200');
+                                        container.classList.add('border-red-300', 'bg-red-50');
+                                    }
+                                }
+                            {% endif %}
+                            {% if field_name == 'attachments' %}
+                                if (attachmentsError) {
+                                    const container = attachmentsError.closest('.bg-gray-50');
+                                    if (container) {
+                                        container.classList.remove('border-gray-200');
+                                        container.classList.add('border-red-300', 'bg-red-50');
+                                    }
+                                }
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                    
+                    // Scroll to first error
+                    formErrorAlert.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+            
+            // Add real-time validation for title field
+            if (titleField) {
+                titleField.addEventListener('blur', function() {
+                    validateField(this, 'Title', 'Please enter a title for this assignment.');
+                });
+                
+                titleField.addEventListener('input', function() {
+                    // Clear error on input if field has content
+                    if (this.value.trim()) {
+                        validateField(this, 'Title', 'Please enter a title for this assignment.');
+                    }
+                });
+            }
+            
+            // Add real-time validation for TinyMCE fields
+            // We'll set up validation when TinyMCE editors are initialized
+            function setupTinyMCEValidation() {
+                if (typeof tinymce !== 'undefined') {
+                    // Description field validation
+                    const descEditor = tinymce.get('id_description');
+                    if (descEditor) {
+                        descEditor.on('blur', function() {
+                            validateTinyMCEField('id_description', 'Description', 'Please enter a description for this assignment.');
+                        });
+                        
+                        descEditor.on('change', function() {
+                            const content = descEditor.getContent({format: 'text'}).trim();
+                            if (content) {
+                                validateTinyMCEField('id_description', 'Description', 'Please enter a description for this assignment.');
+                            }
+                        });
+                    }
+                    
+                    // Instructions field validation  
+                    const instEditor = tinymce.get('id_instructions');
+                    if (instEditor) {
+                        instEditor.on('blur', function() {
+                            validateTinyMCEField('id_instructions', 'Instructions', 'Please provide detailed instructions for students.');
+                        });
+                        
+                        instEditor.on('change', function() {
+                            const content = instEditor.getContent({format: 'text'}).trim();
+                            if (content) {
+                                validateTinyMCEField('id_instructions', 'Instructions', 'Please provide detailed instructions for students.');
+                            }
+                        });
+                    }
+                } else {
+                    // Retry after a delay if TinyMCE is not ready
+                    setTimeout(setupTinyMCEValidation, 1000);
+                }
+            }
+            
+            // Set up TinyMCE validation after a delay to ensure editors are initialized
+            setTimeout(setupTinyMCEValidation, 2000);
+            
+            // Form submission validation
+            if (assignmentForm) {
+                assignmentForm.addEventListener('submit', function(e) {
+                    console.log('ASSIGNMENT FORM: Validating form before submission');
+                    
+                    if (!validateAllFields()) {
+                        e.preventDefault();
+                        console.log('ASSIGNMENT FORM: Form validation failed');
+                        
+                        // Show a general error message
+                        const existingAlert = document.querySelector('.validation-alert');
+                        if (existingAlert) {
+                            existingAlert.remove();
+                        }
+                        
+                        const alertDiv = document.createElement('div');
+                        alertDiv.className = 'validation-alert bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4';
+                        alertDiv.innerHTML = `
+                            <div class="flex">
+                                <div class="flex-shrink-0">
+                                    <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                                <div class="ml-3">
+                                    <h3 class="text-sm font-medium text-red-800">Please fix the following errors:</h3>
+                                    <div class="mt-2 text-sm text-red-700">
+                                        <p>Required fields marked with <span class="text-red-500">*</span> must be completed before saving the assignment.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        
+                        // Insert the alert at the top of the form
+                        const formContent = assignmentForm.querySelector('.space-y-8');
+                        if (formContent) {
+                            formContent.insertBefore(alertDiv, formContent.firstChild);
+                        }
+                        
+                        // Scroll to the first error field
+                        const firstError = document.querySelector('.validation-error');
+                        if (firstError) {
+                            firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                        
+                        return false;
+                    }
+                    
+                    console.log('ASSIGNMENT FORM: Form validation passed');
+                    return true;
+                });
+            }
+            
+            console.log('ASSIGNMENT FORM: Field validation setup complete');
+        }
+        
+        // Multiple file upload handling functions
+        function handleFileSelection(e) {
+            const input = e.target || e;
+            console.log('handleFileSelection called with', input.files.length, 'files');
+            const files = input.files;
+            const selectedFilesDiv = document.getElementById('selectedFiles');
+            const fileListDiv = document.getElementById('fileList');
+            
+            console.log('selectedFilesDiv:', selectedFilesDiv);
+            console.log('fileListDiv:', fileListDiv);
+            
+            if (files.length > 0) {
+                console.log('Showing files, removing hidden class');
+                selectedFilesDiv.classList.remove('hidden');
+                fileListDiv.innerHTML = '';
+                
+                // Update upload prompt to show files are selected
+                const uploadPrompt = document.getElementById('uploadPrompt');
+                if (uploadPrompt) {
+                    uploadPrompt.innerHTML = `
+                        <svg class="mx-auto h-12 w-12 text-green-500" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        <div class="text-sm text-green-600 font-medium">
+                            ${files.length} File${files.length > 1 ? 's' : ''} Selected
+                        </div>
+                        <p class="text-xs text-gray-500">Click to add more files or drag and drop</p>
+                    `;
+                }
+                
+                Array.from(files).forEach((file, index) => {
+                    console.log('Processing file:', file.name, 'Size:', file.size);
+                    const fileItem = document.createElement('div');
+                    fileItem.className = 'flex items-center justify-between p-3 bg-white rounded border border-gray-200';
+                    
+                    const fileInfo = document.createElement('div');
+                    fileInfo.className = 'flex items-center space-x-3';
+                    
+                    // Get appropriate icon based on file type
+                    const fileIcon = getFileIcon(file.name);
+                    
+                    const fileName = document.createElement('span');
+                    fileName.className = 'text-sm text-gray-700 font-medium';
+                    fileName.textContent = file.name;
+                    
+                    const fileSize = document.createElement('span');
+                    fileSize.className = 'text-xs text-gray-500';
+                    fileSize.textContent = `(${formatFileSize(file.size)})`;
+                    
+                    fileInfo.appendChild(fileIcon);
+                    fileInfo.appendChild(fileName);
+                    fileInfo.appendChild(fileSize);
+                    
+                    const removeBtn = document.createElement('button');
+                    removeBtn.type = 'button';
+                    removeBtn.className = 'text-red-600 hover:text-red-800 text-sm font-medium px-2 py-1 rounded hover:bg-red-50';
+                    removeBtn.textContent = 'Remove';
+                    removeBtn.onclick = () => removeFile(input, index);
+                    
+                    fileItem.appendChild(fileInfo);
+                    fileItem.appendChild(removeBtn);
+                    
+                    fileListDiv.appendChild(fileItem);
+                });
+                
+                // Validate file sizes
+                validateFileSizes(files);
+            } else {
+                console.log('No files, hiding selected files div');
+                selectedFilesDiv.classList.add('hidden');
+                
+                // Reset upload prompt to original state
+                const uploadPrompt = document.getElementById('uploadPrompt');
+                if (uploadPrompt) {
+                    uploadPrompt.innerHTML = `
+                        <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        <div class="text-sm text-gray-600">
+                            <span class="font-medium text-blue-600 hover:text-blue-500">Click to upload</span>
+                            or drag and drop
+                        </div>
+                        <p class="text-xs text-gray-500">Multiple files supported</p>
+                    `;
+                }
+            }
+        }
+        
+        function getFileIcon(filename) {
+            const extension = filename.split('.').pop().toLowerCase();
+            const icon = document.createElement('svg');
+            icon.className = 'w-5 h-5 text-gray-400';
+            icon.setAttribute('fill', 'none');
+            icon.setAttribute('stroke', 'currentColor');
+            icon.setAttribute('viewBox', '0 0 24 24');
+            
+            let iconPath = '';
+            let iconColor = 'text-gray-400';
+            
+            if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(extension)) {
+                iconColor = 'text-blue-500';
+                iconPath = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>';
+            } else if (['pdf'].includes(extension)) {
+                iconColor = 'text-red-500';
+                iconPath = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>';
+            } else if (['doc', 'docx'].includes(extension)) {
+                iconColor = 'text-blue-600';
+                iconPath = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>';
+            } else if (['mp4', 'avi', 'mov', 'wmv', 'mkv'].includes(extension)) {
+                iconColor = 'text-purple-500';
+                iconPath = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>';
+            } else {
+                iconColor = 'text-gray-500';
+                iconPath = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>';
+            }
+            
+            icon.className = `w-5 h-5 ${iconColor}`;
+            icon.innerHTML = iconPath;
+            return icon;
+        }
+        
+        function removeFile(input, index) {
+            const dt = new DataTransfer();
+            const files = Array.from(input.files);
+            
+            files.forEach((file, i) => {
+                if (i !== index) {
+                    dt.items.add(file);
+                }
+            });
+            
+            input.files = dt.files;
+            handleFileSelection(input);
+        }
+        
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        function validateFileSizes(files) {
+            const maxFileSizeField = document.querySelector('input[name="max_file_size"]');
+            let maxFileSize = 104857600; // Default 100MB in bytes
+            
+            if (maxFileSizeField && maxFileSizeField.value) {
+                maxFileSize = parseInt(maxFileSizeField.value);
+            }
+            
+            let hasInvalidFiles = false;
+            const invalidFiles = [];
+            
+            Array.from(files).forEach(file => {
+                if (file.size > maxFileSize) {
+                    hasInvalidFiles = true;
+                    invalidFiles.push(file.name);
+                }
+            });
+            
+            if (hasInvalidFiles) {
+                const maxSizeMB = maxFileSize / (1024 * 1024);
+                showFileSizeWarning(`The following files exceed the maximum size of ${maxSizeMB.toFixed(1)}MB: ${invalidFiles.join(', ')}`);
+            } else {
+                showFileSizeSuccess();
+            }
+        }
+        
+        // Drag and drop functionality
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        function handleDragEnter(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const dropZone = document.getElementById('fileDropZone');
+            dropZone.classList.add('border-blue-400', 'bg-blue-50');
+        }
+        
+        function handleDragLeave(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const dropZone = document.getElementById('fileDropZone');
+            dropZone.classList.remove('border-blue-400', 'bg-blue-50');
+        }
+        
+        function handleFileDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const dropZone = document.getElementById('fileDropZone');
+            dropZone.classList.remove('border-blue-400', 'bg-blue-50');
+            
+            const files = e.dataTransfer.files;
+            const fileInput = document.getElementById('{{ form.attachments.id_for_label }}');
+            
+            console.log('handleFileDrop called with', files.length, 'files');
+            
+            if (files.length > 0) {
+                // Create a new FileList with the dropped files
+                const dt = new DataTransfer();
+                Array.from(files).forEach(file => {
+                    console.log('Adding file to DataTransfer:', file.name);
+                    dt.items.add(file);
+                });
+                fileInput.files = dt.files;
+                
+                console.log('FileInput files after drop:', fileInput.files.length);
+                
+                // Trigger the file selection handler
+                handleFileSelection(fileInput);
+            }
+        }
+        
+        // Initialize file upload functionality
+        function initializeFileUpload() {
+            const fileInput = document.getElementById('{{ form.attachments.id_for_label }}');
+            console.log('Initializing file upload, fileInput:', fileInput);
+            
+            if (fileInput) {
+                // Make sure the change event is properly bound
+                fileInput.addEventListener('change', function(e) {
+                    console.log('File input change event triggered');
+                    handleFileSelection(e.target);
+                });
+                
+                // Check if there are already files selected (for edit mode)
+                if (fileInput.files && fileInput.files.length > 0) {
+                    console.log('Files already selected on page load:', fileInput.files.length);
+                    handleFileSelection(fileInput);
+                }
+            }
+        }
+        
+        // File size validation functions
+        function setupFileValidation() {
+            const fileInput = document.querySelector('input[name="attachments"]');
+            const maxFileSizeField = document.querySelector('input[name="max_file_size"]');
+            let maxFileSize = 104857600; // Default 100MB in bytes
+            let hasInvalidFiles = false;
+            
+            // Get max file size from the form field if available
+            if (maxFileSizeField && maxFileSizeField.value) {
+                maxFileSize = parseInt(maxFileSizeField.value);
+            }
+            
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+            
+            function showFileSizeWarning(message) {
+                const warningDiv = document.getElementById('fileSizeWarning');
+                const warningMessage = document.getElementById('fileSizeWarningMessage');
+                const successDiv = document.getElementById('fileSizeSuccess');
+                
+                if (warningDiv && warningMessage) {
+                    warningMessage.innerHTML = message;
+                    warningDiv.classList.remove('hidden');
+                    successDiv.classList.add('hidden');
+                    hasInvalidFiles = true;
+                }
+            }
+            
+            function showFileSizeSuccess() {
+                const warningDiv = document.getElementById('fileSizeWarning');
+                const successDiv = document.getElementById('fileSizeSuccess');
+                
+                if (warningDiv && successDiv) {
+                    warningDiv.classList.add('hidden');
+                    successDiv.classList.remove('hidden');
+                    hasInvalidFiles = false;
+                }
+            }
+            
+            function hideFileMessages() {
+                const warningDiv = document.getElementById('fileSizeWarning');
+                const successDiv = document.getElementById('fileSizeSuccess');
+                
+                if (warningDiv && successDiv) {
+                    warningDiv.classList.add('hidden');
+                    successDiv.classList.add('hidden');
+                    hasInvalidFiles = false;
+                }
+            }
+            
+            function validateFiles(files) {
+                if (!files || files.length === 0) {
+                    hideFileMessages();
+                    return true;
+                }
+                
+                const invalidFiles = [];
+                const maxSizeMB = (maxFileSize / (1024 * 1024)).toFixed(1);
+                
+                Array.from(files).forEach(file => {
+                    if (file.size > maxFileSize) {
+                        invalidFiles.push({
+                            name: file.name,
+                            size: formatFileSize(file.size)
+                        });
+                    }
+                });
+                
+                if (invalidFiles.length > 0) {
+                    let message = `<strong>The following file(s) exceed the ${maxSizeMB}MB size limit:</strong><br><br>`;
+                    message += '<ul class="list-disc list-inside mt-2">';
+                    invalidFiles.forEach(file => {
+                        message += `<li><strong>${file.name}</strong> (${file.size})</li>`;
+                    });
+                    message += '</ul>';
+                    message += `<br><div class="mt-3 p-2 bg-red-100 rounded">
+                        <strong>⚠️ Upload will fail with "413 Request Entity Too Large" error</strong><br>
+                        Please reduce file sizes or split large files before uploading.
+                    </div>`;
+                    
+                    showFileSizeWarning(message);
+                    return false;
+                } else {
+                    showFileSizeSuccess();
+                    return true;
+                }
+            }
+            
+            // Add event listener to file input
+            if (fileInput) {
+                fileInput.addEventListener('change', function(e) {
+                    console.log('File input changed, validating files...');
+                    validateFiles(e.target.files);
+                });
+                
+                // Also validate on drag and drop if supported
+                fileInput.addEventListener('drop', function(e) {
+                    console.log('Files dropped, validating...');
+                    setTimeout(() => {
+                        validateFiles(e.target.files);
+                    }, 100); // Small delay to ensure files are processed
+                });
+            }
+            
+            // Return validation status for form submission
+            return function() {
+                return !hasInvalidFiles;
+            };
+        }
+        
+        // Initialize file validation and get validation function
+        const validateFileSize = setupFileValidation();
+        
+        // Initialize file upload functionality
+        initializeFileUpload();
+        
+        // Initialize field validation
+        setupFieldValidation();
+        
+        // Highlight server-side validation errors
+        highlightServerSideErrors();
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,78 @@
+/* Form Fields CSS - Modular structure to avoid conflicts */
+
+/* Base form styling */
+.form-field {
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
+/* Title field */
+.title-field {
+  position: relative;
+}
+.title-field input {
+  width: 100%;
+  font-weight: 600;
+  transition: border-color 0.3s ease;
+}
+.title-field label {
+  font-weight: 600;
+  color: #374151;
+}
+
+/* Description field */
+.description-field {
+  position: relative;
+}
+.description-field label {
+  font-weight: 600;
+  color: #374151;
+}
+
+/* Category field */
+.category-field {
+  position: relative;
+}
+.category-field select {
+  width: 100%;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+}
+
+/* Image field */
+.image-field {
+  position: relative;
+}
+.image-preview {
+  margin-top: 0.5rem;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+/* Settings fields */
+.settings-field {
+  position: relative;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+.settings-field:last-child {
+  border-bottom: none;
+}
+
+/* Topics section */
+.topics-section {
+  margin-top: 2rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+.topic-item {
+  position: relative;
+  transition: all 0.2s ease;
+}
+.topic-item:hover {
+  background-color: #f9fafb;
+} 

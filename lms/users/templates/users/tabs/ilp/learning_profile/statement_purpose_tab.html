@@ -1,0 +1,125 @@
+<!-- Statement of Purpose Sub-Tab -->
+<div id="statement-purpose-tab" class="learning-profile-tab-content" style="display: none;">
+    <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+        <h4 class="text-lg font-semibold text-gray-900 mb-4">Learning Motivation & Goals</h4>
+        
+        <div class="space-y-6">
+            <!-- Course Motivation Section -->
+            <div class="form-section">
+                <h5 class="text-md font-semibold text-gray-800 mb-3 flex items-center">
+                    <i class="fas fa-question-circle mr-2 text-blue-600"></i>Course Motivation
+                </h5>
+                <div class="form-group">
+                    <label for="ilp_reason_for_course" class="form-label">Why are you pursuing this course?</label>
+                    <textarea id="ilp_reason_for_course" name="ilp_reason_for_course" 
+                              class="form-textarea" rows="4" 
+                              placeholder="Explain your motivation and what you hope to achieve through this course">{% if is_edit_mode and profile_user.individual_learning_plan.statement_of_purpose %}{{ profile_user.individual_learning_plan.statement_of_purpose.reason_for_course|default:'' }}{% endif %}</textarea>
+                    <div class="form-help-text">Explain your motivation and what you hope to achieve through this course</div>
+                </div>
+            </div>
+            
+            <!-- Career Objectives Section -->
+            <div class="form-section">
+                <h5 class="text-md font-semibold text-gray-800 mb-3 flex items-center">
+                    <i class="fas fa-bullseye mr-2 text-green-600"></i>Career Objectives
+                </h5>
+                <div class="form-group">
+                    <label for="ilp_career_objectives" class="form-label">What are your career objectives?</label>
+                    <textarea id="ilp_career_objectives" name="ilp_career_objectives" 
+                              class="form-textarea" rows="4" 
+                              placeholder="Describe your short-term and long-term career goals">{% if is_edit_mode and profile_user.individual_learning_plan.statement_of_purpose %}{{ profile_user.individual_learning_plan.statement_of_purpose.career_objectives|default:'' }}{% endif %}</textarea>
+                    <div class="form-help-text">Describe your short-term and long-term career goals and how this course fits into your career plan</div>
+                </div>
+            </div>
+            
+            <!-- Experience Section -->
+            <div class="form-section">
+                <h5 class="text-md font-semibold text-gray-800 mb-3 flex items-center">
+                    <i class="fas fa-briefcase mr-2 text-purple-600"></i>Background & Experience
+                </h5>
+                <div class="form-group">
+                    <label for="ilp_relevant_experience" class="form-label">Relevant Experience</label>
+                    <textarea id="ilp_relevant_experience" name="ilp_relevant_experience" 
+                              class="form-textarea" rows="4" 
+                              placeholder="Describe any relevant past work, education, or life experience">{% if is_edit_mode and profile_user.individual_learning_plan.statement_of_purpose %}{{ profile_user.individual_learning_plan.statement_of_purpose.relevant_experience|default:'' }}{% endif %}</textarea>
+                    <div class="form-help-text">Describe any relevant past work, education, or life experience that relates to this course</div>
+                </div>
+            </div>
+            
+            <!-- Additional Information Section -->
+            <div class="form-section">
+                <h5 class="text-md font-semibold text-gray-800 mb-3 flex items-center">
+                    <i class="fas fa-info-circle mr-2 text-indigo-600"></i>Additional Information
+                </h5>
+                <div class="form-group">
+                    <label for="ilp_additional_info" class="form-label">Additional Information</label>
+                    <textarea id="ilp_additional_info" name="ilp_additional_info" 
+                              class="form-textarea" rows="3" 
+                              placeholder="Any additional information you'd like to share">{% if is_edit_mode and profile_user.individual_learning_plan.statement_of_purpose %}{{ profile_user.individual_learning_plan.statement_of_purpose.additional_info|default:'' }}{% endif %}</textarea>
+                    <div class="form-help-text">Any additional information you'd like to share about your background, interests, or goals</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Ensure tab state is preserved when making updates in this tab
+document.addEventListener('DOMContentLoaded', function() {
+    // Set tab state for form submission
+    function updateTabState() {
+        // Update global tab state explicitly for this tab
+        if (typeof currentTabState !== 'undefined') {
+            currentTabState.mainTab = 'ilp-tab';
+            currentTabState.subTab = 'learning-profile-tab';
+            currentTabState.nestedTab = 'statement-purpose-tab';
+            
+            console.log('Statement of Purpose tab: Setting tab state to:', currentTabState);
+            
+            // Update hidden form fields directly
+            var activeTabField = document.getElementById('activeTabField');
+            var activeSubTabField = document.getElementById('activeSubTabField');
+            var activeNestedTabField = document.getElementById('activeNestedTabField');
+            
+            if (activeTabField) activeTabField.value = currentTabState.mainTab;
+            if (activeSubTabField) activeSubTabField.value = currentTabState.subTab;
+            if (activeNestedTabField) activeNestedTabField.value = currentTabState.nestedTab;
+        }
+    }
+    
+    // Update tab state when the tab becomes visible
+    var tabElement = document.getElementById('statement-purpose-tab');
+    if (tabElement) {
+        // Create a mutation observer to detect when the tab becomes visible
+        var observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && 
+                    mutation.attributeName === 'style' &&
+                    tabElement.style.display !== 'none') {
+                    updateTabState();
+                }
+                
+                if (mutation.type === 'attributes' && 
+                    mutation.attributeName === 'class' &&
+                    tabElement.classList.contains('active')) {
+                    updateTabState();
+                }
+            });
+        });
+        
+        observer.observe(tabElement, { attributes: true });
+        
+        // Also check if it's already visible
+        if (tabElement.style.display !== 'none' || tabElement.classList.contains('active')) {
+            updateTabState();
+        }
+    }
+    
+    // Add input listeners to all form elements in this tab
+    var formElements = document.querySelectorAll('#statement-purpose-tab input, #statement-purpose-tab textarea, #statement-purpose-tab select');
+    formElements.forEach(function(element) {
+        element.addEventListener('focus', updateTabState);
+        element.addEventListener('change', updateTabState);
+    });
+});
+</script> 

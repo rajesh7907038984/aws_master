@@ -1,0 +1,1822 @@
+{% load static %}
+<!-- Main Header -->
+<header class="bg-white border-b border-gray-200 fixed top-0 left-0 right-0 w-full z-50 h-16 min-h-[4rem]">
+    <div class="flex items-center justify-between h-full px-2 sm:px-4 mx-auto max-w-[1920px]">
+        <!-- Left Section: Logo and Sidebar Toggle -->
+        <div class="flex items-center gap-1 sm:gap-2 md:gap-4 flex-shrink-0">
+            <a href="{% url 'users:role_based_redirect' %}" class="flex items-center transition-transform hover:scale-105 flex-shrink-0">
+                <img src="{% static 'core/img/logo-light.png' %}" alt="Nexsy LMS" class="h-6 sm:h-7 md:h-9 w-auto" style="display: block !important; visibility: visible !important; opacity: 1 !important;">
+            </a>
+            
+            <!-- Sidebar Toggle Button (moved after logo) -->
+            <button id="mobile-menu-toggle" class="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0" style="display: flex !important; visibility: visible !important; opacity: 1 !important;" type="button">
+                <!-- Hamburger menu icon (three horizontal lines) -->
+                <svg class="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="display: inline !important; visibility: visible !important; opacity: 1 !important;">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Center Section: Search (Desktop only) -->
+        <div class="hidden md:flex flex-1 max-w-3xl px-6">
+            <form class="flex w-full shadow-sm rounded-xl overflow-hidden bg-gray-50 ring-1 ring-gray-200 focus-within:ring-2 focus-within:ring-primary-500 transition-all" method="GET" action="{% url 'users:search' %}">
+                <!-- Category Selector -->
+                <div class="relative">
+                    <select name="category" class="h-10 pl-4 pr-8 text-sm bg-transparent border-0 rounded-l-xl text-gray-600 focus:outline-none focus:ring-0 cursor-pointer appearance-none">
+                        <option value="all" selected>Select Option</option>
+                        <option value="courses">Courses</option>
+                        {% if user.role in 'globaladmin,superadmin,admin,instructor' %}
+                        <option value="users">Users</option>
+                        {% endif %}
+                        {% for category in categories %}
+                        <option value="{{ category.slug }}" {% if request.GET.category == category.slug %}selected{% endif %}>{{ category.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                        <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </div>
+                </div>
+                
+                <!-- Search Input -->
+                <div class="relative flex-1 flex items-center">
+                    <div class="absolute left-3">
+                        <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+                        </svg>
+                    </div>
+                    <input type="text" 
+                           name="q"
+                           placeholder="Search anything..." 
+                           class="w-full h-10 pl-10 pr-4 bg-transparent border-0 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-0 rounded-r-xl">
+                </div>
+            </form>
+        </div>
+
+        <!-- Mobile Search Toggle (Visible on mobile only) -->
+        <button id="mobile-search-toggle" class="md:hidden flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0">
+            <svg class="w-4 h-4 sm:w-4 sm:h-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+            </svg>
+        </button>
+
+        <!-- Right Section: Notifications and Profile -->
+        <div class="flex items-center gap-1 sm:gap-2 md:gap-3 flex-shrink-0">
+            <!-- Messages Button - Hidden on smallest screens -->
+            <a href="{% url 'lms_messages:messages' %}" class="header-icon discussion-icon hidden xs:flex relative items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0" title="Messages ({{ unread_messages_count }} unread)" style="display: flex !important; visibility: visible !important; opacity: 1 !important;">
+                <svg class="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="display: inline !important; visibility: visible !important; opacity: 1 !important;">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                {% if unread_messages_count > 0 %}
+                <span class="absolute top-1 right-1 sm:top-1 sm:right-1 md:top-2 md:right-2 w-2 h-2 bg-blue-500 rounded-full" style="display: block !important; visibility: visible !important; opacity: 1 !important;"></span>
+                {% if unread_messages_count > 9 %}
+                <span class="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full px-1 min-w-[1rem] h-4 flex items-center justify-center" style="font-size: 9px;" id="messages-count-badge">9+</span>
+                {% elif unread_messages_count > 0 %}
+                <span class="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full px-1 min-w-[1rem] h-4 flex items-center justify-center" style="font-size: 9px;" id="messages-count-badge">{{ unread_messages_count }}</span>
+                {% endif %}
+                {% endif %}
+            </a>
+
+            <!-- Notification Bell Button -->
+            <a href="{% url 'lms_notifications:notification_center' %}" class="header-icon notification-icon relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0" title="Notifications ({{ unread_notifications_count }} unread{% if urgent_notifications_count > 0 %}, {{ urgent_notifications_count }} urgent{% endif %})" style="display: flex !important; visibility: visible !important; opacity: 1 !important;">
+                <svg class="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="display: inline !important; visibility: visible !important; opacity: 1 !important;">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                <span id="notification-indicator" class="absolute top-1 right-1 sm:top-1 sm:right-1 md:top-2 md:right-2 w-2 h-2 rounded-full {% if unread_notifications_count > 0 %}{% if urgent_notifications_count > 0 %}bg-red-500 animate-pulse{% else %}bg-orange-500{% endif %}{% else %}hidden{% endif %}" style="{% if unread_notifications_count > 0 %}display: block !important; visibility: visible !important; opacity: 1 !important;{% endif %}"></span>
+                <span id="notification-count-badge" class="absolute -top-1 -right-1 text-white text-xs rounded-full px-1 min-w-[1rem] h-4 flex items-center justify-center {% if unread_notifications_count > 0 %}{% if urgent_notifications_count > 0 %}bg-red-500 animate-pulse{% else %}bg-orange-500{% endif %}{% else %}hidden{% endif %}" style="font-size: 9px; {% if unread_notifications_count == 0 %}display: none;{% endif %}">{% if unread_notifications_count > 9 %}9+{% elif unread_notifications_count > 0 %}{{ unread_notifications_count }}{% endif %}</span>
+            </a>
+
+            <!-- Profile Picture with Dropdown -->
+            <div class="flex items-center relative flex-shrink-0" x-data="{ isOpen: false, branchMenuOpen: false }">
+                <button 
+                    @click="isOpen = !isOpen; branchMenuOpen = false" 
+                    @click.away="isOpen = false; branchMenuOpen = false"
+                    class="relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all overflow-hidden flex-shrink-0"
+                >
+                    {% if user.profile_image %}
+                    <img src="{{ user.profile_image.url }}" alt="{{ user.username }}" class="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full object-cover">
+                    {% else %}
+                    <img src="{% static 'img/default-avatar.svg' %}" alt="Profile" class="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full object-cover">
+                    {% endif %}
+                </button>
+
+                <!-- Dropdown Menu -->
+                <div 
+                    x-show="isOpen"
+                    x-transition:enter="transition ease-out duration-100"
+                    x-transition:enter-start="transform opacity-0 scale-95"
+                    x-transition:enter-end="transform opacity-100 scale-100"
+                    x-transition:leave="transition ease-in duration-75"
+                    x-transition:leave-start="transform opacity-100 scale-100"
+                    x-transition:leave-end="transform opacity-0 scale-95"
+                    class="absolute right-0 top-12 w-48 py-2 bg-white rounded-xl shadow-lg ring-1 ring-gray-200"
+                    style="display: none;"
+                >
+                    {% if user.is_authenticated %}
+                    <a href="{% url 'users:user_profile' user.id %}" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
+                        <svg class="w-4 h-4 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        View Profile
+                    </a>
+                    
+                    <a href="{% url 'users:edit_user' user.id %}" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
+                        <svg class="w-4 h-4 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        Edit Profile
+                    </a>
+                    
+                    <!-- Branch Switcher for Admin Users -->
+                    {% if user.role == 'admin' and user_branch_access.can_switch_branches %}
+                    <div class="border-t border-gray-100 my-1"></div>
+                    <div class="px-4 py-2" @click="$event.stopPropagation()">
+                        <div class="flex items-center text-xs text-gray-500 mb-2">
+                            <svg class="w-3 h-3 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h2M7 16h6M7 8h6m-6 4h6" />
+                            </svg>
+                            Current Branch
+                        </div>
+                        <div class="text-sm font-medium text-gray-900 mb-3" id="current-branch-display">
+                            {{ user_branch_access.effective_branch.name|default:"Primary Branch" }}
+                        </div>
+                        
+                        <!-- Branch Switcher Dropdown -->
+                        <div class="relative">
+                            <button 
+                                @click="branchMenuOpen = !branchMenuOpen; $event.stopPropagation()" 
+                                class="flex items-center w-full px-3 py-2 text-sm text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+                            >
+                                <svg class="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                </svg>
+                                Switch Branch
+                                <svg class="w-4 h-4 ml-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" :class="{'rotate-180': branchMenuOpen}">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+                            
+                            <!-- Branch Options -->
+                            <div 
+                                x-show="branchMenuOpen"
+                                @click="$event.stopPropagation()"
+                                x-transition:enter="transition ease-out duration-100"
+                                x-transition:enter-start="transform opacity-0 scale-95"
+                                x-transition:enter-end="transform opacity-100 scale-100"
+                                x-transition:leave="transition ease-in duration-75"
+                                x-transition:leave-start="transform opacity-100 scale-100"
+                                x-transition:leave-end="transform opacity-0 scale-95"
+                                class="absolute left-0 top-full mt-2 w-64 bg-white rounded-lg shadow-lg ring-1 ring-gray-200 z-50"
+                                style="display: none;"
+                                id="branch-switcher-menu"
+                            >
+                                <div class="py-2" id="branch-options">
+                                    <!-- Branch options will be loaded here via JavaScript -->
+                                    <div class="flex items-center justify-center py-4">
+                                        <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                                        <span class="ml-2 text-sm text-gray-500">Loading branches...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="border-t border-gray-100 my-1"></div>
+                    {% endif %}
+                    
+                    <form action="{% url 'logout' %}" method="POST" class="w-full">
+                        {% csrf_token %}
+                        <button type="submit" class="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
+                            <svg class="w-4 h-4 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            </svg>
+                            Logout
+                        </button>
+                    </form>
+                    {% else %}
+                    <a href="{% url 'login' %}" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
+                        <svg class="w-4 h-4 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                        </svg>
+                        Login
+                    </a>
+                    <a href="{% url 'users:register' %}" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
+                        <svg class="w-4 h-4 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                        </svg>
+                        Register
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Search Form - Hidden by default until toggle -->
+    <div id="mobile-search-container" class="md:hidden hidden px-2 sm:px-4 py-3 border-t border-gray-200 bg-white shadow-sm">
+        <form class="flex w-full shadow-sm rounded-xl overflow-hidden bg-gray-50 ring-1 ring-gray-200 focus-within:ring-2 focus-within:ring-primary-500 transition-all" method="GET" action="{% url 'users:search' %}">
+            <!-- Category Selector -->
+            <div class="relative flex-shrink-0">
+                <select name="category" class="h-9 sm:h-10 pl-2 sm:pl-3 pr-5 sm:pr-6 text-xs sm:text-sm bg-transparent border-0 rounded-l-xl text-gray-600 focus:outline-none focus:ring-0 cursor-pointer appearance-none">
+                    <option value="all" selected>All</option>
+                    <option value="courses">Courses</option>
+                    {% if user.role in 'globaladmin,superadmin,admin,instructor' %}
+                    <option value="users">Users</option>
+                    {% endif %}
+                    {% for category in categories %}
+                    <option value="{{ category.slug }}" {% if request.GET.category == category.slug %}selected{% endif %}>{{ category.name }}</option>
+                    {% endfor %}
+                </select>
+                <div class="absolute right-1 sm:right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                    <svg class="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </div>
+            </div>
+            
+            <!-- Search Input -->
+            <div class="relative flex-1 flex items-center min-w-0">
+                <div class="absolute left-2 sm:left-3">
+                    <svg class="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <input type="text" 
+                       name="q"
+                       placeholder="Search..." 
+                       class="w-full h-9 sm:h-10 pl-7 sm:pl-10 pr-2 sm:pr-4 bg-transparent border-0 text-xs sm:text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-0 rounded-r-xl">
+            </div>
+        </form>
+    </div>
+</header>
+
+<!-- Mobile Navigation Menu - Hidden by default -->
+<div id="mobile-menu" class="fixed inset-0 z-40 hidden">
+    <!-- Overlay -->
+    <div id="mobile-menu-overlay" class="absolute inset-0 bg-black bg-opacity-50"></div>
+    
+    <!-- Menu Content -->
+    <div class="absolute top-0 left-0 w-64 h-full bg-[#1C2260] shadow-lg transform transition-all duration-300 ease-in-out">
+        <div class="flex items-center justify-between p-4 border-b border-gray-200" style="background-color: #191f56;">
+            <a href="{% url 'users:role_based_redirect' %}" class="flex items-center">
+                <img src="{% static 'img/logo-dark.png' %}" alt="Nexsy LMS" class="h-8" style="display: block !important; visibility: visible !important; opacity: 1 !important;">
+            </a>
+            <button id="close-mobile-menu" class="flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-100 text-white hover:text-gray-900 transition-all">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <div class="py-4 h-full overflow-y-auto bg-[#1C2260]">
+            <!-- Mobile menu content will be dynamically loaded from sidebar once -->
+        </div>
+    </div>
+</div>
+
+
+<style>
+    header {
+        box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    }
+
+    /* Add extra small screen breakpoint */
+    @media (min-width: 480px) {
+        .xs\:flex {
+            display: flex !important;
+        }
+    }
+
+    /* Dropdown styling */
+    select option {
+        background: white;
+        color: #111827;
+        padding: 0.5rem 1rem;
+    }
+
+    /* Custom scrollbar for dropdowns */
+    select::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    select::-webkit-scrollbar-track {
+        background: #f3f4f6;
+    }
+
+    select::-webkit-scrollbar-thumb {
+        background: #d1d5db;
+        border-radius: 9999px;
+    }
+
+    /* Smooth transitions */
+    .transition-all {
+        transition-property: all;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 200ms;
+    }
+
+    /* Dropdown menu shadow */
+    .shadow-lg {
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Mobile Menu Transition */
+    #mobile-menu {
+        transition: transform 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        transform: translateX(-100%);
+        z-index: 40;
+        visibility: hidden;
+    }
+    
+    #mobile-menu.open {
+        transform: translateX(0);
+        display: block !important;
+        visibility: visible !important;
+    }
+    
+    #mobile-menu-overlay {
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+        pointer-events: none;
+        z-index: 39;
+    }
+    
+    #mobile-menu.open #mobile-menu-overlay {
+        opacity: 0.5;
+        pointer-events: auto;
+    }
+    
+    /* Fix mobile menu positioning and visibility */
+    #mobile-menu {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        background: rgba(0, 0, 0, 0.5) !important;
+        z-index: 50 !important;
+        display: none !important;
+    }
+    
+    #mobile-menu.open {
+        display: block !important;
+    }
+    
+    #mobile-menu .absolute.top-0.left-0 {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 16rem !important;
+        height: 100% !important;
+        background: #1C2260 !important;
+        z-index: 51 !important;
+        transform: translateX(0) !important;
+    }
+    
+    /* Ensure mobile menu content is properly positioned */
+    #mobile-menu:not(.open) .absolute.top-0.left-0 {
+        transform: translateX(-100%) !important;
+    }
+
+    /* Mobile menu styles to match sidebar */
+    #mobile-menu .py-4 {
+        background-color: #1C2260 !important;
+    }
+
+    #mobile-menu .menu-item {
+        position: relative;
+        width: 100%;
+        cursor: pointer;
+        color: white !important;
+        padding: 0.4rem 0.5rem !important;
+        min-height: 24px;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        transition: all 0.3s ease;
+    }
+
+    #mobile-menu a.menu-item,
+    #mobile-menu button.menu-item {
+        color: white !important;
+        text-decoration: none;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        transition: all 0.3s ease;
+        position: relative;
+        background-color: transparent !important;
+        padding: 12px 24px !important;
+        height: 48px !important;
+        min-height: 48px !important;
+        border: none;
+        background: transparent;
+        text-align: left;
+        outline: none;
+    }
+
+    #mobile-menu .icon-container {
+        min-width: 16px;
+        width: 16px;
+    }
+
+    #mobile-menu .icon-container svg {
+        width: 16px;
+        height: 16px;
+        stroke-width: 2;
+        fill: none !important;
+        color: white !important;
+        stroke: white !important;
+    }
+
+    #mobile-menu .menu-text {
+        color: white !important;
+        font-size: 0.75rem;
+        line-height: 1.1rem;
+        margin-left: 0.5rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Active state - dark blue background with white text and icons */
+    #mobile-menu a.menu-item.active,
+    #mobile-menu button.menu-item.active {
+        background-color: #050c50 !important;
+        color: white !important;
+        border-radius: 0 !important;
+        border-left: 4px solid #02f711 !important;
+    }
+
+    /* Hover state - dark blue background with white text and icons */
+    #mobile-menu a.menu-item:hover,
+    #mobile-menu button.menu-item:hover {
+        background-color: #050c50 !important;
+        color: white !important;
+        border-radius: 0 !important;
+        border-left: 4px solid #02f711 !important;
+    }
+
+    #mobile-menu a.menu-item:hover svg,
+    #mobile-menu button.menu-item:hover svg,
+    #mobile-menu a.menu-item:hover .icon-container svg,
+    #mobile-menu button.menu-item:hover .icon-container svg {
+        color: white !important;
+        stroke: #ffffff !important;
+        fill: none !important;
+    }
+
+    #mobile-menu a.menu-item:hover span.menu-text,
+    #mobile-menu button.menu-item:hover span.menu-text {
+        color: white !important;
+    }
+
+    #mobile-menu .submenu {
+        background-color: rgba(0, 0, 0, 0.1) !important;
+        max-height: 0;
+        overflow: hidden !important;
+        transition: max-height 0.3s ease, opacity 0.3s ease !important;
+        opacity: 0;
+        display: block !important;
+        visibility: hidden;
+    }
+
+    #mobile-menu .submenu.hidden {
+        max-height: 0 !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        display: block !important;
+    }
+
+    #mobile-menu .submenu:not(.hidden) {
+        max-height: 1200px !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        display: block !important;
+        background-color: rgba(0, 0, 0, 0.1) !important;
+        overflow: visible !important;
+    }
+
+    #mobile-menu .submenu a.menu-item,
+    #mobile-menu .submenu button.menu-item {
+        padding: 12px 24px 12px 52px !important;
+        font-size: 0.875rem !important;
+        opacity: 0.9;
+        height: 48px !important;
+        min-height: 48px !important;
+        background-color: transparent !important;
+        color: white !important;
+        text-decoration: none;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        transition: all 0.3s ease;
+        position: relative;
+        border: none;
+        text-align: left;
+        outline: none;
+    }
+
+    #mobile-menu .submenu a.menu-item:hover,
+    #mobile-menu .submenu button.menu-item:hover {
+        background-color: #050c50 !important;
+        opacity: 1;
+        color: white !important;
+    }
+
+    #mobile-menu .submenu a.menu-item svg,
+    #mobile-menu .submenu button.menu-item svg,
+    #mobile-menu .submenu a.menu-item .icon-container svg,
+    #mobile-menu .submenu button.menu-item .icon-container svg {
+        color: white !important;
+        stroke: white !important;
+        fill: none !important;
+        width: 14px !important;
+        height: 14px !important;
+    }
+
+    #mobile-menu .submenu a.menu-item span.menu-text,
+    #mobile-menu .submenu button.menu-item span.menu-text {
+        color: white !important;
+        font-size: 0.875rem !important;
+        margin-left: 0.5rem;
+    }
+
+    #mobile-menu .menu-item.has-submenu {
+        position: relative;
+    }
+
+    #mobile-menu .menu-item.has-submenu .arrow-icon {
+        position: absolute;
+        right: 1rem;
+        transition: transform 0.3s ease;
+        width: 12px !important;
+        height: 12px !important;
+        color: white !important;
+        stroke: white !important;
+        fill: none !important;
+    }
+
+    #mobile-menu .menu-item.has-submenu.expanded .arrow-icon {
+        transform: rotate(180deg);
+    }
+
+    #mobile-menu .menu-item.has-submenu:hover .arrow-icon {
+        color: white !important;
+        stroke: white !important;
+    }
+    
+    /* Prevent duplicate menu items on mobile */
+    #mobile-menu .py-4 .menu-item:nth-child(n+2):nth-child(-n+2):has(~ .menu-item:nth-child(n+2):nth-child(-n+2)):not(:first-child) {
+        display: none !important;
+    }
+
+    /* Enhanced mobile submenu styling */
+    #mobile-menu .submenu {
+        margin-left: 0 !important;
+        padding-left: 0 !important;
+        border-left: none !important;
+    }
+
+    #mobile-menu .submenu .menu-item {
+        border-left: 3px solid transparent !important;
+        margin-left: 0 !important;
+    }
+
+    #mobile-menu .submenu .menu-item:hover {
+        border-left: 3px solid #02f711 !important;
+    }
+
+    #mobile-menu .submenu .menu-item.active {
+        border-left: 3px solid #02f711 !important;
+        background-color: #050c50 !important;
+    }
+
+    /* Ensure mobile submenu icons are properly sized */
+    #mobile-menu .submenu .icon-container {
+        min-width: 14px !important;
+        width: 14px !important;
+        height: 14px !important;
+        margin-right: 0.5rem !important;
+    }
+
+    #mobile-menu .submenu .icon-container svg {
+        width: 14px !important;
+        height: 14px !important;
+        stroke-width: 1.5 !important;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        #main-content {
+            margin-left: 0 !important;
+            width: 100% !important;
+        }
+        
+        /* Ensure mobile menu is properly hidden when not open */
+        #mobile-menu:not(.open) {
+            display: none !important;
+        }
+        
+        /* Mobile submenu responsive fixes */
+        #mobile-menu .submenu {
+            max-width: 100% !important;
+            overflow-x: hidden !important;
+        }
+        
+        #mobile-menu .submenu .menu-item {
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }
+        
+        #mobile-menu .submenu .menu-text {
+            max-width: calc(100% - 2rem) !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }
+    }
+    
+    /* Extra small screens */
+    @media (max-width: 480px) {
+        #mobile-menu .submenu a.menu-item,
+        #mobile-menu .submenu button.menu-item {
+            padding: 10px 16px 10px 40px !important;
+            font-size: 0.8rem !important;
+            height: 44px !important;
+            min-height: 44px !important;
+        }
+        
+        #mobile-menu .submenu .icon-container {
+            min-width: 12px !important;
+            width: 12px !important;
+            height: 12px !important;
+        }
+        
+        #mobile-menu .submenu .icon-container svg {
+            width: 12px !important;
+            height: 12px !important;
+        }
+    }
+    
+    /* Header height adjustment on very small screens */
+    @media (max-width: 480px) {
+        header {
+            height: auto;
+            min-height: 3.5rem;
+        }
+        
+        header .flex.items-center {
+            padding: 0.5rem 0;
+        }
+        
+        /* Reduce right section gap on very small screens */
+        header .right-section {
+            gap: 0.25rem;
+        }
+        
+        /* Ensure header elements don't overflow */
+        header .flex.items-center.gap-1 {
+            gap: 0.25rem;
+        }
+        
+        /* Make sure logo and buttons fit */
+        header img {
+            max-height: 1.5rem;
+        }
+        
+        /* Adjust button sizes for very small screens */
+        header button,
+        header a.header-icon {
+            width: 2rem;
+            height: 2rem;
+            min-width: 2rem;
+            min-height: 2rem;
+        }
+        
+        /* Adjust notification badges */
+        header .absolute.-top-1.-right-1 {
+            font-size: 8px;
+            min-width: 0.875rem;
+            height: 0.875rem;
+            padding: 0 0.125rem;
+        }
+    }
+    
+    /* Extra small screens (320px and below) */
+    @media (max-width: 320px) {
+        header {
+            min-height: 3rem;
+        }
+        
+        header .flex.items-center {
+            padding: 0.25rem 0;
+        }
+        
+        /* Hide messages button on very small screens */
+        header .discussion-icon {
+            display: none !important;
+        }
+        
+        /* Further reduce gaps */
+        header .flex.items-center.gap-1 {
+            gap: 0.125rem;
+        }
+        
+        /* Smaller logo */
+        header img {
+            max-height: 1.25rem;
+        }
+    }
+
+    /* Enhanced fix for header icons */
+    .header-icon,
+    .discussion-icon,
+    .notification-icon {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        position: relative !important;
+        z-index: 10 !important;
+    }
+    
+    /* Fix header icon positioning and alignment */
+    header .flex.items-center.gap-1 {
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.25rem !important;
+    }
+    
+    /* Ensure header icons are properly sized and positioned */
+    .header-icon,
+    .discussion-icon,
+    .notification-icon {
+        min-width: 2rem !important;
+        min-height: 2rem !important;
+        width: 2rem !important;
+        height: 2rem !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    
+    /* Mobile menu toggle button proper alignment */
+    button#mobile-menu-toggle {
+        margin-left: 0;
+    }
+    
+    /* Fix for icon SVGs */
+    .header-icon svg,
+    .discussion-icon svg,
+    .notification-icon svg {
+        display: inline !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+    
+    /* Mobile search container animations */
+    #mobile-search-container {
+        transition: all 0.3s ease-in-out;
+        transform: translateY(-10px);
+        opacity: 0;
+    }
+    
+    #mobile-search-container:not(.hidden) {
+        transform: translateY(0);
+        opacity: 1;
+    }
+    
+    /* Mobile search toggle active state */
+    #mobile-search-toggle.active {
+        background-color: #3b82f6 !important;
+        color: white !important;
+    }
+    
+    #mobile-search-toggle.active:hover {
+        background-color: #2563eb !important;
+    }
+    
+    /* Fix for notification dots */
+    .header-icon span,
+    .discussion-icon span,
+    .notification-icon span {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+    
+    /* Override the hidden class for the discussion icon */
+    a.discussion-icon.hidden {
+        display: flex !important;
+    }
+    
+    /* Mobile search visibility rules */
+    @media (max-width: 767px) {
+        /* Force hide desktop search on mobile devices */
+        .hidden.md\:flex {
+            display: none !important;
+            visibility: hidden !important;
+        }
+        
+        /* Specifically target the desktop search container */
+        .hidden.md\:flex.flex-1.max-w-3xl.px-6,
+        header .hidden.md\:flex {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+        
+        /* Ensure mobile search toggle is visible and properly positioned */
+        #mobile-search-toggle {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            position: relative !important;
+            z-index: 10 !important;
+        }
+        
+        /* Prevent duplicate search icons/elements */
+        header .flex.items-center.gap-1 > button[class*="search"]:not(#mobile-search-toggle),
+        header .flex.items-center.gap-1 > .search-icon:not(#mobile-search-toggle *) {
+            display: none !important;
+        }
+        
+        /* Ensure only one mobile search container is visible */
+        #mobile-search-container ~ #mobile-search-container {
+            display: none !important;
+        }
+        
+        /* Prevent duplicate category dropdowns in mobile search */
+        #mobile-search-container .relative.flex-shrink-0 ~ .relative.flex-shrink-0 {
+            display: none !important;
+        }
+        
+        /* Ensure proper mobile search container positioning */
+        #mobile-search-container {
+            position: relative;
+            z-index: 10;
+            background: white;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        /* Fix mobile search container animations */
+        #mobile-search-container {
+            transition: all 0.3s ease-in-out;
+            transform: translateY(-10px);
+            opacity: 0;
+        }
+        
+        #mobile-search-container:not(.hidden) {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+    
+    /* Hide mobile search toggle on desktop */
+    @media (min-width: 768px) {
+        #mobile-search-toggle {
+            display: none !important;
+        }
+        
+        #mobile-search-container {
+            display: none !important;
+        }
+    }
+</style>
+
+<!-- Ensure all header icons are visible script -->
+<script>
+// Consolidated header JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+    // Branch Switcher JavaScript
+    {% if user.role == 'admin' and user_branch_access.can_switch_branches %}
+    let branchData = null;
+    let isLoading = false;
+    
+    // Load branch data when dropdown is opened
+    const branchMenuButton = document.querySelector('#branch-switcher-menu');
+    if (branchMenuButton) {
+        // Load branches when menu is first opened
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('[x-data]')) {
+                const dropdown = e.target.closest('[x-data]');
+                if (dropdown && dropdown.getAttribute('x-data').includes('branchMenuOpen') && !isLoading && !branchData) {
+                    loadUserBranches();
+                }
+            }
+        });
+    }
+    
+    async function loadUserBranches() {
+        if (isLoading) return;
+        isLoading = true;
+        
+        try {
+            const response = await fetch('{% url "branches:get_user_branches" %}', {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Accept': 'application/json',
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to load branches');
+            }
+            
+            branchData = await response.json();
+            renderBranchOptions();
+            updateCurrentBranchDisplay();
+            
+        } catch (error) {
+            console.error('Error loading branches:', error);
+            renderBranchError();
+        } finally {
+            isLoading = false;
+        }
+    }
+    
+    function renderBranchOptions() {
+        const container = document.getElementById('branch-options');
+        if (!container || !branchData) return;
+        
+        let html = '';
+        
+        branchData.branches.forEach(branch => {
+            const isCurrentClass = branch.is_current ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50';
+            const currentIndicator = branch.is_current ? 
+                '<svg class="w-4 h-4 ml-auto text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>' : 
+                '';
+            
+            html += `
+                <button 
+                    onclick="switchToBranch(${branch.id}, '${branch.name.replace(/'/g, "\\'")}')"
+                    class="flex items-center w-full px-4 py-2 text-sm ${isCurrentClass} transition-colors"
+                    ${branch.is_current ? 'disabled' : ''}
+                >
+                    <div class="flex-1 text-left">
+                        <div class="font-medium">${branch.name}</div>
+                        ${branch.business_name ? `<div class="text-xs text-gray-500">${branch.business_name}</div>` : ''}
+                        ${branch.is_primary ? '<div class="text-xs text-blue-600 mt-1">Primary Branch</div>' : ''}
+                    </div>
+                    ${currentIndicator}
+                </button>
+            `;
+        });
+
+        
+        container.innerHTML = html;
+    }
+    
+    function renderBranchError() {
+        const container = document.getElementById('branch-options');
+        if (!container) return;
+        
+        container.innerHTML = `
+            <div class="flex items-center justify-center py-4 text-red-600">
+                <svg class="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span class="text-sm">Error loading branches</span>
+            </div>
+        `;
+    }
+    
+    function updateCurrentBranchDisplay() {
+        const display = document.getElementById('current-branch-display');
+        if (display && branchData) {
+            const currentBranch = branchData.branches.find(b => b.is_current);
+            if (currentBranch) {
+                display.textContent = currentBranch.name;
+            }
+        }
+    }
+    
+    // Global functions for button clicks
+    window.switchToBranch = async function(branchId, branchName) {
+        try {
+            const formData = new FormData();
+            formData.append('branch_id', branchId);
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+            
+            const response = await fetch('{% url "branches:switch_branch" %}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Accept': 'application/json',
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Show success message
+                showBranchMessage(data.message, 'success');
+                
+                // Update branch data and refresh display
+                branchData = null; // Force reload
+                loadUserBranches();
+                
+                // Reload page after a short delay to update all filtered content
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+                
+            } else {
+                showBranchMessage(data.error || 'Failed to switch branch', 'error');
+            }
+            
+        } catch (error) {
+            console.error('Error switching branch:', error);
+            showBranchMessage('Error switching branch', 'error');
+        }
+    };
+
+    
+    function showBranchMessage(message, type = 'info') {
+        // Create a simple toast notification
+        const toast = document.createElement('div');
+        toast.className = `fixed top-20 right-4 z-50 px-4 py-2 rounded-lg shadow-lg text-white text-sm max-w-sm ${
+            type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-blue-600'
+        }`;
+        toast.textContent = message;
+        
+        document.body.appendChild(toast);
+        
+        // Remove toast after 3 seconds
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+        }, 3000);
+    }
+    {% endif %}
+    
+    // Use unified auth handler for all authentication checks
+    function isUserAuthenticated() {
+        if (window.unifiedAuthHandler) {
+            return window.unifiedAuthHandler.isUserAuthenticated();
+        }
+        return window.userAuthenticated === true;
+    }
+    
+    function isFirstVisit() {
+        if (window.unifiedAuthHandler) {
+            return window.unifiedAuthHandler.isFirstVisit();
+        }
+        return window.isFirstVisit === true;
+    }
+    
+    // Mobile menu toggle
+    const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+    const mobileMenu = document.getElementById('mobile-menu');
+    const mobileMenuOverlay = document.getElementById('mobile-menu-overlay');
+    const closeMobileMenu = document.getElementById('close-mobile-menu');
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('main-content');
+    
+    
+    // Flag to track if content has been loaded to mobile menu
+    let mobileMenuContentLoaded = false;
+    
+    // Function to load sidebar content to mobile menu only once
+    function loadSidebarContentToMobileMenu() {
+        if (mobileMenuContentLoaded) return;
+        
+        const sidebarContent = document.querySelector('#sidebar nav .flex.flex-col');
+        const mobileMenuContent = document.querySelector('#mobile-menu .py-4');
+        
+        if (sidebarContent && mobileMenuContent) {
+            // Check if the menu content is already populated
+            if (mobileMenuContent.children.length > 0) {
+                mobileMenuContentLoaded = true;
+                return;
+            }
+            
+            // Clone the content instead of using innerHTML to avoid duplicate IDs
+            const clone = sidebarContent.cloneNode(true);
+            mobileMenuContent.innerHTML = '';
+            mobileMenuContent.appendChild(clone);
+            mobileMenuContentLoaded = true;
+            
+            // Reinitialize submenu toggles in mobile menu with improved error handling
+            const submenuToggleButtons = mobileMenuContent.querySelectorAll('.menu-item.has-submenu');
+            console.log('Found submenu toggle buttons in mobile menu:', submenuToggleButtons.length);
+            
+            submenuToggleButtons.forEach((button, index) => {
+                try {
+                    // Remove any existing onclick attributes to avoid conflicts
+                    button.removeAttribute('onclick');
+                    
+                    // Extract submenu ID from data attributes or existing onclick
+                    const submenuId = button.getAttribute('data-submenu') || 
+                                     (button.getAttribute('onclick') && button.getAttribute('onclick').match(/'([^']+)'/)?.[1]);
+                    
+                    console.log(`Processing mobile submenu button ${index + 1}:`, submenuId);
+                    
+                    if (submenuId) {
+                        // Ensure arrow icon is visible
+                        const arrow = button.querySelector('.arrow-icon');
+                        if (arrow) {
+                            arrow.style.display = 'inline-block';
+                            arrow.style.visibility = 'visible';
+                            arrow.style.opacity = '1';
+                            arrow.style.color = 'white';
+                            arrow.style.stroke = 'white';
+                            arrow.style.fill = 'none';
+                        }
+                        
+                        // Create a new click handler with improved error handling
+                        button.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            
+                            console.log('Mobile submenu button clicked:', submenuId);
+                            
+                            try {
+                                const submenu = document.getElementById(submenuId);
+                                if (!submenu) {
+                                    console.error('Submenu not found:', submenuId);
+                                    return;
+                                }
+                                
+                                // Toggle submenu visibility
+                                const wasHidden = submenu.classList.contains('hidden');
+                                submenu.classList.toggle('hidden');
+                                
+                                // Toggle expanded state for arrow rotation
+                                this.classList.toggle('expanded');
+                                
+                                // Apply active class
+                                this.classList.toggle('active');
+                                
+                                // Rotate arrow if present
+                                const arrow = this.querySelector('.arrow-icon');
+                                if (arrow) {
+                                    const isNowHidden = submenu.classList.contains('hidden');
+                                    arrow.style.transform = isNowHidden ? '' : 'rotate(180deg)';
+                                    // Ensure arrow remains visible
+                                    arrow.style.display = 'inline-block';
+                                    arrow.style.visibility = 'visible';
+                                    arrow.style.opacity = '1';
+                                }
+                                
+                                console.log('Mobile submenu toggled:', submenuId, 'now hidden:', submenu.classList.contains('hidden'));
+                                
+                                // Close other submenus when opening a new one
+                                if (!submenu.classList.contains('hidden')) {
+                                    const allSubmenus = mobileMenuContent.querySelectorAll('.submenu');
+                                    allSubmenus.forEach(menu => {
+                                        if (menu.id !== submenuId && !menu.classList.contains('hidden')) {
+                                            menu.classList.add('hidden');
+                                            
+                                            // Find and update the button state
+                                            const menuButton = mobileMenuContent.querySelector(`[data-submenu="${menu.id}"]`);
+                                            if (menuButton) {
+                                                menuButton.classList.remove('active', 'expanded');
+                                                
+                                                // Reset arrow rotation
+                                                const menuArrow = menuButton.querySelector('.arrow-icon');
+                                                if (menuArrow) {
+                                                    menuArrow.style.transform = '';
+                                                }
+                                            }
+                                        }
+                                    });
+                                }
+                            } catch (error) {
+                                console.error('Error in mobile submenu toggle:', error);
+                            }
+                        });
+                        
+                        console.log('Mobile submenu toggle setup completed for:', submenuId);
+                    } else {
+                        console.warn('No submenu ID found for button:', button);
+                    }
+                } catch (error) {
+                    console.error('Error setting up mobile submenu button:', error);
+                }
+            });
+            
+            // Ensure all mobile menu items have proper styling classes
+            const menuItems = mobileMenuContent.querySelectorAll('.menu-item');
+            menuItems.forEach(item => {
+                // Make sure active items have the same styling as desktop
+                if (item.classList.contains('active')) {
+                    item.classList.add('border-l-4', 'border-[#02f711]');
+                }
+            });
+        }
+    }
+    
+    if (mobileMenuToggle && mobileMenu) {
+        // Remove any existing event listeners to prevent duplicates
+        const newToggleButton = mobileMenuToggle.cloneNode(true);
+        if (mobileMenuToggle.parentNode) {
+            mobileMenuToggle.parentNode.replaceChild(newToggleButton, mobileMenuToggle);
+        }
+        
+        // Update reference to new button
+        const toggleButton = document.getElementById('mobile-menu-toggle');
+        
+        // Toggle menu or sidebar
+        toggleButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            console.log('Mobile menu toggle clicked, screen width:', window.innerWidth);
+            
+            // On mobile, open the menu 
+            if (window.innerWidth < 768) {
+                const wasOpen = mobileMenu.classList.contains('open');
+                console.log('Mobile menu was open:', wasOpen);
+                
+                mobileMenu.classList.toggle('open');
+                
+                if (!wasOpen) {
+                    document.body.classList.add('overflow-hidden');
+                    // Load sidebar content if it hasn't been loaded yet
+                    loadSidebarContentToMobileMenu();
+                    console.log('Mobile menu opened');
+                } else {
+                    document.body.classList.remove('overflow-hidden');
+                    console.log('Mobile menu closed');
+                }
+            } else {
+                // On desktop, use the global toggleSidebar function
+                if (typeof window.toggleSidebar === 'function') {
+                    window.toggleSidebar();
+                } else {
+                    // Fallback if the function isn't available yet
+                    if (sidebar && mainContent) {
+                        const wasCollapsed = sidebar.classList.contains('collapsed');
+                        sidebar.classList.toggle('collapsed');
+                        mainContent.classList.toggle('sidebar-collapsed');
+                        
+                        // Store state in localStorage
+                        const isNowCollapsed = sidebar.classList.contains('collapsed');
+                        localStorage.setItem('sidebar_collapsed', isNowCollapsed);
+                        
+                        // Hide tooltip when expanding sidebar
+                        if (window.hideTooltip) {
+                            window.hideTooltip();
+                        }
+                        console.log('Desktop sidebar toggled, collapsed:', isNowCollapsed);
+                    }
+                }
+            }
+        });
+        
+        // Close mobile menu
+        if (closeMobileMenu && mobileMenuOverlay) {
+            const closeMenu = function() {
+                mobileMenu.classList.remove('open');
+                document.body.classList.remove('overflow-hidden');
+            };
+            
+            closeMobileMenu.addEventListener('click', closeMenu);
+            mobileMenuOverlay.addEventListener('click', closeMenu);
+        }
+    }
+    
+    // Mobile search toggle - with duplicate prevention
+    const mobileSearchToggle = document.getElementById('mobile-search-toggle');
+    const mobileSearchContainer = document.getElementById('mobile-search-container');
+    
+    // Ensure no duplicate search elements are visible on mobile
+    function preventDuplicateSearchElements() {
+        if (window.innerWidth < 768) {
+            // Hide any duplicate search icons/buttons that might be visible
+            const allSearchButtons = document.querySelectorAll('button[class*="search"], .search-icon');
+            allSearchButtons.forEach(btn => {
+                if (btn.id !== 'mobile-search-toggle' && btn.closest('#mobile-search-container') === null) {
+                    btn.style.display = 'none';
+                }
+            });
+            
+            // Ensure only one mobile search container exists
+            const mobileSearchContainers = document.querySelectorAll('#mobile-search-container');
+            if (mobileSearchContainers.length > 1) {
+                // Keep only the first one, remove duplicates
+                for (let i = 1; i < mobileSearchContainers.length; i++) {
+                    mobileSearchContainers[i].remove();
+                }
+            }
+            
+            // Ensure mobile search toggle is visible
+            if (mobileSearchToggle) {
+                mobileSearchToggle.style.display = 'flex';
+                mobileSearchToggle.style.visibility = 'visible';
+                mobileSearchToggle.style.opacity = '1';
+            }
+        }
+    }
+    
+    // Run on load and resize
+    preventDuplicateSearchElements();
+    
+    if (mobileSearchToggle && mobileSearchContainer) {
+        // Ensure mobile search container is properly initialized
+        if (!mobileSearchContainer.hasAttribute('data-initialized')) {
+            mobileSearchContainer.setAttribute('data-initialized', 'true');
+        }
+        
+        // Remove existing event listeners to prevent duplicates
+        const newSearchToggle = mobileSearchToggle.cloneNode(true);
+        if (mobileSearchToggle.parentNode) {
+            mobileSearchToggle.parentNode.replaceChild(newSearchToggle, mobileSearchToggle);
+        }
+        
+        // Update reference to new button
+        const searchToggleButton = document.getElementById('mobile-search-toggle');
+        
+        searchToggleButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            console.log('Mobile search toggle clicked');
+            
+            // Toggle search container visibility
+            mobileSearchContainer.classList.toggle('hidden');
+            
+            // Toggle active state on button
+            this.classList.toggle('active');
+            
+            // Focus on search input when shown
+            if (!mobileSearchContainer.classList.contains('hidden')) {
+                const searchInput = mobileSearchContainer.querySelector('input[name="q"]');
+                if (searchInput) {
+                    setTimeout(() => {
+                        searchInput.focus();
+                    }, 100);
+                }
+                console.log('Mobile search opened');
+            } else {
+                console.log('Mobile search closed');
+            }
+        });
+        
+        // Close search when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!mobileSearchContainer.classList.contains('hidden') && 
+                !mobileSearchContainer.contains(e.target) && 
+                !mobileSearchToggle.contains(e.target)) {
+                mobileSearchContainer.classList.add('hidden');
+                mobileSearchToggle.classList.remove('active');
+            }
+        });
+        
+        // Close search on escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && !mobileSearchContainer.classList.contains('hidden')) {
+                mobileSearchContainer.classList.add('hidden');
+                mobileSearchToggle.classList.remove('active');
+            }
+        });
+    }
+    
+    // Handle resize events to hide/show appropriate elements
+    window.addEventListener('resize', function() {
+        if (window.innerWidth >= 768) {
+            // Hide mobile menu and search container on larger screens
+            if (mobileMenu && mobileMenu.classList.contains('open')) {
+                mobileMenu.classList.remove('open');
+                document.body.classList.remove('overflow-hidden');
+            }
+            
+            if (mobileSearchContainer && !mobileSearchContainer.classList.contains('hidden')) {
+                mobileSearchContainer.classList.add('hidden');
+                mobileSearchToggle.classList.remove('active');
+            }
+        }
+        
+        // Prevent duplicate search elements on resize
+        preventDuplicateSearchElements();
+    });
+
+    // Global fetch interceptor to handle undefined status issues
+    const originalFetch = window.fetch;
+    window.fetch = function(...args) {
+        return originalFetch.apply(this, args)
+            .then(response => {
+                // Ensure response has proper status information
+                if (response.status === undefined || response.status === null) {
+                    console.warn('Response with undefined status detected:', {
+                        url: args[0],
+                        status: response.status,
+                        statusText: response.statusText,
+                        timestamp: new Date().toISOString()
+                    });
+                    // Create a mock response with proper status
+                    const mockResponse = new Response(response.body, {
+                        status: 500,
+                        statusText: 'Internal Server Error',
+                        headers: response.headers
+                    });
+                    return mockResponse;
+                }
+                return response;
+            })
+            .catch(error => {
+                // Enhanced error logging for fetch failures
+                console.error('Fetch error:', {
+                    url: args[0],
+                    error: error.message,
+                    name: error.name,
+                    timestamp: new Date().toISOString()
+                });
+                throw error;
+            });
+    };
+
+    // Function to update header counts with improved error handling
+    function updateHeaderCounts() {
+        if (!document.body) return; // Safety check
+        
+        // Skip update if polling is paused
+        if (isPollingPaused) {
+            console.log('Skipping notification count update - polling paused');
+            return;
+        }
+        
+        // Skip notification updates for first-time visitors or unauthenticated users
+        if (!isUserAuthenticated() || isFirstVisit()) {
+            console.log('Skipping notification count update - first visit or unauthenticated');
+            return;
+        }
+
+        // Helper function to make API calls with enhanced retry logic
+        function makeApiCall(url, retryCount = 0) {
+            const maxRetries = 3; // Increased from 2 to 3
+            const baseDelay = 1000; // 1 second base delay
+            const maxDelay = 8000; // Maximum delay of 8 seconds
+
+            // Calculate exponential backoff with jitter
+            const delay = Math.min(baseDelay * Math.pow(2, retryCount) + Math.random() * 1000, maxDelay);
+
+            return fetch(url, {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                },
+                credentials: 'same-origin',
+                signal: AbortSignal.timeout(30000) // Increased to 30 seconds for production
+            })
+            .then(response => {
+                if (!response.ok) {
+                    // Log specific error details for debugging
+                    console.error(`API call failed with status ${response.status}: ${response.statusText}`);
+                    const error = new Error(`HTTP error! status: ${response.status}`);
+                    error.status = response.status;
+                    error.statusText = response.statusText;
+                    throw error;
+                }
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    console.error('API response is not JSON:', contentType);
+                    throw new Error('Response is not JSON');
+                }
+                return response.json();
+            })
+            .catch(error => {
+                // Enhanced error handling with better status detection
+                const isRetryableError = (
+                    error.name === 'TypeError' || 
+                    error.message.includes('Failed to fetch') ||
+                    error.message.includes('network') ||
+                    error.message.includes('timeout') ||
+                    error.name === 'AbortError' ||
+                    error.message.includes('ERR_NETWORK') ||
+                    error.message.includes('ERR_INTERNET_DISCONNECTED')
+                );
+
+                // Check if this is a non-retryable HTTP error (4xx, 5xx)
+                const isHttpError = error.status && (error.status >= 400 && error.status < 600);
+                
+                if (retryCount < maxRetries && isRetryableError && !isHttpError) {
+                    console.warn(`API call failed, retrying... (${retryCount + 1}/${maxRetries}) - Error: ${error.message}`);
+                    return new Promise(resolve => {
+                        setTimeout(() => {
+                            resolve(makeApiCall(url, retryCount + 1));
+                        }, delay);
+                    });
+                }
+                
+                // Log final error for debugging with enhanced information
+                const errorInfo = {
+                    message: error.message,
+                    status: error.status || 'undefined',
+                    statusText: error.statusText || 'undefined',
+                    url: url,
+                    attempts: retryCount + 1,
+                    timestamp: new Date().toISOString()
+                };
+                
+                console.error(`API call failed after ${retryCount + 1} attempts:`, errorInfo);
+                throw error;
+            });
+        }
+
+        // Update message counts with fallback handling
+        makeApiCall('/messages/api/count/')
+        .then(data => {
+            const messagesIcon = document.querySelector('.discussion-icon');
+            const messagesBadge = document.getElementById('messages-count-badge');
+            const messagesIndicator = messagesIcon ? messagesIcon.querySelector('span:first-of-type') : null;
+            
+            if (messagesIcon) {
+                // Update title
+                messagesIcon.title = `Messages (${data.unread_count || 0} unread)`;
+                
+                // Show/hide indicator dot
+                if (messagesIndicator) {
+                    if (data.unread_count > 0) {
+                        messagesIndicator.style.display = 'block';
+                        messagesIndicator.style.visibility = 'visible';
+                        messagesIndicator.style.opacity = '1';
+                    } else {
+                        messagesIndicator.style.display = 'none';
+                    }
+                }
+                
+                // Update count badge
+                if (messagesBadge) {
+                    if (data.unread_count > 0) {
+                        messagesBadge.textContent = data.unread_count > 9 ? '9+' : data.unread_count;
+                        messagesBadge.style.display = 'flex';
+                    } else {
+                        messagesBadge.style.display = 'none';
+                    }
+                }
+            }
+        })
+        .catch(error => {
+            // Enhanced error logging for message count API
+            const errorDetails = {
+                message: error.message,
+                status: error.status || 'undefined',
+                statusText: error.statusText || 'undefined',
+                url: '/messages/api/count/',
+                timestamp: new Date().toISOString()
+            };
+            
+            // Only log error if it's not a network issue (to avoid spam)
+            if (!error.message.includes('Failed to fetch') && error.name !== 'TypeError') {
+                console.error('Error updating message counts:', errorDetails);
+            } else {
+                console.warn('Network issue with message count API:', errorDetails);
+            }
+            
+            // Fallback: Hide message indicators on API failure
+            const messagesIcon = document.querySelector('.discussion-icon');
+            const messagesBadge = document.getElementById('messages-count-badge');
+            const messagesIndicator = messagesIcon ? messagesIcon.querySelector('span:first-of-type') : null;
+            
+            if (messagesIndicator) {
+                messagesIndicator.style.display = 'none';
+            }
+            if (messagesBadge) {
+                messagesBadge.style.display = 'none';
+            }
+        });
+
+        // Update notification counts
+        makeApiCall('/notifications/api/count/')
+        .then(data => {
+            const notificationIcon = document.querySelector('.notification-icon');
+            const notificationBadge = document.getElementById('notification-count-badge');
+            const notificationIndicator = document.getElementById('notification-indicator');
+            
+            if (notificationIcon) {
+                // Update title
+                const urgentText = data.urgent_count > 0 ? `, ${data.urgent_count} urgent` : '';
+                notificationIcon.title = `Notifications (${data.unread_count || 0} unread${urgentText})`;
+                
+                // Show/hide and style indicator dot
+                if (notificationIndicator) {
+                    if (data.unread_count > 0) {
+                        notificationIndicator.classList.remove('hidden');
+                        notificationIndicator.style.display = 'block';
+                        notificationIndicator.style.visibility = 'visible';
+                        notificationIndicator.style.opacity = '1';
+                        
+                        // Update color and animation based on urgency
+                        if (data.urgent_count > 0) {
+                            notificationIndicator.className = notificationIndicator.className.replace(/bg-\w+-500/, 'bg-red-500');
+                            notificationIndicator.classList.add('animate-pulse');
+                        } else {
+                            notificationIndicator.className = notificationIndicator.className.replace(/bg-\w+-500/, 'bg-orange-500');
+                            notificationIndicator.classList.remove('animate-pulse');
+                        }
+                    } else {
+                        notificationIndicator.classList.add('hidden');
+                        notificationIndicator.style.display = 'none';
+                    }
+                }
+                
+                // Update count badge
+                if (notificationBadge) {
+                    if (data.unread_count > 0) {
+                        notificationBadge.textContent = data.unread_count > 9 ? '9+' : data.unread_count;
+                        notificationBadge.classList.remove('hidden');
+                        notificationBadge.style.display = 'flex';
+                        
+                        // Update color and animation based on urgency
+                        if (data.urgent_count > 0) {
+                            notificationBadge.className = notificationBadge.className.replace(/bg-\w+-500/, 'bg-red-500');
+                            notificationBadge.classList.add('animate-pulse');
+                        } else {
+                            notificationBadge.className = notificationBadge.className.replace(/bg-\w+-500/, 'bg-orange-500');
+                            notificationBadge.classList.remove('animate-pulse');
+                        }
+                    } else {
+                        notificationBadge.classList.add('hidden');
+                        notificationBadge.style.display = 'none';
+                    }
+                }
+            }
+        })
+        .catch(error => {
+            // Enhanced error logging for notification count API
+            const errorDetails = {
+                message: error.message,
+                status: error.status || 'undefined',
+                statusText: error.statusText || 'undefined',
+                url: '/notifications/api/count/',
+                timestamp: new Date().toISOString()
+            };
+            
+            // Only log error if it's not a network issue (to avoid spam)
+            if (!error.message.includes('Failed to fetch') && error.name !== 'TypeError') {
+                console.error('Error updating notification counts:', errorDetails);
+            } else {
+                console.warn('Network issue with notification count API:', errorDetails);
+            }
+            
+            // Fallback: Hide notification indicators on API failure
+            const notificationIcon = document.querySelector('.notification-icon');
+            const notificationBadge = document.getElementById('notification-count-badge');
+            const notificationIndicator = document.getElementById('notification-indicator');
+            
+            if (notificationIndicator) {
+                notificationIndicator.style.display = 'none';
+            }
+            if (notificationBadge) {
+                notificationBadge.style.display = 'none';
+            }
+        });
+    }
+
+    // Update counts with adaptive frequency based on success/failure
+    let updateInterval = 300000; // Start with 5 minutes (reduced from 30 seconds)
+    let consecutiveFailures = 0;
+    const maxFailures = 3;
+    const maxInterval = 600000; // 10 minutes max (increased from 5 minutes)
+    let isPollingPaused = false; // Flag to pause polling during critical operations
+
+    // Function to check if we should pause polling based on current page context
+    function shouldPausePolling() {
+        const currentPath = window.location.pathname;
+        const currentUrl = window.location.href;
+        
+        // Check for course creation meta tag
+        const pageContextMeta = document.querySelector('meta[name="page-context"]');
+        if (pageContextMeta && pageContextMeta.content === 'course-creation') {
+            return true;
+        }
+        
+        // Pause polling during course creation/editing operations
+        const courseCreationPatterns = [
+            '/courses/create/',
+            '/courses/.*/edit/',
+            '/courses/.*/topic/create/',
+            '/courses/.*/topic/.*/edit/',
+            '/courses/.*/section/create/',
+            '/courses/.*/section/.*/edit/'
+        ];
+        
+        // Check if current path matches any course creation patterns
+        for (const pattern of courseCreationPatterns) {
+            const regex = new RegExp(pattern.replace(/\*/g, '.*'));
+            if (regex.test(currentPath)) {
+                return true;
+            }
+        }
+        
+        // Pause polling if we're in a form submission context
+        const forms = document.querySelectorAll('form');
+        for (const form of forms) {
+            if (form.querySelector('input[type="submit"]:focus, button[type="submit"]:focus')) {
+                return true;
+            }
+        }
+        
+        // Pause polling if TinyMCE editor is active (course content editing)
+        if (typeof tinymce !== 'undefined' && tinymce.activeEditor) {
+            return true;
+        }
+        
+        return false;
+    }
+
+    function scheduleNextUpdate() {
+        if (typeof window !== 'undefined' && window.location) {
+            // Check if polling should be paused
+            if (shouldPausePolling()) {
+                isPollingPaused = true;
+                // Schedule a shorter check to resume polling when appropriate
+                setTimeout(() => {
+                    scheduleNextUpdate();
+                }, 5000); // Check every 5 seconds if we should resume
+                return;
+            }
+            
+            // Resume polling if it was paused
+            if (isPollingPaused) {
+                isPollingPaused = false;
+                console.log('Resuming notification polling after course creation context');
+            }
+            
+            setTimeout(() => {
+                updateHeaderCounts();
+                scheduleNextUpdate();
+            }, updateInterval);
+        }
+    }
+
+    // Override the updateHeaderCounts to track failures
+    const originalUpdateHeaderCounts = updateHeaderCounts;
+    updateHeaderCounts = function() {
+        const startTime = Date.now();
+        originalUpdateHeaderCounts();
+        
+        // Track success/failure for adaptive timing
+        setTimeout(() => {
+            // If we get here without errors, reset failure count and interval
+            consecutiveFailures = 0;
+            updateInterval = 300000; // Reset to 5 minutes (reduced from 30 seconds)
+        }, 5000); // Give 5 seconds for requests to complete
+    };
+
+    // Add event listeners to pause polling during form interactions
+    // Pause polling when forms are being submitted
+    const forms = document.querySelectorAll('form');
+    forms.forEach(form => {
+        form.addEventListener('submit', function() {
+            isPollingPaused = true;
+            console.log('Pausing notification polling during form submission');
+        });
+    });
+    
+    // Pause polling when TinyMCE editor is being used
+    if (typeof tinymce !== 'undefined') {
+        tinymce.on('AddEditor', function(e) {
+            isPollingPaused = true;
+            console.log('Pausing notification polling during TinyMCE editing');
+        });
+        
+        tinymce.on('RemoveEditor', function(e) {
+            // Resume polling after a short delay when editor is removed
+            setTimeout(() => {
+                if (!shouldPausePolling()) {
+                    isPollingPaused = false;
+                    console.log('Resuming notification polling after TinyMCE editing');
+                }
+            }, 2000);
+        });
+    }
+    
+    // Pause polling when user is typing in course-related forms
+    const courseInputs = document.querySelectorAll('input[name*="title"], input[name*="description"], textarea[name*="description"]');
+    courseInputs.forEach(input => {
+        let typingTimeout;
+        input.addEventListener('input', function() {
+            isPollingPaused = true;
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                if (!shouldPausePolling()) {
+                    isPollingPaused = false;
+                }
+            }, 3000); // Resume 3 seconds after user stops typing
+        });
+    });
+
+    // Start the update cycle
+    if (typeof window !== 'undefined' && window.location) {
+        // Only start notification polling for authenticated users who have visited before
+        if (isUserAuthenticated() && !isFirstVisit()) {
+            // Delay initial call to ensure user session is established
+            setTimeout(() => {
+                updateHeaderCounts(); // Initial call
+                scheduleNextUpdate();
+            }, 1000);
+        } else {
+            console.log('Skipping notification polling - first visit or unauthenticated user');
+        }
+    }
+});
+</script> 

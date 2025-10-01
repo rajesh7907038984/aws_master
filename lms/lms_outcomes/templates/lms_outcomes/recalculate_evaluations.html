@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container">
+    <!-- Breadcrumbs -->
+    {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+    
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6">Recalculate Outcome Evaluations</h1>
+
+        <div class="bg-white shadow rounded-lg overflow-hidden mb-6">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-medium text-gray-800">Recalculation Overview</h2>
+            </div>
+            <div class="p-6">
+                <p class="text-gray-600 mb-4">
+                    This process will recalculate all outcome evaluations for students based on their current rubric evaluations 
+                    and the configured calculation methods for each outcome.
+                </p>
+                
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-blue-800">What happens during recalculation?</h3>
+                            <div class="mt-2 text-sm text-blue-700">
+                                <ul class="list-disc list-inside space-y-1">
+                                    <li>All existing outcome evaluations will be updated with new scores</li>
+                                    <li>Calculations use the current rubric-outcome mappings and weights</li>
+                                    <li>Each outcome's configured calculation method will be applied</li>
+                                    <li>Students without any relevant rubric evaluations will not have evaluations created</li>
+                                    <li>Proficiency levels will be automatically determined based on the calculated scores</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-yellow-800">Important Considerations</h3>
+                            <div class="mt-2 text-sm text-yellow-700">
+                                <ul class="list-disc list-inside space-y-1">
+                                    <li>This process may take several minutes for large numbers of students and outcomes</li>
+                                    <li>Existing evaluations will be overwritten with newly calculated values</li>
+                                    <li>Only outcomes with active rubric-outcome mappings will be calculated</li>
+                                    <li>You can only recalculate evaluations within your access permissions</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <form method="post" class="space-y-6">
+                    {% csrf_token %}
+                    
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <h3 class="text-sm font-medium text-gray-800 mb-2">Confirmation</h3>
+                        <label class="flex items-center">
+                            <input type="checkbox" required class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                            <span class="ml-2 text-sm text-gray-700">
+                                I understand that this will recalculate all outcome evaluations and overwrite existing calculated scores.
+                            </span>
+                        </label>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-3">
+                        <a href="{% url 'lms_outcomes:manage' %}" class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                            Cancel
+                        </a>
+                        <button type="submit" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700">
+                            Recalculate All Evaluations
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-medium text-gray-800">Calculation Methods Reference</h2>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-800 mb-2">Time-Based Methods</h3>
+                        <div class="space-y-3">
+                            <div class="bg-gray-50 rounded p-3">
+                                <h4 class="font-medium text-sm text-gray-700">Weighted Average</h4>
+                                <p class="text-xs text-gray-600">Recent evaluations receive more weight based on configured percentage</p>
+                            </div>
+                            <div class="bg-gray-50 rounded p-3">
+                                <h4 class="font-medium text-sm text-gray-700">Decaying Average</h4>
+                                <p class="text-xs text-gray-600">Exponential decay with older scores having progressively less influence</p>
+                            </div>
+                            <div class="bg-gray-50 rounded p-3">
+                                <h4 class="font-medium text-sm text-gray-700">Most Recent</h4>
+                                <p class="text-xs text-gray-600">Uses only the most recent evaluation score</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-800 mb-2">Performance-Based Methods</h3>
+                        <div class="space-y-3">
+                            <div class="bg-gray-50 rounded p-3">
+                                <h4 class="font-medium text-sm text-gray-700">Highest Score</h4>
+                                <p class="text-xs text-gray-600">Uses the best performance achieved</p>
+                            </div>
+                            <div class="bg-gray-50 rounded p-3">
+                                <h4 class="font-medium text-sm text-gray-700">Simple Average</h4>
+                                <p class="text-xs text-gray-600">Equal weight to all evaluations</p>
+                            </div>
+                            <div class="bg-gray-50 rounded p-3">
+                                <h4 class="font-medium text-sm text-gray-700">n Number of Times</h4>
+                                <p class="text-xs text-gray-600">Requires mastery achieved n times for outcome completion</p>
+                            </div>
+                            <div class="bg-gray-50 rounded p-3">
+                                <h4 class="font-medium text-sm text-gray-700">No Point</h4>
+                                <p class="text-xs text-gray-600">Binary met/not met assessment</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,700 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block title %}User Management - LMS{% endblock %}
+
+{% block extra_css %}
+<style>
+    .main-content {
+        background-color: #ffffff !important;
+    }
+    
+    .p-6.space-y-6 {
+        background-color: white;
+    }
+    
+    /* Search box styles */
+    .search-box {
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        background-color: #fff;
+        min-width: 240px;
+        height: 40px;
+    }
+    
+    .search-box input {
+        border: none;
+        outline: none;
+        width: 100%;
+        height: 100%;
+        padding: 0;
+        font-size: 14px;
+        color: #374151;
+        background: transparent;
+    }
+    
+    .search-box input::placeholder {
+        color: #9CA3AF;
+    }
+    
+    .search-box .search-icon {
+        color: #6B7280;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-center: center;
+    }
+    
+    /* Table styles */
+    .user-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    
+    .user-table th {
+        color: #374151;
+        font-weight: 500;
+        text-align: left;
+        padding: 0.75rem 1rem;
+        background-color: #F9FAFB;
+        font-size: 0.875rem;
+        border-bottom: 1px solid #E5E7EB;
+    }
+    
+    .user-table td {
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+        border-bottom: 1px solid #E5E7EB;
+        text-align: left;
+    }
+
+    /* Actions column specific alignment */
+    .user-table td:last-child {
+        text-align: left;
+    }
+    
+    .user-table th:last-child {
+        text-align: left;
+    }
+
+    .user-table tr:nth-child(odd) td {
+        background-color: #F9FAFB;
+    }
+
+    .user-table tr:nth-child(even) td {
+        background-color: #FFFFFF;
+    }
+    
+    .user-table tr:hover td {
+        background-color: #F3F4F6;
+    }
+
+    /* Action buttons */
+    .action-btn {
+        padding: 0.375rem;
+        border-radius: 0.375rem;
+        transition: all 0.2s;
+        color: #6B7280;
+    }
+    
+    .action-btn:hover {
+        background-color: #F3F4F6;
+        color: #374151;
+    }
+
+    /* User name and email styles */
+    .user-name {
+        color: #111827;
+        font-weight: 500;
+        font-size: 0.875rem;
+    }
+
+    .user-email {
+        color: #6B7280;
+        font-size: 0.875rem;
+    }
+
+    .user-type {
+        color: #6B7280;
+        font-size: 0.875rem;
+    }
+
+    .user-date {
+        color: #6B7280;
+        font-size: 0.875rem;
+    }
+    
+    /* Updated pagination styles */
+    .pagination-select {
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        padding: 0.5rem;
+        background-color: #fff;
+        outline: none;
+        cursor: pointer;
+        height: 40px;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 0.5rem center;
+        background-size: 1em;
+        padding-right: 2.5rem;
+    }
+    
+    .page-btn {
+        min-width: 40px;
+        height: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        background-color: #fff;
+        transition: all 0.2s;
+        color: #374151;
+        font-size: 0.875rem;
+        cursor: pointer;
+    }
+    
+    .page-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .page-nav {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .page-info {
+        color: #6B7280;
+        font-size: 0.875rem;
+    }
+    
+    /* Add user button */
+    .add-user-btn {
+        background-color: #fff;
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        transition: all 0.2s;
+    }
+    
+    .add-user-btn:hover {
+        background-color: #F3F4F6;
+    }
+
+    /* Filter styles */
+    .filter-dropdown {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        margin-top: 0.5rem;
+        background: white;
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        width: 280px;
+        z-index: 50;
+        display: none;
+    }
+
+    .filter-dropdown.show {
+        display: block;
+    }
+
+    .filter-section {
+        padding: 1rem;
+        border-bottom: 1px solid #E5E7EB;
+    }
+
+    .filter-section:last-child {
+        border-bottom: none;
+    }
+
+    .filter-title {
+        font-weight: 500;
+        color: #374151;
+        margin-bottom: 0.75rem;
+    }
+
+    .filter-options {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .filter-option {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #6B7280;
+        cursor: pointer;
+        padding: 0.25rem;
+    }
+
+    .filter-option:hover {
+        background-color: #F3F4F6;
+        border-radius: 4px;
+    }
+
+    .filter-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+
+    .filter-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.25rem 0.75rem;
+        background-color: #EBF5FF;
+        color: #2563EB;
+        border-radius: 9999px;
+        font-size: 0.875rem;
+    }
+
+    .filter-tag button {
+        color: currentColor;
+        opacity: 0.5;
+        hover: opacity-100;
+    }
+
+    .active-filter {
+        background-color: #EBF5FF;
+        color: #2563EB;
+        border-radius: 4px;
+    }
+
+    .profile-section {
+        background: white;
+        /* ... */
+    }
+
+    .form-section {
+        background: white;
+        /* ... */
+    }
+
+    .settings-section {
+        background: white;
+        /* ... */
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-semibold text-gray-900">User Management</h1>
+        <div class="flex space-x-4">
+            <button onclick="showBulkImportModal()" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                <svg class="mr-2 h-5 w-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Bulk Import
+            </button>
+            <a href="{% url 'users:add_user' %}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Add User
+            </a>
+        </div>
+    </div>
+
+    <div class="flex-1 p-8 overflow-x-hidden overflow-y-auto bg-white">
+        <div class="p-6 space-y-6 bg-white">
+            <!-- Breadcrumb -->
+            <div class="flex items-center gap-2 mb-4">
+                <a href="{% url 'users:role_based_redirect' %}" class="flex items-center group hover:opacity-90 transition-opacity">
+                    <div class="w-6 md:w-8 h-6 md:h-8 rounded-full bg-[#EBF3FE] flex items-center justify-center group-hover:bg-[#dce8fc] transition-colors">
+                        <i class="fas fa-home text-[#2F80ED] text-xs md:text-sm"></i>
+                    </div>
+                </a>
+                <span class="text-gray-400 text-xs md:text-sm">/</span>
+                <a href="{% url 'users:user_list' %}" class="text-[#2F80ED] font-medium text-xs md:text-sm hover:text-blue-600">User Management</a>
+                <span class="text-gray-400 text-xs md:text-sm">/</span>
+                <span class="text-gray-600 font-medium text-xs md:text-sm">User List</span>
+            </div>
+
+            <!-- Main Content -->
+            <div class="container mx-auto">
+                <!-- Main grid with 70-30 split -->
+                <div class="grid grid-cols-12 gap-4 md:gap-6">
+                    <!-- Left Column (70%) -->
+                    <div class="col-span-12 lg:col-span-8 transition-all duration-300">
+                        <!-- Header section with updated search form -->
+                        <div class="flex justify-between items-center mb-6">
+                            <div class="flex items-center space-x-4">
+                                <form id="searchForm" method="GET" class="m-0">
+                                    <div class="search-box flex items-center px-3 py-1.5">
+                                        <div class="search-icon mr-2">
+                                            <i class="fas fa-search"></i>
+                                        </div>
+                                        <input type="text" 
+                                               placeholder="Search" 
+                                               name="q" 
+                                               value="{{ request.GET.q|default:'' }}"
+                                               autocomplete="off"
+                                               id="searchInput">
+                                    </div>
+                                </form>
+                                
+                                <button id="filterButton" class="p-2 rounded-lg border border-gray-200 hover:bg-gray-50">
+                                    <i class="fas fa-filter text-gray-600"></i>
+                                </button>
+                                <!-- Filter Dropdown -->
+                                <div id="filterDropdown" class="filter-dropdown">
+                                    <div class="filter-section">
+                                        <h3 class="filter-title">Status</h3>
+                                        <div class="filter-options">
+                                            <label class="filter-option">
+                                                <input type="checkbox" name="status" value="active" class="hidden" {% if 'active' in selected_status %}checked{% endif %}>
+                                                <span>Active</span>
+                                            </label>
+                                            <label class="filter-option">
+                                                <input type="checkbox" name="status" value="inactive" class="hidden" {% if 'inactive' in selected_status %}checked{% endif %}>
+                                                <span>Inactive</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="filter-section">
+                                        <h3 class="filter-title">Branch</h3>
+                                        <div class="filter-options">
+                                            {% for branch in branches %}
+                                            <label class="filter-option">
+                                                <input type="checkbox" name="branch" value="{{ branch.id }}" class="hidden" {% if branch.id|stringformat:"s" in selected_branches %}checked{% endif %}>
+                                                <span>{{ branch.name }}</span>
+                                            </label>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    <div class="filter-section">
+                                        <h3 class="filter-title">Group</h3>
+                                        <div class="filter-options">
+                                            {% for group in groups %}
+                                            <label class="filter-option">
+                                                <input type="checkbox" name="group" value="{{ group.id }}" class="hidden" {% if group.id|stringformat:"s" in selected_groups %}checked{% endif %}>
+                                                <span>{{ group.name }}</span>
+                                            </label>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <a href="{% url 'users:user_create' %}" class="add-user-btn text-sm font-medium text-gray-700">
+                                Add user
+                            </a>
+                        </div>
+
+                        <!-- Filter Tags -->
+                        <div id="filterTags" class="filter-tags mb-4"></div>
+
+                        <!-- Users table -->
+                        <div id="usersTableContainer" class="bg-white rounded-lg overflow-hidden">
+                            <table class="user-table">
+                                <thead>
+                                    <tr>
+                                        <th>User</th>
+                                        <th>Email</th>
+                                        <th>Role</th>
+                                        <th>Registration</th>
+                                        <th>Last login</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for user_obj in users %}
+                                    <tr>
+                                        <td class="user-name">{{ user_obj.get_full_name|default:user_obj.username }}</td>
+                                        <td class="user-email">{{ user_obj.email }}</td>
+                                        <td class="user-type">{{ user_obj.get_role_display }}</td>
+                                        <td class="user-date">{{ user_obj.date_joined|date:"d/m/Y" }}</td>
+                                        <td class="user-date">{{ user_obj.last_login|date:"d/m/Y"|default:"Never" }}</td>
+                                        <td>
+                                            <div class="flex justify-start space-x-2">
+                                                <a href="{% url 'users:user_profile' user_obj.id %}" class="action-btn" title="View">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                {% if can_edit_user %}
+                                                <a href="{% url 'users:edit_user' user_obj.id %}" class="action-btn" title="Edit">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <a href="{% url 'users:password_change' user_obj.id %}" class="action-btn" title="Change Password">
+                                                    <i class="fas fa-key"></i>
+                                                </a>
+                                                {% endif %}
+                                                {% if user.role in 'globaladmin,superadmin' %}
+                                                <button class="action-btn" title="Delete" 
+                                                        onclick="confirmDelete('{{ user_obj.id }}', '{{ user_obj.get_full_name|default:user_obj.username }}'); return false;">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="6" class="text-center py-8">
+                                            <div class="flex flex-col items-center justify-center">
+                                                <div class="w-16 h-16 mb-4 text-gray-300">
+                                                    <i class="fas fa-users text-4xl"></i>
+                                                </div>
+                                                <h3 class="text-lg font-medium text-gray-900 mb-2">No Users Found</h3>
+                                                <p class="text-sm text-gray-500">There are no users matching your criteria.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Updated Pagination -->
+                        <div class="flex justify-between items-center mt-6">
+                            <div class="flex items-center gap-2">
+                                <select class="pagination-select text-sm text-gray-600 w-20" id="perPageSelect">
+                                    <option value="10">10</option>
+                                    <option value="25">25</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                </select>
+                                <span class="text-sm text-gray-500">per page</span>
+                            </div>
+                            
+                            <div class="flex items-center gap-2">
+                                <a href="?page={% if users.has_previous %}{{ users.previous_page_number }}{% else %}1{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}"
+                                   class="page-btn"
+                                   {% if not users.has_previous %}disabled{% endif %}>
+                                    <i class="fas fa-angle-left"></i>
+                                </a>
+                                
+                                <div class="flex items-center gap-2">
+                                    <select class="pagination-select text-sm text-gray-600 w-16" id="pageSelect">
+                                        {% with ''|center:users.paginator.num_pages as range %}
+                                        {% for _ in range %}
+                                            {% with forloop.counter as i %}
+                                            <option value="{{ i }}" {% if users.number == i %}selected{% endif %}>{{ i }}</option>
+                                            {% endwith %}
+                                        {% endfor %}
+                                        {% endwith %}
+                                    </select>
+                                    <span class="text-sm text-gray-500">of {{ users.paginator.num_pages }}</span>
+                                </div>
+                                
+                                <a href="?page={% if users.has_next %}{{ users.next_page_number }}{% else %}{{ users.paginator.num_pages }}{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}"
+                                   class="page-btn"
+                                   {% if not users.has_next %}disabled{% endif %}>
+                                    <i class="fas fa-angle-right"></i>
+                                </a>
+                                
+                                <a href="?page={{ users.paginator.num_pages }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}"
+                                   class="page-btn"
+                                   {% if not users.has_next %}disabled{% endif %}>
+                                    <i class="fas fa-angle-double-right"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column (30%) -->
+                    <div class="col-span-12 lg:col-span-4 transition-all duration-300">
+                        {% include 'components/right_sidebar.html' %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <h3 class="text-lg font-medium text-gray-900 mb-4">Confirm Delete</h3>
+        <p class="text-sm text-gray-500 mb-6">Are you sure you want to delete <span id="deleteUserName" class="font-medium"></span>? This action cannot be undone.</p>
+        <div class="flex justify-end gap-4 mt-6">
+            <button onclick="closeDeleteModal()" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors">
+                Cancel
+            </button>
+            <form id="deleteForm" method="POST" class="inline">
+                {% csrf_token %}
+                <input type="hidden" name="confirmed" value="true">
+                <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">
+                    Delete
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% include 'users/shared/bulk_import_modal.html' %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function confirmDelete(userId, userName) {
+        document.getElementById('deleteUserName').textContent = userName;
+        document.getElementById('deleteForm').action = `/users/${userId}/delete/`;
+        document.getElementById('deleteModal').classList.remove('hidden');
+    }
+    
+    function closeDeleteModal() {
+        document.getElementById('deleteModal').classList.add('hidden');
+    }
+    
+    document.getElementById('deleteModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeDeleteModal();
+        }
+    });
+
+    // Auto-search functionality
+    let searchTimeout;
+    const searchInput = document.getElementById('searchInput');
+    const searchForm = document.getElementById('searchForm');
+    const perPageSelect = document.getElementById('perPageSelect');
+    const pageSelect = document.getElementById('pageSelect');
+
+    searchInput.addEventListener('input', function(e) {
+        clearTimeout(searchTimeout);
+        
+        // Show loading state
+        const searchIcon = searchInput.previousElementSibling.querySelector('i');
+        searchIcon.classList.remove('fa-search');
+        searchIcon.classList.add('fa-spinner', 'fa-spin');
+        
+        searchTimeout = setTimeout(() => {
+            searchForm.submit();
+        }, 500);
+    });
+
+    // Handle per page change
+    perPageSelect.addEventListener('change', function() {
+        window.location.href = updateQueryStringParameter(window.location.href, 'per_page', this.value);
+    });
+
+    // Handle page change
+    pageSelect.addEventListener('change', function() {
+        window.location.href = updateQueryStringParameter(window.location.href, 'page', this.value);
+    });
+
+    // Helper function to update URL parameters
+    function updateQueryStringParameter(uri, key, value) {
+        var re = new RegExp("([?&])" + key + "=.*?(&|$)", "i");
+        var separator = uri.indexOf('?') !== -1 ? "&" : "?";
+        if (uri.match(re)) {
+            return uri.replace(re, '$1' + key + "=" + value + '$2');
+        }
+        else {
+            return uri + separator + key + "=" + value;
+        }
+    }
+
+    // Filter functionality
+    const filterButton = document.getElementById('filterButton');
+    const filterDropdown = document.getElementById('filterDropdown');
+    const filterTags = document.getElementById('filterTags');
+    const filterOptions = document.querySelectorAll('.filter-option input');
+
+    // Toggle filter dropdown
+    filterButton.addEventListener('click', function(e) {
+        e.stopPropagation();
+        filterDropdown.classList.toggle('show');
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!filterDropdown.contains(e.target) && e.target !== filterButton) {
+            filterDropdown.classList.remove('show');
+        }
+    });
+
+    // Handle filter option selection
+    filterOptions.forEach(option => {
+        option.addEventListener('change', function() {
+            updateFilterTags();
+            applyFilters();
+        });
+    });
+
+    function updateFilterTags() {
+        filterTags.innerHTML = '';
+        const selectedFilters = [];
+
+        filterOptions.forEach(option => {
+            if (option.checked) {
+                const tag = document.createElement('div');
+                tag.className = 'filter-tag';
+                tag.innerHTML = `
+                    <span>${option.nextElementSibling.textContent}</span>
+                    <button onclick="removeFilter('${option.name}', '${option.value}')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                filterTags.appendChild(tag);
+                selectedFilters.push({
+                    type: option.name,
+                    value: option.value
+                });
+            }
+        });
+
+        // Update filter options styling
+        filterOptions.forEach(option => {
+            const filterOption = option.closest('.filter-option');
+            if (option.checked) {
+                filterOption.classList.add('active-filter');
+            } else {
+                filterOption.classList.remove('active-filter');
+            }
+        });
+    }
+
+    function removeFilter(type, value) {
+        const option = document.querySelector(`input[name="${type}"][value="${value}"]`);
+        if (option) {
+            option.checked = false;
+            updateFilterTags();
+            applyFilters();
+        }
+    }
+
+    function applyFilters() {
+        const filters = {};
+        filterOptions.forEach(option => {
+            if (option.checked) {
+                if (!filters[option.name]) {
+                    filters[option.name] = [];
+                }
+                filters[option.name].push(option.value);
+            }
+        });
+
+        let url = new URL(window.location.href);
+        Object.keys(filters).forEach(key => {
+            url.searchParams.delete(key);
+            if (filters[key].length) {
+                url.searchParams.append(key, filters[key].join(','));
+            }
+        });
+
+        window.location.href = url.toString();
+    }
+
+    // Initialize filter tags on page load
+    updateFilterTags();
+
+    function showBulkImportModal() {
+        // Implementation of showBulkImportModal function
+    }
+</script>
+<script src="{% static 'core/js/bulk_import.js' %}"></script>
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }} - Coming Soon{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full space-y-8">
+        <!-- Icon and Title -->
+        <div class="text-center">
+            <div class="text-6xl text-blue-500 mb-6">
+                <i class="fas fa-building"></i>
+            </div>
+            <h1 class="text-4xl font-bold text-white mb-4">{{ title }}</h1>
+            <p class="text-xl text-gray-400">{{ description }}</p>
+        </div>
+
+        <!-- Coming Soon Card -->
+        <div class="bg-gray-800 rounded-xl p-8 shadow-2xl border border-gray-700 transform transition-all duration-300 hover:border-blue-500 hover:scale-105">
+            <div class="space-y-6">
+                <div class="flex items-center justify-center space-x-3">
+                    <div class="text-2xl text-yellow-500">
+                        <i class="fas fa-hard-hat"></i>
+                    </div>
+                    <h2 class="text-2xl font-semibold text-white">Coming Soon</h2>
+                </div>
+                
+                <p class="text-gray-300 text-center">We're working hard to bring you this feature. Stay tuned for updates!</p>
+                
+                <!-- Progress Bar -->
+                <div class="space-y-2">
+                    <div class="w-full bg-gray-700 rounded-full h-2.5 overflow-hidden">
+                        <div class="bg-blue-600 h-2.5 rounded-full w-3/4 transition-all duration-500 animate-pulse"></div>
+                    </div>
+                    <p class="text-sm text-gray-400 text-center">Development in progress - 75% complete</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Back Button -->
+        <div class="text-center">
+            <a href="{% url 'users:dashboard_superadmin' %}" 
+               class="inline-flex items-center px-6 py-3 bg-[#050c50] hover:bg-[#02071e] text-white font-medium rounded-lg transition-colors duration-300 transform hover:scale-105">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block admin_extra_js %}
+<script>
+    // Add any additional JavaScript here
+</script>
+{% endblock %}

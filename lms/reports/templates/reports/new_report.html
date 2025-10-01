@@ -1,0 +1,433 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Add Report{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-control {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #eaecef;
+        border-radius: 0.375rem;
+        background-color: #f8f9fa;
+    }
+    
+    .btn-primary {
+        background-color: #3776ab;
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.375rem;
+        border: none;
+    }
+    
+    .btn-secondary {
+        background-color: #f8f9fa;
+        color: #212529;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.375rem;
+        border: 1px solid #dee2e6;
+    }
+    
+    .select-wrapper {
+        position: relative;
+    }
+    
+    .select-wrapper::after {
+        content: "▼";
+        font-size: 0.8rem;
+        position: absolute;
+        right: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        pointer-events: none;
+    }
+    
+    /* Custom dropdown styling */
+    .custom-select-container {
+        position: relative;
+        width: 100%;
+    }
+    
+    .custom-select-trigger {
+        padding: 0.75rem;
+        border: 1px solid #ccc;
+        border-radius: 0.375rem;
+        background-color: white;
+        color: #333;
+        font-size: 1rem;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .custom-select-trigger::after {
+        content: "▼";
+        font-size: 0.8rem;
+    }
+    
+    /* Dropdown options styling */
+    .dropdown-content {
+        display: none;
+        position: absolute;
+        background-color: white;
+        width: 100%;
+        border-radius: 0.375rem;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        z-index: 10;
+        margin-top: 4px;
+    }
+    
+    .dropdown-option {
+        padding: 0.75rem;
+        cursor: pointer;
+    }
+    
+    .dropdown-option:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .dropdown-option.selected {
+        background-color: #3776ab;
+        color: white;
+    }
+    
+    .rule-dot {
+        width: 1rem;
+        height: 1rem;
+        border-radius: 50%;
+        background-color: #3776ab;
+        display: inline-block;
+    }
+    
+    .rule-line {
+        width: 2px;
+        background-color: #3776ab;
+        display: inline-block;
+        margin-left: 0.5rem;
+        height: 2rem;
+    }
+    
+    .rule-empty {
+        width: 1rem;
+        height: 1rem;
+        border-radius: 50%;
+        border: 2px solid #3776ab;
+        display: inline-block;
+    }
+    
+    .output-tag {
+        display: inline-flex;
+        align-items: center;
+        background-color: #f8f9fa;
+        color: #212529;
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.375rem;
+        border: 1px solid #dee2e6;
+        margin-right: 0.5rem;
+        margin-bottom: 0.5rem;
+        cursor: pointer;
+        font-size: 0.875rem;
+        transition: all 0.2s ease;
+    }
+    
+    .output-tag:hover {
+        background-color: #e9ecef;
+        border-color: #adb5bd;
+    }
+    
+    .output-tag.selected {
+        background-color: #3776ab;
+        color: white;
+        border-color: #3776ab;
+    }
+    
+    .output-tag.selected:hover {
+        background-color: #2a5a87;
+        border-color: #2a5a87;
+    }
+    
+    .output-tag span {
+        margin-left: 0.25rem;
+    }
+    
+    .hidden {
+        display: none;
+    }
+    
+    .rule-value-select {
+        margin-top: 0.5rem;
+    }
+    
+    .add-output-field {
+        background-color: #f8f9fa;
+        border: 2px dashed #ccc;
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.25rem;
+        margin-right: 0.5rem;
+        margin-bottom: 0.5rem;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+    }
+    
+    .add-output-field:hover {
+        background-color: #e9ecef;
+        border-color: #adb5bd;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    {% if breadcrumbs %}
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+    {% endif %}
+    
+    <h1 class="text-3xl font-bold mb-8">Add Custom Report</h1>
+    
+    <form method="POST" class="space-y-8">
+        {% csrf_token %}
+        
+        <!-- Name field -->
+        <div class="mb-6">
+            <label for="title" class="block text-lg font-semibold mb-2">Report Name</label>
+            <input type="text" id="title" name="title" class="form-control" placeholder="Enter report name" required>
+        </div>
+        
+        <!-- Type field -->
+        <div class="mb-6">
+            <label for="report_type" class="block text-lg font-semibold mb-2">Report Type</label>
+            
+            <!-- Hidden native select for form submission -->
+            <select id="report_type" name="report_type" class="hidden" required>
+                <option value="specific_users" selected>Specific users</option>
+                <option value="learning_progress">Learning progress</option>
+            </select>
+            
+            <!-- Custom styled dropdown -->
+            <div class="custom-select-container">
+                <div id="custom-select-trigger" class="custom-select-trigger">
+                    Specific users
+                </div>
+                
+                <div id="custom-dropdown" class="dropdown-content">
+                    <div class="dropdown-option selected" data-value="specific_users">Specific users</div>
+                    <div class="dropdown-option" data-value="learning_progress">Learning progress</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Ruleset field -->
+        <div class="mb-6">
+            <label class="block text-lg font-semibold mb-4">Filtering Rules</label>
+            
+            <div class="flex items-start mb-4">
+                <div class="flex flex-col items-center mr-4">
+                    <div class="rule-dot"></div>
+                    <div class="rule-line"></div>
+                </div>
+                
+                <div class="flex-1">
+                    <div class="select-wrapper">
+                        <select id="rule" name="rule" class="form-control">
+                            <option value="">Select a filter</option>
+                            <option value="branch">Branch</option>
+                            <option value="group">Group</option>
+                            <option value="course">Course</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Rule value selects (hidden by default) -->
+                    <div id="rule-branch-select" class="rule-value-select hidden">
+                        <select name="rule_branch" class="form-control">
+                            <option value="">Select branch</option>
+                            {% if context_data.branches %}
+                                {% for branch in context_data.branches %}
+                                    <option value="{{ branch.id }}">{{ branch.name }}</option>
+                                {% endfor %}
+                            {% endif %}
+                        </select>
+                    </div>
+                    
+                    <div id="rule-group-select" class="rule-value-select hidden">
+                        <select name="rule_group" class="form-control">
+                            <option value="">Select group</option>
+                            {% if context_data.groups %}
+                                {% for group in context_data.groups %}
+                                    <option value="{{ group.id }}">{{ group.name }}</option>
+                                {% endfor %}
+                            {% endif %}
+                        </select>
+                    </div>
+                    
+                    <div id="rule-course-select" class="rule-value-select hidden">
+                        <select name="rule_course" class="form-control">
+                            <option value="">Select course</option>
+                            {% if context_data.courses %}
+                                {% for course in context_data.courses %}
+                                    <option value="{{ course.id }}">{{ course.title }}</option>
+                                {% endfor %}
+                            {% endif %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Output fields -->
+        <div class="mb-8">
+            <label class="block text-lg font-semibold mb-4">Output Fields</label>
+            <p class="text-sm text-gray-600 mb-4">Select the fields you want to include in your report:</p>
+            
+            <div class="flex flex-wrap" id="output-fields-container">
+                <!-- Available output fields -->
+                <div class="output-tag" data-field="user">
+                    <span>User Name</span>
+                </div>
+                <div class="output-tag" data-field="email">
+                    <span>Email</span>
+                </div>
+                <div class="output-tag" data-field="user_type">
+                    <span>User Type</span>
+                </div>
+                <div class="output-tag" data-field="registration_date">
+                    <span>Registration Date</span>
+                </div>
+                <div class="output-tag" data-field="last_login">
+                    <span>Last Login</span>
+                </div>
+                <div class="output-tag" data-field="assigned_courses">
+                    <span>Assigned Courses</span>
+                </div>
+                <div class="output-tag" data-field="completed_courses">
+                    <span>Completed Courses</span>
+                </div>
+                <div class="output-tag" data-field="progress_percentage">
+                    <span>Progress Percentage</span>
+                </div>
+                <div class="output-tag" data-field="branch">
+                    <span>Branch</span>
+                </div>
+                <div class="output-tag" data-field="group">
+                    <span>Group</span>
+                </div>
+                <div class="output-tag" data-field="initial_assessments_completed">
+                    <span>Initial Assessments Completed</span>
+                </div>
+                <div class="output-tag" data-field="latest_assessment_score">
+                    <span>Latest Assessment Score</span>
+                </div>
+                <div class="output-tag" data-field="avg_assessment_score">
+                    <span>Average Assessment Score</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Form actions -->
+        <div class="flex space-x-4">
+            <button type="submit" class="btn-primary">Create Report</button>
+            <a href="{% url 'reports:reports' %}" class="btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Output field selection
+    const outputTags = document.querySelectorAll('.output-tag');
+    outputTags.forEach(tag => {
+        tag.addEventListener('click', function() {
+            this.classList.toggle('selected');
+            updateOutputFields();
+        });
+    });
+    
+    // Select default fields
+    const defaultFields = ['user', 'email', 'user_type', 'registration_date'];
+    defaultFields.forEach(field => {
+        const tag = document.querySelector(`[data-field="${field}"]`);
+        if (tag) {
+            tag.classList.add('selected');
+        }
+    });
+    updateOutputFields();
+    
+    // Custom dropdown functionality
+    const selectElement = document.getElementById('report_type');
+    const customTrigger = document.getElementById('custom-select-trigger');
+    const dropdownContent = document.getElementById('custom-dropdown');
+    const dropdownOptions = document.querySelectorAll('.dropdown-option');
+    
+    // Toggle dropdown when clicking the custom trigger
+    customTrigger.addEventListener('click', function(e) {
+        e.preventDefault();
+        dropdownContent.style.display = dropdownContent.style.display === 'block' ? 'none' : 'block';
+    });
+    
+    // Select option when clicking on it
+    dropdownOptions.forEach(option => {
+        option.addEventListener('click', function() {
+            // Update the native select value
+            selectElement.value = this.dataset.value;
+            
+            // Update the custom trigger text
+            customTrigger.textContent = this.textContent;
+            
+            // Update the UI
+            dropdownOptions.forEach(opt => opt.classList.remove('selected'));
+            this.classList.add('selected');
+            
+            // Hide the dropdown
+            dropdownContent.style.display = 'none';
+        });
+    });
+    
+    // Close the dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.custom-select-container')) {
+            dropdownContent.style.display = 'none';
+        }
+    });
+    
+    // Rule selection functionality
+    const ruleSelect = document.getElementById('rule');
+    const ruleValueSelects = document.querySelectorAll('.rule-value-select');
+    
+    ruleSelect.addEventListener('change', function() {
+        // Hide all rule value selects
+        ruleValueSelects.forEach(select => {
+            select.classList.add('hidden');
+        });
+        
+        // Show the selected rule value select
+        if (this.value) {
+            const ruleValueSelect = document.getElementById(`rule-${this.value}-select`);
+            if (ruleValueSelect) {
+                ruleValueSelect.classList.remove('hidden');
+            }
+        }
+    });
+    
+    function updateOutputFields() {
+        // Remove existing hidden inputs
+        const existingInputs = document.querySelectorAll('input[name="output_fields[]"]');
+        existingInputs.forEach(input => input.remove());
+        
+        // Add hidden inputs for selected fields
+        const selectedTags = document.querySelectorAll('.output-tag.selected');
+        selectedTags.forEach(tag => {
+            const field = tag.dataset.field;
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = 'output_fields[]';
+            hiddenInput.value = field;
+            document.querySelector('form').appendChild(hiddenInput);
+        });
+    }
+});
+</script>
+{% endblock %} 

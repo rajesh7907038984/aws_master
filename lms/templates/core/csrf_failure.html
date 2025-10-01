@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}CSRF Verification Failed{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-2xl mx-auto">
+        <div class="bg-red-50 border border-red-200 rounded-lg p-6">
+            <div class="flex items-center mb-4">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-exclamation-triangle text-red-500 text-2xl"></i>
+                </div>
+                <div class="ml-3">
+                    <h2 class="text-xl font-bold text-red-800">CSRF Verification Failed</h2>
+                </div>
+            </div>
+            
+            <div class="text-red-700 mb-6">
+                <p class="mb-3">
+                    Your request was rejected for security reasons. This can happen when:
+                </p>
+                <ul class="list-disc pl-6 space-y-1">
+                    <li>You've been inactive for too long and your session expired</li>
+                    <li>You opened the form in multiple tabs</li>
+                    <li>Your browser has cookies disabled</li>
+                    <li>There was a network connectivity issue</li>
+                </ul>
+            </div>
+            
+            <div class="space-y-4">
+                <h3 class="font-semibold text-red-800">What you can do:</h3>
+                <div class="space-y-2">
+                    <a href="javascript:window.history.back();" 
+                       class="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors">
+                        <i class="fas fa-arrow-left mr-2"></i>
+                        Go Back
+                    </a>
+                    
+                    <a href="javascript:window.location.reload();" 
+                       class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors ml-3">
+                        <i class="fas fa-refresh mr-2"></i>
+                        Refresh Page
+                    </a>
+                    
+                    <a href="{% url 'users:role_based_redirect' %}" 
+                       class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors ml-3">
+                        <i class="fas fa-home mr-2"></i>
+                        Go to Dashboard
+                    </a>
+                </div>
+            </div>
+            
+            {% if reason %}
+            <div class="mt-4 p-3 bg-red-100 rounded text-sm text-red-800">
+                <strong>Technical reason:</strong> {{ reason }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

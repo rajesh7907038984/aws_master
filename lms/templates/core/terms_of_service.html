@@ -1,0 +1,132 @@
+{% extends "base_public.html" %}
+{% load static %}
+
+{% block title %}Terms of Service - Nexsy LMS{% endblock %}
+
+{% block content %}
+<div class="legal-container">
+    <div class="legal-header">
+        <h1>
+            <i class="fas fa-file-contract me-3"></i>
+            Terms of Service
+        </h1>
+        <p>Last updated: {% now "F d, Y" %}</p>
+    </div>
+    
+    <div class="legal-content">
+                        <h2>1. Acceptance of Terms</h2>
+                        <p>By accessing and using the Nexsy Learning Management System (LMS) platform, you accept and agree to be bound by the terms and provision of this agreement. If you do not agree to abide by the above, please do not use this service.</p>
+
+                        <h2>2. Description of Service</h2>
+                        <p>Nexsy LMS is a comprehensive learning management system that provides:</p>
+                        <ul>
+                            <li>Online course delivery and management</li>
+                            <li>Student enrollment and progress tracking</li>
+                            <li>Assessment and grading tools</li>
+                            <li>Communication and collaboration features</li>
+                            <li>Reporting and analytics capabilities</li>
+                            <li>Integration with third-party educational tools</li>
+                        </ul>
+
+                        <h2>3. User Accounts and Registration</h2>
+                        <p>To access certain features of the platform, you must register for an account. You agree to:</p>
+                        <ul>
+                            <li>Provide accurate, current, and complete information during registration</li>
+                            <li>Maintain and update your account information</li>
+                            <li>Keep your password secure and confidential</li>
+                            <li>Accept responsibility for all activities under your account</li>
+                            <li>Notify us immediately of any unauthorized use of your account</li>
+                        </ul>
+
+                        <h2>4. Acceptable Use Policy</h2>
+                        <p>You agree not to use the platform to:</p>
+                        <ul>
+                            <li>Violate any applicable laws or regulations</li>
+                            <li>Transmit any harmful, threatening, abusive, or harassing content</li>
+                            <li>Infringe on intellectual property rights</li>
+                            <li>Attempt to gain unauthorized access to the system</li>
+                            <li>Interfere with the proper functioning of the platform</li>
+                            <li>Use the platform for commercial purposes without authorization</li>
+                        </ul>
+
+                        <h2>5. Intellectual Property Rights</h2>
+                        <p>The platform and its original content, features, and functionality are owned by Nexsy and are protected by international copyright, trademark, patent, trade secret, and other intellectual property laws.</p>
+                        
+                        <h3>5.1 User-Generated Content</h3>
+                        <p>You retain ownership of content you create and upload to the platform. By uploading content, you grant Nexsy a non-exclusive, royalty-free license to use, display, and distribute your content in connection with the platform's services.</p>
+
+                        <h2>6. Privacy and Data Protection</h2>
+                        <p>Your privacy is important to us. Our collection and use of personal information is governed by our Privacy Policy, which is incorporated into these Terms by reference.</p>
+
+                        <h2>7. Course Content and Educational Materials</h2>
+                        <p>Course content and educational materials provided through the platform are for educational purposes only. Users are responsible for:</p>
+                        <ul>
+                            <li>Completing coursework according to institutional requirements</li>
+                            <li>Maintaining academic integrity</li>
+                            <li>Respecting copyright and intellectual property rights</li>
+                            <li>Following institutional policies and procedures</li>
+                        </ul>
+
+                        <h2>8. Assessment and Grading</h2>
+                        <p>The platform provides tools for assessment and grading. Users acknowledge that:</p>
+                        <ul>
+                            <li>Assessment results are subject to institutional policies</li>
+                            <li>Grading decisions are made by authorized instructors</li>
+                            <li>Technical issues may affect assessment delivery</li>
+                            <li>Appeals processes are governed by institutional policies</li>
+                        </ul>
+
+                        <h2>9. Technical Requirements and Availability</h2>
+                        <p>The platform requires:</p>
+                        <ul>
+                            <li>Compatible web browser and internet connection</li>
+                            <li>JavaScript enabled</li>
+                            <li>Sufficient bandwidth for multimedia content</li>
+                            <li>Up-to-date browser security settings</li>
+                        </ul>
+                        <p>We strive for high availability but cannot guarantee uninterrupted service.</p>
+
+                        <h2>10. Third-Party Integrations</h2>
+                        <p>The platform may integrate with third-party services. Your use of these services is subject to their respective terms and conditions. Nexsy is not responsible for third-party service availability or functionality.</p>
+
+                        <h2>11. Limitation of Liability</h2>
+                        <p>To the maximum extent permitted by law, Nexsy shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of profits, data, or use, arising from your use of the platform.</p>
+
+                        <h2>12. Indemnification</h2>
+                        <p>You agree to indemnify and hold harmless Nexsy, its officers, directors, employees, and agents from any claims, damages, or expenses arising from your use of the platform or violation of these Terms.</p>
+
+                        <h2>13. Termination</h2>
+                        <p>We may terminate or suspend your account and access to the platform immediately, without prior notice, for any reason, including breach of these Terms.</p>
+
+                        <h2>14. Changes to Terms</h2>
+                        <p>We reserve the right to modify these Terms at any time. We will notify users of significant changes via email or platform notification. Continued use of the platform after changes constitutes acceptance of the new Terms.</p>
+
+                        <h2>15. Governing Law</h2>
+                        <p>These Terms shall be governed by and construed in accordance with applicable laws, without regard to conflict of law principles.</p>
+
+                        <h2>16. Contact Information</h2>
+                        <p>If you have any questions about these Terms of Service, please contact us at:</p>
+                        <ul>
+                            <li>Email: legal@nexsy.io</li>
+                            <li>Address: Nexsy LMS Support Team</li>
+                        </ul>
+
+                        <h2>17. Severability</h2>
+                        <p>If any provision of these Terms is found to be unenforceable or invalid, the remaining provisions will remain in full force and effect.</p>
+
+        <div class="alert-box">
+            <h5><i class="fas fa-info-circle me-2"></i>Important Notice</h5>
+            <p>These Terms of Service are effective as of the date of your acceptance and will remain in effect until terminated by either party. Please review these terms periodically as they may be updated.</p>
+        </div>
+    </div>
+    
+    <div class="navigation-buttons">
+        <a href="{% url 'core:privacy_policy' %}" class="btn-custom btn-secondary-custom">
+            <i class="fas fa-shield-alt me-2"></i>Privacy Policy
+        </a>
+        <a href="{% url 'login' %}" class="btn-custom btn-primary-custom">
+            <i class="fas fa-sign-in-alt me-2"></i>Back to Login
+        </a>
+    </div>
+</div>
+{% endblock %}

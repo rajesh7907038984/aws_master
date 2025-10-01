@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Preview Recipients - {{ block.super }}{% endblock %}
+
+{% block global_breadcrumbs %}
+<!-- Breadcrumb -->
+{% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.section-box {
+    border-radius: 8px;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    background-color: white;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.section-box:hover {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.status-draft {
+    background-color: rgb(249 250 251);
+    color: rgb(75 85 99);
+}
+
+.user-card {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem;
+    border: 1px solid rgb(229 231 235);
+    border-radius: 0.5rem;
+    margin-bottom: 0.5rem;
+    background-color: rgb(249 250 251);
+}
+
+.user-avatar {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    background-color: rgb(59 130 246);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 500;
+    margin-right: 0.75rem;
+}
+
+.role-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.625rem;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.role-admin {
+    background-color: rgb(254 242 242);
+    color: rgb(220 38 38);
+}
+
+.role-instructor {
+    background-color: rgb(239 246 255);
+    color: rgb(59 130 246);
+}
+
+.role-student {
+    background-color: rgb(240 253 244);
+    color: rgb(22 163 74);
+}
+
+.role-other {
+    background-color: rgb(249 250 251);
+    color: rgb(75 85 99);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-3xl font-semibold text-gray-900">Preview Recipients</h1>
+            <p class="text-gray-600 mt-1">Review who will receive this bulk notification</p>
+        </div>
+        <div class="flex gap-3">
+            <a href="{% url 'lms_notifications:bulk_notification_list' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                <i class="fas fa-arrow-left mr-2"></i> Back to List
+            </a>
+            {% if bulk_notification.status == 'draft' %}
+            <a href="{% url 'lms_notifications:bulk_notification_edit' bulk_notification.id %}" class="inline-flex items-center px-4 py-2 border border-blue-300 rounded-md shadow-sm text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100">
+                <i class="fas fa-edit mr-2"></i> Edit Notification
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Notification Details -->
+    <div class="section-box">
+        <div class="flex items-start justify-between mb-4">
+            <div class="flex-1">
+                <div class="flex items-center space-x-3 mb-2">
+                    <h2 class="text-xl font-medium text-gray-900">{{ bulk_notification.title }}</h2>
+                    <span class="status-badge status-{{ bulk_notification.status }}">
+                        {% if bulk_notification.status == 'draft' %}
+                            <i class="fas fa-pencil-alt mr-1"></i> Draft
+                        {% elif bulk_notification.status == 'scheduled' %}
+                            <i class="fas fa-clock mr-1"></i> Scheduled
+                        {% elif bulk_notification.status == 'sending' %}
+                            <i class="fas fa-spinner fa-spin mr-1"></i> Sending
+                        {% elif bulk_notification.status == 'completed' %}
+                            <i class="fas fa-check mr-1"></i> Completed
+                        {% elif bulk_notification.status == 'failed' %}
+                            <i class="fas fa-exclamation-triangle mr-1"></i> Failed
+                        {% endif %}
+                    </span>
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium {% if bulk_notification.priority == 'urgent' %}bg-red-100 text-red-800{% elif bulk_notification.priority == 'high' %}bg-orange-100 text-orange-800{% elif bulk_notification.priority == 'low' %}bg-gray-100 text-gray-800{% else %}bg-blue-100 text-blue-800{% endif %}">
+                        {{ bulk_notification.get_priority_display }}
+                    </span>
+                </div>
+                
+                <p class="text-gray-600 text-sm mb-3">{{ bulk_notification.short_message }}</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-500">
+                    <div>
+                        <strong>Recipient Type:</strong> {{ bulk_notification.get_recipient_type_display }}
+                    </div>
+                    <div>
+                        <strong>Notification Type:</strong> {{ bulk_notification.notification_type.display_name }}
+                    </div>
+                    <div>
+                        <strong>Created:</strong> {{ bulk_notification.created_at|timesince }} ago
+                    </div>
+                </div>
+                
+                {% if bulk_notification.scheduled_for %}
+                <div class="text-sm text-blue-600 mt-2">
+                    <i class="fas fa-clock mr-1"></i>
+                    <strong>Scheduled for:</strong> {{ bulk_notification.scheduled_for }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Message Preview -->
+        <div class="border-t border-gray-200 pt-4">
+            <h3 class="text-lg font-medium text-gray-900 mb-2">Message Content</h3>
+            <div class="bg-gray-50 p-4 rounded-md">
+                {{ bulk_notification.message|safe }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Recipients Summary -->
+    <div class="section-box">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-medium text-gray-900">Recipients Summary</h3>
+            <div class="text-sm text-gray-500">
+                <strong>Total Recipients:</strong> {{ total_recipients }}
+            </div>
+        </div>
+
+        {% if total_recipients > 50 %}
+        <div class="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-info-circle text-blue-400"></i>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-blue-800">
+                        Large Recipient List
+                    </h3>
+                    <div class="mt-2 text-sm text-blue-700">
+                        <p>This notification will be sent to {{ total_recipients }} recipients. Showing the first 50 for preview.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Recipients List -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% for recipient in recipients %}
+            <div class="user-card">
+                <div class="user-avatar">
+                    {{ recipient.first_name.0|default:recipient.username.0|upper }}{{ recipient.last_name.0|default:""|upper }}
+                </div>
+                <div class="flex-1">
+                    <div class="font-medium text-gray-900">
+                        {{ recipient.get_full_name|default:recipient.username }}
+                    </div>
+                    <div class="text-sm text-gray-500">{{ recipient.email }}</div>
+                    <div class="mt-1">
+                        <span class="role-badge {% if recipient.role == 'admin' or recipient.role == 'superadmin' %}role-admin{% elif recipient.role == 'instructor' %}role-instructor{% elif recipient.role == 'student' %}role-student{% else %}role-other{% endif %}">
+                            {{ recipient.get_role_display|default:recipient.role }}
+                        </span>
+                        {% if recipient.branch %}
+                        <span class="ml-2 text-xs text-gray-500">
+                            <i class="fas fa-building mr-1"></i>{{ recipient.branch.name }}
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-span-2 text-center py-8">
+                <i class="fas fa-users text-4xl text-gray-400 mb-2"></i>
+                <p class="text-gray-500">No recipients found for this notification.</p>
+                {% if bulk_notification.status == 'draft' %}
+                <p class="text-sm text-gray-400 mt-1">
+                    You may need to edit the notification to select recipients.
+                </p>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if total_recipients > 50 %}
+        <div class="text-center mt-4 pt-4 border-t border-gray-200">
+            <p class="text-sm text-gray-500">
+                ... and {{ total_recipients|add:"-50" }} more recipients
+            </p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Actions -->
+    {% if bulk_notification.status == 'draft' %}
+    <div class="section-box">
+        <div class="flex justify-between items-center">
+            <div>
+                <h3 class="text-lg font-medium text-gray-900">Ready to Send?</h3>
+                <p class="text-gray-600 text-sm">This notification will be sent to {{ total_recipients }} recipient{{ total_recipients|pluralize }}.</p>
+            </div>
+            <div class="flex gap-3">
+                <a href="{% url 'lms_notifications:bulk_notification_edit' bulk_notification.id %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                    <i class="fas fa-edit mr-2"></i> Edit Notification
+                </a>
+                <form method="POST" action="{% url 'lms_notifications:bulk_notification_send' bulk_notification.id %}" class="inline">
+                    {% csrf_token %}
+                    <button type="submit" 
+                            class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700"
+                            onclick="return confirm('Are you sure you want to send this notification to {{ total_recipients }} recipient{{ total_recipients|pluralize }}? This action cannot be undone.')">
+                        <i class="fas fa-paper-plane mr-2"></i> Send Now
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %} 

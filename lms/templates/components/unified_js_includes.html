@@ -1,0 +1,38 @@
+{% load static %}
+
+<!-- Unified JavaScript Systems for LMS -->
+<!-- Load in order: CSRF -> Notifications -> Error Handler -> Topic Actions -->
+
+<!-- 1. Unified CSRF Handler -->
+<script src="{% static 'core/js/unified-csrf-handler.js' %}"></script>
+
+<!-- 2. Unified Notification System -->
+<script src="{% static 'core/js/unified-notifications.js' %}"></script>
+
+<!-- 3. Unified Error Handler - REMOVED: file not found -->
+<!-- <script src="{% static 'core/js/unified-error-handler.js' %}"></script> -->
+
+<!-- 4. Unified Topic Actions - REMOVED: file not found -->
+<!-- <script src="{% static 'core/js/unified-topic-actions.js' %}"></script> -->
+
+<!-- 5. Initialize available systems -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Check for available unified systems (ErrorHandler and TopicActions removed)
+    if (window.CSRFHandler && window.NotificationSystem) {
+        console.log('Available unified JavaScript systems loaded successfully');
+        
+        // Refresh CSRF token on page load
+        if (window.CSRFHandler && window.CSRFHandler.refresh) {
+            window.CSRFHandler.refresh();
+        }
+        
+        // Setup any additional initialization
+        if (typeof initializeUnifiedSystems === 'function') {
+            initializeUnifiedSystems();
+        }
+    } else {
+        console.warn('Some unified JavaScript systems are not available (ErrorHandler and TopicActions removed)');
+    }
+});
+</script>

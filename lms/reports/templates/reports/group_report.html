@@ -1,0 +1,267 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Group Report{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" type="text/css" href="{% static 'css/reports-unified.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="report-container">
+    <!-- Breadcrumbs -->
+    <div class="report-breadcrumb">
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+    </div>
+
+    <!-- Branch Filter -->
+    {% if show_branch_filter %}
+    <div class="report-filters-top">
+        {% include 'components/branch_filter.html' with branches=branches selected_branch_id=selected_branch_id %}
+    </div>
+    {% endif %}
+
+    <!-- Navigation Tabs -->
+    <div class="report-nav-tabs">
+        <nav>
+            <a href="{% url 'reports:overview' %}" class="report-nav-tab">
+                <i class="fas fa-chart-pie mr-2"></i>
+                Overview
+            </a>
+            <a href="{% url 'reports:training_matrix' %}" class="report-nav-tab">
+                <i class="fas fa-table mr-2"></i>
+                Training Matrix
+            </a>
+            <a href="{% url 'reports:timeline' %}" class="report-nav-tab">
+                <i class="fas fa-clock mr-2"></i>
+                Timeline
+            </a>
+        </nav>
+    </div>
+
+    <!-- Main grid with 70-30 split -->
+    <div class="grid grid-cols-12 gap-4 md:gap-6">
+        <!-- Left Column (70%) -->
+        <div class="col-span-12 lg:col-span-8 transition-all duration-300">
+            <div class="bg-white rounded-lg shadow-sm">
+                <div class="p-6">
+                    <h1 class="text-2xl font-semibold text-gray-900 mb-6">Group Report</h1>
+
+                    <!-- Statistics Cards -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+                        <div class="bg-white rounded-lg p-4 border">
+                            <div class="text-2xl font-bold text-gray-900">{{ completion_rate|default:"46.4" }}%</div>
+                            <div class="text-sm text-gray-600">Completion rate</div>
+                        </div>
+                        <div class="bg-white rounded-lg p-4 border">
+                            <div class="text-2xl font-bold text-gray-900">{{ completed_courses|default:"51" }}</div>
+                            <div class="text-sm text-gray-600">Completed courses</div>
+                        </div>
+                        <div class="bg-white rounded-lg p-4 border">
+                            <div class="text-2xl font-bold text-gray-900">{{ courses_in_progress|default:"22" }}</div>
+                            <div class="text-sm text-gray-600">Courses in progress</div>
+                        </div>
+                        <div class="bg-white rounded-lg p-4 border">
+                            <div class="text-2xl font-bold text-gray-900">{{ courses_not_passed|default:"0" }}</div>
+                            <div class="text-sm text-gray-600">Courses not passed</div>
+                        </div>
+                        <div class="bg-white rounded-lg p-4 border">
+                            <div class="text-2xl font-bold text-gray-900">{{ courses_not_started|default:"37" }}</div>
+                            <div class="text-sm text-gray-600">Courses not started</div>
+                        </div>
+                    </div>
+
+                    <!-- Search Container -->
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="flex-1 relative">
+                            <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            <input type="text" class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Search groups...">
+                        </div>
+                    </div>
+
+                    <!-- Groups Table -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="bg-gray-50">
+                                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-500">Name</th>
+                                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-500">Assigned users</th>
+                                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-500">Completion rate</th>
+                                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-500">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                {% for group in groups %}
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-3">
+                                        <div class="flex items-center">
+                                            <div class="w-8 h-8 rounded-lg bg-gray-200 flex items-center justify-center mr-3">
+                                                <i class="fas fa-users text-gray-500"></i>
+                                            </div>
+                                            <span class="font-medium text-gray-900">{{ group.name }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-4 py-3 text-gray-600">{{ group.assigned_users|default:"-" }}</td>
+                                    <td class="px-4 py-3">
+                                        <div class="flex items-center">
+                                            <div class="w-full bg-gray-200 rounded-full h-2 mr-2">
+                                                <div class="bg-blue-600 h-2 rounded-full" style="width: {{ group.completion_rate|default:0 }}%"></div>
+                                            </div>
+                                            <span class="text-gray-600">{{ group.completion_rate|default:"0.00" }}%</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <a href="{% url 'reports:group_detail' group.id %}" class="text-blue-600 hover:text-blue-700">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="px-4 py-8 text-center text-gray-500">
+                                        No groups found
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column (30%) -->
+        <div class="col-span-12 lg:col-span-4 transition-all duration-300">
+            <div class="bg-white rounded-lg shadow-sm">
+                <div class="p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        Group Summary
+                    </h3>
+                    <div class="space-y-3">
+                        <div class="text-sm text-gray-600">
+                            <strong>Total Groups:</strong> {{ groups|length }}
+                        </div>
+                        <div class="text-sm text-gray-600">
+                            <strong>Average Completion:</strong> {{ completion_rate|default:"46.4" }}%
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6">
+                        <h4 class="text-md font-semibold text-gray-900 mb-3">Quick Actions</h4>
+                        <div class="space-y-2">
+                            <a href="{% url 'reports:overview' %}" class="block w-full bg-blue-50 text-blue-700 py-2 px-4 rounded-lg text-center hover:bg-blue-100 transition-colors text-sm">
+                                <i class="fas fa-chart-pie mr-2"></i>
+                                Back to Overview
+                            </a>
+                            <a href="{% url 'reports:training_matrix' %}" class="block w-full bg-green-50 text-green-700 py-2 px-4 rounded-lg text-center hover:bg-green-100 transition-colors text-sm">
+                                <i class="fas fa-table mr-2"></i>
+                                View Training Matrix
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-6 gap-4">
+        <div class="flex items-center gap-2">
+            <span class="text-sm text-gray-700">Show</span>
+            <select class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+            </select>
+            <span class="text-sm text-gray-700">per page</span>
+        </div>
+        
+        {% if page_obj.has_other_pages %}
+        <nav class="flex items-center">
+            <ul class="flex items-center space-x-1 sm:space-x-2">
+                <!-- Previous Page -->
+                <li>
+                    {% if page_obj.has_previous %}
+                        <a href="?page={{ page_obj.previous_page_number }}" 
+                           class="px-2 py-2 sm:px-3 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
+                            <span class="sr-only">Previous</span>
+                            <i class="fas fa-angle-left"></i>
+                        </a>
+                    {% else %}
+                        <span class="px-2 py-2 sm:px-3 border border-gray-300 rounded-lg bg-gray-100 text-gray-400 text-sm">
+                            <i class="fas fa-angle-left"></i>
+                        </span>
+                    {% endif %}
+                </li>
+                
+                <!-- Page Numbers -->
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                        <li>
+                            <span class="px-2 py-2 sm:px-3 bg-blue-600 text-white border border-blue-600 rounded-lg text-sm">{{ num }}</span>
+                        </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li>
+                            <a href="?page={{ num }}" 
+                               class="px-2 py-2 sm:px-3 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">{{ num }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                <!-- Next Page -->
+                <li>
+                    {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}" 
+                           class="px-2 py-2 sm:px-3 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
+                            <span class="sr-only">Next</span>
+                            <i class="fas fa-angle-right"></i>
+                        </a>
+                    {% else %}
+                        <span class="px-2 py-2 sm:px-3 border border-gray-300 rounded-lg bg-gray-100 text-gray-400 text-sm">
+                            <i class="fas fa-angle-right"></i>
+                        </span>
+                    {% endif %}
+                </li>
+            </ul>
+        </nav>
+        {% endif %}
+        
+        <!-- Pagination Info -->
+        <div class="text-sm text-gray-500">
+            Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} results
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Search functionality
+    const searchInput = document.querySelector('input[placeholder="Search groups..."]');
+    const tableRows = document.querySelectorAll('tbody tr');
+
+    if (searchInput && tableRows.length > 0) {
+        searchInput.addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+
+            tableRows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(searchTerm) ? '' : 'none';
+            });
+        });
+    }
+
+    // Handle per page select
+    const perPageSelect = document.querySelector('select');
+    if (perPageSelect) {
+        perPageSelect.addEventListener('change', function(e) {
+            const searchParams = new URLSearchParams(window.location.search);
+            searchParams.set('per_page', e.target.value);
+            window.location.search = searchParams.toString();
+        });
+    }
+});
+</script>
+{% endblock %} 

@@ -1,0 +1,687 @@
+/* Admin Sidebar Styles */
+.sidebar {
+    position: fixed;
+    top: var(--header-height);
+    left: 0;
+    height: calc(100vh - var(--header-height));
+    width: var(--sidebar-width);
+    z-index: var(--z-index-sidebar);
+    transition: all 0.3s ease;
+    overflow-y: auto;
+}
+
+/* Toggle icon rotation */
+#toggleIcon.rotate-180 {
+    transform: rotate(180deg);
+}
+
+/* Collapsed sidebar styles */
+.sidebar.sidebar-collapsed, 
+.sidebar.collapsed {
+    width: var(--sidebar-collapsed-width);
+}
+
+.sidebar.sidebar-collapsed .sidebar-text,
+.sidebar.collapsed .menu-text {
+    opacity: 0;
+    width: 0;
+    visibility: hidden;
+}
+
+.sidebar.sidebar-collapsed .sidebar-icon,
+.sidebar.collapsed .icon-container {
+    margin-right: 0;
+    justify-content: center;
+    width: 100%;
+}
+
+/* Main content adjustments */
+.main-content {
+    margin-left: 250px;
+    min-height: calc(100vh - 3.5rem);
+    height: calc(100vh - 3.5rem);
+    transition: all 0.3s ease;
+    padding: 1rem;
+    width: calc(100% - 250px);
+    position: fixed;
+    top: 3.5rem;
+    right: 0;
+    overflow-y: auto;
+    z-index: 20;
+}
+
+.main-content-expanded,
+.sidebar.collapsed ~ .main-content,
+.sidebar.collapsed ~ main .main-content {
+    margin-left: 64px;
+    width: calc(100% - 64px);
+}
+
+/* Basic sidebar menu item styles */
+.sidebar-menu-item {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    text-decoration: none;
+}
+
+/* Scrollbar styles */
+.sidebar::-webkit-scrollbar {
+    width: 4px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+}
+
+/* Main content scrollbar */
+.main-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.main-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.main-content::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 6px;
+}
+
+/* Search input styles */
+.search-input {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.5rem;
+    padding: 0.5rem 1rem 0.5rem 2.5rem;
+    width: 100%;
+    max-width: 24rem;
+    transition: all 0.3s ease;
+    color: #ffffff;
+}
+
+.search-input:focus {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Fix for header in admin pages */
+header.fixed.top-0.left-0.right-0.w-full.z-50 {
+    background-color: white !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1) !important;
+}
+
+/* Main content adjustments for expanded sidebar */
+[data-theme="light"] .main-content {
+    background: var(--bg-primary);
+    margin-left: 16rem;
+    min-height: calc(100vh - 3.5rem);
+    height: calc(100vh - 3.5rem);
+    transition: all 0.3s ease;
+    padding: 1rem;
+    width: calc(100% - 16rem);
+    position: absolute;
+    top: 3.5rem;
+    overflow-y: auto;
+    z-index: 20;
+}
+
+/* Sidebar Navigation Styles */
+.sidebar nav {
+    height: 100%;
+    padding-top: 0;
+}
+
+.sidebar ul {
+    margin: 0;
+    padding: 0;
+}
+
+/* Sidebar footer */
+.sidebar-footer {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    padding: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.5);
+    text-align: center;
+    background-color: rgba(0, 0, 0, 0.2);
+}
+
+/* Sidebar header styling */
+.sidebar-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background-color: rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(5px);
+}
+
+/* Icon styling */
+.sidebar-icon {
+    transition: all 0.3s ease;
+    font-size: 1.5rem;
+    width: 1.5rem;
+    height: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sidebar-collapsed .sidebar-icon {
+    transform: scale(1.3);
+}
+
+/* Adjust icon container spacing */
+.sidebar .icon-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2rem;
+    margin-right: 0.75rem;
+}
+
+.sidebar.collapsed .icon-container {
+    margin-right: 0;
+}
+
+/* Theme toggle button styles */
+.theme-toggle {
+    position: fixed !important;
+    bottom: 2rem !important;
+    right: 2rem !important;
+    z-index: 1000 !important;
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 9999px;
+    padding: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+}
+
+[data-theme="light"] .theme-toggle {
+    position: fixed !important;
+    bottom: 2rem !important;
+    right: 2rem !important;
+    z-index: 1000 !important;
+    background-color: #ffffff;
+    color: #1f2937;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Header logo section width adjustment */
+header .flex.items-center {
+    width: 184px;
+}
+
+/* Remove any remaining borders */
+.sidebar nav,
+.sidebar ul,
+.sidebar li {
+    border: none !important;
+}
+
+/* Ensure no borders on hover */
+.sidebar-menu-item:hover,
+.sidebar-menu-item:focus,
+.sidebar-menu-item:active {
+    border: none !important;
+    outline: none !important;
+}
+
+/* Admin content scrollbar styling */
+.admin-content::-webkit-scrollbar {
+    width: 4px;
+}
+
+.admin-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.admin-content::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+[data-theme="light"] .admin-content::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Ensure proper stacking context */
+.admin-container {
+    position: relative;
+    z-index: 1;
+}
+
+.admin-content {
+    position: relative;
+    z-index: 1;
+    background-color: #1e293b;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    padding: 1.5rem;
+    max-height: calc(100vh - 12rem);
+    overflow-y: auto;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .admin-content {
+    background-color: #1e1e2d;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Ensure the dashboard has the correct background color */
+.main-content {
+    background-color: #f8f9fa !important;
+}
+
+/* Dashboard specific styles */
+.dashboard-container {
+    background-color: #ffffff !important;
+}
+
+/* Card styles */
+.rounded-\[3px\].shadow-\[0px_0px_17px_-5px_rgba\(0\,0\,0\,0\.4\)\].bg-white {
+    background-color: #ffffff !important;
+    box-shadow: 0px 0px 17px -5px rgba(0,0,0,0.4) !important;
+    border-radius: 3px !important;
+}
+
+/* Text colors */
+.text-gray-700 {
+    color: #374151 !important;
+}
+
+.text-gray-800 {
+    color: #1f2937 !important;
+}
+
+.text-gray-600 {
+    color: #4b5563 !important;
+}
+
+.text-gray-500 {
+    color: #6b7280 !important;
+}
+
+.text-gray-400 {
+    color: #9ca3af !important;
+}
+
+/* Button colors */
+.bg-\[#7DC668\] {
+    background-color: #7DC668 !important;
+}
+
+.hover\:bg-\[#6db459\]:hover {
+    background-color: #6db459 !important;
+}
+
+/* Icon background colors */
+.bg-\[#EBF3FE\] {
+    background-color: #EBF3FE !important;
+}
+
+.text-\[#2F80ED\] {
+    color: #2F80ED !important;
+}
+
+/* Ensure all text in the dashboard is visible */
+#main-content {
+    color: #000000 !important;
+}
+
+/* Ensure the main content area has the correct background */
+main.flex-1.bg-white {
+    background-color: #ffffff !important;
+    padding: 1rem !important;
+}
+
+/* Ensure the space-y-6 class has the correct spacing */
+.space-y-6 > :not([hidden]) ~ :not([hidden]) {
+    --tw-space-y-reverse: 0 !important;
+    margin-top: calc(1.5rem * calc(1 - var(--tw-space-y-reverse))) !important;
+    margin-bottom: calc(1.5rem * var(--tw-space-y-reverse)) !important;
+}
+
+/* Ensure the grid has the correct layout */
+.grid {
+    display: grid !important;
+}
+
+.grid-cols-1 {
+    grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+}
+
+@media (min-width: 768px) {
+    .md\:grid-cols-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+    
+    .md\:grid-cols-3 {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+    
+    .md\:col-span-2 {
+        grid-column: span 2 / span 2 !important;
+    }
+}
+
+/* Ensure the gap has the correct spacing */
+.gap-6 {
+    gap: 1.5rem !important;
+}
+
+.gap-4 {
+    gap: 1rem !important;
+}
+
+.gap-2 {
+    gap: 0.5rem !important;
+}
+
+/* Ensure the padding has the correct spacing */
+.p-6 {
+    padding: 1.5rem !important;
+}
+
+.p-4 {
+    padding: 1rem !important;
+}
+
+/* Ensure the margin has the correct spacing */
+.mb-4 {
+    margin-bottom: 1rem !important;
+}
+
+.mr-4 {
+    margin-right: 1rem !important;
+}
+
+.ml-3 {
+    margin-left: 0.75rem !important;
+}
+
+.mt-1 {
+    margin-top: 0.25rem !important;
+}
+
+/* Ensure the flex has the correct layout */
+.flex {
+    display: flex !important;
+}
+
+.flex-1 {
+    flex: 1 1 0% !important;
+    padding: 1rem !important;
+}
+
+.items-center {
+    align-items: center !important;
+}
+
+.justify-center {
+    justify-content: center !important;
+}
+
+.justify-between {
+    justify-content: space-between !important;
+}
+
+/* Ensure the border has the correct style */
+.border {
+    border-width: 1px !important;
+    border-style: solid !important;
+    border-color: #e5e7eb !important;
+}
+
+.rounded-lg {
+    border-radius: 0.5rem !important;
+}
+
+.rounded-full {
+    border-radius: 9999px !important;
+}
+
+/* Ensure the width and height have the correct size */
+.w-10 {
+    width: 2.5rem !important;
+}
+
+.h-10 {
+    height: 2.5rem !important;
+}
+
+.w-full {
+    width: 100% !important;
+}
+
+.h-1\.5 {
+    height: 0.375rem !important;
+}
+
+/* Ensure the text has the correct size */
+.text-xl {
+    font-size: 1.25rem !important;
+    line-height: 1.75rem !important;
+}
+
+.text-2xl {
+    font-size: 1.5rem !important;
+    line-height: 2rem !important;
+}
+
+.text-lg {
+    font-size: 1.125rem !important;
+    line-height: 1.75rem !important;
+}
+
+.text-sm {
+    font-size: 0.875rem !important;
+    line-height: 1.25rem !important;
+}
+
+.text-xs {
+    font-size: 0.75rem !important;
+    line-height: 1rem !important;
+}
+
+/* Ensure the font has the correct weight */
+.font-semibold {
+    font-weight: 600 !important;
+}
+
+.font-medium {
+    font-weight: 500 !important;
+}
+
+.font-bold {
+    font-weight: 700 !important;
+}
+
+/* Ensure the background colors for progress bars */
+.bg-blue-500 {
+    background-color: #3b82f6 !important;
+}
+
+.bg-red-500 {
+    background-color: #ef4444 !important;
+}
+
+.bg-yellow-500 {
+    background-color: #eab308 !important;
+}
+
+.bg-gray-200 {
+    background-color: #e5e7eb !important;
+}
+
+.bg-gray-100 {
+    background-color: #f3f4f6 !important;
+}
+
+/* Ensure the hover colors */
+.hover\:text-gray-600:hover {
+    color: #4b5563 !important;
+}
+
+.hover\:text-blue-600:hover {
+    color: #2563eb !important;
+}
+
+/* Ensure the text colors */
+.text-blue-500 {
+    color: #3b82f6 !important;
+}
+
+.text-white {
+    color: #ffffff !important;
+}
+
+/* Ensure the transition */
+.transition-colors {
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke !important;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important;
+    transition-duration: 150ms !important;
+}
+
+/* Ensure the rounded corners */
+.rounded-\[4px\] {
+    border-radius: 4px !important;
+}
+
+/* Ensure the leading */
+.leading-none {
+    line-height: 1 !important;
+}
+
+/* Ensure the space-y-4 class has the correct spacing */
+.space-y-4 > :not([hidden]) ~ :not([hidden]) {
+    --tw-space-y-reverse: 0 !important;
+    margin-top: calc(1rem * calc(1 - var(--tw-space-y-reverse))) !important;
+    margin-bottom: calc(1rem * var(--tw-space-y-reverse)) !important;
+}
+
+/* Ensure the space-y-3 class has the correct spacing */
+.space-y-3 > :not([hidden]) ~ :not([hidden]) {
+    --tw-space-y-reverse: 0 !important;
+    margin-top: calc(0.75rem * calc(1 - var(--tw-space-y-reverse))) !important;
+    margin-bottom: calc(0.75rem * var(--tw-space-y-reverse)) !important;
+}
+
+/* Ensure the overflow-hidden */
+.overflow-hidden {
+    overflow: hidden !important;
+}
+
+/* Ensure the object-cover */
+.object-cover {
+    object-fit: cover !important;
+}
+
+/* Ensure the relative and absolute positioning */
+.relative {
+    position: relative !important;
+}
+
+.absolute {
+    position: absolute !important;
+}
+
+.inset-0 {
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+}
+
+.inset-\[15\%\] {
+    top: 15% !important;
+    right: 15% !important;
+    bottom: 15% !important;
+    left: 15% !important;
+}
+
+/* Ensure the background colors for the chart */
+.bg-green-500 {
+    background-color: #22c55e !important;
+}
+
+.bg-yellow-400 {
+    background-color: #facc15 !important;
+}
+
+.bg-gray-300 {
+    background-color: #d1d5db !important;
+}
+
+/* Ensure the pt-2 */
+.pt-2 {
+    padding-top: 0.5rem !important;
+}
+
+/* Ensure the ml-8 */
+.ml-8 {
+    margin-left: 2rem !important;
+}
+
+/* Ensure the w-3 and h-3 */
+.w-3 {
+    width: 0.75rem !important;
+}
+
+.h-3 {
+    height: 0.75rem !important;
+}
+
+/* Ensure the mr-2 */
+.mr-2 {
+    margin-right: 0.5rem !important;
+}
+
+/* Ensure the mb-6 */
+.mb-6 {
+    margin-bottom: 1.5rem !important;
+}
+
+/* Ensure the w-40 and h-40 */
+.w-40 {
+    width: 10rem !important;
+}
+
+.h-40 {
+    height: 10rem !important;
+}
+
+/* Ensure the inset classes */
+.inset-\[15\%\] {
+    top: 15% !important;
+    right: 15% !important;
+    bottom: 15% !important;
+    left: 15% !important;
+}
+
+/* Ensure the conic-gradient works */
+[style*="conic-gradient"] {
+    background: conic-gradient(#22c55e 0% 57.44%, #fbbf24 57.44% 70%, #d1d5db 70% 85%, #ef4444 85% 100%) !important;
+} 

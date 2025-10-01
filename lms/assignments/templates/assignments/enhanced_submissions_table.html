@@ -1,0 +1,1488 @@
+{% load assignment_filters %}
+<!-- Enhanced Submissions Table (for instructors/admins) -->
+{% if user.role == 'instructor' or user.role == 'admin' or user.role == 'globaladmin' or user.role == 'superadmin' or user.is_superuser %}
+    <div class="bg-gray-100 rounded p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold text-gray-800">Assignment Submissions</h2>
+            <div class="text-sm text-gray-600">
+                Total: {{ submissions|length }} submission{{ submissions|length|pluralize }}
+            </div>
+        </div>
+        
+        <!-- Filters Section -->
+        <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label for="studentFilter" class="block text-sm font-medium text-gray-700 mb-1">
+                        Filter by Student Name
+                    </label>
+                    <input type="text" 
+                           id="studentFilter" 
+                           placeholder="Type student name..." 
+                           class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label for="courseFilter" class="block text-sm font-medium text-gray-700 mb-1">
+                        Filter by Course
+                    </label>
+                    <select id="courseFilter" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                        <option value="">All Courses</option>
+                        {% for submission_data in submissions %}
+                            {% if submission_data.course_name != "No course assigned" %}
+                                <option value="{{ submission_data.course_name }}">{{ submission_data.course_name }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label for="statusFilter" class="block text-sm font-medium text-gray-700 mb-1">
+                        Filter by Status
+                    </label>
+                    <select id="statusFilter" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                        <option value="">All Statuses</option>
+                        <option value="submitted">Submitted</option>
+                        <option value="not_graded">Not Graded</option>
+                        <option value="graded">Graded</option>
+                        <option value="returned">Returned for Revision</option>
+                        <option value="late">Late</option>
+                        <option value="missing">Missing</option>
+                        <option value="excused">Excused</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mt-3 flex justify-end">
+                <button onclick="clearFilters()" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50">
+                    Clear Filters
+                </button>
+            </div>
+        </div>
+
+        <!-- Enhanced Submissions Table -->
+        <div class="overflow-x-auto">
+            <!-- Desktop Table View -->
+            <div class="block" style="display: block !important;">
+                <div class="min-w-full bg-white border border-gray-200 rounded-lg">
+                    <!-- Enhanced Table Header -->
+                    <div class="grid grid-cols-6 bg-gray-50 text-gray-700 border-b text-sm font-medium">
+                        <div class="col-span-1 py-3 px-4 border-r">Student</div>
+                        <div class="col-span-1 py-3 px-4 border-r">Course</div>
+                        <div class="col-span-1 py-3 px-4 border-r">Instructor</div>
+                        <div class="col-span-1 py-3 px-4 border-r">Rubric/Grade</div>
+                        <div class="col-span-1 py-3 px-4 border-r">Status & Questions</div>
+                        <div class="col-span-1 py-3 px-4">Actions</div>
+                    </div>
+                
+                <!-- Enhanced Submissions -->
+                {% for submission_data in submissions %}
+                    <div class="submission-row grid grid-cols-6 text-gray-700 hover:bg-gray-50 border-b text-sm" 
+                         data-student-name="{{ submission_data.student_name|lower }}"
+                         data-course-name="{{ submission_data.course_name|lower }}"
+                         data-status="{{ submission_data.submission.status }}"
+                         style="display: grid !important;">
+                        
+                        <!-- Student -->
+                        <div class="col-span-1 py-3 px-4 border-r">
+                            <div class="font-medium text-gray-900">
+                                {{ submission_data.student_name }}
+                            </div>
+                            <div class="text-xs text-gray-500">
+                                {{ submission_data.submission.submitted_at|date:"M d, Y H:i" }}
+                            </div>
+                        </div>
+                        
+                        <!-- Course -->
+                        <div class="col-span-1 py-3 px-4 border-r">
+                            <div class="text-sm">
+                                {% if submission_data.course_id %}
+                                    <a href="{% url 'courses:course_details' submission_data.course_id %}" 
+                                       class="text-blue-600 hover:text-blue-800">
+                                        {{ submission_data.course_name|truncatechars:25 }}
+                                    </a>
+                                {% else %}
+                                    <span class="text-gray-500 italic">{{ submission_data.course_name }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Instructor -->
+                        <div class="col-span-1 py-3 px-4 border-r">
+                            <div class="text-sm text-gray-600">
+                                {{ submission_data.instructor_name|truncatechars:25 }}
+                            </div>
+                        </div>
+                        
+                        <!-- Rubric/Grade -->
+                        <div class="col-span-1 py-3 px-4 border-r">
+                            <div class="space-y-1">
+                                <!-- Total Points -->
+                                <div class="text-sm">
+                                    <span class="font-medium">Points:</span>
+                                    {% if submission_data.submission.grade %}
+                                        <span class="text-green-600 font-medium">
+                                            {{ submission_data.submission.grade }}/{{ assignment.max_score }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-gray-400">Not graded</span>
+                                    {% endif %}
+                                </div>
+                                
+                                <!-- Grade Percentage -->
+                                <div class="text-sm">
+                                    <span class="font-medium">Grade:</span>
+                                    {% if submission_data.grade_percentage %}
+                                        <span class="text-blue-600 font-medium">
+                                            {{ submission_data.grade_percentage|floatformat:1 }}%
+                                        </span>
+                                    {% else %}
+                                        <span class="text-gray-400">Not calculated</span>
+                                    {% endif %}
+                                </div>
+                                
+                                <!-- Rubric Score (if available) -->
+                                {% if assignment.rubric and submission_data.rubric_evaluations %}
+                                <div class="text-sm">
+                                    <span class="font-medium">Rubric:</span>
+                                    <span class="text-purple-600">
+                                        {{ submission_data.total_rubric_score }}/{{ submission_data.max_rubric_score }}
+                                    </span>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Status & Questions -->
+                        <div class="col-span-1 py-3 px-4 border-r">
+                            <div class="space-y-1">
+                                <!-- Status -->
+                                <div>
+                                    <span class="px-2 py-1 rounded-full text-xs font-medium
+                                        {% if submission_data.submission.status == 'submitted' %}bg-blue-100 text-blue-800
+                                        {% elif submission_data.submission.status == 'not_graded' %}bg-orange-100 text-orange-800
+                                        {% elif submission_data.submission.status == 'graded' %}bg-green-100 text-green-800
+                                        {% elif submission_data.submission.status == 'returned' %}bg-yellow-100 text-yellow-800
+                                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                        {{ submission_data.submission.get_status_display }}
+                                    </span>
+                                </div>
+                                
+                                <!-- Graded By -->
+                                {% if submission_data.submission.graded_by %}
+                                <div class="text-xs text-gray-500">
+                                    Graded by {{ submission_data.submission.graded_by.get_full_name }}
+                                    {% if submission_data.submission.graded_at %}
+                                        on {{ submission_data.submission.graded_at|date:"M d" }}
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                                
+                                <!-- Question Answer Status (Not Content) -->
+                                {% if submission_data.text_answers %}
+                                <div class="mt-2">
+                                    <div class="text-xs font-medium text-gray-700 mb-1">Question Status: {{ submission_data.text_answers|length }}</div>
+                                    <div class="text-xs text-gray-500 mb-1 italic">Status indicators only</div>
+                                    {% for qa in submission_data.text_answers %}
+                                        <div class="text-xs text-gray-600 mb-1">
+                                            {% if qa.answer %}
+                                                <span class="text-green-600">✓</span>
+                                            {% else %}
+                                                <span class="text-red-500">✗</span>
+                                            {% endif %}
+                                            Q{{ forloop.counter }}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Actions -->
+                        <div class="col-span-1 py-3 px-4">
+                            <div class="flex flex-col space-y-1">
+                                <!-- Grade Button -->
+                                <a href="{% url 'assignments:grade_submission' submission_data.submission.id %}" 
+                                   class="inline-flex items-center justify-center px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">
+                                    <i class="fas fa-pen-to-square mr-1"></i>
+                                    Grade
+                                </a>
+                                
+                                <!-- Comments & Discussion Toggle Button -->
+                                <button onclick="toggleSubmissionComments({{ submission_data.submission.id }})" 
+                                        class="inline-flex items-center justify-center px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700">
+                                    <i class="fas fa-comments mr-1"></i>
+                                    <span id="comments-btn-text-{{ submission_data.submission.id }}">
+                                        {% if submission_data.submission_comments|length > 0 %}
+                                            Comments
+                                        {% else %}
+                                            Add Comment
+                                        {% endif %}
+                                    </span>
+                                    {% if submission_data.submission_comments|length > 0 %}
+                                    <span class="ml-1 bg-white text-green-600 rounded-full px-1 text-xs" id="comments-count-{{ submission_data.submission.id }}">
+                                        {{ submission_data.submission_comments|length }}
+                                    </span>
+                                    {% endif %}
+                                </button>
+                                
+                                <!-- Details Report Button -->
+                                <button onclick="generateDetailedReport({{ assignment.id }}, {{ submission_data.submission.user.id }})" 
+                                        class="inline-flex items-center justify-center px-2 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700">
+                                    <i class="fas fa-file-alt mr-1"></i>
+                                    Details Report
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Individual Comments & Discussion Section for this submission (Hidden by default) -->
+                    <div id="submission-comments-{{ submission_data.submission.id }}" class="hidden col-span-6 bg-gray-50 border-t border-gray-300">
+                        <div class="p-4">
+                            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                                <div class="border-b border-gray-200 p-4">
+                                    <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+                                        <i class="fas fa-comments text-green-500 mr-2"></i>
+                                        Comments & Discussion for {{ submission_data.student_name }}
+                                        <span class="ml-2 text-sm bg-green-100 text-green-800 px-2 py-1 rounded">{{ submission_data.submission_comments|length }} comment{{ submission_data.submission_comments|length|pluralize }}</span>
+                                    </h3>
+                                    <p class="text-sm text-gray-600 mt-1">Private discussion between instructor and {{ submission_data.student_name }} about this specific submission</p>
+                                </div>
+
+                                <div class="p-4">
+                                    <!-- Add New Comment Form for this submission -->
+                                    <form method="post" action="{% url 'assignments:add_comment' assignment.id %}" class="mb-6">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="submission_id" value="{{ submission_data.submission.id }}">
+                                        <div class="mb-4">
+                                            <label for="comment-content-{{ submission_data.submission.id }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                                Add a comment for {{ submission_data.student_name }}
+                                            </label>
+                                            <textarea 
+                                                id="comment-content-{{ submission_data.submission.id }}" 
+                                                name="content" 
+                                                rows="3" 
+                                                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-vertical"
+                                                placeholder="Provide feedback or ask questions about {{ submission_data.student_name }}'s submission..."
+                                                required
+                                            ></textarea>
+                                        </div>
+                                        
+                                        {% if user.role == 'instructor' %}
+                                        <div class="mb-4">
+                                            <label class="flex items-center">
+                                                <input type="checkbox" name="is_private" class="mr-2" checked>
+                                                <span class="text-sm text-gray-600">Private instructor note (student cannot see)</span>
+                                            </label>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        <button 
+                                            type="submit" 
+                                            class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors duration-200"
+                                        >
+                                            <i class="fas fa-paper-plane mr-2"></i>
+                                            Post Comment
+                                        </button>
+                                    </form>
+
+                                    <!-- Comments List for this specific submission -->
+                                    {% if submission_data.submission_comments %}
+                                    <div class="space-y-4">
+                                        {% for comment in submission_data.submission_comments %}
+                                        <div class="comment-thread border-l-4 border-green-200 pl-4">
+                                            <!-- Main Comment -->
+                                            <div class="bg-gray-50 rounded-lg p-4">
+                                                <div class="flex justify-between items-start mb-3">
+                                                    <div class="flex items-center">
+                                                        <div class="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center text-sm font-medium mr-3">
+                                                            {% if comment.author.first_name %}
+                                                                {{ comment.author.first_name|first }}{{ comment.author.last_name|first }}
+                                                            {% else %}
+                                                                {{ comment.author.username|first|upper }}
+                                                            {% endif %}
+                                                        </div>
+                                                        <div>
+                                                            <h4 class="font-medium text-gray-900">{{ comment.author.get_full_name }}</h4>
+                                                            <p class="text-sm text-gray-500">
+                                                                {{ comment.created_at|timesince }} ago
+                                                                {% if comment.is_private %}
+                                                                    <span class="ml-2 bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs">Private</span>
+                                                                {% endif %}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    {% if comment.can_edit_by_user %}
+                                                    <div class="flex items-center space-x-2">
+                                                        <button 
+                                                            onclick="toggleEditComment({{ comment.id }})" 
+                                                            class="text-gray-500 hover:text-gray-700 text-sm"
+                                                            title="Edit comment"
+                                                        >
+                                                            <i class="fas fa-edit"></i>
+                                                        </button>
+                                                        <form method="post" action="{% url 'assignments:delete_comment' comment.id %}" class="inline" 
+                                                              onsubmit="return confirm('Are you sure you want to delete this comment?')">
+                                                            {% csrf_token %}
+                                                            <button 
+                                                                type="submit" 
+                                                                class="text-red-500 hover:text-red-700 text-sm"
+                                                                title="Delete comment"
+                                                            >
+                                                                <i class="fas fa-trash"></i>
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                    {% endif %}
+                                                </div>
+                                                
+                                                <div class="comment-content" id="comment-content-{{ comment.id }}">
+                                                    <p class="text-gray-700">{{ comment.content|linebreaks|safe }}</p>
+                                                </div>
+                                                
+                                                <!-- Edit Form (Hidden by default) -->
+                                                <div class="comment-edit-form hidden" id="edit-form-{{ comment.id }}">
+                                                    <form method="post" action="{% url 'assignments:edit_comment' comment.id %}">
+                                                        {% csrf_token %}
+                                                        <textarea 
+                                                            name="content" 
+                                                            rows="3" 
+                                                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent mb-3"
+                                                            required
+                                                        >{{ comment.content }}</textarea>
+                                                        <div class="flex space-x-2">
+                                                            <button 
+                                                                type="submit" 
+                                                                class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
+                                                            >
+                                                                Save
+                                                            </button>
+                                                            <button 
+                                                                type="button" 
+                                                                onclick="toggleEditComment({{ comment.id }})" 
+                                                                class="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700"
+                                                            >
+                                                                Cancel
+                                                            </button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                                
+                                                <!-- Reply Button -->
+                                                <button 
+                                                    onclick="toggleReplyForm({{ comment.id }})" 
+                                                    class="mt-3 text-green-600 hover:text-green-800 text-sm font-medium"
+                                                >
+                                                    <i class="fas fa-reply mr-1"></i>
+                                                    Reply
+                                                </button>
+                                                
+                                                <!-- Reply Form (Hidden by default) -->
+                                                <div class="reply-form hidden mt-3" id="reply-form-{{ comment.id }}">
+                                                    <form method="post" action="{% url 'assignments:add_comment' assignment.id %}">
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="parent_id" value="{{ comment.id }}">
+                                                        <input type="hidden" name="submission_id" value="{{ submission_data.submission.id }}">
+                                                        <textarea 
+                                                            name="content" 
+                                                            rows="2" 
+                                                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent mb-3"
+                                                            placeholder="Write a reply..."
+                                                            required
+                                                        ></textarea>
+                                                        <div class="flex space-x-2">
+                                                            <button 
+                                                                type="submit" 
+                                                                class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
+                                                            >
+                                                                <i class="fas fa-paper-plane mr-1"></i>
+                                                                Post Reply
+                                                            </button>
+                                                            <button 
+                                                                type="button" 
+                                                                onclick="toggleReplyForm({{ comment.id }})" 
+                                                                class="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700"
+                                                            >
+                                                                Cancel
+                                                            </button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Replies -->
+                                            {% for reply in comment.get_visible_replies %}
+                                            <div class="ml-8 mt-3 bg-white rounded-lg p-4 border border-gray-200">
+                                                <div class="flex justify-between items-start mb-3">
+                                                    <div class="flex items-center">
+                                                        <div class="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-medium mr-3">
+                                                            {% if reply.author.first_name %}
+                                                                {{ reply.author.first_name|first }}{{ reply.author.last_name|first }}
+                                                            {% else %}
+                                                                {{ reply.author.username|first|upper }}
+                                                            {% endif %}
+                                                        </div>
+                                                        <div>
+                                                            <h5 class="font-medium text-gray-900 text-sm">{{ reply.author.get_full_name }}</h5>
+                                                            <p class="text-xs text-gray-500">
+                                                                {{ reply.created_at|timesince }} ago
+                                                                {% if reply.is_private %}
+                                                                    <span class="ml-2 bg-yellow-100 text-yellow-800 px-1 py-0.5 rounded text-xs">Private</span>
+                                                                {% endif %}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    {% if reply.can_edit_by_user %}
+                                                    <div class="flex items-center space-x-2">
+                                                        <button 
+                                                            onclick="toggleEditComment({{ reply.id }})" 
+                                                            class="text-gray-500 hover:text-gray-700 text-sm"
+                                                            title="Edit reply"
+                                                        >
+                                                            <i class="fas fa-edit"></i>
+                                                        </button>
+                                                        <form method="post" action="{% url 'assignments:delete_comment' reply.id %}" class="inline"
+                                                              onsubmit="return confirm('Are you sure you want to delete this reply?')">
+                                                            {% csrf_token %}
+                                                            <button 
+                                                                type="submit" 
+                                                                class="text-red-500 hover:text-red-700 text-sm"
+                                                                title="Delete reply"
+                                                            >
+                                                                <i class="fas fa-trash"></i>
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                    {% endif %}
+                                                </div>
+                                                
+                                                <div class="comment-content" id="comment-content-{{ reply.id }}">
+                                                    <p class="text-gray-700 text-sm">{{ reply.content|linebreaks|safe }}</p>
+                                                </div>
+                                                
+                                                <!-- Edit Form (Hidden by default) -->
+                                                <div class="comment-edit-form hidden" id="edit-form-{{ reply.id }}">
+                                                    <form method="post" action="{% url 'assignments:edit_comment' reply.id %}">
+                                                        {% csrf_token %}
+                                                        <textarea 
+                                                            name="content" 
+                                                            rows="2" 
+                                                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent mb-3"
+                                                            required
+                                                        >{{ reply.content }}</textarea>
+                                                        <div class="flex space-x-2">
+                                                            <button 
+                                                                type="submit" 
+                                                                class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
+                                                            >
+                                                                Save
+                                                            </button>
+                                                            <button 
+                                                                type="button" 
+                                                                onclick="toggleEditComment({{ reply.id }})" 
+                                                                class="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700"
+                                                            >
+                                                                Cancel
+                                                            </button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% else %}
+                                    <div class="text-center py-8 text-gray-500">
+                                        <i class="fas fa-comments text-4xl text-gray-300 mb-3"></i>
+                                        <p>No comments yet for {{ submission_data.student_name }}'s submission. Start the discussion!</p>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% empty %}
+                    <div class="col-span-6 py-8 text-center text-gray-500">
+                        No submissions found for this assignment.
+                    </div>
+                {% endfor %}
+                </div>
+            </div>
+
+            <!-- Mobile Card View (TEMPORARILY HIDDEN) -->
+            <div class="hidden">
+                <div class="space-y-4">
+                    {% for submission_data in submissions %}
+                    <div class="submission-row bg-white border border-gray-200 rounded-lg shadow-sm p-4" 
+                         data-student-name="{{ submission_data.student_name|lower }}"
+                         data-course-name="{{ submission_data.course_name|lower }}"
+                         data-status="{{ submission_data.submission.status }}">
+                        
+                        <!-- Student Info -->
+                        <div class="border-b border-gray-200 pb-3 mb-3">
+                            <div class="font-medium text-gray-900 text-lg">
+                                {{ submission_data.student_name }}
+                            </div>
+                            <div class="text-sm text-gray-500">
+                                {{ submission_data.submission.submitted_at|date:"M d, Y H:i" }}
+                            </div>
+                        </div>
+                        
+                        <!-- Course & Instructor -->
+                        <div class="grid grid-cols-2 gap-4 mb-3">
+                            <div>
+                                <div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Course</div>
+                                <div class="text-sm">
+                                    {% if submission_data.course_id %}
+                                        <a href="{% url 'courses:course_details' submission_data.course_id %}" 
+                                           class="text-blue-600 hover:text-blue-800">
+                                            {{ submission_data.course_name|truncatechars:25 }}
+                                        </a>
+                                    {% else %}
+                                        <span class="text-gray-500 italic">{{ submission_data.course_name }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Instructor</div>
+                                <div class="text-sm text-gray-600">
+                                    {{ submission_data.instructor_name|truncatechars:25 }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Grade & Status -->
+                        <div class="grid grid-cols-2 gap-4 mb-3">
+                            <div>
+                                <div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Grade</div>
+                                <div class="space-y-1">
+                                    <div class="text-sm">
+                                        {% if submission_data.submission.grade %}
+                                            <span class="text-green-600 font-medium">
+                                                {{ submission_data.submission.grade }}/{{ assignment.max_score }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-gray-400">Not graded</span>
+                                        {% endif %}
+                                    </div>
+                                    {% if submission_data.grade_percentage %}
+                                        <div class="text-sm">
+                                            <span class="text-blue-600 font-medium">
+                                                {{ submission_data.grade_percentage|floatformat:1 }}%
+                                            </span>
+                                        </div>
+                                    {% endif %}
+                                    {% if assignment.rubric and submission_data.rubric_evaluations %}
+                                    <div class="text-sm">
+                                        <span class="text-purple-600">
+                                            Rubric: {{ submission_data.total_rubric_score }}/{{ submission_data.max_rubric_score }}
+                                        </span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Status</div>
+                                <div class="space-y-1">
+                                    <div>
+                                        <span class="px-2 py-1 rounded-full text-xs font-medium
+                                            {% if submission_data.submission.status == 'submitted' %}bg-blue-100 text-blue-800
+                                            {% elif submission_data.submission.status == 'not_graded' %}bg-orange-100 text-orange-800
+                                            {% elif submission_data.submission.status == 'graded' %}bg-green-100 text-green-800
+                                            {% elif submission_data.submission.status == 'returned' %}bg-yellow-100 text-yellow-800
+                                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                            {{ submission_data.submission.get_status_display }}
+                                        </span>
+                                    </div>
+                                    {% if submission_data.submission.graded_by %}
+                                    <div class="text-xs text-gray-500">
+                                        Graded by {{ submission_data.submission.graded_by.get_full_name }}
+                                        {% if submission_data.submission.graded_at %}
+                                            on {{ submission_data.submission.graded_at|date:"M d" }}
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Questions Status -->
+                        {% if submission_data.text_answers %}
+                        <div class="mb-3">
+                            <div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Questions ({{ submission_data.text_answers|length }})</div>
+                            <div class="flex flex-wrap gap-1">
+                                {% for qa in submission_data.text_answers %}
+                                    <span class="text-xs px-2 py-1 rounded 
+                                        {% if qa.answer %}bg-green-100 text-green-600{% else %}bg-red-100 text-red-600{% endif %}">
+                                        Q{{ forloop.counter }}
+                                        {% if qa.answer %}✓{% else %}✗{% endif %}
+                                    </span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Actions -->
+                        <div class="border-t border-gray-200 pt-3">
+                            <div class="flex flex-col space-y-2">
+                                <a href="{% url 'assignments:grade_submission' submission_data.submission.id %}" 
+                                   class="w-full inline-flex items-center justify-center px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">
+                                    <i class="fas fa-pen-to-square mr-2"></i>
+                                    Grade
+                                </a>
+                                
+                                <button onclick="toggleSubmissionComments({{ submission_data.submission.id }})" 
+                                        class="w-full inline-flex items-center justify-center px-3 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700">
+                                    <i class="fas fa-comments mr-2"></i>
+                                    <span id="comments-btn-text-{{ submission_data.submission.id }}">
+                                        {% if submission_data.submission_comments|length > 0 %}
+                                            Comments
+                                        {% else %}
+                                            Add Comment
+                                        {% endif %}
+                                    </span>
+                                    {% if submission_data.submission_comments|length > 0 %}
+                                    <span class="ml-2 bg-white text-green-600 rounded-full px-2 py-1 text-xs" id="comments-count-{{ submission_data.submission.id }}">
+                                        {{ submission_data.submission_comments|length }}
+                                    </span>
+                                    {% endif %}
+                                </button>
+                                
+                                <button onclick="generateDetailedReport({{ assignment.id }}, {{ submission_data.submission.user.id }})" 
+                                        class="w-full inline-flex items-center justify-center px-3 py-2 bg-purple-600 text-white rounded text-sm hover:bg-purple-700">
+                                    <i class="fas fa-file-alt mr-2"></i>
+                                    Details Report
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Individual Comments & Discussion Section for this submission (Hidden by default) -->
+                        <div id="submission-comments-{{ submission_data.submission.id }}" class="hidden mt-4 bg-gray-50 border-t border-gray-300">
+                            <div class="p-4">
+                                <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                                    <div class="border-b border-gray-200 p-4">
+                                        <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+                                            <i class="fas fa-comments text-green-500 mr-2"></i>
+                                            Comments & Discussion for {{ submission_data.student_name }}
+                                            <span class="ml-2 text-sm bg-green-100 text-green-800 px-2 py-1 rounded">{{ submission_data.submission_comments|length }} comment{{ submission_data.submission_comments|length|pluralize }}</span>
+                                        </h3>
+                                        <p class="text-sm text-gray-600 mt-1">Private discussion between instructor and {{ submission_data.student_name }} about this specific submission</p>
+                                    </div>
+
+                                    <div class="p-4">
+                                        <!-- Add New Comment Form for this submission -->
+                                        <form method="post" action="{% url 'assignments:add_comment' assignment.id %}" class="mb-6">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="submission_id" value="{{ submission_data.submission.id }}">
+                                            <div class="mb-4">
+                                                <label for="comment-content-mobile-{{ submission_data.submission.id }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                                    Add a comment for {{ submission_data.student_name }}
+                                                </label>
+                                                <textarea 
+                                                    id="comment-content-mobile-{{ submission_data.submission.id }}" 
+                                                    name="content" 
+                                                    rows="3" 
+                                                    class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-vertical"
+                                                    placeholder="Provide feedback or ask questions about {{ submission_data.student_name }}'s submission..."
+                                                    required
+                                                ></textarea>
+                                            </div>
+                                            
+                                            {% if user.role == 'instructor' %}
+                                            <div class="mb-4">
+                                                <label class="flex items-center">
+                                                    <input type="checkbox" name="is_private" class="mr-2" checked>
+                                                    <span class="text-sm text-gray-600">Private instructor note (student cannot see)</span>
+                                                </label>
+                                            </div>
+                                            {% endif %}
+                                            
+                                            <button 
+                                                type="submit" 
+                                                class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors duration-200"
+                                            >
+                                                <i class="fas fa-paper-plane mr-2"></i>
+                                                Post Comment
+                                            </button>
+                                        </form>
+
+                                        <!-- Comments List for this specific submission -->
+                                        {% if submission_data.submission_comments %}
+                                        <div class="space-y-4">
+                                            {% for comment in submission_data.submission_comments %}
+                                            <div class="comment-thread border-l-4 border-green-200 pl-4">
+                                                <!-- Main Comment -->
+                                                <div class="bg-gray-50 rounded-lg p-4">
+                                                    <div class="flex justify-between items-start mb-3">
+                                                        <div class="flex items-center">
+                                                            <div class="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center text-sm font-medium mr-3">
+                                                                {% if comment.author.first_name %}
+                                                                    {{ comment.author.first_name|first }}{{ comment.author.last_name|first }}
+                                                                {% else %}
+                                                                    {{ comment.author.username|first|upper }}
+                                                                {% endif %}
+                                                            </div>
+                                                            <div>
+                                                                <h4 class="font-medium text-gray-900">{{ comment.author.get_full_name }}</h4>
+                                                                <p class="text-sm text-gray-500">
+                                                                    {{ comment.created_at|timesince }} ago
+                                                                    {% if comment.is_private %}
+                                                                        <span class="ml-2 bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs">Private</span>
+                                                                    {% endif %}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {% if comment.can_edit_by_user %}
+                                                        <div class="flex items-center space-x-2">
+                                                            <button 
+                                                                onclick="toggleEditComment({{ comment.id }})" 
+                                                                class="text-gray-500 hover:text-gray-700 text-sm"
+                                                                title="Edit comment"
+                                                            >
+                                                                <i class="fas fa-edit"></i>
+                                                            </button>
+                                                            <form method="post" action="{% url 'assignments:delete_comment' comment.id %}" class="inline" 
+                                                                  onsubmit="return confirm('Are you sure you want to delete this comment?')">
+                                                                {% csrf_token %}
+                                                                <button 
+                                                                    type="submit" 
+                                                                    class="text-red-500 hover:text-red-700 text-sm"
+                                                                    title="Delete comment"
+                                                                >
+                                                                    <i class="fas fa-trash"></i>
+                                                                </button>
+                                                            </form>
+                                                        </div>
+                                                        {% endif %}
+                                                    </div>
+                                                    
+                                                    <div class="comment-content" id="comment-content-{{ comment.id }}">
+                                                        <p class="text-gray-700">{{ comment.content|linebreaks|safe }}</p>
+                                                    </div>
+                                                    
+                                                    <!-- Edit Form (Hidden by default) -->
+                                                    <div class="comment-edit-form hidden" id="edit-form-{{ comment.id }}">
+                                                        <form method="post" action="{% url 'assignments:edit_comment' comment.id %}">
+                                                            {% csrf_token %}
+                                                            <textarea 
+                                                                name="content" 
+                                                                rows="3" 
+                                                                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent mb-3"
+                                                                required
+                                                            >{{ comment.content }}</textarea>
+                                                            <div class="flex space-x-2">
+                                                                <button 
+                                                                    type="submit" 
+                                                                    class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
+                                                                >
+                                                                    Save
+                                                                </button>
+                                                                <button 
+                                                                    type="button" 
+                                                                    onclick="toggleEditComment({{ comment.id }})" 
+                                                                    class="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700"
+                                                                >
+                                                                    Cancel
+                                                                </button>
+                                                            </div>
+                                                        </form>
+                                                    </div>
+                                                    
+                                                    <!-- Reply Button -->
+                                                    <button 
+                                                        onclick="toggleReplyForm({{ comment.id }})" 
+                                                        class="mt-3 text-green-600 hover:text-green-800 text-sm font-medium"
+                                                    >
+                                                        <i class="fas fa-reply mr-1"></i>
+                                                        Reply
+                                                    </button>
+                                                    
+                                                    <!-- Reply Form (Hidden by default) -->
+                                                    <div class="reply-form hidden mt-3" id="reply-form-{{ comment.id }}">
+                                                        <form method="post" action="{% url 'assignments:add_comment' assignment.id %}">
+                                                            {% csrf_token %}
+                                                            <input type="hidden" name="parent_id" value="{{ comment.id }}">
+                                                            <input type="hidden" name="submission_id" value="{{ submission_data.submission.id }}">
+                                                            <textarea 
+                                                                name="content" 
+                                                                rows="2" 
+                                                                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent mb-3"
+                                                                placeholder="Write a reply..."
+                                                                required
+                                                            ></textarea>
+                                                            <div class="flex space-x-2">
+                                                                <button 
+                                                                    type="submit" 
+                                                                    class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
+                                                                >
+                                                                    <i class="fas fa-paper-plane mr-1"></i>
+                                                                    Post Reply
+                                                                </button>
+                                                                <button 
+                                                                    type="button" 
+                                                                    onclick="toggleReplyForm({{ comment.id }})" 
+                                                                    class="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700"
+                                                                >
+                                                                    Cancel
+                                                                </button>
+                                                            </div>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Replies -->
+                                                {% for reply in comment.get_visible_replies %}
+                                                <div class="ml-8 mt-3 bg-white rounded-lg p-4 border border-gray-200">
+                                                    <div class="flex justify-between items-start mb-3">
+                                                        <div class="flex items-center">
+                                                            <div class="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-medium mr-3">
+                                                                {% if reply.author.first_name %}
+                                                                    {{ reply.author.first_name|first }}{{ reply.author.last_name|first }}
+                                                                {% else %}
+                                                                    {{ reply.author.username|first|upper }}
+                                                                {% endif %}
+                                                            </div>
+                                                            <div>
+                                                                <h5 class="font-medium text-gray-900 text-sm">{{ reply.author.get_full_name }}</h5>
+                                                                <p class="text-xs text-gray-500">
+                                                                    {{ reply.created_at|timesince }} ago
+                                                                    {% if reply.is_private %}
+                                                                        <span class="ml-2 bg-yellow-100 text-yellow-800 px-1 py-0.5 rounded text-xs">Private</span>
+                                                                    {% endif %}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {% if reply.can_edit_by_user %}
+                                                        <div class="flex items-center space-x-2">
+                                                            <button 
+                                                                onclick="toggleEditComment({{ reply.id }})" 
+                                                                class="text-gray-500 hover:text-gray-700 text-sm"
+                                                                title="Edit reply"
+                                                            >
+                                                                <i class="fas fa-edit"></i>
+                                                            </button>
+                                                            <form method="post" action="{% url 'assignments:delete_comment' reply.id %}" class="inline"
+                                                                  onsubmit="return confirm('Are you sure you want to delete this reply?')">
+                                                                {% csrf_token %}
+                                                                <button 
+                                                                    type="submit" 
+                                                                    class="text-red-500 hover:text-red-700 text-sm"
+                                                                    title="Delete reply"
+                                                                >
+                                                                    <i class="fas fa-trash"></i>
+                                                                </button>
+                                                            </form>
+                                                        </div>
+                                                        {% endif %}
+                                                    </div>
+                                                    
+                                                    <div class="comment-content" id="comment-content-{{ reply.id }}">
+                                                        <p class="text-gray-700 text-sm">{{ reply.content|linebreaks|safe }}</p>
+                                                    </div>
+                                                    
+                                                    <!-- Edit Form (Hidden by default) -->
+                                                    <div class="comment-edit-form hidden" id="edit-form-{{ reply.id }}">
+                                                        <form method="post" action="{% url 'assignments:edit_comment' reply.id %}">
+                                                            {% csrf_token %}
+                                                            <textarea 
+                                                                name="content" 
+                                                                rows="2" 
+                                                                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent mb-3"
+                                                                required
+                                                            >{{ reply.content }}</textarea>
+                                                            <div class="flex space-x-2">
+                                                                <button 
+                                                                    type="submit" 
+                                                                    class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
+                                                                >
+                                                                    Save
+                                                                </button>
+                                                                <button 
+                                                                    type="button" 
+                                                                    onclick="toggleEditComment({{ reply.id }})" 
+                                                                    class="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700"
+                                                                >
+                                                                    Cancel
+                                                                </button>
+                                                            </div>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                        {% else %}
+                                        <div class="text-center py-8 text-gray-500">
+                                            <i class="fas fa-comments text-4xl text-gray-300 mb-3"></i>
+                                            <p>No comments yet for {{ submission_data.student_name }}'s submission. Start the discussion!</p>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                        <div class="py-8 text-center text-gray-500">
+                            No submissions found for this assignment.
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Stats -->
+        <div class="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="bg-white p-4 rounded-lg border border-gray-200">
+                <div class="text-2xl font-bold text-blue-600">{{ submissions|length }}</div>
+                <div class="text-sm text-gray-600">Total Submissions</div>
+            </div>
+            <div class="bg-white p-4 rounded-lg border border-gray-200">
+                <div class="text-2xl font-bold text-green-600" id="gradedCount">0</div>
+                <div class="text-sm text-gray-600">Graded</div>
+            </div>
+            <div class="bg-white p-4 rounded-lg border border-gray-200">
+                <div class="text-2xl font-bold text-yellow-600" id="pendingCount">0</div>
+                <div class="text-sm text-gray-600">Pending Review</div>
+            </div>
+            <div class="bg-white p-4 rounded-lg border border-gray-200">
+                <div class="text-2xl font-bold text-purple-600" id="rubricCount">0</div>
+                <div class="text-sm text-gray-600">Rubric Evaluated</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enhanced JavaScript for the submissions table -->
+    <script>
+    // Filter functionality
+    function filterSubmissions() {
+        const studentFilter = document.getElementById('studentFilter').value.toLowerCase();
+        const courseFilter = document.getElementById('courseFilter').value.toLowerCase();
+        const statusFilter = document.getElementById('statusFilter').value.toLowerCase();
+        
+        const rows = document.querySelectorAll('.submission-row');
+        let visibleCount = 0;
+        let gradedCount = 0;
+        let pendingCount = 0;
+        let rubricCount = 0;
+        
+        rows.forEach(row => {
+            const studentName = row.getAttribute('data-student-name');
+            const courseName = row.getAttribute('data-course-name');
+            const status = row.getAttribute('data-status');
+            
+            const studentMatch = !studentFilter || studentName.includes(studentFilter);
+            const courseMatch = !courseFilter || courseName.includes(courseFilter);
+            const statusMatch = !statusFilter || status === statusFilter;
+            
+            if (studentMatch && courseMatch && statusMatch) {
+                row.style.display = '';
+                visibleCount++;
+                
+                // Count by status for stats
+                if (status === 'graded') gradedCount++;
+                if (status === 'submitted' || status === 'not_graded') pendingCount++;
+                
+                // Check for rubric evaluations
+                const rubricCell = row.querySelector('.text-purple-600');
+                if (rubricCell && !rubricCell.textContent.includes('Not evaluated')) {
+                    rubricCount++;
+                }
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        // Update summary statistics
+        updateStats(visibleCount, gradedCount, pendingCount, rubricCount);
+    }
+    
+    function updateStats(total, graded, pending, rubric) {
+        const totalElement = document.querySelector('.text-2xl.font-bold.text-blue-600');
+        if (totalElement) totalElement.textContent = total;
+        
+        const gradedElement = document.getElementById('gradedCount');
+        if (gradedElement) gradedElement.textContent = graded;
+        
+        const pendingElement = document.getElementById('pendingCount');
+        if (pendingElement) pendingElement.textContent = pending;
+        
+        const rubricElement = document.getElementById('rubricCount');
+        if (rubricElement) rubricElement.textContent = rubric;
+    }
+
+    function clearFilters() {
+        document.getElementById('studentFilter').value = '';
+        document.getElementById('courseFilter').value = '';
+        document.getElementById('statusFilter').value = '';
+        filterSubmissions();
+    }
+
+    // Generate detailed report function
+    function generateDetailedReport(assignmentId, studentId) {
+        // Redirect to the student-specific detailed report page
+        window.location.href = `/assignments/${assignmentId}/detailed-report/?student_id=${studentId}`;
+    }
+
+    // Toggle submission comments section
+    function toggleSubmissionComments(submissionId) {
+        const commentsSection = document.getElementById(`submission-comments-${submissionId}`);
+        const btnText = document.getElementById(`comments-btn-text-${submissionId}`);
+        const commentsCount = document.getElementById(`comments-count-${submissionId}`);
+        
+        // Check if there are any comments by looking for the count element
+        const hasComments = commentsCount && commentsCount.textContent.trim() !== '0';
+        
+        if (commentsSection.classList.contains('hidden')) {
+            // Show comments
+            commentsSection.classList.remove('hidden');
+            btnText.textContent = 'Hide Comments';
+            
+            // Scroll to the comments section smoothly
+            setTimeout(() => {
+                commentsSection.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'nearest' 
+                });
+            }, 100);
+        } else {
+            // Hide comments
+            commentsSection.classList.add('hidden');
+            btnText.textContent = hasComments ? 'Comments' : 'Add Comment';
+        }
+    }
+
+    // Comment editing functions (inherited from main assignment detail page)
+    function toggleEditComment(commentId) {
+        const content = document.getElementById(`comment-content-${commentId}`);
+        const editForm = document.getElementById(`edit-form-${commentId}`);
+        
+        if (editForm.classList.contains('hidden')) {
+            editForm.classList.remove('hidden');
+            content.classList.add('hidden');
+        } else {
+            editForm.classList.add('hidden');
+            content.classList.remove('hidden');
+        }
+    }
+
+    function toggleReplyForm(commentId) {
+        const replyForm = document.getElementById(`reply-form-${commentId}`);
+        
+        if (replyForm.classList.contains('hidden')) {
+            replyForm.classList.remove('hidden');
+            // Focus on the textarea
+            const textarea = replyForm.querySelector('textarea');
+            if (textarea) {
+                textarea.focus();
+            }
+        } else {
+            replyForm.classList.add('hidden');
+        }
+    }
+
+    // Add event listeners for filters
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('studentFilter').addEventListener('input', filterSubmissions);
+        document.getElementById('courseFilter').addEventListener('change', filterSubmissions);
+        document.getElementById('statusFilter').addEventListener('change', filterSubmissions);
+        
+        // Initialize the counts
+        filterSubmissions();
+        
+        // Remove duplicate options from course filter
+        const courseFilterForDuplicates = document.getElementById('courseFilter');
+        const uniqueOptions = new Set();
+        const options = Array.from(courseFilterForDuplicates.options);
+        
+        options.forEach(option => {
+            if (option.value && uniqueOptions.has(option.value)) {
+                option.remove();
+            } else if (option.value) {
+                uniqueOptions.add(option.value);
+            }
+        });
+    });
+    </script>
+{% endif %}
+
+<!-- Learner's All Submission Attempts Section with Comments -->
+{% if user.role == 'learner' %}
+    {% for submission_data in submissions %}
+        {% if submission_data.submission.user == user %}
+            <div class="bg-gray-100 rounded p-6 mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold text-gray-800">
+                        Submission Attempt
+                        {% if submission_data.is_latest_submission %}
+                            <span class="text-sm bg-green-100 text-green-800 px-2 py-1 rounded ml-2">Latest</span>
+                        {% endif %}
+                    </h2>
+                    <div class="text-sm text-gray-600">
+                        <div class="font-medium">Submitted: {{ submission_data.submission.submitted_at|date:"M d, Y" }}</div>
+                        <div class="text-xs">{{ submission_data.submission.submitted_at|time:"H:i" }} ({{ submission_data.submission.submitted_at|timesince }} ago)</div>
+                        {% if submission_data.submission.last_modified and submission_data.submission.last_modified != submission_data.submission.submitted_at %}
+                            <div class="text-xs text-blue-600 mt-1">Last modified: {{ submission_data.submission.last_modified|date:"M d, Y H:i" }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Submission Details -->
+                <div class="bg-white rounded-lg border border-gray-200 mb-4">
+                    <div class="grid grid-cols-5 bg-gray-50 text-gray-700 border-b text-sm font-medium">
+                        <div class="col-span-1 py-3 px-4 border-r">Course</div>
+                        <div class="col-span-1 py-3 px-4 border-r">Instructor</div>
+                        <div class="col-span-1 py-3 px-4 border-r">Grade</div>
+                        <div class="col-span-1 py-3 px-4 border-r">Status</div>
+                        <div class="col-span-1 py-3 px-4">Discussion</div>
+                    </div>
+                    
+                    <div class="grid grid-cols-5 text-gray-700 hover:bg-gray-50 border-b text-sm">
+                        <!-- Course -->
+                        <div class="col-span-1 py-3 px-4 border-r">
+                            <div class="text-sm">
+                                {% if submission_data.course_id %}
+                                    <a href="{% url 'courses:course_details' submission_data.course_id %}" 
+                                       class="text-blue-600 hover:text-blue-800">
+                                        {{ submission_data.course_name }}
+                                    </a>
+                                {% else %}
+                                    <span class="text-gray-500 italic">{{ submission_data.course_name }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Instructor -->
+                        <div class="col-span-1 py-3 px-4 border-r">
+                            <div class="text-sm text-gray-600">
+                                {{ submission_data.instructor_name }}
+                            </div>
+                        </div>
+                        
+                        <!-- Grade -->
+                        <div class="col-span-1 py-3 px-4 border-r">
+                            <div class="space-y-1">
+                                <!-- Total Points -->
+                                <div class="text-sm">
+                                    {% if submission_data.submission.grade %}
+                                        <span class="text-green-600 font-medium">
+                                            {{ submission_data.submission.grade }}/{{ assignment.max_score }}
+                                        </span>
+                                        {% if submission_data.grade_percentage %}
+                                            <span class="text-blue-600 font-medium block">
+                                                ({{ submission_data.grade_percentage|floatformat:1 }}%)
+                                            </span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-gray-400">Not graded yet</span>
+                                    {% endif %}
+                                </div>
+                                
+                                <!-- Rubric Score (if available) -->
+                                {% if assignment.rubric and submission_data.rubric_evaluations %}
+                                <div class="text-sm">
+                                    <span class="text-purple-600">
+                                        Rubric: {{ submission_data.total_rubric_score }}/{{ submission_data.max_rubric_score }}
+                                    </span>
+                                </div>
+                                {% endif %}
+                                
+                                <!-- Graded Date -->
+                                {% if submission_data.submission.graded_at %}
+                                <div class="text-xs text-gray-500">
+                                    Graded: {{ submission_data.submission.graded_at|date:"M d, Y H:i" }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Status -->
+                        <div class="col-span-1 py-3 px-4 border-r">
+                            <div class="space-y-1">
+                                <div>
+                                    <span class="px-2 py-1 rounded-full text-xs font-medium
+                                        {% if submission_data.submission.status == 'submitted' %}bg-blue-100 text-blue-800
+                                        {% elif submission_data.submission.status == 'not_graded' %}bg-orange-100 text-orange-800
+                                        {% elif submission_data.submission.status == 'graded' %}bg-green-100 text-green-800
+                                        {% elif submission_data.submission.status == 'returned' %}bg-yellow-100 text-yellow-800
+                                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                        {{ submission_data.submission.get_status_display }}
+                                    </span>
+                                </div>
+                                
+                                <!-- Graded By -->
+                                {% if submission_data.submission.graded_by %}
+                                <div class="text-xs text-gray-500">
+                                    Graded by {{ submission_data.submission.graded_by.get_full_name }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Discussion -->
+                        <div class="col-span-1 py-3 px-4">
+                            <div class="flex flex-col space-y-1">
+                                <!-- Comments & Discussion Button for Learner -->
+                                <button onclick="toggleSubmissionComments({{ submission_data.submission.id }})" 
+                                        class="inline-flex items-center justify-center px-3 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700">
+                                    <i class="fas fa-comments mr-2"></i>
+                                    <span id="comments-btn-text-{{ submission_data.submission.id }}">
+                                        {% if submission_data.submission_comments|length > 0 %}
+                                            View Feedback
+                                        {% else %}
+                                            Discussion
+                                        {% endif %}
+                                    </span>
+                                    {% if submission_data.submission_comments|length > 0 %}
+                                    <span class="ml-2 bg-white text-green-600 rounded-full px-2 py-1 text-xs" id="comments-count-{{ submission_data.submission.id }}">
+                                        {{ submission_data.submission_comments|length }}
+                                    </span>
+                                    {% endif %}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Individual Comments & Discussion Section for this specific submission attempt -->
+                    <div id="submission-comments-{{ submission_data.submission.id }}" class="hidden col-span-5 bg-gray-50 border-t border-gray-300">
+                        <div class="p-4">
+                            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                                <div class="border-b border-gray-200 p-4">
+                                    <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+                                        <i class="fas fa-comments text-green-500 mr-2"></i>
+                                        Feedback & Discussion - Attempt
+                                        <span class="ml-2 text-sm bg-green-100 text-green-800 px-2 py-1 rounded">{{ submission_data.submission_comments|length }} comment{{ submission_data.submission_comments|length|pluralize }}</span>
+                                    </h3>
+                                    <p class="text-sm text-gray-600 mt-1">
+                                        Discussion about submission attempt from {{ submission_data.submission.submitted_at|date:"M d, Y H:i" }}
+                                    </p>
+                                </div>
+
+                                <div class="p-4">
+                                    <!-- Add New Comment Form for this specific submission attempt -->
+                                    <form method="post" action="{% url 'assignments:add_comment' assignment.id %}" class="mb-6">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="submission_id" value="{{ submission_data.submission.id }}">
+                                        <div class="mb-4">
+                                            <label for="comment-content-learner-{{ submission_data.submission.id }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                                Ask a question or respond to instructor feedback for Attempt
+                                            </label>
+                                            <textarea 
+                                                id="comment-content-learner-{{ submission_data.submission.id }}" 
+                                                name="content" 
+                                                rows="3" 
+                                                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-vertical"
+                                                placeholder="Ask questions about feedback or provide additional information about this submission attempt..."
+                                                required
+                                            ></textarea>
+                                        </div>
+                                        
+                                        <button 
+                                            type="submit" 
+                                            class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors duration-200"
+                                        >
+                                            <i class="fas fa-paper-plane mr-2"></i>
+                                            Post Comment
+                                        </button>
+                                    </form>
+
+                                    <!-- Comments List for this specific submission attempt -->
+                                    {% if submission_data.submission_comments %}
+                                    <div class="space-y-4">
+                                        {% for comment in submission_data.submission_comments %}
+                                        <div class="comment-thread border-l-4 border-green-200 pl-4">
+                                            <!-- Main Comment -->
+                                            <div class="bg-gray-50 rounded-lg p-4">
+                                                <div class="flex justify-between items-start mb-3">
+                                                    <div class="flex items-center">
+                                                        <div class="w-8 h-8 {% if comment.author.role == 'instructor' %}bg-blue-500{% else %}bg-green-500{% endif %} text-white rounded-full flex items-center justify-center text-sm font-medium mr-3">
+                                                            {% if comment.author.first_name %}
+                                                                {{ comment.author.first_name|first }}{{ comment.author.last_name|first }}
+                                                            {% else %}
+                                                                {{ comment.author.username|first|upper }}
+                                                            {% endif %}
+                                                        </div>
+                                                        <div>
+                                                            <h4 class="font-medium text-gray-900">
+                                                                {{ comment.author.get_full_name }}
+                                                                {% if comment.author.role == 'instructor' %}
+                                                                    <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded ml-2">Instructor</span>
+                                                                {% endif %}
+                                                            </h4>
+                                                            <p class="text-sm text-gray-500">
+                                                                {{ comment.created_at|date:"M d, Y H:i" }} ({{ comment.created_at|timesince }} ago)
+                                                                {% if comment.is_private and comment.author != user %}
+                                                                    <span class="ml-2 bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs">Private Note</span>
+                                                                {% endif %}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Only show non-private comments to learners, unless they authored them -->
+                                                {% if not comment.is_private or comment.author == user %}
+                                                <div class="comment-content" id="comment-content-{{ comment.id }}">
+                                                    <p class="text-gray-700">{{ comment.content|linebreaks|safe }}</p>
+                                                </div>
+                                                
+                                                <!-- Reply Button for learners -->
+                                                <button 
+                                                    onclick="toggleReplyForm({{ comment.id }})" 
+                                                    class="mt-3 text-green-600 hover:text-green-800 text-sm font-medium"
+                                                >
+                                                    <i class="fas fa-reply mr-1"></i>
+                                                    Reply
+                                                </button>
+                                                
+                                                <!-- Reply Form (Hidden by default) -->
+                                                <div class="reply-form hidden mt-3" id="reply-form-{{ comment.id }}">
+                                                    <form method="post" action="{% url 'assignments:add_comment' assignment.id %}">
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="parent_id" value="{{ comment.id }}">
+                                                        <input type="hidden" name="submission_id" value="{{ submission_data.submission.id }}">
+                                                        <textarea 
+                                                            name="content" 
+                                                            rows="2" 
+                                                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent mb-3"
+                                                            placeholder="Write a reply..."
+                                                            required
+                                                        ></textarea>
+                                                        <div class="flex space-x-2">
+                                                            <button 
+                                                                type="submit" 
+                                                                class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
+                                                            >
+                                                                <i class="fas fa-paper-plane mr-1"></i>
+                                                                Post Reply
+                                                            </button>
+                                                            <button 
+                                                                type="button" 
+                                                                onclick="toggleReplyForm({{ comment.id }})" 
+                                                                class="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700"
+                                                            >
+                                                                Cancel
+                                                            </button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                            
+                                            <!-- Replies -->
+                                            {% for reply in comment.get_visible_replies %}
+                                            {% if not reply.is_private or reply.author == user %}
+                                            <div class="ml-8 mt-3 bg-white rounded-lg p-4 border border-gray-200">
+                                                <div class="flex justify-between items-start mb-3">
+                                                    <div class="flex items-center">
+                                                        <div class="w-6 h-6 {% if reply.author.role == 'instructor' %}bg-blue-500{% else %}bg-green-500{% endif %} text-white rounded-full flex items-center justify-center text-xs font-medium mr-3">
+                                                            {% if reply.author.first_name %}
+                                                                {{ reply.author.first_name|first }}{{ reply.author.last_name|first }}
+                                                            {% else %}
+                                                                {{ reply.author.username|first|upper }}
+                                                            {% endif %}
+                                                        </div>
+                                                        <div>
+                                                            <h5 class="font-medium text-gray-900 text-sm">
+                                                                {{ reply.author.get_full_name }}
+                                                                {% if reply.author.role == 'instructor' %}
+                                                                    <span class="text-xs bg-blue-100 text-blue-800 px-1 py-0.5 rounded ml-1">Instructor</span>
+                                                                {% endif %}
+                                                            </h5>
+                                                            <p class="text-xs text-gray-500">
+                                                                {{ reply.created_at|date:"M d, Y H:i" }} ({{ reply.created_at|timesince }} ago)
+                                                                {% if reply.is_private and reply.author != user %}
+                                                                    <span class="ml-2 bg-yellow-100 text-yellow-800 px-1 py-0.5 rounded text-xs">Private Note</span>
+                                                                {% endif %}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="comment-content" id="comment-content-{{ reply.id }}">
+                                                    <p class="text-gray-700 text-sm">{{ reply.content|linebreaks|safe }}</p>
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% else %}
+                                    <div class="text-center py-8 text-gray-500">
+                                        <i class="fas fa-comments text-4xl text-gray-300 mb-3"></i>
+                                        <p>Discussion for this submission attempt. Your instructor will provide comments here.</p>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+
+            </div>
+        {% endif %}
+    {% endfor %}
+    
+    <!-- No submissions message -->
+    {% if not submissions %}
+    <div class="bg-gray-100 rounded p-6">
+        <div class="text-center py-8 text-gray-500">
+            <i class="fas fa-inbox text-4xl text-gray-300 mb-3"></i>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">No Submissions Yet</h3>
+            <p>You haven't submitted this assignment yet. Use the submission form above to submit your work.</p>
+        </div>
+    </div>
+    {% endif %}
+    
+
+     
+     <!-- JavaScript functions for learners -->
+     <script>
+     // Toggle submission comments section
+     function toggleSubmissionComments(submissionId) {
+         const commentsSection = document.getElementById(`submission-comments-${submissionId}`);
+         const btnText = document.getElementById(`comments-btn-text-${submissionId}`);
+         const commentsCount = document.getElementById(`comments-count-${submissionId}`);
+         
+         // Check if there are any comments by looking for the count element
+         const hasComments = commentsCount && commentsCount.textContent.trim() !== '0';
+         
+         if (commentsSection.classList.contains('hidden')) {
+             // Show comments
+             commentsSection.classList.remove('hidden');
+             btnText.textContent = hasComments ? 'Hide Feedback' : 'Hide Discussion';
+             
+             // Scroll to the comments section smoothly
+             setTimeout(() => {
+                 commentsSection.scrollIntoView({ 
+                     behavior: 'smooth', 
+                     block: 'nearest' 
+                 });
+             }, 100);
+         } else {
+             // Hide comments
+             commentsSection.classList.add('hidden');
+             btnText.textContent = hasComments ? 'View Feedback' : 'Discussion';
+         }
+     }
+
+     function toggleReplyForm(commentId) {
+         const replyForm = document.getElementById(`reply-form-${commentId}`);
+         
+         if (replyForm.classList.contains('hidden')) {
+             replyForm.classList.remove('hidden');
+             // Focus on the textarea
+             const textarea = replyForm.querySelector('textarea');
+             if (textarea) {
+                 textarea.focus();
+             }
+         } else {
+             replyForm.classList.add('hidden');
+         }
+     }
+     </script>
+{% endif %}

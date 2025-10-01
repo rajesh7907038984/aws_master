@@ -1,0 +1,537 @@
+/**
+ * Unified Chart Styles
+ * Resolves conflicts between dashboard templates and chart components
+ */
+
+/* Base chart container styles */
+.chart-container {
+    height: 350px;
+    position: relative;
+    background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%);
+    border: 1px solid rgba(226, 232, 240, 0.6);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.chart-container:hover {
+    box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    transform: translateY(-1px);
+}
+
+/* Courses chart specific container */
+.courses-chart-container {
+    min-height: 400px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    border: 1px solid rgba(229, 231, 235, 1);
+    padding: 24px;
+}
+
+/* Activity chart specific container */
+.activity-chart-container {
+    height: 400px;
+    position: relative;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    width: 100%;
+    max-width: 100%;
+}
+
+.activity-chart-container:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transform: translateY(-1px);
+}
+
+/* Responsive adjustments for activity chart */
+@media (max-width: 768px) {
+    .activity-chart-container {
+        height: 350px;
+        padding: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    .activity-chart-container {
+        height: 300px;
+        padding: 10px;
+    }
+}
+
+/* Chart canvas wrapper */
+.chart-canvas-wrapper {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 280px;
+    position: relative;
+    padding: 5px;
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+}
+
+/* Responsive canvas wrapper */
+@media (max-width: 768px) {
+    .chart-canvas-wrapper {
+        min-height: 250px;
+        padding: 8px;
+    }
+}
+
+@media (max-width: 480px) {
+    .chart-canvas-wrapper {
+        min-height: 200px;
+        padding: 5px;
+    }
+}
+
+/* Courses chart specific canvas wrapper */
+.courses-chart-canvas-wrapper {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+}
+
+.courses-chart-canvas-container {
+    width: 192px;
+    height: 192px;
+    position: relative;
+}
+
+.courses-chart-canvas {
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+}
+
+.courses-chart-center-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+    text-align: center;
+}
+
+.courses-chart-center-text .total-count {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #111827;
+}
+
+/* Activity chart specific canvas styling */
+#activity-chart {
+    max-width: 100%;
+    max-height: 100%;
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+}
+
+/* Responsive activity chart canvas */
+@media (max-width: 768px) {
+    #activity-chart {
+        max-height: 250px;
+    }
+}
+
+@media (max-width: 480px) {
+    #activity-chart {
+        max-height: 200px;
+    }
+}
+
+/* Chart title styling */
+.chart-title {
+    margin-bottom: 0;
+    text-align: left;
+}
+
+.chart-title h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1f2937;
+    line-height: 1.3;
+    letter-spacing: -0.025em;
+}
+
+/* Chart legend styles */
+.chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 16px;
+    gap: 16px;
+    padding: 0 10px;
+}
+
+.chart-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #374151;
+}
+
+.chart-legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+/* Loading states */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    border-radius: 12px;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Error states */
+.chart-error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 300px;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    color: #6c757d;
+    text-align: center;
+    padding: 20px;
+}
+
+.chart-error i {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    color: #dc3545;
+}
+
+.chart-error p {
+    margin: 0;
+    font-size: 14px;
+}
+
+.chart-error button {
+    margin-top: 10px;
+    padding: 5px 15px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.chart-error button:hover {
+    background: #0056b3;
+}
+
+/* Fallback states */
+.chart-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 300px;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    color: #6c757d;
+    text-align: center;
+    padding: 20px;
+}
+
+.chart-fallback i {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    color: #6c757d;
+}
+
+.chart-fallback p {
+    margin: 0;
+    font-size: 14px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .chart-container {
+        height: 250px !important;
+        margin-top: 16px !important;
+        padding: 16px !important;
+    }
+    
+    .courses-chart-container {
+        min-height: 350px;
+        padding: 16px;
+    }
+    
+    .courses-chart-canvas-container {
+        width: 160px;
+        height: 160px;
+    }
+    
+    .chart-legend {
+        flex-direction: column;
+        gap: 12px !important;
+        margin-top: 12px !important;
+    }
+    
+    .chart-legend-item {
+        justify-content: center;
+    }
+    
+    /* Mobile chart title fixes */
+    .chart-title {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    
+    .chart-title h3 {
+        max-width: 100%;
+        font-size: 1rem;
+    }
+    
+    .chart-controls {
+        align-self: flex-end;
+    }
+    
+    .chart-period-selector {
+        font-size: 13px;
+        padding: 5px 10px;
+        min-width: 70px;
+    }
+}
+
+@media (max-width: 480px) {
+    .chart-container {
+        height: 200px !important;
+        padding: 12px !important;
+    }
+    
+    .courses-chart-container {
+        min-height: 300px;
+        padding: 12px;
+    }
+    
+    .courses-chart-canvas-container {
+        width: 140px;
+        height: 140px;
+    }
+    
+    .courses-chart-center-text .total-count {
+        font-size: 1rem;
+    }
+}
+
+/* Role-specific color schemes */
+.dashboard-role-globaladmin {
+    --dashboard-primary-color: #667eea;
+    --dashboard-primary-hover: #5a6fd8;
+}
+
+.dashboard-role-admin {
+    --dashboard-primary-color: #3b82f6;
+    --dashboard-primary-hover: #2563eb;
+}
+
+.dashboard-role-instructor {
+    --dashboard-primary-color: #10b981;
+    --dashboard-primary-hover: #059669;
+}
+
+.dashboard-role-learner {
+    --dashboard-primary-color: #8b5cf6;
+    --dashboard-primary-hover: #7c3aed;
+}
+
+/* Chart title styles */
+.chart-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-height: 32px;
+    position: relative;
+    z-index: 5;
+}
+
+.chart-title h3 {
+    margin: 0;
+    font-size: inherit;
+    font-weight: inherit;
+    color: inherit;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 60%;
+}
+
+/* Chart controls */
+.chart-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.chart-period-selector {
+    padding: 6px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    background: white;
+    color: #374151;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 80px;
+}
+
+.chart-period-selector:hover {
+    border-color: var(--dashboard-primary-color, #3b82f6);
+    background: #fafbfc;
+}
+
+.chart-period-selector:focus {
+    outline: none;
+    border-color: var(--dashboard-primary-color, #3b82f6);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Chart.js tooltip styling override */
+.chartjs-tooltip {
+    background: rgba(0, 0, 0, 0.9) !important;
+    border-radius: 6px !important;
+    border: none !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    font-size: 14px !important;
+    padding: 8px 12px !important;
+    pointer-events: none !important;
+    z-index: 1000 !important;
+}
+
+.chartjs-tooltip-title {
+    color: #fff !important;
+    font-weight: 600 !important;
+    margin-bottom: 4px !important;
+}
+
+.chartjs-tooltip-body {
+    color: #fff !important;
+    font-weight: 400 !important;
+}
+
+/* Chart title overlay fix */
+.chart-canvas-wrapper canvas {
+    position: relative !important;
+    z-index: 1 !important;
+}
+
+/* Prevent text overflow on chart titles */
+.chart-container .chart-title {
+    word-break: break-word;
+    line-height: 1.4;
+}
+
+/* Animation for chart updates */
+.chart-updating {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.chart-updating::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 20px;
+    height: 20px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .chart-container {
+        border: 2px solid #000;
+        background: #fff;
+    }
+    
+    .chart-legend-item {
+        color: #000;
+    }
+    
+    .chart-title {
+        color: #000;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    .chart-container {
+        transition: none;
+    }
+    
+    .chart-container:hover {
+        transform: none;
+    }
+    
+    .loading-spinner {
+        animation: none;
+    }
+    
+    .chart-updating::after {
+        animation: none;
+    }
+}

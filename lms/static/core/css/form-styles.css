@@ -1,0 +1,129 @@
+/* Responsive form styles - clean and maintainable */
+:root {
+    --form-input-bg: #ffffff;
+    --form-input-text: #111827;
+    --form-input-border: #d1d5db;
+    --form-input-border-focus: #3b82f6;
+    --form-input-border-error: #ef4444;
+    --form-label-color: #374151;
+    --form-text-color: #6b7280;
+}
+
+/* Form labels */
+.form-group label,
+.field-wrapper label {
+    color: var(--form-label-color);
+    font-weight: 500;
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+/* Form inputs with proper specificity */
+.form-group input,
+.form-group textarea,
+.field-wrapper input,
+.field-wrapper textarea,
+input.form-input,
+textarea.form-textarea {
+    width: 100%;
+    background-color: var(--form-input-bg);
+    border: 1px solid var(--form-input-border);
+    color: var(--form-input-text);
+    border-radius: 0.375rem;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    line-height: 1.5;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    min-height: 44px; /* Touch-friendly */
+}
+
+/* Select elements with proper styling */
+.form-group select,
+.field-wrapper select,
+select.form-select {
+    width: 100%;
+    background-color: var(--form-input-bg);
+    border: 1px solid var(--form-input-border);
+    color: var(--form-input-text);
+    border-radius: 0.375rem;
+    padding: 0.75rem 2.5rem 0.75rem 1rem;
+    font-size: 1rem;
+    line-height: 1.5;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    min-height: 44px;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.75rem center;
+    background-repeat: no-repeat;
+    background-size: 1.25em 1.25em;
+}
+
+/* Focus states */
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus,
+.field-wrapper input:focus,
+.field-wrapper textarea:focus,
+.field-wrapper select:focus,
+input.form-input:focus,
+textarea.form-textarea:focus,
+select.form-select:focus {
+    outline: none;
+    border-color: var(--form-input-border-focus);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Error states */
+.form-group input.error,
+.form-group textarea.error,
+.form-group select.error,
+input.form-input.error,
+textarea.form-textarea.error,
+select.form-select.error {
+    border-color: var(--form-input-border-error);
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+/* Error display */
+.form-error,
+.field-error,
+.validation-error {
+    color: var(--form-input-border-error);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: block;
+}
+
+/* Help text */
+.form-help,
+.field-help {
+    color: var(--form-text-color);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 640px) {
+    .form-group input,
+    .form-group textarea,
+    .form-group select,
+    .field-wrapper input,
+    .field-wrapper textarea,
+    .field-wrapper select,
+    input.form-input,
+    textarea.form-textarea,
+    select.form-select {
+        font-size: 16px; /* Prevents zoom on iOS */
+        padding: 0.875rem 1rem;
+        min-height: 48px; /* Larger touch target on mobile */
+    }
+    
+    .form-group select,
+    .field-wrapper select,
+    select.form-select {
+        padding-right: 2.75rem;
+    }
+} 

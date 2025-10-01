@@ -1,0 +1,54 @@
+{% extends 'reports/user_report_sections/base.html' %}
+{% load static %}
+
+{% block section_content %}
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <!-- Left Column -->
+    <div>
+        <!-- Overview Section -->
+        <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h2 class="text-lg font-semibold mb-4">Overview</h2>
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-chart-line text-gray-400"></i>
+                        <span class="text-sm text-gray-700">Completion rate</span>
+                    </div>
+                    <span class="font-semibold">{{ completion_rate }}%</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-check-circle text-gray-400"></i>
+                        <span class="text-sm text-gray-700">Completed courses</span>
+                    </div>
+                    <span class="font-semibold">{{ completed_courses }}</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-sync text-gray-400"></i>
+                        <span class="text-sm text-gray-700">Courses in progress</span>
+                    </div>
+                    <span class="font-semibold">{{ courses_in_progress }}</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-play-circle text-gray-400"></i>
+                        <span class="text-sm text-gray-700">Courses not started</span>
+                    </div>
+                    <span class="font-semibold">{{ courses_not_started }}</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Right Column -->
+    <div>
+        <!-- Activity Section - Using Reusable Component -->
+        <div class="mb-6">
+        </div>
+        
+        <!-- Achievements Section -->
+    </div>
+</div>
+{% endblock %}

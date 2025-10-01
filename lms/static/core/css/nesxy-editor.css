@@ -1,0 +1,237 @@
+/**
+ * Nesxy Editor Styles
+ * Provides responsive design for the editor
+ */
+
+/* Base container */
+.nesxy-editor-wrapper {
+    margin-bottom: 1.5rem;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    transition: all 0.2s ease;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+/* Editor container */
+.custom-editor-container {
+    min-height: 200px;
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+/* Toolbar styling */
+.nesxy-editor-wrapper .ql-toolbar {
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+    padding: 0.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.nesxy-editor-wrapper .ql-formats {
+    display: flex;
+    align-items: center;
+    border-radius: 0.25rem;
+    margin-right: 8px;
+    transition: background-color 0.2s;
+}
+
+/* Editor area styling */
+.nesxy-editor-wrapper .ql-container {
+    font-size: 1rem;
+    line-height: 1.6;
+    border-bottom-left-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.nesxy-editor-wrapper .ql-editor {
+    padding: 1rem;
+    min-height: 200px;
+}
+
+/* Button styling */
+.nesxy-editor-wrapper .ql-toolbar button {
+    width: 32px;
+    height: 32px;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.25rem;
+    transition: all 0.2s ease;
+}
+
+.nesxy-editor-wrapper .ql-toolbar button svg {
+    margin: auto;
+}
+
+/* Dropdowns */
+.nesxy-editor-wrapper .ql-toolbar .ql-picker {
+    height: 32px;
+}
+
+.nesxy-editor-wrapper .ql-toolbar .ql-picker-label {
+    padding: 0 10px;
+    display: flex;
+    align-items: center;
+    height: 32px;
+    border-radius: 0.25rem;
+}
+
+/* Tooltip styling */
+.nesxy-editor-wrapper .ql-tooltip {
+    border-radius: 0.25rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    z-index: 1000;
+}
+
+.nesxy-editor-wrapper .ql-tooltip input[type="text"] {
+    border-radius: 0.25rem;
+    padding: 4px 8px;
+}
+
+.nesxy-editor-wrapper .ql-tooltip a.ql-action,
+.nesxy-editor-wrapper .ql-tooltip a.ql-remove {
+    border-radius: 0.25rem;
+    padding: 4px 8px;
+}
+
+/* Theme toggle removed */
+
+/* Light theme styles */
+.nesxy-editor-wrapper.editor-light-theme .ql-toolbar {
+    background-color: #f8fafc;
+    border-color: #e5e7eb;
+}
+
+.nesxy-editor-wrapper.editor-light-theme .ql-container {
+    background-color: #ffffff;
+    border-color: #e5e7eb;
+    color: #1f2937;
+}
+
+.nesxy-editor-wrapper.editor-light-theme .ql-toolbar button {
+    color: #4b5563;
+}
+
+.nesxy-editor-wrapper.editor-light-theme .ql-toolbar button:hover {
+    background-color: #f3f4f6;
+    color: #1f2937;
+}
+
+.nesxy-editor-wrapper.editor-light-theme .ql-toolbar button.ql-active,
+.nesxy-editor-wrapper.editor-light-theme .ql-toolbar .ql-picker-label.ql-active {
+    background-color: #e5e7eb;
+    color: #1f2937;
+}
+
+.nesxy-editor-wrapper.editor-light-theme .ql-toolbar .ql-formats:hover {
+    background-color: rgba(243, 244, 246, 0.5);
+}
+
+/* Theme toggle hover removed */
+
+.nesxy-editor-wrapper.editor-light-theme .ql-editor.ql-blank::before {
+    color: #9ca3af;
+}
+
+/* Dark theme styles removed */
+
+/* Content styling */
+.nesxy-editor-wrapper .ql-editor h1 {
+    font-size: 2em;
+    font-weight: 700;
+    margin: 0.67em 0;
+}
+
+.nesxy-editor-wrapper .ql-editor h2 {
+    font-size: 1.5em;
+    font-weight: 700;
+    margin: 0.83em 0;
+}
+
+.nesxy-editor-wrapper .ql-editor h3 {
+    font-size: 1.17em;
+    font-weight: 700;
+    margin: 1em 0;
+}
+
+.nesxy-editor-wrapper .ql-editor blockquote {
+    border-left: 4px solid #e5e7eb;
+    padding-left: 16px;
+    margin: 16px 0;
+}
+
+/* Dark theme blockquote removed */
+
+.nesxy-editor-wrapper .ql-editor pre.ql-syntax {
+    background-color: #f3f4f6;
+    color: #1f2937;
+    overflow: auto;
+    padding: 1rem;
+    border-radius: 0.375rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.875rem;
+}
+
+/* Dark theme code block removed */
+
+/* Table styles */
+.nesxy-editor-wrapper .ql-editor table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1rem 0;
+}
+
+.nesxy-editor-wrapper .ql-editor table td {
+    border: 1px solid #e5e7eb;
+    padding: 8px;
+}
+
+/* Dark theme table removed */
+
+/* Image handling */
+.nesxy-editor-wrapper .ql-editor img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .nesxy-editor-wrapper .ql-toolbar {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .nesxy-editor-wrapper .ql-formats {
+        margin-right: 5px;
+        margin-bottom: 5px;
+    }
+}
+
+@media (max-width: 480px) {
+    .nesxy-editor-wrapper .ql-toolbar button {
+        width: 28px;
+        height: 28px;
+        padding: 4px;
+    }
+    
+    .nesxy-editor-wrapper .ql-toolbar .ql-picker-label {
+        padding: 0 6px;
+        height: 28px;
+        font-size: 0.875rem;
+    }
+}
+
+/* Animation */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.custom-editor-container {
+    animation: fadeIn 0.3s ease;
+} 

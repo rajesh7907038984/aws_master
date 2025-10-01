@@ -1,0 +1,222 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Edit {{ report.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-label {
+        display: block;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+    
+    .form-control:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    
+    .btn-primary {
+        background-color: #3b82f6;
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 0.375rem;
+        font-weight: 500;
+        transition: background-color 0.15s ease-in-out;
+        cursor: pointer;
+    }
+    
+    .btn-primary:hover {
+        background-color: #2563eb;
+    }
+    
+    .btn-secondary {
+        background-color: #6b7280;
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 0.375rem;
+        font-weight: 500;
+        transition: background-color 0.15s ease-in-out;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+    }
+    
+    .btn-secondary:hover {
+        background-color: #4b5563;
+    }
+    
+    .json-field {
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-size: 0.8rem;
+        min-height: 120px;
+        resize: vertical;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white text-black min-h-screen">
+    <div class="container mx-auto px-4 py-6">
+        <!-- Breadcrumbs -->
+        {% if breadcrumbs %}
+            {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+        {% endif %}
+
+        <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-sm border">
+            <div class="p-6">
+                <h2 class="text-2xl font-semibold text-gray-900 mb-6">Edit Report</h2>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <!-- Basic Information -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div class="form-group">
+                            <label for="title" class="form-label">Report Title *</label>
+                            <input type="text" 
+                                   id="title" 
+                                   name="title" 
+                                   class="form-control" 
+                                   value="{{ report.title }}" 
+                                   required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="report_type" class="form-label">Report Type</label>
+                            <select id="report_type" name="report_type" class="form-control">
+                                {% for value, label in report_types %}
+                                <option value="{{ value }}" {% if report.report_type == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="status" class="form-label">Status</label>
+                            <select id="status" name="status" class="form-control">
+                                {% for value, label in status_choices %}
+                                <option value="{{ value }}" {% if report.status == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Description -->
+                    <div class="form-group mb-6">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea id="description" 
+                                  name="description" 
+                                  class="form-control" 
+                                  rows="4"
+                                  placeholder="Describe what this report contains...">{{ report.description }}</textarea>
+                    </div>
+                    
+                    <!-- Advanced Configuration -->
+                    <div class="border-t pt-6 mb-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Advanced Configuration</h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Rules -->
+                            <div class="form-group">
+                                <label for="rules" class="form-label">Filtering Rules (JSON)</label>
+                                <textarea id="rules" 
+                                          name="rules" 
+                                          class="form-control json-field"
+                                          placeholder='{"branch": "1", "role": "learner"}'>{{ report.rules|default:"{}" }}</textarea>
+                                <small class="text-gray-500 text-xs mt-1">
+                                    Define filtering rules in JSON format. Leave empty for no filtering.
+                                </small>
+                            </div>
+                            
+                            <!-- Output Fields -->
+                            <div class="form-group">
+                                <label for="output_fields" class="form-label">Output Fields (JSON Array)</label>
+                                <textarea id="output_fields" 
+                                          name="output_fields" 
+                                          class="form-control json-field"
+                                          placeholder='["username", "email", "branch"]'>{{ report.output_fields|default:"[]" }}</textarea>
+                                <small class="text-gray-500 text-xs mt-1">
+                                    List of fields to include in the report output. Leave empty to include all available fields.
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="flex justify-between">
+                        <a href="{% url 'reports:report_detail' report.id %}" class="btn-secondary">
+                            <i class="fas fa-arrow-left mr-2"></i>
+                            Cancel
+                        </a>
+                        
+                        <button type="submit" class="btn-primary">
+                            <i class="fas fa-save mr-2"></i>
+                            Update Report
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// JSON validation helpers
+function validateJSON(fieldId) {
+    const field = document.getElementById(fieldId);
+    const value = field.value.trim();
+    
+    if (!value) return true;
+    
+    try {
+        JSON.parse(value);
+        field.style.borderColor = '#d1d5db';
+        return true;
+    } catch (e) {
+        field.style.borderColor = '#ef4444';
+        return false;
+    }
+}
+
+// Validate JSON fields on blur
+document.getElementById('rules').addEventListener('blur', function() {
+    validateJSON('rules');
+});
+
+document.getElementById('output_fields').addEventListener('blur', function() {
+    validateJSON('output_fields');
+});
+
+// Validate before form submission
+document.querySelector('form').addEventListener('submit', function(e) {
+    const rulesValid = validateJSON('rules');
+    const fieldsValid = validateJSON('output_fields');
+    
+    if (!rulesValid || !fieldsValid) {
+        e.preventDefault();
+        alert('Please fix the JSON syntax errors before submitting.');
+    }
+});
+</script>
+{% endblock %}

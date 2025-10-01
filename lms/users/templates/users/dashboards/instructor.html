@@ -1,0 +1,288 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dashboard - Nexsy LMS{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" type="text/css" href="{% static 'css/dashboard-shared.css' %}?v=20250930202000">
+<link rel="stylesheet" type="text/css" href="{% static 'css/dashboard-roles-unified.css' %}">
+<style>
+    /* Instructor-specific overrides only */
+    .dashboard-main {
+        background-color: var(--instructor-background) !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-main">
+        <!-- Breadcrumb -->
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+        <!-- Main Content Grid -->
+        <div class="dashboard-grid dashboard-grid-main">
+            <!-- First Column (60%) -->
+            <div class="dashboard-flex dashboard-flex-col">
+                <!-- First Row: Overview and Quick Actions -->
+                <div class="dashboard-grid dashboard-grid-two-col">
+                    <!-- Overview Section -->
+                    <div class="dashboard-section">
+                        <h2 class="dashboard-section-header">Overview</h2>
+                        <div class="dashboard-grid dashboard-grid-overview">
+                            <div class="dashboard-overview-card">
+                                <div class="dashboard-overview-icon">
+                                    <i class="fas fa-building"></i>
+                                </div>
+                                <div class="dashboard-overview-content">
+                                    <div class="dashboard-overview-value" id="assigned-courses-count">{{ assigned_courses_count }}</div>
+                                    <div class="dashboard-overview-label">Assigned Courses</div>
+                                </div>
+                            </div>
+                            
+                            <div class="dashboard-overview-card">
+                                <div class="dashboard-overview-icon">
+                                    <i class="fas fa-users"></i>
+                                </div>
+                                <div class="dashboard-overview-content">
+                                    <div class="dashboard-overview-value" id="unique-learners-count">{{ unique_learners_count }}</div>
+                                    <div class="dashboard-overview-label">Learners</div>
+                                </div>
+                            </div>
+                            
+                            <div class="dashboard-overview-card">
+                                <div class="dashboard-overview-icon">
+                                    <i class="fas fa-book"></i>
+                                </div>
+                                <div class="dashboard-overview-content">
+                                    <div class="dashboard-overview-value" id="instructor-groups-count">{{ instructor_groups_count }}</div>
+                                    <div class="dashboard-overview-label">Groups</div>
+                                </div>
+                            </div>
+                            
+                            <div class="dashboard-overview-card">
+                                <div class="dashboard-overview-icon">
+                                    <i class="fas fa-chart-line"></i>
+                                </div>
+                                <div class="dashboard-overview-content">
+                                    <div class="dashboard-overview-value" id="completion-rate">{{ completion_rate }}%</div>
+                                    <div class="dashboard-overview-label">Completion Rate</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions Section -->
+                    <div class="dashboard-section">
+                        <h2 class="dashboard-section-header">Quick Actions</h2>
+                        <div class="dashboard-quick-actions">
+                            <a href="{% url 'courses:course_manage' %}" class="dashboard-quick-action">
+                                <div class="dashboard-quick-action-icon">
+                                    <i class="fas fa-book"></i>
+                                </div>
+                                <div class="dashboard-quick-action-text">Create Course</div>
+                            </a>
+                            
+                            <a href="{% url 'groups:group_create' %}" class="dashboard-quick-action">
+                                <div class="dashboard-quick-action-icon">
+                                    <i class="fas fa-users"></i>
+                                </div>
+                                <div class="dashboard-quick-action-text">Create Group</div>
+                            </a>
+                            
+                            <a href="{% url 'conferences:new_conference' %}" class="dashboard-quick-action">
+                                <div class="dashboard-quick-action-icon">
+                                    <i class="fas fa-video"></i>
+                                </div>
+                                <div class="dashboard-quick-action-text">New Conference</div>
+                            </a>
+                            
+                            <a href="{% url 'discussions:new_discussion' %}" class="dashboard-quick-action">
+                                <div class="dashboard-quick-action-icon">
+                                    <i class="fas fa-comments"></i>
+                                </div>
+                                <div class="dashboard-quick-action-text">New Discussion</div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Second Row: Course Progress and Portal Activity -->
+
+                <!-- Third Row: In Progress and Instructors -->
+                <div class="dashboard-grid dashboard-grid-two-col">
+                    <!-- In Progress Section - Improved Classic Design -->
+                    <div class="dashboard-section">
+                        <div class="dashboard-section-header-wrapper">
+                            <div class="dashboard-flex dashboard-flex-between dashboard-mb-sm">
+                                <h2 class="dashboard-section-header dashboard-mb-0">
+                                    <i class="fas fa-graduation-cap" style="color: #050c50; margin-right: 0.5rem; font-size: 1rem;"></i>
+                                    My Assigned Courses
+                                </h2>
+                                <a href="{% url 'courses:course_list' %}" class="dashboard-link">View All</a>
+                            </div>
+                            <div class="dashboard-section-description">Courses you manage and teach</div>
+                        </div>
+                        
+                        <div class="classic-progress-list">
+                            {% for course in in_progress_courses %}
+                            <div class="classic-progress-item">
+                                <div class="progress-item-content">
+                                    <div class="progress-item-icon">
+                                        <div class="icon-wrapper">
+                                            <i class="fas fa-book"></i>
+                                        </div>
+                                    </div>
+                                    <div class="progress-item-details">
+                                        <div class="progress-course-title">
+                                            {% if course.id and course.id != '' %}
+                                                <a href="{% url 'courses:course_view' course.id %}" style="color: inherit; text-decoration: none;">
+                                                    {{ course.title }}
+                                                </a>
+                                            {% else %}
+                                                {{ course.title }}
+                                            {% endif %}
+                                        </div>
+                                        <div class="progress-course-meta">
+                                            <span class="progress-badge">Active</span>
+                                            <span class="progress-divider">•</span>
+                                            <span class="progress-enrollment">My assigned course</span>
+                                        </div>
+                                    </div>
+                                    <div class="progress-actions">
+                                        {% if course.id and course.id != '' %}
+                                        <a href="{% url 'courses:course_details' course.id %}" class="progress-action-link">
+                                            Manage <i class="fas fa-cogs"></i>
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="classic-empty-state">
+                                <div class="empty-state-icon">
+                                    <i class="fas fa-book-open"></i>
+                                </div>
+                                <div class="empty-state-title">No courses in progress</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Enrolled Students Section - Improved Classic Design -->
+                    <div class="dashboard-section">
+                        <div class="dashboard-section-header-wrapper">
+                            <div class="dashboard-flex dashboard-flex-between dashboard-mb-sm">
+                                <h2 class="dashboard-section-header dashboard-mb-0">
+                                    <i class="fas fa-user-graduate" style="color: #050c50; margin-right: 0.5rem; font-size: 1rem;"></i>
+                                    My Students
+                                </h2>
+                                <a href="{% url 'reports:user_reports' %}" class="dashboard-link">Student Reports</a>
+                            </div>
+                            <div class="dashboard-section-description">Recently active enrolled students</div>
+                        </div>
+                        
+                        <div class="classic-instructors-list">
+                            {% for student in enrolled_students %}
+                            <div class="classic-instructor-item">
+                                <div class="instructor-avatar-section">
+                                    <div class="instructor-avatar">
+                                        {% if student.profile_image %}
+                                            <img src="{{ student.profile_image.url }}" alt="{{ student.get_full_name|default:student.username }}" class="avatar-image">
+                                        {% else %}
+                                            <div class="avatar-placeholder">
+                                                <i class="fas fa-user"></i>
+                                            </div>
+                                        {% endif %}
+                                        <div class="activity-indicator"></div>
+                                    </div>
+                                </div>
+                                <div class="instructor-info-section">
+                                    <div class="instructor-name">
+                                        {% if student.id %}
+                                            <a href="{% url 'reports:user_detail_report' student.id %}" style="color: inherit; text-decoration: none;">
+                                                {{ student.get_full_name|default:student.username|truncatechars:25 }}
+                                            </a>
+                                        {% else %}
+                                            {{ student.get_full_name|default:student.username|truncatechars:25 }}
+                                        {% endif %}
+                                    </div>
+                                    <div class="instructor-status">
+                                        <i class="fas fa-clock"></i>
+                                        Last active {{ student.last_login|timesince }} ago
+                                    </div>
+                                </div>
+                                <div class="instructor-action-section">
+                                    {% if student.id %}
+                                        <a href="{% url 'reports:user_detail_report' student.id %}" class="instructor-contact-btn" title="View {{ student.get_full_name|default:student.username }} Progress">
+                                            <i class="fas fa-arrow-right"></i>
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="classic-empty-state">
+                                <div class="empty-state-icon">
+                                    <i class="fas fa-user-graduate"></i>
+                                </div>
+                                <div class="empty-state-title">No enrolled students found</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Second Column (40%) -->
+            <div class="dashboard-flex dashboard-flex-col">
+                <!-- To-Do List -->
+                <div class="dashboard-section">
+                    <div class="dashboard-flex dashboard-flex-between dashboard-mb-lg">
+                        <h2 class="dashboard-section-header dashboard-mb-0">To-Do List</h2>
+                        <div class="dashboard-text-small dashboard-text-muted">
+                            <span id="todo-count">{{ total_todo_count|default:0 }} active tasks</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Enhanced Todo List Container -->
+                    <div class="todo-content-wrapper" style="max-height: 400px; overflow-y: auto; overflow-x: hidden;">
+                        <div id="todo-list" class="dashboard-activity-list">
+                            <!-- Enhanced Todo Items -->
+                            {% include 'users/components/enhanced_todo_item.html' %}
+                            
+                            {% if not todo_items %}
+                            <div class="dashboard-text-center dashboard-text-small" style="padding: 1.5rem 1rem; color: #6b7280;">
+                                <i class="fas fa-tasks text-3xl mb-3 text-gray-300"></i>
+                                <p>No active tasks</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Load More Button -->
+                        {% if has_more_todos %}
+                        <div class="text-center pt-3" id="load-more-container">
+                            <button id="load-more-todos" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-plus-circle mr-1"></i>
+                                Load More Tasks
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+
+                </div>
+
+                <!-- Responsive Calendar Component -->
+                <div class="dashboard-section">
+                    {% include 'components/dashboard_calendar.html' %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+{% endblock %}
+

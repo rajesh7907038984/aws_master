@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ notification.title }} - {{ site_name }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: #1c2260;
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .content {
+            padding: 30px 20px;
+        }
+        
+        /* Certificate Container - A4 Landscape Format */
+        .certificate-container {
+            width: 100%;
+            max-width: 700px;
+            margin: 20px auto;
+            position: relative;
+            background-color: white;
+            border: 3px solid #1c2260;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 4px 15px rgba(28, 34, 96, 0.1);
+        }
+        
+        /* Certificate Header */
+        .certificate-header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #1c2260;
+            padding-bottom: 20px;
+        }
+        
+        .certificate-title {
+            font-size: 32px;
+            font-weight: bold;
+            color: #1c2260;
+            margin: 0 0 10px 0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .certificate-subtitle {
+            font-size: 16px;
+            color: #333;
+            margin: 0;
+            font-style: italic;
+        }
+        
+        /* Certificate Body */
+        .certificate-body {
+            text-align: center;
+            margin: 40px 0;
+        }
+        
+        .awarded-to {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .recipient-name {
+            font-size: 36px;
+            font-weight: bold;
+            color: #1c2260;
+            margin: 15px 0;
+            text-decoration: underline;
+            text-decoration-color: #1c2260;
+        }
+        
+        .completion-text {
+            font-size: 18px;
+            color: #333;
+            margin: 25px 0;
+            line-height: 1.8;
+        }
+        
+        .course-name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1c2260;
+            margin: 15px 0;
+            font-style: italic;
+        }
+        
+        .grade-display {
+            font-size: 20px;
+            color: #333;
+            margin: 20px 0;
+        }
+        
+        .grade-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #1c2260;
+        }
+        
+        /* Certificate Footer */
+        .certificate-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: end;
+            margin-top: 50px;
+            padding-top: 30px;
+            border-top: 1px solid #333;
+        }
+        
+        .certificate-details {
+            text-align: left;
+        }
+        
+        .certificate-signature {
+            text-align: right;
+        }
+        
+        .certificate-number {
+            font-size: 14px;
+            color: #333;
+            margin: 5px 0;
+        }
+        
+        .certificate-date {
+            font-size: 14px;
+            color: #333;
+            margin: 5px 0;
+        }
+        
+        .signature-line {
+            border-top: 2px solid #1c2260;
+            width: 200px;
+            margin: 20px 0 10px 0;
+        }
+        
+        .signature-label {
+            font-size: 14px;
+            color: #333;
+            margin: 0;
+        }
+        
+        /* Decorative Elements */
+        .certificate-seal {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 80px;
+            height: 80px;
+            border: 3px solid #1c2260;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            font-size: 12px;
+            font-weight: bold;
+            color: #1c2260;
+            text-align: center;
+        }
+        
+        /* Download Button */
+        .download-section {
+            text-align: center;
+            margin: 30px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #1c2260;
+        }
+        
+        .download-button {
+            display: inline-block;
+            background: #1c2260;
+            color: white;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: 500;
+            margin: 10px 0;
+            transition: all 0.3s ease;
+        }
+        
+        .download-button:hover {
+            background: #15204d;
+            color: white;
+        }
+        
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            border-top: 1px solid #dee2e6;
+        }
+        
+        .footer p {
+            margin: 5px 0;
+            font-size: 14px;
+            color: #6c757d;
+        }
+        
+        .footer a {
+            color: #1c2260;
+            text-decoration: none;
+        }
+        
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+            .certificate-container {
+                padding: 20px;
+                margin: 10px;
+            }
+            .certificate-title {
+                font-size: 24px;
+            }
+            .recipient-name {
+                font-size: 28px;
+            }
+            .course-name {
+                font-size: 20px;
+            }
+            .certificate-footer {
+                flex-direction: column;
+                text-align: center;
+                gap: 20px;
+            }
+            .signature-line {
+                margin: 20px auto 10px auto;
+            }
+            .certificate-seal {
+                position: relative;
+                margin: 0 auto 20px auto;
+                top: auto;
+                right: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>{{ site_name }}</h1>
+        </div>
+        
+        <div class="content">
+            <!-- Certificate Display -->
+            <div class="certificate-container">
+                <!-- Decorative Seal -->
+                <div class="certificate-seal">
+                    OFFICIAL<br>SEAL
+                </div>
+                
+                <!-- Certificate Header -->
+                <div class="certificate-header">
+                    <div class="certificate-title">Certificate of Completion</div>
+                    <div class="certificate-subtitle">This is to certify that</div>
+                </div>
+                
+                <!-- Certificate Body -->
+                <div class="certificate-body">
+                    <div class="awarded-to">This certificate is proudly awarded to</div>
+                    
+                    <div class="recipient-name">{{ notification.recipient.get_full_name }}</div>
+                    
+                    <div class="completion-text">
+                        for successfully completing the course
+                    </div>
+                    
+                    <div class="course-name">{{ notification.context_data.course_name|default:"Course Name" }}</div>
+                    
+                    {% if notification.context_data.grade %}
+                    <div class="grade-display">
+                        with a grade of <span class="grade-value">{{ notification.context_data.grade }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Certificate Footer -->
+                <div class="certificate-footer">
+                    <div class="certificate-details">
+                        <div class="certificate-number">
+                            Certificate No: {{ notification.context_data.certificate_number|default:"Not Available" }}
+                        </div>
+                        <div class="certificate-date">
+                            Date: {{ notification.created_at|date:"d/m/Y" }}
+                        </div>
+                    </div>
+                    
+                    <div class="certificate-signature">
+                        <div class="signature-line"></div>
+                        <div class="signature-label">Authorized Signature</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Download Section -->
+            {% if notification.context_data.certificate_url %}
+            <div class="download-section">
+                <h4 style="color: #1c2260; margin: 0 0 15px 0;">Download Your Certificate</h4>
+                <p style="margin: 0 0 15px 0; color: #333;">
+                    Your official certificate is now available for download in PDF format.
+                </p>
+                <a href="{{ notification.context_data.certificate_url }}" class="download-button" target="_blank">
+                    📄 Download Certificate PDF
+                </a>
+            </div>
+            {% endif %}
+            
+            <!-- Message Content -->
+            <div style="margin: 30px 0; padding: 20px; background: #f8f9fa; border-radius: 6px;">
+                <h4 style="color: #1c2260; margin: 0 0 15px 0;">Congratulations!</h4>
+                <div style="color: #333;">
+                    {{ notification.message|safe }}
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>This certificate was issued by {{ site_name }} to {{ notification.recipient.email }}</p>
+            <p>
+                <a href="{{ notification.get_absolute_action_url|default:'#' }}">View in LMS</a> | 
+                <a href="#">Certificate Verification</a> | 
+                <a href="#">Contact Support</a>
+            </p>
+            <p>&copy; {{ "now"|date:"Y" }} {{ site_name }}. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html> 

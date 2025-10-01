@@ -1,0 +1,291 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load course_tags %}
+
+{% block title %}Add Groups - {{ course.title }}{% endblock %}
+
+{% block extra_css %}
+<link href="{% static 'core/css/course_create.css' %}" rel="stylesheet">
+<link href="{% static 'core/css/courses/course_edit.css' %}" rel="stylesheet">
+<style>
+    /* Custom styles for the group table */
+    .group-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    
+    .group-table th, .group-table td {
+        padding: 12px 16px;
+        text-align: left;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .group-table th {
+        background-color: #f9fafb;
+        font-weight: 500;
+        color: #374151;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    .group-table tr:hover {
+        background-color: #f3f4f6;
+    }
+    
+    /* Search section */
+    .search-container {
+        position: relative;
+        width: 100%;
+        max-width: 500px;
+    }
+    
+    .search-icon {
+        position: absolute;
+        left: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #6b7280;
+    }
+    
+    .search-input {
+        width: 100%;
+        padding: 0.5rem 1rem 0.5rem 2.5rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.375rem;
+        outline: none;
+    }
+    
+    .add-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.375rem 0.75rem;
+        border-radius: 0.375rem;
+        font-weight: 500;
+        background-color: #1c2261;
+        color: white;
+        transition: all 0.2s;
+    }
+    
+    .add-btn:hover {
+        background-color: #282e7f;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <!-- Main container -->
+    <div class="bg-white rounded-lg shadow-md">
+        <div class="w-full px-8 py-6">
+            <!-- Breadcrumbs -->
+            {% with breadcrumbs=breadcrumbs %}
+                {% include 'components/breadcrumb.html' %}
+            {% endwith %}
+
+            <div class="flex items-center justify-between mb-6">
+                <h1 class="text-2xl font-bold text-gray-900">Add Groups to {{ course.title }}</h1>
+                <div class="flex gap-2">
+                    <a href="{% url 'groups:group_list' %}?tab=course-groups" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200">
+                        Back to Groups
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Search section -->
+            <div class="mb-6">
+                <div class="search-container">
+                    <span class="search-icon">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                    </span>
+                    <input type="text" id="groupSearch" placeholder="Search groups..." class="search-input">
+                </div>
+            </div>
+            
+            <!-- Groups table -->
+            <div id="groupsTableContainer" class="bg-white rounded-lg overflow-hidden">
+                <table class="group-table">
+                    <thead>
+                        <tr>
+                            <th>Group</th>
+                            <th>Members</th>
+                            <th>Created</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for group in available_groups %}
+                        <tr data-group-id="{{ group.id }}">
+                            <td class="group-name">
+                                <div class="flex items-center">
+                                    <div class="w-8 h-8 mr-3 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                                        <i class="fas fa-users text-gray-500"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-medium text-gray-900">{{ group.name }}</div>
+                                        <div class="text-sm text-gray-500">{{ group.description|truncatechars:50 }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                    {{ group.memberships.count }} members
+                                </span>
+                            </td>
+                            <td>{{ group.created_at|date:"M d, Y" }}</td>
+                            <td>
+                                <button 
+                                    class="add-btn"
+                                    onclick="addGroupToCourse({{ group.id }}, {{ course.id }}, '{{ group.name }}')">
+                                    <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                    </svg>
+                                    Add
+                                </button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center py-8">
+                                <div class="flex flex-col items-center justify-center">
+                                    <div class="w-16 h-16 mb-4 text-gray-300">
+                                        <i class="fas fa-users text-4xl"></i>
+                                    </div>
+                                    <h3 class="text-lg font-medium text-gray-900 mb-2">No Available Groups</h3>
+                                    <p class="text-sm text-gray-500">All groups are already associated with this course or no groups exist.</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if paginator.num_pages > 1 %}
+            <div class="flex justify-between items-center mt-6">
+                <div class="flex items-center gap-2">
+                    <select class="pagination-select text-sm text-gray-600 w-20 border border-gray-300 rounded-md px-2 py-1">
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                    <span class="text-sm text-gray-500">per page</span>
+                </div>
+                
+                <div class="flex items-center gap-2">
+                    <button class="page-btn w-8 h-8 flex items-center justify-center border border-gray-300 rounded-md" {% if not available_groups.has_previous %}disabled{% endif %}>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                        </svg>
+                    </button>
+                    
+                    <div class="flex items-center gap-2">
+                        <select class="pagination-select text-sm text-gray-600 w-16 border border-gray-300 rounded-md px-2 py-1">
+                            {% for i in paginator.page_range %}
+                                <option value="{{ i }}" {% if available_groups.number == i %}selected{% endif %}>{{ i }}</option>
+                            {% endfor %}
+                        </select>
+                        <span class="text-sm text-gray-500">of {{ paginator.num_pages }}</span>
+                    </div>
+                    
+                    <button class="page-btn w-8 h-8 flex items-center justify-center border border-gray-300 rounded-md" {% if not available_groups.has_next %}disabled{% endif %}>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'core/js/utils/notifications.js' %}"></script>
+<script>
+    function addGroupToCourse(groupId, courseId, groupName) {
+        fetch(`/courses/${courseId}/groups/add/${groupId}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        })
+        .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+        .then(data => {
+            if (data.success) {
+                // Remove the group from the list
+                document.querySelector(`tr[data-group-id="${groupId}"]`).remove();
+                
+                // Show success message
+                showToast(`Group "${groupName}" added to the course successfully.`, 'success');
+                
+                // If no more groups are available, show the empty message
+                if (document.querySelectorAll('#groupsTableContainer tbody tr').length === 0) {
+                    document.querySelector('#groupsTableContainer tbody').innerHTML = `
+                    <tr>
+                        <td colspan="4" class="text-center py-8">
+                            <div class="flex flex-col items-center justify-center">
+                                <div class="w-16 h-16 mb-4 text-gray-300">
+                                    <i class="fas fa-users text-4xl"></i>
+                                </div>
+                                <h3 class="text-lg font-medium text-gray-900 mb-2">No Available Groups</h3>
+                                <p class="text-sm text-gray-500">All groups are already associated with this course or no groups exist.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    `;
+                }
+            } else {
+                showToast(`Error: ${data.error}`, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('An error occurred while trying to add the group to the course.', 'error');
+        });
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Handle search input
+    document.getElementById('groupSearch').addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        const rows = document.querySelectorAll('#groupsTableContainer tbody tr[data-group-id]');
+        
+        rows.forEach(row => {
+            const groupName = row.querySelector('.group-name').textContent.toLowerCase();
+            if (groupName.includes(searchTerm)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+</script>
+{% endblock %} 

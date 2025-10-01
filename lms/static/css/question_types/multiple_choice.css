@@ -1,0 +1,74 @@
+.multiple-choice-container .input-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    padding: 0.5rem;
+    border: 1px solid #E5E7EB;
+    border-radius: 0.375rem;
+    transition: all 0.2s ease-in-out;
+}
+
+.multiple-choice-container .input-group:hover {
+    border-color: #D1D5DB;
+    transform: translateX(4px);
+}
+
+.multiple-choice-container .input-group-append {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.multiple-choice-container .form-control {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #E5E7EB;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    color: #374151;
+}
+
+.multiple-choice-container .form-control:focus {
+    outline: none;
+    border-color: #2563EB;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.multiple-choice-container .form-check-input {
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+    cursor: pointer;
+}
+
+.multiple-choice-container .btn-danger {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.multiple-choice-container .btn-secondary {
+    background-color: #F3F4F6;
+    border-color: #D1D5DB;
+    color: #374151;
+}
+
+.multiple-choice-container .btn-secondary:hover {
+    background-color: #E5E7EB;
+    border-color: #9CA3AF;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.multiple-choice-container .input-group {
+    animation: slideIn 0.3s ease-out;
+} 

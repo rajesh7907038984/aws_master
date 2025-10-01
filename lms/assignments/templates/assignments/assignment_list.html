@@ -1,0 +1,439 @@
+{% extends 'base.html' %}
+{% load course_filters %}
+{% load static %}
+{% load assignment_tags %}
+
+{% block extra_css %}
+<style>
+    /* Search box styles */
+    .search-box {
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        background-color: #fff;
+        min-width: 240px;
+        height: 40px;
+    }
+    
+    .search-box input {
+        border: none;
+        outline: none;
+        width: 100%;
+        height: 100%;
+        padding: 0;
+        font-size: 14px;
+        color: #374151;
+        background: transparent;
+    }
+    
+    .search-box input::placeholder {
+        color: #9CA3AF;
+    }
+    
+    /* Table styles */
+    .assignment-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    
+    .assignment-table th {
+        color: #374151;
+        font-weight: 500;
+        text-align: left;
+        padding: 0.75rem 1rem;
+        background-color: #F9FAFB;
+        font-size: 0.875rem;
+        border-bottom: 1px solid #E5E7EB;
+    }
+    
+    .assignment-table td {
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+        border-bottom: 1px solid #E5E7EB;
+        text-align: left;
+    }
+
+    .assignment-table .actions-cell {
+        text-align: left !important;
+        padding-right: 1.5rem;
+    }
+
+    .assignment-table tr:nth-child(odd) td {
+        background-color: #F9FAFB;
+    }
+
+    .assignment-table tr:nth-child(even) td {
+        background-color: #FFFFFF;
+    }
+    
+    .assignment-table tr:hover td {
+        background-color: #F3F4F6;
+    }
+
+    /* Action buttons */
+    .action-btn {
+        padding: 0.375rem;
+        border-radius: 0.375rem;
+        transition: all 0.2s;
+        color: #6B7280;
+        display: inline-flex;
+    }
+    
+    .action-btn:hover {
+        background-color: #F3F4F6;
+        color: #374151;
+    }
+
+    /* Assignment info styles */
+    .assignment-title {
+        color: #111827;
+        font-weight: 500;
+        font-size: 0.875rem;
+    }
+
+    .assignment-description {
+        color: #6B7280;
+        font-size: 0.875rem;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.125rem 0.5rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .status-badge.due-soon {
+        background-color: #FEF3C7;
+        color: #92400E;
+    }
+
+    .status-badge.overdue {
+        background-color: #FDE8E8;
+        color: #9B1C1C;
+    }
+
+    .status-badge.active {
+        background-color: #DEF7EC;
+        color: #03543F;
+    }
+</style>
+{% endblock %}
+
+{% block title %}Assignments{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumbs -->
+    {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-xl font-semibold text-gray-900">{{ title }}</h1>
+                    {% if is_student_view %}
+                    <p class="mt-1 text-sm text-gray-600">Assignments from your enrolled courses</p>
+                    {% else %}
+                    <p class="mt-1 text-sm text-gray-600">Manage your assignments</p>
+                    {% endif %}
+                </div>
+                <div class="flex items-center space-x-4">
+                    {% if available_courses %}
+                    <div class="relative">
+                        <select id="courseFilter" class="block appearance-none bg-white border border-gray-300 rounded-md pl-3 pr-8 py-2 text-sm leading-tight focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">All Courses</option>
+                            {% for course in available_courses %}
+                            <option value="{{ course.id }}">{{ course.title }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                            <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                                <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                            </svg>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if can_create %}
+                    <a href="{% url 'assignments:create_assignment' %}" id="createAssignmentBtn" 
+                       class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                        </svg>
+                        Add New Assignment
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Desktop Table View -->
+        <div class="block overflow-x-auto" style="display: block !important;">
+            <table class="assignment-table">
+                <thead>
+                    <tr>
+                        <th class="pl-6">Title</th>
+                        <th>Course</th>
+                        <th>Due Date</th>
+                        <th>Max Score</th>
+                        <th>Submission Type</th>
+                        <th class="actions-cell">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for assignment in assignments %}
+                    <tr>
+                        <td class="pl-6">
+                            <div class="assignment-title">{{ assignment.title }}</div>
+                        </td>
+                        <td>
+                            {% if assignment_linked_courses|get_item:assignment.id %}
+                                <div class="text-sm">
+                                    {% for course in assignment_linked_courses|get_item:assignment.id %}
+                                        <div class="mb-1 text-gray-600">
+                                            <a href="{% url 'courses:course_details' course.id %}" class="hover:text-blue-600">
+                                                {{ course.title }}
+                                            </a>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                {% if request.user.role == 'learner' %}
+                                <span class="text-sm text-gray-500">Not assigned to any of your enrolled courses</span>
+                                {% else %}
+                                <span class="text-sm text-gray-500">Not assigned to any course</span>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if assignment.due_date %}
+                            <span class="status-badge {% if assignment.is_overdue %}overdue{% elif assignment.due_soon %}due-soon{% else %}active{% endif %}">
+                                {{ assignment.due_date|date:"M d, Y" }}
+                            </span>
+                            {% else %}
+                            <span class="text-sm text-gray-500">No due date</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="text-sm text-gray-600">{{ assignment.max_score }}</span>
+                        </td>
+                        <td>
+                            <span class="text-sm text-gray-600">{{ assignment.get_submission_type_display }}</span>
+                        </td>
+                        <td class="actions-cell">
+                            <div class="flex space-x-2">
+                                {% if can_edit %}
+                                <a href="{% url 'assignments:edit_assignment' assignment.id %}" 
+                                   class="action-btn" 
+                                   title="Edit">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                    </svg>
+                                </a>
+                                <a href="{% url 'assignments:delete_assignment' assignment.id %}" 
+                                   class="action-btn text-red-600 hover:text-red-800" 
+                                   title="Delete"
+                                   onclick="return confirm('Are you sure you want to delete this assignment? This action cannot be undone.');">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                    </svg>
+                                </a>
+                                {% endif %}
+                                <a href="{% url 'assignments:assignment_detail' assignment.id %}" 
+                                   class="action-btn" 
+                                   title="View">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                    </svg>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-8">
+                            <div class="text-gray-500">No assignments found</div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Mobile Card View (Hidden for Desktop) -->
+        <div class="hidden">
+            <div class="space-y-4">
+                {% for assignment in assignments %}
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+                    <!-- Assignment Title -->
+                    <div class="border-b border-gray-200 pb-3 mb-3">
+                        <h3 class="text-lg font-medium text-gray-900">{{ assignment.title }}</h3>
+                        <div class="text-sm text-gray-500 mt-1">{{ assignment.get_submission_type_display }}</div>
+                    </div>
+                    
+                    <!-- Assignment Info Grid -->
+                    <div class="grid grid-cols-2 gap-4 mb-3">
+                        <div>
+                            <div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Course</div>
+                            <div class="text-sm">
+                                {% if assignment_linked_courses|get_item:assignment.id %}
+                                    {% for course in assignment_linked_courses|get_item:assignment.id %}
+                                        <div class="mb-1 text-gray-600">
+                                            <a href="{% url 'courses:course_details' course.id %}" class="hover:text-blue-600">
+                                                {{ course.title|truncatechars:30 }}
+                                            </a>
+                                        </div>
+                                    {% endfor %}
+                                {% else %}
+                                    {% if request.user.role == 'learner' %}
+                                    <span class="text-gray-500 italic">Not assigned to any of your enrolled courses</span>
+                                    {% else %}
+                                    <span class="text-gray-500 italic">Not assigned to any course</span>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div>
+                            <div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Max Score</div>
+                            <div class="text-sm text-gray-600">{{ assignment.max_score }} points</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Due Date -->
+                    <div class="mb-3">
+                        <div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Due Date</div>
+                        <div>
+                            {% if assignment.due_date %}
+                            <span class="status-badge {% if assignment.is_overdue %}overdue{% elif assignment.due_soon %}due-soon{% else %}active{% endif %}">
+                                {{ assignment.due_date|date:"M d, Y" }}
+                            </span>
+                            {% else %}
+                            <span class="text-sm text-gray-500">No due date</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Actions -->
+                    <div class="border-t border-gray-200 pt-3">
+                        <div class="flex flex-col space-y-2">
+                            <a href="{% url 'assignments:assignment_detail' assignment.id %}" 
+                               class="w-full inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                </svg>
+                                View Assignment
+                            </a>
+                            {% if can_edit %}
+                            <div class="flex space-x-2">
+                                <a href="{% url 'assignments:edit_assignment' assignment.id %}" 
+                                   class="flex-1 inline-flex items-center justify-center px-3 py-2 bg-gray-600 text-white rounded text-sm hover:bg-gray-700">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                    </svg>
+                                    Edit
+                                </a>
+                                <a href="{% url 'assignments:delete_assignment' assignment.id %}" 
+                                   class="flex-1 inline-flex items-center justify-center px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+                                   onclick="return confirm('Are you sure you want to delete this assignment? This action cannot be undone.');">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                    </svg>
+                                    Delete
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-center py-8">
+                    <div class="text-gray-500">No assignments found</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        {% if assignments.has_other_pages %}
+        <div class="px-6 py-4 border-t border-gray-200">
+            <nav class="flex justify-center" aria-label="Pagination">
+                <ul class="flex space-x-2">
+                    {% if assignments.has_previous %}
+                    <li>
+                        <a href="?page={{ assignments.previous_page_number }}{% if selected_course_id %}&course_id={{ selected_course_id }}{% endif %}" 
+                           class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                            Previous
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% for num in assignments.paginator.page_range %}
+                        {% if assignments.number == num %}
+                        <li>
+                            <span class="px-3 py-2 border border-blue-500 rounded-md text-sm font-medium text-blue-600 bg-blue-50">
+                                {{ num }}
+                            </span>
+                        </li>
+                        {% else %}
+                        <li>
+                            <a href="?page={{ num }}{% if selected_course_id %}&course_id={{ selected_course_id }}{% endif %}" 
+                               class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                                {{ num }}
+                            </a>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if assignments.has_next %}
+                    <li>
+                        <a href="?page={{ assignments.next_page_number }}{% if selected_course_id %}&course_id={{ selected_course_id }}{% endif %}" 
+                           class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                            Next
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Course filter functionality
+    const courseFilter = document.getElementById('courseFilter');
+    if (courseFilter) {
+        courseFilter.addEventListener('change', function() {
+            const courseId = this.value;
+            let url = new URL(window.location.href);
+            
+            // Clear pagination when filter changes
+            url.searchParams.delete('page');
+            
+            if (courseId) {
+                url.searchParams.set('course_id', courseId);
+            } else {
+                url.searchParams.delete('course_id');
+            }
+            
+            window.location.href = url.toString();
+        });
+        
+        // Set the current selection based on URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentCourseId = urlParams.get('course_id');
+        if (currentCourseId) {
+            courseFilter.value = currentCourseId;
+        }
+    }
+});
+</script>
+{% endblock %}

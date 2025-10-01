@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <!-- Breadcrumbs -->
+    {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+    
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">Rubrics</h1>
+        <div class="flex gap-2">
+            <a href="{% url 'lms_rubrics:create' %}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+                <span class="mr-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                </span>
+                Create Rubric
+            </a>
+            <button class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                <span class="mr-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                    </svg>
+                </span>
+                Find
+            </button>
+        </div>
+    </div>
+
+    <!-- Rubrics List -->
+    <div class="bg-white shadow rounded-lg overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-800">All Rubrics</h2>
+        </div>
+        
+        {% if rubrics %}
+        <div class="divide-y divide-gray-200">
+            {% for rubric in rubrics %}
+            <div class="p-6 hover:bg-gray-50">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <a href="{% url 'lms_rubrics:detail' rubric_id=rubric.id %}" class="text-lg font-medium text-blue-600 hover:text-blue-800">
+                            {{ rubric.title }}
+                        </a>
+                    </div>
+                    <div class="flex space-x-2">
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {{ rubric.total_points }} points
+                        </span>
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                            {{ rubric.criteria.count }} criteria
+                        </span>
+                    </div>
+                </div>
+                <div class="mt-3 flex justify-between items-center">
+                    <div class="text-xs text-gray-500">
+                        {% if rubric.created_by %}
+                        Created by {{ rubric.created_by.get_full_name|default:rubric.created_by.username }} on {{ rubric.created_at|date:"M d, Y" }}
+                        {% endif %}
+                    </div>
+                    <div class="flex space-x-2">
+                        <a href="{% url 'lms_rubrics:edit' rubric_id=rubric.id %}" class="text-sm text-blue-600 hover:text-blue-800">Edit</a>
+                        <a href="{% url 'lms_rubrics:delete' rubric_id=rubric.id %}" class="text-sm text-red-600 hover:text-red-800">Delete</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="p-6 text-center">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-12 h-12 mx-auto text-gray-400 mb-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+            </svg>
+            <p class="text-gray-500 mb-2">No rubrics have been created yet</p>
+            <p class="text-gray-500">
+                <a href="{% url 'lms_rubrics:create' %}" class="text-blue-600 hover:text-blue-800 font-medium">
+                    Create your first rubric
+                </a>
+            </p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,750 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Certificate #{{ certificate.certificate_number }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* A4 Paper Size in Landscape Orientation */
+    .a4-container {
+        width: 100%;
+        max-width: 297mm;
+        height: 0;
+        padding-bottom: 70.7%; /* A4 Landscape aspect ratio (210/297 = 0.707) */
+        margin: 0 auto;
+        background-color: white;
+        position: relative;
+        box-shadow: 0 0 10px rgba(0,0,0,0.2);
+        overflow: hidden;
+    }
+    
+    .certificate-preview {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+    }
+    
+    .certificate-preview img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+    
+    .field-placeholder {
+        position: absolute;
+        background: {% if generate_pdf %}transparent{% else %}rgba(255, 255, 255, 0.8){% endif %};
+        border: {% if generate_pdf %}none{% else %}1px solid #0275d8{% endif %};
+        border-radius: 3px;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: {% if generate_pdf %}0{% else %}5px 10px{% endif %};
+        /* Ensure all fields use the same transform for positioning */
+        transform: translate(-50%, -50%);
+        text-align: center;
+        width: auto;
+        min-width: 50px;
+    }
+    
+    /* Custom styling for different field types when generating PDF */
+    /* These styles will ensure field styling matches template */
+    {% if generate_pdf %}
+    .field-placeholder {
+        font-family: var(--font-family, inherit);
+        font-size: var(--font-size, inherit);
+        font-weight: var(--font-weight, normal);
+        font-style: var(--font-style, normal);
+        color: var(--color, inherit);
+    }
+    {% endif %}
+    
+    .action-buttons {
+        margin: 20px 0;
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+    }
+    
+    .certificate-details {
+        margin-top: 30px;
+        padding: 20px;
+        background-color: #f8f9fa;
+        border-radius: 5px;
+        border: 1px solid #e9ecef;
+    }
+    
+    /* PDF viewer styles */
+    .pdf-viewer {
+        width: 100%;
+        height: 600px;
+        margin: 20px 0;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 0 10px rgba(0,0,0,0.2);
+    }
+    
+    /* Print styles */
+    @media print {
+        body * {
+            visibility: hidden;
+        }
+        
+        #pdfCertificate, #pdfCertificate * {
+            visibility: visible !important;
+            display: block !important;
+        }
+        
+        #pdfCertificate {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 297mm;
+            height: 210mm;
+            margin: 0;
+            padding: 0;
+            box-shadow: none;
+            overflow: visible;
+            background-color: white;
+        }
+        
+        .certificate-preview {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .certificate-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block !important;
+        }
+        
+        .field-placeholder {
+            position: absolute !important;
+            border: none !important;
+            background: transparent !important;
+            left: var(--pos-x, 0) !important;
+            top: var(--pos-y, 0) !important;
+            z-index: 100 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            transform: translate(-50%, -50%) !important;
+            padding: 0 !important;
+            font-style: var(--font-style, normal) !important;
+            font-weight: var(--font-weight, normal) !important;
+            font-family: var(--font-family, inherit) !important;
+            font-size: var(--font-size, inherit) !important;
+            color: var(--color, inherit) !important;
+            text-align: center !important;
+            width: auto !important;
+            min-width: 50px !important;
+        }
+        
+        /* Hide buttons and other UI elements when printing */
+        .action-buttons, nav, header, footer, .certificate-details {
+            display: none !important;
+        }
+    }
+    
+    /* View certificate modal */
+    .certificate-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.7);
+        z-index: 1000;
+        overflow: auto;
+    }
+    
+    .certificate-modal-content {
+        position: relative;
+        margin: 5% auto;
+        background-color: white;
+        padding: 20px;
+        max-width: 317mm; /* Slightly larger than A4 landscape to allow for padding */
+        border-radius: 10px;
+    }
+    
+    .certificate-close {
+        position: absolute;
+        top: 15px;
+        right: 20px;
+        font-size: 28px;
+        font-weight: bold;
+        color: #aaa;
+        cursor: pointer;
+    }
+    
+    .certificate-close:hover {
+        color: #333;
+    }
+    
+    /* Certificate preview should maintain aspect ratio */
+    .certificate-preview img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+    
+    .certificate-container {
+        position: relative;
+        width: 100%;
+        margin: 0 auto;
+        overflow: hidden;
+    }
+    .certificate-image {
+        width: 100%;
+        height: auto;
+    }
+    .certificate-element {
+        position: absolute;
+        transform: translate(-50%, -50%);
+        font-family: Arial, sans-serif;
+        text-align: center;
+    }
+    .certificate-actions {
+        margin-top: 20px;
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+    }
+    /* New styles for the custom path input */
+    .certificate-file-path {
+        margin-top: 15px;
+        margin-bottom: 15px;
+    }
+    .certificate-file-path input {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+    .certificate-file-path label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+    }
+    
+    /* Add specific width handling for field types */
+    .field-placeholder[data-element-type="name"] {
+        min-width: 150px;
+    }
+    
+    .field-placeholder[data-element-type="course"] {
+        min-width: 200px; 
+    }
+    
+    .field-placeholder[data-element-type="date"] {
+        min-width: 100px;
+        transform: translate(-50%, -50%) !important;
+        text-align: center !important;
+        font-family: var(--font-family, inherit) !important;
+        font-size: var(--font-size, inherit) !important;
+        color: var(--color, inherit) !important;
+        font-weight: var(--font-weight, normal) !important;
+        font-style: var(--font-style, normal) !important;
+        white-space: nowrap !important;
+        padding: 0 !important;
+        letter-spacing: normal !important;
+    }
+    
+    .field-placeholder[data-element-type="certificate_id"] {
+        min-width: 120px;
+    }
+    
+    /* Special handling for date fields */
+    .field-placeholder[data-element-type="date"] {
+        white-space: nowrap;
+        padding: 0;
+        letter-spacing: normal;
+        display: inline-flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        margin: 0 !important;
+    }
+    
+    .field-placeholder[data-element-type="date"] span {
+        display: inline-block !important;
+        white-space: nowrap !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        text-indent: 0 !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% if generate_pdf %}
+<!-- PDF Generation Mode - Only show the certificate content -->
+<div class="a4-container" id="pdfCertificate">
+    <div class="certificate-preview">
+        <img src="{{ certificate.template.image.url }}" alt="Certificate Template" />
+        
+        {% for element in elements %}
+        <div class="field-placeholder" 
+             style="--pos-x: {{ element.position_x }}%; --pos-y: {{ element.position_y }}%; 
+                   left: {{ element.position_x }}%; top: {{ element.position_y }}%; 
+                   transform: translate(-50%, -50%);
+                   --font-size: {{ element.font_size }}px;
+                   --font-family: {{ element.font_family }};
+                   {% if element.font_weight == 'italic' %}
+                   --font-style: italic;
+                   --font-weight: normal;
+                   font-style: italic;
+                   font-weight: normal;
+                   {% elif element.font_weight == 'bold italic' %}
+                   --font-style: italic;
+                   --font-weight: bold;
+                   font-style: italic;
+                   font-weight: bold;
+                   {% else %}
+                   --font-style: normal;
+                   --font-weight: {{ element.font_weight }};
+                   font-style: normal;
+                   font-weight: {{ element.font_weight }};
+                   {% endif %}
+                   --color: {{ element.color }};
+                   font-size: {{ element.font_size }}px;
+                   font-family: {{ element.font_family }};
+                   color: {{ element.color }};
+                   text-align: center;"
+             data-element-type="{{ element.element_type }}">
+            {% if generate_pdf or request.GET.generate %}
+                {% if element.element_type == 'name' %}
+                    {{ certificate.recipient.get_full_name }}
+                {% elif element.element_type == 'course' %}
+                    {{ certificate.course_name }}
+                {% elif element.element_type == 'grade' %}
+                    {{ certificate.grade }}
+                {% elif element.element_type == 'date' %}
+                    <span style="display:inline-block; white-space:nowrap; padding:0; margin:0;">{{ certificate.issue_date|date:"d/m/Y" }}</span>
+                {% elif element.element_type == 'certificate_id' %}
+                    {{ certificate.certificate_number }}
+                {% elif element.element_type == 'signature' and element.default_value %}
+                    <img src="{{ element.default_value.url }}" alt="Signature" style="max-width: 150px; max-height: 45px;">
+                {% else %}
+                    {{ element.default_value|default:element.label }}
+                {% endif %}
+            {% else %}
+                {% if element.element_type == 'name' %}
+                    name
+                {% elif element.element_type == 'course' %}
+                    course
+                {% elif element.element_type == 'grade' %}
+                    grade
+                {% elif element.element_type == 'date' %}
+                    date
+                {% elif element.element_type == 'certificate_id' %}
+                    certificate ID
+                {% elif element.element_type == 'signature' %}
+                    signature
+                {% else %}
+                    {{ element.label }}
+                {% endif %}
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<!-- Regular View Mode -->
+<!-- Breadcrumb -->
+<div class="mb-6">
+    {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+</div>
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2>
+                <i class="fas fa-certificate text-primary"></i> 
+                Certificate #{{ certificate.certificate_number }}
+            </h2>
+            <p class="text-muted">
+                Issued to {{ certificate.recipient.get_full_name }} on {{ certificate.issue_date|date:"d/m/Y" }}
+            </p>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-12">
+            {% if not request.GET.generate %}
+            
+            {% if certificate.certificate_file %}
+            {% endif %}
+            
+            <!-- Certificate details -->
+            <div class="certificate-details">
+                <h3 class="mb-3">Certificate Details</h3>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Recipient:</strong> {{ certificate.recipient.get_full_name }}</p>
+                        <p><strong>Certificate Number:</strong> {{ certificate.certificate_number }}</p>
+                        <p><strong>Issue Date:</strong> {{ certificate.issue_date|date:"F j, Y" }}</p>
+                        <p><strong>Issued By:</strong> {{ certificate.issued_by.get_full_name }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Template:</strong> {{ certificate.template.name }}</p>
+                        <p><strong>Course:</strong> {{ certificate.course_name|default:"--" }}</p>
+                        <p><strong>Grade:</strong> {{ certificate.grade|default:"--" }}</p>
+                        {% if certificate.expiry_date %}
+                        <p><strong>Expiry Date:</strong> {{ certificate.expiry_date|date:"F j, Y" }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Custom file path input field -->
+                <div class="certificate-file-path mt-4">
+                    <label for="custom-file-path">Custom File Path (optional):</label>
+                    <input type="text" id="custom-file-path" class="form-control" 
+                           placeholder="e.g., issued_certificates/custom/mycertificate">
+                    <small class="form-text text-muted">Leave blank to use the default date-based path structure.</small>
+                </div>
+            </div>
+            
+            <!-- Action buttons -->
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="printCertificate()">
+                    <i class="fas fa-print"></i> Print Certificate
+                </button>
+                {% if certificate.certificate_file %}
+                <a href="{{ certificate.certificate_file.url }}" download class="btn btn-success">
+                    <i class="fas fa-download"></i> Download Certificate
+                </a>
+                {% endif %}
+                <button class="btn btn-info" onclick="document.getElementById('certificateModal').style.display='block'">
+                    <i class="fas fa-eye"></i> View Certificate
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Certificate View Modal -->
+<div id="certificateModal" class="certificate-modal">
+    <div class="certificate-modal-content">
+        <span class="certificate-close" onclick="document.getElementById('certificateModal').style.display='none'">&times;</span>
+        
+        <h3 class="text-center mb-4">{{ certificate.course_name }} Certificate</h3>
+        
+        <!-- A4 sized certificate display -->
+        <div class="a4-container" id="printableArea">
+            <div class="certificate-preview">
+                <img src="{{ certificate.template.image.url }}" alt="Certificate Template" />
+                
+                {% for element in elements %}
+                <div class="field-placeholder" 
+                     style="--pos-x: {{ element.position_x }}%; --pos-y: {{ element.position_y }}%; 
+                           left: {{ element.position_x }}%; top: {{ element.position_y }}%; 
+                           transform: translate(-50%, -50%);
+                           --font-size: {{ element.font_size }}px;
+                           --font-family: {{ element.font_family }};
+                           {% if element.font_weight == 'italic' %}
+                           --font-style: italic;
+                           --font-weight: normal;
+                           font-style: italic;
+                           font-weight: normal;
+                           {% elif element.font_weight == 'bold italic' %}
+                           --font-style: italic;
+                           --font-weight: bold;
+                           font-style: italic;
+                           font-weight: bold;
+                           {% else %}
+                           --font-style: normal;
+                           --font-weight: {{ element.font_weight }};
+                           font-style: normal;
+                           font-weight: {{ element.font_weight }};
+                           {% endif %}
+                           --color: {{ element.color }};
+                           font-size: {{ element.font_size }}px;
+                           font-family: {{ element.font_family }};
+                           color: {{ element.color }};
+                           text-align: center;"
+                     data-element-type="{{ element.element_type }}">
+                    {% if generate_pdf or request.GET.generate %}
+                        {% if element.element_type == 'name' %}
+                            {{ certificate.recipient.get_full_name }}
+                        {% elif element.element_type == 'course' %}
+                            {{ certificate.course_name }}
+                        {% elif element.element_type == 'grade' %}
+                            {{ certificate.grade }}
+                        {% elif element.element_type == 'date' %}
+                            <span style="display:inline-block; white-space:nowrap; padding:0; margin:0;">{{ certificate.issue_date|date:"d/m/Y" }}</span>
+                        {% elif element.element_type == 'certificate_id' %}
+                            {{ certificate.certificate_number }}
+                        {% elif element.element_type == 'signature' and element.default_value %}
+                            <img src="{{ element.default_value.url }}" alt="Signature" style="max-width: 150px; max-height: 45px;">
+                        {% else %}
+                            {{ element.default_value|default:element.label }}
+                        {% endif %}
+                    {% else %}
+                        {% if element.element_type == 'name' %}
+                            name
+                        {% elif element.element_type == 'course' %}
+                            course
+                        {% elif element.element_type == 'grade' %}
+                            grade
+                        {% elif element.element_type == 'date' %}
+                            date
+                        {% elif element.element_type == 'certificate_id' %}
+                            certificate ID
+                        {% elif element.element_type == 'signature' %}
+                            signature
+                        {% else %}
+                            {{ element.label }}
+                        {% endif %}
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div class="action-buttons mt-4">
+            <button class="btn btn-primary" onclick="printCertificate()">
+                <i class="fas fa-print"></i> Print Certificate
+            </button>
+            {% if certificate.certificate_file %}
+            <a href="{{ certificate.certificate_file.url }}" download class="btn btn-success">
+                <i class="fas fa-download"></i> Download Certificate
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if not generate_pdf %}
+<script>
+    // Function to print the certificate
+    function printCertificate() {
+        // First try to use the print area inside the current page
+        var printContents = document.getElementById('printableArea');
+        
+        if (printContents) {
+            // Create a new window with just the certificate content
+            var printWindow = window.open('', '_blank');
+            
+            // Get all field placeholders to capture their styles
+            var fields = printContents.querySelectorAll('.field-placeholder');
+            var fieldStyles = '';
+            
+            // Extract styles from each field and create CSS rules for them
+            fields.forEach(function(field, index) {
+                const elementType = field.getAttribute('data-element-type');
+                const styles = window.getComputedStyle(field);
+                const fontFamily = styles.getPropertyValue('font-family');
+                const fontSize = styles.getPropertyValue('font-size');
+                const fontWeight = styles.getPropertyValue('font-weight');
+                const fontStyle = styles.getPropertyValue('font-style');
+                const color = styles.getPropertyValue('color');
+                const left = field.style.getPropertyValue('left');
+                const top = field.style.getPropertyValue('top');
+                
+                // Create a specific style for this element
+                fieldStyles += `
+                    .field-${index} {
+                        font-family: ${fontFamily};
+                        font-size: ${fontSize};
+                        font-weight: ${fontWeight};
+                        font-style: ${fontStyle};
+                        color: ${color};
+                        left: ${left};
+                        top: ${top};
+                    }
+                `;
+                
+                // Add the class to the element
+                field.classList.add(`field-${index}`);
+            });
+            
+            // Create a complete HTML document with necessary CSS
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Certificate</title>
+                    <style>
+                        @page { 
+                            size: A4 landscape; 
+                            margin: 0; 
+                        }
+                        body {
+                            margin: 0;
+                            padding: 0;
+                        }
+                        .a4-container {
+                            width: 297mm;
+                            height: 210mm;
+                            position: relative;
+                            margin: 0;
+                            background-color: white;
+                            overflow: hidden;
+                        }
+                        .certificate-preview {
+                            width: 100%;
+                            height: 100%;
+                            position: relative;
+                        }
+                        .certificate-preview img {
+                            width: 100%;
+                            height: 100%;
+                            object-fit: contain;
+                        }
+                        .field-placeholder {
+                            position: absolute;
+                            background: transparent;
+                            border: none;
+                            z-index: 100;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            transform: translate(-50%, -50%);
+                            padding: 0;
+                            text-align: center;
+                        }
+                        /* Special handling for date fields */
+                        .field-placeholder[data-element-type="date"] {
+                            white-space: nowrap;
+                            padding: 0;
+                            letter-spacing: normal;
+                            display: inline-flex !important;
+                            justify-content: center !important;
+                            align-items: center !important;
+                            margin: 0 !important;
+                        }
+                        .field-placeholder[data-element-type="date"] span {
+                            display: inline-block !important;
+                            white-space: nowrap !important;
+                            padding: 0 !important;
+                            margin: 0 !important;
+                            text-indent: 0 !important;
+                        }
+                        ${fieldStyles}
+                    </style>
+                </head>
+                <body>
+                    ${printContents.outerHTML}
+                </body>
+                </html>
+            `);
+            
+            // Wait for everything to render, then print
+            printWindow.document.close();
+            printWindow.focus();
+            
+            setTimeout(function() {
+                printWindow.print();
+                // Don't close the window - let user decide to close it
+            }, 1000);
+        } else {
+            // Fallback to the generate=true method
+            var printWindow = window.open('{{ request.path }}?generate=true', '_blank');
+            
+            // Wait for the window to load before printing
+            printWindow.onload = function() {
+                // Make sure all resources are loaded before printing
+                if (printWindow.document.readyState !== 'complete') {
+                    setTimeout(function() {
+                        printCertificateWhenReady(printWindow);
+                    }, 1000);
+                } else {
+                    printCertificateWhenReady(printWindow);
+                }
+            };
+        }
+    }
+    
+    // Function to check if all images are loaded and then print
+    function printCertificateWhenReady(printWindow) {
+        try {
+            // Get all images in the document
+            var images = printWindow.document.getElementsByTagName('img');
+            var imagesLoaded = true;
+            
+            // Check if all images are loaded
+            for (var i = 0; i < images.length; i++) {
+                if (!images[i].complete) {
+                    imagesLoaded = false;
+                    break;
+                }
+            }
+            
+            if (imagesLoaded) {
+                // All images are loaded, print the document
+                printWindow.print();
+                // Close the window after printing (optional)
+                // printWindow.close();
+            } else {
+                // Wait a bit more for images to load
+                setTimeout(function() {
+                    printCertificateWhenReady(printWindow);
+                }, 500);
+            }
+        } catch (e) {
+            console.error('Error during print preparation:', e);
+        }
+    }
+    
+    // Close the modal when clicking outside of it
+    window.onclick = function(event) {
+        const modal = document.getElementById('certificateModal');
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
+    }
+</script>
+{% endif %}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // View certificate in modal
+        const viewButton = document.getElementById('view-certificate');
+        const certificateModal = document.getElementById('certificate-modal');
+        const closeModal = document.getElementById('close-modal');
+        
+        if (viewButton) {
+            viewButton.addEventListener('click', function() {
+                certificateModal.style.display = 'block';
+            });
+        }
+        
+        if (closeModal) {
+            closeModal.addEventListener('click', function() {
+                certificateModal.style.display = 'none';
+            });
+        }
+        
+        // Close modal when clicking outside
+        window.addEventListener('click', function(event) {
+            if (event.target == certificateModal) {
+                certificateModal.style.display = 'none';
+            }
+        });
+        
+        // Handle custom file path for regenerate button
+        const customFilePathInput = document.getElementById('custom-file-path');
+        const regenerateButton = document.querySelector('a[href^="{% url "certificates:regenerate_certificate" certificate.id %}"]');
+        
+        if (customFilePathInput && regenerateButton) {
+            regenerateButton.addEventListener('click', function(e) {
+                const customPath = customFilePathInput.value.trim();
+                if (customPath) {
+                    const separator = this.href.includes('?') ? '&' : '?';
+                    this.href = `${this.href}${separator}file_path=${encodeURIComponent(customPath)}`;
+                }
+            });
+        }
+    });
+</script>
+{% endblock %} 

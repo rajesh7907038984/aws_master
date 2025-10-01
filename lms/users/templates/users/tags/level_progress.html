@@ -1,0 +1,34 @@
+{% load static %}
+
+<div class="level-progress-container">
+  {% if current_level %}
+    <div class="d-flex align-items-center mb-3">
+      <div class="level-badge-container me-3">
+        <div class="level-badge">{{ current_level.number }}</div>
+      </div>
+      <div class="level-info flex-grow-1">
+        <h4 class="mb-0">Level {{ current_level.number }}: {{ current_level.name }}</h4>
+        {% if next_level %}
+          <p class="text-muted mb-0">{{ total_points }} / {{ next_level.points_required }} points</p>
+        {% else %}
+          <p class="text-muted mb-0">Max level reached! ({{ total_points }} points)</p>
+        {% endif %}
+      </div>
+    </div>
+    
+    {% if next_level %}
+      <div class="level-progress-bar">
+        <div class="level-progress-fill" style="width: {{ progress_percent }}%;"></div>
+      </div>
+      <div class="level-info d-flex justify-content-between mt-2">
+        <span class="text-muted">Level {{ current_level.number }}</span>
+        <span class="text-muted">{{ progress_percent|floatformat:0 }}%</span>
+        <span class="text-muted">Level {{ next_level.number }}</span>
+      </div>
+    {% endif %}
+  {% else %}
+    <div class="empty-level-progress text-center p-3">
+      <p class="text-muted">No level progress data available</p>
+    </div>
+  {% endif %}
+</div> 

@@ -1,0 +1,563 @@
+{% extends "base.html" %}
+{% load static %}
+{% load conference_tags %}
+
+{% block title %}Rubric Scores - {{ conference.title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" type="text/css" href="{% static 'core/css/conferences.css' %}">
+<style>
+.scores-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.scores-table th, .scores-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.scores-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #495057;
+}
+
+.scores-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.student-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.student-name {
+    font-weight: 600;
+    color: #212529;
+}
+
+.student-email {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.criterion-score {
+    text-align: center;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-weight: 600;
+    min-width: 60px;
+}
+
+.total-score {
+    font-size: 1.125rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+.score-high {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.score-medium {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.score-low {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        line-height: 1.5;
+        text-align: center;
+        white-space: nowrap;
+        cursor: pointer;
+        border: none;
+        border-radius: 0.5rem;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+
+    .btn-primary {
+        background-color: #050c50 !important;
+        color: white !important;
+    }
+
+    .btn-primary:hover {
+        background-color: #040a42 !important;
+        color: white !important;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-secondary {
+        background-color: #6b7280 !important;
+        color: white !important;
+    }
+
+    .btn-secondary:hover {
+        background-color: #4b5563 !important;
+        color: white !important;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+.btn:hover {
+    text-decoration: none;
+}
+
+.stats-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+.stats-number {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #007bff;
+}
+
+.stats-label {
+    color: #6c757d;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+}
+
+.comments-cell {
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.comments-full {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
+}
+
+/* Accordion Styles */
+.accordion {
+    margin-bottom: 1rem;
+}
+
+.accordion-item {
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    margin-bottom: 0.5rem;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.accordion-header {
+    background: #f8f9fa;
+    border: none;
+    padding: 0;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.accordion-header:hover {
+    background: #e9ecef;
+}
+
+.accordion-button {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 1rem 1.25rem;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #212529;
+    background: transparent;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    outline: none;
+}
+
+.accordion-button:focus {
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.accordion-icon {
+    transition: transform 0.2s ease;
+    color: #6c757d;
+}
+
+.accordion-header.active .accordion-icon {
+    transform: rotate(180deg);
+}
+
+.accordion-content {
+    display: none;
+    padding: 0;
+    border-top: 1px solid #dee2e6;
+}
+
+.accordion-content.show {
+    display: block;
+}
+
+.accordion-body {
+    padding: 1.25rem;
+    background: white;
+}
+
+.student-header-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.student-score-summary {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-left: auto;
+}
+
+.score-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.comments-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+}
+
+.comment-card {
+    border-left: 4px solid #007bff;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 0.375rem;
+}
+
+.comment-criterion {
+    font-weight: 600;
+    color: #212529;
+    margin-bottom: 0.5rem;
+}
+
+.comment-score {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-bottom: 0.5rem;
+}
+
+.comment-text {
+    color: #495057;
+    line-height: 1.5;
+    margin-bottom: 0.5rem;
+}
+
+.comment-meta {
+    font-size: 0.75rem;
+    color: #6c757d;
+    font-style: italic;
+}
+
+.no-comments {
+    text-align: center;
+    color: #6c757d;
+    font-style: italic;
+    padding: 2rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Breadcrumbs -->
+<div class="container-fluid">
+    {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+</div>
+
+<div class="container-fluid">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Rubric Scores: {{ conference.title }}</h1>
+            <p class="text-gray-600 mt-2">{{ rubric.title }} - Learner evaluations</p>
+        </div>
+        <div class="flex gap-2">
+            <a href="{% url 'conferences:conference_list' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Conferences
+            </a>
+            <a href="{% url 'conferences:bulk_evaluate' conference.id %}" class="btn btn-primary">
+                <i class="fas fa-users"></i> Bulk Evaluate
+            </a>
+        </div>
+    </div>
+
+    {% if attendance_scores %}
+    <!-- Summary Statistics -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="stats-card">
+            <div class="stats-number">{{ attendance_scores|length }}</div>
+            <div class="stats-label">Learners Evaluated</div>
+        </div>
+        <div class="stats-card">
+            {% with total_possible=rubric.total_points %}
+            <div class="stats-number">{{ total_possible }}</div>
+            <div class="stats-label">Total Possible Points</div>
+            {% endwith %}
+        </div>
+        <div class="stats-card">
+            <div class="stats-number">
+                {% if attendance_scores %}
+                    {{ attendance_scores|average_score|floatformat:1 }}
+                {% else %}
+                    0
+                {% endif %}
+            </div>
+            <div class="stats-label">Average Score</div>
+        </div>
+        <div class="stats-card">
+            <div class="stats-number">{{ rubric.criteria.count }}</div>
+            <div class="stats-label">Criteria</div>
+        </div>
+    </div>
+
+    <!-- Scores Table -->
+    <div class="standard-table-container">
+        <div class="overflow-x-auto">
+            <table class="standard-table conference-table">
+                <thead>
+                    <tr>
+                        <th class="primary-text">Student</th>
+                        {% for criterion in rubric.criteria.all %}
+                        <th class="primary-text text-center">{{ criterion.description|truncatechars:20 }}<br>
+                            <small class="secondary-text">({{ criterion.points }} pts)</small>
+                        </th>
+                        {% endfor %}
+                        <th class="primary-text text-center">Total Score</th>
+                        <th class="primary-text text-center">Percentage</th>
+                    </tr>
+                </thead>
+            <tbody>
+                {% for score_data in attendance_scores %}
+                <tr>
+                    <td>
+                        <div class="primary-text font-medium">{{ score_data.attendance.user.get_full_name }}</div>
+                        <div class="secondary-text text-sm">{{ score_data.attendance.user.email }}</div>
+                        <div class="text-xs secondary-text mt-1">
+                            Duration: {{ score_data.attendance.duration_minutes }} min
+                        </div>
+                    </td>
+                    {% for criterion in rubric.criteria.all %}
+                    <td class="text-center">
+                        {% for evaluation in score_data.evaluations %}
+                        {% if evaluation.criterion == criterion %}
+                        <div class="criterion-score 
+                            {% if evaluation.points >= criterion.points|floatformat:0|mul:0.8 %}score-high
+                            {% elif evaluation.points >= criterion.points|floatformat:0|mul:0.6 %}score-medium
+                            {% else %}score-low{% endif %}">
+                            {{ evaluation.points|floatformat:1 }}
+                        </div>
+                        {% if evaluation.comments %}
+                        <div class="comments-cell mt-1" title="{{ evaluation.comments }}">
+                            {{ evaluation.comments|truncatechars:30 }}
+                        </div>
+                        {% endif %}
+                        {% endif %}
+                        {% endfor %}
+                    </td>
+                    {% endfor %}
+                    <td class="total-score">
+                        {{ score_data.total_points|floatformat:1 }} / {{ rubric.total_points }}
+                    </td>
+                    <td class="text-center">
+                        {% with percentage=score_data.total_points|div:rubric.total_points|mul:100 %}
+                        <div class="criterion-score 
+                            {% if percentage >= 80 %}score-high
+                            {% elif percentage >= 60 %}score-medium
+                            {% else %}score-low{% endif %}">
+                            {{ percentage|floatformat:0 }}%
+                        </div>
+                        {% endwith %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+
+    <!-- Student Comments Accordion -->
+    <div class="mt-8">
+        <h3 class="text-lg font-semibold mb-4">
+            <i class="fas fa-comments mr-2"></i>Detailed Comments by Student
+        </h3>
+        
+        <div class="accordion" id="studentCommentsAccordion">
+            {% for score_data in attendance_scores %}
+            {% with student=score_data.attendance.user %}
+            <div class="accordion-item">
+                <div class="accordion-header" id="heading{{ forloop.counter }}">
+                    <button class="accordion-button" type="button" data-bs-toggle="collapse" 
+                            data-bs-target="#collapse{{ forloop.counter }}" aria-expanded="false" 
+                            aria-controls="collapse{{ forloop.counter }}" 
+                            onclick="toggleAccordion({{ forloop.counter }})">
+                        <div class="student-header-info">
+                            <div class="student-name">{{ student.get_full_name }}</div>
+                            <div class="student-email">{{ student.email }}</div>
+                        </div>
+                        <div class="student-score-summary">
+                            {% with percentage=score_data.total_points|div:rubric.total_points|mul:100 %}
+                            <div class="score-badge 
+                                {% if percentage >= 80 %}score-high
+                                {% elif percentage >= 60 %}score-medium
+                                {% else %}score-low{% endif %}">
+                                <i class="fas fa-trophy"></i>
+                                {{ score_data.total_points|floatformat:1 }}/{{ rubric.total_points }} 
+                                ({{ percentage|floatformat:0 }}%)
+                            </div>
+                            {% endwith %}
+                            <i class="fas fa-chevron-down accordion-icon"></i>
+                        </div>
+                    </button>
+                </div>
+                
+                <div id="collapse{{ forloop.counter }}" class="accordion-content" 
+                     aria-labelledby="heading{{ forloop.counter }}">
+                    <div class="accordion-body">
+                        {% with has_comments=False %}
+                        {% for evaluation in score_data.evaluations %}
+                        {% if evaluation.comments %}
+                        {% if not has_comments %}
+                        <div class="comments-grid">
+                        {% endif %}
+                        {% with has_comments=True %}
+                        <div class="comment-card">
+                            <div class="comment-criterion">
+                                <i class="fas fa-clipboard-check mr-2"></i>
+                                {{ evaluation.criterion.description }}
+                            </div>
+                            <div class="comment-score">
+                                <i class="fas fa-star mr-1"></i>
+                                Score: {{ evaluation.points|floatformat:1 }} / {{ evaluation.criterion.points }} points
+                            </div>
+                            <div class="comment-text">
+                                {{ evaluation.comments|linebreaks }}
+                            </div>
+                            <div class="comment-meta">
+                                <i class="fas fa-user mr-1"></i>
+                                Evaluated by {{ evaluation.evaluated_by.get_full_name }} 
+                                on {{ evaluation.created_at|date:"M j, Y g:i A" }}
+                            </div>
+                        </div>
+                        {% endwith %}
+                        {% endif %}
+                        {% endfor %}
+                        {% if has_comments %}
+                        </div>
+                        {% else %}
+                        <div class="no-comments">
+                            <i class="fas fa-comment-slash text-muted mb-2" style="font-size: 2rem;"></i>
+                            <p>No detailed comments available for this student.</p>
+                        </div>
+                        {% endif %}
+                        {% endwith %}
+                        
+                        <!-- Student Performance Summary -->
+                        <div class="mt-4 p-3 bg-light rounded">
+                            <h6 class="font-semibold mb-2">
+                                <i class="fas fa-chart-line mr-2"></i>Performance Summary
+                            </h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <small class="text-muted">Conference Duration:</small>
+                                    <div class="font-semibold">{{ score_data.attendance.duration_minutes }} minutes</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted">Criteria Evaluated:</small>
+                                    <div class="font-semibold">{{ score_data.evaluations|length }} of {{ rubric.criteria.count }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endwith %}
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <div class="text-center py-12">
+        <div class="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+            <i class="fas fa-chart-bar text-gray-400 text-2xl"></i>
+        </div>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">No Learner Evaluations Yet</h3>
+        <p class="text-gray-600">No learners have been evaluated using this rubric yet.</p>
+        <div class="mt-6">
+            <a href="{% url 'conferences:bulk_evaluate' conference.id %}" class="btn btn-primary">
+                <i class="fas fa-users"></i> Start Bulk Evaluation
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function toggleAccordion(index) {
+    const header = document.getElementById(`heading${index}`);
+    const content = document.getElementById(`collapse${index}`);
+    const icon = header.querySelector('.accordion-icon');
+    
+    // Toggle active class on header
+    header.classList.toggle('active');
+    
+    // Toggle content visibility
+    content.classList.toggle('show');
+    
+    // Update aria-expanded
+    const button = header.querySelector('.accordion-button');
+    const isExpanded = content.classList.contains('show');
+    button.setAttribute('aria-expanded', isExpanded);
+}
+
+// Initialize accordion state
+document.addEventListener('DOMContentLoaded', function() {
+    // Close all accordions by default
+    const accordionContents = document.querySelectorAll('.accordion-content');
+    accordionContents.forEach(content => {
+        content.classList.remove('show');
+    });
+    
+    // Set all aria-expanded to false
+    const accordionButtons = document.querySelectorAll('.accordion-button');
+    accordionButtons.forEach(button => {
+        button.setAttribute('aria-expanded', 'false');
+    });
+});
+</script>
+{% endblock %} 

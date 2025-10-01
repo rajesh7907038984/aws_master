@@ -1,0 +1,449 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load course_filters %}
+
+{% block title %}Manage Courses - Admin Dashboard{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" type="text/css" href="{% static 'css/dashboard-shared.css' %}">
+<style>
+    .course-management-container {
+        background-color: #ffffff;
+        min-height: 100vh;
+    }
+    .course-card {
+        background: #ffffff;
+        border: 1px solid rgba(226, 232, 240, 0.6);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        transition: all 0.3s ease;
+    }
+    .course-card:hover {
+        box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        transform: translateY(-1px);
+    }
+    .course-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+        flex-wrap: wrap;
+    }
+    .course-actions a, .course-actions button {
+        padding: 8px 16px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-size: 14px;
+        transition: all 0.3s ease;
+    }
+    .btn-primary {
+        background-color: #3b82f6;
+        color: white;
+        border: none;
+    }
+    .btn-primary:hover {
+        background-color: #2563eb;
+    }
+    .btn-secondary {
+        background-color: #6b7280;
+        color: white;
+        border: none;
+    }
+    .btn-secondary:hover {
+        background-color: #4b5563;
+    }
+    .btn-danger {
+        background-color: #ef4444;
+        color: white;
+        border: none;
+    }
+    .btn-danger:hover {
+        background-color: #dc2626;
+    }
+    .btn-success {
+        background-color: #10b981;
+        color: white;
+        border: none;
+    }
+    .btn-success:hover {
+        background-color: #059669;
+    }
+    .create-course-form {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 30px;
+    }
+    .form-group {
+        margin-bottom: 20px;
+    }
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: #374151;
+    }
+    .form-control {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 16px;
+    }
+    .form-control:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    .course-status {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+        text-transform: uppercase;
+    }
+    .course-status.published {
+        background-color: #d1fae5;
+        color: #065f46;
+    }
+    .course-status.draft {
+        background-color: #fef3c7;
+        color: #92400e;
+    }
+    .branch-indicator {
+        background-color: #dbeafe;
+        color: #1e40af;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 500;
+    }
+    .admin-controls {
+        background-color: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="course-management-container">
+    <div class="container mx-auto px-4 py-6">
+        <!-- Breadcrumbs -->
+        {% if breadcrumbs %}
+            {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+        {% endif %}
+
+        <!-- Page Header -->
+        <div class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">Admin Course Management</h1>
+                {% if branch %}
+                    <p class="text-gray-600 mt-2">Managing courses for: <span class="branch-indicator">{{ branch.name }}</span></p>
+                {% endif %}
+            </div>
+            <div class="flex gap-3">
+                <a href="{% url 'courses:course_list' %}" class="btn-secondary">
+                    <i class="fas fa-list mr-2"></i>
+                    Course List
+                </a>
+                <a href="{% url 'dashboard_admin' %}" class="btn-secondary">
+                    <i class="fas fa-arrow-left mr-2"></i>
+                    Back to Dashboard
+                </a>
+            </div>
+        </div>
+
+        <!-- Admin Controls -->
+        <div class="admin-controls">
+            <h3 class="text-lg font-semibold text-gray-900 mb-3">
+                <i class="fas fa-cog mr-2"></i>
+                Admin Controls
+            </h3>
+            <div class="flex flex-wrap gap-3">
+                <a href="{% url 'courses:course_manage' %}" class="btn-success">
+                    <i class="fas fa-plus mr-2"></i>
+                    Create New Course
+                </a>
+                <a href="{% url 'users:user_list' %}" class="btn-secondary">
+                    <i class="fas fa-users mr-2"></i>
+                    Manage Users
+                </a>
+                <a href="{% url 'reports:overview' %}" class="btn-secondary">
+                    <i class="fas fa-chart-bar mr-2"></i>
+                    Course Reports
+                </a>
+                <a href="{% url 'categories:category_list' %}" class="btn-secondary">
+                    <i class="fas fa-tags mr-2"></i>
+                    Manage Categories
+                </a>
+            </div>
+        </div>
+
+        <div class="mb-8">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                <i class="fas fa-chart-line mr-2"></i>
+                Course Activity Overview
+            </h3>
+        </div>
+
+        <!-- Course Statistics -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white border border-gray-200 rounded-lg p-4">
+                <div class="flex items-center">
+                    <div class="p-2 bg-blue-100 rounded-lg">
+                        <i class="fas fa-book text-blue-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Total Courses</p>
+                        <p class="text-2xl font-bold text-gray-900">{{ courses.count }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-lg p-4">
+                <div class="flex items-center">
+                    <div class="p-2 bg-green-100 rounded-lg">
+                        <i class="fas fa-check-circle text-green-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Active Courses</p>
+                        <p class="text-2xl font-bold text-gray-900">{{ courses|length }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-lg p-4">
+                <div class="flex items-center">
+                    <div class="p-2 bg-purple-100 rounded-lg">
+                        <i class="fas fa-users text-purple-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Available Instructors</p>
+                        <p class="text-2xl font-bold text-gray-900">{{ instructors.count }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-lg p-4">
+                <div class="flex items-center">
+                    <div class="p-2 bg-yellow-100 rounded-lg">
+                        <i class="fas fa-building text-yellow-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Current Branch</p>
+                        <p class="text-lg font-bold text-gray-900">{{ branch.name|default:"Global" }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Course Management Form -->
+        {% if form %}
+        <div class="create-course-form">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">
+                <i class="fas fa-plus mr-2"></i>
+                Quick Course Creation
+            </h2>
+            <form method="post" enctype="multipart/form-data" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {% csrf_token %}
+                
+                <!-- Display form errors -->
+                {% if form.errors %}
+                    <div class="lg:col-span-2 p-4 bg-red-100 border border-red-200 rounded-md">
+                        <h3 class="text-red-700 font-semibold mb-2">Please correct the errors below:</h3>
+                        <ul class="list-disc pl-5 text-red-600">
+                            {% for field, errors in form.errors.items %}
+                            <li>
+                                <strong>{{ field|title }}:</strong> 
+                                {% for error in errors %}{{ error }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+
+                <!-- Form fields -->
+                {% for field in form %}
+                    <div class="form-group {% if field.field.widget.input_type == 'textarea' or field.name == 'description' %}lg:col-span-2{% endif %}">
+                        <label for="{{ field.id_for_label }}">
+                            {{ field.label }}
+                            {% if field.field.required %}
+                                <span class="text-red-500">*</span>
+                            {% endif %}
+                        </label>
+                        
+                        {% if field.field.widget.input_type == 'file' %}
+                            <input type="file"
+                                   name="{{ field.html_name }}"
+                                   id="{{ field.auto_id }}"
+                                   class="form-control">
+                        {% elif field.field.widget.input_type == 'checkbox' or field.field.widget.input_type == 'radio' %}
+                            <div class="mt-2">
+                                {{ field }}
+                            </div>
+                        {% else %}
+                            {{ field|add_class:"form-control" }}
+                        {% endif %}
+                        
+                        {% if field.help_text %}
+                            <p class="mt-2 text-sm text-gray-500">{{ field.help_text }}</p>
+                        {% endif %}
+                        
+                        {% if field.errors %}
+                            <div class="mt-2 text-red-500 text-sm">
+                                {% for error in field.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+
+                <div class="lg:col-span-2">
+                    <button type="submit" class="btn-success">
+                        <i class="fas fa-plus mr-2"></i>
+                        Create Course
+                    </button>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+
+        <!-- Existing Courses -->
+        <div class="mb-8">
+            <h2 class="text-xl font-semibold text-gray-900 mb-6">
+                <i class="fas fa-book mr-2"></i>
+                Branch Courses ({{ courses.count }})
+            </h2>
+
+            {% if courses %}
+                <div class="space-y-4">
+                    {% for course in courses %}
+                        <div class="course-card">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1">
+                                    <div class="flex items-center mb-2">
+                                        <h3 class="text-lg font-semibold text-gray-900 mr-3">
+                                            {{ course.title }}
+                                        </h3>
+                                        {% if course.course_status %}
+                                            <span class="course-status {{ course.course_status }}">
+                                                {{ course.get_course_status_display }}
+                                            </span>
+                                        {% endif %}
+                                        {% if course.branch %}
+                                            <span class="branch-indicator ml-2">{{ course.branch.name }}</span>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    {% if course.description %}
+                                        <p class="text-gray-600 mb-3 line-clamp-2">
+                                            {{ course.description|truncatewords:30|striptags }}
+                                        </p>
+                                    {% endif %}
+
+                                    <div class="text-sm text-gray-500">
+                                        <span class="mr-4">
+                                            <i class="fas fa-user mr-1"></i>
+                                            Instructor: {{ course.instructor.get_full_name|default:course.instructor.username }}
+                                        </span>
+                                        <span class="mr-4">
+                                            <i class="fas fa-calendar mr-1"></i>
+                                            Created: {{ course.created_at|date:"M d, Y" }}
+                                        </span>
+                                        {% if course.category %}
+                                            <span class="mr-4">
+                                                <i class="fas fa-tag mr-1"></i>
+                                                {{ course.category.name }}
+                                            </span>
+                                        {% endif %}
+                                        <span>
+                                            <i class="fas fa-users mr-1"></i>
+                                            {{ course.enrolled_users.count }} enrolled
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {% if course.course_image %}
+                                    <div class="ml-6 flex-shrink-0">
+                                        <img src="{{ course.course_image.url }}" 
+                                             alt="{{ course.title }}" 
+                                             class="w-20 h-20 object-cover rounded-lg">
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="course-actions">
+                                <a href="{% url 'courses:course_details' course.id %}" class="btn-primary">
+                                    <i class="fas fa-eye mr-1"></i>
+                                    View Course
+                                </a>
+                                <a href="{% url 'courses:course_edit' course.id %}" class="btn-secondary">
+                                    <i class="fas fa-edit mr-1"></i>
+                                    Edit
+                                </a>
+                                <a href="{% url 'courses:course_users' course.id %}" class="btn-secondary">
+                                    <i class="fas fa-users mr-1"></i>
+                                    Manage Users
+                                </a>
+                                <a href="{% url 'courses:course_settings' course.id %}" class="btn-secondary">
+                                    <i class="fas fa-cog mr-1"></i>
+                                    Settings
+                                </a>
+                                <a href="{% url 'gradebook:course_detail' course.id %}" class="btn-secondary">
+                                    <i class="fas fa-table mr-1"></i>
+                                    Gradebook
+                                </a>
+                                <a href="{% url 'reports:course_detail' course.id %}" class="btn-secondary">
+                                    <i class="fas fa-chart-line mr-1"></i>
+                                    Reports
+                                </a>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-12">
+                    <i class="fas fa-book-open text-6xl text-gray-300 mb-4"></i>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">No courses found</h3>
+                    <p class="text-gray-500 mb-4">Create your first course or check your branch assignment.</p>
+                    <a href="{% url 'courses:course_manage' %}" class="btn-success">
+                        <i class="fas fa-plus mr-2"></i>
+                        Create First Course
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add any JavaScript for form handling or interactions
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Creating Course...';
+                submitBtn.disabled = true;
+            }
+        });
+    }
+
+    // Add confirmation for delete actions if any
+    document.querySelectorAll('.btn-danger').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            if (!confirm('Are you sure you want to perform this action?')) {
+                e.preventDefault();
+                return false;
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
+

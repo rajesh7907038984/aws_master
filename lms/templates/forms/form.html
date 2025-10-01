@@ -1,0 +1,176 @@
+{% load static %}
+
+<style>
+    /* Mobile-first responsive form styles */
+    .responsive-form {
+        max-width: 100%;
+        margin: 0 auto;
+        padding: 1rem;
+    }
+    
+    .form-group {
+        margin-bottom: 1.25rem;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: #374151;
+        font-size: 0.875rem;
+    }
+    
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        font-size: 1rem;
+        line-height: 1.5;
+        background-color: #fff;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        min-height: 44px; /* Touch-friendly minimum height */
+    }
+    
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    
+    .form-group textarea {
+        min-height: 120px;
+        resize: vertical;
+    }
+    
+    .form-text {
+        font-size: 0.8rem;
+        color: #6b7280;
+        margin-top: 0.25rem;
+        line-height: 1.4;
+    }
+    
+    .invalid-feedback {
+        color: #dc2626;
+        font-size: 0.8rem;
+        margin-top: 0.25rem;
+    }
+    
+    .form-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-top: 2rem;
+    }
+    
+    .btn {
+        padding: 0.875rem 1.5rem;
+        border: none;
+        border-radius: 0.5rem;
+        font-size: 1rem;
+        font-weight: 500;
+        text-align: center;
+        text-decoration: none;
+        cursor: pointer;
+        transition: all 0.15s ease-in-out;
+        min-height: 48px; /* Touch-friendly button height */
+    }
+    
+    .btn-primary {
+        background-color: #3b82f6;
+        color: #fff;
+    }
+    
+    .btn-primary:hover {
+        background-color: #2563eb;
+    }
+    
+    .btn-secondary {
+        background-color: #6b7280;
+        color: #fff;
+    }
+    
+    .btn-secondary:hover {
+        background-color: #4b5563;
+        text-decoration: none;
+    }
+    
+    /* Tablet and desktop improvements */
+    @media (min-width: 640px) {
+        .responsive-form {
+            padding: 1.5rem;
+        }
+        
+        .form-buttons {
+            flex-direction: row;
+            justify-content: flex-end;
+        }
+        
+        .btn {
+            min-width: 120px;
+            width: auto;
+        }
+    }
+    
+    @media (min-width: 768px) {
+        .responsive-form {
+            max-width: 600px;
+            padding: 2rem;
+        }
+        
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            font-size: 0.875rem;
+            min-height: 40px;
+        }
+        
+        .btn {
+            min-height: 40px;
+            font-size: 0.875rem;
+            padding: 0.625rem 1.25rem;
+        }
+    }
+</style>
+
+{% block form %}
+<div class="responsive-form">
+    <form method="{{ method|default:'post' }}" {% if enctype %}enctype="{{ enctype }}"{% endif %} class="{{ form_class }}" {% if form_id %}id="{{ form_id }}"{% endif %} {% if action %}action="{{ action }}"{% endif %}>
+        {% if method|default:'post'|upper != 'GET' %}{% csrf_token %}{% endif %}
+        {{ form.media }}
+        {% block form_content %}
+            {% for field in form %}
+                <div class="form-group">
+                    <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                        {{ field.label }}
+                        {% if field.field.required %}
+                            <span class="text-red-500 ml-1">*</span>
+                        {% endif %}
+                    </label>
+                    {{ field }}
+                    {% if field.help_text %}
+                        <div class="form-text">{{ field.help_text }}</div>
+                    {% endif %}
+                    {% if field.errors %}
+                        {% for error in field.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            {% endfor %}
+        {% endblock %}
+        {% block form_buttons %}
+            <div class="form-buttons">
+                <button type="submit" class="btn btn-primary">{{ submit_text|default:'Submit' }}</button>
+                {% if show_cancel %}
+                    <a href="{{ cancel_url }}" class="btn btn-secondary">Cancel</a>
+                {% endif %}
+            </div>
+        {% endblock %}
+    </form>
+</div>
+{% endblock %} 

@@ -1,0 +1,329 @@
+{% extends 'admin/base_site.html' %}
+{% load static %}
+
+{% block title %}Manage AI Tokens - {{ branch.name }}{% endblock %}
+
+{% block extrahead %}
+<style>
+    .token-card {
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 20px;
+        margin-bottom: 20px;
+        background: white;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 30px;
+    }
+    
+    .stat-box {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 5px;
+        padding: 15px;
+        text-align: center;
+    }
+    
+    .stat-value {
+        font-size: 24px;
+        font-weight: bold;
+        color: #007cba;
+    }
+    
+    .stat-label {
+        color: #666;
+        font-size: 12px;
+        text-transform: uppercase;
+        margin-top: 5px;
+    }
+    
+    .usage-bar {
+        height: 12px;
+        background-color: #e9ecef;
+        border-radius: 6px;
+        overflow: hidden;
+        margin: 10px 0;
+    }
+    
+    .usage-bar-fill {
+        height: 100%;
+        transition: width 0.3s ease;
+    }
+    
+    .usage-normal { background-color: #28a745; }
+    .usage-warning { background-color: #ffc107; }
+    .usage-danger { background-color: #dc3545; }
+    .usage-unlimited { background-color: #6c757d; }
+    
+    .limit-form {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 5px;
+        margin-bottom: 30px;
+    }
+    
+    .recent-usage {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    
+    .usage-item {
+        border-bottom: 1px solid #eee;
+        padding: 10px 0;
+    }
+    
+    .usage-item:last-child {
+        border-bottom: none;
+    }
+    
+    .user-table {
+        margin-top: 20px;
+    }
+    
+    .status-success {
+        color: #28a745;
+    }
+    
+    .status-error {
+        color: #dc3545;
+    }
+
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin: 20px 0;
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Home</a> &rsaquo;
+    <a href="{% url 'tinymce_editor:ai_token_dashboard' %}">AI Token Management</a> &rsaquo;
+    <strong>{{ branch.name }}</strong>
+</div>
+{% endblock %}
+
+{% block content %}
+<h1>AI Token Management: {{ branch.name }}</h1>
+<p><strong>Business:</strong> {{ branch.business.name|default:"No Business" }}</p>
+
+<!-- Current Statistics -->
+<div class="stats-grid">
+    <div class="stat-box">
+        <div class="stat-value">{{ current_usage|floatformat:0 }}</div>
+        <div class="stat-label">Tokens Used This Month</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-value">
+            {% if token_limits.is_unlimited %}
+                ∞
+            {% else %}
+                {{ token_limits.monthly_token_limit|floatformat:0 }}
+            {% endif %}
+        </div>
+        <div class="stat-label">Monthly Limit</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-value">
+            {% if token_limits.is_unlimited %}
+                ∞
+            {% else %}
+                {{ remaining_tokens|floatformat:0 }}
+            {% endif %}
+        </div>
+        <div class="stat-label">Remaining Tokens</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-value">{{ user_count }}</div>
+        <div class="stat-label">Active Users</div>
+    </div>
+</div>
+
+<!-- Usage Progress Bar -->
+{% if not token_limits.is_unlimited %}
+<div class="token-card">
+    <h3>Monthly Usage Progress</h3>
+    <div class="usage-bar">
+        {% if usage_percentage >= 100 %}
+            <div class="usage-bar-fill usage-danger" style="width: 100%;"></div>
+        {% elif usage_percentage >= 80 %}
+            <div class="usage-bar-fill usage-warning" style="width: {{ usage_percentage }}%;"></div>
+        {% else %}
+            <div class="usage-bar-fill usage-normal" style="width: {{ usage_percentage }}%;"></div>
+        {% endif %}
+    </div>
+    <p><strong>{{ usage_percentage|floatformat:1 }}%</strong> of monthly limit used</p>
+    {% if usage_percentage >= 90 %}
+        <div class="alert alert-danger">
+            <strong>Warning:</strong> This branch is approaching its monthly token limit.
+        </div>
+    {% elif usage_percentage >= 75 %}
+        <div class="alert alert-warning">
+            <strong>Notice:</strong> This branch has used over 75% of its monthly token allowance.
+        </div>
+    {% endif %}
+</div>
+{% else %}
+<div class="token-card">
+    <h3>Unlimited Usage</h3>
+    <p>This branch has unlimited AI token usage.</p>
+</div>
+{% endif %}
+
+<!-- Limit Configuration -->
+<div class="limit-form">
+    <h3>Configure Token Limits</h3>
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="update_limits">
+        
+        <div class="form-group">
+            <label>
+                <input type="checkbox" name="is_unlimited" {% if token_limits.is_unlimited %}checked{% endif %}> 
+                Enable unlimited AI token usage
+            </label>
+        </div>
+        
+        <div class="form-group" id="limitGroup" {% if token_limits.is_unlimited %}style="display: none;"{% endif %}>
+            <label for="monthly_token_limit">Monthly Token Limit:</label>
+            <input type="number" id="monthly_token_limit" name="monthly_token_limit" 
+                   value="{{ token_limits.monthly_token_limit }}" min="1" class="form-control" style="width: 200px;">
+        </div>
+        
+        <button type="submit" class="btn btn-primary">Update Limits</button>
+    </form>
+</div>
+
+<!-- Top Users This Month -->
+<div class="token-card">
+    <h3>Top Users This Month</h3>
+    {% if top_users %}
+        <div class="user-table">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Email</th>
+                        <th>Tokens Used</th>
+                        <th>Requests</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in top_users %}
+                    <tr>
+                        <td>{{ user.user__username }}</td>
+                        <td>{{ user.user__email }}</td>
+                        <td>{{ user.total_tokens|floatformat:0 }}</td>
+                        <td>{{ user.request_count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p>No AI usage recorded for this month.</p>
+    {% endif %}
+</div>
+
+<!-- Recent Usage Activity -->
+<div class="token-card">
+    <h3>Recent Usage Activity (Last 30 Days)</h3>
+    {% if recent_usage %}
+        <div class="recent-usage">
+            {% for usage in recent_usage %}
+            <div class="usage-item">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong>{{ usage.user.username }}</strong> - {{ usage.tokens_used }} tokens
+                        {% if usage.success %}
+                            <span class="status-success">✓</span>
+                        {% else %}
+                            <span class="status-error">✗</span>
+                        {% endif %}
+                    </div>
+                    <small>{{ usage.created_at|timesince }} ago</small>
+                </div>
+                <div style="margin-top: 5px;">
+                    <small>{{ usage.prompt_text|truncatechars:100 }}</small>
+                </div>
+                {% if not usage.success and usage.error_message %}
+                <div style="margin-top: 5px; color: #dc3545;">
+                    <small><strong>Error:</strong> {{ usage.error_message|truncatechars:100 }}</small>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>No recent usage activity.</p>
+    {% endif %}
+</div>
+
+<!-- Daily Usage Chart -->
+{% if daily_usage %}
+<div class="token-card">
+    <h3>Daily Usage This Month</h3>
+    <div class="chart-container">
+        <canvas id="dailyUsageChart"></canvas>
+    </div>
+</div>
+{% endif %}
+
+<script>
+// Toggle limit input based on unlimited checkbox
+document.querySelector('input[name="is_unlimited"]').addEventListener('change', function() {
+    const limitGroup = document.getElementById('limitGroup');
+    if (this.checked) {
+        limitGroup.style.display = 'none';
+    } else {
+        limitGroup.style.display = 'block';
+    }
+});
+
+// Daily usage chart (if data available)
+{% if daily_usage %}
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('dailyUsageChart').getContext('2d');
+    const dailyData = {{ daily_usage|safe }};
+    
+    // Simple chart implementation (can be replaced with Chart.js or similar)
+    const canvas = document.getElementById('dailyUsageChart');
+    const canvasCtx = canvas.getContext('2d');
+    
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    
+    if (dailyData.length > 0) {
+        const maxTokens = Math.max(...dailyData.map(d => d.total_tokens));
+        const barWidth = canvas.width / dailyData.length;
+        
+        dailyData.forEach((day, index) => {
+            const barHeight = (day.total_tokens / maxTokens) * (canvas.height - 20);
+            const x = index * barWidth;
+            const y = canvas.height - barHeight;
+            
+            canvasCtx.fillStyle = '#007cba';
+            canvasCtx.fillRect(x + 2, y, barWidth - 4, barHeight);
+            
+            // Draw labels
+            canvasCtx.fillStyle = '#333';
+            canvasCtx.font = '10px Arial';
+            canvasCtx.textAlign = 'center';
+            canvasCtx.fillText(day.total_tokens, x + barWidth/2, y - 5);
+        });
+    } else {
+        canvasCtx.fillStyle = '#666';
+        canvasCtx.font = '14px Arial';
+        canvasCtx.textAlign = 'center';
+        canvasCtx.fillText('No usage data available', canvas.width/2, canvas.height/2);
+    }
+});
+{% endif %}
+</script>
+
+{% endblock %}

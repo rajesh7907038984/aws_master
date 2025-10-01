@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container">
+    <!-- Breadcrumbs -->
+    {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+    
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6">Import Rubric-Outcome Mappings</h1>
+
+        <div class="bg-white shadow rounded-lg overflow-hidden mb-6">
+            <form method="post" enctype="multipart/form-data" class="p-6">
+                {% csrf_token %}
+                
+                <div class="mb-6">
+                    <label for="file" class="block text-sm font-medium text-gray-700 mb-1">Upload File</label>
+                    <input type="file" name="file" id="file" required class="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                    <p class="mt-1 text-sm text-gray-500">Upload a CSV or Excel file with rubric-outcome mapping data.</p>
+                </div>
+                
+                <div class="mb-6">
+                    <label class="flex items-center">
+                        <input type="checkbox" name="clear_existing" class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                        <span class="ml-2 text-sm text-gray-700">Clear existing mappings before import</span>
+                    </label>
+                    <p class="mt-1 text-sm text-gray-500">⚠️ Warning: This will remove all existing rubric-outcome connections.</p>
+                </div>
+                
+                <div class="flex justify-end space-x-3">
+                    <a href="{% url 'lms_outcomes:manage' %}" class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                        Cancel
+                    </a>
+                    <button type="submit" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                        Import Mappings
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <div class="bg-white shadow rounded-lg overflow-hidden mb-6">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-medium text-gray-800">Rubric-Outcome Mapping Format Documentation</h2>
+            </div>
+            <div class="p-6">
+                <p class="text-gray-600 mb-4">Rubric-outcome mappings connect specific rubric criteria to learning outcomes, enabling automatic outcome calculation based on rubric evaluations.</p>
+                
+                <div class="space-y-6">
+                    <div>
+                        <h3 class="text-lg font-medium text-gray-800 mb-2">CSV Format</h3>
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <p class="text-sm text-gray-600 mb-2">Your CSV file must contain the following columns:</p>
+                            <ul class="list-disc list-inside text-sm text-gray-600 space-y-1">
+                                <li><strong>rubric_title</strong> - The exact title of the rubric</li>
+                                <li><strong>criterion_description</strong> - The description of the rubric criterion (partial match allowed)</li>
+                                <li><strong>outcome_title</strong> - The exact title of the outcome</li>
+                                <li><strong>weight</strong> - Weight of this criterion in outcome calculation (0.0-1.0)</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-lg font-medium text-gray-800 mb-2">Sample CSV Content</h3>
+                        <div class="bg-gray-900 text-green-400 p-4 rounded-lg text-sm font-mono overflow-x-auto">
+                            <div>rubric_title,criterion_description,outcome_title,weight</div>
+                            <div>"Assignment Rubric","Critical Thinking","Analyze Complex Problems",1.0</div>
+                            <div>"Assignment Rubric","Written Communication","Communicate Effectively",0.9</div>
+                            <div>"Quiz Rubric","Problem Solving","Solve Mathematical Problems",0.8</div>
+                            <div>"Discussion Rubric","Collaboration","Work Effectively in Teams",1.0</div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-lg font-medium text-gray-800 mb-2">Important Notes</h3>
+                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                            <ul class="list-disc list-inside text-sm text-yellow-800 space-y-1">
+                                <li>Rubric titles and outcome titles must match exactly (case-sensitive)</li>
+                                <li>Criterion descriptions allow partial matching for flexibility</li>
+                                <li>Weights must be between 0.0 and 1.0</li>
+                                <li>If multiple criteria with the same description exist, the system will try exact matching first</li>
+                                <li>Existing mappings with the same criterion-outcome pair will be updated with new weights</li>
+                                <li>You can only import mappings for rubrics and outcomes within your branch/business access</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-lg font-medium text-gray-800 mb-2">Outcome Calculation Methods</h3>
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <p class="text-sm text-blue-800 mb-2">Once mappings are created, outcomes will be automatically calculated using the method specified for each outcome:</p>
+                            <ul class="list-disc list-inside text-sm text-blue-800 space-y-1">
+                                <li><strong>Weighted Average:</strong> Recent evaluations receive more weight</li>
+                                <li><strong>Decaying Average:</strong> Exponential decay favoring recent scores</li>
+                                <li><strong>n Number of Times:</strong> Requires mastery achieved n times</li>
+                                <li><strong>Most Recent:</strong> Uses only the latest evaluation</li>
+                                <li><strong>Highest Score:</strong> Uses the best performance</li>
+                                <li><strong>Simple Average:</strong> Equal weight to all evaluations</li>
+                                <li><strong>No Point:</strong> Binary met/not met assessment</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-6 pt-6 border-t border-gray-200">
+                    <h3 class="text-lg font-medium text-gray-800 mb-2">After Import</h3>
+                    <p class="text-sm text-gray-600">
+                        After importing mappings, outcome evaluations will be automatically calculated for all students who have existing rubric evaluations. 
+                        You can also use the <a href="{% url 'lms_outcomes:recalculate_evaluations' %}" class="text-blue-600 hover:text-blue-800">Recalculate Evaluations</a> 
+                        feature to manually trigger recalculation if needed.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

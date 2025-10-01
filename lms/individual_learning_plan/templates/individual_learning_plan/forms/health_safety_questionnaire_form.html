@@ -1,0 +1,449 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Health & Safety Questionnaire{% endblock %}
+
+{% block extra_css %}
+<style>
+    .health-safety-form {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    }
+    
+    .question-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        background: #f9fafb;
+    }
+    
+    .question-title {
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 0.5rem;
+    }
+    
+    .confirmation-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+    
+    .health-safety-input {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        font-size: 0.875rem;
+    }
+    
+    .health-safety-confirmation {
+        width: 100px;
+        padding: 0.25rem;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        font-size: 0.875rem;
+    }
+    
+    .document-upload-area {
+        border: 2px dashed #cbd5e1;
+        border-radius: 8px;
+        padding: 2rem;
+        text-align: center;
+        background: #f8fafc;
+    }
+    
+    .acknowledgment-section {
+        background: #f0f9ff;
+        border: 1px solid #0ea5e9;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-top: 2rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-6xl">
+    <!-- Breadcrumbs -->
+    {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">Health & Safety Questionnaire</h1>
+        <p class="text-gray-600 mt-1">
+            {% if user.role == 'learner' %}
+                Complete the health & safety questionnaire to confirm your understanding
+            {% else %}
+                Manage health & safety questionnaire for {{ target_user.get_full_name|default:target_user.username }}
+            {% endif %}
+        </p>
+    </div>
+
+    <!-- Form Section -->
+    <div class="health-safety-form">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <!-- Header Section -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <div class="flex items-center mb-2">
+                    <i class="fas fa-shield-alt text-blue-600 mr-2"></i>
+                    <h3 class="text-lg font-medium text-blue-800">
+                        Health & Safety - Please confirm by completing the boxes below that you are aware of the following health & safety arrangements.
+                    </h3>
+                </div>
+            </div>
+
+            <!-- Error Messages -->
+            {% if form.non_field_errors %}
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                <div class="flex">
+                    <i class="fas fa-exclamation-circle text-red-400 mr-2"></i>
+                    <div class="text-red-700">{{ form.non_field_errors }}</div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Questions Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <!-- Left Column -->
+                <div class="space-y-4">
+                    <!-- Question 1 -->
+                    <div class="question-card">
+                        <div class="question-title">Who is the named first aider?</div>
+                        {{ form.named_first_aider }}
+                        {% if form.named_first_aider.errors %}
+                        <div class="text-red-600 text-sm mt-1">{{ form.named_first_aider.errors.0 }}</div>
+                        {% endif %}
+                        <div class="confirmation-row">
+                            <label class="text-sm font-medium text-gray-700">Confirmed:</label>
+                            {{ form.named_first_aider_confirmed }}
+                        </div>
+                    </div>
+
+                    <!-- Question 2 -->
+                    <div class="question-card">
+                        <div class="question-title">Where is the First Aid box kept?</div>
+                        {{ form.first_aid_box_location }}
+                        {% if form.first_aid_box_location.errors %}
+                        <div class="text-red-600 text-sm mt-1">{{ form.first_aid_box_location.errors.0 }}</div>
+                        {% endif %}
+                        <div class="confirmation-row">
+                            <label class="text-sm font-medium text-gray-700">Confirmed:</label>
+                            {{ form.first_aid_box_confirmed }}
+                        </div>
+                    </div>
+
+                    <!-- Question 3 -->
+                    <div class="question-card">
+                        <div class="question-title">Where is the Accident Book kept?</div>
+                        {{ form.accident_book_location }}
+                        {% if form.accident_book_location.errors %}
+                        <div class="text-red-600 text-sm mt-1">{{ form.accident_book_location.errors.0 }}</div>
+                        {% endif %}
+                        <div class="confirmation-row">
+                            <label class="text-sm font-medium text-gray-700">Confirmed:</label>
+                            {{ form.accident_book_confirmed }}
+                        </div>
+                    </div>
+
+                    <!-- Question 4 -->
+                    <div class="question-card">
+                        <div class="question-title">Where is the Health & Safety Policy displayed?</div>
+                        {{ form.health_safety_policy_location }}
+                        {% if form.health_safety_policy_location.errors %}
+                        <div class="text-red-600 text-sm mt-1">{{ form.health_safety_policy_location.errors.0 }}</div>
+                        {% endif %}
+                        <div class="confirmation-row">
+                            <label class="text-sm font-medium text-gray-700">Confirmed:</label>
+                            {{ form.health_safety_policy_confirmed }}
+                        </div>
+                    </div>
+
+                    <!-- Question 5 -->
+                    <div class="question-card">
+                        <div class="question-title">Where are your nearest fire exits?</div>
+                        {{ form.nearest_fire_exits }}
+                        {% if form.nearest_fire_exits.errors %}
+                        <div class="text-red-600 text-sm mt-1">{{ form.nearest_fire_exits.errors.0 }}</div>
+                        {% endif %}
+                        <div class="confirmation-row">
+                            <label class="text-sm font-medium text-gray-700">Confirmed:</label>
+                            {{ form.nearest_fire_exits_confirmed }}
+                        </div>
+                    </div>
+
+                    <!-- Question 6 -->
+                    <div class="question-card">
+                        <div class="question-title">What are the most common accidents in this type of environment?</div>
+                        {{ form.common_accidents }}
+                        {% if form.common_accidents.errors %}
+                        <div class="text-red-600 text-sm mt-1">{{ form.common_accidents.errors.0 }}</div>
+                        {% endif %}
+                        <div class="confirmation-row">
+                            <label class="text-sm font-medium text-gray-700">Confirmed:</label>
+                            {{ form.common_accidents_confirmed }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column -->
+                <div class="space-y-4">
+                    <!-- Question 7 -->
+                    <div class="question-card">
+                        <div class="question-title">Where are the fire extinguishers?</div>
+                        {{ form.fire_extinguishers_location }}
+                        {% if form.fire_extinguishers_location.errors %}
+                        <div class="text-red-600 text-sm mt-1">{{ form.fire_extinguishers_location.errors.0 }}</div>
+                        {% endif %}
+                        <div class="confirmation-row">
+                            <label class="text-sm font-medium text-gray-700">Confirmed:</label>
+                            {{ form.fire_extinguishers_confirmed }}
+                        </div>
+                    </div>
+
+                    <!-- Question 8 -->
+                    <div class="question-card">
+                        <div class="question-title">Where is the Fire Assembly point?</div>
+                        {{ form.fire_assembly_point }}
+                        {% if form.fire_assembly_point.errors %}
+                        <div class="text-red-600 text-sm mt-1">{{ form.fire_assembly_point.errors.0 }}</div>
+                        {% endif %}
+                        <div class="confirmation-row">
+                            <label class="text-sm font-medium text-gray-700">Confirmed:</label>
+                            {{ form.fire_assembly_confirmed }}
+                        </div>
+                    </div>
+
+                    <!-- Question 9 -->
+                    <div class="question-card">
+                        <div class="question-title">Who do you report accidents to?</div>
+                        {{ form.accident_reporting_person }}
+                        {% if form.accident_reporting_person.errors %}
+                        <div class="text-red-600 text-sm mt-1">{{ form.accident_reporting_person.errors.0 }}</div>
+                        {% endif %}
+                        <div class="confirmation-row">
+                            <label class="text-sm font-medium text-gray-700">Confirmed:</label>
+                            {{ form.accident_reporting_confirmed }}
+                        </div>
+                    </div>
+
+                    <!-- Question 10 -->
+                    <div class="question-card">
+                        <div class="question-title">Who do you report a health & safety issue to?</div>
+                        {{ form.health_safety_issue_reporting }}
+                        {% if form.health_safety_issue_reporting.errors %}
+                        <div class="text-red-600 text-sm mt-1">{{ form.health_safety_issue_reporting.errors.0 }}</div>
+                        {% endif %}
+                        <div class="confirmation-row">
+                            <label class="text-sm font-medium text-gray-700">Confirmed:</label>
+                            {{ form.health_safety_issue_confirmed }}
+                        </div>
+                    </div>
+
+                    <!-- Question 11 -->
+                    <div class="question-card">
+                        <div class="question-title">Who is responsible for managing health & safety?</div>
+                        {{ form.health_safety_manager }}
+                        {% if form.health_safety_manager.errors %}
+                        <div class="text-red-600 text-sm mt-1">{{ form.health_safety_manager.errors.0 }}</div>
+                        {% endif %}
+                        <div class="confirmation-row">
+                            <label class="text-sm font-medium text-gray-700">Confirmed:</label>
+                            {{ form.health_safety_manager_confirmed }}
+                        </div>
+                    </div>
+
+                    <!-- Question 12 -->
+                    <div class="question-card">
+                        <div class="question-title">What substances are prohibited at this centre?</div>
+                        {{ form.prohibited_substances }}
+                        {% if form.prohibited_substances.errors %}
+                        <div class="text-red-600 text-sm mt-1">{{ form.prohibited_substances.errors.0 }}</div>
+                        {% endif %}
+                        <div class="confirmation-row">
+                            <label class="text-sm font-medium text-gray-700">Confirmed:</label>
+                            {{ form.prohibited_substances_confirmed }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Document Upload Section -->
+            {% if user.role != 'learner' and document_formset %}
+            <div class="border-t pt-6 mb-8">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Health & Safety Documents</h3>
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                    <p class="text-yellow-800 text-sm">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        Upload documents that learners should review for health & safety awareness.
+                    </p>
+                </div>
+                
+                {{ document_formset.management_form }}
+                <div id="document-forms">
+                    {% for form in document_formset %}
+                        <div class="document-form border rounded-lg p-4 mb-4">
+                            {% if form.non_field_errors %}
+                                <div class="text-red-600 text-sm mb-2">{{ form.non_field_errors }}</div>
+                            {% endif %}
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Document Title</label>
+                                    {{ form.title }}
+                                    {% if form.title.errors %}
+                                        <div class="text-red-600 text-sm">{{ form.title.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Document File</label>
+                                    {{ form.document_file }}
+                                    {% if form.document_file.errors %}
+                                        <div class="text-red-600 text-sm">{{ form.document_file.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                                    {{ form.description }}
+                                    {% if form.description.errors %}
+                                        <div class="text-red-600 text-sm">{{ form.description.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="flex items-center">
+                                    {{ form.is_mandatory }}
+                                    <label class="ml-2 text-sm text-gray-700">Mandatory for learners</label>
+                                </div>
+                                {% if form.DELETE %}
+                                <div class="flex items-center">
+                                    {{ form.DELETE }}
+                                    <label class="ml-2 text-sm text-red-600">Delete this document</label>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {{ form.id }}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Existing Documents Display -->
+            {% if health_safety_questionnaire.documents.exists %}
+            <div class="border-t pt-6 mb-8">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Uploaded Documents</h3>
+                <div class="space-y-3">
+                    {% for document in health_safety_questionnaire.documents.all %}
+                    <div class="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+                        <div class="flex items-center">
+                            <i class="fas fa-file-pdf text-red-500 mr-3"></i>
+                            <div>
+                                <div class="font-medium text-gray-900">{{ document.title }}</div>
+                                {% if document.description %}
+                                <div class="text-sm text-gray-600">{{ document.description }}</div>
+                                {% endif %}
+                                <div class="text-xs text-gray-500">
+                                    Uploaded {{ document.created_at|date:"M d, Y" }}
+                                    {% if document.is_mandatory %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 ml-2">
+                                        Mandatory
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <a href="{{ document.document_file.url }}" target="_blank" 
+                               class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                <i class="fas fa-download mr-2"></i>View
+                            </a>
+                            {% if user.role == 'learner' %}
+                            <button type="button" onclick="markAsRead({{ document.id }})" 
+                                    class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
+                                    {% if document.id in read_documents %}disabled{% endif %}>
+                                {% if document.id in read_documents %}
+                                    <i class="fas fa-check mr-2"></i>Read
+                                {% else %}
+                                    <i class="fas fa-eye mr-2"></i>Mark as Read
+                                {% endif %}
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Learner Acknowledgment -->
+            <div class="acknowledgment-section">
+                <div class="flex items-start">
+                    {{ form.learner_acknowledgment }}
+                    <label class="ml-3 text-sm font-medium text-gray-900">
+                        I acknowledge that I have read and understood all health & safety arrangements and confirm my understanding by completing the above questionnaire.
+                    </label>
+                </div>
+                {% if form.learner_acknowledgment.errors %}
+                <div class="text-red-600 text-sm mt-2">{{ form.learner_acknowledgment.errors.0 }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Assessor Notes (for admin/instructor) -->
+            {% if user.role != 'learner' %}
+            <div class="mt-8 border-t pt-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Assessor Notes</label>
+                {{ form.assessor_notes }}
+                {% if form.assessor_notes.errors %}
+                <div class="text-red-600 text-sm mt-1">{{ form.assessor_notes.errors.0 }}</div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Form Actions -->
+            <div class="mt-8 flex justify-end space-x-3 bg-gray-50 px-6 py-4 border-t border-gray-200">
+                <a href="{% url 'users:role_based_redirect' %}" 
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    <i class="fas fa-times mr-2"></i>Cancel
+                </a>
+                <button type="submit" 
+                        class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                    <i class="fas fa-save mr-2"></i>
+                    {% if user.role == 'learner' %}Complete Questionnaire{% else %}Save Questionnaire{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function markAsRead(documentId) {
+    fetch(`/ilp/health-safety-document/${documentId}/mark-read/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error marking document as read');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error marking document as read');
+    });
+}
+</script>
+{% endblock %} 

@@ -1,0 +1,1165 @@
+{% extends "base.html" %}
+{% load static %}
+{% load role_tags %}
+
+{% block title %}Create Role - LMS{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Form styles */
+    .form-section {
+        background-color: #fff;
+        border: 1px solid #E5E7EB;
+        border-radius: 0.5rem;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    }
+
+    .capability-section {
+        border-top: 1px solid #E5E7EB;
+        padding-top: 1.5rem;
+        margin-top: 1.5rem;
+    }
+
+    .capability-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+
+    .capability-item {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem;
+        border-radius: 0.375rem;
+        transition: all 0.2s;
+    }
+
+    .capability-item:hover {
+        background-color: #F3F4F6;
+    }
+
+    .capability-checkbox {
+        height: 1rem;
+        width: 1rem;
+        border-radius: 0.25rem;
+        border-color: #D1D5DB;
+        color: #2563EB;
+    }
+
+    .capability-label {
+        margin-left: 0.5rem;
+        font-size: 0.875rem;
+        color: #374151;
+    }
+    
+    /* Accordion Styles */
+    .accordion-item {
+        margin-bottom: 0.75rem;
+        transition: all 0.3s ease;
+    }
+    
+    .accordion-header {
+        transition: background-color 0.2s;
+    }
+    
+    .accordion-header:hover {
+        background-color: #E5E7EB;
+    }
+    
+    .accordion-icon {
+        transition: transform 0.3s ease;
+    }
+    
+    .accordion-content {
+        transition: max-height 0.3s ease, opacity 0.3s ease;
+    }
+    
+    .select-all-checkbox {
+        height: 1rem;
+        width: 1rem;
+        border-radius: 0.25rem;
+        border-color: #4B5563;
+        color: #2563EB;
+    }
+    
+    /* Admin restriction notice */
+    .admin-notice {
+        background-color: #FEF3C7;
+        border: 1px solid #F59E0B;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    /* Form validation styles */
+    .border-red-500 {
+        border-color: #EF4444 !important;
+        box-shadow: 0 0 0 1px #EF4444;
+    }
+    
+    .validation-error {
+        color: #EF4444;
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+    }
+    
+    button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    
+    .admin-notice h4 {
+        font-weight: 600;
+        color: #92400E;
+        margin-bottom: 0.5rem;
+    }
+    
+    .admin-notice p {
+        color: #92400E;
+        font-size: 0.875rem;
+    }
+    
+    /* Default capabilities info box */
+    .default-caps-info {
+        background-color: #EBF5FF;
+        border: 1px solid #93C5FD;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .default-caps-info h5 {
+        font-weight: 600;
+        color: #1E40AF;
+        margin-bottom: 0.5rem;
+    }
+    
+    .caps-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25rem;
+    }
+    
+    .cap-badge {
+        background-color: #DBEAFE;
+        color: #1E40AF;
+        padding: 0.25rem 0.5rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white text-black min-h-screen">
+    <div class="container mx-auto px-4 py-6">
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+        <div class="grid grid-cols-12 gap-4 md:gap-6">
+            <!-- Left Column (70%) -->
+            <div class="col-span-12 lg:col-span-8 transition-all duration-300">
+                <!-- Header section -->
+                <div class="mb-6">
+                    <h1 class="text-2xl font-semibold text-gray-900">Create New Role</h1>
+                    <p class="mt-2 text-sm text-gray-600">Create a new role and assign capabilities.</p>
+                </div>
+
+                {% if is_admin_user %}
+                <!-- Admin Restriction Notice -->
+                <div class="admin-notice">
+                    <h4><i class="fas fa-info-circle mr-2"></i>Admin User Restriction</h4>
+                    <p>As an Admin user, you can only create custom roles. You can view default capabilities for Instructor and Learner roles below for reference.</p>
+                </div>
+                {% endif %}
+
+                <!-- Form -->
+                <div class="form-section">
+                    <form method="POST" class="p-6" id="roleCreateForm">
+                        {% csrf_token %}
+                        
+                        {% if messages %}
+                        <div class="mb-6">
+                            {% for message in messages %}
+                            <div class="p-4 mb-4 rounded-md {% if message.tags == 'error' %}bg-red-50 text-red-700{% elif message.tags == 'warning' %}bg-yellow-50 text-yellow-700{% else %}bg-green-50 text-green-700{% endif %}">
+                                {{ message }}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        <!-- Loading indicator -->
+                        <div id="loadingIndicator" class="hidden mb-4 p-4 bg-blue-50 text-blue-700 rounded-md">
+                            <i class="fas fa-spinner fa-spin mr-2"></i>
+                            Creating role... Please wait.
+                        </div>
+
+                        <!-- Error display -->
+                        <div id="errorDisplay" class="hidden mb-4 p-4 bg-red-50 text-red-700 rounded-md">
+                            <i class="fas fa-exclamation-triangle mr-2"></i>
+                            <span id="errorMessage"></span>
+                        </div>
+
+                        <div class="space-y-6">
+                            <!-- Role Information -->
+                            <div>
+                                <h3 class="text-lg font-medium text-gray-900 mb-4">Role Information</h3>
+                                <div class="grid grid-cols-1 gap-4">
+                                    <!-- Role Type Selection -->
+                                    <div>
+                                        <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Role Type</label>
+                                        <select id="name" name="name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                                onchange="toggleCustomNameField()" {% if is_admin_user %}disabled{% endif %} required>
+                                            <option value="">Select a role type</option>
+                                            {% for role_value, role_label in role_choices %}
+                                            <option value="{{ role_value }}" {% if is_admin_user and role_value == 'custom' %}selected{% endif %}>{{ role_label }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        {% if is_admin_user %}
+                                        <input type="hidden" name="name" value="custom">
+                                        {% endif %}
+                                    </div>
+
+                                    <!-- Custom Name Field -->
+                                    <div id="customNameField" {% if not is_admin_user %}class="hidden"{% endif %}>
+                                        <label for="custom_name" class="block text-sm font-medium text-gray-700 mb-1">Custom Role Name</label>
+                                        <input type="text" id="custom_name" name="custom_name" 
+                                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                               placeholder="Enter custom role name">
+                                    </div>
+
+                                    <!-- Description -->
+                                    <div>
+                                        <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                                        <textarea id="description" name="description" rows="3" 
+                                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                                  placeholder="Enter role description"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {% if is_admin_user %}
+                            <!-- Default Capabilities Reference for Admin Users -->
+                            <div>
+                                <h3 class="text-lg font-medium text-gray-900 mb-4">Default Role Capabilities Reference</h3>
+                                <p class="text-sm text-gray-600 mb-4">Below are the default capabilities for Instructor and Learner roles for your reference when creating custom roles.</p>
+                                
+                                <!-- Instructor Default Capabilities -->
+                                {% if default_capabilities.instructor %}
+                                <div class="default-caps-info">
+                                    <h5><i class="fas fa-chalkboard-teacher mr-2"></i>Instructor Role Default Capabilities</h5>
+                                    <div class="caps-list">
+                                        {% for cap in default_capabilities.instructor %}
+                                        <span class="cap-badge">{{ cap|format_capability }}</span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endif %}
+                                
+                                <!-- Learner Default Capabilities -->
+                                {% if default_capabilities.learner %}
+                                <div class="default-caps-info">
+                                    <h5><i class="fas fa-user-graduate mr-2"></i>Learner Role Default Capabilities</h5>
+                                    <div class="caps-list">
+                                        {% for cap in default_capabilities.learner %}
+                                        <span class="cap-badge">{{ cap|format_capability }}</span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+
+                            <!-- Capabilities Selection -->
+                            {% if not is_admin_user %}
+                            <div class="capability-section">
+                                <h3 class="text-lg font-medium text-gray-900 mb-4">Role Capabilities</h3>
+                                
+                                <!-- User Management Accordion -->
+                                <div class="accordion-item mb-4 border border-gray-200 rounded-lg overflow-hidden">
+                                    <div class="accordion-header flex justify-between items-center p-4 bg-gray-50 cursor-pointer" 
+                                         onclick="toggleAccordion('user-management')">
+                                        <h4 class="text-md font-medium">User Management</h4>
+                                        <svg class="w-5 h-5 accordion-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                        </svg>
+                                    </div>
+                                    <div id="user-management" class="accordion-content p-4 hidden">
+                                        <div class="mb-3">
+                                            <label class="inline-flex items-center">
+                                                <input type="checkbox" class="select-all-checkbox" data-section="user-management">
+                                                <span class="ml-2 text-sm font-medium">Select All</span>
+                                            </label>
+                                        </div>
+                                        <div class="capability-grid">
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="create_users" name="capabilities" value="create_users" class="capability-checkbox" data-section="user-management">
+                                                <label for="create_users" class="capability-label">Create Users</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="manage_users" name="capabilities" value="manage_users" class="capability-checkbox" data-section="user-management">
+                                                <label for="manage_users" class="capability-label">Manage Users</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="view_users" name="capabilities" value="view_users" class="capability-checkbox" data-section="user-management">
+                                                <label for="view_users" class="capability-label">View Users</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="create_groups" name="capabilities" value="create_groups" class="capability-checkbox" data-section="user-management">
+                                                <label for="create_groups" class="capability-label">Create Groups</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="manage_groups" name="capabilities" value="manage_groups" class="capability-checkbox" data-section="user-management">
+                                                <label for="manage_groups" class="capability-label">Manage Groups</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="view_groups" name="capabilities" value="view_groups" class="capability-checkbox" data-section="user-management">
+                                                <label for="view_groups" class="capability-label">View Groups</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="user_limit" name="capabilities" value="user_limit" class="capability-checkbox" data-section="user-management">
+                                                <label for="user_limit" class="capability-label">User Limit</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Course Management Accordion -->
+                                <div class="accordion-item mb-4 border border-gray-200 rounded-lg overflow-hidden">
+                                    <div class="accordion-header flex justify-between items-center p-4 bg-gray-50 cursor-pointer" 
+                                         onclick="toggleAccordion('course-management')">
+                                        <h4 class="text-md font-medium">Course Management</h4>
+                                        <svg class="w-5 h-5 accordion-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                        </svg>
+                                    </div>
+                                    <div id="course-management" class="accordion-content p-4 hidden">
+                                        <div class="mb-3">
+                                            <label class="inline-flex items-center">
+                                                <input type="checkbox" class="select-all-checkbox" data-section="course-management">
+                                                <span class="ml-2 text-sm font-medium">Select All</span>
+                                            </label>
+                                        </div>
+                                        <div class="capability-grid">
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="create_course" name="capabilities" value="create_course" class="capability-checkbox" data-section="course-management">
+                                                <label for="create_course" class="capability-label">Create Course</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="manage_course" name="capabilities" value="manage_course" class="capability-checkbox" data-section="course-management">
+                                                <label for="manage_course" class="capability-label">Manage Course</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="view_course" name="capabilities" value="view_course" class="capability-checkbox" data-section="course-management">
+                                                <label for="view_course" class="capability-label">View Course</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="create_categories" name="capabilities" value="create_categories" class="capability-checkbox" data-section="course-management">
+                                                <label for="create_categories" class="capability-label">Create Categories</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="manage_categories" name="capabilities" value="manage_categories" class="capability-checkbox" data-section="course-management">
+                                                <label for="manage_categories" class="capability-label">Manage Categories</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="view_categories" name="capabilities" value="view_categories" class="capability-checkbox" data-section="course-management">
+                                                <label for="view_categories" class="capability-label">View Categories</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="create_course_groups" name="capabilities" value="create_course_groups" class="capability-checkbox" data-section="course-management">
+                                                <label for="create_course_groups" class="capability-label">Create Course Groups</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="manage_course_groups" name="capabilities" value="manage_course_groups" class="capability-checkbox" data-section="course-management">
+                                                <label for="manage_course_groups" class="capability-label">Manage Course Groups</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="view_course_groups" name="capabilities" value="view_course_groups" class="capability-checkbox" data-section="course-management">
+                                                <label for="view_course_groups" class="capability-label">View Course Groups</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="create_outcome" name="capabilities" value="create_outcome" class="capability-checkbox" data-section="course-management">
+                                                <label for="create_outcome" class="capability-label">Create Outcome</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="manage_outcome" name="capabilities" value="manage_outcome" class="capability-checkbox" data-section="course-management">
+                                                <label for="manage_outcome" class="capability-label">Manage Outcome</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="view_outcomes" name="capabilities" value="view_outcomes" class="capability-checkbox" data-section="course-management">
+                                                <label for="view_outcomes" class="capability-label">View Outcomes</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="view_certificates" name="capabilities" value="view_certificates" class="capability-checkbox" data-section="course-management">
+                                                <label for="view_certificates" class="capability-label">View Certificates</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="view_topics" name="capabilities" value="view_topics" class="capability-checkbox" data-section="course-management">
+                                                <label for="view_topics" class="capability-label">View Topics</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="manage_topics" name="capabilities" value="manage_topics" class="capability-checkbox" data-section="course-management">
+                                                <label for="manage_topics" class="capability-label">Manage Topics</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Assessment Management Accordion -->
+                                <div class="accordion-item mb-4 border border-gray-200 rounded-lg overflow-hidden">
+                                    <div class="accordion-header flex justify-between items-center p-4 bg-gray-50 cursor-pointer" 
+                                         onclick="toggleAccordion('assessment-management')">
+                                        <h4 class="text-md font-medium">Assessment Management</h4>
+                                        <svg class="w-5 h-5 accordion-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                        </svg>
+                                    </div>
+                                    <div id="assessment-management" class="accordion-content p-4 hidden">
+                                        <div class="mb-3">
+                                            <label class="inline-flex items-center">
+                                                <input type="checkbox" class="select-all-checkbox" data-section="assessment-management">
+                                                <span class="ml-2 text-sm font-medium">Select All</span>
+                                            </label>
+                                        </div>
+                                        <div class="capability-grid">
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="create_assignment" name="capabilities" value="create_assignment" class="capability-checkbox" data-section="assessment-management">
+                                                <label for="create_assignment" class="capability-label">Create Assignment</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="manage_assignments" name="capabilities" value="manage_assignments" class="capability-checkbox" data-section="assessment-management">
+                                                <label for="manage_assignments" class="capability-label">Manage Assignments</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="view_assignments" name="capabilities" value="view_assignments" class="capability-checkbox" data-section="assessment-management">
+                                                <label for="view_assignments" class="capability-label">View Assignments</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="create_quizzes" name="capabilities" value="create_quizzes" class="capability-checkbox" data-section="assessment-management">
+                                                <label for="create_quizzes" class="capability-label">Create Quizzes</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="manage_quizzes" name="capabilities" value="manage_quizzes" class="capability-checkbox" data-section="assessment-management">
+                                                <label for="manage_quizzes" class="capability-label">Manage Quizzes</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="view_quizzes" name="capabilities" value="view_quizzes" class="capability-checkbox" data-section="assessment-management">
+                                                <label for="view_quizzes" class="capability-label">View Quizzes</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="create_rubrics" name="capabilities" value="create_rubrics" class="capability-checkbox" data-section="assessment-management">
+                                                <label for="create_rubrics" class="capability-label">Create Rubrics</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="manage_rubrics" name="capabilities" value="manage_rubrics" class="capability-checkbox" data-section="assessment-management">
+                                                <label for="manage_rubrics" class="capability-label">Manage Rubrics</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="view_rubrics" name="capabilities" value="view_rubrics" class="capability-checkbox" data-section="assessment-management">
+                                                <label for="view_rubrics" class="capability-label">View Rubrics</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Communication Management Accordion -->
+                                <div class="accordion-item mb-4 border border-gray-200 rounded-lg overflow-hidden">
+                                    <div class="accordion-header flex justify-between items-center p-4 bg-gray-50 cursor-pointer" 
+                                         onclick="toggleAccordion('communication-management')">
+                                        <h4 class="text-md font-medium">Communication Management</h4>
+                                        <svg class="w-5 h-5 accordion-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                        </svg>
+                                    </div>
+                                    <div id="communication-management" class="accordion-content p-4 hidden">
+                                        <div class="mb-3">
+                                            <label class="inline-flex items-center">
+                                                <input type="checkbox" class="select-all-checkbox" data-section="communication-management">
+                                                <span class="ml-2 text-sm font-medium">Select All</span>
+                                            </label>
+                                        </div>
+                                        <div class="capability-grid">
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="create_discussions" name="capabilities" value="create_discussions" class="capability-checkbox" data-section="communication-management">
+                                                <label for="create_discussions" class="capability-label">Create Discussions</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="manage_discussions" name="capabilities" value="manage_discussions" class="capability-checkbox" data-section="communication-management">
+                                                <label for="manage_discussions" class="capability-label">Manage Discussions</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="view_discussions" name="capabilities" value="view_discussions" class="capability-checkbox" data-section="communication-management">
+                                                <label for="view_discussions" class="capability-label">View Discussions</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="create_conference" name="capabilities" value="create_conference" class="capability-checkbox" data-section="communication-management">
+                                                <label for="create_conference" class="capability-label">Create Conference</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="manage_conferences" name="capabilities" value="manage_conferences" class="capability-checkbox" data-section="communication-management">
+                                                <label for="manage_conferences" class="capability-label">Manage Conferences</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="view_conferences" name="capabilities" value="view_conferences" class="capability-checkbox" data-section="communication-management">
+                                                <label for="view_conferences" class="capability-label">View Conferences</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="create_messages" name="capabilities" value="create_messages" class="capability-checkbox" data-section="communication-management">
+                                                <label for="create_messages" class="capability-label">Create Messages</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="manage_messages" name="capabilities" value="manage_messages" class="capability-checkbox" data-section="communication-management">
+                                                <label for="manage_messages" class="capability-label">Manage Messages</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="view_messages" name="capabilities" value="view_messages" class="capability-checkbox" data-section="communication-management">
+                                                <label for="view_messages" class="capability-label">View Messages</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Reports Accordion -->
+                                <div class="accordion-item mb-4 border border-gray-200 rounded-lg overflow-hidden">
+                                    <div class="accordion-header flex justify-between items-center p-4 bg-gray-50 cursor-pointer" 
+                                         onclick="toggleAccordion('reports')">
+                                        <h4 class="text-md font-medium">Reports</h4>
+                                        <svg class="w-5 h-5 accordion-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                        </svg>
+                                    </div>
+                                    <div id="reports" class="accordion-content p-4 hidden">
+                                        <div class="mb-3">
+                                            <label class="inline-flex items-center">
+                                                <input type="checkbox" class="select-all-checkbox" data-section="reports">
+                                                <span class="ml-2 text-sm font-medium">Select All</span>
+                                            </label>
+                                        </div>
+                                        <div class="capability-grid">
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="reports_overview" name="capabilities" value="reports_overview" class="capability-checkbox" data-section="reports">
+                                                <label for="reports_overview" class="capability-label">Reports Overview</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="users_reports" name="capabilities" value="users_reports" class="capability-checkbox" data-section="reports">
+                                                <label for="users_reports" class="capability-label">Users</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="groups_reports" name="capabilities" value="groups_reports" class="capability-checkbox" data-section="reports">
+                                                <label for="groups_reports" class="capability-label">Groups</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="branches_reports" name="capabilities" value="branches_reports" class="capability-checkbox" data-section="reports">
+                                                <label for="branches_reports" class="capability-label">Branches</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="courses_reports" name="capabilities" value="courses_reports" class="capability-checkbox" data-section="reports">
+                                                <label for="courses_reports" class="capability-label">Courses</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="learning_activities" name="capabilities" value="learning_activities" class="capability-checkbox" data-section="reports">
+                                                <label for="learning_activities" class="capability-label">Learning Activities</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="training_matrix" name="capabilities" value="training_matrix" class="capability-checkbox" data-section="reports">
+                                                <label for="training_matrix" class="capability-label">Training Matrix</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="gradebook" name="capabilities" value="gradebook" class="capability-checkbox" data-section="reports">
+                                                <label for="gradebook" class="capability-label">Gradebook</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="timeline" name="capabilities" value="timeline" class="capability-checkbox" data-section="reports">
+                                                <label for="timeline" class="capability-label">Timeline</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="custom_reports" name="capabilities" value="custom_reports" class="capability-checkbox" data-section="reports">
+                                                <label for="custom_reports" class="capability-label">Custom Report</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Branch Management Accordion -->
+                                <div class="accordion-item mb-4 border border-gray-200 rounded-lg overflow-hidden">
+                                    <div class="accordion-header flex justify-between items-center p-4 bg-gray-50 cursor-pointer" 
+                                         onclick="toggleAccordion('branch-management')">
+                                        <h4 class="text-md font-medium">Branch Management</h4>
+                                        <svg class="w-5 h-5 accordion-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                        </svg>
+                                    </div>
+                                    <div id="branch-management" class="accordion-content p-4 hidden">
+                                        <div class="mb-3">
+                                            <label class="inline-flex items-center">
+                                                <input type="checkbox" class="select-all-checkbox" data-section="branch-management">
+                                                <span class="ml-2 text-sm font-medium">Select All</span>
+                                            </label>
+                                        </div>
+                                        <div class="capability-grid">
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="create_branch" name="capabilities" value="create_branch" class="capability-checkbox" data-section="branch-management">
+                                                <label for="create_branch" class="capability-label">Create Branch</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="manage_branch" name="capabilities" value="manage_branch" class="capability-checkbox" data-section="branch-management">
+                                                <label for="manage_branch" class="capability-label">Manage Branch</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="view_branch" name="capabilities" value="view_branch" class="capability-checkbox" data-section="branch-management">
+                                                <label for="view_branch" class="capability-label">View Branch</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="branch_limit" name="capabilities" value="branch_limit" class="capability-checkbox" data-section="branch-management">
+                                                <label for="branch_limit" class="capability-label">Branch Limit</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="branch_reports" name="capabilities" value="branch_reports" class="capability-checkbox" data-section="branch-management">
+                                                <label for="branch_reports" class="capability-label">Branch Reports</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Role Management Accordion -->
+                                <div class="accordion-item mb-4 border border-gray-200 rounded-lg overflow-hidden">
+                                    <div class="accordion-header flex justify-between items-center p-4 bg-gray-50 cursor-pointer" 
+                                         onclick="toggleAccordion('role-management')">
+                                        <h4 class="text-md font-medium">Role Management</h4>
+                                        <svg class="w-5 h-5 accordion-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                        </svg>
+                                    </div>
+                                    <div id="role-management" class="accordion-content p-4 hidden">
+                                        <div class="mb-3">
+                                            <label class="inline-flex items-center">
+                                                <input type="checkbox" class="select-all-checkbox" data-section="role-management">
+                                                <span class="ml-2 text-sm font-medium">Select All</span>
+                                            </label>
+                                        </div>
+                                        <div class="capability-grid">
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="view_roles" name="capabilities" value="view_roles" class="capability-checkbox" data-section="role-management">
+                                                <label for="view_roles" class="capability-label">View Roles</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="manage_roles" name="capabilities" value="manage_roles" class="capability-checkbox" data-section="role-management">
+                                                <label for="manage_roles" class="capability-label">Manage Roles</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="create_roles" name="capabilities" value="create_roles" class="capability-checkbox" data-section="role-management">
+                                                <label for="create_roles" class="capability-label">Create Roles</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="delete_roles" name="capabilities" value="delete_roles" class="capability-checkbox" data-section="role-management">
+                                                <label for="delete_roles" class="capability-label">Delete Roles</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Certificate Template Management Accordion -->
+                                <div class="accordion-item mb-4 border border-gray-200 rounded-lg overflow-hidden">
+                                    <div class="accordion-header flex justify-between items-center p-4 bg-gray-50 cursor-pointer" 
+                                         onclick="toggleAccordion('certificate-management')">
+                                        <h4 class="text-md font-medium">Certificate Template Management</h4>
+                                        <svg class="w-5 h-5 accordion-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                        </svg>
+                                    </div>
+                                    <div id="certificate-management" class="accordion-content p-4 hidden">
+                                        <div class="mb-3">
+                                            <label class="inline-flex items-center">
+                                                <input type="checkbox" class="select-all-checkbox" data-section="certificate-management">
+                                                <span class="ml-2 text-sm font-medium">Select All</span>
+                                            </label>
+                                        </div>
+                                        <div class="capability-grid">
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="create_certificate" name="capabilities" value="create_certificate" class="capability-checkbox" data-section="certificate-management">
+                                                <label for="create_certificate" class="capability-label">Create Certificate</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="manage_certificate" name="capabilities" value="manage_certificate" class="capability-checkbox" data-section="certificate-management">
+                                                <label for="manage_certificate" class="capability-label">Manage Certificate</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="view_certificates_templates" name="capabilities" value="view_certificates_templates" class="capability-checkbox" data-section="certificate-management">
+                                                <label for="view_certificates_templates" class="capability-label">View Certificates</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- AI Features Accordion -->
+                                <div class="accordion-item mb-4 border border-gray-200 rounded-lg overflow-hidden">
+                                    <div class="accordion-header flex justify-between items-center p-4 bg-gray-50 cursor-pointer" 
+                                         onclick="toggleAccordion('ai-features')">
+                                        <h4 class="text-md font-medium">AI Features</h4>
+                                        <svg class="w-5 h-5 accordion-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                        </svg>
+                                    </div>
+                                    <div id="ai-features" class="accordion-content p-4 hidden">
+                                        <div class="mb-3">
+                                            <label class="inline-flex items-center">
+                                                <input type="checkbox" class="select-all-checkbox" data-section="ai-features">
+                                                <span class="ml-2 text-sm font-medium">Select All</span>
+                                            </label>
+                                        </div>
+                                        <div class="capability-grid">
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="ai_lesson_planning" name="capabilities" value="ai_lesson_planning" class="capability-checkbox" data-section="ai-features">
+                                                <label for="ai_lesson_planning" class="capability-label">AI - Lesson Planning</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="ai_assessment" name="capabilities" value="ai_assessment" class="capability-checkbox" data-section="ai-features">
+                                                <label for="ai_assessment" class="capability-label">AI - Assessment</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="ai_automatic_assessment" name="capabilities" value="ai_automatic_assessment" class="capability-checkbox" data-section="ai-features">
+                                                <label for="ai_automatic_assessment" class="capability-label">AI - Automatic Assessment</label>
+                                            </div>
+                                            <div class="capability-item">
+                                                <input type="checkbox" id="ai_personal_tutor" name="capabilities" value="ai_personal_tutor" class="capability-checkbox" data-section="ai-features">
+                                                <label for="ai_personal_tutor" class="capability-label">AI - Personal Tutor Assistance</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% else %}
+                            <!-- For admin users, show capability selection but limited -->
+                            <div class="capability-section">
+                                <h3 class="text-lg font-medium text-gray-900 mb-4">Custom Role Capabilities</h3>
+                                <p class="text-sm text-gray-600 mb-4">Select the capabilities for your custom role. You can reference the default capabilities shown above.</p>
+                                
+                                <!-- Basic capability checkboxes for custom roles -->
+                                <div class="capability-grid">
+                                    <!-- Add basic capabilities that admins can assign to custom roles -->
+                                    <div class="capability-item">
+                                        <input type="checkbox" id="view_courses" name="capabilities" value="view_courses" class="capability-checkbox">
+                                        <label for="view_courses" class="capability-label">View Courses</label>
+                                    </div>
+                                    <div class="capability-item">
+                                        <input type="checkbox" id="view_assignments" name="capabilities" value="view_assignments" class="capability-checkbox">
+                                        <label for="view_assignments" class="capability-label">View Assignments</label>
+                                    </div>
+                                    <div class="capability-item">
+                                        <input type="checkbox" id="submit_assignments" name="capabilities" value="submit_assignments" class="capability-checkbox">
+                                        <label for="submit_assignments" class="capability-label">Submit Assignments</label>
+                                    </div>
+                                    <div class="capability-item">
+                                        <input type="checkbox" id="view_quizzes" name="capabilities" value="view_quizzes" class="capability-checkbox">
+                                        <label for="view_quizzes" class="capability-label">View Quizzes</label>
+                                    </div>
+                                    <div class="capability-item">
+                                        <input type="checkbox" id="take_quizzes" name="capabilities" value="take_quizzes" class="capability-checkbox">
+                                        <label for="take_quizzes" class="capability-label">Take Quizzes</label>
+                                    </div>
+                                    <div class="capability-item">
+                                        <input type="checkbox" id="view_progress" name="capabilities" value="view_progress" class="capability-checkbox">
+                                        <label for="view_progress" class="capability-label">View Progress</label>
+                                    </div>
+                                    <div class="capability-item">
+                                        <input type="checkbox" id="view_messages" name="capabilities" value="view_messages" class="capability-checkbox">
+                                        <label for="view_messages" class="capability-label">View Messages</label>
+                                    </div>
+                                    <div class="capability-item">
+                                        <input type="checkbox" id="create_messages" name="capabilities" value="create_messages" class="capability-checkbox">
+                                        <label for="create_messages" class="capability-label">Create Messages</label>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+                            <a href="{% url 'role_management:role_list' %}" 
+                               class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                Cancel
+                            </a>
+                            <button type="submit" 
+                                    class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                                Create Role
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Right Column (30%) -->
+            <div class="col-span-12 lg:col-span-4">
+                <div class="bg-white border border-gray-200 rounded-lg p-4">
+                    <h3 class="text-lg font-medium text-gray-900 mb-3">Help & Information</h3>
+                    <div class="space-y-3 text-sm text-gray-600">
+                        {% if is_admin_user %}
+                        <div class="p-3 bg-blue-50 rounded-md">
+                            <h4 class="font-medium text-blue-900 mb-1">Admin User Guide</h4>
+                            <p class="text-blue-700">As an admin, you can create custom roles with specific capabilities tailored to your organization's needs.</p>
+                        </div>
+                        {% endif %}
+                        <div class="p-3 bg-gray-50 rounded-md">
+                            <h4 class="font-medium text-gray-900 mb-1">Role Types</h4>
+                            <ul class="list-disc list-inside text-gray-700 space-y-1">
+                                {% if not is_admin_user %}
+                                <li><strong>Global Admin:</strong> Full system access</li>
+                                <li><strong>Super Admin:</strong> Business-wide management</li>
+                                <li><strong>Admin:</strong> Branch-level administration</li>
+                                {% endif %}
+                                <li><strong>Instructor:</strong> Course and student management</li>
+                                <li><strong>Learner:</strong> Access to learning materials</li>
+                                <li><strong>Custom:</strong> Tailored role with specific capabilities</li>
+                            </ul>
+                        </div>
+                        <div class="p-3 bg-gray-50 rounded-md">
+                            <h4 class="font-medium text-gray-900 mb-1">Best Practices</h4>
+                            <ul class="list-disc list-inside text-gray-700 space-y-1">
+                                <li>Give descriptive names to custom roles</li>
+                                <li>Grant only necessary capabilities</li>
+                                <li>Review role assignments regularly</li>
+                                <li>Document role purposes clearly</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Default capabilities for each role type  
+const defaultCapabilities = {
+    {% for role_name, capabilities in default_capabilities.items %}
+    '{{ role_name }}': [{% for cap in capabilities %}'{{ cap }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+    {% endfor %}
+    'globaladmin': [
+        'view_users', 'manage_users', 'create_users', 'delete_users',
+        'view_courses', 'manage_courses', 'create_courses', 'delete_courses',
+        'view_assignments', 'manage_assignments', 'grade_assignments', 'create_assignments', 'delete_assignments',
+        'manage_roles', 'view_roles', 'create_roles', 'delete_roles',
+        'view_groups', 'manage_groups', 'manage_group_members', 'create_groups', 'delete_groups',
+        'view_branches', 'manage_branches', 'create_branches', 'delete_branches',
+        'view_topics', 'manage_topics', 'create_topics', 'delete_topics',
+        'view_quizzes', 'manage_quizzes', 'grade_quizzes', 'create_quizzes', 'delete_quizzes',
+        'view_progress', 'manage_progress',
+        'view_reports', 'manage_reports', 'export_reports', 'view_analytics',
+        'manage_system_settings', 'view_system_logs',
+        'manage_notifications', 'send_notifications',
+        'create_messages', 'manage_messages', 'view_messages', 'delete_messages',
+        'view_categories', 'manage_categories', 'create_categories', 'delete_categories',
+        'view_certificates_templates', 'manage_certificates',
+        'view_rubrics', 'manage_rubrics', 'create_rubrics', 'delete_rubrics',
+        'view_discussions', 'manage_discussions', 'create_discussions', 'delete_discussions',
+        'view_conferences', 'manage_conferences', 'create_conferences', 'delete_conferences',
+        'manage_global_settings', 'manage_oauth_configuration', 'manage_menu_control',
+        'manage_ai_settings', 'system_wide_administration', 'global_menu_visibility',
+        'configure_google_oauth', 'manage_all_integrations', 'global_feature_control'
+    ],
+    'superadmin': [
+        'view_users', 'manage_users', 'create_users', 'delete_users',
+        'view_courses', 'manage_courses', 'create_courses', 'delete_courses',
+        'view_assignments', 'manage_assignments', 'grade_assignments', 'create_assignments',
+        'manage_roles', 'view_roles', 'create_roles', 'delete_roles',
+        'view_groups', 'manage_groups', 'manage_group_members', 'create_groups',
+        'view_branches', 'manage_branches', 'create_branches', 'delete_branches',
+        'view_topics', 'manage_topics', 'create_topics', 'delete_topics',
+        'view_quizzes', 'manage_quizzes', 'grade_quizzes', 'create_quizzes',
+        'view_progress', 'manage_progress',
+        'view_reports', 'manage_reports', 'export_reports',
+        'manage_system_settings', 'view_system_logs',
+        'manage_notifications', 'send_notifications',
+        'create_messages', 'manage_messages', 'view_messages'
+    ],
+    'admin': [
+        'view_users', 'manage_users', 'create_users', 'delete_users',
+        'view_courses', 'manage_courses', 'create_courses',
+        'view_assignments', 'manage_assignments', 'grade_assignments', 'create_assignments',
+        'manage_roles', 'view_roles', 'create_roles', 'delete_roles',
+        'view_groups', 'manage_groups', 'manage_group_members', 'create_groups',
+        'view_branches', 'manage_branches',
+        'view_topics', 'manage_topics', 'create_topics',
+        'view_quizzes', 'manage_quizzes', 'grade_quizzes', 'create_quizzes',
+        'view_progress', 'manage_progress',
+        'view_reports', 'export_reports',
+        'manage_notifications', 'send_notifications',
+        'create_messages', 'manage_messages', 'view_messages'
+    ],
+    'instructor': [
+        'view_users',
+        'view_courses', 'manage_courses', 'create_courses',
+        'view_assignments', 'manage_assignments', 'grade_assignments', 'create_assignments',
+        'view_groups',
+        'view_branches',
+        'view_topics', 'manage_topics', 'create_topics',
+        'view_quizzes', 'manage_quizzes', 'grade_quizzes', 'create_quizzes',
+        'view_progress', 'manage_progress',
+        'create_messages', 'manage_messages', 'view_messages',
+        'view_reports'
+    ],
+    'learner': [
+        'view_users',
+        'view_courses',
+        'view_assignments', 'submit_assignments',
+        'view_groups',
+        'view_branches',
+        'view_topics',
+        'view_quizzes', 'take_quizzes',
+        'view_progress',
+        'view_messages', 'create_messages',
+        'view_certificates_templates',
+        'view_reports'
+    ]
+};
+
+function autoTickCapabilities(roleName) {
+    // First, uncheck all capability checkboxes
+    const allCheckboxes = document.querySelectorAll('input[name="capabilities"]');
+    allCheckboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    
+    // Check capabilities for the selected role
+    if (defaultCapabilities[roleName]) {
+        const capabilities = defaultCapabilities[roleName];
+        capabilities.forEach(capability => {
+            const checkbox = document.getElementById(capability);
+            if (checkbox) {
+                checkbox.checked = true;
+            }
+        });
+        
+        console.log(`Auto-ticked ${capabilities.length} capabilities for role: ${roleName}`);
+    }
+    
+    // Update select-all checkboxes based on section states
+    updateSelectAllCheckboxes();
+}
+
+function updateSelectAllCheckboxes() {
+    const selectAllCheckboxes = document.querySelectorAll('.select-all-checkbox');
+    
+    selectAllCheckboxes.forEach(selectAllCheckbox => {
+        const section = selectAllCheckbox.getAttribute('data-section');
+        const sectionCheckboxes = document.querySelectorAll(`input[data-section="${section}"]`);
+        const checkedCount = Array.from(sectionCheckboxes).filter(cb => cb.checked && cb !== selectAllCheckbox).length;
+        const totalCount = sectionCheckboxes.length - 1; // Exclude the select-all checkbox itself
+        
+        if (checkedCount === totalCount && totalCount > 0) {
+            selectAllCheckbox.checked = true;
+        } else {
+            selectAllCheckbox.checked = false;
+        }
+    });
+}
+
+function toggleCustomNameField() {
+    const roleSelect = document.getElementById('name');
+    const customNameField = document.getElementById('customNameField');
+    const customNameInput = document.getElementById('custom_name');
+    
+    if (roleSelect.value === 'custom') {
+        customNameField.classList.remove('hidden');
+        customNameInput.setAttribute('required', '');
+        // For custom roles, don't auto-tick any capabilities
+        const allCheckboxes = document.querySelectorAll('input[name="capabilities"]');
+        allCheckboxes.forEach(checkbox => {
+            checkbox.checked = false;
+        });
+        updateSelectAllCheckboxes();
+    } else {
+        customNameField.classList.add('hidden');
+        customNameInput.removeAttribute('required');
+        customNameInput.value = ''; // Clear the field when hidden
+        
+        // Auto-tick capabilities for predefined roles
+        if (roleSelect.value && roleSelect.value !== '') {
+            autoTickCapabilities(roleSelect.value);
+        }
+    }
+}
+
+function toggleAccordion(sectionId) {
+    const content = document.getElementById(sectionId);
+    const icon = content.previousElementSibling.querySelector('.accordion-icon');
+    
+    if (content.classList.contains('hidden')) {
+        content.classList.remove('hidden');
+        icon.style.transform = 'rotate(180deg)';
+    } else {
+        content.classList.add('hidden');
+        icon.style.transform = 'rotate(0deg)';
+    }
+}
+
+    // Form validation and submission handling
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('roleCreateForm');
+    const roleSelect = document.getElementById('name');
+    const customNameInput = document.getElementById('custom_name');
+    const submitButton = document.querySelector('button[type="submit"]');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const errorDisplay = document.getElementById('errorDisplay');
+    const errorMessage = document.getElementById('errorMessage');
+    
+    // Initialize custom name field based on current selection
+    toggleCustomNameField();
+    
+    // Add event listener for role selection change to auto-tick capabilities
+    if (roleSelect) {
+        roleSelect.addEventListener('change', function() {
+            toggleCustomNameField();
+        });
+    }
+    
+    // Select All functionality
+    const selectAllCheckboxes = document.querySelectorAll('.select-all-checkbox');
+    
+    selectAllCheckboxes.forEach(function(selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            const section = this.getAttribute('data-section');
+            const checkboxes = document.querySelectorAll(`input[data-section="${section}"]`);
+            
+            checkboxes.forEach(function(checkbox) {
+                if (checkbox !== selectAllCheckbox) {
+                    checkbox.checked = selectAllCheckbox.checked;
+                }
+            });
+        });
+    });
+    
+    // Add event listeners to individual capability checkboxes to update select-all state
+    const capabilityCheckboxes = document.querySelectorAll('input[name="capabilities"]');
+    capabilityCheckboxes.forEach(function(checkbox) {
+        checkbox.addEventListener('change', function() {
+            updateSelectAllCheckboxes();
+        });
+    });
+    
+    // Helper function to show error
+    function showError(message) {
+        errorMessage.textContent = message;
+        errorDisplay.classList.remove('hidden');
+        loadingIndicator.classList.add('hidden');
+        submitButton.disabled = false;
+        submitButton.innerHTML = 'Create Role';
+    }
+    
+    // Helper function to show loading
+    function showLoading() {
+        loadingIndicator.classList.remove('hidden');
+        errorDisplay.classList.add('hidden');
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Creating...';
+    }
+    
+    // Form validation before submission
+    if (form) {
+        form.addEventListener('submit', function(e) {
+        e.preventDefault(); // Always prevent default to handle with JavaScript
+        
+        // Hide previous error messages
+        errorDisplay.classList.add('hidden');
+        
+        let isValid = true;
+        let validationError = '';
+        
+        // Validate role type selection
+        if (!roleSelect.value || roleSelect.value === '') {
+            isValid = false;
+            validationError += 'Please select a role type.\n';
+            roleSelect.classList.add('border-red-500');
+        } else {
+            roleSelect.classList.remove('border-red-500');
+        }
+        
+        // Validate custom name if custom role is selected
+        if (roleSelect.value === 'custom' && (!customNameInput.value || customNameInput.value.trim() === '')) {
+            isValid = false;
+            validationError += 'Please enter a custom role name.\n';
+            customNameInput.classList.add('border-red-500');
+        } else {
+            customNameInput.classList.remove('border-red-500');
+        }
+        
+        // Prevent submission if validation fails
+        if (!isValid) {
+            showError('Please fix the following errors:\n\n' + validationError);
+            return false;
+        }
+        
+        // Show loading state
+        showLoading();
+        
+        // Get CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        // Prepare form data
+        const formData = new FormData(form);
+        
+        // Submit form via AJAX with enhanced error handling
+        fetch(form.action || window.location.href, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.json();
+            } else {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+        })
+        .then(data => {
+            if (data.success) {
+                // Success - redirect to specified URL or role list
+                if (data.redirect_url) {
+                    window.location.href = data.redirect_url;
+                } else {
+                    window.location.href = "{% url 'role_management:role_list' %}";
+                }
+            } else {
+                // Error - show error message
+                showError(data.error || 'An error occurred while creating the role.');
+            }
+        })
+        .catch(error => {
+            console.error('Role creation error:', error);
+            
+            // Handle different types of errors
+            let userFriendlyMessage = 'An unexpected error occurred while creating the role.';
+            
+            if (error.message.includes('fetch') || error.message.includes('Failed to fetch')) {
+                userFriendlyMessage = 'Network error. Please check your internet connection and try again.';
+            } else if (error.message.includes('timeout')) {
+                userFriendlyMessage = 'Request timed out. Please try again.';
+            } else if (error.message.includes('HTTP 500')) {
+                userFriendlyMessage = 'Server error occurred. Please try again or contact system administrator.';
+            } else if (error.message.includes('HTTP 403')) {
+                userFriendlyMessage = 'Permission denied. You may not have sufficient privileges to create roles.';
+            } else if (error.message.includes('HTTP 404')) {
+                userFriendlyMessage = 'The requested resource was not found. Please refresh the page and try again.';
+            
+            showError(userFriendlyMessage);
+        });
+        
+        return false;
+        });
+    }
+    
+    // Reset button state if user navigates back
+    window.addEventListener('beforeunload', function() {
+        if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.innerHTML = 'Create Role';
+        }
+    });
+});
+</script>
+{% endblock %} 

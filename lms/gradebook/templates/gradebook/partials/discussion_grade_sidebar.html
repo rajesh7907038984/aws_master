@@ -1,0 +1,733 @@
+{% load gradebook_tags %}
+{% load static %}
+
+<!-- Discussion Grade Sidebar Content -->
+<div class="discussion-grade-sidebar">
+
+<!-- Discussion Details -->
+<div class="mb-6">
+    <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold text-gray-800">{{ discussion.title }}</h3>
+        <a href="{% url 'discussions:discussion_detail' discussion.id %}?student_id={{ student.id }}" class="text-blue-600 hover:text-blue-800 text-sm font-medium" target="_blank">
+            <i class="fas fa-external-link-alt mr-1"></i>
+            Detailed View
+        </a>
+    </div>
+    
+    <div class="bg-gray-50 p-4 rounded-lg mb-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <div>
+                <span class="text-gray-600">Student:</span>
+                <span class="font-medium">{{ student.get_full_name }}</span>
+            </div>
+            {% if discussion.rubric %}
+            <div>
+                <span class="text-gray-600">Max Score:</span>
+                <span class="font-medium">{{ discussion.rubric.total_points }} pts</span>
+            </div>
+            {% endif %}
+            <div>
+                <span class="text-gray-600">Created:</span>
+                <span class="font-medium">{{ discussion.created_at|date:"M d, Y" }}</span>
+            </div>
+            <div>
+                <span class="text-gray-600">Participation:</span>
+                {% if student_interactions.has_participated %}
+                    <span class="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">Active</span>
+                {% else %}
+                    <span class="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800">No Activity</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Student Participation Summary -->
+<div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+    <h4 class="text-lg font-bold mb-4 text-blue-800">
+        <i class="fas fa-comments mr-2 text-blue-500"></i>
+        Participation Summary
+    </h4>
+    
+    <div class="grid grid-cols-2 gap-4 text-sm">
+        <div class="text-center">
+            <div class="text-2xl font-bold text-blue-600">{{ student_interactions.comment_count }}</div>
+            <div class="text-blue-700">Comments</div>
+        </div>
+        <div class="text-center">
+            <div class="text-2xl font-bold text-blue-600">{{ student_interactions.reply_count }}</div>
+            <div class="text-blue-700">Replies</div>
+        </div>
+        <div class="text-center">
+            <div class="text-2xl font-bold text-blue-600">{{ student_interactions.likes_given }}</div>
+            <div class="text-blue-700">Likes Given</div>
+        </div>
+        <div class="text-center">
+            <div class="text-2xl font-bold text-blue-600">{{ student_interactions.comments.count }}</div>
+            <div class="text-blue-700">Total Posts</div>
+        </div>
+    </div>
+    
+    {% if student_interactions.comments %}
+    <div class="mt-4">
+        <h5 class="font-medium text-blue-800 mb-2">Recent Comments</h5>
+        <div class="space-y-2 max-h-32 overflow-y-auto">
+            {% for comment in student_interactions.comments|slice:":3" %}
+            <div class="bg-white p-2 rounded text-xs">
+                <div class="text-gray-600">{{ comment.created_at|date:"M d, Y g:i A" }}</div>
+                <div class="text-gray-800">{{ comment.content|truncatechars:100 }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Rubric Evaluation -->
+{% if rubric_data %}
+<div class="bg-white border border-gray-200 rounded-lg p-4 mb-6">
+    <h4 class="text-lg font-bold mb-4 text-gray-800">
+        <i class="fas fa-clipboard-list mr-2 text-purple-500"></i>
+        Rubric Evaluation
+    </h4>
+    
+    <form method="POST" action="{% url 'gradebook:ajax_save_grade' %}" class="space-y-4" id="gradingForm" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="activity_type" value="discussion">
+        <input type="hidden" name="activity_id" value="{{ discussion.id }}">
+        <input type="hidden" name="student_id" value="{{ student.id }}">
+        
+        <div class="space-y-4">
+            <div class="bg-purple-50 p-3 rounded-lg">
+                <h5 class="font-medium text-purple-900">{{ rubric_data.rubric.title }}</h5>
+                <p class="text-sm text-purple-700">{{ rubric_data.rubric.total_points }} points possible</p>
+            </div>
+            
+            {% for criterion in rubric_data.criteria %}
+            <div class="border border-gray-200 rounded-lg p-3">
+                <div class="mb-2">
+                    <h6 class="font-medium text-gray-800">{{ criterion.description }}</h6>
+                    <p class="text-sm text-gray-600">Maximum: {{ criterion.points }} points</p>
+                </div>
+                
+                <!-- Rating Selection -->
+                {% if criterion.ratings.all %}
+                <div class="mb-3">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Rating</label>
+                    <select data-rating-select 
+                            data-criterion="{{ criterion.id }}"
+                            class="w-full px-3 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        <option value="">Select a rating...</option>
+                        {% for rating in criterion.ratings.all %}
+                        <option value="{{ rating.id }}" 
+                                data-points="{{ rating.points }}"
+                                {% with evaluation=rubric_data.evaluations|get_item:criterion.id %}
+                                {% if evaluation and evaluation.rating and evaluation.rating.id == rating.id %}selected{% endif %}
+                                {% endwith %}>
+                            {{ rating.title }} ({{ rating.points }} pts)
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                
+                <!-- Points Input -->
+                <div class="mb-3">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Points</label>
+                    <input type="number" 
+                           data-criterion="{{ criterion.id }}"
+                           data-points-input
+                           min="0" 
+                           max="{{ criterion.points }}" 
+                           step="0.1"
+                           value="{% with evaluation=rubric_data.evaluations|get_item:criterion.id %}{% if evaluation %}{{ evaluation.points }}{% endif %}{% endwith %}"
+                           class="w-full px-3 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                           placeholder="0">
+                </div>
+                
+                <!-- Comments -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Comments (Optional)</label>
+                    <textarea data-criterion="{{ criterion.id }}"
+                              data-comments-input
+                              rows="2"
+                              class="w-full px-3 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                              placeholder="Add comments about this criterion...">{% with evaluation=rubric_data.evaluations|get_item:criterion.id %}{% if evaluation %}{{ evaluation.comments }}{% endif %}{% endwith %}</textarea>
+                </div>
+            </div>
+            {% endfor %}
+            
+            <!-- Total Points Display -->
+            <div class="bg-gray-50 p-3 rounded-lg">
+                <div class="flex justify-between items-center">
+                    <span class="font-medium text-gray-800">Total Points:</span>
+                    <span class="font-bold text-lg text-purple-600" id="totalPoints">0</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Submit Button -->
+        <button type="submit" class="w-full bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 transition">
+            <i class="fas fa-save mr-2"></i>
+            Save Rubric Evaluation
+        </button>
+    </form>
+</div>
+{% else %}
+<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+    <div class="flex items-center">
+        <i class="fas fa-exclamation-triangle text-yellow-600 mr-3"></i>
+        <div>
+            <h4 class="font-medium text-yellow-800">No Rubric Available</h4>
+            <p class="text-sm text-yellow-700">This discussion does not have a rubric for evaluation.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Student Feedback Section (Always Available) -->
+<div class="bg-white border border-gray-200 rounded-lg p-4 mb-6">
+    <h4 class="text-lg font-bold mb-4 text-gray-800">
+        <i class="fas fa-comment-alt mr-2 text-blue-500"></i>
+        Student Feedback
+    </h4>
+    
+    <form method="POST" action="{% url 'gradebook:ajax_save_grade' %}" class="space-y-4" id="feedbackForm" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="activity_type" value="discussion">
+        <input type="hidden" name="activity_id" value="{{ discussion.id }}">
+        <input type="hidden" name="student_id" value="{{ student.id }}">
+        
+        <!-- Show existing feedback if any -->
+        {% if overall_feedback %}
+        <div class="mb-4">
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <h5 class="font-medium text-blue-900 mb-2">
+                    <i class="fas fa-history mr-2"></i>
+                    Previous Feedback
+                </h5>
+                
+                {% if overall_feedback.feedback %}
+                <div class="mb-3">
+                    <div class="flex items-center mb-1">
+                        <i class="fas fa-keyboard text-blue-600 mr-2 text-sm"></i>
+                        <span class="font-medium text-blue-800 text-sm">Written Feedback</span>
+                    </div>
+                    <div class="prose prose-sm max-w-none text-gray-700 bg-white p-3 rounded border">
+                        {{ overall_feedback.feedback|safe }}
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if overall_feedback.audio_feedback %}
+                <div class="mb-3">
+                    <div class="flex items-center mb-1">
+                        <i class="fas fa-microphone text-green-600 mr-2 text-sm"></i>
+                        <span class="font-medium text-green-800 text-sm">Audio Feedback</span>
+                    </div>
+                    <div class="bg-green-50 p-2 rounded border">
+                        <audio controls class="w-full h-8" controlsList="nodownload">
+                            <source src="{{ overall_feedback.audio_feedback.url }}" type="audio/mpeg">
+                            <source src="{{ overall_feedback.audio_feedback.url }}" type="audio/wav">
+                            <source src="{{ overall_feedback.audio_feedback.url }}" type="audio/mp4">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if overall_feedback.video_feedback %}
+                <div class="mb-3">
+                    <div class="flex items-center mb-1">
+                        <i class="fas fa-video text-purple-600 mr-2 text-sm"></i>
+                        <span class="font-medium text-purple-800 text-sm">Video Feedback</span>
+                    </div>
+                    <div class="bg-purple-50 p-2 rounded border">
+                        <video controls class="w-full max-w-sm rounded" controlsList="nodownload">
+                            <source src="{{ overall_feedback.video_feedback.url }}" type="video/mp4">
+                            <source src="{{ overall_feedback.video_feedback.url }}" type="video/mov">
+                            <source src="{{ overall_feedback.video_feedback.url }}" type="video/avi">
+                            Your browser does not support the video element.
+                        </video>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="text-xs text-gray-500 mt-2">
+                    <i class="fas fa-clock mr-1"></i>
+                    {{ overall_feedback.created_at|date:"M d, Y g:i A" }}
+                    {% if overall_feedback.created_by %}
+                    by {{ overall_feedback.created_by.get_full_name }}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Feedback Type Tabs -->
+        <div class="mb-4">
+            <div class="border-b border-gray-200">
+                <nav class="-mb-px flex space-x-8" aria-label="Feedback Types">
+                    <button type="button" 
+                            class="feedback-tab-btn py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap border-blue-500 text-blue-600 active"
+                            data-tab="text"
+                            data-active-class="border-blue-500 text-blue-600"
+                            data-inactive-class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                        <i class="fas fa-keyboard mr-2"></i>Text Feedback
+                    </button>
+                    <button type="button" 
+                            class="feedback-tab-btn py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                            data-tab="audio"
+                            data-active-class="border-blue-500 text-blue-600"
+                            data-inactive-class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                        <i class="fas fa-microphone mr-2"></i>Audio Feedback
+                    </button>
+                    <button type="button" 
+                            class="feedback-tab-btn py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                            data-tab="video"
+                            data-active-class="border-blue-500 text-blue-600"
+                            data-inactive-class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                        <i class="fas fa-video mr-2"></i>Video Feedback
+                    </button>
+                </nav>
+            </div>
+        </div>
+        
+        <!-- Text Feedback Tab -->
+        <div id="text-feedback-tab" class="feedback-tab-content">
+            <div class="relative">
+                {{ feedback_form.feedback }}
+            </div>
+        </div>
+        
+        <!-- Audio Feedback Tab -->
+        <div id="audio-feedback-tab" class="feedback-tab-content hidden">
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                <div class="text-center">
+                    <i class="fas fa-microphone text-4xl text-gray-400 mb-4"></i>
+                    <div class="mb-4">
+                        <label for="audio_feedback" class="block text-sm font-medium text-gray-700 mb-2">Upload Audio Feedback</label>
+                        {{ feedback_form.audio_feedback }}
+                        <p class="text-xs text-gray-500 mt-1">Supported formats: MP3, WAV, M4A, AAC, OGG (Max: 50MB)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Video Feedback Tab -->
+        <div id="video-feedback-tab" class="feedback-tab-content hidden">
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                <div class="text-center">
+                    <i class="fas fa-video text-4xl text-gray-400 mb-4"></i>
+                    <div class="mb-4">
+                        <label for="video_feedback" class="block text-sm font-medium text-gray-700 mb-2">Upload Video Feedback</label>
+                        {{ feedback_form.video_feedback }}
+                        <p class="text-xs text-gray-500 mt-1">Supported formats: MP4, MOV, AVI, WMV, MKV (Max: 100MB)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Submit Button -->
+        <button type="submit" class="w-full text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+            <i class="fas fa-save mr-2"></i>
+            Save Feedback
+        </button>
+    </form>
+</div>
+
+<!-- Include Form Media for TinyMCE -->
+{{ feedback_form.media.css }}
+
+<!-- Minimal Sidebar Specific Styles -->
+<style>
+/* Feedback tab styling */
+.feedback-tab-content {
+    transition: opacity 0.2s ease-in-out;
+}
+
+.feedback-tab-content.hidden {
+    display: none !important;
+    opacity: 0;
+}
+
+.feedback-tab-content.block {
+    display: block !important;
+    opacity: 1;
+}
+
+/* Feedback tab buttons */
+.feedback-tab-btn {
+    transition: all 0.2s ease;
+    cursor: pointer !important;
+    user-select: none;
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 100;
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    padding: 8px 4px !important;
+    margin: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.feedback-tab-btn:hover {
+    background-color: rgba(59, 130, 246, 0.05) !important;
+}
+
+.feedback-tab-btn.active {
+    font-weight: 600;
+    background-color: rgba(59, 130, 246, 0.1) !important;
+}
+
+/* Audio and Video feedback styling */
+#audio-feedback-tab, #video-feedback-tab {
+    min-height: 350px;  /* Increased to match editor height */
+}
+
+#audio-feedback-tab .border-dashed,
+#video-feedback-tab .border-dashed {
+    border-color: #d1d5db;
+    background-color: #f9fafb;
+    transition: border-color 0.2s ease;
+}
+
+#audio-feedback-tab .border-dashed:hover,
+#video-feedback-tab .border-dashed:hover {
+    border-color: #3b82f6;
+    background-color: #eff6ff;
+}
+</style>
+
+<!-- Include Form Media JS and Initialize -->
+{{ feedback_form.media.js }}
+
+<!-- Simplified JavaScript for Rubric Evaluation -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Discussion grading sidebar JavaScript initializing...');
+    
+    // Get the container for this sidebar
+    const container = document.querySelector('.discussion-grade-sidebar') || document.body;
+    
+    // Initialize TinyMCE using the unified sidebar approach
+    if (typeof window.initializeSidebarTinyMCE === 'function') {
+        window.initializeSidebarTinyMCE(container);
+    } else {
+        // Fallback to widget system
+        if (window.TinyMCEWidget && window.TinyMCEWidget.initializeAll) {
+            console.log('✅ Initializing TinyMCE using widget system');
+            window.TinyMCEWidget.initializeAll();
+        } else {
+            console.log('⏳ TinyMCE widget system not available yet, retrying...');
+            setTimeout(function() {
+                if (window.TinyMCEWidget && window.TinyMCEWidget.initializeAll) {
+                    window.TinyMCEWidget.initializeAll();
+                }
+            }, 100);
+        }
+    }
+    
+    // Rubric Rating Selection Handling
+    function initializeRubricRatingHandlers() {
+        console.log('🚀 Initializing rubric rating handlers...');
+        
+        // Handle rating selection changes
+        document.querySelectorAll('[data-rating-select]').forEach(select => {
+            select.addEventListener('change', function() {
+                const criterionId = this.dataset.criterion;
+                const selectedOption = this.options[this.selectedIndex];
+                
+                if (selectedOption && selectedOption.value) {
+                    const points = selectedOption.dataset.points;
+                    const pointsInput = document.querySelector(`[data-criterion="${criterionId}"][data-points-input]`);
+                    
+                    if (pointsInput && points) {
+                        const currentPoints = parseFloat(pointsInput.value) || 0;
+                        const ratingPoints = parseFloat(points);
+                        
+                        // Only auto-fill if points field is empty or contains 0
+                        if (currentPoints === 0 || pointsInput.value.trim() === '') {
+                            pointsInput.style.transition = 'all 0.3s ease';
+                            pointsInput.style.backgroundColor = '#e8eafd';
+                            pointsInput.value = ratingPoints;
+                            
+                            setTimeout(() => {
+                                pointsInput.style.backgroundColor = '';
+                            }, 1000);
+                            console.log(`✅ Auto-populated points for criterion ${criterionId}: ${points}`);
+                        } else {
+                            // If instructor has entered custom points, show a subtle indicator
+                            pointsInput.style.transition = 'all 0.3s ease';
+                            pointsInput.style.borderColor = '#3b82f6';
+                            pointsInput.title = `Rating suggests ${ratingPoints} points, but your custom value (${currentPoints}) is preserved.`;
+                            
+                            setTimeout(() => {
+                                pointsInput.style.borderColor = '';
+                            }, 2000);
+                            console.log(`✅ Custom points preserved for criterion ${criterionId}: ${currentPoints} (rating suggests ${points})`);
+                        }
+                    }
+                } else {
+                    // Clear points if no rating selected
+                    const pointsInput = document.querySelector(`[data-criterion="${criterionId}"][data-points-input]`);
+                    if (pointsInput) {
+                        pointsInput.value = '';
+                    }
+                }
+                updateTotalPoints();
+            });
+        });
+        
+        // Handle points input changes
+        document.querySelectorAll('[data-points-input]').forEach(input => {
+            input.addEventListener('input', function() {
+                updateTotalPoints();
+            });
+        });
+    }
+    
+    function updateTotalPoints() {
+        let total = 0;
+        document.querySelectorAll('[data-points-input]').forEach(input => {
+            const value = parseFloat(input.value) || 0;
+            total += value;
+        });
+        
+        const totalDisplay = document.getElementById('totalPoints');
+        if (totalDisplay) {
+            totalDisplay.textContent = total.toFixed(1);
+        }
+    }
+    
+    // Collect rubric data
+    function collectRubricData() {
+        const rubricData = {};
+        
+        document.querySelectorAll('[data-rating-select]').forEach(select => {
+            const criterionId = select.dataset.criterion;
+            const ratingId = select.value;
+            const pointsInput = document.querySelector(`[data-criterion="${criterionId}"][data-points-input]`);
+            const commentsInput = document.querySelector(`[data-criterion="${criterionId}"][data-comments-input]`);
+            
+            const points = pointsInput ? parseFloat(pointsInput.value) : null;
+            const comments = commentsInput ? commentsInput.value.trim() : '';
+            
+            if (!isNaN(points) || ratingId || comments) {
+                rubricData[criterionId] = {
+                    points: isNaN(points) ? 0 : points,
+                    comments: comments,
+                    rating_id: ratingId || null
+                };
+            }
+        });
+        
+        console.log('📊 Collected rubric data:', rubricData);
+        return rubricData;
+    }
+    
+    // Feedback Tab Handling
+    function initializeFeedbackTabs() {
+        console.log('🚀 Initializing feedback tabs...');
+        
+        // Handle feedback tab switching
+        document.querySelectorAll('.feedback-tab-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const tabName = this.dataset.tab;
+                const activeClass = this.dataset.activeClass;
+                const inactiveClass = this.dataset.inactiveClass;
+                
+                // Update button states
+                document.querySelectorAll('.feedback-tab-btn').forEach(btn => {
+                    btn.className = `feedback-tab-btn py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${btn.dataset.inactiveClass}`;
+                });
+                
+                // Set active button
+                this.className = `feedback-tab-btn py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeClass}`;
+                
+                // Show/hide content
+                document.querySelectorAll('.feedback-tab-content').forEach(content => {
+                    content.classList.add('hidden');
+                });
+                
+                const targetTab = document.getElementById(`${tabName}-feedback-tab`);
+                if (targetTab) {
+                    targetTab.classList.remove('hidden');
+                }
+                
+                // If switching to text tab, refresh TinyMCE
+                if (tabName === 'text' && typeof tinymce !== 'undefined') {
+                    setTimeout(() => {
+                        // Find the TinyMCE editor in the text tab
+                        const textareas = targetTab.querySelectorAll('textarea.tinymce-editor');
+                        textareas.forEach(textarea => {
+                            const editor = tinymce.get(textarea.id);
+                            if (editor) {
+                                // Add error handling for TinyMCE operations
+                                try {
+                                    // Check if editor is initialized and has selection
+                                    if (editor.initialized && editor.selection) {
+                                        editor.fire('ResizeEditor');
+                                        editor.fire('ResizeContent');
+                                    } else {
+                                        console.warn(`Editor ${textarea.id} not fully initialized, skipping refresh`);
+                                    }
+                                } catch (error) {
+                                    console.warn(`Error refreshing TinyMCE editor ${textarea.id}:`, error);
+                                }
+                            }
+                        });
+                    }, 100);
+                }
+            });
+        });
+        
+        // File validation
+        const audioInput = document.querySelector('input[name="audio_feedback"]');
+        const videoInput = document.querySelector('input[name="video_feedback"]');
+        
+        if (audioInput) {
+            audioInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    // Validate file size (50MB limit)
+                    if (file.size > 50 * 1024 * 1024) {
+                        alert('Audio file size cannot exceed 50MB');
+                        this.value = '';
+                        return;
+                    }
+                    
+                    // Validate file type
+                    const allowedTypes = ['audio/'];
+                    if (!allowedTypes.some(type => file.type.includes(type))) {
+                        alert('Please select a valid audio file');
+                        this.value = '';
+                        return;
+                    }
+                }
+            });
+        }
+        
+        if (videoInput) {
+            videoInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    // Validate file size (100MB limit)
+                    if (file.size > 100 * 1024 * 1024) {
+                        alert('Video file size cannot exceed 100MB');
+                        this.value = '';
+                        return;
+                    }
+                    
+                    // Validate file type
+                    const allowedTypes = ['video/'];
+                    if (!allowedTypes.some(type => file.type.includes(type))) {
+                        alert('Please select a valid video file');
+                        this.value = '';
+                        return;
+                    }
+                }
+            });
+        }
+    }
+    
+    // Form submission handling for both rubric and feedback forms
+    function handleFormSubmission(form, successMessage) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Save TinyMCE content before form submission
+            if (typeof tinymce !== 'undefined') {
+                tinymce.triggerSave();
+            }
+            
+            const formData = new FormData(this);
+            
+            // Add rubric data if this is the rubric form
+            if (form.id === 'gradingForm') {
+                const rubricData = collectRubricData();
+                if (Object.keys(rubricData).length > 0) {
+                    formData.append('rubric_data', JSON.stringify(rubricData));
+                }
+            }
+            
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            
+            // Show loading state
+            submitBtn.textContent = 'Saving...';
+            submitBtn.disabled = true;
+            
+            fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                }
+            })
+            .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+            .then(data => {
+                if (data.success) {
+                    alert(successMessage);
+                    // Reload parent page
+                    setTimeout(() => {
+                        if (window.parent && window.parent.location) {
+                            window.parent.location.reload();
+                        } else {
+                            location.reload();
+                        }
+                    }, 1500);
+                } else {
+                    alert(data.error || 'Error saving');
+                }
+            })
+            .catch(error => {
+                console.error('❌ Form submission error:', error);
+                alert('Error saving');
+            })
+            .finally(() => {
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+            });
+        });
+    }
+    
+    // Handle rubric form
+    const gradingForm = document.getElementById('gradingForm');
+    if (gradingForm) {
+        handleFormSubmission(gradingForm, 'Discussion evaluation saved successfully!');
+    }
+    
+    // Handle feedback form
+    const feedbackForm = document.getElementById('feedbackForm');
+    if (feedbackForm) {
+        handleFormSubmission(feedbackForm, 'Discussion feedback saved successfully!');
+    }
+    
+    // Initialize handlers
+    initializeRubricRatingHandlers();
+    updateTotalPoints();
+    
+    // Initialize feedback tabs using the unified approach
+    if (typeof window.initializeFeedbackTabsInContent === 'function') {
+        setTimeout(() => {
+            window.initializeFeedbackTabsInContent(container);
+        }, 150);
+    } else {
+        // Fallback to local implementation
+        initializeFeedbackTabs();
+    }
+    
+    console.log('✅ Discussion grading sidebar JavaScript initialized');
+});
+</script>
+
+</div> <!-- End discussion-grade-sidebar --> 

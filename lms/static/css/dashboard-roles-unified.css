@@ -1,0 +1,750 @@
+/* ========================================
+   NEXSY LMS - Unified Dashboard Roles Styles
+   Consolidates all dashboard role-specific styles
+   ======================================== */
+
+/* ========== Role-Specific Color Variables ========== */
+:root {
+    /* Learner Colors */
+    --learner-primary: #050c50;
+    --learner-primary-hover: #02071e;
+    --learner-accent: #4262FF;
+    --learner-background: #ffffff;
+    
+    /* Instructor Colors */
+    --instructor-primary: #050c50;
+    --instructor-primary-hover: #02071e;
+    --instructor-accent: #4262FF;
+    --instructor-background: #ffffff;
+    
+    /* Admin Colors */
+    --admin-primary: #050c50;
+    --admin-primary-hover: #02071e;
+    --admin-accent: #4262FF;
+    --admin-background: #ffffff;
+    
+    /* Super Admin Colors */
+    --superadmin-primary: #050c50;
+    --superadmin-primary-hover: #02071e;
+    --superadmin-accent: #4262FF;
+    --superadmin-background: #ffffff;
+    
+    /* Global Admin Colors */
+    --globaladmin-primary: #667eea;
+    --globaladmin-primary-hover: #5a6fd8;
+    --globaladmin-accent: #764ba2;
+    --globaladmin-background: #ffffff;
+}
+
+/* ========== Universal Dashboard Styles ========== */
+.dashboard-main {
+    background-color: var(--dashboard-background, #ffffff) !important;
+    padding: var(--dashboard-spacing-xl) !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden;
+    overflow-y: visible;
+}
+
+/* ========== Course Grid System (Unified) ========== */
+.course-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    width: 100%;
+    max-width: 100%;
+    align-items: start;
+    margin-top: 0.5rem;
+    padding: 0.5rem 0;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.course-card {
+    background-color: white;
+    border: none;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.25s ease-in-out;
+    cursor: pointer;
+    position: relative;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.course-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+}
+
+.course-image {
+    position: relative;
+    width: 100%;
+    height: 180px;
+    margin: 0;
+    overflow: hidden;
+    border-radius: 12px 12px 0 0;
+}
+
+.course-image::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    background: linear-gradient(to top, rgba(0,0,0,0.5), transparent);
+    z-index: 1;
+}
+
+.course-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    transition: transform 0.5s ease;
+}
+
+.course-card:hover .course-image img {
+    transform: scale(1.05);
+}
+
+.course-content {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    padding: 1.5rem;
+    background-color: white;
+    border-radius: 0 0 12px 12px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.course-category {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    background-color: rgba(66, 98, 255, 0.85);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.35rem 0.75rem;
+    border-radius: 20px;
+    z-index: 2;
+}
+
+.course-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 0.75rem;
+    margin-top: auto;
+    padding-top: 1rem;
+    border-top: 1px solid #f0f2f5;
+}
+
+.course-progress-wrapper {
+    margin-top: auto;
+    padding-top: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.course-meta span {
+    display: flex;
+    align-items: center;
+    color: #64748b;
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+
+.course-meta i {
+    color: #4262FF;
+    margin-right: 0.5rem;
+}
+
+.course-description {
+    margin: 1rem 0 1.5rem;
+    flex-grow: 1;
+    color: #64748b;
+    font-size: 0.875rem;
+    line-height: 1.6;
+}
+
+.course-image-fallback {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #4262FF, #6B8CFF);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.course-image-fallback span {
+    font-size: 2rem;
+    font-weight: bold;
+    color: white;
+    opacity: 0.85;
+}
+
+.course-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--dashboard-text-primary);
+    margin-bottom: 0.5rem;
+}
+
+/* ========== Play Button Overlay ========== */
+.play-button-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 60px;
+    height: 60px;
+    background-color: #050c50;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(5, 12, 80, 0.3);
+}
+
+.play-button-overlay:hover {
+    background-color: #02071e;
+    transform: translate(-50%, -50%) scale(1.1);
+}
+
+.play-icon {
+    font-size: 24px;
+    color: white;
+    margin-left: 3px;
+    transition: color 0.3s ease;
+}
+
+/* ========== Course Links ========== */
+.course-link {
+    color: inherit;
+    text-decoration: none;
+}
+
+.course-link:hover {
+    text-decoration: none;
+}
+
+.course-link:hover .course-title {
+    color: #4262FF;
+}
+
+/* ========== Loading Spinner (Unified) ========== */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ========== Todo List Styles (Unified) ========== */
+.todo-tab {
+    background-color: transparent !important;
+    border: none !important;
+    border-bottom: 1px solid transparent !important;
+    padding-bottom: 0.5rem !important;
+    transition: all 0.2s ease !important;
+    color: #6b7280 !important;
+    font-weight: 400 !important;
+}
+
+.todo-tab.text-blue-600,
+.todo-tab.active {
+    background-color: transparent !important;
+    color: #050c50 !important;
+    border-bottom: 2px solid #050c50 !important;
+    font-weight: 600 !important;
+}
+
+.todo-tab:hover:not(.text-blue-600):not(.active) {
+    background-color: transparent !important;
+    color: #050c50 !important;
+    border-bottom: 1px solid #e5e7eb !important;
+}
+
+.todo-content-wrapper {
+    position: relative;
+    min-height: 300px;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.todo-content {
+    display: block;
+    width: 100%;
+}
+
+.todo-content.hidden {
+    display: none !important;
+}
+
+/* Enhanced todo item styling for better use of width */
+.dashboard-activity-item {
+    padding: 1rem !important;
+    margin-bottom: 0.75rem !important;
+    border-radius: 8px !important;
+    border: 1px solid #e5e7eb !important;
+    transition: all 0.2s ease !important;
+}
+
+.dashboard-activity-item:hover {
+    border-color: #d1d5db !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* ========== Embedded Calendar Styles (Unified) ========== */
+.embedded-calendar-container {
+    position: relative;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.embedded-calendar-container iframe {
+    width: 100%;
+    height: 700px;
+    border: none;
+    display: block;
+    min-height: 600px;
+}
+
+/* Better calendar header spacing */
+.dashboard-section h2.dashboard-section-header {
+    margin-bottom: var(--dashboard-spacing-lg) !important;
+}
+
+/* ========== Global Admin Specific Styles ========== */
+.dashboard-role-globaladmin {
+    --dashboard-primary-color: var(--globaladmin-primary);
+    --dashboard-primary-hover: var(--globaladmin-primary-hover);
+}
+
+.global-admin-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.global-admin-accent {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+/* System Health Status Indicators */
+.status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 8px;
+    display: inline-block;
+}
+
+.status-healthy {
+    background-color: #10b981;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}
+
+.status-warning {
+    background-color: #f59e0b;
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+}
+
+.status-critical {
+    background-color: #ef4444;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+}
+
+.health-dashboard {
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
+}
+
+.health-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.health-item:last-child {
+    border-bottom: none;
+}
+
+/* ========== Dashboard Grid Width Fixes (Unified) ========== */
+.dashboard-grid-main {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden;
+    overflow-y: visible;
+    align-items: start !important;
+}
+
+.dashboard-grid-main > * {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden;
+    overflow-y: visible;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.dashboard-flex {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden;
+    overflow-y: visible;
+}
+
+.dashboard-flex-col {
+    gap: var(--dashboard-spacing-xl) !important;
+    align-items: stretch !important;
+}
+
+/* Fix spacing between grid rows in columns */
+.dashboard-flex-col > .dashboard-grid {
+    margin-bottom: 0 !important;
+}
+
+.dashboard-flex-col > .dashboard-grid + .dashboard-grid {
+    margin-top: 0 !important;
+}
+
+.dashboard-flex-col > .dashboard-grid + .dashboard-section {
+    margin-top: 0 !important;
+}
+
+.dashboard-flex-col > .dashboard-section + .dashboard-grid {
+    margin-top: 0 !important;
+}
+
+/* ========== Section Box Alignment Fixes ========== */
+.dashboard-section {
+    display: flex !important;
+    flex-direction: column !important;
+    align-self: start !important;
+    height: auto !important;
+    min-height: fit-content !important;
+    /* Ensure consistent padding and shadow matches original */
+    padding: var(--dashboard-spacing-xl) !important;
+    box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.1) !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: var(--dashboard-radius-lg) !important;
+    background-color: white !important;
+    margin: 0 !important;
+    transition: all 0.2s ease-in-out !important;
+}
+
+/* Ensure all sections in a column have equal spacing */
+.dashboard-flex.dashboard-flex-col .dashboard-section {
+    margin-bottom: 0 !important;
+}
+
+/* Section header consistency */
+.dashboard-section-header {
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+    color: var(--dashboard-text-primary, #374151) !important;
+    margin-bottom: var(--dashboard-spacing-md, 0.75rem) !important;
+    text-align: left !important;
+}
+
+/* Section hover effects like original */
+.dashboard-section:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.15) !important;
+    border-color: #d1d5db !important;
+    transition: all 0.2s ease-in-out !important;
+}
+
+/* ========== Progress Circle Styles (Unified) ========== */
+.dashboard-progress-circle svg {
+    width: 100% !important;
+    height: 100% !important;
+    aspect-ratio: 1;
+}
+
+.dashboard-progress-percentage {
+    text-align: center !important;
+    vertical-align: middle !important;
+    line-height: 1 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.dashboard-progress-circle-center {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+}
+
+/* ========== Quick Actions Hover Effects ========== */
+.dashboard-quick-action:hover {
+    background-color: var(--dashboard-primary-hover) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* ========== Dashboard Grid System Override ========== */
+.dashboard-grid-two-col {
+    grid-template-columns: 1fr 1fr !important;
+    gap: var(--dashboard-spacing-xl) !important;
+    align-items: stretch !important;
+    height: fit-content !important;
+    margin-bottom: 0 !important;
+}
+
+.dashboard-grid-three-col {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: var(--dashboard-spacing-xl) !important;
+    align-items: start !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.dashboard-grid-actions {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: var(--dashboard-spacing-xl) !important;
+    align-items: start !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+/* Ensure consistent section heights within the same row */
+.dashboard-grid-two-col .dashboard-section {
+    height: 100% !important;
+    min-height: fit-content !important;
+    align-self: stretch !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+/* ========== Responsive Design (Unified) ========== */
+
+/* Large screens - 2 column grid */
+@media screen and (min-width: 1200px) {
+    .course-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.5rem;
+    }
+    
+    /* Ensure proper dashboard grid alignment on large screens */
+    .dashboard-grid-two-col {
+        grid-template-columns: 1fr 1fr !important;
+        gap: var(--dashboard-spacing-xl) !important;
+    }
+    
+    /* Better main grid ratios for large screens */
+    .dashboard-grid-main {
+        grid-template-columns: 2.5fr 1fr !important;
+        gap: var(--dashboard-spacing-xl) !important;
+    }
+}
+
+/* Medium screens - 2 column grid */
+@media screen and (max-width: 1200px) {
+    .course-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.25rem;
+    }
+    
+    .dashboard-grid-main {
+        grid-template-columns: 2fr 1fr !important;
+        gap: var(--dashboard-spacing-xl) !important;
+    }
+}
+
+@media screen and (max-width: 1024px) {
+    .dashboard-grid-main {
+        grid-template-columns: 2fr 1fr !important;
+        gap: var(--dashboard-spacing-xl) !important;
+    }
+}
+
+/* Small screens - 2 column grid */
+@media screen and (max-width: 768px) {
+    .course-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+
+    .course-image {
+        height: 160px;
+    }
+    
+    .dashboard-grid-main {
+        grid-template-columns: 1fr !important;
+        gap: var(--dashboard-spacing-xl) !important;
+    }
+    
+    .dashboard-grid-two-col {
+        grid-template-columns: 1fr !important;
+        gap: var(--dashboard-spacing-xl) !important;
+    }
+    
+    .embedded-calendar-container iframe {
+        height: 500px;
+        min-height: 400px;
+    }
+}
+
+/* Extra small screens - 1 column grid */
+@media screen and (max-width: 640px) {
+    .course-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .course-image {
+        height: 150px;
+    }
+}
+
+/* Very large screens - center grid with max width */
+@media screen and (min-width: 1600px) {
+    .course-grid {
+        max-width: 1200px;
+        margin: 0 auto;
+        width: 100%;
+        box-sizing: border-box;
+    }
+}
+
+/* ========== Container Width Fixes ========== */
+.dashboard-container,
+.dashboard-main,
+.dashboard-grid,
+.dashboard-section,
+.course-grid,
+.course-card,
+.course-content {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    box-sizing: border-box;
+}
+
+/* Prevent horizontal scrolling */
+body, html {
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+/* Ensure all containers respect their parent width */
+* {
+    box-sizing: border-box;
+}
+
+.course-grid {
+    overflow-x: hidden;
+    overflow-y: visible;
+}
+
+.course-card {
+    overflow-x: hidden;
+    overflow-y: visible;
+}
+
+/* ========== Mobile Optimizations ========== */
+@media (max-width: 480px) {
+    .dashboard-main {
+        padding: 1rem !important;
+    }
+    
+    .course-grid {
+        gap: 0.75rem;
+    }
+    
+    .course-content {
+        padding: 1rem;
+    }
+    
+    .course-image {
+        height: 140px;
+    }
+}
+
+/* ========== Print Styles ========== */
+@media print {
+    .course-card {
+        break-inside: avoid;
+        box-shadow: none;
+        border: 1px solid #ddd;
+    }
+    
+    .course-image {
+        height: 120px;
+    }
+    
+    .play-button-overlay {
+        display: none;
+    }
+}
+
+/* ========== Accessibility Improvements ========== */
+@media (prefers-reduced-motion: reduce) {
+    .course-card,
+    .play-button-overlay,
+    .loading-spinner {
+        transition: none;
+        animation: none;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .course-card {
+        border: 2px solid #000;
+    }
+    
+    .course-category {
+        background-color: #000;
+        color: #fff;
+    }
+}

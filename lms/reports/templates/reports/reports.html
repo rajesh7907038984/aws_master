@@ -1,0 +1,184 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Reports{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" type="text/css" href="{% static 'css/reports-unified.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="report-full-width">
+    <div class="report-full-width-content">
+        <!-- Breadcrumbs -->
+        <div class="report-breadcrumb">
+            {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+        </div>
+
+        <!-- Main grid with 70-30 split -->
+        <div class="grid grid-cols-12 gap-4 md:gap-6">
+            <!-- Left Column (70%) -->
+            <div class="col-span-12 lg:col-span-8 transition-all duration-300">
+                <div class="bg-white rounded-lg shadow-sm">
+                    <!-- Reports Header -->
+                    <div class="p-6">
+                        <h1 class="text-2xl font-semibold text-gray-900 mb-6">Reports</h1>
+                        
+                        <!-- Tabs -->
+                        <div class="flex border-b space-x-6 report-tabs">
+                            <button class="report-tab active">My Reports</button>
+                        </div>
+                        
+                        <!-- Actions Bar -->
+                        <div class="flex justify-between items-center mt-6">
+                            <div class="flex items-center space-x-4">
+                                <button class="filters-button">
+                                    <i class="fas fa-filter mr-2"></i>
+                                    Filters
+                                </button>
+                                <select class="form-select" id="report-type-filter">
+                                    <option value="">All Types</option>
+                                    <option value="ACADEMIC">Academic</option>
+                                    <option value="ATTENDANCE">Attendance</option>
+                                    <option value="PERFORMANCE">Performance</option>
+                                    <option value="CUSTOM">Custom</option>
+                                </select>
+                            </div>
+                            <a href="{% url 'reports:new_report' %}" class="new-report-button">
+                                <i class="fas fa-plus mr-2"></i>
+                                New Report
+                            </a>
+                        </div>
+                        
+                        <!-- Reports List -->
+                        <div class="mt-6">
+                            <!-- Report List Header -->
+                            <div class="grid grid-cols-12 gap-4 px-4 py-2 bg-gray-50 rounded-t-lg text-sm font-medium text-gray-500">
+                                <div class="col-span-3">Title</div>
+                                <div class="col-span-2">Type</div>
+                                <div class="col-span-2">Status</div>
+                                <div class="col-span-2 text-right">Created</div>
+                                <div class="col-span-3 text-center">Actions</div>
+                            </div>
+                            
+                            <!-- Report Items -->
+                            <div class="report-list">
+                                {% for report in reports %}
+                                <div class="report-item hover:bg-gray-50">
+                                    <div class="grid grid-cols-12 gap-4 px-4 py-3">
+                                        <div class="col-span-3">
+                                            <a href="{% url 'reports:report_detail' report.id %}" class="font-medium text-gray-900 hover:text-blue-600">{{ report.title }}</a>
+                                        </div>
+                                        <div class="col-span-2">
+                                            <span class="text-gray-600">{{ report.get_report_type_display }}</span>
+                                        </div>
+                                        <div class="col-span-2">
+                                            <span class="status-badge status-{{ report.status|lower }}">
+                                                {{ report.get_status_display }}
+                                            </span>
+                                        </div>
+                                        <div class="col-span-2 text-right text-gray-500">
+                                            {{ report.created_at|date:"d/m/Y" }}
+                                        </div>
+                                        <div class="col-span-3 text-center">
+                                            <div class="flex items-center justify-center space-x-2">
+                                                <a href="{% url 'reports:report_detail' report.id %}" class="action-btn view-btn" title="View Report">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                {% if report.created_by == request.user %}
+                                                <button class="action-btn delete-btn" onclick="confirmDelete({{ report.id }}, '{{ report.title|escapejs }}')" title="Delete Report">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% empty %}
+                                <div class="text-center py-8 text-gray-500">
+                                    No reports found. Create your first report!
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column (30%) -->
+            <div class="col-span-12 lg:col-span-4 transition-all duration-300">
+                {% include 'components/right_sidebar.html' %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .report-tab {
+        @apply px-4 py-2 text-gray-500 border-b-2 border-transparent hover:text-gray-700 hover:border-gray-300 transition-colors;
+    }
+    
+    .report-tab.active {
+        @apply text-blue-600 border-blue-600;
+    }
+    
+    .filters-button {
+        @apply px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors;
+    }
+    
+    .new-report-button {
+        @apply px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors;
+    }
+    
+    .report-item {
+        @apply block border-b border-gray-100 transition-colors;
+    }
+    
+    .status-badge {
+        @apply px-2 py-1 text-xs font-medium rounded-full;
+    }
+    
+    .status-draft {
+        @apply bg-gray-100 text-gray-600;
+    }
+    
+    .status-published {
+        @apply bg-green-100 text-green-600;
+    }
+    
+    .status-archived {
+        @apply bg-yellow-100 text-yellow-600;
+    }
+    
+    .form-select {
+        @apply block w-40 px-3 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500;
+    }
+    
+    .action-btn {
+        @apply inline-flex items-center justify-center w-8 h-8 text-sm rounded-full transition-colors;
+    }
+    
+    .view-btn {
+        @apply bg-blue-50 text-blue-600 hover:bg-blue-100;
+    }
+    
+    .delete-btn {
+        @apply bg-red-50 text-red-600 hover:bg-red-100;
+    }
+</style>
+
+<script>
+function confirmDelete(reportId, reportTitle) {
+    // Create a more user-friendly confirmation dialog
+    const confirmed = confirm(
+        `Are you sure you want to delete the report "${reportTitle}"?\n\n` +
+        'This action cannot be undone and will permanently remove the report and all its data.'
+    );
+    
+    if (confirmed) {
+        // Redirect to delete URL
+        window.location.href = `/reports/${reportId}/delete/`;
+    }
+}
+</script>
+{% endblock %} 

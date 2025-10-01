@@ -1,0 +1,65 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Nexsy LMS</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="{% static 'css/style.css' %}" rel="stylesheet">
+</head>
+<body class="min-h-screen bg-gray-900 flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full space-y-8 text-center">
+        <!-- Logo -->
+        <div>
+            <img src="{% static 'core/img/logo-light.png' %}" alt="Nexsy LMS" class="h-12 mx-auto">
+            <h1 class="mt-6 text-4xl font-bold text-white">Welcome to Nexsy LMS</h1>
+            <p class="mt-2 text-xl text-gray-400">Your Learning Journey Starts Here</p>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="mt-8 space-y-4">
+            {% if user.is_authenticated %}
+                <a href="{% url 'users:role_based_redirect' %}" 
+                   class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Go to Dashboard
+                </a>
+            {% else %}
+                <a href="{% url 'login' %}" 
+                   class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Login
+                </a>
+                <a href="{% url 'users:register' %}" 
+                   class="w-full flex justify-center py-3 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-300 bg-transparent hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Register
+                </a>
+            {% endif %}
+        </div>
+
+        <!-- Features -->
+        <div class="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-gray-800 p-6 rounded-lg">
+                <h3 class="text-xl font-bold text-white mb-2">Learn</h3>
+                <p class="text-gray-400">Access high-quality courses and learning materials</p>
+            </div>
+            <div class="bg-gray-800 p-6 rounded-lg">
+                <h3 class="text-xl font-bold text-white mb-2">Track</h3>
+                <p class="text-gray-400">Monitor your progress and achievements</p>
+            </div>
+            <div class="bg-gray-800 p-6 rounded-lg">
+                <h3 class="text-xl font-bold text-white mb-2">Succeed</h3>
+                <p class="text-gray-400">Achieve your learning goals with our support</p>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="mt-12 text-center text-gray-400 text-sm">
+            <p>&copy; 2024 Nexsy.io - All Rights Reserved</p>
+            <div class="mt-2 space-x-4">
+                <a href="#" class="hover:text-gray-300">Privacy Policy</a>
+                <a href="#" class="hover:text-gray-300">Terms of Service</a>
+            </div>
+        </footer>
+    </div>
+</body>
+</html> 

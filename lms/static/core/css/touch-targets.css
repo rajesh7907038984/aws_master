@@ -1,0 +1,203 @@
+/* Touch Target Accessibility - WCAG 2.1 AA Compliance
+ * Ensures all interactive elements meet 44x44px minimum touch target size
+ */
+
+/* Base touch target improvements */
+a, button, input[type="submit"], input[type="button"], input[type="reset"],
+.btn, .button, .clickable, [role="button"], [onclick] {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Form controls */
+input[type="checkbox"], input[type="radio"] {
+    min-width: 20px;
+    min-height: 20px;
+    margin: 12px; /* 12px margin = 44px total touch area */
+}
+
+/* Select dropdowns */
+select, .select-wrapper {
+    min-height: 44px;
+}
+
+/* Navigation elements */
+nav a, .nav-link, .breadcrumb-item a {
+    min-height: 44px;
+    padding: 0.5rem 0.75rem;
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Tab navigation */
+.tab-btn, .nav-tab, [role="tab"] {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.75rem 1rem;
+}
+
+/* Close buttons and small controls */
+.close, .btn-close, .modal-close, .alert-close {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Icon-only buttons */
+.icon-btn, .btn-icon, [aria-label]:not([aria-label=""]):empty {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Pagination controls */
+.pagination a, .pagination button, .page-link {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Table action buttons */
+.table .btn, .table button, .table a.btn {
+    min-height: 36px; /* Slightly smaller for table context but still accessible */
+    min-width: 36px;
+}
+
+/* Mobile-specific improvements */
+@media (max-width: 768px) {
+    /* Larger touch targets on mobile */
+    a, button, input[type="submit"], input[type="button"], input[type="reset"],
+    .btn, .button, .clickable, [role="button"] {
+        min-height: 48px;
+        min-width: 48px;
+    }
+    
+    /* Form controls */
+    input, textarea, select {
+        min-height: 48px;
+        font-size: 16px; /* Prevents zoom on iOS */
+    }
+    
+    /* Navigation on mobile */
+    nav a, .nav-link {
+        min-height: 48px;
+        padding: 0.75rem 1rem;
+    }
+    
+    /* Tab navigation on mobile */
+    .tab-btn, .nav-tab, [role="tab"] {
+        min-height: 48px;
+        min-width: 48px;
+        padding: 1rem;
+    }
+    
+    /* Close buttons larger on mobile */
+    .close, .btn-close, .modal-close {
+        min-width: 48px;
+        min-height: 48px;
+    }
+}
+
+/* Ensure adequate spacing between touch targets */
+.btn-group .btn:not(:last-child) {
+    margin-right: 4px;
+}
+
+.btn-group .btn:not(:first-child) {
+    margin-left: 4px;
+}
+
+/* List items with interactive content */
+li > a, li > button {
+    min-height: 44px;
+    padding: 0.5rem;
+    display: flex;
+    align-items: center;
+}
+
+/* Card and tile interactions */
+.card.clickable, .tile.clickable, [onclick]:not(button):not(a) {
+    min-height: 44px;
+    cursor: pointer;
+}
+
+/* Dropdown menu items */
+.dropdown-item, .menu-item {
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+}
+
+/* Toggle switches and controls */
+.toggle, .switch, .checkbox-toggle {
+    min-width: 44px;
+    min-height: 24px;
+    position: relative;
+}
+
+.toggle::after, .switch::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px;
+    height: 44px;
+    z-index: -1;
+}
+
+/* Accordion and collapsible controls */
+.accordion-toggle, .collapse-toggle, [data-toggle] {
+    min-height: 44px;
+    padding: 0.75rem;
+    width: 100%;
+    display: flex;
+    align-items: center;
+}
+
+/* Media controls */
+.media-control, .video-control, .audio-control {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Ensure focus indicators are visible */
+:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+/* Skip links for accessibility */
+.skip-link {
+    position: absolute;
+    top: -40px;
+    left: 6px;
+    background: #000;
+    color: #fff;
+    padding: 8px;
+    text-decoration: none;
+    z-index: 9999;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+}
+
+.skip-link:focus {
+    top: 6px;
+}

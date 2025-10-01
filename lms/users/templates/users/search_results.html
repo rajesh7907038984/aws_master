@@ -1,0 +1,374 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Search Results{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Global styles for all pages */
+    body {
+        background-color: #f5f7fa !important;
+    }
+    
+    .main-content {
+        background-color: #f5f7fa !important;
+    }
+    
+    main.flex-1.bg-white {
+        background-color: #f5f7fa !important;
+    }
+    
+    /* Course view styles */
+    .course-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.75rem;
+    }
+
+    .course-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
+    /* Common card styles */
+    .course-card {
+        background-color: white;
+        border: none;
+        border-radius: 12px;
+        overflow: visible;
+        transition: all 0.25s ease-in-out;
+        cursor: pointer;
+        position: relative;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    }
+
+    .course-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Edit button styles */
+    .course-edit-btn {
+        position: absolute;
+        background-color: rgba(255, 255, 255, 0.95);
+        border-radius: 8px;
+        padding: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.875rem;
+        color: #4262FF;
+        border: none;
+        z-index: 20;
+        transition: all 0.2s ease-in-out;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+        width: 32px;
+        height: 32px;
+    }
+
+    .course-edit-btn:hover {
+        background-color: #4262FF;
+        color: white;
+    }
+
+    .course-grid .course-edit-btn {
+        position: absolute;
+    }
+
+    .course-grid .course-edit-btn:first-child {
+        top: 1rem;
+        right: 3.5rem;
+    }
+
+    .course-grid .course-edit-btn:last-child {
+        top: 1rem;
+        right: 1rem;
+    }
+
+    /* Course action buttons container */
+    .course-actions {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        display: flex;
+        gap: 0.75rem;
+        z-index: 20;
+    }
+
+    /* Grid view specific styles */
+    .course-grid .course-card {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        padding: 0;
+        overflow: visible;
+        border-radius: 12px;
+    }
+
+    .course-grid .course-image {
+        position: relative;
+        width: 100%;
+        height: 180px;
+        margin: 0;
+        overflow: hidden;
+    }
+
+    .course-grid .course-image::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 50%;
+        background: linear-gradient(to top, rgba(0,0,0,0.5), transparent);
+        z-index: 1;
+    }
+
+    .course-grid .course-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+        transition: transform 0.5s ease;
+    }
+    
+    .course-grid .course-card:hover .course-image img {
+        transform: scale(1.05);
+    }
+
+    .course-grid .course-content {
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+        padding: 1.5rem;
+        background-color: white;
+    }
+
+    .course-grid .course-category {
+        position: absolute;
+        top: 1rem;
+        left: 1rem;
+        background-color: rgba(66, 98, 255, 0.85);
+        color: white;
+        font-size: 0.75rem;
+        font-weight: 500;
+        padding: 0.35rem 0.75rem;
+        border-radius: 20px;
+        z-index: 2;
+    }
+
+    .course-grid .course-meta {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 0.75rem;
+        margin-top: auto;
+        padding-top: 1rem;
+        border-top: 1px solid #f0f2f5;
+    }
+    
+    .course-grid .course-meta span {
+        display: flex;
+        align-items: center;
+        color: #64748b;
+        font-weight: 500;
+    }
+    
+    .course-grid .course-meta i {
+        color: #4262FF;
+        margin-right: 0.5rem;
+    }
+
+    .course-grid .course-description {
+        margin: 1rem 0 1.5rem;
+        flex-grow: 1;
+        color: #64748b;
+        font-size: 0.875rem;
+        line-height: 1.6;
+    }
+
+    /* Fallback styles for no image */
+    .course-image-fallback {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #4262FF, #6B8CFF);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .course-image-fallback span {
+        font-size: 2rem;
+        font-weight: bold;
+        color: white;
+        opacity: 0.85;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <!-- Breadcrumbs -->
+        {% with breadcrumbs=breadcrumbs %}
+            {% include 'components/breadcrumb.html' %}
+        {% endwith %}
+
+        <!-- Search Header -->
+        <div class="mb-8">
+            <h1 class="text-2xl font-bold text-gray-900 mb-2">Search Results: {{ query }}</h1>
+            <p class="text-gray-600">{{ results.total_results }} results found</p>
+        </div>
+
+        <!-- Results Section -->
+        {% if query %}
+            {% if results.courses %}
+                <div class="mb-8">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">Courses</h2>
+                    <div class="course-grid">
+                        {% for course in results.courses %}
+                            <div class="relative group">
+                                <a href="{% url 'courses:course_details' course.id %}" class="block hover:no-underline">
+                                    <div class="course-card">
+                                        <!-- Course Image -->
+                                        <div class="course-image">
+                                            {% if course.featured_image %}
+                                                <img src="{{ course.featured_image.url }}" 
+                                                     alt="{{ course.title }}" 
+                                                     class="w-full h-full object-cover"
+                                                     loading="lazy"
+                                                     onerror="this.onerror=null; this.src='{% static 'core/img/course-placeholder.png' %}';">
+                                            {% elif course.course_image and course.course_image.url %}
+                                                <img src="{{ course.course_image.url }}" 
+                                                     alt="{{ course.title }}" 
+                                                     class="w-full h-full object-cover"
+                                                     loading="lazy"
+                                                     onerror="this.onerror=null; this.src='{% static 'core/img/course-placeholder.png' %}';">
+                                            {% else %}
+                                                <div class="course-image-fallback">
+                                                    <span>{{ course.title|first|upper }}</span>
+                                                </div>
+                                            {% endif %}
+                                            <div class="course-category">
+                                                {{ course.category.name|default:"Technology" }}
+                                            </div>
+                                        </div>
+
+                                        <div class="course-content">
+                                            <!-- Course Title -->
+                                            <h3 class="text-base font-semibold text-gray-900 mb-2 course-title">
+                                                {{ course.title }}
+                                            </h3>
+
+                                            <!-- Course Meta -->
+                                            <div class="course-meta text-xs text-gray-500">
+                                                <span class="flex items-center">
+                                                    <i class="fas fa-user-graduate mr-2"></i>
+                                                    {% if course.instructor %}
+                                                        {{ course.instructor.get_full_name|default:course.instructor.username }}
+                                                    {% else %}
+                                                        No Instructor
+                                                    {% endif %}
+                                                </span>
+                                                <span class="flex items-center">
+                                                    <i class="fas fa-clock mr-2"></i>
+                                                    {{ course.duration|default:"8 weeks" }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+            
+            {% if results.users %}
+                <div class="mb-8">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">Users</h2>
+                    <div class="bg-white overflow-x-auto rounded-lg border border-gray-200">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Name
+                                    </th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Email
+                                    </th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Role
+                                    </th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Actions
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                {% for user_obj in results.users %}
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <div class="flex-shrink-0 h-10 w-10">
+                                                {% if user_obj.profile_picture %}
+                                                <img class="h-10 w-10 rounded-full" src="{{ user_obj.profile_picture.url }}" alt="">
+                                                {% else %}
+                                                <div class="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-600">
+                                                    {{ user_obj.first_name|slice:":1" }}{{ user_obj.last_name|slice:":1" }}
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                            <div class="ml-4">
+                                                <div class="text-sm font-medium text-gray-900">
+                                                    {{ user_obj.get_full_name }}
+                                                </div>
+                                                <div class="text-sm text-gray-500">
+                                                    {{ user_obj.username }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-900">{{ user_obj.email }}</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                            {{ user_obj.role|capfirst }}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <a href="{% url 'users:user_profile' user_obj.id %}" class="text-primary-600 hover:text-primary-900 mr-3">View</a>
+                                        {% if user.role in 'globaladmin,superadmin,admin' %}
+                                        <a href="{% url 'users:edit_user' user_obj.id %}" class="text-primary-600 hover:text-primary-900">Edit</a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            {% endif %}
+            
+            {% if not results.courses and not results.users %}
+                <div class="text-center py-16">
+                    <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">No results found</h3>
+                    <p class="text-gray-600">Try different keywords or browse the categories</p>
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="text-center py-16">
+                <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16l2.879-2.879m0 0a3 3 0 104.243-4.242 3 3 0 00-4.243 4.242zM21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">Start Your Search</h3>
+                <p class="text-gray-600">Enter keywords above to search for courses, users, and more</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %} 

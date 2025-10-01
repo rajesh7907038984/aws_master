@@ -1,0 +1,967 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Nexsy LMS</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="{% static 'css/styles.css' %}" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        /* Floating animations removed to prevent flickering */
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes scaleIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.05); }
+            100% { opacity: 0.6; transform: scale(1); }
+        }
+
+        /* Typing animation removed to prevent flickering */
+
+        body {
+            background: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            position: relative;
+            padding: 1rem 0.5rem;
+            box-sizing: border-box;
+        }
+
+        /* Floating geometric shapes - Disabled to prevent flickering */
+        .floating-shape {
+            display: none;
+        }
+
+        .login-container {
+            background: #ffffff;
+            border-radius: 1rem;
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.1),
+                0 4px 16px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+            max-width: 450px;
+            width: 100%;
+            max-height: calc(100vh - 2rem);
+            padding: 2.5rem;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow-x: hidden;
+            overflow-y: auto;
+            margin: auto;
+        }
+
+        /* Shimmer effect removed to prevent flickering */
+        
+        .login-container:hover {
+            box-shadow: 
+                0 10px 30px rgba(0, 0, 0, 0.12),
+                0 4px 16px rgba(0, 0, 0, 0.08);
+        }
+        
+        .logo-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            animation: fadeInUp 0.8s ease-out 0.2s both;
+        }
+        
+        .logo {
+            height: auto;
+            width: 180px;
+            object-fit: contain;
+            transition: transform 0.3s ease;
+        }
+
+        .logo:hover {
+            transform: scale(1.02);
+        }
+
+        .welcome-text {
+            animation: fadeInUp 0.8s ease-out 0.4s both;
+        }
+
+        .welcome-title {
+            animation: fadeInUp 0.8s ease-out 0.8s both;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+            animation: fadeInUp 0.6s ease-out both;
+        }
+
+        .form-group:nth-child(1) { animation-delay: 0.6s; }
+        .form-group:nth-child(2) { animation-delay: 0.8s; }
+        .form-group:nth-child(3) { animation-delay: 1s; }
+        .form-group:nth-child(4) { animation-delay: 1.2s; }
+        
+        .input-container {
+            position: relative;
+        }
+        
+        .input-icon {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #64748b;
+            transition: all 0.3s ease;
+        }
+
+        .input-container:hover .input-icon {
+            color: #3b82f6;
+        }
+        
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            padding: 0.75rem 1rem 0.75rem 2.5rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            color: #1f2937;
+            background: #ffffff;
+            transition: all 0.2s ease;
+        }
+        
+        input[type="text"]:focus,
+        input[type="password"]:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+            background: #ffffff;
+        }
+
+        input[type="text"]:focus + .input-icon,
+        input[type="password"]:focus + .input-icon {
+            color: #3b82f6;
+            transform: translateY(-50%);
+        }
+        
+        .login-btn {
+            background-color: #1c2260;
+            color: white;
+            padding: 0.875rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: none;
+            width: 100%;
+            position: relative;
+            box-shadow: 0 4px 12px rgba(28, 34, 96, 0.3);
+            overflow: hidden;
+        }
+
+        .login-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .login-btn:hover::before {
+            left: 100%;
+        }
+        
+        .login-btn:hover {
+            background-color: #181f56;
+            box-shadow: 0 6px 20px rgba(28, 34, 96, 0.3);
+        }
+
+        .login-btn:active {
+            transform: scale(0.98);
+        }
+        
+        .login-btn i {
+            margin-right: 0.5rem;
+            transition: transform 0.3s ease;
+        }
+
+        .login-btn:hover i {
+            transform: translateX(1px);
+        }
+        
+        .error-message {
+            background: linear-gradient(135deg, #fee2e2, #fecaca);
+            border: 1px solid #fca5a5;
+            color: #b91c1c;
+            padding: 0.875rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1.5rem;
+            animation: fadeInUp 0.5s ease-out;
+        }
+        
+        .success-message {
+            background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+            border: 1px solid #86efac;
+            color: #15803d;
+            padding: 0.875rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1.5rem;
+            animation: fadeInUp 0.5s ease-out;
+        }
+        
+        .info-message {
+            background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+            border: 1px solid #93c5fd;
+            color: #1d4ed8;
+            padding: 0.875rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1.5rem;
+            animation: fadeInUp 0.5s ease-out;
+        }
+        
+        .warning-message {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            border: 1px solid #fcd34d;
+            color: #92400e;
+            padding: 0.875rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1.5rem;
+            animation: fadeInUp 0.5s ease-out;
+        }
+
+        .links-section {
+            animation: fadeInUp 0.8s ease-out 1.4s both;
+        }
+
+        /* Particle effect removed to prevent flickering */
+
+        /* Security Warning Styles */
+        .security-warning {
+            border-radius: 0.5rem;
+            padding: 0.875rem 1rem;
+            margin-bottom: 1.5rem;
+            border-left: 4px solid;
+            animation: fadeInUp 0.5s ease-out;
+        }
+
+        .security-warning.low {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            border-left-color: #f59e0b;
+            color: #92400e;
+        }
+
+        .security-warning.medium {
+            background: linear-gradient(135deg, #fed7aa, #fdba74);
+            border-left-color: #ea580c;
+            color: #9a3412;
+        }
+
+        .security-warning.high {
+            background: linear-gradient(135deg, #fecaca, #fca5a5);
+            border-left-color: #dc2626;
+            color: #991b1b;
+        }
+
+        .security-warning.blocked {
+            background: linear-gradient(135deg, #fee2e2, #fecaca);
+            border-left-color: #b91c1c;
+            color: #7f1d1d;
+        }
+
+        .security-warning.rate-limited {
+            background: linear-gradient(135deg, #fefce8, #fef3c7);
+            border-left-color: #d97706;
+            color: #92400e;
+        }
+
+        .security-warning i {
+            margin-right: 0.5rem;
+            font-size: 1.1em;
+        }
+
+        .countdown-timer {
+            font-weight: 600;
+            font-family: 'Courier New', monospace;
+            color: #b91c1c;
+            display: inline-block;
+            min-width: 60px;
+        }
+
+        .countdown-timer-large {
+            font-family: 'Courier New', monospace;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .countdown-display {
+            background: rgba(185, 28, 28, 0.1);
+            border-radius: 0.375rem;
+            padding: 0.25rem 0.5rem;
+        }
+
+        .security-warning.blocked .countdown-timer-large {
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Pulse animation for countdown */
+        @keyframes countdownPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .animate-pulse {
+            animation: countdownPulse 1s infinite;
+        }
+
+        /* Terms acceptance checkbox styling */
+        .terms-acceptance-container {
+            background: rgba(249, 250, 251, 0.5);
+            border: 1px solid rgba(229, 231, 235, 0.8);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin: 1.5rem 0;
+            transition: all 0.3s ease;
+        }
+
+        .terms-acceptance-container:hover {
+            background: rgba(249, 250, 251, 0.8);
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+
+        .terms-checkbox {
+            width: 1.1rem;
+            height: 1.1rem;
+            accent-color: #1c2260;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .terms-checkbox:focus {
+            outline: 2px solid rgba(28, 34, 96, 0.3);
+            outline-offset: 2px;
+        }
+
+        .terms-label {
+            color: #4b5563;
+            font-size: 0.875rem;
+            line-height: 1.4;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .terms-link {
+            color: #1c2260;
+            text-decoration: underline;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+
+        .terms-link:hover {
+            color: #181f56;
+            text-decoration: none;
+        }
+
+        .checkbox-error {
+            border-color: #ef4444;
+            background: rgba(254, 242, 242, 0.8);
+        }
+
+        .checkbox-error .terms-label {
+            color: #dc2626;
+        }
+
+        /* Shake animation for validation errors */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+
+        .security-info {
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+            opacity: 0.9;
+        }
+
+        .attempts-remaining {
+            background: rgba(0, 0, 0, 0.1);
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+
+        .security-tips {
+            background: linear-gradient(135deg, #e0f2fe, #b3e5fc);
+            border: 1px solid #4fc3f7;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            color: #01579b;
+            animation: fadeInUp 0.6s ease-out 0.3s both;
+        }
+
+        .security-tips h4 {
+            margin: 0 0 0.5rem 0;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+        }
+
+        .security-tips ul {
+            margin: 0;
+            padding-left: 1.2rem;
+            font-size: 0.875rem;
+        }
+
+        .security-tips li {
+            margin-bottom: 0.25rem;
+        }
+
+        /* Responsive design for better mobile experience */
+        @media (max-width: 768px) {
+            body {
+                padding: 0.5rem;
+                align-items: flex-start;
+            }
+            
+            .login-container {
+                padding: 1.5rem;
+                margin-top: 1rem;
+                max-height: calc(100vh - 1rem);
+                min-height: auto;
+            }
+            
+            .logo {
+                width: 140px;
+            }
+            
+            .welcome-title {
+                font-size: 1.5rem;
+            }
+        }
+
+        @media (max-height: 600px) {
+            body {
+                align-items: flex-start;
+                padding: 0.5rem;
+            }
+            
+            .login-container {
+                margin-top: 0.5rem;
+                padding: 1.5rem;
+            }
+            
+            .logo-container {
+                margin-bottom: 1rem;
+            }
+            
+            .welcome-text {
+                margin-bottom: 1rem;
+            }
+        }
+
+        /* Ensure floating shapes don't interfere with scrolling */
+        .floating-shape {
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* Custom scrollbar for login container */
+        .login-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .login-container::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 3px;
+        }
+
+        .login-container::-webkit-scrollbar-thumb {
+            background: rgba(59, 130, 246, 0.3);
+            border-radius: 3px;
+        }
+
+        .login-container::-webkit-scrollbar-thumb:hover {
+            background: rgba(59, 130, 246, 0.5);
+        }
+
+        /* Account blocked styling - keep white background */
+        body.account-blocked {
+            background: #ffffff;
+        }
+
+        body.account-blocked .floating-shape {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Floating shapes removed to prevent flickering -->
+
+    <div class="login-container">
+        <div class="logo-container">
+            <img src="{% static 'core/img/logo-light.png' %}" alt="Nexsy LMS Logo" class="logo">
+        </div>
+        
+        <div class="text-center mb-6 welcome-text">
+            <h1 class="text-2xl font-bold text-gray-900 mb-2 welcome-title">Welcome Back</h1>
+            <p class="text-gray-600">Sign in to continue your learning journey</p>
+        </div>
+
+        <!-- Security Status Warnings -->
+        {% if security_status.rate_limited %}
+        <div class="security-warning rate-limited" id="security-warning">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <i class="fas fa-hourglass-half"></i>
+                    <strong>Rate Limit Exceeded</strong>
+                </div>
+                <div class="countdown-display">
+                    <span class="countdown-timer text-lg font-bold" id="countdown">{{ security_status.rate_remaining_time }}</span>
+                </div>
+            </div>
+            <div class="security-info mt-2">
+                Too many authentication attempts ({{ security_status.rate_current_count }}/{{ security_status.rate_max_count }} 
+                {% if security_status.rate_limit_type == 'minute' %}per minute{% else %}per hour{% endif %}).
+                <div class="mt-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                    <div class="flex items-center justify-between">
+                        <div class="text-sm">
+                            <i class="fas fa-clock mr-2"></i>
+                            <strong>Please wait:</strong>
+                        </div>
+                        <div class="text-right">
+                            <div class="countdown-timer-large text-2xl font-mono font-bold text-yellow-700" id="countdown-display">
+                                <span id="minutes">00</span>:<span id="seconds">00</span>
+                            </div>
+                            <div class="text-xs text-gray-600 mt-1">Minutes : Seconds</div>
+                        </div>
+                    </div>
+                    <div class="mt-2 text-xs text-gray-600">
+                        The page will automatically refresh when the rate limit resets
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% elif security_status.warning_level == 'blocked' %}
+        <div class="security-warning blocked" id="security-warning">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <i class="fas fa-lock"></i>
+                    <strong>Account Temporarily Locked</strong>
+                </div>
+                <div class="countdown-display">
+                    <span class="countdown-timer text-lg font-bold" id="countdown">{{ security_status.remaining_time }}</span>
+                </div>
+            </div>
+            <div class="security-info mt-2">
+                Your IP address has been temporarily blocked due to {{ security_status.max_attempts }} failed login attempts.
+                <div class="mt-3 p-3 bg-red-50 rounded-lg border border-red-200">
+                    <div class="flex items-center justify-between">
+                        <div class="text-sm">
+                            <i class="fas fa-clock mr-2"></i>
+                            <strong>Release countdown:</strong>
+                        </div>
+                        <div class="text-right">
+                            <div class="countdown-timer-large text-2xl font-mono font-bold text-red-700" id="countdown-display">
+                                <span id="minutes">00</span>:<span id="seconds">00</span>
+                            </div>
+                            <div class="text-xs text-gray-600 mt-1">Minutes : Seconds</div>
+                        </div>
+                    </div>
+                    <div class="mt-2 text-xs text-gray-600">
+                        The page will automatically refresh when the lockout expires
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% elif security_status.warning_level == 'high' %}
+        <div class="security-warning high" id="security-warning">
+            <div class="flex items-center">
+                <i class="fas fa-exclamation-triangle"></i>
+                <strong>Security Warning - Final Attempt</strong>
+                <span class="attempts-remaining">{{ security_status.remaining_attempts }} attempt left</span>
+            </div>
+            <div class="security-info">
+                One more failed login attempt will temporarily lock your account for {{ security_status.lockout_minutes }} minutes.
+            </div>
+        </div>
+        {% elif security_status.warning_level == 'medium' %}
+        <div class="security-warning medium" id="security-warning">
+            <div class="flex items-center">
+                <i class="fas fa-exclamation-circle"></i>
+                <strong>Security Alert</strong>
+                <span class="attempts-remaining">{{ security_status.remaining_attempts }} attempts left</span>
+            </div>
+            <div class="security-info">
+                Multiple failed login attempts detected. Please verify your credentials carefully.
+            </div>
+        </div>
+        {% elif security_status.warning_level == 'low' %}
+        <div class="security-warning low" id="security-warning">
+            <div class="flex items-center">
+                <i class="fas fa-info-circle"></i>
+                <strong>Login Notice</strong>
+                <span class="attempts-remaining">{{ security_status.remaining_attempts }} attempts remaining</span>
+            </div>
+            <div class="security-info">
+                Previous login attempt was unsuccessful. Please check your username and password.
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Security Tips (show when there are failed attempts) -->
+        {% if security_status.failure_count > 0 and security_status.warning_level != 'blocked' %}
+        <div class="security-tips">
+            <h4>
+                <i class="fas fa-shield-alt mr-2"></i>
+                Account Security Tips
+            </h4>
+            <ul>
+                <li>Ensure your username is correct (case-sensitive)</li>
+                <li>Check that Caps Lock is not enabled</li>
+                <li>Verify your password is entered accurately</li>
+                <li>Contact support if you've forgotten your credentials</li>
+            </ul>
+        </div>
+        {% endif %}
+        
+        <!-- Django Messages -->
+        {% if messages %}
+            {% for message in messages %}
+                <div class="error-message {% if message.tags == 'success' %}success-message{% elif message.tags == 'info' %}info-message{% elif message.tags == 'warning' %}warning-message{% endif %}">
+                    <div class="flex items-center">
+                        <i class="fas {% if message.tags == 'error' %}fa-exclamation-circle{% elif message.tags == 'success' %}fa-check-circle{% elif message.tags == 'info' %}fa-info-circle{% elif message.tags == 'warning' %}fa-exclamation-triangle{% else %}fa-exclamation-circle{% endif %} mr-2"></i>
+                        {{ message }}
+                    </div>
+                </div>
+            {% endfor %}
+        {% endif %}
+        
+        {% if form.errors %}
+        <div class="error-message">
+            <p>Your username and password didn't match. Please try again.</p>
+        </div>
+        {% endif %}
+        
+        <form method="POST" class="space-y-6">
+            {% csrf_token %}
+            {% if next %}
+            <input type="hidden" name="next" value="{{ next }}">
+            {% endif %}
+            
+            <div class="form-group">
+                <label for="username" class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                <div class="input-container">
+                    <div class="input-icon">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <input type="text" name="username" id="username" required 
+                           placeholder="Enter your username">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <div class="input-container">
+                    <div class="input-icon">
+                        <i class="fas fa-lock"></i>
+                    </div>
+                    <input type="password" name="password" id="password" required 
+                           placeholder="Enter your password">
+                </div>
+            </div>
+
+            <!-- Terms and Privacy Acceptance -->
+            <div class="form-group">
+                <div class="terms-acceptance-container" id="terms-container">
+                    <div class="flex items-start space-x-3">
+                        <div class="flex items-center">
+                            <input id="terms-acceptance" name="terms_acceptance" type="checkbox" required 
+                                   class="terms-checkbox">
+                        </div>
+                        <div class="flex-1">
+                            <label for="terms-acceptance" class="terms-label">
+                                I agree to the 
+                                <a href="{% url 'core:terms_of_service' %}" target="_blank" class="terms-link">Terms of Service</a>
+                                and 
+                                <a href="{% url 'core:privacy_policy' %}" target="_blank" class="terms-link">Privacy Policy</a>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <button type="submit" class="login-btn">
+                    <i class="fas fa-sign-in-alt"></i>
+                    Sign In
+                </button>
+            </div>
+            
+            <!-- Password Reminder Section - Enhanced -->
+            <div class="text-center text-sm space-y-3 links-section">
+                <div class="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                    <p class="text-gray-600 mb-2">
+                        <i class="fas fa-lightbulb text-yellow-500 mr-1"></i>
+                        Having trouble signing in?
+                    </p>
+                    <div class="space-y-2">
+                        <a href="{% url 'forgot_password' %}" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors duration-200">
+                            <i class="fas fa-key mr-2"></i>
+                            Reset Your Password
+                        </a>
+                        <p class="text-xs text-gray-500 mt-2">
+                            We'll send you instructions to reset your password via email
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center mt-4 links-section">
+                <a href="/" class="text-sm text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-arrow-left mr-1"></i> Back to Home
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        // Particle effect disabled to prevent flickering
+
+        // Enhanced countdown timer for blocked accounts
+        function initCountdownTimer() {
+            const countdownElement = document.getElementById('countdown');
+            const minutesElement = document.getElementById('minutes');
+            const secondsElement = document.getElementById('seconds');
+            const countdownDisplayElement = document.getElementById('countdown-display');
+            
+            if (!countdownElement) return;
+            
+            let timeRemaining = parseInt(countdownElement.textContent);
+            
+            // Update the large countdown display
+            function updateCountdownDisplay() {
+                const minutes = Math.floor(timeRemaining / 60);
+                const seconds = timeRemaining % 60;
+                
+                if (minutesElement && secondsElement) {
+                    minutesElement.textContent = minutes.toString().padStart(2, '0');
+                    secondsElement.textContent = seconds.toString().padStart(2, '0');
+                }
+                
+                // Update original countdown as well for compatibility
+                countdownElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                
+                // Add visual feedback as time gets lower
+                if (countdownDisplayElement) {
+                    if (timeRemaining <= 60) {
+                        countdownDisplayElement.classList.add('animate-pulse');
+                        countdownDisplayElement.style.color = '#dc2626'; // red-600
+                    } else if (timeRemaining <= 300) { // 5 minutes
+                        countdownDisplayElement.style.color = '#ea580c'; // orange-600
+                    }
+                }
+            }
+            
+            // Initial update
+            updateCountdownDisplay();
+            
+            const timer = setInterval(() => {
+                timeRemaining--;
+                
+                if (timeRemaining <= 0) {
+                    clearInterval(timer);
+                    
+                    // Show reload message
+                    if (countdownDisplayElement) {
+                        countdownDisplayElement.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i>';
+                        const infoDiv = countdownDisplayElement.closest('.security-warning').querySelector('.security-info .text-xs');
+                        if (infoDiv) {
+                            infoDiv.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Refreshing page...';
+                        }
+                    }
+                    
+                    // Reload page after a brief delay
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    updateCountdownDisplay();
+                }
+            }, 1000);
+        }
+
+        // Enhanced input focus animations with security feedback
+        document.addEventListener('DOMContentLoaded', function() {
+            const inputs = document.querySelectorAll('input[type="text"], input[type="password"]');
+            const form = document.querySelector('form');
+            const submitButton = document.querySelector('.login-btn');
+            
+            // Initialize countdown timer if present
+            initCountdownTimer();
+            
+            // Disable form if account is blocked or rate limited
+            const securityWarning = document.getElementById('security-warning');
+            if (securityWarning && (securityWarning.classList.contains('blocked') || securityWarning.classList.contains('rate-limited'))) {
+                inputs.forEach(input => input.disabled = true);
+                submitButton.disabled = true;
+                submitButton.style.opacity = '0.5';
+                submitButton.style.cursor = 'not-allowed';
+                
+                // Add blocked class to body to stop background animation
+                document.body.classList.add('account-blocked');
+            }
+            
+            inputs.forEach(input => {
+                input.addEventListener('focus', function() {
+                    this.previousElementSibling.style.color = '#3b82f6';
+                });
+                
+                input.addEventListener('blur', function() {
+                    if (!this.value) {
+                        this.previousElementSibling.style.color = '#64748b';
+                    }
+                });
+
+                // Add input validation feedback
+                input.addEventListener('input', function() {
+                    if (this.value.length > 0) {
+                        this.style.borderColor = '#10b981';
+                        this.previousElementSibling.style.color = '#10b981';
+                    } else {
+                        this.style.borderColor = '#e5e7eb';
+                        this.previousElementSibling.style.color = '#64748b';
+                    }
+                });
+            });
+
+            // Terms acceptance validation
+            const termsCheckbox = document.getElementById('terms-acceptance');
+            const termsContainer = document.getElementById('terms-container');
+            
+            if (termsCheckbox && termsContainer) {
+                // Remove error state when checkbox is checked
+                termsCheckbox.addEventListener('change', function() {
+                    if (this.checked) {
+                        termsContainer.classList.remove('checkbox-error');
+                    }
+                });
+                
+                // Add visual feedback when clicking on container
+                termsContainer.addEventListener('click', function(e) {
+                    if (e.target !== termsCheckbox && !e.target.closest('a')) {
+                        termsCheckbox.checked = !termsCheckbox.checked;
+                        termsCheckbox.dispatchEvent(new Event('change'));
+                    }
+                });
+            }
+
+            // Enhanced form submission with security awareness
+            form.addEventListener('submit', function(e) {
+                if (submitButton.disabled) {
+                    e.preventDefault();
+                    return false;
+                }
+
+                // Validate terms acceptance
+                if (termsCheckbox && !termsCheckbox.checked) {
+                    e.preventDefault();
+                    termsContainer.classList.add('checkbox-error');
+                    
+                    // Add shake animation
+                    termsContainer.style.animation = 'shake 0.5s ease-in-out';
+                    setTimeout(() => {
+                        termsContainer.style.animation = '';
+                    }, 500);
+                    
+                    // Show error message
+                    const existingError = document.querySelector('.terms-error-message');
+                    if (!existingError) {
+                        const errorMsg = document.createElement('div');
+                        errorMsg.className = 'terms-error-message text-sm text-red-600 mt-2';
+                        errorMsg.innerHTML = '<i class="fas fa-exclamation-triangle mr-1"></i>You must agree to the Terms of Service and Privacy Policy to log in.';
+                        termsContainer.appendChild(errorMsg);
+                        
+                        // Remove error message after 5 seconds
+                        setTimeout(() => {
+                            if (errorMsg.parentNode) {
+                                errorMsg.remove();
+                            }
+                        }, 5000);
+                    }
+                    
+                    return false;
+                }
+
+                // Show loading state
+                submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Verifying...';
+                submitButton.disabled = true;
+                
+                // Re-enable after 3 seconds in case of issues
+                setTimeout(() => {
+                    if (submitButton.disabled) {
+                        submitButton.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In';
+                        submitButton.disabled = false;
+                    }
+                }, 3000);
+            });
+
+            // Add caps lock detection
+            inputs.forEach(input => {
+                input.addEventListener('keypress', function(e) {
+                    const char = String.fromCharCode(e.keyCode);
+                    const shift = e.shiftKey;
+                    const capsLock = char.toUpperCase() === char && char.toLowerCase() !== char && !shift;
+                    
+                    if (capsLock && this.type === 'password') {
+                        // Show caps lock warning
+                        let warning = document.getElementById('caps-warning');
+                        if (!warning) {
+                            warning = document.createElement('div');
+                            warning.id = 'caps-warning';
+                            warning.className = 'text-sm text-orange-600 mt-1';
+                            warning.innerHTML = '<i class="fas fa-exclamation-triangle mr-1"></i>Caps Lock is on';
+                            this.parentNode.appendChild(warning);
+                        }
+                    } else {
+                        // Remove caps lock warning
+                        const warning = document.getElementById('caps-warning');
+                        if (warning) {
+                            warning.remove();
+                        }
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
+

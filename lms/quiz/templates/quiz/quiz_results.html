@@ -1,0 +1,911 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load assessment_filters %}
+{% load quiz_filters %}
+
+{% block title %}{{ quiz.title }} - Results{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Global styles for all pages */
+    body {
+        background-color: #ffffff !important;
+    }
+    
+    .main-content {
+        background-color: #ffffff !important;
+    }
+    
+    main.flex-1.bg-white {
+        background-color: #ffffff !important;
+    }
+    
+    /* Section box styles */
+    .section-box {
+        border-radius: 8px;
+        box-shadow: 0px 0px 17px -5px rgba(0,0,0,0.4);
+        background-color: white;
+        transition: transform 0.2s ease-in-out;
+        padding: 1.5rem !important; /* Default consistent padding for all sections */
+    }
+    
+    .section-box:hover {
+        transform: translateY(-2px);
+    }
+    
+    /* Remove special padding variants - use consistent padding */
+    .section-box.overview {
+        /* Use default padding */
+    }
+    
+    .section-box.activity {
+        /* Use default padding */
+    }
+
+    .quiz-results-header {
+        background: linear-gradient(135deg, #191f56 0%, #141a4a 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+    }
+
+    .attempt-history-card {
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        overflow: hidden;
+    }
+
+    .attempt-history-card:hover {
+        border-color: #191f56;
+        box-shadow: 0 4px 12px rgba(25, 31, 86, 0.15);
+        transform: translateY(-2px);
+    }
+
+    .attempt-badge {
+        background: linear-gradient(135deg, #191f56, #141a4a);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .score-display {
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+
+    .view-button {
+        background: linear-gradient(135deg, #191f56, #141a4a);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .view-button:hover {
+        background: linear-gradient(135deg, #141a4a, #0f1340);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(25, 31, 86, 0.3);
+    }
+
+    .status-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-passed {
+        background-color: #d1fae5;
+        color: #065f46;
+    }
+
+    .status-failed {
+        background-color: #fee2e2;
+        color: #991b1b;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6 text-black">
+    <!-- Breadcrumbs -->
+    {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+    
+    <!-- Quiz Header -->
+    <div class="quiz-results-header">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <h1 class="text-3xl font-bold mb-2">{{ quiz.title }}</h1>
+                {% if viewing_individual_attempt %}
+                    <p class="text-lg opacity-90">
+                        <i class="fas fa-eye mr-2"></i>
+                        Viewing Attempt #{{ attempt_number }} of {{ total_attempts }}
+                    </p>
+                    <div class="text-sm opacity-75 mt-1">
+                        <i class="far fa-calendar-alt mr-1"></i>
+                        Submitted: {{ latest_attempt.end_time|date:"M d, Y g:i A" }}
+                    </div>
+                {% else %}
+                    <p class="text-lg opacity-90">Quiz Results & Attempt History</p>
+                {% endif %}
+            </div>
+            {% if latest_attempt %}
+            <div class="flex flex-col items-end">
+                {% if quiz.is_vak_test %}
+                    <div class="text-lg font-bold text-center">
+                                        <div class="text-blue-600">VAK Test</div>
+                        <div class="text-sm opacity-90">Learning Style Assessment</div>
+                    </div>
+                {% else %}
+                    <div class="text-3xl font-bold">
+                        {{ latest_attempt.score|floatformat:1 }}%
+                    </div>
+                    <div class="text-sm opacity-90">
+                        {% if viewing_individual_attempt %}
+                            This Attempt (Passing: {{ quiz.passing_score }}%)
+                        {% else %}
+                            Latest Score (Passing: {{ quiz.passing_score }}%)
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- VAK Learning Style Results Section -->
+    {% if quiz.is_vak_test and not quiz.is_initial_assessment and vak_results and latest_attempt %}
+        <div class="section-box mb-8">
+            <div class="flex items-center mb-6">
+                <div class="bg-blue-100 rounded-full p-3 mr-4">
+                    <i class="fas fa-brain text-blue-600 text-xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">Learning Style Results</h2>
+                    <p class="text-gray-600">Your VAK learning style assessment results</p>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="text-center p-6 bg-blue-50 rounded-lg border-2 border-blue-200">
+                    <div class="text-4xl font-bold text-blue-600 mb-2">
+                        {{ vak_results.visual.percentage }}%
+                    </div>
+                    <div class="text-lg font-semibold text-blue-800 mb-1">Visual</div>
+                    <div class="text-sm text-gray-600">{{ vak_results.visual.count }} of {{ vak_results.visual.total }} selections</div>
+                    <div class="text-xs text-gray-500 mt-2">Learning through seeing</div>
+                </div>
+                <div class="text-center p-6 bg-green-50 rounded-lg border-2 border-green-200">
+                    <div class="text-4xl font-bold text-green-600 mb-2">
+                        {{ vak_results.auditory.percentage }}%
+                    </div>
+                    <div class="text-lg font-semibold text-green-800 mb-1">Auditory</div>
+                    <div class="text-sm text-gray-600">{{ vak_results.auditory.count }} of {{ vak_results.auditory.total }} selections</div>
+                    <div class="text-xs text-gray-500 mt-2">Learning through hearing</div>
+                </div>
+                <div class="text-center p-6 bg-yellow-50 rounded-lg border-2 border-yellow-200">
+                    <div class="text-4xl font-bold text-yellow-600 mb-2">
+                        {{ vak_results.kinesthetic.percentage }}%
+                    </div>
+                    <div class="text-lg font-semibold text-yellow-800 mb-1">Kinesthetic</div>
+                    <div class="text-sm text-gray-600">{{ vak_results.kinesthetic.count }} of {{ vak_results.kinesthetic.total }} selections</div>
+                    <div class="text-xs text-gray-500 mt-2">Learning through doing</div>
+                </div>
+            </div>
+            
+            <!-- Dominant Learning Style -->
+            <div class="p-6 bg-gray-50 rounded-lg border">
+                <h3 class="text-lg font-semibold text-gray-800 mb-3">
+                    <i class="fas fa-star text-yellow-500 mr-2"></i>
+                    Your Learning Style Profile
+                </h3>
+                {% if vak_results.visual.percentage >= vak_results.auditory.percentage and vak_results.visual.percentage >= vak_results.kinesthetic.percentage %}
+                    <p class="text-blue-700 font-medium">You are primarily a <strong>Visual learner</strong>. You learn best through seeing and visual materials such as diagrams, charts, and written instructions.</p>
+                {% elif vak_results.auditory.percentage >= vak_results.visual.percentage and vak_results.auditory.percentage >= vak_results.kinesthetic.percentage %}
+                    <p class="text-green-700 font-medium">You are primarily an <strong>Auditory learner</strong>. You learn best through hearing and listening to lectures, discussions, and audio materials.</p>
+                {% else %}
+                    <p class="text-yellow-700 font-medium">You are primarily a <strong>Kinesthetic learner</strong>. You learn best through hands-on activities, movement, and practical experiences.</p>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Initial Assessment Classification Results Section -->
+    {% if quiz.is_initial_assessment and latest_attempt %}
+        {% with classification_data=latest_attempt|get_assessment_classification %}
+        {% if classification_data %}
+        <div class="section-box mb-8">
+            <div class="flex items-center mb-6">
+                <div class="bg-blue-100 rounded-full p-3 mr-4">
+                    <i class="fas fa-chart-line text-blue-600 text-xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">Assessment Classification Results</h2>
+                    <p class="text-gray-600">Your initial assessment level classification</p>
+                </div>
+            </div>
+            
+            <!-- Overall Classification -->
+            <div class="text-center mb-8 p-6 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border-2 border-blue-200">
+                <div class="text-5xl font-bold mb-4 
+                    {% if classification_data.classification == 'Level 2' %}text-green-600
+                    {% elif classification_data.classification == 'Level 1' %}text-yellow-600
+                    {% else %}text-red-600{% endif %}">
+                    {{ classification_data.classification }}
+                </div>
+                <div class="text-lg font-semibold text-gray-700">Assessment Level Classification</div>
+                <div class="text-sm text-gray-600 mt-2">Based on your performance across different question levels</div>
+            </div>
+            
+            <!-- Detailed Level Breakdown -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                <div class="text-center p-6 bg-green-50 rounded-lg border-2 border-green-200">
+                    <div class="text-4xl font-bold text-green-600 mb-2">
+                        {{ classification_data.L2_Percentage|floatformat:1 }}%
+                    </div>
+                    <div class="text-lg font-semibold text-green-800 mb-1">Level 2</div>
+                    <div class="text-sm text-gray-600">Advanced Questions</div>
+                    {% if classification_data.thresholds %}
+                    <div class="text-xs text-gray-500 mt-2">Target: ≥{{ classification_data.thresholds.level2_threshold }}%</div>
+                    {% endif %}
+                </div>
+                <div class="text-center p-6 bg-yellow-50 rounded-lg border-2 border-yellow-200">
+                    <div class="text-4xl font-bold text-yellow-600 mb-2">
+                        {{ classification_data.L1_Percentage|floatformat:1 }}%
+                    </div>
+                    <div class="text-lg font-semibold text-yellow-800 mb-1">Level 1</div>
+                    <div class="text-sm text-gray-600">Intermediate Questions</div>
+                    {% if classification_data.thresholds %}
+                    <div class="text-xs text-gray-500 mt-2">Target: ≥{{ classification_data.thresholds.level1_threshold }}%</div>
+                    {% endif %}
+                </div>
+                <div class="text-center p-6 bg-red-50 rounded-lg border-2 border-red-200">
+                    <div class="text-4xl font-bold text-red-600 mb-2">
+                        {{ classification_data.Below_Level1_Percentage|floatformat:1 }}%
+                    </div>
+                    <div class="text-lg font-semibold text-red-800 mb-1">Below Level 1</div>
+                    <div class="text-sm text-gray-600">Foundation Questions</div>
+                    {% if classification_data.thresholds %}
+                    <div class="text-xs text-gray-500 mt-2">Target: ≥{{ classification_data.thresholds.below_level1_threshold }}%</div>
+                    {% endif %}
+                </div>
+                <div class="text-center p-6 bg-blue-50 rounded-lg border-2 border-blue-200">
+                    <div class="text-4xl font-bold text-blue-600 mb-2">
+                        {{ classification_data.Total_Percentage|floatformat:1 }}%
+                    </div>
+                    <div class="text-lg font-semibold text-blue-800 mb-1">Overall Score</div>
+                    <div class="text-sm text-gray-600">Total Performance</div>
+                    {% if classification_data.thresholds %}
+                    <div class="text-xs text-gray-500 mt-2">Target: ≥{{ classification_data.thresholds.total_threshold }}%</div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Classification Explanation -->
+            <div class="p-6 bg-gray-50 rounded-lg border">
+                <h3 class="text-lg font-semibold text-gray-800 mb-3">
+                    <i class="fas fa-info-circle text-blue-500 mr-2"></i>
+                    What This Means
+                </h3>
+                {% if classification_data.classification == 'Level 2' %}
+                    <p class="text-green-700 font-medium mb-3">Excellent! You have demonstrated <strong>Level 2</strong> competency in this assessment.</p>
+                    <p class="text-gray-600">This indicates you have a strong understanding of advanced concepts and are ready for higher-level learning activities.</p>
+                {% elif classification_data.classification == 'Level 1' %}
+                    <p class="text-yellow-700 font-medium mb-3">Good progress! You have achieved <strong>Level 1</strong> competency in this assessment.</p>
+                    <p class="text-gray-600">This shows you have a solid grasp of intermediate concepts. You may benefit from additional support in advanced areas.</p>
+                {% else %}
+                    <p class="text-red-700 font-medium mb-3">You are currently at <strong>Below Level 1</strong> in this assessment.</p>
+                    <p class="text-gray-600">This indicates that foundational support may be helpful to build your skills in this area. Your instructor can provide guidance on next steps.</p>
+                {% endif %}
+                
+                {% if classification_data.thresholds %}
+                <div class="mt-4 text-sm text-gray-600 bg-white p-3 rounded-md border border-gray-200">
+                    <p class="font-medium mb-2">Classification Criteria:</p>
+                    <ul class="space-y-1 text-xs">
+                        <li><strong>Level 2:</strong> L2 ≥ {{ classification_data.thresholds.level2_threshold }}%, Total ≥ {{ classification_data.thresholds.total_threshold }}%, L1 ≥ {{ classification_data.thresholds.level1_threshold }}%</li>
+                        <li><strong>Level 1:</strong> L1 ≥ {{ classification_data.thresholds.level1_threshold }}%, L2 &lt; {{ classification_data.thresholds.level2_threshold }}%, Below L1 ≥ {{ classification_data.thresholds.below_level1_threshold }}%</li>
+                        <li><strong>Below Level 1:</strong> L1 &lt; {{ classification_data.thresholds.level1_threshold }}% OR Below L1 &lt; {{ classification_data.thresholds.below_level1_threshold }}%</li>
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        {% endwith %}
+    {% endif %}
+
+    <!-- Attempt History Section - Moved to top for learners -->
+    {% if past_attempts and not viewing_individual_attempt %}
+        <div class="section-box mb-8">
+            <div class="flex items-center mb-6">
+                <div class="bg-blue-100 rounded-full p-3 mr-4">
+                    <i class="fas fa-history text-blue-600 text-xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">Your Attempt History</h2>
+                    <p class="text-gray-600">View detailed results for each of your quiz attempts</p>
+                </div>
+            </div>
+            
+            <div class="grid gap-4">
+                {% for attempt in past_attempts %}
+                    <div class="attempt-history-card">
+                        <div class="p-6">
+                            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                                <!-- Attempt Info -->
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <span class="attempt-badge">
+                                            Attempt #{{ forloop.counter }}
+                                        </span>
+                                        {% if attempt == latest_attempt %}
+                                            <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-medium">
+                                                Latest
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="text-gray-600 text-sm mb-1">
+                                        <i class="far fa-calendar-alt mr-2"></i>
+                                        {{ attempt.end_time|date:"M d, Y g:i A" }}
+                                    </div>
+                                    <div class="text-gray-600 text-sm">
+                                        <i class="far fa-clock mr-2"></i>
+                                        Duration: 
+                                        {% if attempt.end_time %}
+                                            {{ attempt.duration_formatted }}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </div>
+                                    <div class="text-gray-600 text-sm">
+                                        <i class="fas fa-eye mr-2"></i>
+                                        Active Time: {{ attempt.active_time_formatted }}
+                                    </div>
+                                </div>
+
+                                <!-- Score Display -->
+                                <div class="text-center">
+                                    {% if quiz.is_vak_test %}
+                                        <!-- Assessment types don't show pass/fail -->
+                                        <div class="score-display" style="color: #1e40af;">
+                                            {{ attempt.score|floatformat:1 }}%
+                                        </div>
+                                        <div class="mt-1">
+                                            <span class="status-badge" style="background-color: #dbeafe; color: #1e40af; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase;">
+                                                <i class="fas fa-chart-bar mr-1"></i>
+                                                {% if quiz.is_initial_assessment %}Assessment{% else %}VAK Test{% endif %}
+                                            </span>
+                                        </div>
+                                    {% else %}
+                                        <!-- Regular quizzes show pass/fail -->
+                                        <div class="score-display {% if attempt.score >= quiz.passing_score %}text-green-600{% else %}text-red-600{% endif %}">
+                                            {{ attempt.score|floatformat:1 }}%
+                                        </div>
+                                        <div class="mt-1">
+                                            {% if attempt.score >= quiz.passing_score %}
+                                                <span class="status-badge status-passed">
+                                                    <i class="fas fa-check-circle mr-1"></i>Passed
+                                                </span>
+                                            {% else %}
+                                                <span class="status-badge status-failed">
+                                                    <i class="fas fa-times-circle mr-1"></i>Failed
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Action Button -->
+                                <div>
+                                    <a href="{% url 'quiz:view_attempt' attempt.id %}" 
+                                       class="view-button">
+                                        <i class="fas fa-eye"></i>
+                                        View Details
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+    {% if not latest_attempt %}
+        <!-- Show message when no attempt is available -->
+        <div class="section-box mb-8">
+            <div class="text-center py-8">
+                <div class="text-gray-500">
+                    <i class="fas fa-clipboard-question text-4xl text-gray-300 mb-3"></i>
+                    <h3 class="text-lg font-medium text-gray-700 mb-2">No Quiz Results Available</h3>
+                    <p class="text-gray-600">You haven't completed this quiz yet.</p>
+                    {% if can_attempt %}
+                        <div class="mt-4">
+                            <a href="{% url 'quiz:attempt_quiz' quiz.id %}" 
+                               class="inline-flex items-center px-4 py-2" style="background-color: #191f56; color: white; border-radius: 0.5rem; transition: all 0.2s ease;" onmouseover="this.style.backgroundColor='#141a4a'" onmouseout="this.style.backgroundColor='#191f56'">
+                                <i class="fas fa-play mr-2"></i>
+                                Start Quiz
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    {% elif has_no_answers %}
+        <!-- Show message when attempt exists but no answers were saved -->
+        <div class="section-box mb-8">
+            <div class="text-center py-8">
+                <div class="text-gray-500">
+                    <i class="fas fa-exclamation-triangle text-4xl text-yellow-400 mb-3"></i>
+                    <h3 class="text-lg font-medium text-gray-700 mb-2">Quiz Completed - No Answers Recorded</h3>
+                    <p class="text-gray-600">Your quiz attempt was submitted but no answers were saved. This may be due to a technical issue.</p>
+                    <div class="mt-4 text-sm text-gray-500">
+                        <p><strong>Attempt Details:</strong></p>
+                        <p>Submitted: {{ latest_attempt.end_time|date:"M d, Y g:i A" }}</p>
+                        <p>Score: {{ latest_attempt.score|floatformat:1 }}%</p>
+                    </div>
+                    {% if can_attempt %}
+                        <div class="mt-6">
+                            <a href="{% url 'quiz:attempt_quiz' quiz.id %}" 
+                               class="inline-flex items-center px-4 py-2" style="background-color: #191f56; color: white; border-radius: 0.5rem; transition: all 0.2s ease;" onmouseover="this.style.backgroundColor='#141a4a'" onmouseout="this.style.backgroundColor='#191f56'">
+                                <i class="fas fa-redo mr-2"></i>
+                                Retake Quiz
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <!-- Individual Attempt Details Section -->
+        {% if viewing_individual_attempt %}
+            <div class="section-box mb-8">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center">
+                        <div class="bg-blue-100 rounded-full p-3 mr-4">
+                            <i class="fas fa-clipboard-list text-blue-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-2xl font-bold text-gray-800">Detailed Results</h2>
+                            <p class="text-gray-600">Question-by-question review of your attempt</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <a href="{% url 'quiz:quiz_view' quiz.id %}" 
+                           class="inline-flex items-center px-4 py-2" style="background-color: #6b7280; color: white; border-radius: 0.5rem; transition: all 0.2s ease;" onmouseover="this.style.backgroundColor='#4b5563'" onmouseout="this.style.backgroundColor='#6b7280'">
+                            <i class="fas fa-arrow-left mr-2"></i>
+                            Back to All Attempts
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Questions and Answers -->
+                <div class="space-y-4">
+                    {% for response in latest_attempt.responses %}
+                        <div class="bg-white border border-gray-200 rounded-lg p-4" 
+                             data-question-type="{{ response.question.question_type }}"
+                             data-question-id="{{ response.question.id }}"
+                             data-text-answer="{{ response.text_answer|default:'' }}">
+                            
+                            <!-- Question Header -->
+                            <div class="flex justify-between items-start mb-4">
+                                <div class="flex-1">
+                                    <h3 class="text-lg font-semibold text-gray-800 mb-2">
+                                        Question {{ forloop.counter }}
+                                    </h3>
+                                    <div class="prose max-w-none text-gray-700">
+                                        {{ response.question.question_text|safe }}
+                                    </div>
+                                </div>
+                                <div class="ml-4 text-right">
+                                    {% if quiz.is_vak_test %}
+                                        <!-- VAK Test doesn't show correct/incorrect -->
+                                        <div class="flex items-center gap-2">
+                                                <span class="px-3 py-1 rounded-full text-sm font-medium" style="background-color: #dbeafe; color: #1e40af;">
+                                                    <i class="fas fa-check mr-1"></i>
+                                                    Answered
+                                                </span>
+                                        </div>
+                                        <div class="text-sm text-gray-600 mt-1">
+                                            Question {{ forloop.counter }}
+                                        </div>
+                                    {% else %}
+                                        <!-- Regular quizzes show correct/incorrect -->
+                                        <div class="flex items-center gap-2">
+                                            {% if response.is_correct %}
+                                                <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                                                    <i class="fas fa-check-circle mr-1"></i>
+                                                    Correct
+                                                </span>
+                                            {% else %}
+                                                <span class="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
+                                                    <i class="fas fa-times-circle mr-1"></i>
+                                                    Incorrect
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="text-sm text-gray-600 mt-1">
+                                            {{ response.points_earned|floatformat:1 }} / {{ response.question.points }} points
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Answer Display -->
+                            <div class="mt-4">
+                                {% if response.question.question_type == 'multiple_choice' or response.question.question_type == 'true_false' %}
+                                    <!-- Multiple Choice / True False -->
+                                    <div class="space-y-2">
+                                        <h4 class="font-medium text-gray-700 mb-3">Answer Choices:</h4>
+                                        {% for answer in response.question.answers.all %}
+                                            <div class="flex items-center p-3 rounded-lg border
+                                                {% if response.answer == answer %}
+                                                    {% if answer.is_correct %}
+                                                        border-green-300 bg-green-50
+                                                    {% else %}
+                                                        border-red-300 bg-red-50
+                                                    {% endif %}
+                                                {% elif answer.is_correct %}
+                                                    border-green-300 bg-green-50
+                                                {% else %}
+                                                    border-gray-200 bg-gray-50
+                                                {% endif %}">
+                                                
+                                                <div class="flex items-center flex-1">
+                                                    {% if response.answer == answer %}
+                                                        <i class="fas fa-dot-circle text-blue-600 mr-3"></i>
+                                                        <strong class="text-gray-800">{{ answer.answer_text|safe }}</strong>
+                                                        <span class="ml-2 text-sm text-gray-600">(Your Answer)</span>
+                                                    {% else %}
+                                                        <i class="far fa-circle text-gray-400 mr-3"></i>
+                                                        <span class="text-gray-700">{{ answer.answer_text|safe }}</span>
+                                                    {% endif %}
+                                                </div>
+                                                
+                                                {% if answer.is_correct and not quiz.is_vak_test and not quiz.is_initial_assessment and show_correct_answers %}
+                                                    <span class="ml-2 text-green-600">
+                                                        <i class="fas fa-check mr-1"></i>Correct Answer
+                                                    </span>
+                                                {% endif %}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+
+                                {% elif response.question.question_type == 'multiple_select' %}
+                                    <!-- Multiple Select -->
+                                    <div class="space-y-2">
+                                        <h4 class="font-medium text-gray-700 mb-3">Answer Choices:</h4>
+                                        {% for answer in response.question.answers.all %}
+                                            <div class="flex items-center p-3 rounded-lg border
+                                                {% if answer in response.selected_options %}
+                                                    {% if answer.is_correct %}
+                                                        border-green-300 bg-green-50
+                                                    {% else %}
+                                                        border-red-300 bg-red-50
+                                                    {% endif %}
+                                                {% elif answer.is_correct %}
+                                                    border-orange-300 bg-orange-50
+                                                {% else %}
+                                                    border-gray-200 bg-gray-50
+                                                {% endif %}">
+                                                
+                                                <div class="flex items-center flex-1">
+                                                    {% if answer in response.selected_options %}
+                                                        <i class="fas fa-check-square text-blue-600 mr-3"></i>
+                                                        <strong class="text-gray-800">{{ answer.answer_text|safe }}</strong>
+                                                        <span class="ml-2 text-sm text-gray-600">(Selected)</span>
+                                                    {% else %}
+                                                        <i class="far fa-square text-gray-400 mr-3"></i>
+                                                        <span class="text-gray-700">{{ answer.answer_text|safe }}</span>
+                                                    {% endif %}
+                                                </div>
+                                                
+                                                {% if not quiz.is_vak_test and not quiz.is_initial_assessment and show_correct_answers %}
+                                                    {% if answer.is_correct %}
+                                                        {% if answer in response.selected_options %}
+                                                            <span class="ml-2 text-green-600">
+                                                                <i class="fas fa-check mr-1"></i>Correct
+                                                            </span>
+                                                        {% else %}
+                                                            <span class="ml-2 text-orange-600">
+                                                                <i class="fas fa-exclamation mr-1"></i>Should be selected
+                                                            </span>
+                                                        {% endif %}
+                                                    {% elif answer in response.selected_options %}
+                                                        <span class="ml-2 text-red-600">
+                                                            <i class="fas fa-times mr-1"></i>Incorrect selection
+                                                        </span>
+                                                    {% endif %}
+                                                {% endif %}
+                                            </div>
+                                        {% endfor %}
+                                        
+                                        <!-- Display selected answers for debugging -->
+                                        <div class="user-answers-container mt-2 p-2 bg-blue-50 rounded text-sm">
+                                            <strong>Your Selected Answers:</strong> 
+                                            {% if response.selected_options %}
+                                                {% for selected in response.selected_options %}
+                                                    {{ selected.answer_text|safe }}{% if not forloop.last %}, {% endif %}
+                                                {% endfor %}
+                                            {% else %}
+                                                <span class="text-gray-500">None selected</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                {% elif response.question.question_type == 'fill_blank' %}
+                                    <!-- Fill in the Blank -->
+                                    <div class="space-y-3">
+                                        <h4 class="font-medium text-gray-700">Your Answer:</h4>
+                                        <div class="p-3 rounded-lg border {% if quiz.is_vak_test %}border-blue-300 bg-blue-50{% elif response.is_correct %}border-green-300 bg-green-50{% else %}border-red-300 bg-red-50{% endif %}">
+                                            <div class="font-medium text-gray-800">
+                                                "{{ response.text_answer|default:"No answer provided" }}"
+                                            </div>
+                                        </div>
+                                        
+                                        {% if not response.is_correct and not quiz.is_vak_test and not quiz.is_initial_assessment and show_correct_answers %}
+                                            <div class="p-3 rounded-lg border border-green-300 bg-green-50">
+                                                <h5 class="font-medium text-green-800 mb-1">Correct Answer(s):</h5>
+                                                <div class="text-green-700">
+                                                    {% for answer in response.question.answers.all %}
+                                                        "{{ answer.answer_text }}"{% if not forloop.last %} or {% endif %}
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+
+                                {% elif response.question.question_type == 'multi_blank' %}
+                                    <!-- Multiple Fill in the Blank -->
+                                    <div class="space-y-3">
+                                        <h4 class="font-medium text-gray-700">Your Answers:</h4>
+                                        <div class="p-3 rounded-lg border {% if quiz.is_vak_test %}border-blue-300 bg-blue-50{% elif response.is_correct %}border-green-300 bg-green-50{% else %}border-red-300 bg-red-50{% endif %}">
+                                            <div class="font-medium text-gray-800">
+                                                {{ response.text_answer|format_multi_blank_answers }}
+                                            </div>
+                                        </div>
+                                        
+                                        {% if not response.is_correct and not quiz.is_vak_test and not quiz.is_initial_assessment and show_correct_answers %}
+                                            <div class="p-3 rounded-lg border border-green-300 bg-green-50">
+                                                <h5 class="font-medium text-green-800 mb-1">Correct Answers:</h5>
+                                                <div class="text-green-700">
+                                                    {% for answer in response.question.answers.all %}
+                                                        <div class="mb-1">
+                                                            <strong>Blank {{ forloop.counter }}:</strong> "{{ answer.answer_text }}"
+                                                        </div>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+
+                                {% elif response.question.question_type == 'matching' or response.question.question_type == 'drag_drop_matching' %}
+                                    <!-- Matching Questions -->
+                                    <div class="space-y-3">
+                                        <div class="flex items-center mb-3">
+                                            <h4 class="font-medium text-gray-700">Your Matches:</h4>
+                                            <span class="ml-3 px-2 py-1 text-xs rounded-full
+                                                {% if response.question.question_type == 'drag_drop_matching' %}
+                                                    bg-blue-100 text-blue-800
+                                                {% else %}
+                                                    bg-blue-100 text-blue-800
+                                                {% endif %}">
+                                                {% if response.question.question_type == 'drag_drop_matching' %}
+                                                    <i class="fas fa-arrows-alt mr-1"></i>Drag & Drop
+                                                {% else %}
+                                                    <i class="fas fa-list mr-1"></i>Dropdown
+                                                {% endif %}
+                                            </span>
+                                        </div>
+                                        
+                                        {% if response.parsed_matching_answers %}
+                                            <!-- Display user's matching answers -->
+                                            {% for match in response.parsed_matching_answers %}
+                                                {% is_matching_correct match response.question.matching_pairs.all as is_correct %}
+                                                {% comment %}Check if user made a selection - handle both new format with was_selected and old format without{% endcomment %}
+                                                {% if match.was_selected or match.was_selected == None and match.right_item != "(No selection)" and match.right_item != "" %}
+                                                    <!-- User made a selection -->
+                                                    <div class="flex items-center justify-between p-3 rounded-lg border mb-2
+                                                        {% if is_correct %}
+                                                            border-green-300 bg-green-50
+                                                        {% else %}
+                                                            border-red-300 bg-red-50
+                                                        {% endif %}">
+                                                        <span class="text-gray-800 font-medium">{{ match.left_item|safe }}</span>
+                                                        <i class="fas fa-arrow-right text-gray-400 mx-4"></i>
+                                                        <span class="text-gray-800">{{ match.right_item|safe }}</span>
+                                                        
+                                                        {% if not quiz.is_vak_test and not quiz.is_initial_assessment and show_correct_answers %}
+                                                            {% if is_correct %}
+                                                                <span class="ml-2 text-green-600">
+                                                                    <i class="fas fa-check mr-1"></i>Correct
+                                                                </span>
+                                                            {% else %}
+                                                                <span class="ml-2 text-red-600">
+                                                                    <i class="fas fa-times mr-1"></i>Incorrect
+                                                                </span>
+                                                            {% endif %}
+                                                        {% endif %}
+                                                    </div>
+                                                {% else %}
+                                                    <!-- User made no selection -->
+                                                    <div class="flex items-center justify-between p-3 rounded-lg border mb-2 border-yellow-300 bg-yellow-50">
+                                                        <span class="text-gray-800 font-medium">{{ match.left_item|safe }}</span>
+                                                        <i class="fas fa-arrow-right text-gray-400 mx-4"></i>
+                                                        <span class="text-gray-500 italic">{{ match.right_item|safe }}</span>
+                                                        <span class="ml-2 text-yellow-600">
+                                                            <i class="fas fa-exclamation-triangle mr-1"></i>Not answered
+                                                        </span>
+                                                    </div>
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% elif response.matching_answers %}
+                                            <!-- Fallback: try to display raw matching answers -->
+                                            {% for match in response.matching_answers %}
+                                                {% is_matching_correct match response.question.matching_pairs.all as is_correct %}
+                                                {% comment %}Check if user made a selection - handle both new format with was_selected and old format without{% endcomment %}
+                                                {% if match.was_selected or match.was_selected == None and match.right_item != "(No selection)" and match.right_item != "" and match.right_item != "Unknown" %}
+                                                    <!-- User made a selection -->
+                                                    <div class="flex items-center justify-between p-3 rounded-lg border mb-2
+                                                        {% if is_correct %}
+                                                            border-green-300 bg-green-50
+                                                        {% else %}
+                                                            border-red-300 bg-red-50
+                                                        {% endif %}">
+                                                        <span class="text-gray-800 font-medium">{{ match.left_item|default:match|safe }}</span>
+                                                        <i class="fas fa-arrow-right text-gray-400 mx-4"></i>
+                                                        <span class="text-gray-800">{{ match.right_item|default:"Unknown"|safe }}</span>
+                                                        
+                                                        {% if not quiz.is_vak_test and not quiz.is_initial_assessment and show_correct_answers %}
+                                                            {% if is_correct %}
+                                                                <span class="ml-2 text-green-600">
+                                                                    <i class="fas fa-check mr-1"></i>Correct
+                                                                </span>
+                                                            {% else %}
+                                                                <span class="ml-2 text-red-600">
+                                                                    <i class="fas fa-times mr-1"></i>Incorrect
+                                                                </span>
+                                                            {% endif %}
+                                                        {% endif %}
+                                                    </div>
+                                                {% else %}
+                                                    <!-- User made no selection -->
+                                                    <div class="flex items-center justify-between p-3 rounded-lg border mb-2 border-yellow-300 bg-yellow-50">
+                                                        <span class="text-gray-800 font-medium">{{ match.left_item|default:match|safe }}</span>
+                                                        <i class="fas fa-arrow-right text-gray-400 mx-4"></i>
+                                                        <span class="text-gray-500 italic">{{ match.right_item|default:"Unknown"|safe }}</span>
+                                                        <span class="ml-2 text-yellow-600">
+                                                            <i class="fas fa-exclamation-triangle mr-1"></i>Not answered
+                                                        </span>
+                                                    </div>
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% else %}
+                                            <div class="text-gray-500 italic">No matches made for this question</div>
+                                        {% endif %}
+                                        
+                                        {% if not quiz.is_vak_test and not quiz.is_initial_assessment and show_correct_answers %}
+                                            <div class="mt-4">
+                                                <h5 class="font-medium text-green-800 mb-2">Correct Matches:</h5>
+                                                {% for pair in response.question.matching_pairs.all %}
+                                                    <div class="flex items-center justify-between p-2 rounded bg-green-50 mb-1">
+                                                        <span class="text-green-700">{{ pair.left_item|safe }}</span>
+                                                        <i class="fas fa-arrow-right text-green-400 mx-4"></i>
+                                                        <span class="text-green-700">{{ pair.right_item|safe }}</span>
+                                                    </div>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+
+                                {% else %}
+                                    <!-- Fallback for other question types -->
+                                    <div class="p-3 rounded-lg bg-gray-50 border border-gray-200">
+                                        <div class="text-gray-600">
+                                            <strong>Question Type:</strong> {{ response.question.question_type|title }}
+                                        </div>
+                                        {% if response.text_answer %}
+                                            <div class="mt-2">
+                                                <strong>Your Answer:</strong> {{ response.text_answer }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% empty %}
+                        <div class="text-center py-8 text-gray-500">
+                            <i class="fas fa-exclamation-triangle text-2xl mb-3"></i>
+                            <p>No responses found for this attempt.</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+    {% endif %}
+
+    <!-- Show empty state message for attempt history when not viewing individual attempt and no attempts exist -->
+    {% if not past_attempts and not viewing_individual_attempt %}
+        <div class="section-box mb-8">
+            <div class="text-center py-8">
+                <div class="text-gray-500">
+                    <i class="fas fa-history text-4xl text-gray-300 mb-3"></i>
+                    <h3 class="text-lg font-medium text-gray-700 mb-2">No Attempt History</h3>
+                    <p class="text-gray-600">Your completed quiz attempts will appear here.</p>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Helper function to parse JSON safely
+    function safeJSONParse(str) {
+        try {
+            return JSON.parse(str);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    // Process multiple select answers on page load
+    function processMultipleSelectAnswers() {
+        const multipleSelectResponses = document.querySelectorAll('[data-question-type="multiple_select"]');
+        
+        multipleSelectResponses.forEach(responseElem => {
+            const textAnswerData = responseElem.dataset.textAnswer;
+            const questionId = responseElem.dataset.questionId;
+            
+            if (textAnswerData) {
+                const answerIds = safeJSONParse(textAnswerData) || [];
+                if (answerIds.length > 0) {
+                    // Find the answers container
+                    const answersContainer = responseElem.querySelector('.user-answers-container');
+                    // If container exists and is empty or has minimal content
+                    if (answersContainer && (!answersContainer.textContent.trim() || answersContainer.textContent.trim().length < 5)) {
+                        // Try to reload answer content via AJAX instead of refreshing page
+                        fetch(`/quiz/api/get_answer_texts/${questionId}/?answer_ids=${encodeURIComponent(JSON.stringify(answerIds))}`)
+                            .then(response => {
+                                if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+                            .then(data => {
+                                if (data.success && data.answers && data.answers.length > 0) {
+                                    answersContainer.innerHTML = `<span class="text-black">${data.answers.join(', ')}</span>`;
+                                }
+                            })
+                            .catch(error => {
+                                console.error("Error fetching answer texts:", error);
+                                // Fallback to page refresh but only once
+                                if (!sessionStorage.getItem('refreshed_q_' + questionId)) {
+                                    sessionStorage.setItem('refreshed_q_' + questionId, 'true');
+                                    location.reload();
+                                }
+                            });
+                    }
+                }
+            }
+        });
+    }
+
+    // Run on page load
+    processMultipleSelectAnswers();
+});
+</script>
+{% endblock %}

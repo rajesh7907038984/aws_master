@@ -1,0 +1,654 @@
+{% load gradebook_tags %}
+{% load static %}
+
+<!-- Assignment Grade Sidebar Content -->
+<div class="assignment-grade-sidebar">
+
+<!-- Assignment Details -->
+<div class="mb-6">
+    <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold text-gray-800">{{ assignment.title }}</h3>
+        <a href="/assignments/submission/{{ submission.id }}/grade/" class="text-blue-600 hover:text-blue-800 text-sm font-medium" target="_blank">
+            <i class="fas fa-external-link-alt mr-1"></i>
+            Detailed View
+        </a>
+    </div>
+    
+    <div class="bg-gray-50 p-4 rounded-lg mb-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <div>
+                <span class="text-gray-600">Student:</span>
+                <span class="font-medium">{{ student.get_full_name }}</span>
+            </div>
+            <div>
+                <span class="text-gray-600">Max Score:</span>
+                <span class="font-medium">{{ assignment.max_score }} pts</span>
+            </div>
+            {% if submission %}
+            <div>
+                <span class="text-gray-600">Submitted:</span>
+                <span class="font-medium">{{ submission.submitted_at|date:"M d, Y" }}</span>
+            </div>
+            <div>
+                <span class="text-gray-600">Status:</span>
+                <span class="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">{{ submission.get_status_display }}</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Grading Summary Card -->
+<div class="bg-white border border-gray-200 rounded-lg p-4 mb-6">
+    <h4 class="text-lg font-bold mb-4 text-gray-800">
+        <i class="fas fa-check-circle mr-2 text-green-500"></i>
+        Quick Grade
+    </h4>
+    
+    <form method="POST" action="{% url 'gradebook:ajax_save_grade' %}" class="space-y-4" id="gradingForm" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="activity_type" value="assignment">
+        <input type="hidden" name="activity_id" value="{{ assignment.id }}">
+        <input type="hidden" name="student_id" value="{{ student.id }}">
+        {% if submission %}
+        <input type="hidden" name="submission_id" value="{{ submission.id }}">
+        {% endif %}
+        
+        <!-- Grade Input -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Grade (out of {{ assignment.max_score }})
+            </label>
+            {{ grading_form.grade }}
+        </div>
+        
+        <!-- Status Selection -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Status
+            </label>
+            {{ grading_form.status }}
+        </div>
+        
+        <!-- Feedback Section -->
+        <div class="feedback-editor-container">
+            <label class="block text-gray-700 font-medium mb-3">
+                <i class="fas fa-comment-alt mr-2 text-blue-500"></i>
+                Student Feedback
+            </label>
+            <p class="text-sm text-gray-600 mb-3">Provide feedback using text, audio, or video to help the student understand their performance and areas for improvement.</p>
+            
+            <!-- Feedback Type Tabs -->
+            <div class="mb-4">
+                <div class="border-b border-gray-200">
+                    <nav class="-mb-px flex space-x-8" aria-label="Feedback Types">
+                        <button type="button" 
+                                class="feedback-tab-btn py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap border-blue-500 text-blue-600 active"
+                                data-tab="text"
+                                data-active-class="border-blue-500 text-blue-600"
+                                data-inactive-class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                            <i class="fas fa-keyboard mr-2"></i>Text Feedback
+                        </button>
+                        <button type="button" 
+                                class="feedback-tab-btn py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                                data-tab="audio"
+                                data-active-class="border-blue-500 text-blue-600"
+                                data-inactive-class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                            <i class="fas fa-microphone mr-2"></i>Audio Feedback
+                        </button>
+                        <button type="button" 
+                                class="feedback-tab-btn py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                                data-tab="video"
+                                data-active-class="border-blue-500 text-blue-600"
+                                data-inactive-class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                            <i class="fas fa-video mr-2"></i>Video Feedback
+                        </button>
+                    </nav>
+                </div>
+            </div>
+            
+            <!-- Text Feedback Tab -->
+            <div id="text-feedback-tab" class="feedback-tab-content">
+                <div class="relative">
+                    {{ grading_form.feedback }}
+                </div>
+            </div>
+            
+            <!-- Audio Feedback Tab -->
+            <div id="audio-feedback-tab" class="feedback-tab-content hidden">
+                <div class="space-y-4">
+                    {% if feedback and feedback.audio_feedback %}
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <h6 class="text-sm font-medium text-blue-900 mb-2">Current Audio Feedback</h6>
+                        <audio controls class="w-full">
+                            <source src="{{ feedback.audio_feedback.url }}" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="border-dashed border-2 border-gray-300 rounded-lg p-6 text-center">
+                        <i class="fas fa-microphone text-3xl text-gray-400 mb-4"></i>
+                        <h6 class="text-sm font-medium text-gray-700 mb-2">Upload Audio Feedback</h6>
+                        <p class="text-sm text-gray-500 mb-4">Select an audio file to upload</p>
+                        {{ grading_form.audio_feedback }}
+                        <p class="text-xs text-gray-500 mt-1">Supported formats: MP3, WAV, M4A, AAC, OGG (Max: 50MB)</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Video Feedback Tab -->
+            <div id="video-feedback-tab" class="feedback-tab-content hidden">
+                <div class="space-y-4">
+                    {% if feedback and feedback.video_feedback %}
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <h6 class="text-sm font-medium text-blue-900 mb-2">Current Video Feedback</h6>
+                        <video controls class="w-full max-w-md">
+                            <source src="{{ feedback.video_feedback.url }}" type="video/mp4">
+                            Your browser does not support the video element.
+                        </video>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="border-dashed border-2 border-gray-300 rounded-lg p-6 text-center">
+                        <i class="fas fa-video text-3xl text-gray-400 mb-4"></i>
+                        <h6 class="text-sm font-medium text-gray-700 mb-2">Upload Video Feedback</h6>
+                        <p class="text-sm text-gray-500 mb-4">Select a video file to upload</p>
+                        {{ grading_form.video_feedback }}
+                        <p class="text-xs text-gray-500 mt-1">Supported formats: MP4, MOV, AVI, WMV, MKV (Max: 100MB)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Submit Button -->
+        <div class="flex justify-end space-x-3">
+            <button type="submit" class="text-white px-4 py-2 rounded-md font-medium" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                <i class="fas fa-save mr-2"></i>Save Grade & Feedback
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Rubric Evaluation -->
+{% if rubric_data %}
+<div class="bg-white border border-gray-200 rounded-lg p-4 mb-6">
+    <h4 class="text-lg font-bold mb-4 text-gray-800">
+        <i class="fas fa-clipboard-list mr-2 text-purple-500"></i>
+        Rubric Evaluation
+    </h4>
+    
+    <div class="space-y-4">
+        <div class="bg-purple-50 p-3 rounded-lg">
+            <h5 class="font-medium text-purple-900">{{ rubric_data.rubric.title }}</h5>
+            <p class="text-sm text-purple-700">{{ rubric_data.rubric.total_points }} points possible</p>
+        </div>
+        
+        {% for criterion in rubric_data.criteria %}
+        <div class="border border-gray-200 rounded-lg p-3">
+            <div class="flex justify-between items-start mb-2">
+                <h6 class="font-medium text-gray-800">{{ criterion.description }}</h6>
+                <span class="text-sm text-gray-600">{{ criterion.points }} pts</span>
+            </div>
+            
+            {% with evaluation=rubric_data.evaluations|get_item:criterion.id %}
+            <div class="space-y-2">
+                <!-- Rating Selection -->
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Rating</label>
+                    <select class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                            data-criterion="{{ criterion.id }}"
+                            data-rating-select>
+                        <option value="">Select a rating...</option>
+                        {% for rating in criterion.ratings.all %}
+                        <option value="{{ rating.id }}" 
+                                data-points="{{ rating.points }}"
+                                {% if evaluation and evaluation.rating_id == rating.id %}selected{% endif %}>
+                            {{ rating.title }} ({{ rating.points }} pts) - {{ rating.description }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Points and Comments -->
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Points</label>
+                        <input type="number" 
+                               class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                               min="0" 
+                               max="{{ criterion.points }}"
+                               value="{% if evaluation %}{{ evaluation.points }}{% endif %}"
+                               placeholder="Points"
+                               data-criterion="{{ criterion.id }}"
+                               data-points-input>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Comments</label>
+                        <input type="text" 
+                               class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                               value="{% if evaluation %}{{ evaluation.comments }}{% endif %}"
+                               placeholder="Comments"
+                               data-criterion="{{ criterion.id }}"
+                               data-comments-input>
+                    </div>
+                </div>
+            </div>
+            {% endwith %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Submission Preview -->
+{% if all_submissions %}
+<div class="bg-white border border-gray-200 rounded-lg p-4 mb-6">
+    <h4 class="text-lg font-bold mb-4 text-gray-800">
+        <i class="fas fa-file-alt mr-2 text-blue-500"></i>
+        Submission History ({{ all_submissions|length }} submission{{ all_submissions|length|pluralize }})
+    </h4>
+    
+    <div class="space-y-4 max-h-96 overflow-y-auto">
+        {% for sub in all_submissions %}
+        <div class="border border-gray-200 rounded-lg p-3 {% if sub == submission %}bg-blue-50 border-blue-300{% else %}hover:bg-gray-50{% endif %}">
+            <div class="flex justify-between items-start mb-3">
+                <div>
+                    <h6 class="text-sm font-medium text-gray-800">
+                        Attempt #{{ forloop.counter }}
+                        {% if sub == submission %}
+                            <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded ml-1">Current</span>
+                        {% endif %}
+                    </h6>
+                    <p class="text-xs text-gray-600">Submitted: {{ sub.submitted_at|date:"M d, Y H:i" }}</p>
+                    {% if sub.graded_at %}
+                    <p class="text-xs text-gray-600">Graded: {{ sub.graded_at|date:"M d, Y H:i" }}</p>
+                    {% endif %}
+                </div>
+                <div class="text-right">
+                    {% if sub.grade %}
+                    <span class="text-sm font-bold text-green-600">{{ sub.grade }}/{{ assignment.max_score }}</span>
+                    {% endif %}
+                    <span class="block text-xs px-2 py-1 rounded-full mt-1
+                        {% if sub.status == 'submitted' %}bg-blue-100 text-blue-800
+                        {% elif sub.status == 'not_graded' %}bg-orange-100 text-orange-800
+                        {% elif sub.status == 'graded' %}bg-green-100 text-green-800
+                        {% elif sub.status == 'returned' %}bg-yellow-100 text-yellow-800
+                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                        {{ sub.get_status_display }}
+                    </span>
+                </div>
+            </div>
+            
+            {% if sub.submission_file %}
+            <div class="mb-2">
+                <div class="flex items-center justify-between p-2 bg-gray-100 rounded">
+                    <div class="flex items-center">
+                        <i class="fas fa-paperclip mr-2 text-gray-500 text-xs"></i>
+                        <span class="text-xs font-medium text-gray-700">{{ sub.submission_file.name|slice:"-30:" }}</span>
+                    </div>
+                    <a href="{{ sub.submission_file.url }}" 
+                       class="text-blue-600 hover:text-blue-800 text-xs" 
+                       target="_blank">
+                        <i class="fas fa-download mr-1"></i>
+                        Download
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if sub.submission_text %}
+            <div class="bg-gray-100 p-2 rounded">
+                <h6 class="text-xs font-medium text-gray-700 mb-1">Text Submission:</h6>
+                <div class="text-xs text-gray-600 max-h-20 overflow-y-auto">
+                    {{ sub.submission_text|truncatewords:30 }}
+                    {% if sub.submission_text|wordcount > 30 %}
+                        <span class="text-blue-600 cursor-pointer" onclick="expandSubmissionText({{ sub.id }})">...read more</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Quick Action Buttons -->
+            <div class="flex justify-end space-x-2 mt-2">
+                {% if sub != submission %}
+                <button onclick="switchToSubmission({{ sub.id }})" 
+                        class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
+                    <i class="fas fa-eye mr-1"></i>Grade This
+                </button>
+                {% endif %}
+                <a href="/assignments/submission/{{ sub.id }}/grade/" 
+                   class="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" 
+                   target="_blank">
+                    <i class="fas fa-external-link-alt mr-1"></i>Detailed
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% elif submission %}
+<!-- Fallback for single submission -->
+<div class="bg-white border border-gray-200 rounded-lg p-4 mb-6">
+    <h4 class="text-lg font-bold mb-4 text-gray-800">
+        <i class="fas fa-file-alt mr-2 text-blue-500"></i>
+        Submission Preview
+    </h4>
+    
+    {% if submission.submission_file %}
+    <div class="mb-4">
+        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div class="flex items-center">
+                <i class="fas fa-paperclip mr-2 text-gray-500"></i>
+                <span class="text-sm font-medium text-gray-700">{{ submission.submission_file.name|slice:"-50:" }}</span>
+            </div>
+            <a href="{{ submission.submission_file.url }}" 
+               class="text-blue-600 hover:text-blue-800 text-sm" 
+               target="_blank">
+                <i class="fas fa-download mr-1"></i>
+                Download
+            </a>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if submission.submission_text %}
+    <div class="bg-gray-50 p-3 rounded-lg">
+        <h6 class="text-sm font-medium text-gray-700 mb-2">Text Submission:</h6>
+        <div class="text-sm text-gray-600 max-h-32 overflow-y-auto">
+            {{ submission.submission_text|truncatewords:50 }}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Feedback History -->
+{% if feedback %}
+<div class="bg-white border border-gray-200 rounded-lg p-4">
+    <h4 class="text-lg font-bold mb-4 text-gray-800">
+        <i class="fas fa-comments mr-2 text-orange-500"></i>
+        Feedback History
+    </h4>
+    
+    <div class="space-y-3">
+        <div class="bg-orange-50 p-3 rounded-lg">
+            <div class="flex justify-between items-start mb-2">
+                <span class="text-sm font-medium text-orange-900">Instructor Feedback</span>
+                <span class="text-xs text-orange-700">{{ feedback.created_at|date:"M d, Y H:i" }}</span>
+            </div>
+            {% if feedback.feedback %}
+            <div class="text-sm text-orange-800 prose prose-sm max-w-none">{{ feedback.feedback|safe }}</div>
+            {% endif %}
+            
+            {% if feedback.audio_feedback %}
+            <div class="mt-2">
+                <audio controls class="w-full">
+                    <source src="{{ feedback.audio_feedback.url }}" type="audio/mpeg">
+                </audio>
+            </div>
+            {% endif %}
+            
+            {% if feedback.video_feedback %}
+            <div class="mt-2">
+                <video controls class="w-full max-w-xs">
+                    <source src="{{ feedback.video_feedback.url }}" type="video/mp4">
+                </video>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Include Form Media for TinyMCE -->
+{{ grading_form.media.css }}
+
+<!-- Minimal Sidebar Specific Styles -->
+<style>
+/* Feedback tab styling */
+.feedback-tab-content {
+    transition: opacity 0.2s ease-in-out;
+}
+
+.feedback-tab-content.hidden {
+    display: none !important;
+    opacity: 0;
+}
+
+.feedback-tab-content.block {
+    display: block !important;
+    opacity: 1;
+}
+
+/* Feedback tab buttons */
+.feedback-tab-btn {
+    transition: all 0.2s ease;
+    cursor: pointer !important;
+    user-select: none;
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 100;
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    padding: 8px 4px !important;
+    margin: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.feedback-tab-btn:hover {
+    background-color: rgba(59, 130, 246, 0.05) !important;
+}
+
+.feedback-tab-btn.active {
+    font-weight: 600;
+    background-color: rgba(59, 130, 246, 0.1) !important;
+}
+
+/* Audio and Video feedback styling */
+#audio-feedback-tab, #video-feedback-tab {
+    min-height: 350px;  /* Increased to match editor height */
+}
+
+#audio-feedback-tab .border-dashed,
+#video-feedback-tab .border-dashed {
+    border-color: #d1d5db;
+    background-color: #f9fafb;
+    transition: border-color 0.2s ease;
+}
+
+#audio-feedback-tab .border-dashed:hover,
+#video-feedback-tab .border-dashed:hover {
+    border-color: #3b82f6;
+    background-color: #eff6ff;
+}
+</style>
+
+<!-- Include Form Media JS and Initialize -->
+{{ grading_form.media.js }}
+
+<!-- Simplified JavaScript -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Assignment grading sidebar initializing...');
+    
+    // Get the container for this sidebar
+    const container = document.querySelector('.assignment-grade-sidebar') || document.body;
+    
+    // Initialize TinyMCE using the unified sidebar approach
+    if (typeof window.initializeSidebarTinyMCE === 'function') {
+        window.initializeSidebarTinyMCE(container);
+    } else {
+        // Fallback to widget system
+        if (window.TinyMCEWidget && window.TinyMCEWidget.initializeAll) {
+            console.log('✅ Initializing TinyMCE using widget system');
+            window.TinyMCEWidget.initializeAll();
+        } else {
+            console.log('⏳ TinyMCE widget system not available yet, retrying...');
+            setTimeout(function() {
+                if (window.TinyMCEWidget && window.TinyMCEWidget.initializeAll) {
+                    window.TinyMCEWidget.initializeAll();
+                }
+            }, 100);
+        }
+    }
+    
+    // Initialize feedback tabs using the unified approach
+    if (typeof window.initializeFeedbackTabsInContent === 'function') {
+        setTimeout(() => {
+            window.initializeFeedbackTabsInContent(container);
+        }, 150);
+    } else {
+        // Fallback to local implementation
+        initializeFeedbackTabsLocal();
+    }
+    
+    // Local fallback for feedback tabs
+    function initializeFeedbackTabsLocal() {
+        const buttons = document.querySelectorAll('.feedback-tab-btn');
+        const contents = document.querySelectorAll('.feedback-tab-content');
+        
+        buttons.forEach(button => {
+            button.addEventListener('click', function() {
+                const targetTab = this.dataset.tab;
+                console.log('🔄 Switching to feedback tab:', targetTab);
+                
+                // Update button states
+                buttons.forEach(btn => {
+                    const isActive = btn.dataset.tab === targetTab;
+                    
+                    if (isActive) {
+                        btn.classList.remove('border-transparent', 'text-gray-500');
+                        btn.classList.add('border-blue-500', 'text-blue-600', 'active');
+                    } else {
+                        btn.classList.remove('border-blue-500', 'text-blue-600', 'active');
+                        btn.classList.add('border-transparent', 'text-gray-500');
+                    }
+                });
+                
+                // Update content visibility
+                contents.forEach(content => {
+                    const tabName = content.id.replace('-feedback-tab', '');
+                    const isTarget = tabName === targetTab;
+                    
+                    if (isTarget) {
+                        content.classList.remove('hidden');
+                        content.classList.add('block');
+                        content.style.display = 'block';
+                        
+                        // If switching to text tab, refresh TinyMCE
+                        if (targetTab === 'text' && typeof tinymce !== 'undefined') {
+                            setTimeout(() => {
+                                const textareas = content.querySelectorAll('textarea.tinymce-editor');
+                                textareas.forEach(textarea => {
+                                    const editor = tinymce.get(textarea.id);
+                                    if (editor) {
+                                        // Add error handling for TinyMCE operations
+                                        try {
+                                            // Check if editor is initialized and has selection
+                                            if (editor.initialized && editor.selection) {
+                                                editor.execCommand('mceResize');
+                                                editor.fire('ResizeEditor');
+                                            } else {
+                                                console.warn(`Editor ${textarea.id} not fully initialized, skipping refresh`);
+                                            }
+                                        } catch (error) {
+                                            console.warn(`Error refreshing TinyMCE editor ${textarea.id}:`, error);
+                                        }
+                                    }
+                                });
+                            }, 100);
+                        }
+                    } else {
+                        content.classList.add('hidden');
+                        content.classList.remove('block');
+                        content.style.display = 'none';
+                    }
+                });
+            });
+        });
+    }
+    
+    // Initialize tabs using local fallback if needed
+    initializeFeedbackTabsLocal();
+    
+    // Form submission handler
+    const gradingForm = document.getElementById('gradingForm');
+    if (gradingForm) {
+        gradingForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            console.log('📝 Form submission started...');
+            
+            // Save TinyMCE content before submission
+            if (typeof tinymce !== 'undefined') {
+                tinymce.triggerSave();
+            }
+            
+            const formData = new FormData(this);
+            
+            // Debug: Log FormData contents
+            console.log('📦 FormData contents:');
+            for (let [key, value] of formData.entries()) {
+                if (value instanceof File) {
+                    console.log(`  ${key}: [File] ${value.name} (${(value.size / 1024 / 1024).toFixed(2)} MB)`);
+                } else {
+                    console.log(`  ${key}: ${value}`);
+                }
+            }
+            
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            
+            // Show loading state
+            submitBtn.textContent = 'Saving...';
+            submitBtn.disabled = true;
+            
+            console.log('🚀 Sending request to:', this.action);
+            
+            fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                }
+            })
+            .then(response => {
+                console.log('📡 Response received:', response.status, response.statusText);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('✅ Response data:', data);
+                if (data.success) {
+                    alert('Grade and feedback saved successfully!');
+                    // Reload parent page
+                    setTimeout(() => {
+                        if (window.parent && window.parent.location) {
+                            window.parent.location.reload();
+                        } else {
+                            location.reload();
+                        }
+                    }, 1500);
+                } else {
+                    alert(data.error || 'Error saving grade and feedback');
+                }
+            })
+            .catch(error => {
+                console.error('❌ Form submission error:', error);
+                alert('Error saving grade and feedback: ' + error.message);
+            })
+            .finally(() => {
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+            });
+        });
+    }
+});
+</script>
+
+</div> <!-- End assignment-grade-sidebar --> 

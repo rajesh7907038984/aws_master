@@ -1,0 +1,1108 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load quiz_filters %}
+
+{% block title %}{{ quiz.title }} - Attempt{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'quiz/css/question_types/drag_drop_matching.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumb -->
+    {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+    
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+        <!-- Quiz Header -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6 border border-gray-200">
+            <div class="flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-gray-800">{{ quiz.title }}</h1>
+                {% if quiz.time_limit %}
+                <div class="text-gray-700">
+                    <i class="fas fa-clock mr-2"></i>Time Remaining: <span id="timer" class="font-medium">Loading...</span>
+                </div>
+                {% endif %}
+            </div>
+            <div class="mt-4 text-gray-700">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <p>Attempt {{ attempt_number }} of {% if quiz.attempts_allowed == -1 %}unlimited{% else %}{{ quiz.attempts_allowed }}{% endif %}</p>
+                        <p>Passing Score: {{ quiz.passing_score }}%</p>
+                    </div>
+                    <div>
+                        <p><i class="fas fa-clock mr-2 text-blue-500"></i>Active Time: <span id="active-time-display" class="font-medium text-blue-600">{{ attempt.active_time_formatted }}</span></p>
+                        <p><i class="fas fa-eye mr-2 text-green-500"></i>Status: <span id="activity-status" class="font-medium text-green-600">Active</span></p>
+                    </div>
+                </div>
+                <div id="progress-bar" class="w-full bg-gray-200 rounded-full h-2.5 mt-3">
+                    <div id="progress" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Instructions Section -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6 border border-gray-200">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800">Instructions</h2>
+            <ul class="list-disc ml-5 space-y-2 text-gray-700">
+                <li>Answer all questions to the best of your ability.</li>
+                <li>You can save your progress at any time using the "Save Progress" button.</li>
+                <li>Once you submit, you cannot change your answers.</li>
+                {% if quiz.time_limit %}
+                <li>You must submit before the time limit expires.</li>
+                {% endif %}
+            </ul>
+        </div>
+
+        <!-- Quiz Form -->
+        <form method="POST" action="{% url 'quiz:submit_quiz' attempt.id %}" id="quizForm" class="space-y-6">
+            {% csrf_token %}
+            <input type="hidden" id="server_time" value="{{ server_time|date:'Y-m-d H:i:s' }}">
+            <input type="hidden" id="quiz_id" value="{{ quiz.id }}">
+            <input type="hidden" id="attempt_id" value="{{ attempt.id }}">
+            
+            {% for question in questions %}
+            <div class="bg-white rounded-lg shadow-lg p-6 question-container border border-gray-200" 
+                data-question-type="{{ question.question_type }}"
+                data-question-id="{{ question.id }}"
+                data-min-required="{{ question.min_required|default:1 }}"
+                data-points="{{ question.points }}">
+                <div class="mb-4">
+                    <h3 class="text-xl font-semibold text-gray-800">Question {{ forloop.counter }}</h3>
+                    <p class="text-gray-700 mt-2">{{ question.question_text }}</p>
+                    {% if question.points %}
+                    <p class="text-sm text-gray-600 mt-1">Points: {{ question.points }}</p>
+                    {% endif %}
+                </div>
+
+                <div class="mt-4 space-y-4">
+                    {% if question.question_type == 'multiple_choice' %}
+                        <!-- Multiple Choice -->
+                        {% for answer in question.answers.all %}
+                        <label class="flex items-center space-x-3 p-3 rounded-lg bg-gray-100 hover:bg-gray-200 cursor-pointer">
+                            <input type="radio" 
+                                name="question_{{ question.id }}" 
+                                value="{{ answer.id }}"
+                                class="form-radio text-blue-600 h-5 w-5"
+                                required>
+                            <span class="text-gray-800">{{ answer.answer_text }}</span>
+                        </label>
+                        {% endfor %}
+
+                    {% elif question.question_type == 'multiple_select' %}
+                        <!-- Multiple Select -->
+                        <input type="hidden" name="question_{{ question.id }}_is_multiple" value="true">
+                        {% for answer in question.answers.all %}
+                        <label class="flex items-center space-x-3 p-3 rounded-lg bg-gray-100 hover:bg-gray-200 cursor-pointer">
+                            <input type="checkbox" 
+                                name="question_{{ question.id }}[]" 
+                                value="{{ answer.id }}"
+                                class="form-checkbox text-blue-600 h-5 w-5"
+                                data-min-required="{{ question.min_required|default:1 }}">
+                            <span class="text-gray-800">{{ answer.answer_text }}</span>
+                        </label>
+                        {% endfor %}
+                        <p class="text-sm text-gray-600 mt-2">Select at least {{ question.min_required|default:1 }} option(s)</p>
+
+                    {% elif question.question_type == 'true_false' %}
+                        <!-- True/False -->
+                        {% for answer in question.answers.all %}
+                        <label class="flex items-center space-x-3 p-3 rounded-lg bg-gray-100 hover:bg-gray-200 cursor-pointer">
+                            <input type="radio" 
+                                name="question_{{ question.id }}" 
+                                value="{{ answer.id }}"
+                                class="form-radio text-blue-600 h-5 w-5"
+                                required>
+                            <span class="text-gray-800">{{ answer.answer_text }}</span>
+                        </label>
+                        {% endfor %}
+
+                    {% elif question.question_type == 'fill_blank' %}
+                        <!-- Fill in the Blank -->
+                        <input type="text" 
+                            name="question_{{ question.id }}" 
+                            class="w-full px-4 py-2 bg-white text-gray-800 rounded border border-gray-300 focus:outline-none focus:border-blue-500"
+                            placeholder="Enter your answer"
+                            required
+                            data-case-sensitive="{{ question.case_sensitive|default:'false' }}">
+
+                    {% elif question.question_type == 'multi_blank' %}
+                        <!-- Multiple Fill in the Blank -->
+                        <div class="space-y-3">
+                            {% for answer in question.answers.all %}
+                            <div class="flex items-center space-x-2">
+                                <span class="text-gray-600">{{ forloop.counter }}.</span>
+                                <input type="text" 
+                                    name="question_{{ question.id }}_{{ forloop.counter0 }}" 
+                                    class="flex-1 px-4 py-2 bg-white text-gray-800 rounded border border-gray-300 focus:outline-none focus:border-blue-500"
+                                    placeholder="Enter answer for blank #{{ forloop.counter }}"
+                                    required
+                                    data-case-sensitive="{{ question.case_sensitive|default:'false' }}">
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                    {% elif question.question_type == 'matching' %}
+                        <!-- Matching -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="space-y-2">
+                                {% for pair in question.matching_pairs.all %}
+                                    <div class="bg-gray-100 p-2 rounded left-item text-gray-800">{{ pair.left_item }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="space-y-2">
+                                {% for pair in question.matching_pairs.all %}
+                                    <div class="matching-pair">
+                                        <select name="question_{{ question.id }}_{{ forloop.counter0 }}"
+                                            class="w-full px-4 py-2 bg-white text-gray-800 rounded border border-gray-300 focus:outline-none focus:border-blue-500"
+                                            required>
+                                            <option value="">Select matching item</option>
+                                            {% for pair2 in question.matching_pairs.all %}
+                                                <option value="{{ pair2.right_item }}">{{ pair2.right_item }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                    {% elif question.question_type == 'drag_drop_matching' %}
+                        <!-- Drag & Drop Matching -->
+                        <div class="drag-drop-question" data-question-id="{{ question.id }}">
+                            <div class="drag-drop-container">
+                                <!-- Left Column - Draggable Items -->
+                                <div class="drag-items-column">
+                                    <h4>Drag Items</h4>
+                                    <div class="drag-items-list">
+                                        {% for pair in question.matching_pairs.all %}
+                                            <div class="drag-item" data-left-item="{{ pair.left_item }}">
+                                                {{ pair.left_item }}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                
+                                <!-- Right Column - Drop Zones -->
+                                <div class="drop-zones-column">
+                                    <h4>Drop Targets</h4>
+                                    <div class="drop-zones-list">
+                                        {% for pair in question.shuffled_matching_pairs %}
+                                            <div class="drop-zone" data-right-item="{{ pair.right_item }}">
+                                                <span class="drop-placeholder">Drop here</span>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Controls and Progress -->
+                            <div class="drag-drop-controls">
+                                <div class="matching-progress-container">
+                                    <div class="matching-progress-bar">
+                                        <div class="matching-progress"></div>
+                                    </div>
+                                    <div class="progress-text">0/{{ question.matching_pairs.count }} matched</div>
+                                </div>
+                                <button type="button" class="clear-matches-btn">
+                                    Clear All Matches
+                                </button>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- Quiz Controls -->
+            <div class="flex justify-between items-center mt-8">
+                <button type="button" 
+                        id="saveProgressButton"
+                        class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
+                        onclick="window.saveQuizProgress()">
+                    Save Progress
+                </button>
+                <button type="submit" 
+                        id="submitButton"
+                        class="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+                    Submit Quiz
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center">
+    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4">Confirm Quiz Submission</h3>
+        <p class="text-gray-700 mb-6">Are you sure you want to submit your quiz? This action cannot be undone.</p>
+        <div class="flex justify-end space-x-3">
+            <button id="cancelSubmit" class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700">Cancel</button>
+            <button id="confirmSubmit" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Submit</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'quiz/js/question_types/drag_drop_matching.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+    // Existing quiz functionality
+    const form = document.getElementById('quizForm');
+    const submitButton = document.getElementById('submitButton');
+    const confirmModal = document.getElementById('confirmModal');
+    const cancelSubmit = document.getElementById('cancelSubmit');
+    const confirmSubmit = document.getElementById('confirmSubmit');
+    const saveButton = document.getElementById('saveProgressButton');
+    let isSubmitting = false;
+    let timer;
+    let timeLeft;
+    let autoSaveInterval;
+
+    // Create a notification element for feedback
+    const createNotification = (message, type) => {
+        // Remove existing notifications
+        const existingNotification = document.getElementById('quiz-notification');
+        if (existingNotification) {
+            existingNotification.remove();
+        }
+        
+        const notification = document.createElement('div');
+        notification.id = 'quiz-notification';
+        notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+            type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white`;
+        notification.textContent = message;
+        
+        document.body.appendChild(notification);
+        
+        // Auto-remove after 3 seconds
+        setTimeout(() => {
+            notification.classList.add('opacity-0', 'transition-opacity');
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+        
+        return notification;
+    };
+    
+    // Debug utility function
+    const debug = (message, data) => {
+        if (window.quizDebug) {
+            console.log(`[Quiz Debug] ${message}`, data || '');
+        }
+    };
+    
+    // Initialize
+    debug('Quiz attempt page initialized');
+    window.quizDebug = false; // Set to false in production
+    
+    // Initialize drag and drop matching questions
+    const dragDropContainers = document.querySelectorAll('.drag-drop-question[data-question-id]');
+    debug('Found drag drop containers:', dragDropContainers.length);
+    debug('DragDropMatchingLearner available:', typeof DragDropMatchingLearner !== 'undefined');
+    
+    // Wait a bit for the DOM to be fully ready
+    setTimeout(() => {
+        dragDropContainers.forEach(container => {
+            debug('Initializing drag drop container:', container);
+            // Initialize drag drop matching functionality
+            if (typeof DragDropMatchingLearner !== 'undefined') {
+                debug('Using DragDropMatchingLearner');
+                try {
+                    DragDropMatchingLearner.init(container);
+                    debug('DragDropMatchingLearner initialized successfully');
+                } catch (error) {
+                    debug('Error initializing DragDropMatchingLearner:', error);
+                    console.error('DragDropMatchingLearner error:', error);
+                }
+            } else {
+                debug('DragDropMatchingLearner not available, using fallback');
+                console.warn('DragDropMatchingLearner not available, using fallback implementation');
+                
+                // Fallback implementation if module not loaded
+                const dragItems = container.querySelectorAll('.drag-item');
+                const dropZones = container.querySelectorAll('.drop-zone');
+                
+                debug('Found drag items:', dragItems.length);
+                debug('Found drop zones:', dropZones.length);
+                
+                // Debug element info
+                dragItems.forEach((item, index) => {
+                    debug(`Drag item ${index}:`, item.textContent, item.dataset.leftItem);
+                });
+                dropZones.forEach((zone, index) => {
+                    debug(`Drop zone ${index}:`, zone.dataset.rightItem);
+                });
+                
+                // Setup drag items
+                dragItems.forEach((item, index) => {
+                    debug(`Setting up drag item ${index}:`, item);
+                    item.draggable = true;
+                    item.setAttribute('draggable', 'true');
+                    
+                    // Remove existing listeners to prevent duplicates
+                    item.removeEventListener('dragstart', handleDragStart);
+                    item.removeEventListener('dragend', handleDragEnd);
+                    
+                    item.addEventListener('dragstart', handleDragStart);
+                    item.addEventListener('dragend', handleDragEnd);
+                });
+                
+                // Setup drop zones
+                dropZones.forEach((zone, index) => {
+                    debug(`Setting up drop zone ${index}:`, zone);
+                    
+                    // Remove existing listeners to prevent duplicates
+                    zone.removeEventListener('dragover', handleDragOver);
+                    zone.removeEventListener('drop', handleDrop);
+                    zone.removeEventListener('dragenter', handleDragEnter);
+                    zone.removeEventListener('dragleave', handleDragLeave);
+                    
+                    zone.addEventListener('dragover', handleDragOver);
+                    zone.addEventListener('drop', handleDrop);
+                    zone.addEventListener('dragenter', handleDragEnter);
+                    zone.addEventListener('dragleave', handleDragLeave);
+                });
+                
+                // Clear button functionality
+                const clearBtn = container.querySelector('.clear-matches-btn');
+                if (clearBtn) {
+                    clearBtn.addEventListener('click', function() {
+                        dropZones.forEach(zone => {
+                            zone.innerHTML = '<span class="drop-placeholder">Drop here</span>';
+                            zone.classList.remove('matched');
+                        });
+                        const hiddenInput = container.querySelector(`input[name="question_${container.dataset.questionId}_drag_drop"]`);
+                        if (hiddenInput) {
+                            hiddenInput.value = '{}';
+                        }
+                    });
+                }
+            }
+        });
+    }, 100);
+    
+    // Fallback drag and drop handlers
+    function handleDragStart(e) {
+        debug('Fallback drag start on item:', e.target);
+        if (e.dataTransfer) {
+            e.dataTransfer.setData('text/plain', e.target.dataset.leftItem);
+            e.dataTransfer.effectAllowed = 'move';
+        }
+        e.target.classList.add('dragging');
+    }
+    
+    function handleDragEnd(e) {
+        debug('Fallback drag end on item:', e.target);
+        e.target.classList.remove('dragging');
+    }
+    
+    function handleDragOver(e) {
+        e.preventDefault();
+        if (e.dataTransfer) {
+            e.dataTransfer.dropEffect = 'move';
+        }
+    }
+    
+    function handleDragEnter(e) {
+        e.preventDefault();
+        e.target.classList.add('drag-over');
+    }
+    
+    function handleDragLeave(e) {
+        e.target.classList.remove('drag-over');
+    }
+    
+    function handleDrop(e) {
+        debug('Fallback drop event on zone:', e.target);
+        e.preventDefault();
+        e.target.classList.remove('drag-over');
+        
+        const leftItem = e.dataTransfer ? e.dataTransfer.getData('text/plain') : '';
+        const rightItem = e.target.dataset.rightItem;
+        
+        debug('Dropped item:', leftItem, 'on target:', rightItem);
+        
+        if (!leftItem) {
+            debug('No left item data found');
+            return;
+        }
+        
+        e.target.innerHTML = `
+            <span class="matched-item">${leftItem}</span>
+            <button type="button" class="remove-match-btn" onclick="this.parentElement.innerHTML='<span class=\\'drop-placeholder\\'>Drop here</span>'; this.parentElement.classList.remove('matched');">×</button>
+        `;
+        e.target.classList.add('matched');
+        
+        // Update hidden input
+        const container = e.target.closest('.drag-drop-question');
+        let hiddenInput = container.querySelector(`input[name="question_${container.dataset.questionId}_drag_drop"]`);
+        if (!hiddenInput) {
+            hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = `question_${container.dataset.questionId}_drag_drop`;
+            container.appendChild(hiddenInput);
+        }
+        
+        let matches = {};
+        try {
+            matches = JSON.parse(hiddenInput.value || '{}');
+        } catch (e) {
+            matches = {};
+        }
+        
+        matches[leftItem] = rightItem;
+        hiddenInput.value = JSON.stringify(matches);
+        
+        debug('Fallback match created successfully');
+    }
+    
+    // Save progress function (modified to handle errors properly)
+    window.saveQuizProgress = function() {
+        if (!form) {
+            debug('Form not found');
+            createNotification('Error: Quiz form not found', 'error');
+            return;
+        }
+        
+        if (saveButton) {
+            saveButton.disabled = true;
+            saveButton.innerHTML = '<span class="animate-spin inline-block mr-2">⌛</span> Saving...';
+        }
+        
+        debug('Starting save progress');
+        
+        // Get CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (!csrfToken) {
+            debug('CSRF token not found');
+            createNotification('Error: Authentication token missing', 'error');
+            if (saveButton) {
+                saveButton.disabled = false;
+                saveButton.textContent = 'Save Progress (Failed)';
+                setTimeout(() => {
+                    saveButton.textContent = 'Save Progress';
+                }, 3000);
+            }
+            return;
+        }
+        
+        // Gather form data
+        const formData = new FormData(form);
+        const questions = document.querySelectorAll('.question-container');
+        debug('Questions found:', questions.length);
+        
+        let hasAnswers = false;
+        
+        questions.forEach(question => {
+            const questionType = question.dataset.questionType;
+            const questionId = question.dataset.questionId;
+            debug(`Processing question ${questionId} of type ${questionType}`);
+
+            // Handle specific question types
+            if (questionType === 'matching') {
+                const selects = question.querySelectorAll('select');
+                const matchingAnswers = [];
+                
+                selects.forEach((select, index) => {
+                    if (select.value) {
+                        matchingAnswers.push(select.value);
+                        hasAnswers = true;
+                    }
+                });
+
+                if (matchingAnswers.length > 0) {
+                    formData.append(`question_${questionId}_matching`, JSON.stringify(matchingAnswers));
+                    debug(`Added matching answers for question ${questionId}`, matchingAnswers);
+                }
+            } else if (questionType === 'multiple_select') {
+                // Handle multiple select questions
+                const checkboxes = question.querySelectorAll('input[type="checkbox"]:checked');
+                if (checkboxes.length > 0) {
+                    const selectedValues = Array.from(checkboxes).map(checkbox => checkbox.value);
+                    // Use the same JSON format as in the submit function
+                    formData.append(`question_${questionId}`, JSON.stringify(selectedValues));
+                    hasAnswers = true;
+                    debug(`Added multiple select answers for question ${questionId}`, selectedValues);
+                }
+            } else if (questionType === 'drag_drop_matching') {
+                // Handle drag and drop matching questions
+                const hiddenInput = question.querySelector(`input[name="question_${questionId}_drag_drop"]`);
+                if (hiddenInput && hiddenInput.value && hiddenInput.value !== '{}') {
+                    hasAnswers = true;
+                    debug(`Found drag drop answers for question ${questionId}`, hiddenInput.value);
+                }
+            } else {
+                // For other question types, the form will handle them automatically
+                const inputs = question.querySelectorAll('input:checked, input[type="text"]:not([value=""])');
+                if (inputs.length > 0) {
+                    hasAnswers = true;
+                    debug(`Found answers for question ${questionId}`, inputs.length);
+                }
+            }
+        });
+        
+        if (!hasAnswers) {
+            debug('No answers to save');
+            createNotification('No answers to save. Please answer at least one question.', 'error');
+            if (saveButton) {
+                saveButton.disabled = false;
+                saveButton.textContent = 'Save Progress';
+            }
+            return;
+        }
+
+        // Add CSRF token to headers
+        const saveUrl = '{% url "quiz:save_quiz_progress" attempt.id %}';
+        debug('Sending save request to:', saveUrl);
+        
+        // Make the fetch request
+        fetch(saveUrl, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': csrfToken.value,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            debug('Response received:', response.status);
+            
+            // Check if response is a redirect (likely to login page)
+            if (response.redirected || response.status === 302) {
+                debug('Redirect detected - likely authentication issue');
+                throw new Error('Session expired. Please refresh the page and log in again.');
+            }
+            
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.status}`);
+            }
+            
+            // Check if response is actually JSON
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                debug('Response is not JSON:', contentType);
+                throw new Error('Session expired. Please refresh the page and log in again.');
+            }
+            
+            return response.json();
+        })
+        .then(data => {
+            debug('Response data:', data);
+            if (data.status === 'success') {
+                createNotification('Progress saved successfully!', 'success');
+                debug('Progress saved successfully:', data.saved_count || 'unknown');
+            } else if (data.status === 'expired') {
+                createNotification(data.message, 'error');
+                debug('Quiz expired:', data.message);
+                // Redirect to the provided URL after a short delay
+                setTimeout(() => {
+                    if (data.redirect_url) {
+                        window.location.href = data.redirect_url;
+                    }
+                }, 2000);
+            } else {
+                createNotification(`Error: ${data.message || 'Unknown error'}`, 'error');
+                debug('Error saving progress:', data.message);
+            }
+        })
+        .catch(error => {
+            debug('Error in fetch:', error.message);
+            createNotification(`Error: ${error.message || 'Failed to save progress'}`, 'error');
+            console.error('Save progress error:', error);
+        })
+        .finally(() => {
+            if (saveButton) {
+                saveButton.disabled = false;
+                saveButton.textContent = 'Save Progress';
+            }
+        });
+    };
+    
+    // Initialize server time with timezone awareness
+    const serverTime = new Date(document.getElementById('server_time').value);
+    const clientTime = new Date();
+    const timeDiff = clientTime - serverTime;
+    
+    // Get user timezone info
+    const userTimezone = window.timezoneDetector ? window.timezoneDetector.getTimezoneInfo() : null;
+    console.log('User timezone info:', userTimezone);
+    
+    // Progress tracking
+    const totalQuestions = document.querySelectorAll('.question-container').length;
+    let answeredQuestions = 0;
+    
+    // Update progress bar
+    function updateProgress() {
+        const progress = (answeredQuestions / totalQuestions) * 100;
+        document.getElementById('progress').style.width = `${progress}%`;
+    }
+    
+    // Track answered questions
+    function trackAnsweredQuestions() {
+        const questions = document.querySelectorAll('.question-container');
+        questions.forEach(question => {
+            const questionType = question.dataset.questionType;
+            let isAnswered = false;
+            
+            if (questionType === 'multiple_choice') {
+                isAnswered = question.querySelector('input[type="radio"]:checked') !== null;
+            } else if (questionType === 'multiple_select') {
+                const checked = question.querySelectorAll('input[type="checkbox"]:checked');
+                const minRequired = parseInt(question.dataset.minRequired);
+                isAnswered = checked.length >= minRequired;
+            } else if (questionType === 'matching') {
+                const selects = question.querySelectorAll('select');
+                isAnswered = Array.from(selects).every(select => select.value !== '');
+            } else if (questionType === 'drag_drop_matching') {
+                const matchedZones = question.querySelectorAll('.drop-zone.matched');
+                const totalZones = question.querySelectorAll('.drop-zone').length;
+                isAnswered = matchedZones.length === totalZones;
+            } else if (questionType === 'fill_blank' || questionType === 'multi_blank') {
+                const inputs = question.querySelectorAll('input[type="text"]');
+                isAnswered = Array.from(inputs).every(input => input.value.trim() !== '');
+            }
+            
+            if (isAnswered) {
+                question.classList.add('answered');
+            } else {
+                question.classList.remove('answered');
+            }
+        });
+        
+        answeredQuestions = document.querySelectorAll('.question-container.answered').length;
+        updateProgress();
+    }
+    
+    // Timer functionality with enhanced features
+    {% if quiz.time_limit %}
+    let totalTimeLimit = {{ quiz.time_limit|default:"0" }} * 60; // Total time in seconds
+    let eightyPercentWarningShown = false;
+    let fifteenMinuteWarningShown = false;
+    let fiveMinuteWarningShown = false;
+    let oneMinuteWarningShown = false;
+    
+    function startTimer() {
+        // Use remaining time from server or fallback to full time limit
+        {% if remaining_time is not None %}
+        timeLeft = {{ remaining_time|default:"0" }};
+        {% else %}
+        timeLeft = totalTimeLimit;
+        {% endif %}
+        
+        const timerDisplay = document.getElementById('timer');
+        
+        // Update display immediately
+        updateTimerDisplay(timerDisplay, timeLeft);
+        
+        timer = setInterval(function() {
+            timeLeft--;
+            updateTimerDisplay(timerDisplay, timeLeft);
+            
+            // Check for warnings
+            checkTimeWarnings(timeLeft, totalTimeLimit);
+            
+            // Auto-submit when time expires
+            if (timeLeft <= 0) {
+                clearInterval(timer);
+                showTimeExpiredNotification();
+                // Submission is now handled by the modal countdown
+            }
+        }, 1000);
+    }
+    
+    function updateTimerDisplay(display, seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        display.textContent = `${minutes}:${secs.toString().padStart(2, '0')}`;
+        
+        // Update styling based on remaining time
+        const percentage = (seconds / totalTimeLimit) * 100;
+        
+        if (percentage <= 10) {
+            // Last 10% - critical warning (red, blinking)
+            display.className = 'font-bold text-red-600 animate-pulse text-lg';
+        } else if (percentage <= 20) {
+            // 20% remaining - urgent warning (red)
+            display.className = 'font-bold text-red-500 text-lg';
+        } else if (percentage <= 30) {
+            // 30% remaining - warning (orange)
+            display.className = 'font-bold text-orange-500';
+        } else {
+            // Normal state
+            display.className = 'font-medium text-gray-700';
+        }
+    }
+    
+    function checkTimeWarnings(remainingSeconds, totalSeconds) {
+        const percentage = (remainingSeconds / totalSeconds) * 100;
+        const minutes = Math.floor(remainingSeconds / 60);
+        const totalMinutes = Math.floor(totalSeconds / 60);
+        
+        // 80% time elapsed warning (20% remaining)
+        if (percentage <= 20 && !eightyPercentWarningShown) {
+            eightyPercentWarningShown = true;
+            showTimeWarning(`⏰ Time Warning: Only ${Math.floor(percentage)}% time remaining!`, 'warning');
+        }
+        
+        // Dynamic warning based on quiz duration
+        // Calculate appropriate warning thresholds based on total quiz time
+        let warningThreshold = Math.max(2, Math.floor(totalMinutes * 0.2)); // 20% of total time, minimum 2 minutes
+        let urgentThreshold = Math.max(1, Math.floor(totalMinutes * 0.1)); // 10% of total time, minimum 1 minute
+        
+        // Ensure thresholds don't overlap
+        if (warningThreshold <= urgentThreshold) {
+            warningThreshold = urgentThreshold + 1;
+        }
+        
+        // Dynamic warning message - show when approaching the warning threshold
+        if (minutes <= warningThreshold && minutes > urgentThreshold && !fifteenMinuteWarningShown) {
+            fifteenMinuteWarningShown = true;
+            const timeText = minutes === 1 ? '1 minute' : `${minutes} minutes`;
+            showTimeWarning(`⏰ Warning: ${timeText} remaining!`, 'warning');
+        }
+        
+        // Urgent warning - show when approaching the urgent threshold
+        if (minutes <= urgentThreshold && minutes > 0 && !fiveMinuteWarningShown) {
+            fiveMinuteWarningShown = true;
+            const timeText = minutes === 1 ? '1 minute' : `${minutes} minutes`;
+            showTimeWarning(`🚨 Warning: Only ${timeText} left!`, 'urgent');
+        }
+        
+        // Critical warning - show when less than 1 minute remaining
+        if (minutes <= 1 && remainingSeconds > 0 && !oneMinuteWarningShown) {
+            oneMinuteWarningShown = true;
+            const timeText = remainingSeconds <= 30 ? 'Less than 30 seconds' : 'Less than 1 minute';
+            showTimeWarning(`🔥 URGENT: ${timeText} remaining!`, 'critical');
+        }
+    }
+    
+    function showTimeWarning(message, type) {
+        // Create warning notification
+        const notification = document.createElement('div');
+        notification.className = `fixed top-20 right-4 p-4 rounded-lg shadow-lg z-50 max-w-sm animate-bounce`;
+        
+        switch(type) {
+            case 'warning':
+                notification.className += ' bg-orange-500 text-white border-l-4 border-orange-700';
+                break;
+            case 'urgent':
+                notification.className += ' bg-red-500 text-white border-l-4 border-red-700';
+                break;
+            case 'critical':
+                notification.className += ' bg-red-600 text-white border-l-4 border-red-800 animate-pulse';
+                break;
+            default:
+                notification.className += ' bg-blue-500 text-white';
+        }
+        
+        notification.innerHTML = `
+            <div class="flex items-center">
+                <div class="flex-1">
+                    <p class="font-semibold">${message}</p>
+                    <p class="text-sm opacity-90">Make sure to save your progress and submit soon!</p>
+                </div>
+                <button onclick="this.parentElement.parentElement.remove()" class="ml-2 text-white hover:text-gray-200">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Auto-remove after a longer time for warnings
+        setTimeout(() => {
+            if (notification && notification.parentElement) {
+                notification.classList.add('opacity-0', 'transition-opacity');
+                setTimeout(() => {
+                    if (notification && notification.parentElement) {
+                        notification.remove();
+                    }
+                }, 500);
+            }
+        }, type === 'critical' ? 15000 : 10000); // Keep critical warnings longer
+        
+        // Also play sound for critical warnings if possible
+        if (type === 'critical' || type === 'urgent') {
+            try {
+                // Create a simple beep sound
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.value = 800; // Frequency in Hz
+                gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.2);
+            } catch (e) {
+                // Audio not supported, that's okay
+            }
+        }
+    }
+    
+    function showTimeExpiredNotification() {
+        createNotification('⏰ Time has expired! Quiz will be auto-submitted in 2 seconds...', 'error');
+        
+        // Show modal-like overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50';
+        overlay.innerHTML = `
+            <div class="bg-white p-8 rounded-lg shadow-xl max-w-md mx-4 text-center">
+                <div class="text-red-500 text-6xl mb-4">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">Time's Up!</h2>
+                <p class="text-gray-600 mb-6">Your quiz time has expired and will be automatically submitted.</p>
+                <div class="text-lg font-semibold text-red-600">
+                    Auto-submitting in <span id="countdown">2</span> seconds...
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(overlay);
+        
+        // Countdown
+        let countdown = 2;
+        const countdownEl = overlay.querySelector('#countdown');
+        const countdownTimer = setInterval(() => {
+            countdown--;
+            if (countdownEl) {
+                countdownEl.textContent = countdown;
+            }
+            if (countdown <= 0) {
+                clearInterval(countdownTimer);
+                // Update modal to show submitting status
+                const modalContent = overlay.querySelector('div');
+                modalContent.innerHTML = `
+                    <div class="text-blue-500 text-6xl mb-4">
+                        <i class="fas fa-sync-alt fa-spin"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Submitting...</h2>
+                    <p class="text-gray-600">Please wait while we submit your quiz.</p>
+                `;
+                // Submit the quiz (bypass validation for time expiration)
+                if (form && !isSubmitting) {
+                    console.log('Auto-submitting quiz due to time expiration');
+                    submitQuiz(true); // Skip validation for auto-submit
+                    // Remove modal after a short delay to show submission status
+                    setTimeout(() => {
+                        overlay.remove();
+                    }, 1500);
+                }
+            }
+        }, 1000);
+    }
+    
+    // Handle page visibility
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            clearInterval(timer);
+        } else {
+            // When page becomes visible, get fresh remaining time from server
+            fetch(`/quiz/attempt/{{ attempt.id|default:"0" }}/remaining-time/`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+            .then(data => {
+                if (data.remaining_time !== null) {
+                    timeLeft = data.remaining_time;
+                }
+                startTimer();
+            })
+            .catch(error => {
+                console.warn('Could not refresh remaining time:', error);
+                startTimer(); // Continue with current timeLeft
+            });
+        }
+    });
+    
+    startTimer();
+    {% endif %}
+    
+    // Handle form submission
+    function submitQuiz(skipValidation = false) {
+        if (isSubmitting) return;
+        
+        // Skip validation for auto-submission when time expires
+        if (!skipValidation && !validateForm()) {
+            return;
+        }
+        
+        const questions = document.querySelectorAll('.question-container');
+        questions.forEach(question => {
+            const questionType = question.dataset.questionType;
+            const questionId = question.dataset.questionId;
+
+            if (questionType === 'matching') {
+                const selects = question.querySelectorAll('select');
+                const matchingAnswers = [];
+                
+                selects.forEach((select, index) => {
+                    if (select.value) {
+                        matchingAnswers.push(select.value);
+                    }
+                });
+
+                if (matchingAnswers.length > 0) {
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = `question_${questionId}_matching`;
+                    hiddenInput.value = JSON.stringify(matchingAnswers);
+                    form.appendChild(hiddenInput);
+                }
+            } else if (questionType === 'multiple_select') {
+                // Handle multiple select questions
+                const checkboxes = question.querySelectorAll('input[type="checkbox"]:checked');
+                if (checkboxes.length > 0) {
+                    const selectedValues = Array.from(checkboxes).map(checkbox => checkbox.value);
+                    // Create a hidden input for the selected values
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = `question_${questionId}`;
+                    hiddenInput.value = JSON.stringify(selectedValues);
+                    form.appendChild(hiddenInput);
+                    debug(`Added multiple select values for submission: ${selectedValues}`);
+                }
+            } else if (questionType === 'drag_drop_matching') {
+                // For drag and drop matching, the hidden input is already created by the JavaScript
+                // No additional processing needed here
+                const hiddenInput = question.querySelector(`input[name="question_${questionId}_drag_drop"]`);
+                if (hiddenInput && hiddenInput.value && hiddenInput.value !== '{}') {
+                    debug(`Found drag drop answers for submission: ${hiddenInput.value}`);
+                }
+            } else {
+                // For other question types, the form will handle them automatically
+                const inputs = question.querySelectorAll('input:checked, input[type="text"]:not([value=""])');
+                if (inputs.length > 0) {
+                    hasAnswers = true;
+                    debug(`Found answers for question ${questionId}`, inputs.length);
+                }
+            }
+        });
+        
+        isSubmitting = true;
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<span class="animate-spin mr-2">⌛</span> Submitting...';
+        }
+        
+        // Clear intervals
+        if (timer) clearInterval(timer);
+        if (autoSaveInterval) clearInterval(autoSaveInterval);
+        
+        // Submit form
+        form.submit();
+    }
+    
+    // Form validation
+    function validateForm() {
+        const questions = document.querySelectorAll('.question-container');
+        let isValid = true;
+        let firstInvalid = null;
+
+        questions.forEach(question => {
+            const questionType = question.dataset.questionType;
+            let questionValid = true;
+
+            if (questionType === 'multiple_choice') {
+                const selected = question.querySelector('input[type="radio"]:checked');
+                if (!selected) {
+                    questionValid = false;
+                }
+            } else if (questionType === 'multiple_select') {
+                const checked = question.querySelectorAll('input[type="checkbox"]:checked');
+                const minRequired = parseInt(question.dataset.minRequired);
+                if (checked.length < minRequired) {
+                    questionValid = false;
+                }
+            } else if (questionType === 'matching') {
+                const selects = question.querySelectorAll('select');
+                const selectedValues = new Set();
+                let hasEmpty = false;
+                
+                selects.forEach(select => {
+                    if (select.value === '') {
+                        hasEmpty = true;
+                    } else {
+                        selectedValues.add(select.value);
+                    }
+                });
+                
+                if (hasEmpty || selectedValues.size !== selects.length) {
+                    questionValid = false;
+                    alert('For matching questions, please select all items and ensure each item is used only once.');
+                }
+            } else if (questionType === 'fill_blank' || questionType === 'multi_blank') {
+                const inputs = question.querySelectorAll('input[type="text"]');
+                questionValid = Array.from(inputs).every(input => input.value.trim() !== '');
+            }
+
+            if (!questionValid) {
+                isValid = false;
+                if (!firstInvalid) {
+                    firstInvalid = question;
+                }
+            }
+        });
+
+        if (!isValid && firstInvalid) {
+            firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        return isValid;
+    }
+    
+    // Add event listeners
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        confirmModal.classList.replace('hidden', 'flex');
+    });
+    
+    cancelSubmit.addEventListener('click', function() {
+        isSubmitting = false;
+        confirmModal.classList.replace('flex', 'hidden');
+    });
+    
+    confirmSubmit.addEventListener('click', function() {
+        confirmModal.classList.replace('flex', 'hidden');
+        submitQuiz();
+    });
+    
+    // Add input change listeners for progress tracking
+    document.querySelectorAll('input, textarea, select').forEach(element => {
+        element.addEventListener('change', function() {
+            trackAnsweredQuestions();
+        });
+    });
+    
+    // Handle beforeunload
+    window.addEventListener('beforeunload', function(e) {
+        if (!isSubmitting) {
+            e.preventDefault();
+            e.returnValue = '';
+            return '';
+        }
+    });
+    
+    // Initialize progress tracking
+    trackAnsweredQuestions();
+    
+});
+</script>
+{% endblock %}

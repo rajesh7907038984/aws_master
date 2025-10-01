@@ -1,0 +1,262 @@
+<!-- Goal Card Partial -->
+<div class="goal-card">
+    <div class="flex justify-between items-start">
+        <div class="flex-1">
+            <!-- Goal Type Badge -->
+            <span class="goal-type-badge goal-type-{{ goal.goal_type }}">
+                {% if goal.goal_type == 'short_term' %}
+                    <i class="fas fa-clock mr-1"></i>Short Term Goal
+                {% elif goal.goal_type == 'long_term' %}
+                    <i class="fas fa-calendar-alt mr-1"></i>Long Term Goal
+                {% elif goal.goal_type == 'custom' %}
+                    <i class="fas fa-target mr-1"></i>Custom Target
+                {% else %}
+                    <i class="fas fa-bullseye mr-1"></i>Learning Goal
+                {% endif %}
+            </span>
+
+            <!-- Goal Title and Status -->
+            <div class="flex items-center gap-2 mb-2">
+                <h3 class="text-lg font-semibold text-gray-900">{{ goal.title }}</h3>
+                <span class="status-badge status-{{ goal.status }}">
+                    {% if goal.status == 'not_started' %}
+                        <i class="fas fa-pause mr-1"></i>Not Started
+                    {% elif goal.status == 'in_progress' %}
+                        <i class="fas fa-play mr-1"></i>In Progress
+                    {% elif goal.status == 'completed' %}
+                        <i class="fas fa-check mr-1"></i>Completed
+                    {% elif goal.status == 'on_hold' %}
+                        <i class="fas fa-pause-circle mr-1"></i>On Hold
+                    {% endif %}
+                </span>
+            </div>
+
+            <!-- Goal Description -->
+            <p class="goal-description">{{ goal.description|truncatewords:30 }}</p>
+
+            <!-- Progress Bar -->
+            {% with latest_progress=goal.progress_entries.last %}
+            {% if latest_progress %}
+            <div class="mb-3">
+                <div class="flex justify-between items-center mb-1">
+                    <span class="text-sm font-medium text-gray-700">Progress</span>
+                    <span class="text-sm text-gray-600">{{ latest_progress.progress_percentage }}%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" 
+                         data-progress="{{ latest_progress.progress_percentage }}"
+                         style="width: {{ latest_progress.progress_percentage }}%"></div>
+                </div>
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            <!-- Goal Metadata -->
+            <div class="goal-meta">
+                {% if goal.course %}
+                <span>
+                    <i class="fas fa-book mr-1"></i>{{ goal.course.title }}
+                </span>
+                {% endif %}
+                
+                {% if goal.target_completion_date %}
+                <span>
+                    <i class="fas fa-calendar mr-1"></i>Due {{ goal.target_completion_date|date:"M d, Y" }}
+                </span>
+                {% endif %}
+                
+                <span>
+                    <i class="fas fa-user mr-1"></i>
+                    {% if goal.created_by %}
+                        Created by {{ goal.created_by.get_full_name|default:goal.created_by.username }}
+                    {% else %}
+                        System generated
+                    {% endif %}
+                </span>
+            </div>
+
+            <!-- Teacher Input -->
+            {% if goal.teacher_input and user_role != 'learner' %}
+            <div class="teacher-input">
+                <h4 class="text-sm font-medium text-amber-800 mb-1">
+                    <i class="fas fa-chalkboard-teacher mr-1"></i>Teacher Input
+                </h4>
+                <p class="text-sm text-amber-700">{{ goal.teacher_input }}</p>
+            </div>
+            {% endif %}
+
+            <!-- AI Input -->
+            {% if goal.ai_input %}
+            <div class="ai-input">
+                <h4 class="text-sm font-medium text-blue-800 mb-1">
+                    <i class="fas fa-robot mr-1"></i>AI Suggestions
+                </h4>
+                <p class="text-sm text-blue-700">{{ goal.ai_input }}</p>
+            </div>
+            {% endif %}
+
+            <!-- Recent Progress Update -->
+            {% with latest_progress=goal.progress_entries.last %}
+            {% if latest_progress %}
+            <div class="mt-3 p-3 bg-gray-50 rounded-lg">
+                <h4 class="text-sm font-medium text-gray-800 mb-1">
+                    <i class="fas fa-comment mr-1"></i>Latest Progress Update
+                </h4>
+                
+                {% if latest_progress.learner_comment %}
+                <p class="text-sm text-gray-600 mb-2">
+                    <strong>Learner:</strong> {{ latest_progress.learner_comment|truncatewords:20 }}
+                </p>
+                {% endif %}
+                
+                {% if latest_progress.teacher_comment %}
+                <p class="text-sm text-gray-600 mb-2">
+                    <strong>Instructor:</strong> {{ latest_progress.teacher_comment|truncatewords:20 }}
+                </p>
+                {% endif %}
+                
+                <div class="text-xs text-gray-500">
+                    <i class="fas fa-clock mr-1"></i>
+                    Updated {{ latest_progress.created_at|timesince }} ago
+                    {% if latest_progress.review_requested and not latest_progress.review_completed %}
+                        <span class="ml-2 px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full">
+                            <i class="fas fa-exclamation-circle mr-1"></i>Review Requested
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            {% endwith %}
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="ml-4 flex flex-col gap-2">
+            {% if component_permissions.can_edit %}
+            <a href="{% url 'ilp:edit_component_id' user_id=target_user.id component='learning_goal' component_id=goal.id %}" 
+               class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-edit mr-1"></i>Edit
+            </a>
+            {% endif %}
+
+            <!-- Progress Update Button -->
+            {% if is_own_ilp or user_role in 'instructor,admin,superadmin' %}
+            <a href="{% url 'ilp:add_progress' user_id=target_user.id goal_id=goal.id %}" 
+               class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-chart-line mr-1"></i>Update Progress
+            </a>
+            {% endif %}
+
+            <!-- Delete Button (Admin/SuperAdmin only) -->
+            {% if user_role in 'globaladmin,superadmin,admin' %}
+            <form method="post" 
+                  action="{% url 'ilp:delete_component' user_id=target_user.id component='learning_goal' component_id=goal.id %}" 
+                  class="inline" 
+                  onsubmit="return confirm('Are you sure you want to delete this learning goal? This action cannot be undone.')">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                    <i class="fas fa-trash mr-1"></i>Delete
+                </button>
+            </form>
+            {% endif %}
+
+            <!-- Quick Status Update -->
+            {% if component_permissions.can_edit and goal.status != 'completed' %}
+            <div class="relative">
+                <button type="button" 
+                        class="btn btn-sm btn-outline-success quick-status-btn"
+                        data-goal-id="{{ goal.id }}"
+                        onclick="updateGoalStatus({{ goal.id }}, 'completed')">
+                    <i class="fas fa-check-circle mr-1"></i>Mark Complete
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Progress History Preview (if exists) -->
+    {% if goal.progress_entries.count > 1 %}
+    <div class="mt-4 pt-3 border-t border-gray-200">
+        <button type="button" 
+                class="text-sm text-blue-600 hover:text-blue-800 font-medium toggle-progress-history"
+                data-goal-id="{{ goal.id }}">
+            <i class="fas fa-history mr-1"></i>
+            View Progress History ({{ goal.progress_entries.count }} updates)
+        </button>
+        
+        <div id="progress-history-{{ goal.id }}" class="hidden mt-3 space-y-2">
+            {% for progress in goal.progress_entries.all|slice:":3" %}
+            <div class="text-sm p-2 bg-gray-50 rounded">
+                <div class="flex justify-between items-center">
+                    <span class="font-medium">{{ progress.progress_percentage }}% complete</span>
+                    <span class="text-gray-500">{{ progress.created_at|date:"M d, Y" }}</span>
+                </div>
+                {% if progress.learner_comment %}
+                <p class="text-gray-600 mt-1">{{ progress.learner_comment|truncatewords:15 }}</p>
+                {% endif %}
+            </div>
+            {% endfor %}
+            
+            {% if goal.progress_entries.count > 3 %}
+            <a href="{% url 'ilp:add_progress' user_id=target_user.id goal_id=goal.id %}" 
+               class="text-xs text-blue-600 hover:text-blue-800">
+                View all {{ goal.progress_entries.count }} updates →
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+// Quick status update functionality
+function updateGoalStatus(goalId, status) {
+    if (confirm('Are you sure you want to mark this goal as completed?')) {
+        // AJAX call to update status
+        fetch(`/ilp/api/goal/${goalId}/status/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({
+                'status': status
+            })
+        })
+        .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+        .then(data => {
+            if (data.success) {
+                location.reload(); // Reload to show updated status
+            } else {
+                alert('Error updating goal status: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error updating goal status');
+        });
+    }
+}
+
+// Toggle progress history
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.toggle-progress-history').forEach(button => {
+        button.addEventListener('click', function() {
+            const goalId = this.getAttribute('data-goal-id');
+            const historyDiv = document.getElementById(`progress-history-${goalId}`);
+            
+            if (historyDiv.classList.contains('hidden')) {
+                historyDiv.classList.remove('hidden');
+                this.innerHTML = '<i class="fas fa-eye-slash mr-1"></i>Hide Progress History';
+            } else {
+                historyDiv.classList.add('hidden');
+                this.innerHTML = '<i class="fas fa-history mr-1"></i>View Progress History';
+            }
+        });
+    });
+});
+</script> 

@@ -1,0 +1,105 @@
+{% load static %}
+<!-- Include unified sidebar CSS -->
+<link rel="stylesheet" href="{% static 'css/sidebar-unified.css' %}?v=20250115120000">
+
+<!-- Sticky Sidebar - Hidden on mobile -->
+<aside id="sidebar" class="fixed top-16 left-0 h-[calc(100vh-4rem)] w-64 z-30 transition-all duration-300 hidden md:block">
+    <nav class="h-full py-1">
+        <div class="flex flex-col h-full space-y-0 items-start overflow-y-auto max-h-[calc(100vh-5rem)]">
+            <!-- Dashboard -->
+            <a href="{% if request.user.role == 'globaladmin' %}{% url 'dashboard_globaladmin' %}{% elif request.user.role == 'superadmin' %}{% url 'dashboard_superadmin' %}{% elif request.user.role == 'admin' %}{% url 'dashboard_admin' %}{% elif request.user.role == 'instructor' %}{% url 'dashboard_instructor' %}{% else %}{% url 'dashboard_learner' %}{% endif %}" class="menu-item flex items-center px-4 py-1 w-full {% if 'dashboard' in request.path %}active{% endif %}">
+                <div class="icon-container min-w-[20px] flex justify-center">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <rect x="3" y="3" width="7" height="7" stroke="currentColor" stroke-width="2"/>
+                        <rect x="14" y="3" width="7" height="7" stroke="currentColor" stroke-width="2"/>
+                        <rect x="3" y="14" width="7" height="7" stroke="currentColor" stroke-width="2"/>
+                        <rect x="14" y="14" width="7" height="7" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                </div>
+                <span class="menu-text ml-3 text-sm font-medium">Dashboard</span>
+            </a>
+
+            {% if request.user.role == 'globaladmin' %}
+            <!-- GLOBAL ADMIN MENU STRUCTURE -->
+            {% include "components/sidebar_parts/globaladmin_menu.html" %}
+            {% elif request.user.role == 'superadmin' %}
+            <!-- SUPERADMIN MENU STRUCTURE -->
+            {% include "components/sidebar_parts/superadmin_menu.html" %}
+            {% elif request.user.role == 'admin' %}
+            <!-- ADMIN MENU STRUCTURE -->  
+            {% include "components/sidebar_parts/admin_menu.html" %}
+            {% elif request.user.role == 'instructor' %}
+            <!-- INSTRUCTOR MENU STRUCTURE -->
+            {% include "components/sidebar_parts/instructor_menu.html" %}
+            {% else %}
+            <!-- LEARNER MENU STRUCTURE -->
+            {% include "components/sidebar_parts/learner_menu.html" %}
+            {% endif %}
+        </div>
+    </nav>
+</aside>
+
+<!-- Inline styles removed - now using unified CSS file -->
+<!-- Unified JavaScript - now using sidebar-unified.js -->
+<script src="{% static 'js/sidebar-unified.js' %}?v=20250115120000"></script>
+
+<!-- Debug script for development -->
+{% if settings.DEBUG %}
+<script src="{% static 'js/sidebar-debug.js' %}?v=5.1"></script>
+{% endif %}
+
+<!-- Enhanced initialization script -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Ensure sidebar is properly initialized
+    if (window.SidebarManager) {
+        window.SidebarManager.init();
+    } else {
+        // Fallback initialization if SidebarManager is not available
+        console.warn('SidebarManager not found, using fallback initialization');
+        
+        // Basic sidebar toggle functionality
+        const toggleButton = document.getElementById('mobile-menu-toggle');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('main-content');
+        
+        if (toggleButton && sidebar) {
+            // Remove existing event listeners to prevent duplicates
+            const newToggleButton = toggleButton.cloneNode(true);
+            if (toggleButton.parentNode) {
+                toggleButton.parentNode.replaceChild(newToggleButton, toggleButton);
+            }
+            
+            newToggleButton.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                if (window.innerWidth < 768) {
+                    // Mobile behavior - toggle mobile menu
+                    const mobileMenu = document.getElementById('mobile-menu');
+                    if (mobileMenu) {
+                        mobileMenu.classList.toggle('open');
+                        document.body.classList.toggle('overflow-hidden');
+                    }
+                } else {
+                    // Desktop behavior - toggle sidebar collapse
+                    sidebar.classList.toggle('collapsed');
+                    if (mainContent) {
+                        mainContent.classList.toggle('sidebar-collapsed');
+                    }
+                    
+                    // Store state
+                    const isCollapsed = sidebar.classList.contains('collapsed');
+                    localStorage.setItem('sidebar_collapsed', isCollapsed);
+                }
+            });
+        }
+    }
+});
+
+// Additional fallback for window load
+window.addEventListener('load', function() {
+    if (window.SidebarManager && !window.SidebarManager.isInitialized) {
+        window.SidebarManager.init();
+    }
+});
+</script> 

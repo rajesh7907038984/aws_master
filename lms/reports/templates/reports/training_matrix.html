@@ -1,0 +1,583 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load report_filters %}
+
+{% block extra_css %}
+<link rel="stylesheet" type="text/css" href="{% static 'css/reports-unified.css' %}">
+<style>
+    .matrix-table th.rotated {
+        height: 150px;
+        white-space: nowrap;
+        position: relative;
+        min-width: 80px;
+        padding: 8px 4px;
+        vertical-align: bottom;
+    }
+    .matrix-table th.rotated > div {
+        transform: rotate(-45deg);
+        transform-origin: left bottom;
+        position: absolute;
+        left: 50%;
+        bottom: 8px;
+        width: max-content;
+        max-width: 200px;
+        text-align: left;
+        font-size: 12px;
+        line-height: 1.2;
+        margin-left: -10px;
+    }
+    .matrix-table th.rotated small {
+        display: block;
+        font-size: 10px;
+        opacity: 0.8;
+        margin-top: 2px;
+    }
+    .status-indicator {
+        display: inline-block;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+    }
+    .status-complete {
+        background-color: #10b981;
+    }
+    .status-in-progress {
+        background-color: #6b7280;
+    }
+    .status-not-started {
+        background-color: #e5e7eb;
+    }
+    .filter-dropdown {
+        position: absolute;
+        right: 0;
+        top: 100%;
+        width: 260px;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        z-index: 50;
+        padding: 16px;
+        margin-top: 8px;
+        display: none;
+    }
+    .filter-dropdown.active {
+        display: block;
+    }
+    .filter-section {
+        margin-bottom: 16px;
+    }
+    .filter-heading {
+        font-weight: 600;
+        margin-bottom: 8px;
+        font-size: 16px;
+    }
+    .filter-option {
+        display: block;
+        padding: 6px 0;
+        cursor: pointer;
+    }
+    .filter-search {
+        width: 100%;
+        border: 1px solid #e5e7eb;
+        border-radius: 4px;
+        padding: 8px 12px;
+        margin-bottom: 12px;
+    }
+    .view-dropdown {
+        position: absolute;
+        right: 0;
+        top: 100%;
+        width: 260px;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        z-index: 50;
+        padding: 16px;
+        margin-top: 8px;
+        display: none;
+    }
+    .view-dropdown.active {
+        display: block;
+    }
+    .view-section {
+        margin-bottom: 16px;
+    }
+    .view-heading {
+        font-weight: 600;
+        margin-bottom: 8px;
+        font-size: 16px;
+    }
+    .view-option {
+        display: block;
+        padding: 6px 0;
+        cursor: pointer;
+    }
+    .radio-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+    .radio-option input[type="radio"] {
+        width: 16px;
+        height: 16px;
+    }
+    
+    /* Additional table styling for better layout */
+    .matrix-table {
+        border-collapse: separate;
+        border-spacing: 0;
+        table-layout: auto;
+    }
+    .matrix-table th {
+        border: 1px solid #e5e7eb;
+        background-color: #f9fafb;
+    }
+    .matrix-table td {
+        border: 1px solid #e5e7eb;
+        min-width: 60px;
+    }
+    .matrix-table th:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 20;
+        min-width: 150px;
+        max-width: 200px;
+    }
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="report-container">
+    <!-- Breadcrumbs -->
+    <div class="report-breadcrumb">
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+    </div>
+
+    <!-- Branch Filter -->
+    <div class="report-filters-top">
+        {% include 'components/branch_filter.html' with branches=branches user_branch_id=user_branch_id %}
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="report-nav-tabs">
+        <nav>
+            <a href="{% url 'reports:overview' %}" class="report-nav-tab">
+                Overview
+            </a>
+            <a href="{% url 'reports:training_matrix' %}" class="report-nav-tab active">
+                Training matrix
+            </a>
+            <a href="{% url 'reports:timeline' %}" class="report-nav-tab">
+                Timeline
+            </a>
+        </nav>
+    </div>
+
+    <!-- Search and Actions -->
+    <div class="flex justify-between items-center mb-6">
+        <form method="GET" class="flex items-center gap-3" id="searchFilterForm">
+            <input type="text" 
+                   name="search"
+                   class="w-64 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500" 
+                   placeholder="Search users" 
+                   value="{{ search_query }}">
+            <div class="relative">
+                <button type="button" id="filterButton" class="p-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+                <!-- Filter Dropdown -->
+                <div id="filterDropdown" class="filter-dropdown">
+                    <input type="text" class="filter-search" placeholder="Search">
+                    
+                    <!-- Status Section -->
+                    <div class="filter-section">
+                        <div class="filter-heading">Status</div>
+                        <label class="filter-option">
+                            <input type="checkbox" name="status" value="active_users" {% if 'active_users' in status_filters %}checked{% endif %}> Active users
+                        </label>
+                        <label class="filter-option">
+                            <input type="checkbox" name="status" value="active_courses" {% if 'active_courses' in status_filters %}checked{% endif %}> Active courses
+                        </label>
+                    </div>
+                    
+                    <!-- Branch Section -->
+                    <div class="filter-section">
+                        <div class="filter-heading">Branch</div>
+                        {% for branch in branches %}
+                        <label class="filter-option">
+                            <input type="checkbox" name="branch" value="{{ branch }}" {% if branch in branch_filters %}checked{% endif %}> {{ branch }}
+                        </label>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Group Section -->
+                    <div class="filter-section">
+                        <div class="filter-heading">Group</div>
+                        {% for group in groups %}
+                        <label class="filter-option">
+                            <input type="checkbox" name="group" value="{{ group|slugify|lower }}" {% if group|slugify|lower in group_filters %}checked{% endif %}> {{ group }}
+                        </label>
+                        {% endfor %}
+                    </div>
+                    
+
+                    
+                    <div class="mt-4">
+                        <button type="submit" class="w-full px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600">
+                            Apply Filters
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Hidden inputs for pagination preservation when form submitted -->
+            <input type="hidden" name="per_page" value="{{ per_page }}">
+        </form>
+        <div class="flex gap-3">
+            <div class="relative">
+                <button type="button" id="viewButton" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                    View
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+                <!-- View Dropdown -->
+                <div id="viewDropdown" class="view-dropdown">
+                    <form method="GET" id="viewOptionsForm">
+                        <!-- Preserve existing search and filter parameters -->
+                        <input type="hidden" name="search" value="{{ search_query }}">
+                        <input type="hidden" name="per_page" value="{{ per_page }}">
+                        {% for status in status_filters %}
+                        <input type="hidden" name="status" value="{{ status }}">
+                        {% endfor %}
+                        {% for branch in branch_filters %}
+                        <input type="hidden" name="branch" value="{{ branch }}">
+                        {% endfor %}
+                        {% for group in group_filters %}
+                        <input type="hidden" name="group" value="{{ group }}">
+                        {% endfor %}
+                        
+                        <!-- Options Section -->
+                        <div class="view-section">
+                            <div class="view-heading">Options</div>
+                            <label class="view-option">
+                                <input type="checkbox" name="view_option" value="course_score" {% if 'course_score' in view_options %}checked{% endif %}> Course score
+                            </label>
+                            <label class="view-option">
+                                <input type="checkbox" name="view_option" value="course_progress" {% if 'course_progress' in view_options %}checked{% endif %}> Course progress
+                            </label>
+                            <label class="view-option">
+                                <input type="checkbox" name="view_option" value="course_code" {% if 'course_code' in view_options %}checked{% endif %}> Course code
+                            </label>
+                        </div>
+                        
+                        <!-- Focus Section -->
+                        <div class="view-section">
+                            <div class="view-heading">Focus</div>
+                            <div class="radio-option">
+                                <input type="radio" name="focus" id="focus_all" value="all" {% if focus == 'all' or not focus %}checked{% endif %}>
+                                <label for="focus_all">All</label>
+                            </div>
+                            <div class="radio-option">
+                                <input type="radio" name="focus" id="focus_completed" value="completed" {% if focus == 'completed' %}checked{% endif %}>
+                                <label for="focus_completed">Completed</label>
+                            </div>
+                            <div class="radio-option">
+                                <input type="radio" name="focus" id="focus_not_passed" value="not_passed" {% if focus == 'not_passed' %}checked{% endif %}>
+                                <label for="focus_not_passed">Not passed</label>
+                            </div>
+                            <div class="radio-option">
+                                <input type="radio" name="focus" id="focus_in_progress" value="in_progress" {% if focus == 'in_progress' %}checked{% endif %}>
+                                <label for="focus_in_progress">In progress</label>
+                            </div>
+                            <div class="radio-option">
+                                <input type="radio" name="focus" id="focus_not_started" value="not_started" {% if focus == 'not_started' %}checked{% endif %}>
+                                <label for="focus_not_started">Not started</label>
+                            </div>
+                            <div class="radio-option">
+                                <input type="radio" name="focus" id="focus_not_enrolled" value="not_enrolled" {% if focus == 'not_enrolled' %}checked{% endif %}>
+                                <label for="focus_not_enrolled">Not enrolled</label>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <button type="submit" class="w-full px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600">
+                                Apply Options
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <button class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700" id="exportButton">
+                Export in Excel
+            </button>
+        </div>
+    </div>
+
+    <!-- Main grid with full width -->
+    <div class="grid grid-cols-12 gap-4 md:gap-6">
+        <!-- Full Width Column -->
+        <div class="col-span-12 transition-all duration-300">
+            <div class="bg-white rounded-lg shadow-sm">
+                <div class="p-6">
+                    <!-- Matrix Table -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full border-collapse bg-white rounded-lg shadow-sm matrix-table">
+            <thead>
+                <tr>
+                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-500 bg-gray-50 border-b border-gray-200 sticky left-0 z-10">Users</th>
+                    {% for course in courses %}
+                    <th class="rotated px-4 py-3 text-sm font-medium text-gray-500 bg-gray-50 border-b border-gray-200">
+                        <div>
+                            {{ course.title }}
+                            {% if 'course_code' in view_options and course.course_code %}
+                                <small class="block text-xs mt-1">({{ course.course_code }})</small>
+                            {% endif %}
+                        </div>
+                    </th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td class="px-4 py-3 text-sm text-gray-900 border-b border-gray-200 sticky left-0 bg-white z-10">{{ user.get_full_name|default:user.username }}</td>
+                    {% for course in courses %}
+                        <td class="px-4 py-3 text-center border-b border-gray-200">
+                            {% if course.id in user.course_enrollments %}
+                                {% with enrollment=user.course_enrollments|get:course.id %}
+                                    {% if enrollment.completed %}
+                                        <div class="flex flex-col items-center">
+                                            <span class="status-indicator status-complete"></span>
+                                            <div class="text-center">
+                                                {% if 'course_score' in view_options and enrollment.score %}
+                                                    {% if enrollment.score > 100 %}
+                                                        <div class="text-xs mt-1">Score: 100%</div>
+                                                    {% else %}
+                                                        <div class="text-xs mt-1">Score: {{ enrollment.score|floatformat:0 }}%</div>
+                                                    {% endif %}
+                                                {% endif %}
+                                                {% if 'course_progress' in view_options %}
+                                                    <div class="text-xs">Progress: 100%</div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    {% elif enrollment.last_accessed %}
+                                        <div class="flex flex-col items-center">
+                                            <span class="status-indicator status-in-progress"></span>
+                                            <div class="text-center">
+                                                {% if 'course_score' in view_options and enrollment.score %}
+                                                    {% if enrollment.score > 100 %}
+                                                        <div class="text-xs mt-1">Score: 100%</div>
+                                                    {% else %}
+                                                        <div class="text-xs mt-1">Score: {{ enrollment.score|floatformat:0 }}%</div>
+                                                    {% endif %}
+                                                {% endif %}
+                                                {% if 'course_progress' in view_options %}
+                                                    <div class="text-xs">Progress: {{ enrollment.progress|default:0 }}%</div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    {% else %}
+                                        <div class="flex flex-col items-center">
+                                            <span class="status-indicator status-not-started"></span>
+                                            <div class="text-center">
+                                                {% if 'course_progress' in view_options %}
+                                                    <div class="text-xs mt-1">Progress: 0%</div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                                {% endwith %}
+                            {% else %}
+                                <span class="status-indicator status-not-started"></span>
+                            {% endif %}
+                        </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Pagination -->
+    <div class="flex justify-between items-center mt-6">
+        <div class="flex items-center gap-2">
+            <form method="GET" id="perPageForm">
+                <input type="hidden" name="search" value="{{ search_query }}">
+                {% for status in status_filters %}
+                <input type="hidden" name="status" value="{{ status }}">
+                {% endfor %}
+                {% for branch in branch_filters %}
+                <input type="hidden" name="branch" value="{{ branch }}">
+                {% endfor %}
+                {% for group in group_filters %}
+                <input type="hidden" name="group" value="{{ group }}">
+                {% endfor %}
+                {% for option in view_options %}
+                <input type="hidden" name="view_option" value="{{ option }}">
+                {% endfor %}
+                {% if focus %}
+                <input type="hidden" name="focus" value="{{ focus }}">
+                {% endif %}
+                <select class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500" 
+                        name="per_page" id="perPageSelect">
+                    <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
+                    <option value="20" {% if per_page == 20 %}selected{% endif %}>20</option>
+                    <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+                </select>
+            </form>
+            <span class="text-gray-600">per page</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <a href="{% if has_previous %}{% url 'reports:training_matrix' %}?search={{ search_query }}&per_page={{ per_page }}&page=1{% for status in status_filters %}&status={{ status }}{% endfor %}{% for branch in branch_filters %}&branch={{ branch }}{% endfor %}{% for group in group_filters %}&group={{ group }}{% endfor %}{% for option in view_options %}&view_option={{ option }}{% endfor %}{% if focus %}&focus={{ focus }}{% endif %}{% else %}javascript:void(0){% endif %}" 
+               class="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 {% if not has_previous %}opacity-50 cursor-not-allowed{% endif %}">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M15.707 15.707a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" />
+                </svg>
+            </a>
+            <a href="{% if has_previous %}{% url 'reports:training_matrix' %}?search={{ search_query }}&per_page={{ per_page }}&page={{ current_page|add:'-1' }}{% for status in status_filters %}&status={{ status }}{% endfor %}{% for branch in branch_filters %}&branch={{ branch }}{% endfor %}{% for group in group_filters %}&group={{ group }}{% endfor %}{% for option in view_options %}&view_option={{ option }}{% endfor %}{% if focus %}&focus={{ focus }}{% endif %}{% else %}javascript:void(0){% endif %}" 
+               class="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 {% if not has_previous %}opacity-50 cursor-not-allowed{% endif %}">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+            </a>
+            <span class="text-gray-600">{{ current_page }} of {{ total_pages }}</span>
+            <a href="{% if has_next %}{% url 'reports:training_matrix' %}?search={{ search_query }}&per_page={{ per_page }}&page={{ current_page|add:'1' }}{% for status in status_filters %}&status={{ status }}{% endfor %}{% for branch in branch_filters %}&branch={{ branch }}{% endfor %}{% for group in group_filters %}&group={{ group }}{% endfor %}{% for option in view_options %}&view_option={{ option }}{% endfor %}{% if focus %}&focus={{ focus }}{% endif %}{% else %}javascript:void(0){% endif %}" 
+               class="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 {% if not has_next %}opacity-50 cursor-not-allowed{% endif %}">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                </svg>
+            </a>
+            <a href="{% if has_next %}{% url 'reports:training_matrix' %}?search={{ search_query }}&per_page={{ per_page }}&page={{ total_pages }}{% for status in status_filters %}&status={{ status }}{% endfor %}{% for branch in branch_filters %}&branch={{ branch }}{% endfor %}{% for group in group_filters %}&group={{ group }}{% endfor %}{% for option in view_options %}&view_option={{ option }}{% endfor %}{% if focus %}&focus={{ focus }}{% endif %}{% else %}javascript:void(0){% endif %}" 
+               class="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 {% if not has_next %}opacity-50 cursor-not-allowed{% endif %}">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M4.293 14.707a1 1 0 010-1.414L8.586 10 4.293 5.707a1 1 0 011.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                </svg>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        // Per page selection change handler
+        const perPageSelect = document.getElementById('perPageSelect');
+        if (perPageSelect) {
+            perPageSelect.addEventListener('change', function() {
+                const form = document.getElementById('perPageForm');
+                if (form) {
+                    form.submit();
+                }
+            });
+        }
+
+        // Export to Excel button with all filters
+        const exportButton = document.getElementById('exportButton');
+        if (exportButton) {
+            exportButton.addEventListener('click', function() {
+                let exportUrl = "{% url 'reports:training_matrix' %}?export=excel&search={{ search_query }}";
+                
+                // Add all selected filters to the export URL
+                {% for status in status_filters %}
+                exportUrl += "&status={{ status }}";
+                {% endfor %}
+                
+                {% for branch in branch_filters %}
+                exportUrl += "&branch={{ branch }}";
+                {% endfor %}
+                
+                {% for group in group_filters %}
+                exportUrl += "&group={{ group }}";
+                {% endfor %}
+                
+                // Add view options
+                {% for option in view_options %}
+                exportUrl += "&view_option={{ option }}";
+                {% endfor %}
+                
+                // Add focus parameter
+                {% if focus %}
+                exportUrl += "&focus={{ focus }}";
+                {% endif %}
+                
+                window.location.href = exportUrl;
+            });
+        }
+        
+        // Filter dropdown toggle
+        const filterButton = document.getElementById('filterButton');
+        const filterDropdown = document.getElementById('filterDropdown');
+        
+        if (filterButton && filterDropdown) {
+            filterButton.addEventListener('click', function(e) {
+                e.stopPropagation();
+                filterDropdown.classList.toggle('active');
+            });
+            
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!filterDropdown.contains(e.target) && e.target !== filterButton) {
+                    filterDropdown.classList.remove('active');
+                }
+            });
+        }
+        
+        // Filter search functionality
+        const filterSearch = document.querySelector('.filter-search');
+        const filterOptions = document.querySelectorAll('.filter-option');
+        
+        if (filterSearch && filterOptions.length > 0) {
+            filterSearch.addEventListener('input', function() {
+                const searchValue = this.value.toLowerCase();
+                
+                filterOptions.forEach(option => {
+                    const text = option.textContent.toLowerCase();
+                    if (text.includes(searchValue)) {
+                        option.style.display = 'block';
+                    } else {
+                        option.style.display = 'none';
+                    }
+                });
+            });
+        }
+
+        // View dropdown toggle
+        const viewButton = document.getElementById('viewButton');
+        const viewDropdown = document.getElementById('viewDropdown');
+
+        if (viewButton && viewDropdown) {
+            viewButton.addEventListener('click', function(e) {
+                e.stopPropagation();
+                viewDropdown.classList.toggle('active');
+                
+                // Close filter dropdown if open
+                if (filterDropdown && filterDropdown.classList.contains('active')) {
+                    filterDropdown.classList.remove('active');
+                }
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!viewDropdown.contains(e.target) && e.target !== viewButton) {
+                    viewDropdown.classList.remove('active');
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error in training matrix JavaScript:', error);
+    }
+});
+</script>
+{% endblock %} 

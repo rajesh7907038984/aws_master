@@ -1,0 +1,43 @@
+{% load static %}
+{% comment %}
+TinyMCE Editor - Global Dependencies Includes
+This template includes all required CSS and JavaScript dependencies for the TinyMCE Editor.
+It should be included once per page that uses the editor.
+{% endcomment %}
+
+<!-- TinyMCE Core Dependencies -->
+<script src="{% static 'tinymce_editor/tinymce/tinymce.min.js' %}"></script>
+<script src="{% static 'tinymce_editor/js/tinymce-widget.js' %}"></script>
+<link href="{% static 'tinymce_editor/css/tinymce-widget.css' %}" rel="stylesheet">
+
+<!-- Initialization Script -->
+<script>
+    // Global configuration for TinyMCE Editor
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize any textarea with class tinymce-editor that wasn't already initialized
+        const textareas = document.querySelectorAll('textarea.tinymce-editor:not([data-tinymce-initialized])');
+        textareas.forEach(function(textarea) {
+            if (!textarea.id) {
+                textarea.id = 'tinymce-' + Math.random().toString(36).substring(2, 9);
+            }
+            
+            const config = {
+                selector: '#' + textarea.id,
+                plugins: 'link image lists table code',
+                toolbar: 'undo redo | styles | bold italic | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link image | table | code',
+                menubar: 'edit view insert format table',
+                statusbar: true,
+                resize: true,
+                height: 300,
+                base_url: '{% static "tinymce_editor/tinymce/" %}',
+                branding: false,
+                promotion: false
+            };
+            
+            if (typeof tinymce !== 'undefined') {
+                tinymce.init(config);
+                textarea.setAttribute('data-tinymce-initialized', 'true');
+            }
+        });
+    });
+</script> 

@@ -1,0 +1,301 @@
+{% extends 'base.html' %}
+{% load course_filters %}
+{% load static %}
+
+{% block title %}Dashboard - Nexsy LMS{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" type="text/css" href="{% static 'css/dashboard-shared.css' %}?v=20250930200000">
+<link rel="stylesheet" type="text/css" href="{% static 'css/dashboard-roles-unified.css' %}">
+<style>
+    /* Learner-specific overrides only */
+    .dashboard-main {
+        background-color: var(--learner-background) !important;
+    }
+</style>
+
+<script>
+let currentTodoStart = {{ todo_items|length }};
+
+// Load more todos functionality
+function loadMoreTodos() {
+    const loadButton = document.getElementById('load-more-todos');
+    const todoList = document.getElementById('todo-list');
+    
+    if (!loadButton || !todoList) return;
+    
+    // Show loading state
+    const originalText = loadButton.innerHTML;
+    loadButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Loading...';
+    loadButton.disabled = true;
+    
+    // Make AJAX request
+    fetch(`${window.location.pathname}?load_more_todos=1&start=${currentTodoStart}&limit=5`, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Cache-Control': 'no-cache'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.html) {
+            // Append new items to the todo list
+            todoList.insertAdjacentHTML('beforeend', data.html);
+            
+            // Update the start position for next load
+            currentTodoStart += 5;
+            
+            // Update task count
+            const countElement = document.getElementById('todo-count');
+            if (countElement) {
+                const currentCount = todoList.querySelectorAll('.dashboard-activity-item').length;
+                const pluralText = currentCount === 1 ? 'active task' : 'active tasks';
+                countElement.textContent = `${data.total_count} ${pluralText} (showing ${currentCount})`;
+            }
+            
+            // Hide load more button if no more items
+            if (!data.has_more) {
+                const loadMoreContainer = document.getElementById('load-more-container');
+                if (loadMoreContainer) {
+                    loadMoreContainer.style.display = 'none';
+                }
+            }
+        }
+        
+        // Restore button state
+        loadButton.innerHTML = originalText;
+        loadButton.disabled = false;
+    })
+    .catch(error => {
+        console.error('Error loading more todos:', error);
+        
+        // Restore button state on error
+        loadButton.innerHTML = originalText;
+        loadButton.disabled = false;
+        
+        // Show error message
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'alert alert-danger text-center mt-2';
+        errorDiv.style.fontSize = '12px';
+        errorDiv.innerHTML = '<i class="fas fa-exclamation-triangle mr-1"></i>Failed to load more tasks. Please try again.';
+        
+        const loadMoreContainer = document.getElementById('load-more-container');
+        if (loadMoreContainer) {
+            loadMoreContainer.appendChild(errorDiv);
+            
+            // Remove error message after 3 seconds
+            setTimeout(() => {
+                if (errorDiv.parentNode) {
+                    errorDiv.parentNode.removeChild(errorDiv);
+                }
+            }, 3000);
+        }
+    });
+}
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    // Attach click event to load more button
+    const loadMoreButton = document.getElementById('load-more-todos');
+    if (loadMoreButton) {
+        loadMoreButton.addEventListener('click', loadMoreTodos);
+    }
+    
+    // Enable infinite scroll (optional - commented out for now)
+    /*
+    const todoWrapper = document.querySelector('.todo-content-wrapper');
+    if (todoWrapper) {
+        todoWrapper.addEventListener('scroll', function() {
+            if (todoWrapper.scrollTop + todoWrapper.clientHeight >= todoWrapper.scrollHeight - 10) {
+                const loadMoreContainer = document.getElementById('load-more-container');
+                if (loadMoreContainer && loadMoreContainer.style.display !== 'none') {
+                    loadMoreTodos();
+                }
+            }
+        });
+    }
+    */
+});
+
+// No custom initialization needed here
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<!-- No additional scripts needed here -->
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-main">
+        <!-- Breadcrumb -->
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+        <!-- Main Content Grid -->
+        <div class="dashboard-grid dashboard-grid-main">
+            <!-- First Column (Wider) -->
+            <div class="dashboard-flex dashboard-flex-col">
+                <!-- Recent Course Activities -->
+                <div class="dashboard-section">
+                        <div class="dashboard-section-header-wrapper">
+                        <div class="dashboard-flex dashboard-flex-between dashboard-mb-sm">
+                            <h2 class="dashboard-section-header dashboard-mb-0">
+                                <i class="fas fa-graduation-cap" style="color: #050c50; margin-right: 0.5rem; font-size: 1rem;"></i>
+                                My Enrolled Courses
+                            </h2>
+                            <a href="{% url 'courses:course_list' %}" class="dashboard-link">Browse All</a>
+                        </div>
+                        <div class="dashboard-section-description">Your active learning journey</div>
+                    </div>
+                    {% if enrolled_courses %}
+                    <div class="course-grid">
+                        {% for enrollment in enrolled_courses|slice:":6" %}
+                        <div class="relative group">
+                            {% if enrollment.course.id and enrollment.course.id != '' %}
+                            <a href="{% url 'courses:course_view' enrollment.course.id %}" class="course-link">
+                            {% endif %}
+                                <div class="course-card">
+                                    <!-- Course Image -->
+                                    <div class="course-image">
+                                        {% if enrollment.course.course_image %}
+                                            <img src="{{ enrollment.course.course_image.url }}" 
+                                                 alt="{{ enrollment.course.title }}" 
+                                                 loading="lazy"
+                                                 onerror="this.onerror=null; this.src='{% load static %}{% static 'courses/course-placeholder.png' %}';">
+                                        {% else %}
+                                            <div class="course-image-fallback">
+                                                <span>{{ enrollment.course.title|first|upper }}</span>
+                                            </div>
+                                        {% endif %}
+                                        <!-- Play Button Overlay -->
+                                        <div class="play-button-overlay">
+                                            <i class="fas fa-play play-icon"></i>
+                                        </div>
+                                        <div class="course-category">
+                                            {{ enrollment.course.category.name|default:"Technology" }}
+                                        </div>
+                                    </div>
+
+                                    <div class="course-content">
+                                        <!-- Course Title -->
+                                        <h3 class="dashboard-text-base dashboard-text-bold course-title" style="margin-bottom: 0.5rem;">
+                                            {{ enrollment.course.title }}
+                                        </h3>
+
+                                        <!-- Course Description -->
+                                        <p class="course-description">
+                                            {{ enrollment.course.short_description|default:enrollment.course.description|striptags|truncatewords:15 }}
+                                        </p>
+
+                                        <!-- Course Progress Bar -->
+                                        <div class="course-progress-wrapper">
+                                            <div class="dashboard-flex dashboard-flex-between dashboard-mb-sm">
+                                                <span class="dashboard-text-xs dashboard-text-bold">Progress</span>
+                                                <span class="dashboard-text-xs dashboard-text-bold" style="color: #4262FF;">{{ enrollment.progress_percentage|default:0 }}%</span>
+                                            </div>
+                                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                                <div class="bg-blue-600 h-2 rounded-full" style="width: {{ enrollment.progress_percentage|default:0 }}%"></div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Course Meta -->
+                                        <div class="course-meta">
+                                            <span>
+                                                <i class="fas fa-user"></i>
+                                                {{ enrollment.course.instructor.get_full_name|default:"Instructor" }}
+                                            </span>
+                                            <span>
+                                                <i class="fas fa-clock"></i>
+                                                {% if enrollment.course.estimated_duration %}{{ enrollment.course.estimated_duration }}{% else %}Self-paced{% endif %}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% if enrollment.course.id and enrollment.course.id != '' %}
+                            </a>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="dashboard-text-center" style="padding: 3rem; text-align: center;">
+                        <h3 class="dashboard-heading-secondary" style="margin-bottom: 1rem; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; white-space: nowrap;">
+                            <i class="fas fa-book-open" style="font-size: 1.5rem; color: #64748b; display: inline-block;"></i>
+                            <span style="display: inline-block;">No courses enrolled yet</span>
+                        </h3>
+                        <p class="dashboard-text-small dashboard-text-muted dashboard-mb-lg" style="margin-bottom: 1.5rem; text-align: center;">Explore our course catalog and start learning!</p>
+                        <a href="{% url 'courses:course_list' %}" class="dashboard-quick-action" style="display: inline-flex; align-items: center; justify-content: center; padding: 0.75rem 2rem; text-decoration: none; background-color: #191f56; color: white; border-radius: 8px; font-weight: 500; transition: all 0.2s ease; white-space: nowrap;" onmouseover="this.style.backgroundColor='#141a4a'" onmouseout="this.style.backgroundColor='#191f56'">
+                            <i class="fas fa-search" style="margin-right: 0.5rem; font-size: 1rem;"></i>
+                            <span>Browse Courses</span>
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Calendar Component -->
+                <div class="dashboard-section">
+                    <div class="dashboard-section-header-wrapper">
+                        <h2 class="dashboard-section-header dashboard-mb-0">
+                            <i class="fas fa-calendar-alt" style="color: #050c50; margin-right: 0.5rem; font-size: 1rem;"></i>
+                            Learning Calendar
+                        </h2>
+                        <div class="dashboard-section-description">Track your learning activities</div>
+                    </div>
+                    {% include 'components/dashboard_calendar.html' %}
+                </div>
+            </div>
+
+            <!-- Second Column (Narrower) -->
+            <div class="dashboard-flex dashboard-flex-col">
+                <!-- To-do List -->
+                <div class="dashboard-section">
+                        <div class="dashboard-section-header-wrapper">
+                        <div class="dashboard-flex dashboard-flex-between dashboard-mb-sm">
+                            <h2 class="dashboard-section-header dashboard-mb-0">
+                                <i class="fas fa-tasks" style="color: #050c50; margin-right: 0.5rem; font-size: 1rem;"></i>
+                                To-do List
+                            </h2>
+                            <div class="dashboard-text-small dashboard-text-muted">
+                                <a href="{% url 'reports:my_learning_report' %}" class="dashboard-link">My Report</a>
+                            </div>
+                        </div>
+                        <div class="dashboard-section-description">Your learning priorities</div>
+                    </div>
+                    
+                    <!-- Unified Todo List Container -->
+                    <div class="todo-content-wrapper" style="max-height: 400px; overflow-y: auto;">
+                        <div id="todo-list" class="dashboard-activity-list">
+                            <!-- Unified Todo Items -->
+                            {% include 'users/components/enhanced_todo_item.html' %}
+                            
+                            {% if not todo_items %}
+                            <div class="dashboard-text-center dashboard-text-small" style="padding: 1.5rem 1rem; color: #6b7280;">
+                                <i class="fas fa-tasks text-3xl mb-3 text-gray-300"></i>
+                                <p>No active tasks</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Load More Button -->
+                        {% if has_more_todos %}
+                        <div class="text-center pt-3" id="load-more-container">
+                            <button id="load-more-todos" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-plus-circle mr-1"></i>
+                                Load More Tasks
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,73 @@
+{% extends 'reports/activity_report_sections/base.html' %}
+{% load static %}
+
+{% block section_content %}
+<!-- User Progress Chart Component -->
+{% include 'core/user_progress_chart.html' with chart_title="User Progress Overview" show_export=True enhanced_user_progress_json=enhanced_user_progress_json %}
+
+<!-- Users Data Table -->
+<div class="bg-white rounded-lg shadow-sm border mt-6">
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead>
+                <tr class="bg-gray-50 border-b">
+                    <th class="px-6 py-3 text-left text-sm font-medium text-gray-500">
+                        User <i class="fas fa-sort ml-1"></i>
+                    </th>
+                    <th class="px-6 py-3 text-left text-sm font-medium text-gray-500">Status</th>
+                    <th class="px-6 py-3 text-left text-sm font-medium text-gray-500">Score</th>
+                    <th class="px-6 py-3 text-left text-sm font-medium text-gray-500">Attempts</th>
+                    <th class="px-6 py-3 text-left text-sm font-medium text-gray-500">Last Accessed</th>
+                    <th class="px-6 py-3 text-center text-sm font-medium text-gray-500">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for progress_data in enhanced_user_progress %}
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="px-6 py-4">
+                        <div class="flex flex-col">
+                            <span class="font-medium">{{ progress_data.name }}</span>
+                            <span class="text-sm text-gray-500">{{ progress_data.email }}</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full
+                            {% if progress_data.status == 'Completed' %}bg-green-100 text-green-800
+                            {% elif progress_data.status == 'In Progress' %}bg-yellow-100 text-yellow-800
+                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ progress_data.status }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4">
+                        {% if progress_data.score %}
+                            {{ progress_data.score|floatformat:1 }}%
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4">{{ progress_data.attempts }}</td>
+                    <td class="px-6 py-4">
+                        {% if progress_data.last_accessed %}
+                            {{ progress_data.last_accessed|date:"d/m/Y H:i" }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        <a href="{% url 'reports:user_report_overview' progress_data.id %}" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                        No user progress data available
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

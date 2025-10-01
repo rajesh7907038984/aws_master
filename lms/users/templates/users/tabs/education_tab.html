@@ -1,0 +1,793 @@
+<!-- Academic Records Tab Content -->
+{% if not is_edit_mode or is_edit_mode and profile_user.role == 'learner' %}
+<div id="education-tab" class="tab-content">
+    <div class="mb-6 flex justify-between items-center">
+        <div>
+            <h3 class="text-lg font-semibold">Academic Records</h3>
+            <p class="text-sm text-gray-600 mt-1">Add and manage your education history</p>
+        </div>
+        <button type="button" id="add-education" class="px-4 py-2 text-white rounded-lg transition-colors" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+            <i class="fas fa-plus mr-2"></i> Add Academic Record
+        </button>
+    </div>
+
+    <!-- Education Records Accordion -->
+    <div id="education-records-accordion" class="space-y-4 mb-6">
+        <!-- Existing education records will be populated here -->
+        {% if form.instance and form.instance.id %}
+            <!-- Load existing education records if in edit mode -->
+            <div id="existing-education-record" class="education-record bg-white border border-gray-200 rounded-lg shadow-sm">
+                <!-- Accordion Header -->
+                <div class="education-header px-6 py-4 bg-gray-50 border-b border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors" onclick="toggleEducationRecord(this)">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-graduation-cap text-blue-600 text-sm"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-gray-900 education-title">
+                                    {% if form.study_area.value and form.study_area.value != '' %}
+                                        {{ form.get_study_area_display|default:"Academic Record" }}
+                                    {% else %}
+                                        Academic Record
+                                    {% endif %}
+                                </h4>
+                                <p class="text-sm text-gray-600 education-summary">
+                                    {% if form.level_of_study.value and form.date_achieved.value %}
+                                        {{ form.get_level_of_study_display }} • {{ form.date_achieved.value|date:"Y" }}
+                                    {% elif form.level_of_study.value %}
+                                        {{ form.get_level_of_study_display }}
+                                    {% else %}
+                                        Click to expand and view details
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            {% if form.date_achieved.value %}
+                                <span class="education-status-badge px-2 py-1 text-xs rounded-full bg-green-100 text-green-600">Completed</span>
+                            {% elif form.study_area.value %}
+                                <span class="education-status-badge px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-600">In Progress</span>
+                            {% else %}
+                                <span class="education-status-badge px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-600">Draft</span>
+                            {% endif %}
+                            <i class="fas fa-chevron-down accordion-icon text-gray-400 transition-transform"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Accordion Content -->
+                <div class="education-content p-6" style="display: none;">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="form-group">
+                            <label for="{{ form.study_area.id_for_label }}" class="form-label">Study Area *</label>
+                            {{ form.study_area }}
+                            {% if form.study_area.errors %}
+                            <div class="error-message">{{ form.study_area.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-help-text">{{ form.study_area.help_text }}</div>
+                        </div>
+
+                        <div class="form-group study-area-other-container" style="display: {% if form.study_area.value == 'Other' %}block{% else %}none{% endif %};">
+                            <label for="{{ form.study_area_other.id_for_label }}" class="form-label">Other Study Area *</label>
+                            {{ form.study_area_other }}
+                            {% if form.study_area_other.errors %}
+                            <div class="error-message">{{ form.study_area_other.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-help-text">{{ form.study_area_other.help_text }}</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="{{ form.level_of_study.id_for_label }}" class="form-label">Level of Study *</label>
+                            {{ form.level_of_study }}
+                            {% if form.level_of_study.errors %}
+                            <div class="error-message">{{ form.level_of_study.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-help-text">{{ form.level_of_study.help_text }}</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="{{ form.grades.id_for_label }}" class="form-label">Grades/Result</label>
+                            {{ form.grades }}
+                            {% if form.grades.errors %}
+                            <div class="error-message">{{ form.grades.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-help-text">{{ form.grades.help_text }}</div>
+                        </div>
+
+                        <div class="form-group grades-other-container" style="display: {% if form.grades.value == 'Other (Please Specify)' %}block{% else %}none{% endif %};">
+                            <label for="{{ form.grades_other.id_for_label }}" class="form-label">Other Grades/Qualification *</label>
+                            {{ form.grades_other }}
+                            {% if form.grades_other.errors %}
+                            <div class="error-message">{{ form.grades_other.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-help-text">{{ form.grades_other.help_text }}</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="{{ form.date_achieved.id_for_label }}" class="form-label">Date Achieved</label>
+                            {{ form.date_achieved }}
+                            {% if form.date_achieved.errors %}
+                            <div class="error-message">{{ form.date_achieved.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-help-text">{{ form.date_achieved.help_text }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- No Education Records Message -->
+    <div id="no-education-message" class="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300" style="display: {% if form.instance and form.instance.id and form.study_area.value %}none{% else %}block{% endif %};">
+        <div class="text-gray-400 mb-4">
+            <i class="fas fa-graduation-cap text-4xl"></i>
+        </div>
+        <h4 class="text-lg font-medium text-gray-900 mb-2">No Additional Academic Records</h4>
+        <p class="text-gray-600 mb-4">Add more qualifications and achievements to build your complete education profile.</p>
+        <button type="button" onclick="addEducationRecord()" class="px-4 py-2 text-white rounded-lg transition-colors" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+            <i class="fas fa-plus mr-2"></i> Add Academic Record
+        </button>
+    </div>
+
+    <!-- Education Record Template -->
+    <template id="education-record-template">
+        <div class="education-record bg-white border border-gray-200 rounded-lg shadow-sm">
+            <!-- Accordion Header -->
+            <div class="education-header px-6 py-4 bg-gray-50 border-b border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors" onclick="toggleEducationRecord(this)">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-graduation-cap text-blue-600 text-sm"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900 education-title">New Academic Record</h4>
+                            <p class="text-sm text-gray-600 education-summary">Click to expand and add details</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="education-status-badge px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-600">Draft</span>
+                        <button type="button" class="delete-education text-red-500 hover:text-red-700 p-1" onclick="event.stopPropagation(); deleteEducationRecord(this)">
+                            <i class="fas fa-trash text-sm"></i>
+                        </button>
+                        <i class="fas fa-chevron-down accordion-icon text-gray-400 transition-transform"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Accordion Content -->
+            <div class="education-content p-6" style="display: none;">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="form-group">
+                        <label class="form-label">Institution Name *</label>
+                        <input type="text" name="institution_name" class="form-input education-institution" placeholder="e.g., University College" required>
+                        <div class="form-help-text">Name of the educational institution</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Study Area *</label>
+                        <select name="study_area" class="form-select study-area-select" required>
+                            <option value="">Select study area...</option>
+                            {% for value, text in form.study_area.field.choices %}
+                            <option value="{{ value }}">{{ text }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-help-text">{{ form.study_area.help_text }}</div>
+                    </div>
+
+                    <div class="form-group study-area-other-container" style="display: none;">
+                        <label class="form-label">Other Study Area *</label>
+                        <input type="text" name="study_area_other" class="form-input" placeholder="Please specify your study area">
+                        <div class="form-help-text">{{ form.study_area_other.help_text }}</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Level of Study *</label>
+                        <select name="level_of_study" class="form-select education-level" required>
+                            <option value="">Select level...</option>
+                            {% for value, text in form.level_of_study.field.choices %}
+                            <option value="{{ value }}">{{ text }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-help-text">{{ form.level_of_study.help_text }}</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Qualification/Degree</label>
+                        <input type="text" name="qualification" class="form-input education-qualification" placeholder="e.g., Bachelor of Science">
+                        <div class="form-help-text">Full name of the qualification or degree</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Grades/Result</label>
+                        <select name="grades" class="form-select grades-select education-grades">
+                            <option value="">Select grades...</option>
+                            {% for value, text in form.grades.field.choices %}
+                            <option value="{{ value }}">{{ text }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-help-text">{{ form.grades.help_text }}</div>
+                    </div>
+
+                    <div class="form-group grades-other-container" style="display: none;">
+                        <label class="form-label">Other Grades/Qualification *</label>
+                        <input type="text" name="grades_other" class="form-input" placeholder="Please specify your grades/qualification">
+                        <div class="form-help-text">{{ form.grades_other.help_text }}</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Start Date</label>
+                        <input type="date" name="start_date" class="form-input education-start-date">
+                        <div class="form-help-text">When you started this qualification</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">End Date (or Expected)</label>
+                        <input type="date" name="end_date" class="form-input education-end-date">
+                        <div class="form-help-text">When you completed or expect to complete</div>
+                    </div>
+
+                    <div class="form-group md:col-span-2">
+                        <label class="form-label">Additional Details</label>
+                        <textarea name="additional_details" class="form-textarea education-details" rows="3" placeholder="Any additional information about this qualification, achievements, or relevant coursework..."></textarea>
+                        <div class="form-help-text">Optional: Add any relevant details about achievements, coursework, or skills gained</div>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="flex items-center">
+                            <input type="checkbox" name="currently_studying" class="form-checkbox mr-3" value="1">
+                            <label class="form-label mb-0">Currently studying</label>
+                        </div>
+                        <div class="form-help-text ml-6">Check if you are currently pursuing this qualification</div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="mt-6 pt-4 border-t border-gray-200 flex justify-between">
+                    <button type="button" class="collapse-education px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors" onclick="toggleEducationRecord(this.closest('.education-record').querySelector('.education-header'))">
+                        <i class="fas fa-chevron-up mr-2"></i> Collapse
+                    </button>
+                    <div class="space-x-2">
+                        <button type="button" class="save-education px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors" onclick="saveEducationRecord(this)">
+                            <i class="fas fa-check mr-2"></i> Save Record
+                        </button>
+                        <button type="button" class="delete-education px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors" onclick="deleteEducationRecord(this)">
+                            <i class="fas fa-trash mr-2"></i> Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Learning Support Declaration Section -->
+    <div class="mt-8 pt-6 border-t border-gray-200">
+        <h4 class="text-lg font-semibold mb-4">Learning Support Declaration</h4>
+        <p class="text-sm text-gray-600 mb-4">Initial declaration of learning support requirements (detailed assessment completed in ILP)</p>
+        
+        <div class="form-group">
+            <label for="{{ form.has_learning_difficulty.id_for_label }}" class="form-label">Has Learning Difficulty</label>
+            {{ form.has_learning_difficulty }}
+            {% if form.has_learning_difficulty.errors %}
+            <div class="error-message">{{ form.has_learning_difficulty.errors.0 }}</div>
+            {% endif %}
+            <div class="form-help-text">{{ form.has_learning_difficulty.help_text }}</div>
+        </div>
+
+        <div class="form-group learning-difficulty-details" style="display: {% if form.has_learning_difficulty.value == 'Yes' %}block{% else %}none{% endif %};">
+            <label for="{{ form.learning_difficulty_details.id_for_label }}" class="form-label">Learning Difficulty Details *</label>
+            {{ form.learning_difficulty_details }}
+            {% if form.learning_difficulty_details.errors %}
+            <div class="error-message">{{ form.learning_difficulty_details.errors.0 }}</div>
+            {% endif %}
+            <div class="form-help-text">{{ form.learning_difficulty_details.help_text }}</div>
+        </div>
+    </div>
+    
+    <!-- Hidden count field to track number of education entries -->
+    <input type="hidden" name="education_entry_count" id="education_entry_count" value="0">
+</div>
+
+<script>
+// Education Records Management
+let educationRecordCount = 0;
+
+document.addEventListener('DOMContentLoaded', function() {
+    initializeEducationTab();
+});
+
+function initializeEducationTab() {
+    // Initialize add education button
+    const addEducationBtn = document.getElementById('add-education');
+    if (addEducationBtn) {
+        addEducationBtn.addEventListener('click', addEducationRecord);
+    }
+    
+    // Setup listeners for existing education record if it exists
+    const existingRecord = document.getElementById('existing-education-record');
+    if (existingRecord) {
+        setupExistingEducationRecordListeners(existingRecord);
+    }
+    
+    // Setup learning difficulty toggle
+    setupLearningDifficultyToggle();
+    
+    // Load existing education records if any
+    loadExistingEducationRecords();
+    
+    // Update UI
+    updateEducationUI();
+}
+
+function setupExistingEducationRecordListeners(record) {
+    // Study area change listener for existing record
+    const studyAreaSelect = record.querySelector('#{{ form.study_area.id_for_label }}');
+    const studyAreaOther = record.querySelector('.study-area-other-container');
+    
+    if (studyAreaSelect && studyAreaOther) {
+        studyAreaSelect.addEventListener('change', function() {
+            if (this.value === 'Other') {
+                studyAreaOther.style.display = 'block';
+                const otherInput = studyAreaOther.querySelector('input');
+                if (otherInput) otherInput.setAttribute('required', 'required');
+            } else {
+                studyAreaOther.style.display = 'none';
+                const otherInput = studyAreaOther.querySelector('input');
+                if (otherInput) otherInput.removeAttribute('required');
+            }
+        });
+    }
+    
+    // Grades change listener for existing record
+    const gradesSelect = record.querySelector('#{{ form.grades.id_for_label }}');
+    const gradesOther = record.querySelector('.grades-other-container');
+    
+    if (gradesSelect && gradesOther) {
+        gradesSelect.addEventListener('change', function() {
+            if (this.value === 'Other (Please Specify)') {
+                gradesOther.style.display = 'block';
+                const otherInput = gradesOther.querySelector('input');
+                if (otherInput) otherInput.setAttribute('required', 'required');
+            } else {
+                gradesOther.style.display = 'none';
+                const otherInput = gradesOther.querySelector('input');
+                if (otherInput) otherInput.removeAttribute('required');
+            }
+        });
+    }
+}
+
+function setupLearningDifficultyToggle() {
+    const learningDifficultySelect = document.querySelector('#{{ form.has_learning_difficulty.id_for_label }}');
+    const detailsContainer = document.querySelector('.learning-difficulty-details');
+    
+    if (learningDifficultySelect && detailsContainer) {
+        learningDifficultySelect.addEventListener('change', function() {
+            if (this.value === 'Yes') {
+                detailsContainer.style.display = 'block';
+                const textarea = detailsContainer.querySelector('textarea');
+                if (textarea) textarea.setAttribute('required', 'required');
+            } else {
+                detailsContainer.style.display = 'none';
+                const textarea = detailsContainer.querySelector('textarea');
+                if (textarea) {
+                    textarea.removeAttribute('required');
+                    textarea.value = '';
+                }
+            }
+        });
+    }
+}
+
+function createEducationRecordFromData(recordData, recordNumber) {
+    const template = document.getElementById('education-record-template');
+    const clone = template.content.cloneNode(true);
+    
+    // Update form field names with unique identifiers
+    const inputs = clone.querySelectorAll('input, select, textarea');
+    inputs.forEach(input => {
+        if (input.name) {
+            input.name = input.name + '_' + recordNumber;
+            input.id = input.name;
+        }
+    });
+    
+    // Update labels for attributes
+    const labels = clone.querySelectorAll('label');
+    labels.forEach(label => {
+        if (label.getAttribute('for')) {
+            label.setAttribute('for', label.getAttribute('for') + '_' + recordNumber);
+        }
+    });
+    
+    // Populate the fields with data
+    if (recordData.institution_name) {
+        clone.querySelector('[name^="institution_name"]').value = recordData.institution_name;
+    }
+    if (recordData.study_area) {
+        clone.querySelector('[name^="study_area"]').value = recordData.study_area;
+    }
+    if (recordData.study_area_other) {
+        clone.querySelector('[name^="study_area_other"]').value = recordData.study_area_other;
+        clone.querySelector('.study-area-other-container').style.display = 'block';
+    }
+    if (recordData.level_of_study) {
+        clone.querySelector('[name^="level_of_study"]').value = recordData.level_of_study;
+    }
+    if (recordData.qualification) {
+        clone.querySelector('[name^="qualification"]').value = recordData.qualification;
+    }
+    if (recordData.grades) {
+        clone.querySelector('[name^="grades"]').value = recordData.grades;
+    }
+    if (recordData.grades_other) {
+        clone.querySelector('[name^="grades_other"]').value = recordData.grades_other;
+        clone.querySelector('.grades-other-container').style.display = 'block';
+    }
+    if (recordData.start_date) {
+        clone.querySelector('[name^="start_date"]').value = recordData.start_date;
+    }
+    if (recordData.end_date) {
+        clone.querySelector('[name^="end_date"]').value = recordData.end_date;
+    }
+    if (recordData.additional_details) {
+        clone.querySelector('[name^="additional_details"]').value = recordData.additional_details;
+    }
+    if (recordData.currently_studying) {
+        clone.querySelector('[name^="currently_studying"]').checked = recordData.currently_studying;
+    }
+    
+    // Add to accordion
+    document.getElementById('education-records-accordion').appendChild(clone);
+    
+    // Get the new record element
+    const newRecord = document.querySelector(`[name="institution_name_${recordNumber}"]`).closest('.education-record');
+    newRecord.dataset.index = recordNumber;
+    
+    // Update the title and summary
+    updateEducationSummary(newRecord);
+    
+    // Setup event listeners for the new record
+    setupEducationRecordListeners(newRecord, recordNumber);
+}
+
+function addEducationRecord() {
+    educationRecordCount++;
+    
+    const template = document.getElementById('education-record-template');
+    const clone = template.content.cloneNode(true);
+    
+    // Update form field names with unique identifiers
+    const inputs = clone.querySelectorAll('input, select, textarea');
+    inputs.forEach(input => {
+        if (input.name) {
+            input.name = input.name + '_' + educationRecordCount;
+            input.id = input.name;
+        }
+    });
+    
+    // Update labels for attributes
+    const labels = clone.querySelectorAll('label');
+    labels.forEach(label => {
+        if (label.getAttribute('for')) {
+            label.setAttribute('for', label.getAttribute('for') + '_' + educationRecordCount);
+        }
+    });
+    
+    // Add to accordion
+    document.getElementById('education-records-accordion').appendChild(clone);
+    
+    // Update the title
+    const newRecord = document.querySelector(`[name="institution_name_${educationRecordCount}"]`).closest('.education-record');
+    newRecord.querySelector('.education-title').textContent = `Academic Record ${educationRecordCount}`;
+    
+    // Expand the new record
+    toggleEducationRecord(newRecord.querySelector('.education-header'));
+    
+    // Setup event listeners for the new record
+    setupEducationRecordListeners(newRecord, educationRecordCount);
+    
+    // Update count
+    document.getElementById('education_entry_count').value = educationRecordCount;
+    
+    // Update UI
+    updateEducationUI();
+    
+    // Focus on institution name
+    newRecord.querySelector('[name^="institution_name"]').focus();
+}
+
+function setupEducationRecordListeners(record, index) {
+    // Study area change listener
+    const studyAreaSelect = record.querySelector('[name^="study_area"]');
+    const studyAreaOther = record.querySelector('.study-area-other-container');
+    
+    studyAreaSelect.addEventListener('change', function() {
+        if (this.value === 'Other') {
+            studyAreaOther.style.display = 'block';
+            const otherInput = studyAreaOther.querySelector('input');
+            if (otherInput) otherInput.setAttribute('required', 'required');
+        } else {
+            studyAreaOther.style.display = 'none';
+            const otherInput = studyAreaOther.querySelector('input');
+            if (otherInput) {
+                otherInput.removeAttribute('required');
+                otherInput.value = '';
+            }
+        }
+        updateEducationSummary(record);
+    });
+    
+    // Grades change listener
+    const gradesSelect = record.querySelector('[name^="grades"]');
+    const gradesOther = record.querySelector('.grades-other-container');
+    
+    gradesSelect.addEventListener('change', function() {
+        if (this.value === 'Other (Please Specify)') {
+            gradesOther.style.display = 'block';
+            const otherInput = gradesOther.querySelector('input');
+            if (otherInput) otherInput.setAttribute('required', 'required');
+        } else {
+            gradesOther.style.display = 'none';
+            const otherInput = gradesOther.querySelector('input');
+            if (otherInput) {
+                otherInput.removeAttribute('required');
+                otherInput.value = '';
+            }
+        }
+        updateEducationSummary(record);
+    });
+    
+    // Update summary on key field changes
+    const keyFields = record.querySelectorAll('[name^="institution_name"], [name^="qualification"], [name^="level_of_study"], [name^="end_date"]');
+    keyFields.forEach(field => {
+        field.addEventListener('input', () => updateEducationSummary(record));
+        field.addEventListener('change', () => updateEducationSummary(record));
+    });
+}
+
+function updateEducationSummary(record) {
+    const institution = record.querySelector('[name^="institution_name"]').value;
+    const qualification = record.querySelector('[name^="qualification"]').value;
+    const level = record.querySelector('[name^="level_of_study"]').value;
+    const endDate = record.querySelector('[name^="end_date"]').value;
+    const currentlyStudying = record.querySelector('[name^="currently_studying"]').checked;
+    
+    const titleElement = record.querySelector('.education-title');
+    const summaryElement = record.querySelector('.education-summary');
+    const statusBadge = record.querySelector('.education-status-badge');
+    
+    // Update title
+    if (institution) {
+        titleElement.textContent = institution;
+    } else {
+        titleElement.textContent = `Academic Record ${record.dataset.index || ''}`;
+    }
+    
+    // Update summary
+    let summary = [];
+    if (qualification) summary.push(qualification);
+    if (level) {
+        const levelText = record.querySelector('[name^="level_of_study"] option:checked').textContent;
+        summary.push(levelText);
+    }
+    if (endDate) {
+        const year = new Date(endDate).getFullYear();
+        summary.push(currentlyStudying ? `Expected ${year}` : year);
+    }
+    
+    summaryElement.textContent = summary.length > 0 ? summary.join(' • ') : 'Click to expand and add details';
+    
+    // Update status badge
+    if (institution && level) {
+        statusBadge.textContent = currentlyStudying ? 'In Progress' : 'Completed';
+        statusBadge.className = 'education-status-badge px-2 py-1 text-xs rounded-full ' + 
+            (currentlyStudying ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600');
+    } else {
+        statusBadge.textContent = 'Draft';
+        statusBadge.className = 'education-status-badge px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-600';
+    }
+}
+
+function toggleEducationRecord(header) {
+    const record = header.closest('.education-record');
+    const content = record.querySelector('.education-content');
+    const icon = header.querySelector('.accordion-icon');
+    
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        icon.style.transform = 'rotate(180deg)';
+        header.classList.add('bg-blue-50');
+    } else {
+        content.style.display = 'none';
+        icon.style.transform = 'rotate(0deg)';
+        header.classList.remove('bg-blue-50');
+    }
+}
+
+function saveEducationRecord(button) {
+    const record = button.closest('.education-record');
+    const requiredFields = record.querySelectorAll('input[required], select[required], textarea[required]');
+    
+    let isValid = true;
+    let firstInvalidField = null;
+    
+    requiredFields.forEach(field => {
+        if (!field.value.trim()) {
+            field.style.borderColor = '#dc2626';
+            if (!firstInvalidField) firstInvalidField = field;
+            isValid = false;
+        } else {
+            field.style.borderColor = '#d1d5db';
+        }
+    });
+    
+    if (isValid) {
+        updateEducationSummary(record);
+        toggleEducationRecord(record.querySelector('.education-header'));
+        
+        // Show success notification
+        showNotification('Academic record saved successfully!', 'success');
+    } else {
+        showNotification('Please fill in all required fields (marked with *)', 'error');
+        if (firstInvalidField) {
+            firstInvalidField.focus();
+            firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+}
+
+function deleteEducationRecord(button) {
+    const record = button.closest('.education-record');
+    const institution = record.querySelector('[name^="institution_name"]')?.value || '';
+    
+    const confirmMessage = institution ? 
+        `Are you sure you want to delete the academic record for "${institution}"?` :
+        'Are you sure you want to delete this academic record?';
+    
+    if (confirm(confirmMessage)) {
+        record.remove();
+        updateEducationUI();
+        showNotification('Academic record deleted successfully!', 'success');
+    }
+}
+
+function loadExistingEducationRecords() {
+    // Load education records from backend data
+    {% if existing_education_records %}
+    const existingRecords = JSON.parse('{{ existing_education_records_json|escapejs }}');
+    console.log('Loading existing education records:', existingRecords);
+    
+    if (existingRecords && existingRecords.length > 0) {
+        // Hide the no-records message
+        const noMessage = document.getElementById('no-education-message');
+        if (noMessage) {
+            noMessage.style.display = 'none';
+        }
+        
+        // Create education records from backend data
+        existingRecords.forEach((record, index) => {
+            console.log('Creating record from data:', record, 'index:', index + 1);
+            createEducationRecordFromData(record, index + 1);
+        });
+        
+        educationRecordCount = existingRecords.length;
+        const countField = document.getElementById('education_entry_count');
+        if (countField) {
+            countField.value = educationRecordCount;
+        }
+        console.log('Set education record count to:', educationRecordCount);
+    }
+    {% else %}
+    console.log('No existing education records found in template context');
+    {% endif %}
+    
+    // Check if there's existing education data in form fields and update UI accordingly
+    const existingRecord = document.getElementById('existing-education-record');
+    if (existingRecord) {
+        updateEducationUI();
+    }
+}
+
+function updateEducationUI() {
+    const accordion = document.getElementById('education-records-accordion');
+    const noRecordsMessage = document.getElementById('no-education-message');
+    const records = accordion.querySelectorAll('.education-record');
+    const existingRecord = document.getElementById('existing-education-record');
+    
+    // Check if we have any records (existing or new ones)
+    const hasExistingEducation = existingRecord && (
+        existingRecord.querySelector('#{{ form.study_area.id_for_label }}')?.value ||
+        existingRecord.querySelector('#{{ form.level_of_study.id_for_label }}')?.value
+    );
+    
+    if (records.length === 0 && !hasExistingEducation) {
+        noRecordsMessage.style.display = 'block';
+    } else {
+        noRecordsMessage.style.display = 'none';
+    }
+    
+    // Update record numbers for new records
+    const newRecords = accordion.querySelectorAll('.education-record:not(#existing-education-record)');
+    newRecords.forEach((record, index) => {
+        record.dataset.index = index + 1;
+        const titleElement = record.querySelector('.education-title');
+        if (titleElement && titleElement.textContent.startsWith('Academic Record')) {
+            titleElement.textContent = `Academic Record ${index + 1}`;
+        }
+    });
+}
+
+function showNotification(message, type) {
+    // Reuse the existing notification function from the main template
+    if (typeof window.showNotification === 'function') {
+        window.showNotification(message, type);
+    } else {
+        // Fallback notification
+        const notification = document.createElement('div');
+        notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg text-white z-50 ${
+            type === 'success' ? 'bg-green-500' : 'bg-red-500'
+        }`;
+        notification.textContent = message;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
+    }
+}
+
+// Ensure tab state is preserved when making updates in this tab
+document.addEventListener('DOMContentLoaded', function() {
+    // Set tab state for form submission
+    function updateTabState() {
+        // Update global tab state explicitly for this tab
+        if (typeof currentTabState !== 'undefined') {
+            currentTabState.mainTab = 'education-tab';
+            
+            console.log('Education tab: Setting tab state to:', currentTabState);
+            
+            // Update hidden form fields directly
+            var activeTabField = document.getElementById('activeTabField');
+            if (activeTabField) activeTabField.value = currentTabState.mainTab;
+        }
+    }
+    
+    // Update tab state when the tab becomes visible
+    var tabElement = document.getElementById('education-tab');
+    if (tabElement) {
+        // Create a mutation observer to detect when the tab becomes visible
+        var observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && 
+                    mutation.attributeName === 'style' &&
+                    tabElement.style.display !== 'none') {
+                    updateTabState();
+                }
+                
+                if (mutation.type === 'attributes' && 
+                    mutation.attributeName === 'class' &&
+                    tabElement.classList.contains('active')) {
+                    updateTabState();
+                }
+            });
+        });
+        
+        observer.observe(tabElement, { attributes: true });
+        
+        // Also check if it's already visible
+        if (tabElement.style.display !== 'none' || tabElement.classList.contains('active')) {
+            updateTabState();
+        }
+    }
+    
+    // Add input listeners to all form elements in this tab
+    var formElements = document.querySelectorAll('#education-tab input, #education-tab textarea, #education-tab select');
+    formElements.forEach(function(element) {
+        element.addEventListener('focus', updateTabState);
+        element.addEventListener('change', updateTabState);
+    });
+});
+</script>
+{% endif %} 

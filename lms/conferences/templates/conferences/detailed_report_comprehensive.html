@@ -1,0 +1,803 @@
+{% extends "base.html" %}
+{% load static %}
+{% load conference_extras %}
+
+{% block title %}Conference Timeline Report - {{ student.get_full_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .timeline-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+    
+    .timeline-header {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .timeline-section {
+        background: white;
+        border-radius: 0.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+    
+    .timeline-title {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+        padding: 1.25rem 1.5rem;
+        font-size: 1.25rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .timeline-icon {
+        width: 2.5rem;
+        height: 2.5rem;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .timeline-content {
+        padding: 1.5rem;
+    }
+    
+    .timeline-event {
+        position: relative;
+        padding-left: 3rem;
+        padding-bottom: 2rem;
+        border-left: 2px solid #e5e7eb;
+        margin-left: 1.25rem;
+    }
+    
+    .timeline-event:last-child {
+        border-left: none;
+        padding-bottom: 0;
+    }
+    
+    .timeline-event::before {
+        content: '';
+        position: absolute;
+        left: -0.5rem;
+        top: 0.25rem;
+        width: 1rem;
+        height: 1rem;
+        background: #3b82f6;
+        border-radius: 50%;
+        border: 3px solid white;
+        box-shadow: 0 0 0 2px #e5e7eb;
+    }
+    
+    .timeline-event.rubric_evaluation::before {
+        background: #10b981;
+    }
+    
+    .timeline-event.chat_message::before {
+        background: #f59e0b;
+    }
+    
+    .timeline-event.file_share::before {
+        background: #8b5cf6;
+    }
+    
+    .timeline-event.participation_click::before {
+        background: #06b6d4;
+    }
+    
+    .timeline-event.meeting_join::before {
+        background: #059669;
+    }
+    
+    .timeline-event.meeting_leave::before {
+        background: #dc2626;
+    }
+    
+    .timeline-event.attendance_join::before {
+        background: #16a34a;
+    }
+    
+    .timeline-event.attendance_leave::before {
+        background: #ea580c;
+    }
+    
+    .event-card {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-top: 0.5rem;
+    }
+    
+    .event-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 0.5rem;
+    }
+    
+    .event-title {
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    .event-time {
+        color: #6b7280;
+        font-size: 0.875rem;
+        white-space: nowrap;
+    }
+    
+    .event-description {
+        color: #4b5563;
+        margin-bottom: 0.5rem;
+    }
+    
+    .event-data {
+        background: #f3f4f6;
+        border-radius: 0.375rem;
+        padding: 0.75rem;
+        font-size: 0.875rem;
+        color: #374151;
+    }
+    
+    .event-data dt {
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    .event-data dd {
+        margin-left: 1rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .print-btn {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .print-btn:hover {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        transform: translateY(-1px);
+    }
+    
+
+    
+    .rubric-section {
+        margin-bottom: 2rem;
+    }
+    
+    .rubric-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+    }
+    
+    .rubric-table th,
+    .rubric-table td {
+        border: 1px solid #e5e7eb;
+        padding: 0.75rem;
+        text-align: left;
+        vertical-align: top;
+    }
+    
+    .rubric-table th {
+        background: #f9fafb;
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    .points-cell {
+        text-align: center;
+        font-weight: 600;
+    }
+    
+    .points-earned {
+        color: #059669;
+    }
+    
+    .points-total {
+        color: #6b7280;
+    }
+    
+    .no-print {
+        display: block;
+    }
+    
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+        
+        .timeline-container {
+            max-width: none;
+            padding: 0;
+        }
+        
+        .timeline-section {
+            box-shadow: none;
+            border: 1px solid #e5e7eb;
+            page-break-inside: avoid;
+        }
+        
+        .timeline-event {
+            page-break-inside: avoid;
+        }
+        
+        .event-card {
+            page-break-inside: avoid;
+        }
+    }
+    
+    /* Chat Timeline Styling */
+    .chat-timeline-container {
+        position: relative;
+        padding-left: 2rem;
+    }
+    
+    .chat-timeline-container::before {
+        content: '';
+        position: absolute;
+        left: 1rem;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #e5e7eb;
+    }
+    
+    .chat-message-item {
+        position: relative;
+        background-color: white;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        margin-left: 1rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        transition: all 0.2s;
+    }
+    
+    .chat-message-item:hover {
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transform: translateY(-1px);
+    }
+    
+    .chat-message-item::before {
+        content: '';
+        position: absolute;
+        left: -1.5rem;
+        top: 1rem;
+        width: 0.75rem;
+        height: 0.75rem;
+        background: #f59e0b;
+        border-radius: 50%;
+        border: 3px solid white;
+        box-shadow: 0 0 0 2px #e5e7eb;
+    }
+    
+    .chat-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .sender-info {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .sender-name {
+        font-weight: 600;
+        color: #1f2937;
+        font-size: 0.875rem;
+    }
+    
+    .message-type-badge {
+        background-color: #dbeafe;
+        color: #1e40af;
+        padding: 0.125rem 0.5rem;
+        border-radius: 0.375rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+    
+    .message-timestamp {
+        color: #6b7280;
+        font-size: 0.75rem;
+        font-weight: 400;
+    }
+    
+    .chat-message-content {
+        margin: 0;
+    }
+    
+    .message-text {
+        color: #374151;
+        line-height: 1.5;
+        font-size: 0.875rem;
+        word-wrap: break-word;
+        white-space: pre-wrap;
+    }
+    
+    .message-text p {
+        margin-bottom: 0.5rem;
+    }
+    
+    .message-text p:last-child {
+        margin-bottom: 0;
+    }
+    
+    /* Instructor vs Student Message Styling */
+    .instructor-message {
+        border-left: 4px solid #3b82f6;
+    }
+    
+    .instructor-message::before {
+        background: #3b82f6;
+    }
+    
+    .student-message {
+        border-left: 4px solid #10b981;
+    }
+    
+    .student-message::before {
+        background: #10b981;
+    }
+    
+    .instructor-badge {
+        background-color: #dbeafe;
+        color: #1e40af;
+    }
+    
+    .student-badge {
+        background-color: #d1fae5;
+        color: #047857;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-scroll to specific events if hash is present
+    document.addEventListener('DOMContentLoaded', function() {
+        if (window.location.hash) {
+            const targetElement = document.querySelector(window.location.hash);
+            if (targetElement) {
+                targetElement.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
+                // Add highlight effect
+                targetElement.style.backgroundColor = '#fef3c7';
+                setTimeout(() => {
+                    targetElement.style.backgroundColor = '';
+                }, 3000);
+            }
+        }
+    });
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="timeline-container">
+    <!-- Breadcrumbs -->
+    <div class="mb-6 no-print">
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+    </div>
+    
+    <!-- Header Information -->
+    <div class="timeline-header">
+        <div class="flex justify-between items-start mb-4">
+            <h1 class="text-2xl font-bold text-gray-900">Conference Timeline Report</h1>
+            <button onclick="window.print()" class="print-btn">
+                <i class="fas fa-print mr-2"></i>Generate Report
+            </button>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <h2 class="text-lg font-semibold text-gray-800 mb-2">Conference Information</h2>
+                <div class="space-y-1 text-sm">
+                    <p><strong>Title:</strong> {{ conference.title }}</p>
+                    <p><strong>Date:</strong> {{ conference.date|date:"M d, Y" }}</p>
+                    <p><strong>Time:</strong> {{ conference.start_time|time:"g:i A" }}{% if conference.end_time %} - {{ conference.end_time|time:"g:i A" }}{% endif %}</p>
+                    <p><strong>Platform:</strong> {{ conference.get_meeting_platform_display }}</p>
+                    <p><strong>Status:</strong> {{ conference.get_meeting_status_display }}</p>
+                </div>
+            </div>
+            
+            <div>
+                <h2 class="text-lg font-semibold text-gray-800 mb-2">Student Information</h2>
+                <div class="space-y-1 text-sm">
+                    <p><strong>Name:</strong> {{ student.get_full_name }}</p>
+                    <p><strong>Email:</strong> {{ student.email }}</p>
+                    <p><strong>Role:</strong> {{ student.get_role_display }}</p>
+                    {% if student.branch %}
+                        <p><strong>Branch:</strong> {{ student.branch.name }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    
+    <!-- Rubric Evaluation Section -->
+    {% if conference.rubric and rubric_evaluations %}
+    <div class="timeline-section">
+        <div class="timeline-title">
+            <div class="timeline-icon">
+                <i class="fas fa-clipboard-check"></i>
+            </div>
+            Rubric Evaluation Results
+        </div>
+        
+        <div class="timeline-content">
+            <div class="rubric-section">
+                <h3 class="text-lg font-semibold text-gray-800 mb-3">{{ conference.rubric.title }}</h3>
+                
+                <table class="rubric-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 30%">Criterion</th>
+                            <th style="width: 15%">Points</th>
+                            <th style="width: 20%">Rating</th>
+                            <th style="width: 35%">Comments</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for evaluation in rubric_evaluations %}
+                        <tr>
+                            <td>
+                                <strong>{{ evaluation.criterion.description }}</strong>
+                                {% if evaluation.criterion.rubric_description %}
+                                    <br><small class="text-gray-600">{{ evaluation.criterion.rubric_description }}</small>
+                                {% endif %}
+                            </td>
+                            <td class="points-cell">
+                                <span class="points-earned">{{ evaluation.points|floatformat:1 }}</span>
+                                <span class="points-total">/ {{ evaluation.criterion.points|floatformat:1 }}</span>
+                            </td>
+                            <td>
+                                {% if evaluation.rating %}
+                                    <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">
+                                        {{ evaluation.rating.title }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-gray-500">No rating</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if evaluation.comments %}
+                                    {{ evaluation.comments|linebreaks }}
+                                {% else %}
+                                    <span class="text-gray-500">No comments</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        <tr class="bg-gray-50">
+                            <td><strong>Total Score</strong></td>
+                            <td class="points-cell">
+                                <span class="points-earned text-lg">{{ rubric_total_score|floatformat:1 }}</span>
+                                <span class="points-total text-lg">/ {{ conference.rubric.total_points|floatformat:1 }}</span>
+                            </td>
+                            <td colspan="2">
+                                {% widthratio rubric_total_score conference.rubric.total_points 100 as percentage %}
+                                <strong>{{ percentage|floatformat:1 }}%</strong>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Participation Summary -->
+    <div class="timeline-section">
+        <div class="timeline-title">
+            <div class="timeline-icon">
+                <i class="fas fa-user-check"></i>
+            </div>
+            Participation Summary
+        </div>
+        
+        <div class="timeline-content">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {% if participation %}
+                <div>
+                    <h4 class="font-semibold text-gray-800 mb-3">Conference Participation</h4>
+                    <div class="space-y-2 text-sm">
+                        <p><strong>Join Method:</strong> {{ participation.get_join_method_display }}</p>
+                        <p><strong>Click Time:</strong> {{ participation.click_timestamp|date:"M d, Y g:i A" }}</p>
+                        {% if participation.join_timestamp %}
+                            <p><strong>Join Time:</strong> {{ participation.join_timestamp|date:"M d, Y g:i A" }}</p>
+                        {% endif %}
+                        {% if participation.leave_timestamp %}
+                            <p><strong>Leave Time:</strong> {{ participation.leave_timestamp|date:"M d, Y g:i A" }}</p>
+                        {% endif %}
+                        <p><strong>Duration:</strong> {{ participation.total_duration_minutes|default:0 }} minutes</p>
+                        <p><strong>Status:</strong> {{ participation.get_participation_status_display }}</p>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if attendance %}
+                <div>
+                    <h4 class="font-semibold text-gray-800 mb-3">Platform Attendance</h4>
+                    <div class="space-y-2 text-sm">
+                        <p><strong>Status:</strong> {{ attendance.get_attendance_status_display }}</p>
+                        {% if attendance.join_time %}
+                            <p><strong>Join Time:</strong> {{ attendance.join_time|date:"M d, Y g:i A" }}</p>
+                        {% endif %}
+                        {% if attendance.leave_time %}
+                            <p><strong>Leave Time:</strong> {{ attendance.leave_time|date:"M d, Y g:i A" }}</p>
+                        {% endif %}
+                        <p><strong>Duration:</strong> {{ attendance.duration_minutes|default:0 }} minutes</p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Timeline Events -->
+    <div class="timeline-section">
+        <div class="timeline-title">
+            <div class="timeline-icon">
+                <i class="fas fa-clock"></i>
+            </div>
+            Detailed Timeline
+        </div>
+        
+        <div class="timeline-content">
+            {% if timeline_events %}
+                {% for event in timeline_events %}
+                <div class="timeline-event {{ event.type }}" id="event-{{ forloop.counter }}">
+                    <div class="event-card">
+                        <div class="event-header">
+                            <div class="event-title">{{ event.title }}</div>
+                            <div class="event-time">{{ event.timestamp|date:"M d, Y g:i A" }}</div>
+                        </div>
+                        
+                        <div class="event-description">{{ event.description }}</div>
+                        
+                        {% if event.data %}
+                        <div class="event-data">
+                            <dl>
+                                {% for key, value in event.data.items %}
+                                    {% if value %}
+                                    <dt>{{ key|replace_underscores|title }}:</dt>
+                                    <dd>
+                                        {% if key == 'message_text' %}
+                                            <div class="bg-white p-2 rounded border max-h-20 overflow-y-auto">{{ value }}</div>
+                                        {% elif key == 'comments' %}
+                                            <div class="bg-white p-2 rounded border max-h-20 overflow-y-auto">{{ value|linebreaks }}</div>
+                                        {% elif key == 'file_size' %}
+                                            {{ value|filesizeformat }}
+                                        {% elif key == 'duration_minutes' %}
+                                            {{ value }} minutes
+                                        {% elif key == 'attendance_percentage' %}
+                                            {{ value|floatformat:1 }}%
+                                        {% elif key == 'points' %}
+                                            {{ value|floatformat:1 }}
+                                        {% elif key == 'max_points' %}
+                                            {{ value|floatformat:1 }}
+                                        {% else %}
+                                            {{ value }}
+                                        {% endif %}
+                                    </dd>
+                                    {% endif %}
+                                {% endfor %}
+                            </dl>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="text-center py-8">
+                    <p class="text-gray-500">No timeline events found for this student.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+        <!-- Additional Data Sections -->
+    {% if shared_files %}
+    <div class="timeline-section">
+        <div class="timeline-title">
+            <div class="timeline-icon">
+                <i class="fas fa-file-upload"></i>
+            </div>
+            Shared Files ({{ shared_files.count }})
+        </div>
+        
+        <div class="timeline-content">
+            <div class="space-y-4">
+                {% for file in shared_files %}
+                <div class="event-card">
+                    <div class="event-header">
+                        <div class="event-title">{{ file.filename }}</div>
+                        <div class="event-time">{{ file.shared_at|date:"M d, Y g:i A" }}</div>
+                    </div>
+                    <div class="text-sm text-gray-600">
+                        <p><strong>Original Name:</strong> {{ file.original_filename }}</p>
+                        <p><strong>Size:</strong> {{ file.file_size|filesizeformat }}</p>
+                        <p><strong>Type:</strong> {{ file.file_type }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Conference Recordings -->
+    {% if recordings %}
+    <div class="timeline-section">
+        <div class="timeline-title">
+            <div class="timeline-icon">
+                <i class="fas fa-play-circle"></i>
+            </div>
+            Video & Audio Recordings
+        </div>
+        
+        <div class="timeline-content">
+            <div class="space-y-6">
+                {% for recording in recordings %}
+                {% if recording.file_format != 'txt' and recording.file_format != 'vtt' and recording.file_format != 'csv' and recording.file_format != 'json' %}
+                {% with title_lower=recording.title|lower %}
+                {% if 'chat' not in title_lower and 'transcript' not in title_lower and 'message' not in title_lower %}
+                <div class="event-card">
+                    <div class="event-header">
+                        <div class="event-title">{{ recording.title|default:"Conference Recording" }}</div>
+                        <div class="event-time">{{ recording.created_at|date:"M d, Y g:i A" }}</div>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <div class="text-sm text-gray-600">
+                            <p><strong>Type:</strong> {{ recording.get_recording_type_display }}</p>
+                            {% if recording.duration_minutes %}
+                                <p><strong>Duration:</strong> {{ recording.duration_minutes }} minutes</p>
+                            {% endif %}
+                            {% if recording.file_size %}
+                                <p><strong>Size:</strong> {{ recording.file_size|filesizeformat }}</p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Media Player (Video or Audio) -->
+                        {% if recording.recording_type == 'audio_only' or recording.file_format == 'mp3' or recording.file_format == 'wav' or recording.file_format == 'm4a' or recording.file_format == 'aac' or recording.file_format == 'ogg' %}
+                            <!-- Audio Player -->
+                            {% if recording.download_url %}
+                            <div class="bg-gray-100 p-4 rounded-lg">
+                                <audio controls class="w-full h-12">
+                                    <source src="{{ recording.download_url }}" type="audio/mpeg">
+                                    <source src="{{ recording.download_url }}" type="audio/wav">
+                                    <source src="{{ recording.download_url }}" type="audio/mp4">
+                                    Your browser does not support the audio element.
+                                </audio>
+                            </div>
+                            {% endif %}
+                        {% else %}
+                            <!-- Video Player -->
+                            {% if recording.playback_url %}
+                            <div class="bg-gray-100 p-4 rounded-lg">
+                                <div class="aspect-w-16 aspect-h-9">
+                                    <iframe 
+                                        src="{{ recording.playback_url }}" 
+                                        frameborder="0" 
+                                        allowfullscreen
+                                        class="w-full h-96 rounded">
+                                    </iframe>
+                                </div>
+                            </div>
+                            {% elif recording.download_url %}
+                            <div class="bg-gray-100 p-4 rounded-lg">
+                                <div class="aspect-w-16 aspect-h-9">
+                                    <video controls class="w-full h-96 rounded">
+                                        <source src="{{ recording.download_url }}" type="video/mp4">
+                                        <source src="{{ recording.download_url }}" type="video/mov">
+                                        Your browser does not support the video element.
+                                    </video>
+                                </div>
+                            </div>
+                            {% endif %}
+                        {% endif %}
+                        
+                        <!-- ✅ FIX #5: Direct download for cloud recordings without password restrictions -->
+                        {% if recording.download_url %}
+                        <div class="flex justify-center">
+                            <a href="{% url 'conferences:download_conference_recording' conference.id recording.id %}" 
+                               class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                               target="_blank">
+                                <i class="fas fa-download mr-2"></i>
+                                Download Recording
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+                {% endwith %}
+                {% endif %}
+                {% empty %}
+                <div class="text-center py-8">
+                    <p class="text-gray-500">No video or audio recordings available. Chat transcripts are shown separately in Chat History.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Chat History: Instructor-Student Discussion -->
+    {% if chat_messages %}
+    <div class="timeline-section">
+        <div class="timeline-title">
+            <div class="timeline-icon">
+                <i class="fas fa-history"></i>
+            </div>
+            Chat History: Discussion ({{ chat_messages.count }})
+        </div>
+        
+        <div class="timeline-content">
+            <div class="chat-timeline-container">
+                {% for message in chat_messages %}
+                <div class="chat-message-item {% if message.sender == conference.created_by %}instructor-message{% else %}student-message{% endif %}">
+                    <!-- Message Header with Sender and Timestamp -->
+                    <div class="chat-header">
+                        <div class="sender-info">
+                            <span class="sender-name">{{ message.sender.get_full_name|default:message.sender.username }}</span>
+                            {% if message.sender == conference.created_by %}
+                                <span class="message-type-badge instructor-badge">Instructor</span>
+                            {% else %}
+                                <span class="message-type-badge student-badge">Student</span>
+                            {% endif %}
+                        </div>
+                        <div class="message-timestamp">
+                            {{ message.sent_at|date:"M d, Y" }} at {{ message.sent_at|time:"g:i A" }}
+                        </div>
+                    </div>
+                    
+                    <!-- Message Content -->
+                    <div class="chat-message-content">
+                        <div class="message-text">
+                            {{ message.message_text|linebreaks }}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<script>
+// ✅ FIX #5: Direct download for all cloud recordings - no password required
+// JavaScript functions removed as direct links are now used
+</script>
+{% endblock %} 

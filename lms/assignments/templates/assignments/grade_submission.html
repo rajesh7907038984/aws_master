@@ -1,0 +1,3562 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load assignment_tags %}
+{% load assignment_filters %}
+{% load json_filters %}
+
+{% block title %}Grade Submission - {{ submission.assignment.title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'core/css/assignments/feedback_timeline.css' %}">
+<link rel="stylesheet" href="{% static 'core/css/assignments/rubric_timeline.css' %}">
+<link rel="stylesheet" href="{% static 'tinymce_editor/css/tinymce-widget.css' %}">
+<link rel="stylesheet" href="{% static 'tinymce_editor/css/aiwriter.css' %}">
+<link rel="stylesheet" href="{% static 'tinymce_editor/css/tinymce-fixes.css' %}">
+<link rel="stylesheet" href="{% static 'tinymce_editor/css/force-toolbar.css' %}">
+<!-- Mobile Tabs Accordion CSS -->
+<link rel="stylesheet" href="{% static 'core/css/mobile-tabs-accordion.css' %}">
+<style>
+    /* TinyMCE Editor Container Styling */
+    .tox-tinymce {
+        border: 1px solid #d1d5db !important;
+        border-radius: 0.375rem !important;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+        overflow: hidden !important;
+        max-width: 100% !important;
+        width: 100% !important;
+    }
+    
+    .tox-editor-container {
+        display: flex !important;
+        flex-direction: column !important;
+        width: 100% !important;
+    }
+    
+    .tox-editor-header {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        width: 100% !important;
+        position: relative !important;
+        height: auto !important;
+    }
+    
+    /* Menubar Styling */
+    .tox-menubar {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        width: 100% !important;
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%) !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+        padding: 8px 12px !important;
+        font-size: 14px !important;
+        height: auto !important;
+        min-height: 40px !important;
+    }
+    
+    .tox-menubar .tox-mbtn {
+        padding: 6px 12px !important;
+        margin: 0 2px !important;
+        border-radius: 4px !important;
+        transition: all 0.2s ease !important;
+    }
+    
+    .tox-menubar .tox-mbtn:hover {
+        background-color: #e2e8f0 !important;
+        color: #1e293b !important;
+    }
+    
+    /* Toolbar Styling */
+    .tox-toolbar-overlord {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        width: 100% !important;
+    }
+    
+    .tox-toolbar__primary {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        flex-wrap: wrap !important;
+        width: 100% !important;
+        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%) !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+        padding: 8px 12px !important;
+        gap: 4px !important;
+    }
+    
+    .tox-toolbar__group {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        align-items: center !important;
+        margin: 0 6px !important;
+        padding: 0 6px !important;
+        border-right: 1px solid #e2e8f0 !important;
+        gap: 2px !important;
+    }
+    
+    .tox-toolbar__group:last-child {
+        border-right: none !important;
+    }
+    
+    .tox-toolbar__group:first-child {
+        margin-left: 0 !important;
+        padding-left: 0 !important;
+    }
+    
+    /* Button Styling */
+    .tox-tbtn {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        margin: 1px !important;
+        width: 32px !important;
+        height: 32px !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-radius: 4px !important;
+        transition: all 0.2s ease !important;
+        background-color: transparent !important;
+    }
+    
+    .tox-tbtn:hover {
+        background-color: #f1f5f9 !important;
+        border-color: #cbd5e1 !important;
+        transform: translateY(-1px) !important;
+    }
+    
+    .tox-tbtn--enabled {
+        background-color: #3b82f6 !important;
+        color: white !important;
+    }
+    
+    .tox-tbtn--enabled:hover {
+        background-color: #2563eb !important;
+    }
+    
+    /* Force icon visibility */
+    .tox-tbtn__icon-wrap {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    
+    .tox-icon {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        width: 20px !important;
+        height: 20px !important;
+        background-size: contain !important;
+        background-repeat: no-repeat !important;
+        background-position: center !important;
+    }
+    
+    /* Ensure SVG icons are visible */
+    .tox-icon svg {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        width: 100% !important;
+        height: 100% !important;
+    }
+    
+    /* Hide overflow button */
+    .tox-tbtn[aria-label="More..."],
+    .tox-tbtn[data-mce-name="overflow-button"] {
+        display: none !important;
+    }
+    
+    /* Editor Content Area */
+    .tox-edit-area {
+        background-color: #ffffff !important;
+    }
+    
+    .tox-edit-area iframe {
+        background-color: #ffffff !important;
+    }
+    
+    /* Status Bar */
+    .tox-statusbar {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%) !important;
+        border-top: 1px solid #e2e8f0 !important;
+        padding: 6px 12px !important;
+        font-size: 12px !important;
+        color: #64748b !important;
+    }
+    
+    /* Responsive design for TinyMCE editor */
+    @media (max-width: 1024px) {
+        .tox-toolbar__primary {
+            padding: 6px 8px !important;
+        }
+        
+        .tox-toolbar__group {
+            margin: 0 4px !important;
+            padding: 0 4px !important;
+        }
+    }
+    
+    /* Timeline Log section font size reduction */
+    .timeline-container {
+        font-size: 0.875rem; /* 14px base font size */
+    }
+    
+    .timeline-container h2 {
+        font-size: 1rem !important; /* Reduce main heading from text-lg to text-base */
+    }
+    
+    .timeline-container .text-lg {
+        font-size: 1rem !important;
+    }
+    
+    .timeline-container .text-base {
+        font-size: 0.875rem !important;
+    }
+    
+    .timeline-container .text-sm {
+        font-size: 0.75rem !important; /* Reduce from 14px to 12px */
+    }
+    
+    .timeline-container .text-xs {
+        font-size: 0.6875rem !important; /* Reduce from 12px to 11px */
+    }
+    
+    .timeline-container .font-semibold,
+    .timeline-container .font-medium {
+        font-size: inherit;
+    }
+    
+    @media (max-width: 768px) {
+        .tox-tinymce {
+            width: 100% !important;
+            margin: 0 !important;
+        }
+        
+        .tox-menubar {
+            padding: 6px 8px !important;
+            font-size: 13px !important;
+        }
+        
+        .tox-menubar .tox-mbtn {
+            padding: 4px 8px !important;
+            margin: 0 1px !important;
+        }
+        
+        .tox-toolbar__primary {
+            flex-wrap: wrap !important;
+            justify-content: flex-start !important;
+            padding: 6px 8px !important;
+            gap: 2px !important;
+        }
+        
+        .tox-toolbar__group {
+            margin: 0 3px !important;
+            padding: 0 3px !important;
+        }
+        
+        .tox-tbtn {
+            width: 30px !important;
+            height: 30px !important;
+            margin: 1px !important;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .tox-menubar {
+            display: none !important;
+        }
+        
+        .tox-toolbar__primary {
+            padding: 4px 6px !important;
+            gap: 1px !important;
+        }
+        
+        .tox-toolbar__group {
+            margin: 0 2px !important;
+            padding: 0 2px !important;
+        }
+        
+        .tox-tbtn {
+            width: 28px !important;
+            height: 28px !important;
+            margin: 0.5px !important;
+        }
+        
+        /* Stack some toolbar groups for very small screens */
+        .tox-toolbar__group:nth-child(n+4) {
+            margin-top: 4px !important;
+        }
+    }
+    
+    /* Force toolbar to show immediately */
+    .tox-toolbar__primary {
+        visibility: visible !important;
+        opacity: 1 !important;
+        display: flex !important;
+    }
+    
+    /* Feedback Editor Container */
+    .feedback-editor-container {
+        margin-bottom: 1.5rem;
+    }
+    
+    .feedback-editor-container label {
+        display: flex;
+        align-items: center;
+        font-weight: 600;
+        color: #374151;
+    }
+    
+    .feedback-editor-container p {
+        color: #6b7280;
+        line-height: 1.5;
+    }
+    
+    /* Ensure editor container is responsive */
+    .tox-tinymce {
+        width: 100% !important;
+        max-width: 100% !important;
+        font-family: inherit !important;
+    }
+    
+    /* Ensure SVG icons are properly displayed */
+    .tox-icon svg {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        width: 100% !important;
+        height: 100% !important;
+        fill: currentColor !important;
+    }
+    
+    /* Hide fallback text when SVG icons are present */
+    .tox-icon:before,
+    .tox-icon:after {
+        display: none !important;
+    }
+    
+    /* Show fallback only when no SVG is present - using CSS class detection */
+    .tox-tbtn.no-svg-icon .tox-icon:after {
+        display: flex !important;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-family: Arial, sans-serif;
+        line-height: 1;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+    }
+    
+    /* Fallback text icons (only shown when .no-svg-icon class is present) */
+    .tox-tbtn.no-svg-icon[aria-label="Bold"] .tox-icon:after { content: "B"; font-weight: bold; font-size: 14px; color: #333; }
+    .tox-tbtn.no-svg-icon[aria-label="Italic"] .tox-icon:after { content: "I"; font-style: italic; font-size: 14px; color: #333; }
+    .tox-tbtn.no-svg-icon[aria-label="Underline"] .tox-icon:after { content: "U"; text-decoration: underline; font-size: 14px; color: #333; }
+    .tox-tbtn.no-svg-icon[aria-label="Undo"] .tox-icon:after { content: "↶"; font-size: 16px; color: #333; }
+    .tox-tbtn.no-svg-icon[aria-label="Redo"] .tox-icon:after { content: "↷"; font-size: 16px; color: #333; }
+    .tox-tbtn.no-svg-icon[aria-label="Bullet list"] .tox-icon:after { content: "•"; font-size: 16px; color: #333; }
+    .tox-tbtn.no-svg-icon[aria-label="Numbered list"] .tox-icon:after { content: "1."; font-size: 12px; color: #333; }
+    .tox-tbtn.no-svg-icon[aria-label="Align left"] .tox-icon:after { content: "⬅"; font-size: 14px; color: #333; }
+    .tox-tbtn.no-svg-icon[aria-label="Align center"] .tox-icon:after { content: "═"; font-size: 14px; color: #333; }
+    .tox-tbtn.no-svg-icon[aria-label="Align right"] .tox-icon:after { content: "➡"; font-size: 14px; color: #333; }
+    .tox-tbtn.no-svg-icon[aria-label="Fullscreen"] .tox-icon:after { content: "⛶"; font-size: 14px; color: #333; }
+    .tox-tbtn.no-svg-icon[aria-label="Text color"] .tox-icon:after { content: "A"; font-size: 14px; color: #333; font-weight: bold; }
+    .tox-tbtn.no-svg-icon[aria-label="Link"] .tox-icon:after { content: "🔗"; font-size: 12px; }
+    .tox-tbtn.no-svg-icon[aria-label="Image"] .tox-icon:after { content: "🖼"; font-size: 12px; }
+    .tox-tbtn.no-svg-icon[aria-label="Clear formatting"] .tox-icon:after { content: "✂"; font-size: 12px; }
+    
+    /* Fullscreen Editor Positioning - Fixed for sidebar overlap and screen fit */
+    .tox-fullscreen {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        z-index: 999999 !important; /* Higher than sidebar z-index */
+        background-color: white !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    /* Hide sidebar when editor is fullscreen */
+    body:has(.tox-fullscreen) #sidebar {
+        visibility: hidden !important;
+        opacity: 0 !important;
+        z-index: -1 !important;
+    }
+    
+    /* Hide header when editor is fullscreen */  
+    body:has(.tox-fullscreen) header {
+        visibility: hidden !important;
+        opacity: 0 !important;
+        z-index: -1 !important;
+    }
+    
+    /* Hide main navigation when editor is fullscreen */
+    body:has(.tox-fullscreen) nav {
+        visibility: hidden !important;
+        opacity: 0 !important;
+        z-index: -1 !important;
+    }
+    
+    .tox-fullscreen .tox-editor-container {
+        height: 100vh !important;
+        width: 100vw !important;
+    }
+    
+    .tox-fullscreen .tox-edit-area {
+        height: calc(100vh - 80px) !important; /* Account for toolbar and menubar */
+    }
+    
+    .tox-fullscreen .tox-edit-area__iframe {
+        height: 100% !important;
+        width: 100% !important;
+    }
+    
+    /* Ensure fullscreen mode takes full viewport */
+    .tox-fullscreen .tox-tinymce {
+        height: 100vh !important;
+        width: 100vw !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+    }
+    
+    /* Prevent width overflow issues */
+    .feedback-editor-container {
+        min-width: 0 !important; /* Allow container to shrink */
+        max-width: 100% !important;
+    }
+    
+    .tox-editor-container {
+        max-width: 100% !important;
+        overflow: hidden !important;
+    }
+    
+    .tox-toolbar {
+        flex-wrap: wrap !important; /* Allow toolbar to wrap if needed */
+        max-width: 100% !important;
+    }
+    
+    /* Ensure grid columns don't overflow */
+    .grid > div {
+        min-width: 0 !important; /* Allow grid children to shrink */
+    }
+    
+    /* Responsive adjustments for smaller screens */
+    @media (max-width: 1024px) {
+        .grid-cols-1.lg\\:grid-cols-2 {
+            grid-template-columns: 1fr !important;
+        }
+    }
+    
+    @media (min-width: 1025px) and (max-width: 1280px) {
+        .container {
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+        }
+    }
+    
+    /* Critical fixes for TinyMCE toolbar positioning during scroll */
+    .tox-tinymce .tox-editor-header {
+        position: static !important;
+        top: auto !important;
+        left: 0 !important;
+        right: auto !important;
+        transform: none !important;
+        width: 100% !important;
+        z-index: 1 !important;
+    }
+    
+    .tox-tinymce .tox-toolbar-overlord {
+        position: static !important;
+        top: auto !important;
+        left: 0 !important;
+        right: auto !important;
+        transform: none !important;
+        width: 100% !important;
+    }
+    
+    .tox-tinymce .tox-toolbar__primary {
+        position: static !important;
+        top: auto !important;
+        left: 0 !important;
+        right: auto !important;
+        transform: none !important;
+        width: 100% !important;
+        justify-content: flex-start !important;
+    }
+    
+    .tox-tinymce .tox-menubar {
+        position: static !important;
+        top: auto !important;
+        left: 0 !important;
+        right: auto !important;
+        transform: none !important;
+        width: 100% !important;
+    }
+    
+    /* Override any sticky positioning */
+    .tox-tinymce--toolbar-sticky-on .tox-editor-header,
+    .tox-tinymce--toolbar-sticky-off .tox-editor-header {
+        position: static !important;
+        top: auto !important;
+        left: 0 !important;
+        transform: none !important;
+    }
+    
+    /* Ensure container doesn't cause positioning issues */
+    .tox-tinymce {
+        position: relative !important;
+        overflow: visible !important;
+    }
+    
+    /* Fix any transform issues that could cause positioning problems */
+    .tox-tinymce *[style*="transform"] {
+        transform: none !important;
+    }
+    
+    /* Clean TinyMCE editor styling */
+    .tox-tinymce {
+        border: 1px solid #d1d5db;
+        border-radius: 0.375rem;
+        overflow: hidden;
+        position: relative !important;
+    }
+    
+    .tox-toolbar__primary {
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+        position: static !important;
+    }
+    
+    .tox-menubar {
+        background: #f1f5f9;
+        border-bottom: 1px solid #e2e8f0;
+        position: static !important;
+    }
+    
+    /* Enhanced table styling for submission text content */
+    .bg-gray-50 table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 1em 0;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.375rem;
+        overflow: hidden;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    }
+    
+    .bg-gray-50 table td,
+    .bg-gray-50 table th {
+        border: 1px solid #e5e7eb;
+        padding: 12px 16px;
+        text-align: left;
+        vertical-align: top;
+    }
+    
+    .bg-gray-50 table th {
+        background-color: #f8fafc;
+        font-weight: 600;
+        color: #374151;
+        border-bottom: 2px solid #e5e7eb;
+    }
+    
+    .bg-gray-50 table tr:nth-child(even) {
+        background-color: #ffffff;
+    }
+    
+    .bg-gray-50 table tr:hover {
+        background-color: #f3f4f6;
+    }
+    
+    .bg-gray-50 table tbody tr:first-child td {
+        border-top: 2px solid #e5e7eb;
+    }
+    
+    .bg-gray-50 h1,
+    .bg-gray-50 h2,
+    .bg-gray-50 h3,
+    .bg-gray-50 h4 {
+        color: #111827;
+        margin-top: 1em;
+        margin-bottom: 0.5em;
+    }
+    
+    .bg-gray-50 p {
+        margin-bottom: 1em;
+        line-height: 1.6;
+    }
+    
+    .bg-gray-50 ul,
+    .bg-gray-50 ol {
+        margin-left: 1.5em;
+        margin-bottom: 1em;
+        line-height: 1.6;
+    }
+    
+    .bg-gray-50 li {
+        margin-bottom: 0.5em;
+    }
+    
+    .bg-gray-50 a {
+        color: #3b82f6;
+        text-decoration: underline;
+    }
+    
+    .bg-gray-50 a:hover {
+        color: #1d4ed8;
+    }
+    
+    .bg-gray-50 blockquote {
+        border-left: 4px solid #3b82f6;
+        padding-left: 1rem;
+        margin: 1em 0;
+        color: #4b5563;
+        font-style: italic;
+        background-color: #ffffff;
+        padding: 1rem;
+        border-radius: 0 0.375rem 0.375rem 0;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+    }
+    
+    .bg-gray-50 img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 0.375rem;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        margin: 1em 0;
+    }
+    
+    .bg-gray-50 code {
+        background-color: #f1f5f9;
+        color: #e11d48;
+        padding: 2px 6px;
+        border-radius: 0.25rem;
+        font-size: 0.875em;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    }
+    
+    .bg-gray-50 pre {
+        background-color: #1e293b;
+        color: #f1f5f9;
+        padding: 1rem;
+        border-radius: 0.375rem;
+        overflow-x: auto;
+        margin: 1em 0;
+    }
+    
+    .bg-gray-50 pre code {
+        background-color: transparent;
+        color: inherit;
+        padding: 0;
+    }
+    
+    .bg-gray-50 strong {
+        font-weight: 600;
+        color: #111827;
+    }
+    
+    .bg-gray-50 em {
+        font-style: italic;
+        color: #374151;
+    }
+
+    /* Column Resizer Styles - matching topic creation page */
+    .column-resizer {
+        width: 6px;
+        background: #e5e7eb;
+        cursor: col-resize;
+        position: relative;
+        border-radius: 3px;
+        transition: background-color 0.2s;
+        flex-shrink: 0;
+    }
+    
+    .column-resizer:hover {
+        background: #9ca3af;
+    }
+    
+    .column-resizer:active {
+        background: #6b7280;
+    }
+    
+    .column-resizer::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 3px;
+        height: 20px;
+        background: repeating-linear-gradient(
+            to bottom,
+            #9ca3af 0px,
+            #9ca3af 2px,
+            transparent 2px,
+            transparent 4px
+        );
+        border-radius: 1px;
+    }
+    
+    @media (max-width: 1024px) {
+        #mainGrid {
+            flex-direction: column;
+        }
+        
+        #contentColumn,
+        #gradingColumn {
+            width: 100% !important;
+            padding: 0 !important;
+            margin-bottom: 1.5rem;
+        }
+        
+        .column-resizer {
+            display: none;
+        }
+    }
+
+    /* Additional fixes specifically for the feedback editor */
+    #text-feedback-tab .tox-tinymce {
+        position: relative !important;
+        overflow: visible !important;
+        z-index: 1 !important;
+    }
+    
+    /* Disable sticky toolbar behavior completely */
+    .tox-tinymce--toolbar-sticky-on,
+    .tox-tinymce--toolbar-sticky-off {
+        /* Force non-sticky behavior */
+    }
+    
+    .tox-tinymce--toolbar-sticky-on .tox-editor-header,
+    .tox-tinymce--toolbar-sticky-off .tox-editor-header {
+        position: static !important;
+        top: auto !important;
+        transform: none !important;
+    }
+    
+    /* Ensure the feedback editor container doesn't cause overflow issues */
+    #text-feedback-tab {
+        overflow: visible !important;
+        position: relative !important;
+        z-index: 1 !important;
+    }
+    
+    /* Fix for the editor container within the feedback tab */
+    #text-feedback-tab .tox-editor-container {
+        position: relative !important;
+        overflow: visible !important;
+    }
+    
+    /* Prevent toolbar from floating when scrolling */
+    .tox-editor-header--sticky-on,
+    .tox-editor-header--sticky-off {
+        position: static !important;
+        top: auto !important;
+        transform: none !important;
+    }
+    
+    /* Override any inline styles that might be added by TinyMCE */
+    .tox-tinymce[style*="position: fixed"],
+    .tox-editor-header[style*="position: fixed"],
+    .tox-editor-header[style*="position: sticky"] {
+        position: static !important;
+    }
+    
+    /* Ensure proper stacking context */
+    .feedback-editor-container {
+        position: relative;
+        z-index: 1;
+    }
+    
+    /* Additional fixes for the grading column container */
+    #gradingColumn {
+        position: relative;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    
+    /* Ensure the feedback section doesn't cause overflow */
+    .feedback-tab-content {
+        position: relative;
+        overflow: visible;
+    }
+    
+    /* Fix for the entire form container */
+    #gradingForm {
+        position: relative;
+        overflow: visible;
+    }
+    
+    /* Prevent any TinyMCE sticky behavior within the grading column */
+    #gradingColumn .tox-tinymce {
+        position: relative !important;
+    }
+    
+    #gradingColumn .tox-editor-header {
+        position: static !important;
+        top: auto !important;
+    }
+    
+    /* Enhanced table styling for submission text content */
+    .bg-gray-50 table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 1em 0;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.375rem;
+        overflow: hidden;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    }
+    
+    .bg-gray-50 table td,
+    .bg-gray-50 table th {
+        border: 1px solid #e5e7eb;
+        padding: 12px 16px;
+        text-align: left;
+        vertical-align: top;
+    }
+    
+    .bg-gray-50 table th {
+        background-color: #f8fafc;
+        font-weight: 600;
+        color: #374151;
+        border-bottom: 2px solid #e5e7eb;
+    }
+    
+    .bg-gray-50 table tr:nth-child(even) {
+        background-color: #ffffff;
+    }
+    
+    .bg-gray-50 table tr:hover {
+        background-color: #f3f4f6;
+    }
+    
+    .bg-gray-50 table tbody tr:first-child td {
+        border-top: 2px solid #e5e7eb;
+    }
+    
+    .bg-gray-50 h1,
+    .bg-gray-50 h2,
+    .bg-gray-50 h3,
+    .bg-gray-50 h4 {
+        color: #111827;
+        margin-top: 1em;
+        margin-bottom: 0.5em;
+    }
+    
+    .bg-gray-50 p {
+        margin-bottom: 1em;
+        line-height: 1.6;
+    }
+    
+    .bg-gray-50 ul,
+    .bg-gray-50 ol {
+        margin-left: 1.5em;
+        margin-bottom: 1em;
+        line-height: 1.6;
+    }
+    
+    .bg-gray-50 li {
+        margin-bottom: 0.5em;
+    }
+    
+    .bg-gray-50 a {
+        color: #3b82f6;
+        text-decoration: underline;
+    }
+    
+    .bg-gray-50 a:hover {
+        color: #1d4ed8;
+    }
+    
+    .bg-gray-50 blockquote {
+        border-left: 4px solid #3b82f6;
+        padding-left: 1rem;
+        margin: 1em 0;
+        color: #4b5563;
+        font-style: italic;
+        background-color: #ffffff;
+        padding: 1rem;
+        border-radius: 0 0.375rem 0.375rem 0;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+    }
+    
+    .bg-gray-50 img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 0.375rem;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        margin: 1em 0;
+    }
+    
+    .bg-gray-50 code {
+        background-color: #f1f5f9;
+        color: #e11d48;
+        padding: 2px 6px;
+        border-radius: 0.25rem;
+        font-size: 0.875em;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    }
+    
+    .bg-gray-50 pre {
+        background-color: #1e293b;
+        color: #f1f5f9;
+        padding: 1rem;
+        border-radius: 0.375rem;
+        overflow-x: auto;
+        margin: 1em 0;
+    }
+    
+    .bg-gray-50 pre code {
+        background-color: transparent;
+        color: inherit;
+        padding: 0;
+    }
+    
+    .bg-gray-50 strong {
+        font-weight: 600;
+        color: #111827;
+    }
+    
+    .bg-gray-50 em {
+        font-style: italic;
+        color: #374151;
+    }
+
+    /* Timeline-specific styling */
+    .timeline-container {
+        position: relative;
+    }
+    
+    .timeline-container:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        transform: translateY(-1px);
+        transition: all 0.2s ease;
+    }
+    
+    /* Timeline avatars */
+    .timeline-avatar {
+        position: relative;
+        z-index: 10;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        border: 2px solid #ffffff;
+    }
+    
+    .timeline-avatar.instructor {
+        background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
+    }
+    
+    .timeline-avatar.learner {
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    }
+    
+    .timeline-avatar.question {
+        background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+    }
+    
+    .timeline-avatar.waiting {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        animation: pulse 2s infinite;
+    }
+    
+    .timeline-avatar.complete {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+    
+    /* Timeline line styling */
+    .timeline-line {
+        position: absolute;
+        left: 16px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: linear-gradient(to bottom, #e5e7eb 0%, #d1d5db 50%, #e5e7eb 100%);
+        z-index: 1;
+    }
+    
+    /* Timeline content blocks */
+    .timeline-content {
+        position: relative;
+        z-index: 5;
+        transition: all 0.2s ease;
+    }
+    
+    .timeline-content:hover {
+        transform: translateX(2px);
+    }
+    
+    .timeline-content.instructor-content {
+        border-left-color: #8b5cf6 !important;
+        background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+    }
+    
+    .timeline-content.learner-content {
+        border-left-color: #3b82f6 !important;
+        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    }
+    
+    .timeline-content.question-content {
+        border-left-color: #6b7280 !important;
+        background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+    }
+    
+    .timeline-content.waiting-content {
+        border-left-color: #f59e0b !important;
+        background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+        border-left-style: dashed !important;
+    }
+    
+    /* Timeline status badges */
+    .timeline-status {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .timeline-status.revision-requested {
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        color: #92400e;
+        border: 1px solid #f59e0b;
+    }
+    
+    .timeline-status.complete {
+        background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+        color: #065f46;
+        border: 1px solid #10b981;
+    }
+    
+    .timeline-status.awaiting {
+        background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%);
+        color: #9a3412;
+        border: 1px solid #ea580c;
+        animation: pulse 2s infinite;
+    }
+    
+    /* Timeline header gradient */
+    .timeline-header {
+        background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 50%, #e0f2fe 100%);
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .timeline-header:hover {
+        background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 50%, #bae6fd 100%);
+    }
+    
+    /* Animation for timeline elements */
+    @keyframes slideInFromLeft {
+        from {
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    .timeline-content {
+        animation: slideInFromLeft 0.3s ease forwards;
+    }
+    
+    /* Responsive timeline */
+    @media (max-width: 768px) {
+        .timeline-line {
+            left: 12px;
+        }
+        
+        .timeline-avatar {
+            width: 24px !important;
+            height: 24px !important;
+        }
+        
+        .timeline-content {
+            margin-left: -4px;
+        }
+    }
+    
+    /* Enhanced Mobile Improvements */
+    @media (max-width: 480px) {
+        /* Better TinyMCE touch targets */
+        .tox-tbtn {
+            min-width: 36px !important; /* Improved touch target */
+            min-height: 36px !important;
+            touch-action: manipulation;
+        }
+        
+        /* Form input improvements */
+        .form-control, .form-select, input, textarea {
+            font-size: 16px !important; /* Prevent zoom on iOS */
+            min-height: 44px;
+            padding: 0.75rem !important;
+        }
+        
+        /* Button improvements */
+        .btn {
+            min-height: 44px;
+            padding: 0.75rem 1rem;
+            touch-action: manipulation;
+        }
+        
+        /* Grid adjustments */
+        .grid.grid-cols-1.md\\:grid-cols-2,
+        .grid.grid-cols-1.md\\:grid-cols-3 {
+            grid-template-columns: 1fr !important;
+            gap: 1rem;
+        }
+        
+        /* Container padding adjustments */
+        .container {
+            padding-left: 0.5rem !important;
+            padding-right: 0.5rem !important;
+        }
+        
+        /* Tab improvements */
+        .nav-tabs .nav-link {
+            padding: 0.75rem 1rem;
+            font-size: 0.875rem;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Section spacing */
+        .bg-white.border {
+            margin: 0 -0.5rem 1rem;
+            border-radius: 0;
+            border-left: none;
+            border-right: none;
+        }
+    }
+    
+    /* Touch device optimizations */
+    @media (hover: none) and (pointer: coarse) {
+        .tox-tbtn:not([disabled]) {
+            -webkit-tap-highlight-color: rgba(0,0,0,0.1);
+        }
+        
+        button, .btn, input[type="submit"], input[type="button"] {
+            -webkit-tap-highlight-color: rgba(0,0,0,0.1);
+        }
+        
+        /* Ensure all interactive elements meet touch target minimums */
+        a, button, input, select, textarea, .btn, .nav-link {
+            min-height: 44px;
+            min-width: 44px;
+        }
+    }
+    
+    /* Responsive Tab/Accordion Display - Fix for Icon Duplication */
+    /* Desktop: Show tabs, hide accordion */
+    @media (min-width: 769px) {
+        .tab-headers-desktop {
+            display: block !important;
+        }
+        
+        .tab-accordion-container {
+            display: none !important;
+        }
+    }
+    
+    /* Mobile/Tablet: Hide tabs, show accordion */
+    @media (max-width: 768px) {
+        .tab-headers-desktop {
+            display: none !important;
+        }
+        
+        .tab-accordion-container {
+            display: block !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Main Grading Form - Wraps all content -->
+    <form method="POST" id="gradingForm" enctype="multipart/form-data" autocomplete="off">
+        {% csrf_token %}
+        
+        <div class="flex gap-0 relative" id="mainGrid">
+            <!-- Left Column - Submission Content -->
+            <div class="flex-1 pr-4" id="contentColumn" style="width: 75%; min-width: 50%; max-width: 90%;">
+            <!-- Submission Details Section -->
+            <div class="bg-white border border-gray-200 rounded-lg shadow-sm mb-6">
+                <div class="border-b border-gray-200 bg-gray-50 px-4 py-3">
+                    <h2 class="text-lg font-semibold text-gray-800">
+                        <i class="fas fa-info-circle text-blue-500 mr-2"></i>
+                        Submission Details
+                    </h2>
+                </div>
+                <div class="p-4 space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-sm text-gray-600">Student:</p>
+                            <p class="font-medium text-gray-900">{{ submission.user.get_full_name }}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Submitted On:</p>
+                            <p class="font-medium text-gray-900">{{ submission.submitted_at|date:"M d, Y \a\t g:i A" }}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Status:</p>
+                            <p class="font-medium">
+                                {% if submission.status == 'submitted' %}
+                                    <span class="text-yellow-600">
+                                        <i class="fas fa-clock mr-1"></i>Pending Review
+                                    </span>
+                                {% elif submission.status == 'graded' %}
+                                    <span class="text-green-600">
+                                        <i class="fas fa-check-circle mr-1"></i>Graded
+                                    </span>
+                                {% elif submission.status == 'returned' %}
+                                    <span class="text-red-600">
+                                        <i class="fas fa-undo mr-1"></i>Returned for Revision
+                                    </span>
+                                {% elif submission.status == 'not_graded' %}
+                                    <span class="text-orange-600">
+                                        <i class="fas fa-exclamation-circle mr-1"></i>Not Graded
+                                    </span>
+                                {% elif submission.status == 'draft' %}
+                                    <span class="text-gray-600">
+                                        <i class="fas fa-pencil-alt mr-1"></i>Draft
+                                    </span>
+                                {% else %}
+                                    <span class="text-gray-600">
+                                        <i class="fas fa-question-circle mr-1"></i>{{ submission.get_status_display }}
+                                    </span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Current Score:</p>
+                            <p class="font-medium text-gray-900">
+                                {% if submission.grade is not None %}
+                                    {{ submission.grade }}/{{ submission.assignment.max_score }}
+                                    ({{ submission.grade|percentage:submission.assignment.max_score }}%)
+                                {% else %}
+                                    Not graded yet
+                                {% endif %}
+                            </p>
+                        </div>
+                        {% if submission.graded_at %}
+                        <div>
+                            <p class="text-sm text-gray-600">Latest Points Given:</p>
+                            <p class="font-medium text-gray-900">
+                                {{ submission.grade }} points
+                                <span class="text-xs text-gray-500">
+                                    ({{ submission.graded_at|date:"M d, Y \a\t g:i A" }})
+                                </span>
+                            </p>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {% if submission.attachments.exists %}
+                    <div class="mt-4">
+                        <p class="text-sm font-medium text-gray-600 mb-2">Attached Files:</p>
+                        <div class="space-y-2">
+                            {% for attachment in submission.attachments.all %}
+                            <div class="flex items-center justify-between bg-gray-50 p-2 rounded">
+                                <div class="flex items-center space-x-3 min-w-0 flex-1">
+                                    <i class="fas fa-file text-blue-500 mr-2"></i>
+                                    <span class="text-sm text-gray-900 truncate whitespace-nowrap">{{ attachment.file_name }}</span>
+                                </div>
+                                <a href="{% url 'assignments:download_file' 'submission' attachment.id %}" 
+                                   class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                                    <i class="fas fa-download mr-1"></i>Download
+                                </a>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Learning Outcome Evaluation Impact -->
+            {% if outcome_evaluations %}
+            <div class="bg-white border border-gray-200 rounded-lg shadow-sm mb-6">
+                <div class="border-b border-gray-200 bg-blue-50 px-4 py-3">
+                    <h2 class="text-lg font-semibold text-gray-800">
+                        <i class="fas fa-bullseye text-blue-500 mr-2"></i>
+                        Learning Outcome Impact
+                    </h2>
+                    <p class="text-sm text-gray-600 mt-1">How this evaluation will affect the student's learning outcome progress</p>
+                </div>
+                <div class="p-4">
+                    <div class="space-y-4">
+                        {% for evaluation in outcome_evaluations %}
+                        <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                            <div class="flex items-start justify-between mb-3">
+                                <div class="flex-1">
+                                    <h3 class="font-medium text-gray-900">{{ evaluation.outcome.title }}</h3>
+                                    {% if evaluation.outcome.friendly_name %}
+                                    <p class="text-sm text-gray-600">{{ evaluation.outcome.friendly_name }}</p>
+                                    {% endif %}
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        {{ evaluation.calculation_method }}
+                                    </span>
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        Weight: {{ evaluation.weight }}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
+                                <div>
+                                    <p class="text-xs text-gray-600">Connected Criterion:</p>
+                                    <p class="text-sm font-medium text-gray-900">{{ evaluation.criterion.description|truncatechars:50 }}</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-600">Current Score:</p>
+                                    <div class="flex items-center">
+                                        <p class="text-sm font-medium text-gray-900">{{ evaluation.current_score|floatformat:1 }}</p>
+                                        <span class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium
+                                            {% if evaluation.current_level == 'Mastery' or evaluation.current_level == 'Exceeds Mastery' %}bg-green-100 text-green-800
+                                            {% elif evaluation.current_level == 'Near Mastery' %}bg-yellow-100 text-yellow-800
+                                            {% elif evaluation.current_level == 'Below Mastery' %}bg-red-100 text-red-800
+                                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                            {{ evaluation.current_level }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-600">Evidence Count:</p>
+                                    <p class="text-sm font-medium text-gray-900">{{ evaluation.evidence_count }} evaluation{{ evaluation.evidence_count|pluralize }}</p>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-blue-50 border border-blue-200 rounded p-3">
+                                <div class="flex">
+                                    <div class="flex-shrink-0">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 text-blue-500">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                        </svg>
+                                    </div>
+                                    <div class="ml-2">
+                                        <p class="text-xs text-blue-700">
+                                            <strong>Automatic Update:</strong> When you save this rubric evaluation, the student's outcome score will be recalculated using the 
+                                            <em>{{ evaluation.calculation_method }}</em> method and their progress will be updated in real-time.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="mt-4 p-3 bg-green-50 border border-green-200 rounded">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-green-500">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <h3 class="text-sm font-medium text-green-800">Connected to Learning Outcomes</h3>
+                                <div class="mt-2 text-sm text-green-700">
+                                    <p>This assignment is connected to {{ outcome_evaluations|length }} learning outcome{{ outcome_evaluations|length|pluralize }}. Student progress will be automatically calculated and visible in the gradebook.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Text Questions Section (Learner Answers to Instructor Questions) - Iteration System -->
+            {% if question_iteration_data %}
+            <div class="bg-white border border-gray-200 rounded-lg shadow-sm mb-6">
+                <div class="border-b border-gray-200 bg-gray-50 px-4 py-3">
+                    <h2 class="text-lg font-semibold text-gray-800">
+                        <i class="fas fa-question-circle text-indigo-500 mr-2"></i>
+                        Learner Answers to Instructor Questions
+                    </h2>
+                </div>
+                <div class="p-4 space-y-3">
+                {% for question_id, iteration_data in question_iteration_data.items %}
+                        {% with iterations=iteration_data.iterations question=iteration_data.question %}
+                        <div class="border border-gray-200 rounded-lg overflow-hidden">
+                            <!-- Accordion Header -->
+                            <div class="bg-gray-50 px-4 py-3 cursor-pointer hover:bg-gray-100 transition-colors duration-200"
+                                 onclick="toggleQuizAccordion('text_question_{{ question.id }}')">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center space-x-3 min-w-0">
+                                        <i id="quiz_icon_text_{{ question.id }}" class="fas fa-chevron-right text-gray-500 transition-transform duration-200"></i>
+                                        <span class="font-medium text-gray-800">Question {{ forloop.counter }}</span>
+                                                                {% if iterations %}
+                            <span class="px-2 py-1 bg-indigo-100 text-indigo-800 text-xs rounded-full">
+                                <i class="fas fa-check-circle mr-1"></i>{{ iterations|length }} iteration{{ iterations|length|pluralize }}
+                            </span>
+                        {% else %}
+                            <span class="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                                <i class="fas fa-times-circle mr-1"></i>Not Answered
+                            </span>
+                        {% endif %}
+                                    </div>
+                                    <div class="text-sm text-gray-500">
+                                        Click to expand
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Accordion Content -->
+                            <div id="text_question_{{ question.id }}" class="hidden">
+                                <div class="p-4 bg-white">
+                                    <!-- Question Text -->
+                                    <div class="mb-4">
+                                        <p class="text-sm font-medium text-gray-600 mb-2">Question:</p>
+                                        <div class="text-gray-800 bg-gray-50 p-3 rounded">{{ question.question_text|safe }}</div>
+                                    </div>
+                                    
+                                    <!-- All Iterations -->
+                                    {% for iteration in iterations %}
+                                        {% if iteration.is_submitted %}
+                                            <div class="mb-6 p-4 {% if forloop.last %}bg-indigo-50 border-indigo-200{% else %}bg-gray-50 border-gray-200{% endif %} rounded border">
+                                                <!-- Iteration Header -->
+                                                <div class="flex items-center justify-between mb-3">
+                                                    <h4 class="text-sm font-medium text-gray-700">
+                                                        {% if forloop.first and forloop.last %}
+                                                            Learner's Answer:
+                                                        {% else %}
+                                                            Iteration #{{ iteration.iteration_number }}:
+                                                        {% endif %}
+                                                    </h4>
+                                                    <span class="text-xs text-gray-500">
+                                                        <i class="fas fa-clock mr-1"></i>{{ iteration.submitted_at|date:"M d, Y \a\t g:i A" }}
+                                                    </span>
+                                                </div>
+                                                
+                                                <!-- Answer Text -->
+                                                <div class="mb-4">
+                                                    <div class="text-gray-800 p-3 bg-white rounded border">{{ iteration.answer_text|safe }}</div>
+                                                </div>
+                                                
+                                                <!-- Existing Feedback Display -->
+                                                {% for feedback in iteration.feedback_entries.all %}
+                                                    <div class="mb-4 p-3 bg-purple-50 rounded border border-purple-200">
+                                                        <div class="flex items-center justify-between mb-2">
+                                                            <span class="text-sm font-medium text-purple-700">
+                                                                <i class="fas fa-comment-dots mr-1"></i>Your Previous Feedback:
+                                                            </span>
+                                                            <span class="text-xs text-purple-600">{{ feedback.created_at|date:"M d, Y \a\t g:i A" }}</span>
+                                                        </div>
+                                                        <div class="text-gray-800">{{ feedback.feedback_text|safe }}</div>
+
+                                                    </div>
+                                                {% endfor %}
+                                                
+                                                <!-- New Feedback Form -->
+                                                <div class="border-t pt-4">
+                                                    <label for="iteration_feedback_{{ iteration.id }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                                        <i class="fas fa-comment-dots mr-1"></i>Add feedback for this iteration:
+                                                    </label>
+                                                    <textarea 
+                                                        name="iteration_feedback_{{ iteration.id }}" 
+                                                        id="iteration_feedback_{{ iteration.id }}"
+                                                        rows="3"
+                                                        class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 mb-2"
+                                                        placeholder="Provide feedback for this iteration..."></textarea>
+                                                    
+
+                                                </div>
+                                            </div>
+                                        {% endif %}
+                                    {% empty %}
+                                        <div class="text-center py-4">
+                                            <i class="fas fa-exclamation-circle text-gray-400 text-3xl mb-2"></i>
+                                            <p class="text-gray-500">No answer provided for this question</p>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endwith %}
+                {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Learner Quiz Responses Section - Timeline-Based Log Style -->
+            {% if field_iteration_data %}
+            <div class="bg-white border border-gray-200 rounded-lg shadow-sm mb-6">
+                <div class="border-b border-gray-200 bg-gray-50 px-4 py-3">
+                    <h2 class="text-lg font-semibold text-gray-800">
+                        <i class="fas fa-comments text-green-500 mr-2"></i>
+                        Learner Quiz Responses - Timeline Log
+                    </h2>
+                    <p class="text-sm text-gray-600 mt-1">Interactive conversation between instructor and learner</p>
+                </div>
+                <div class="p-4 space-y-4">
+                    {% for field_id, iteration_data in field_iteration_data.items %}
+                        {% with iterations=iteration_data.iterations field=iteration_data.field %}
+                        <div class="border border-gray-200 rounded-lg overflow-hidden timeline-container">
+                            <!-- Question Header -->
+                            <div class="bg-gradient-to-r from-green-50 to-blue-50 px-4 py-4 cursor-pointer hover:from-green-100 hover:to-blue-100 transition-all duration-200"
+                                 onclick="toggleTimelineAccordion('timeline_field_{{ field.id }}')">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center space-x-3 min-w-0">
+                                        <i id="timeline_icon_{{ field.id }}" class="fas fa-chevron-right text-gray-500 transition-transform duration-200"></i>
+                                        <div class="flex flex-col">
+                                            <span class="font-semibold text-gray-800">Question {{ forloop.counter }}</span>
+                                            <span class="text-sm text-gray-600">
+                                                {% if iterations %}
+                                                    {{ iterations|length }} interaction{{ iterations|length|pluralize }}
+                                                {% else %}
+                                                    No responses yet
+                                                {% endif %}
+                                            </span>
+                                        </div>
+                                        {% if iterations %}
+                                            <div class="flex space-x-2">
+                                                <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                                                    <i class="fas fa-reply mr-1"></i>{{ iterations|length }} response{{ iterations|length|pluralize }}
+                                                </span>
+                                                                                                 {% for latest_iteration in iterations reversed %}
+                                                     {% if forloop.first %}
+                                                         {% if latest_iteration.feedback_entries.exists %}
+                                                             <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                                                 <i class="fas fa-comment-dots mr-1"></i>Has feedback
+                                                             </span>
+                                                         {% elif submission.status != 'graded' %}
+                                                             <span class="px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-full">
+                                                                 <i class="fas fa-clock mr-1"></i>Awaiting feedback
+                                                             </span>
+                                                         {% endif %}
+                                                     {% endif %}
+                                                 {% endfor %}
+                                            </div>
+                                        {% else %}
+                                            <span class="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                                                <i class="fas fa-hourglass-start mr-1"></i>Awaiting response
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="text-sm text-gray-500 flex items-center">
+                                        <i class="fas fa-history mr-1"></i>
+                                        View Timeline
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Timeline Content -->
+                            <div id="timeline_field_{{ field.id }}" class="hidden">
+                                <div class="p-6 bg-white">
+                                    <!-- Question Display -->
+                                    <div class="mb-6 p-4 bg-gray-50 rounded-lg border-l-4 border-gray-400">
+                                        <div class="flex items-start space-x-3">
+                                            <div class="flex-shrink-0">
+                                                <div class="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center">
+                                                    <i class="fas fa-question text-white text-sm"></i>
+                                                </div>
+                                            </div>
+                                            <div class="flex-1">
+                                                <div class="flex items-center space-x-2 mb-2">
+                                                    <span class="font-medium text-gray-700">Instructor Question</span>
+                                                    <span class="text-xs text-gray-500">•</span>
+                                                    <span class="text-xs text-gray-500">Assignment created</span>
+                                                </div>
+                                                <div class="text-gray-800 bg-white p-3 rounded border">
+                                                    {% if field.content.html %}
+                                                        {{ field.content.html|safe }}
+                                                    {% else %}
+                                                        {{ field.label }}
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Timeline of Interactions -->
+                                    <div class="relative">
+                                        <!-- Timeline Line -->
+                                        <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-300"></div>
+                                        
+                                        {% for iteration in iterations %}
+                                            {% if iteration.is_submitted %}
+                                                <!-- Learner Response -->
+                                                <div class="relative mb-8">
+                                                    <div class="flex items-start space-x-3">
+                                                        <div class="flex-shrink-0">
+                                                            <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center relative z-10">
+                                                                <i class="fas fa-user text-white text-sm"></i>
+                                                            </div>
+                                                        </div>
+                                                        <div class="flex-1">
+                                                            <div class="bg-blue-50 rounded-lg p-4 border-l-4 border-blue-500">
+                                                                <div class="flex items-center justify-between mb-2">
+                                                                    <div class="flex items-center space-x-2">
+                                                                        <span class="font-medium text-blue-700">{{ submission.user.get_full_name }}</span>
+                                                                        <span class="text-xs text-blue-600">•</span>
+                                                                        <span class="text-xs text-blue-600">
+                                                                            Response #{{ iteration.iteration_number }}
+                                                                        </span>
+                                                                    </div>
+                                                                    <span class="text-xs text-blue-600">
+                                                                        <i class="fas fa-clock mr-1"></i>
+                                                                        {{ iteration.submitted_at|date:"M d, Y \a\t g:i A" }}
+                                                                    </span>
+                                                                </div>
+                                                                <div class="text-gray-800 bg-white p-3 rounded border">
+                                                                    {{ iteration.answer_text|safe }}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Instructor Feedback -->
+                                                {% for feedback in iteration.feedback_entries.all %}
+                                                    <div class="relative mb-8">
+                                                        <div class="flex items-start space-x-3">
+                                                            <div class="flex-shrink-0">
+                                                                <div class="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center relative z-10">
+                                                                    <i class="fas fa-chalkboard-teacher text-white text-sm"></i>
+                                                                </div>
+                                                            </div>
+                                                            <div class="flex-1">
+                                                                <div class="bg-purple-50 rounded-lg p-4 border-l-4 border-purple-500">
+                                                                    <div class="flex items-center justify-between mb-2">
+                                                                        <div class="flex items-center space-x-2">
+                                                                            <span class="font-medium text-purple-700">Your Feedback</span>
+                                                                            <span class="text-xs text-purple-600">•</span>
+                                                                            <span class="text-xs text-purple-600">
+                                                                                Feedback provided
+                                                                            </span>
+                                                                        </div>
+                                                                        <span class="text-xs text-purple-600">
+                                                                            <i class="fas fa-clock mr-1"></i>
+                                                                            {{ feedback.created_at|date:"M d, Y \a\t g:i A" }}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div class="text-gray-800 bg-white p-3 rounded border">
+                                                                        {{ feedback.feedback_text|safe }}
+                                                                    </div>
+
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                {% empty %}
+                                                    <!-- Awaiting Feedback -->
+                                                    {% if submission.status != 'graded' %}
+                                                    <div class="relative mb-8">
+                                                        <div class="flex items-start space-x-3">
+                                                            <div class="flex-shrink-0">
+                                                                <div class="w-8 h-8 bg-orange-400 rounded-full flex items-center justify-center relative z-10">
+                                                                    <i class="fas fa-hourglass-half text-white text-sm"></i>
+                                                                </div>
+                                                            </div>
+                                                            <div class="flex-1">
+                                                                <div class="bg-orange-50 rounded-lg p-4 border-l-4 border-orange-400 border-dashed">
+                                                                    <div class="flex items-center space-x-2 mb-2">
+                                                                        <span class="font-medium text-orange-700">Awaiting Your Feedback</span>
+                                                                        <span class="text-xs text-orange-600">•</span>
+                                                                        <span class="text-xs text-orange-600">Response submitted</span>
+                                                                    </div>
+                                                                    <p class="text-sm text-orange-600 mb-3">
+                                                                        <i class="fas fa-clock mr-1"></i>
+                                                                        Learner is waiting for your feedback on this response.
+                                                                    </p>
+                                                                    
+                                                                    <!-- Instructor Feedback Textarea -->
+                                                                    <div class="mt-3 space-y-2">
+                                                                        <label for="field_iteration_feedback_{{ iteration.id }}" class="block text-sm font-medium text-orange-700">
+                                                                            Provide feedback for this response:
+                                                                        </label>
+                                                                        <textarea 
+                                                                            name="field_iteration_feedback_{{ iteration.id }}" 
+                                                                            id="field_iteration_feedback_{{ iteration.id }}"
+                                                                            rows="4"
+                                                                            class="w-full rounded-md border-orange-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                                                                            placeholder="Enter your feedback here to help the learner improve their response..."></textarea>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            {% endif %}
+                                        {% empty %}
+                                            <!-- No responses yet -->
+                                            <div class="relative mb-8">
+                                                <div class="flex items-start space-x-3">
+                                                    <div class="flex-shrink-0">
+                                                        <div class="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center relative z-10">
+                                                            <i class="fas fa-hourglass-start text-white text-sm"></i>
+                                                        </div>
+                                                    </div>
+                                                    <div class="flex-1">
+                                                        <div class="bg-gray-50 rounded-lg p-4 border-l-4 border-gray-400 border-dashed">
+                                                            <div class="flex items-center space-x-2 mb-2">
+                                                                <span class="font-medium text-gray-700">Awaiting Learner Response</span>
+                                                                <span class="text-xs text-gray-600">•</span>
+                                                                <span class="text-xs text-gray-600">No responses yet</span>
+                                                            </div>
+                                                            <p class="text-sm text-gray-600 mb-3">
+                                                                <i class="fas fa-info-circle mr-1"></i>
+                                                                The learner hasn't submitted a response to this question yet.
+                                                            </p>
+                                                            
+                                                            <!-- Instructor Initial Feedback Textarea -->
+                                                            <div class="mt-3 space-y-2">
+                                                                <label for="field_initial_feedback_{{ field.id }}" class="block text-sm font-medium text-gray-700">
+                                                                    Provide initial guidance or feedback:
+                                                                </label>
+                                                                <textarea 
+                                                                    name="field_initial_feedback_{{ field.id }}" 
+                                                                    id="field_initial_feedback_{{ field.id }}"
+                                                                    rows="4"
+                                                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-gray-500 focus:ring-gray-500"
+                                                                    placeholder="Provide initial guidance to help the learner understand what is expected for this question..."></textarea>
+                                                                
+                                                                <div class="text-xs text-gray-500">
+                                                                    <i class="fas fa-info-circle mr-1"></i>
+                                                                    This feedback will be shown to the learner to help them get started.
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                        
+                                                                                 <!-- Add New Feedback Section -->
+                                         {% for latest_iteration in iterations reversed %}
+                                             {% if forloop.first and latest_iteration.is_submitted and not latest_iteration.feedback_entries.exists %}
+                                                 <div class="relative">
+                                                     <div class="flex items-start space-x-3">
+                                                         <div class="flex-shrink-0">
+                                                             <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center relative z-10">
+                                                                 <i class="fas fa-plus text-white text-sm"></i>
+                                                             </div>
+                                                         </div>
+                                                         <div class="flex-1">
+                                                             <div class="bg-green-50 rounded-lg p-4 border-l-4 border-green-500">
+                                                                 <div class="mb-3">
+                                                                     <span class="font-medium text-green-700">Add Your Feedback</span>
+                                                                     <span class="text-xs text-green-600 ml-2">• Continue the conversation</span>
+                                                                 </div>
+                                                                 
+                                                                 <div class="space-y-3">
+                                                                     <textarea 
+                                                                         name="field_iteration_feedback_{{ latest_iteration.id }}" 
+                                                                         id="field_iteration_feedback_{{ latest_iteration.id }}"
+                                                                         rows="4"
+                                                                         class="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                                                                         placeholder="Provide detailed feedback on the learner's response..."></textarea>
+                                                                     
+                                                                     <div class="text-xs text-gray-500 mt-2">
+                                                                         <i class="fas fa-info-circle mr-1"></i>
+                                                                         Your feedback will be added to the timeline
+                                                                     </div>
+                                                                 </div>
+                                                             </div>
+                                                         </div>
+                                                     </div>
+                                                 </div>
+                                             {% endif %}
+                                         {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endwith %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Learner File Submissions Timeline -->
+            <div class="bg-white border border-gray-200 rounded-lg shadow-sm mb-6">
+                <!-- Collapsible Header -->
+                <div class="border-b border-gray-200 bg-blue-50 px-4 py-3 cursor-pointer hover:bg-blue-100 transition-colors"
+                     onclick="toggleGradeFileUploadTimeline()">
+                    <h2 class="text-base font-semibold text-gray-800 flex items-center justify-between">
+                        <div class="flex items-center">
+                            <i id="grade-file-upload-icon" class="fas fa-chevron-right mr-2 text-blue-600 transition-transform duration-200"></i>
+                            <i class="fas fa-file-upload text-blue-500 mr-2"></i>
+                            File Upload Timeline
+                            {% if file_iteration_data.has_iterations %}
+                            <span class="text-sm font-normal text-gray-600 ml-2">({{ file_iteration_data.iterations|length }} file{{ file_iteration_data.iterations|length|pluralize }})</span>
+                            {% else %}
+                            <span class="text-sm font-normal text-gray-600 ml-2">(No files uploaded yet)</span>
+                            {% endif %}
+                        </div>
+                        <span class="text-sm text-blue-600 font-normal">
+                            <i class="fas fa-eye mr-1"></i>Click to view/hide
+                        </span>
+                    </h2>
+                    <p class="text-sm text-gray-600 mt-2">
+                        {% if file_iteration_data.has_iterations %}
+                            Review all file uploads and provide feedback for each version
+                        {% else %}
+                            File uploads will appear here when the student submits files
+                        {% endif %}
+                    </p>
+                </div>
+                
+                <!-- Timeline Container (Collapsible) -->
+                <div id="grade-file-upload-timeline" class="hidden transition-all duration-300 ease-in-out">
+                    <div class="p-4">
+                    {% if file_iteration_data.has_iterations %}
+                    <!-- Timeline Content -->
+                    <div class="relative">
+                        <!-- Timeline Line -->
+                        <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-300"></div>
+                        
+                        {% for iteration_data in file_iteration_data.iterations %}
+                            <!-- File Upload Item -->
+                            <div class="relative mb-8">
+                                <div class="flex items-start space-x-3">
+                                    <div class="flex-shrink-0">
+                                        <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center relative z-10">
+                                            <i class="fas fa-file text-white text-sm"></i>
+                                        </div>
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="bg-blue-50 rounded-lg border border-blue-200">
+                                            <!-- File Header -->
+                                            <div class="px-4 py-3 cursor-pointer hover:bg-blue-100 transition-colors"
+                                                 onclick="toggleFileAccordion('iteration_file_{{ iteration_data.iteration.id }}')">
+                                                <div class="flex items-center justify-between">
+                                                    <div class="flex items-center space-x-3 min-w-0">
+                                                        <i id="iteration_file_icon_{{ iteration_data.iteration.id }}" class="fas fa-chevron-right text-blue-600 transition-transform duration-200"></i>
+                                                        {% if iteration_data.file_extension == 'pdf' %}
+                                                            <i class="fas fa-file-pdf text-red-500 text-xl"></i>
+                                                        {% elif iteration_data.file_extension in 'jpg,jpeg,png,gif,bmp'|split:',' %}
+                                                            <i class="fas fa-file-image text-green-500 text-xl"></i>
+                                                        {% elif iteration_data.file_extension in 'mp3,wav,m4a,aac,ogg'|split:',' %}
+                                                            <i class="fas fa-file-audio text-purple-500 text-xl"></i>
+                                                        {% elif iteration_data.file_extension in 'mp4,mov,avi,wmv'|split:',' %}
+                                                            <i class="fas fa-file-video text-red-500 text-xl"></i>
+                                                        {% else %}
+                                                            <i class="fas fa-file text-gray-500 text-xl"></i>
+                                                        {% endif %}
+                                                        <div class="min-w-0">
+                                                            <p class="text-sm font-medium text-blue-800">
+                                                                Version {{ iteration_data.iteration.iteration_number }} • {{ iteration_data.iteration.file_name|truncatechars:30 }}
+                                                            </p>
+                                                            <p class="text-xs text-blue-600">
+                                                                <i class="fas fa-clock mr-1"></i>
+                                                                {{ iteration_data.iteration.submitted_at|date:"M d, Y H:i" }}
+                                                                | {{ iteration_data.iteration.file_size|filesizeformat }}
+                                                            </p>
+                                                        </div>
+                                                        <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                                            <i class="fas fa-file mr-1"></i>File Upload
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- File Content (Collapsible) -->
+                                            <div id="iteration_file_{{ iteration_data.iteration.id }}" class="hidden border-t border-blue-200">
+                                                <div class="p-4 bg-white">
+                                                    <!-- File Actions -->
+                                                    <div class="flex flex-wrap gap-2 mb-4">
+                                                        {% if iteration_data.iteration.file %}
+                                                            {% if iteration_data.file_extension == 'pdf' %}
+                                                                <button type="button" 
+                                                                        onclick="togglePDFViewer('{{ iteration_data.iteration.file.url }}', this, 'iter_{{ iteration_data.iteration.id }}')"
+                                                                        class="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                                                                    <i class="fas fa-eye mr-1"></i>View PDF
+                                                                </button>
+                                                            {% elif iteration_data.file_extension in 'jpg,jpeg,png,gif,bmp'|split:',' %}
+                                                                <button type="button" 
+                                                                        onclick="toggleImageViewer('{{ iteration_data.iteration.file.url }}', this, 'iter_{{ iteration_data.iteration.id }}')"
+                                                                        class="inline-flex items-center px-3 py-2 border border-green-300 rounded-md text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100">
+                                                                    <i class="fas fa-eye mr-1"></i>View Image
+                                                                </button>
+                                                            {% elif iteration_data.file_extension in 'mp3,wav,m4a,aac,ogg'|split:',' %}
+                                                                <button type="button" 
+                                                                        onclick="toggleAudioPlayer('{{ iteration_data.iteration.file.url }}', this, 'iter_{{ iteration_data.iteration.id }}')"
+                                                                        class="inline-flex items-center px-3 py-2 border border-purple-300 rounded-md text-sm font-medium text-purple-700 bg-purple-50 hover:bg-purple-100">
+                                                                    <i class="fas fa-play mr-1"></i>Play Audio
+                                                                </button>
+                                                            {% elif iteration_data.file_extension in 'mp4,mov,avi,wmv'|split:',' %}
+                                                                <button type="button" 
+                                                                        onclick="toggleVideoPlayer('{{ iteration_data.iteration.file.url }}', this, 'iter_{{ iteration_data.iteration.id }}')"
+                                                                        class="inline-flex items-center px-3 py-2 border border-red-300 rounded-md text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100">
+                                                                    <i class="fas fa-play mr-1"></i>Play Video
+                                                                </button>
+                                                            {% endif %}
+                                                        {% endif %}
+                                                        
+                                                        <!-- Download button for all file types -->
+                                                        {% if iteration_data.iteration.file %}
+                                                        <a href="{{ iteration_data.iteration.file.url }}" 
+                                                           class="inline-flex items-center px-3 py-2 border border-blue-300 rounded-md text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100"
+                                                           download>
+                                                            <i class="fas fa-download mr-1"></i>Download
+                                                        </a>
+                                                        {% else %}
+                                                        <span class="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-500 bg-gray-50">
+                                                            <i class="fas fa-exclamation-triangle mr-1"></i>File Not Available
+                                                        </span>
+                                                        {% endif %}
+                                                    </div>
+                                                    
+                                                    <!-- Media Player Container -->
+                                                    {% if iteration_data.iteration.file %}
+                                                    <div id="mediaPlayerContainer_iter_{{ iteration_data.iteration.id }}" class="hidden mb-4">
+                                                        <div id="audioPlayerContainer_iter_{{ iteration_data.iteration.id }}" class="hidden">
+                                                            <audio controls class="w-full">
+                                                                <source src="{{ iteration_data.iteration.file.url }}" type="audio/mpeg">
+                                                                Your browser does not support the audio element.
+                                                            </audio>
+                                                        </div>
+                                                        <div id="videoPlayerContainer_iter_{{ iteration_data.iteration.id }}" class="hidden">
+                                                            <video controls class="w-full max-h-96">
+                                                                <source src="{{ iteration_data.iteration.file.url }}" type="video/mp4">
+                                                                Your browser does not support the video element.
+                                                            </video>
+                                                        </div>
+                                                        <div id="pdfViewerContainer_iter_{{ iteration_data.iteration.id }}" class="hidden">
+                                                            <div class="bg-gray-100 p-3 rounded-t border border-b-0 border-gray-300">
+                                                                <p class="text-sm text-gray-700 font-medium">
+                                                                    <i class="fas fa-file-pdf text-red-500 mr-2"></i>PDF Preview
+                                                                </p>
+                                                            </div>
+                                                            <div class="relative" style="height: 600px;">
+                                                                <embed src="{{ iteration_data.iteration.file.url }}" 
+                                                                       type="application/pdf" 
+                                                                       class="w-full h-full"
+                                                                       style="border: 1px solid #d1d5db; border-top: none; border-radius: 0 0 0.375rem 0.375rem;">
+                                                            </div>
+                                                        </div>
+                                                        <div id="imageViewerContainer_iter_{{ iteration_data.iteration.id }}" class="hidden">
+                                                            <div class="bg-gray-100 p-3 rounded-t border border-b-0 border-gray-300">
+                                                                <p class="text-sm text-gray-700 font-medium">
+                                                                    <i class="fas fa-file-image text-green-500 mr-2"></i>Image Preview
+                                                                </p>
+                                            </div>
+                                                            <div class="border border-t-0 border-gray-300 rounded-b p-2 bg-white">
+                                                                <img src="{{ iteration_data.iteration.file.url }}" alt="Submission Image" class="w-full max-w-full h-auto">
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {% endif %}
+                                                    
+                                                    <!-- Instructor Feedback Section -->
+                                                    <div class="bg-purple-50 rounded-lg p-4 border border-purple-200">
+                                                        <h4 class="text-sm font-medium text-purple-800 mb-3">
+                                                            <i class="fas fa-comment-dots mr-1"></i>
+                                                            Feedback for Version {{ iteration_data.iteration.iteration_number }}
+                                                        </h4>
+                                                        
+                                                        <!-- Existing Feedback Display -->
+                                                        {% if iteration_data.feedback_entries %}
+                                                            <div class="mb-4">
+                                                                {% for feedback in iteration_data.feedback_entries %}
+                                                                <div class="bg-white rounded p-3 mb-2 border border-purple-100">
+                                                                    <div class="flex justify-between items-start mb-2">
+                                                                        <span class="text-sm font-medium text-gray-800">{{ feedback.created_by.get_full_name }}</span>
+                                                                        <span class="text-xs text-gray-500">{{ feedback.created_at|date:"M d, Y H:i" }}</span>
+                                                                    </div>
+                                                                    <div class="text-sm text-gray-700 mb-2">{{ feedback.feedback_text|safe }}</div>
+                                                                    <span class="px-2 py-1 text-xs rounded-full {% if feedback.allows_new_iteration %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                                                                        {% if feedback.allows_new_iteration %}
+                                                                            <i class="fas fa-check mr-1"></i>Allows New Upload
+                                                                        {% else %}
+                                                                            <i class="fas fa-times mr-1"></i>No More Uploads
+                                                                        {% endif %}
+                                                                    </span>
+                                                                </div>
+                                                                {% endfor %}
+                                                            </div>
+                                                        {% endif %}
+                                                        
+                                                        <!-- New Feedback Form -->
+                                                        <div class="space-y-3">
+                                                            <textarea name="file_iteration_feedback_{{ iteration_data.iteration.id }}" 
+                                                                      rows="3" 
+                                                                      class="w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 text-sm"
+                                                                      placeholder="Provide feedback for this file version..."></textarea>
+                                                            
+                                                            <div class="flex items-center space-x-2">
+                                                                <input type="checkbox" 
+                                                                       id="file_allows_new_iteration_{{ iteration_data.iteration.id }}"
+                                                                       name="file_allows_new_iteration_{{ iteration_data.iteration.id }}"
+                                                                       class="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                                                                       checked>
+                                                                <label for="file_allows_new_iteration_{{ iteration_data.iteration.id }}" 
+                                                                       class="text-sm text-gray-700">
+                                                                    Allow student to upload a new version after this feedback
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <!-- No file uploads yet -->
+                    <div class="text-center py-8">
+                        <div class="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
+                            <i class="fas fa-file-upload text-gray-400 text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg font-medium text-gray-800 mb-2">No File Uploads Yet</h3>
+                        <p class="text-gray-600 mb-4">The student hasn't uploaded any files for this assignment.</p>
+                        <div class="bg-blue-50 rounded-lg p-4 text-left">
+                            <h4 class="text-sm font-medium text-blue-800 mb-2">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                What happens when files are uploaded:
+                            </h4>
+                            <ul class="text-sm text-blue-700 space-y-1">
+                                <li>• Each file upload creates a new version in the timeline</li>
+                                <li>• You can provide feedback for each file version</li>
+                                <li>• Choose whether to allow new uploads after feedback</li>
+                                <li>• Track the student's progress across file iterations</li>
+                            </ul>
+                        </div>
+                    </div>
+                    {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Text Submission Section -->
+            {% if submission.submission_text %}
+            <div class="bg-white border border-gray-200 rounded-lg shadow-sm mb-6">
+                <div class="border-b border-gray-200 bg-gray-50 px-4 py-3">
+                    <h2 class="text-lg font-semibold text-gray-800">
+                        <i class="fas fa-align-left text-blue-500 mr-2"></i>
+                        Learner Text Submission
+                    </h2>
+                </div>
+                <div class="p-4">
+                    <div class="bg-gray-50 p-4 rounded border">
+                        <div class="prose max-w-none">
+                            {{ submission.submission_text|safe }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+
+        </div>
+
+        <!-- Column Resizer -->
+        <div class="column-resizer" id="columnResizer"></div>
+        
+        <!-- Right Column - Grading Form -->
+        <div class="pl-4" id="gradingColumn" style="width: 25%; min-width: 10%; max-width: 50%;">
+            <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-6 mb-6 sticky top-4">
+                    <h2 class="text-xl font-bold mb-4 text-gray-800">Grading Summary</h2>
+                        
+                        <!-- Summary Section -->
+                        <div class="bg-blue-50 rounded-lg p-4 mb-6">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-gray-700 font-medium">Total Points:</span>
+                                <span class="text-gray-900 font-bold" id="totalPoints">0.00</span>
+                            </div>
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-gray-700 font-medium">Maximum Score:</span>
+                                <span class="text-gray-900">{{ submission.assignment.max_score }}</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-700 font-medium">Grade Percentage:</span>
+                                <span class="text-gray-900" id="gradePercentage">0%</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Final Grade Field -->
+                        <div>
+                            <label for="{{ form.grade.id_for_label }}" class="block text-gray-700 font-medium mb-2">
+                                Final Grade
+                            </label>
+                            {{ form.grade }}
+                            {% if rubric_data %}
+                            <p class="text-sm text-blue-600 mt-1">
+                                <i class="fas fa-sync mr-1"></i>
+                                Automatically calculated from Total Rubric Score below
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Status Field -->
+                        <div>
+                            <label for="{{ form.status.id_for_label }}" class="block text-gray-700 font-medium mb-2">
+                                Status
+                            </label>
+                            {{ form.status }}
+                        </div>
+                        
+                        <!-- Previous Feedback Timeline -->
+                        {% if submission.feedback_entries.exists %}
+                        <div class="mb-8">
+                            <!-- Collapsible Header -->
+                            <div class="bg-purple-50 border border-purple-200 rounded-lg p-4 cursor-pointer hover:bg-purple-100 transition-colors mb-2"
+                                 onclick="togglePreviousFeedbackTimeline()">
+                                <h3 class="text-lg font-semibold text-gray-800 flex items-center justify-between">
+                                    <div class="flex items-center">
+                                        <i id="previous-feedback-icon" class="fas fa-chevron-right mr-2 text-purple-600 transition-transform duration-200"></i>
+                                        <i class="fas fa-history mr-2 text-purple-600"></i>
+                                        Previous Feedback Timeline
+                                        <span class="text-sm font-normal text-gray-600 ml-2">({{ submission.feedback_entries.count }} feedback{{ submission.feedback_entries.count|pluralize }})</span>
+                                    </div>
+                                    <span class="text-sm text-purple-600 font-normal">
+                                        <i class="fas fa-eye mr-1"></i>Click to view/hide
+                                    </span>
+                                </h3>
+                            </div>
+                            
+                            <!-- Timeline Container (Collapsible) -->
+                            <div id="previous-feedback-timeline" class="hidden relative bg-gray-50 rounded-lg p-4 border border-gray-200 transition-all duration-300 ease-in-out">
+                                <!-- Timeline Line -->
+                                <div class="absolute left-6 top-0 bottom-0 w-0.5 bg-purple-300"></div>
+                                
+                                                                 <!-- Timeline Items -->
+                                 <div class="space-y-4">
+                                     {% for feedback_entry in submission.feedback_entries.all|dictsort:"created_at" %}
+                                    <div class="relative flex items-start space-x-3">
+                                        <!-- Timeline Node -->
+                                        <div class="flex-shrink-0">
+                                            <div class="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center relative z-10 shadow-md">
+                                                <i class="fas fa-comment text-white text-xs"></i>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Feedback Content -->
+                                        <div class="flex-1 bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                                            <!-- Feedback Header -->
+                                            <div class="bg-purple-50 px-3 py-2 border-b border-purple-100">
+                                                <div class="flex items-center justify-between">
+                                                    <div class="flex items-center space-x-2">
+                                                        <div class="font-medium text-purple-800 text-sm">{{ feedback_entry.created_by.get_full_name }}</div>
+                                                        <span class="text-purple-600">•</span>
+                                                        <div class="text-xs text-purple-600">
+                                                            <i class="fas fa-clock mr-1"></i>
+                                                            {{ feedback_entry.created_at|date:"M d, Y \a\t g:i A" }}
+                                                        </div>
+                                                    </div>
+                                                    <div class="flex space-x-1">
+                                                        {% if feedback_entry.feedback %}
+                                                        <span class="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full font-medium">
+                                                            <i class="fas fa-keyboard mr-1"></i>Text
+                                                        </span>
+                                                        {% endif %}
+                                                        {% if feedback_entry.audio_feedback %}
+                                                        <span class="px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded-full font-medium">
+                                                            <i class="fas fa-microphone mr-1"></i>Audio
+                                                        </span>
+                                                        {% endif %}
+                                                        {% if feedback_entry.video_feedback %}
+                                                        <span class="px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded-full font-medium">
+                                                            <i class="fas fa-video mr-1"></i>Video
+                                                        </span>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Feedback Body -->
+                                            <div class="p-3">
+                                                <!-- Text Feedback -->
+                                                {% if feedback_entry.feedback %}
+                                                <div class="mb-3">
+                                                    <div class="flex items-center mb-1">
+                                                        <i class="fas fa-keyboard text-blue-600 mr-2 text-sm"></i>
+                                                        <span class="font-medium text-blue-800 text-sm">Written Feedback</span>
+                                                    </div>
+                                                    <div class="prose prose-sm max-w-none text-gray-700 bg-blue-50 p-2 rounded border-l-4 border-blue-400">
+                                                        {{ feedback_entry.feedback|safe }}
+                                                    </div>
+                                                </div>
+                                                {% endif %}
+                                                
+                                                <!-- Audio Feedback -->
+                                                {% if feedback_entry.audio_feedback %}
+                                                <div class="mb-3">
+                                                    <div class="flex items-center mb-1">
+                                                        <i class="fas fa-microphone text-green-600 mr-2 text-sm"></i>
+                                                        <span class="font-medium text-green-800 text-sm">Audio Feedback</span>
+                                                    </div>
+                                                    <div class="bg-green-50 p-2 rounded border-l-4 border-green-400">
+                                                        <audio controls class="w-full h-8" controlsList="nodownload">
+                                                            <source src="{{ feedback_entry.audio_feedback.url }}" type="audio/mpeg">
+                                                            <source src="{{ feedback_entry.audio_feedback.url }}" type="audio/wav">
+                                                            <source src="{{ feedback_entry.audio_feedback.url }}" type="audio/mp4">
+                                                            Your browser does not support the audio element.
+                                                        </audio>
+                                                    </div>
+                                                </div>
+                                                {% endif %}
+                                                
+                                                <!-- Video Feedback -->
+                                                {% if feedback_entry.video_feedback %}
+                                                <div class="mb-3">
+                                                    <div class="flex items-center mb-1">
+                                                        <i class="fas fa-video text-purple-600 mr-2 text-sm"></i>
+                                                        <span class="font-medium text-purple-800 text-sm">Video Feedback</span>
+                                                    </div>
+                                                    <div class="bg-purple-50 p-2 rounded border-l-4 border-purple-400">
+                                                        <video controls class="w-full max-w-sm rounded" controlsList="nodownload">
+                                                            <source src="{{ feedback_entry.video_feedback.url }}" type="video/mp4">
+                                                            <source src="{{ feedback_entry.video_feedback.url }}" type="video/mov">
+                                                            <source src="{{ feedback_entry.video_feedback.url }}" type="video/avi">
+                                                            Your browser does not support the video element.
+                                                        </video>
+                                                    </div>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Feedback Field -->
+                        <div class="feedback-editor-container">
+                            <label class="block text-gray-700 font-medium mb-3">
+                                <i class="fas fa-comment-alt mr-2 text-blue-500"></i>
+                                Student Feedback
+                            </label>
+                            <p class="text-sm text-gray-600 mb-3">Provide feedback using text, audio, or video to help the student understand their performance and areas for improvement.</p>
+                            
+                            <!-- Feedback Type Tabs -->
+                            <div class="mb-4 tab-responsive-container">
+                                <!-- Desktop Tab Headers -->
+                                <div class="tab-headers-desktop border-b border-gray-200">
+                                    <nav class="-mb-px flex space-x-8" aria-label="Feedback Types">
+                                        <button type="button" 
+                                                class="feedback-tab-btn tab-btn py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap border-blue-500 text-blue-600 active"
+                                                data-tab="text"
+                                                data-tab-target="#text-feedback-tab"
+                                                data-active-class="border-blue-500 text-blue-600"
+                                                data-inactive-class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                                            <i class="fas fa-keyboard mr-2"></i>Text Feedback
+                                        </button>
+                                        <button type="button" 
+                                                class="feedback-tab-btn tab-btn py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                                                data-tab="audio"
+                                                data-tab-target="#audio-feedback-tab"
+                                                data-active-class="border-blue-500 text-blue-600"
+                                                data-inactive-class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                                            <i class="fas fa-microphone mr-2"></i>Audio Feedback
+                                        </button>
+                                        <button type="button" 
+                                                class="feedback-tab-btn tab-btn py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                                                data-tab="video"
+                                                data-tab-target="#video-feedback-tab"
+                                                data-active-class="border-blue-500 text-blue-600"
+                                                data-inactive-class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                                            <i class="fas fa-video mr-2"></i>Video Feedback
+                                        </button>
+                                    </nav>
+                                </div>
+                                
+                                <!-- Mobile Accordion -->
+                                <div class="tab-accordion-container">
+                                    <!-- Text Feedback Accordion Item -->
+                                    <div class="tab-accordion-item">
+                                        <button type="button" class="tab-accordion-header active" data-accordion-target="#text-feedback-tab-accordion">
+                                            <span><i class="fas fa-keyboard mr-2"></i>Text Feedback</span>
+                                            <svg class="tab-accordion-icon w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                            </svg>
+                                        </button>
+                                        <div id="text-feedback-tab-accordion" class="tab-accordion-content active">
+                                            <!-- Content will be populated by JavaScript -->
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Audio Feedback Accordion Item -->
+                                    <div class="tab-accordion-item">
+                                        <button type="button" class="tab-accordion-header" data-accordion-target="#audio-feedback-tab-accordion">
+                                            <span><i class="fas fa-microphone mr-2"></i>Audio Feedback</span>
+                                            <svg class="tab-accordion-icon w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                            </svg>
+                                        </button>
+                                        <div id="audio-feedback-tab-accordion" class="tab-accordion-content">
+                                            <!-- Content will be populated by JavaScript -->
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Video Feedback Accordion Item -->
+                                    <div class="tab-accordion-item">
+                                        <button type="button" class="tab-accordion-header" data-accordion-target="#video-feedback-tab-accordion">
+                                            <span><i class="fas fa-video mr-2"></i>Video Feedback</span>
+                                            <svg class="tab-accordion-icon w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                            </svg>
+                                        </button>
+                                        <div id="video-feedback-tab-accordion" class="tab-accordion-content">
+                                            <!-- Content will be populated by JavaScript -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Text Feedback Tab -->
+                            <div id="text-feedback-tab" class="feedback-tab-content">
+                                <div class="relative">
+                                    {{ form.feedback }}
+                                </div>
+                            </div>
+                            
+                            <!-- Audio Feedback Tab -->
+                            <div id="audio-feedback-tab" class="feedback-tab-content hidden">
+                                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                                    <div class="text-center">
+                                        <i class="fas fa-microphone text-4xl text-gray-400 mb-4"></i>
+                                        <div class="mb-4">
+                                            <label for="{{ form.audio_feedback.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Upload Audio Feedback</label>
+                                            {{ form.audio_feedback }}
+                                            <p class="text-xs text-gray-500 mt-1">Supported formats: MP3, WAV, M4A, AAC, OGG (Max: 50MB)</p>
+                                        </div>
+                                        {% if feedback and feedback.audio_feedback %}
+                                        <div class="mt-4 p-4 bg-blue-50 rounded-lg">
+                                            <p class="text-sm text-blue-800 mb-2">Current audio feedback:</p>
+                                            <audio controls class="w-full">
+                                                <source src="{{ feedback.audio_feedback.url }}" type="audio/mpeg">
+                                                Your browser does not support the audio element.
+                                            </audio>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Video Feedback Tab -->
+                            <div id="video-feedback-tab" class="feedback-tab-content hidden">
+                                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                                    <div class="text-center">
+                                        <i class="fas fa-video text-4xl text-gray-400 mb-4"></i>
+                                        <div class="mb-4">
+                                            <label for="{{ form.video_feedback.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Upload Video Feedback</label>
+                                            {{ form.video_feedback }}
+                                            <p class="text-xs text-gray-500 mt-1">Supported formats: MP4, MOV, AVI, WMV, MKV (Max: 100MB)</p>
+                                        </div>
+                                        {% if feedback and feedback.video_feedback %}
+                                        <div class="mt-4 p-4 bg-blue-50 rounded-lg">
+                                            <p class="text-sm text-blue-800 mb-2">Current video feedback:</p>
+                                            <video controls class="w-full max-w-md mx-auto">
+                                                <source src="{{ feedback.video_feedback.url }}" type="video/mp4">
+                                                Your browser does not support the video element.
+                                            </video>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                                <!-- Rubric Evaluation History Timeline -->
+        {% if rubric_evaluation_history %}
+        <div class="mb-8">
+            <!-- Collapsible Header -->
+            <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 cursor-pointer hover:bg-amber-100 transition-colors mb-2"
+                 onclick="toggleRubricEvaluationHistory()">
+                <h3 class="text-lg font-semibold text-gray-800 flex items-center justify-between">
+                    <div class="flex items-center">
+                        <i id="rubric-history-icon" class="fas fa-chevron-right mr-2 text-amber-600 transition-transform duration-200"></i>
+                        <i class="fas fa-clipboard-list mr-2 text-amber-600"></i>
+                        Rubric Evaluation History
+                        {% regroup rubric_evaluation_history|dictsort:"submission.submitted_at" by submission as temp_submission_groups %}
+                        <span class="text-sm font-normal text-gray-600 ml-2">({{ temp_submission_groups|length }} submission{{ temp_submission_groups|length|pluralize }})</span>
+                    </div>
+                    <span class="text-sm text-amber-600 font-normal">
+                        <i class="fas fa-eye mr-1"></i>Click to view/hide
+                    </span>
+                </h3>
+            </div>
+            
+            <!-- Timeline Container (Collapsible) -->
+            <div id="rubric-evaluation-history" class="hidden relative bg-gray-50 rounded-lg p-4 border border-gray-200 transition-all duration-300 ease-in-out">
+                <!-- Timeline Line -->
+                <div class="absolute left-6 top-0 bottom-0 w-0.5 bg-amber-300"></div>
+                
+                <!-- Timeline Items grouped by Submission -->
+                <div class="space-y-6">
+                    {% regroup rubric_evaluation_history|dictsort:"submission.submitted_at" by submission as submission_groups %}
+                    {% for submission_group in submission_groups %}
+                    <div class="relative flex items-start space-x-3">
+                        <!-- Timeline Node -->
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center relative z-10 shadow-md">
+                                <i class="fas fa-clipboard text-white text-sm"></i>
+                            </div>
+                        </div>
+                        
+                        <!-- Submission Content -->
+                        <div class="flex-1 bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                            <!-- Submission Header -->
+                            <div class="bg-blue-50 px-4 py-3 border-b border-blue-100">
+                                <div class="flex items-center justify-between">
+                                    <div class="font-medium text-blue-800">
+                                        Submission #{{ forloop.counter }}
+                                        {% if submission_group.grouper.id == submission.id %}
+                                            <span class="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Current</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="text-xs text-blue-600">
+                                        <i class="fas fa-clock mr-1"></i>
+                                        {{ submission_group.grouper.submitted_at|date:"M d, Y \a\t g:i A" }}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Criteria for this submission -->
+                            <div class="p-4 space-y-4">
+                                {% regroup submission_group.list|dictsort:"criterion.position" by criterion as criterion_groups %}
+                                {% for criterion_group in criterion_groups %}
+                                <div class="border border-gray-100 rounded-lg overflow-hidden">
+                                    <!-- Criterion Header (Clickable) -->
+                                    <div class="bg-amber-50 px-3 py-2 border-b border-amber-100 cursor-pointer hover:bg-amber-100 transition-colors"
+                                         onclick="toggleCriterionAccordion('criterion_{{ submission_group.grouper.id }}_{{ criterion_group.grouper.id }}')">
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center space-x-2">
+                                                <i id="criterion_icon_{{ submission_group.grouper.id }}_{{ criterion_group.grouper.id }}" class="fas fa-chevron-right text-amber-600 transition-transform duration-200"></i>
+                                                <div class="font-medium text-amber-800 text-sm">{{ criterion_group.grouper.description }}</div>
+                                            </div>
+                                            <div class="flex items-center space-x-3">
+                                                <span class="text-xs text-amber-600">
+                                                    {{ criterion_group.list|length }} evaluation{{ criterion_group.list|length|pluralize }}
+                                                </span>
+                                                <div class="text-xs text-amber-600">
+                                                    <i class="fas fa-star mr-1"></i>
+                                                    {{ criterion_group.grouper.points }} points max
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Evaluation Versions for this criterion (Collapsible) -->
+                                    <div id="criterion_{{ submission_group.grouper.id }}_{{ criterion_group.grouper.id }}" class="hidden p-3 space-y-2">
+                                        {% for history_item in criterion_group.list|dictsort:"version" reversed %}
+                                        <div class="border border-gray-100 rounded p-3 {% if history_item.is_current %}bg-green-50 border-green-200{% else %}bg-gray-50{% endif %}">
+                                            <div class="flex items-center justify-between mb-2">
+                                                <div class="flex items-center space-x-2">
+                                                    <span class="px-2 py-0.5 {% if history_item.is_current %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-600{% endif %} text-xs rounded-full font-medium">
+                                                        {% if history_item.is_current %}
+                                                            <i class="fas fa-star mr-1"></i>Current
+                                                        {% else %}
+                                                            <i class="fas fa-history mr-1"></i>Version {{ history_item.version }}
+                                                        {% endif %}
+                                                    </span>
+                                                    {% if history_item.evaluated_by %}
+                                                    <span class="text-xs text-gray-600">
+                                                        by {{ history_item.evaluated_by.get_full_name }}
+                                                    </span>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="text-xs text-gray-500">
+                                                    <i class="fas fa-clock mr-1"></i>
+                                                    {{ history_item.evaluation_date|date:"M d, Y H:i" }}
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="grid grid-cols-3 gap-2 text-sm">
+                                                <div>
+                                                    <span class="text-gray-600">Points:</span>
+                                                    <span class="font-semibold text-green-600 ml-1">{{ history_item.points }}</span>
+                                                </div>
+                                                <div>
+                                                    <span class="text-gray-600">Rating:</span>
+                                                    <span class="text-gray-800 ml-1">
+                                                        {% if history_item.rating %}
+                                                            {{ history_item.rating.title }}
+                                                        {% else %}
+                                                            <em class="text-orange-500">No rating selected</em>
+                                                        {% endif %}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <span class="text-gray-600">Score:</span>
+                                                    <span class="text-gray-800 ml-1">{{ history_item.points }}/{{ criterion_group.grouper.points }}</span>
+                                                </div>
+                                            </div>
+                                            
+                                            {% if history_item.comments %}
+                                            <div class="mt-2 p-2 bg-blue-50 rounded border-l-2 border-blue-300">
+                                                <div class="text-xs text-blue-600 mb-1">
+                                                    <i class="fas fa-comment mr-1"></i>Comments:
+                                                </div>
+                                                <div class="text-sm text-gray-700">{{ history_item.comments }}</div>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Rubric Section -->
+        {% if rubric_data %}
+
+        
+        <div class="mb-8">
+            <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+                <h2 class="text-base font-semibold mb-2 text-gray-800">Rubric Evaluation</h2>
+                
+                <!-- Rubric Title and Info -->
+                <div class="flex justify-between items-center mb-3 pb-2 border-b border-gray-200">
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-700">{{ rubric_data.rubric.title }}</h3>
+                        {% if rubric_data.rubric.description %}
+                        <p class="text-xs text-gray-600">{{ rubric_data.rubric.description }}</p>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <span class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs font-medium">
+                            {{ rubric_data.rubric.total_points }} points possible
+                        </span>
+                    </div>
+                </div>
+                
+                <!-- Criteria Table -->
+                <div class="border border-gray-200 rounded overflow-hidden mb-3">
+                    <!-- Criteria Headers -->
+                    <div class="grid grid-cols-12 gap-2 bg-gray-50 px-3 py-2 border-b border-gray-200 text-xs">
+                        <div class="col-span-4 font-medium text-gray-700">Criteria</div>
+                        <div class="col-span-5 font-medium text-gray-700">Rating</div>
+                        <div class="col-span-3 font-medium text-gray-700 text-center">Points</div>
+                    </div>
+                    
+                    <!-- Criteria Rows -->
+                    <div class="divide-y border-gray-100">
+                        {% for criterion_data in rubric_data.criteria_with_data %}
+                        <div class="criterion-row hover:bg-gray-50 transition" data-criterion-id="{{ criterion_data.criterion.id }}" data-max-points="{{ criterion_data.criterion.points }}">
+                            <!-- Main Criterion Row -->
+                            <div class="grid grid-cols-12 gap-2 px-3 pt-2">
+                                <div class="col-span-4">
+                                    <div class="text-sm text-gray-800">{{ criterion_data.criterion.description }}</div>
+                                    <div class="text-xs text-gray-500 mt-1">
+                                        Max: {{ criterion_data.criterion.points }} pts
+                                    </div>
+                                </div>
+                                <div class="col-span-5">
+                                    <select class="rating-select w-full rounded border-gray-200 shadow-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 text-sm py-1"
+                                            data-criterion-id="{{ criterion_data.criterion.id }}"
+                                            name="criterion_rating_{{ criterion_data.criterion.id }}">
+                                        <option value="">Select a rating</option>
+                                        {% for rating in criterion_data.ratings %}
+                                        <option value="{{ rating.id }}" data-points="{{ rating.points }}" data-description="{{ rating.description }}"
+                                                {% if criterion_data.evaluation and criterion_data.evaluation.rating_id == rating.id %}selected{% endif %}>
+                                            {{ rating.title }} ({{ rating.points }} pts)
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="text-xs text-gray-600 mt-1 rating-description px-2 py-1 rounded border border-gray-100 hidden"></div>
+                                </div>
+                                <div class="col-span-3">
+                                    <input type="number" 
+                                           class="criterion-points w-full rounded border-gray-200 shadow-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 text-sm py-1.5 text-center"
+                                           name="criterion_points_{{ criterion_data.criterion.id }}"
+                                           value="{% if criterion_data.evaluation %}{{ criterion_data.evaluation.points }}{% else %}0{% endif %}"
+                                           min="0"
+                                           max="{{ criterion_data.criterion.points }}"
+                                           step="0.1"
+                                           data-criterion-id="{{ criterion_data.criterion.id }}">
+                                </div>
+                            </div>
+                            
+                            <!-- Comments Section -->
+                            <div class="px-3 pb-2 mt-2">
+                                <div class="relative">
+                                    <textarea 
+                                        class="criterion-comments w-full rounded border-gray-200 shadow-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 text-sm py-2 px-3 min-h-[80px]"
+                                        name="criterion_comments_{{ criterion_data.criterion.id }}"
+                                        rows="3"
+                                        placeholder="Add comments for this criterion..."
+                                        data-criterion-id="{{ criterion_data.criterion.id }}"
+                                        style="resize: vertical; min-height: 80px;">{% if criterion_data.evaluation %}{{ criterion_data.evaluation.comments }}{% endif %}</textarea>
+                                    <div class="absolute bottom-2 right-2 text-xs text-gray-400">
+                                        <i class="fas fa-comment-alt"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <!-- Rubric Summary -->
+                <div class="flex justify-end">
+                    <div class="bg-blue-50 border border-blue-100 rounded px-3 py-1.5 text-right inline-block text-sm">
+                        <span class="text-gray-700">Total Rubric Score:</span>
+                        <span class="text-blue-700 font-medium ml-1" id="rubricTotalPoints">0</span>
+                        <span class="text-gray-700"> / {{ rubric_data.rubric.total_points }}</span>
+                    </div>
+                </div>
+                
+                <input type="hidden" name="rubric_data" id="rubricData" value="">
+            </div>
+        </div>
+        {% elif assignment.rubric %}
+        <div class="mb-8 bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-yellow-800">
+            <div class="flex items-center">
+                <i class="fas fa-exclamation-triangle mr-3"></i>
+                <span>Rubric data could not be loaded. Please check the rubric configuration.</span>
+            </div>
+        </div>
+        {% else %}
+        <div class="mb-8 bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-yellow-800">
+            <div class="flex items-center">
+                <i class="fas fa-exclamation-triangle mr-3"></i>
+                <span>No rubric is attached to this assignment. Consider adding a rubric for more structured grading.</span>
+            </div>
+        </div>
+        {% endif %}
+                        
+                        <!-- Submit Button -->
+                        <div class="pt-4">
+                            <button type="submit" class="w-full bg-green-600 text-white px-6 py-3 rounded-md hover:bg-green-700 transition">
+                                Submit Grade
+                            </button>
+                        </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Column Resizer Implementation - matching topic creation page
+    const resizer = document.getElementById('columnResizer');
+    const leftColumn = document.getElementById('contentColumn');
+    const rightColumn = document.getElementById('gradingColumn');
+    const container = document.getElementById('mainGrid');
+    
+    if (!resizer || !leftColumn || !rightColumn || !container) {
+        console.log('Column resizer elements not found');
+        return;
+    }
+    
+    let isResizing = false;
+    let startX = 0;
+    let startLeftWidth = 0;
+    let startRightWidth = 0;
+    
+    // Load saved column widths from localStorage
+    const savedLeftWidth = localStorage.getItem('assignment-grading-left-width');
+    const savedRightWidth = localStorage.getItem('assignment-grading-right-width');
+    
+    if (savedLeftWidth && savedRightWidth) {
+        leftColumn.style.width = savedLeftWidth;
+        rightColumn.style.width = savedRightWidth;
+    }
+    
+    resizer.addEventListener('mousedown', function(e) {
+        isResizing = true;
+        startX = e.clientX;
+        
+        const containerRect = container.getBoundingClientRect();
+        const leftRect = leftColumn.getBoundingClientRect();
+        const rightRect = rightColumn.getBoundingClientRect();
+        
+        startLeftWidth = leftRect.width;
+        startRightWidth = rightRect.width;
+        
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        
+        e.preventDefault();
+    });
+    
+    document.addEventListener('mousemove', function(e) {
+        if (!isResizing) return;
+        
+        const containerRect = container.getBoundingClientRect();
+        const containerWidth = containerRect.width - 6; // Subtract resizer width
+        const deltaX = e.clientX - startX;
+        
+        const newLeftWidth = startLeftWidth + deltaX;
+        const newRightWidth = startRightWidth - deltaX;
+        
+        // Calculate percentages
+        const leftPercent = (newLeftWidth / containerWidth) * 100;
+        const rightPercent = (newRightWidth / containerWidth) * 100;
+        
+        // Enforce min/max constraints
+        if (leftPercent >= 50 && leftPercent <= 90 && rightPercent >= 10 && rightPercent <= 50) {
+            leftColumn.style.width = leftPercent + '%';
+            rightColumn.style.width = rightPercent + '%';
+        }
+        
+        e.preventDefault();
+    });
+    
+    document.addEventListener('mouseup', function() {
+        if (isResizing) {
+            isResizing = false;
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            
+            // Save current widths to localStorage
+            localStorage.setItem('assignment-grading-left-width', leftColumn.style.width);
+            localStorage.setItem('assignment-grading-right-width', rightColumn.style.width);
+        }
+    });
+    
+    // Handle double-click to reset to default
+    resizer.addEventListener('dblclick', function() {
+        leftColumn.style.width = '75%';
+        rightColumn.style.width = '25%';
+        
+        // Save reset values
+        localStorage.setItem('assignment-grading-left-width', '75%');
+        localStorage.setItem('assignment-grading-right-width', '25%');
+    });
+
+    // Use existing TinyMCE widget system
+    if (typeof window.TinyMCEWidget !== 'undefined' && window.TinyMCEWidget.initializeAll) {
+        console.log('Initializing TinyMCE using existing widget system');
+        window.TinyMCEWidget.initializeAll();
+    }
+
+
+
+    // Variables to track rubric elements
+    const criterionRows = document.querySelectorAll('.criterion-row');
+    const ratingSelects = document.querySelectorAll('.rating-select');
+    const criterionPoints = document.querySelectorAll('.criterion-points');
+    const rubricDataInput = document.getElementById('rubricData');
+    const totalPointsElement = document.getElementById('totalPoints');
+    const gradePercentageElement = document.getElementById('gradePercentage');
+    const finalGradeInput = document.getElementById('id_grade') || document.querySelector('input[name="grade"]');
+    const rubricTotalPointsElement = document.getElementById('rubricTotalPoints');
+    const maxScore = {{ submission.assignment.max_score|escapejs }};
+    const gradingForm = document.getElementById('gradingForm');
+    
+    // Function to calculate total points from all criteria
+    function calculateTotalPoints() {
+        let total = 0;
+        criterionPoints.forEach(input => {
+            const value = parseFloat(input.value) || 0;
+            total += Math.round(value * 100) / 100; // Round to 2 decimal places
+        });
+        return total;
+    }
+    
+    // Function to update the total points display and auto-fill final grade
+    function updateTotalPoints() {
+        const total = calculateTotalPoints();
+        
+        // Only update elements if they exist (rubric might not be present)
+        if (totalPointsElement) {
+            totalPointsElement.textContent = total.toFixed(2);
+        }
+        if (rubricTotalPointsElement) {
+            rubricTotalPointsElement.textContent = total.toFixed(2);
+        }
+        
+        // Calculate and update percentage only if elements exist
+        if (gradePercentageElement) {
+            const rubricTotalPoints = parseFloat("{{ rubric_data.rubric.total_points|default:1|escapejs }}") || 1;
+            const percentage = Math.min(100, Math.round((total / rubricTotalPoints) * 100));
+            gradePercentageElement.textContent = percentage.toFixed(2) + '%';
+        }
+        
+        // Auto-update final grade from rubric total
+        if (finalGradeInput && maxScore) {
+            const rubricTotalPoints = parseFloat("{{ rubric_data.rubric.total_points|default:1|escapejs }}") || 1;
+            const percentage = Math.min(100, Math.round((total / rubricTotalPoints) * 100));
+            const scaledGrade = (percentage / 100) * maxScore;
+            finalGradeInput.value = scaledGrade.toFixed(2);
+        }
+    }
+    
+    // Function to auto-fill final grade from Total Points (for non-rubric assignments)
+    function autoFillFinalGradeFromTotalPoints() {
+        if (finalGradeInput && totalPointsElement) {
+            const totalPoints = parseFloat(totalPointsElement.textContent) || 0;
+            finalGradeInput.value = totalPoints.toFixed(2);
+        }
+    }
+    
+    // Alternative function to directly set final grade to match current Total Points value
+    function setFinalGradeFromCurrentTotalPoints() {
+        console.log('Attempting to set Final Grade from Total Points');
+        console.log('finalGradeInput:', finalGradeInput);
+        console.log('totalPointsElement:', totalPointsElement);
+        
+        if (finalGradeInput && totalPointsElement) {
+            // Get the current displayed Total Points value
+            const currentTotalPoints = parseFloat(totalPointsElement.textContent) || 0;
+            console.log('Current Total Points text:', totalPointsElement.textContent);
+            console.log('Parsed Total Points:', currentTotalPoints);
+            
+            finalGradeInput.value = currentTotalPoints.toFixed(2);
+            console.log('Set Final Grade to:', currentTotalPoints);
+        } else {
+            console.log('Missing elements - finalGradeInput or totalPointsElement not found');
+        }
+    }
+    
+    // Event listener for rating select changes
+    ratingSelects.forEach(select => {
+        select.addEventListener('change', function() {
+            const criterionId = this.dataset.criterionId;
+            const selectedOption = this.options[this.selectedIndex];
+            const points = parseFloat(selectedOption.dataset.points) || 0;
+            const description = selectedOption.dataset.description;
+            
+            // Update points input
+            const pointsInput = document.querySelector(`input[name="criterion_points_${criterionId}"]`);
+            if (pointsInput) {
+                const currentPoints = parseFloat(pointsInput.value) || 0;
+                const ratingPoints = parseFloat(points);
+                
+                // Only auto-fill if points field is empty or contains 0
+                if (currentPoints === 0 || pointsInput.value.trim() === '') {
+                    pointsInput.style.transition = 'all 0.3s ease';
+                    pointsInput.style.backgroundColor = '#e8eafd';
+                    pointsInput.value = ratingPoints.toFixed(2);
+                    
+                    setTimeout(() => {
+                        pointsInput.style.backgroundColor = '';
+                    }, 1000);
+                } else {
+                    // If instructor has entered custom points, show a subtle indicator
+                    pointsInput.style.transition = 'all 0.3s ease';
+                    pointsInput.style.borderColor = '#3b82f6';
+                    pointsInput.title = `Rating suggests ${ratingPoints.toFixed(2)} points, but your custom value (${currentPoints.toFixed(2)}) is preserved.`;
+                    
+                    setTimeout(() => {
+                        pointsInput.style.borderColor = '';
+                    }, 2000);
+                }
+                pointsInput.dispatchEvent(new Event('input')); // Trigger input event to update totals
+            }
+            
+            // Update description display
+            const descriptionElement = this.parentNode.querySelector('.rating-description');
+            if (descriptionElement) {
+                if (description && description.trim() !== '') {
+                    descriptionElement.textContent = description;
+                    descriptionElement.classList.remove('hidden');
+                } else {
+                    descriptionElement.classList.add('hidden');
+                }
+            }
+        });
+    });
+    
+    // Event listener for manual point adjustments
+    criterionPoints.forEach(input => {
+        input.addEventListener('input', function() {
+            const criterionId = this.dataset.criterionId;
+            const maxPoints = parseFloat(this.parentNode.parentNode.parentNode.dataset.maxPoints) || 0;
+            let value = parseFloat(this.value) || 0;
+            
+            // Enforce maximum points and minimum of 0
+            if (value > maxPoints) {
+                value = maxPoints;
+            } else if (value < 0) {
+                value = 0;
+            }
+            
+            // Update input with formatted value
+            this.value = value.toFixed(2);
+            
+            // Update totals
+            updateTotalPoints();
+        });
+    });
+    
+    // Process rubric data before form submission
+    if (gradingForm && rubricDataInput) {
+        gradingForm.addEventListener('submit', function(e) {
+            // Ensure TinyMCE content is updated in the textarea before submitting
+            if (typeof tinymce !== 'undefined') {
+                tinymce.triggerSave();  // Save all TinyMCE editors
+            }
+            
+            // Collect data from all criteria
+            const rubricData = {};
+            
+            criterionRows.forEach(row => {
+                const criterionId = row.dataset.criterionId;
+                const pointsInput = row.querySelector(`.criterion-points[data-criterion-id="${criterionId}"]`);
+                const ratingSelect = row.querySelector(`.rating-select[data-criterion-id="${criterionId}"]`);
+                const commentsTextarea = row.querySelector(`.criterion-comments[data-criterion-id="${criterionId}"]`);
+                
+                // Create data object for this criterion
+                rubricData[criterionId] = {
+                    points: parseFloat(pointsInput.value) || 0,
+                    rating_id: ratingSelect.value || null,
+                    comments: commentsTextarea ? commentsTextarea.value : ''
+                };
+            });
+            
+            // Set the JSON data to the hidden input
+            rubricDataInput.value = JSON.stringify(rubricData);
+        });
+    }
+    
+    // Handle initial grade population
+    if (criterionRows.length > 0) {
+        // Assignment has rubric - calculate from rubric criteria
+        updateTotalPoints(); // This will auto-populate the grade from rubric
+    } else {
+        // Assignment has no rubric - use Total Points value for final grade
+        autoFillFinalGradeFromTotalPoints();
+    }
+    
+    // Always try to set final grade from current Total Points value (works for all cases)
+    setTimeout(function() {
+        setFinalGradeFromCurrentTotalPoints();
+    }, 100);
+    
+    // Also set up observer to watch for changes to Total Points (for manual grade adjustments)
+    if (totalPointsElement) {
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'childList' || mutation.type === 'characterData') {
+                    setFinalGradeFromCurrentTotalPoints();
+                }
+            });
+        });
+        observer.observe(totalPointsElement, { childList: true, characterData: true, subtree: true });
+    }
+
+    // Show descriptions for selected ratings
+    ratingSelects.forEach(select => {
+        if (select.selectedIndex > 0) {
+            const selectedOption = select.options[select.selectedIndex];
+            const description = selectedOption.dataset.description;
+            const descriptionElement = select.parentNode.querySelector('.rating-description');
+            
+            if (descriptionElement && description && description.trim() !== '') {
+                descriptionElement.textContent = description;
+                descriptionElement.classList.remove('hidden');
+            }
+        }
+    });
+
+    // Feedback Tab Functionality
+    const feedbackTabButtons = document.querySelectorAll('.feedback-tab-btn');
+    const feedbackTabContents = document.querySelectorAll('.feedback-tab-content');
+    
+    console.log('Found feedback tab buttons:', feedbackTabButtons.length);
+    console.log('Found feedback tab contents:', feedbackTabContents.length);
+    
+    function switchFeedbackTab(targetTab) {
+        console.log('Switching to tab:', targetTab);
+        
+        // Update button states
+        feedbackTabButtons.forEach(btn => {
+            const isActive = btn.dataset.tab === targetTab;
+            const activeClasses = btn.dataset.activeClass.split(' ');
+            const inactiveClasses = btn.dataset.inactiveClass.split(' ');
+            
+            if (isActive) {
+                // Remove inactive classes and add active classes
+                inactiveClasses.forEach(cls => btn.classList.remove(cls));
+                activeClasses.forEach(cls => btn.classList.add(cls));
+                btn.classList.add('active');
+            } else {
+                // Remove active classes and add inactive classes
+                activeClasses.forEach(cls => btn.classList.remove(cls));
+                inactiveClasses.forEach(cls => btn.classList.add(cls));
+                btn.classList.remove('active');
+            }
+        });
+        
+        // Update content visibility
+        feedbackTabContents.forEach(content => {
+            const tabName = content.id.replace('-feedback-tab', '');
+            if (tabName === targetTab) {
+                content.classList.remove('hidden');
+            } else {
+                content.classList.add('hidden');
+            }
+        });
+        
+        // Refresh TinyMCE editor after tab switch
+        setTimeout(function() {
+            if (typeof tinymce !== 'undefined') {
+                tinymce.triggerSave();
+            }
+        }, 100);
+    }
+    
+    // Add event listeners to feedback tab buttons
+    feedbackTabButtons.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const targetTab = this.dataset.tab;
+            console.log('Tab button clicked:', targetTab);
+            switchFeedbackTab(targetTab);
+        });
+    });
+    
+    // File upload validation and preview
+    const audioInput = document.querySelector('input[name="audio_feedback"]');
+    const videoInput = document.querySelector('input[name="video_feedback"]');
+    
+    function validateFileSize(file, maxSizeMB) {
+        const maxSizeBytes = maxSizeMB * 1024 * 1024;
+        if (file.size > maxSizeBytes) {
+            alert(`File size exceeds ${maxSizeMB}MB limit. Please choose a smaller file.`);
+            return false;
+        }
+        return true;
+    }
+    
+    function validateFileType(file, allowedTypes) {
+        const fileType = file.type.toLowerCase();
+        const fileExtension = file.name.toLowerCase().split('.').pop();
+        
+        return allowedTypes.some(type => {
+            if (type.startsWith('.')) {
+                return fileExtension === type.substring(1);
+            }
+            return fileType.includes(type);
+        });
+    }
+    
+    if (audioInput) {
+        audioInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                // Validate file size (50MB limit)
+                if (!validateFileSize(file, 50)) {
+                    this.value = '';
+                    return;
+                }
+                
+                // Validate file type
+                const allowedTypes = ['audio', '.mp3', '.wav', '.m4a', '.aac', '.ogg'];
+                if (!validateFileType(file, allowedTypes)) {
+                    alert('Please select a valid audio file (MP3, WAV, M4A, AAC, OGG).');
+                    this.value = '';
+                    return;
+                }
+                
+                console.log('Audio file selected:', file.name, 'Size:', (file.size / 1024 / 1024).toFixed(2) + 'MB');
+            }
+        });
+    }
+    
+    if (videoInput) {
+        videoInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                // Validate file size (100MB limit)
+                if (!validateFileSize(file, 100)) {
+                    this.value = '';
+                    return;
+                }
+                
+                // Validate file type
+                const allowedTypes = ['video', '.mp4', '.mov', '.avi', '.wmv', '.mkv'];
+                if (!validateFileType(file, allowedTypes)) {
+                    alert('Please select a valid video file (MP4, MOV, AVI, WMV, MKV).');
+                    this.value = '';
+                    return;
+                }
+                
+                console.log('Video file selected:', file.name, 'Size:', (file.size / 1024 / 1024).toFixed(2) + 'MB');
+            }
+        });
+    }
+    
+    // Media Player Functions
+    window.toggleAudioPlayer = function(audioUrl, button, submissionId) {
+        submissionId = submissionId || '';
+        const suffix = submissionId ? '_' + submissionId : '';
+        
+        const mediaContainer = document.getElementById('mediaPlayerContainer' + suffix);
+        const audioContainer = document.getElementById('audioPlayerContainer' + suffix);
+        const videoContainer = document.getElementById('videoPlayerContainer' + suffix);
+        const pdfContainer = document.getElementById('pdfViewerContainer' + suffix);
+        const imageContainer = document.getElementById('imageViewerContainer' + suffix);
+        const audioPlayer = document.getElementById('audioPlayer' + suffix);
+        const audioSource = document.getElementById('audioSource' + suffix);
+        
+        if (!mediaContainer || !audioContainer || !audioPlayer || !audioSource) return;
+        
+        // Hide other containers
+        if (videoContainer) videoContainer.classList.add('hidden');
+        if (pdfContainer) pdfContainer.classList.add('hidden');
+        if (imageContainer) imageContainer.classList.add('hidden');
+        
+        // Check if audio is already playing this file
+        if (!audioContainer.classList.contains('hidden') && audioSource.src === audioUrl) {
+            // Hide audio player
+            audioContainer.classList.add('hidden');
+            mediaContainer.classList.add('hidden');
+            audioPlayer.pause();
+            button.innerHTML = '<i class="fas fa-play mr-1"></i>Play Audio';
+        } else {
+            // Show audio player
+            audioSource.src = audioUrl;
+            audioSource.type = getAudioMimeType(audioUrl);
+            audioPlayer.load();
+            audioContainer.classList.remove('hidden');
+            mediaContainer.classList.remove('hidden');
+            button.innerHTML = '<i class="fas fa-pause mr-1"></i>Pause Audio';
+        }
+    };
+    
+    window.toggleVideoPlayer = function(videoUrl, button, submissionId) {
+        submissionId = submissionId || '';
+        const suffix = submissionId ? '_' + submissionId : '';
+        
+        const mediaContainer = document.getElementById('mediaPlayerContainer' + suffix);
+        const audioContainer = document.getElementById('audioPlayerContainer' + suffix);
+        const videoContainer = document.getElementById('videoPlayerContainer' + suffix);
+        const pdfContainer = document.getElementById('pdfViewerContainer' + suffix);
+        const imageContainer = document.getElementById('imageViewerContainer' + suffix);
+        const videoPlayer = document.getElementById('videoPlayer' + suffix);
+        const videoSource = document.getElementById('videoSource' + suffix);
+        
+        if (!mediaContainer || !videoContainer || !videoPlayer || !videoSource) return;
+        
+        // Hide other containers
+        if (audioContainer) audioContainer.classList.add('hidden');
+        if (pdfContainer) pdfContainer.classList.add('hidden');
+        if (imageContainer) imageContainer.classList.add('hidden');
+        
+        // Check if video is already playing this file
+        if (!videoContainer.classList.contains('hidden') && videoSource.src === videoUrl) {
+            // Hide video player
+            videoContainer.classList.add('hidden');
+            mediaContainer.classList.add('hidden');
+            videoPlayer.pause();
+            button.innerHTML = '<i class="fas fa-play mr-1"></i>Play Video';
+        } else {
+            // Show video player
+            videoSource.src = videoUrl;
+            videoSource.type = getVideoMimeType(videoUrl);
+            videoPlayer.load();
+            videoContainer.classList.remove('hidden');
+            mediaContainer.classList.remove('hidden');
+            button.innerHTML = '<i class="fas fa-pause mr-1"></i>Pause Video';
+        }
+    };
+    
+    window.togglePDFViewer = function(pdfUrl, button, submissionId) {
+        submissionId = submissionId || '';
+        const suffix = submissionId ? '_' + submissionId : '';
+        
+        const mediaContainer = document.getElementById('mediaPlayerContainer' + suffix);
+        const audioContainer = document.getElementById('audioPlayerContainer' + suffix);
+        const videoContainer = document.getElementById('videoPlayerContainer' + suffix);
+        const pdfContainer = document.getElementById('pdfViewerContainer' + suffix);
+        const imageContainer = document.getElementById('imageViewerContainer' + suffix);
+        
+        if (!mediaContainer || !pdfContainer) return;
+        
+        // Debug logging
+        console.log('=== PDF Viewer Debug Info ===');
+        console.log('Django view URL:', pdfUrl);
+        console.log('Submission ID suffix:', suffix);
+        console.log('Current origin:', window.location.origin);
+        console.log('=============================');
+        
+        // Hide other containers
+        if (audioContainer) audioContainer.classList.add('hidden');
+        if (videoContainer) videoContainer.classList.add('hidden');
+        if (imageContainer) imageContainer.classList.add('hidden');
+        
+        // Toggle visibility
+        if (!pdfContainer.classList.contains('hidden')) {
+            // Hide PDF viewer
+            pdfContainer.classList.add('hidden');
+            mediaContainer.classList.add('hidden');
+            button.innerHTML = '<i class="fas fa-eye mr-1"></i>View PDF';
+        } else {
+            // Show PDF viewer
+            mediaContainer.classList.remove('hidden');
+            pdfContainer.classList.remove('hidden');
+            button.innerHTML = '<i class="fas fa-times mr-1"></i>Hide PDF';
+            
+            // The PDF is already loaded via direct embed in the template
+            const directViewer = document.getElementById('directPdfViewer' + suffix);
+            if (directViewer) {
+                const embed = directViewer.querySelector('embed');
+                console.log('PDF viewer opened - embed src is:', embed ? embed.src : 'No embed found');
+            }
+        }
+    };
+    
+    window.switchPDFMethod = function() {
+        const directViewer = document.getElementById('directPdfViewer');
+        const googleViewer = document.getElementById('googlePdfViewer');
+        const errorMessage = document.getElementById('pdfErrorMessage');
+        
+        // Hide error message
+        errorMessage.classList.add('hidden');
+        
+        // Toggle between viewers
+        if (!directViewer.classList.contains('hidden')) {
+            directViewer.classList.add('hidden');
+            googleViewer.classList.remove('hidden');
+            
+            // Set up Google Docs viewer URL
+            const fileUrl = googleViewer.getAttribute('data-file-url');
+            const absoluteUrl = window.location.origin + fileUrl;
+            const googleViewerUrl = 'https://docs.google.com/viewer?url=' + encodeURIComponent(absoluteUrl) + '&embedded=true';
+            document.getElementById('googleViewerFrame').src = googleViewerUrl;
+            
+            console.log('Switched to Google Docs viewer');
+        } else {
+            googleViewer.classList.add('hidden');
+            directViewer.classList.remove('hidden');
+            console.log('Switched to direct viewer');
+        }
+    };
+    
+    window.tryGoogleViewer = function() {
+        const directViewer = document.getElementById('directPdfViewer');
+        const googleViewer = document.getElementById('googlePdfViewer');
+        const errorMessage = document.getElementById('pdfErrorMessage');
+        
+        // Hide error and direct viewer
+        errorMessage.classList.add('hidden');
+        directViewer.classList.add('hidden');
+        
+        // Show Google viewer
+        googleViewer.classList.remove('hidden');
+        
+        // Set up Google Docs viewer URL
+        const fileUrl = googleViewer.getAttribute('data-file-url');
+        const absoluteUrl = window.location.origin + fileUrl;
+        const googleViewerUrl = 'https://docs.google.com/viewer?url=' + encodeURIComponent(absoluteUrl) + '&embedded=true';
+        document.getElementById('googleViewerFrame').src = googleViewerUrl;
+        
+        console.log('Trying Google Docs viewer with URL:', googleViewerUrl);
+    };
+    
+    window.showPDFError = function() {
+        const pdfErrorMessage = document.getElementById('pdfErrorMessage');
+        if (pdfErrorMessage) {
+            pdfErrorMessage.classList.remove('hidden');
+        }
+    };
+    
+    window.hidePDFError = function() {
+        const pdfErrorMessage = document.getElementById('pdfErrorMessage');
+        if (pdfErrorMessage) {
+            pdfErrorMessage.classList.add('hidden');
+        }
+    };
+    
+    window.toggleImageViewer = function(imageUrl, button, submissionId) {
+        submissionId = submissionId || '';
+        const suffix = submissionId ? '_' + submissionId : '';
+        
+        const mediaContainer = document.getElementById('mediaPlayerContainer' + suffix);
+        const audioContainer = document.getElementById('audioPlayerContainer' + suffix);
+        const videoContainer = document.getElementById('videoPlayerContainer' + suffix);
+        const pdfContainer = document.getElementById('pdfViewerContainer' + suffix);
+        const imageContainer = document.getElementById('imageViewerContainer' + suffix);
+        const imageViewer = document.getElementById('imageViewer' + suffix);
+        
+        if (!mediaContainer || !imageContainer || !imageViewer) return;
+        
+        // Hide other containers
+        if (audioContainer) audioContainer.classList.add('hidden');
+        if (videoContainer) videoContainer.classList.add('hidden');
+        if (pdfContainer) pdfContainer.classList.add('hidden');
+        
+        // Check if image is already showing this file
+        if (!imageContainer.classList.contains('hidden') && imageViewer.src === imageUrl) {
+            // Hide image viewer
+            imageContainer.classList.add('hidden');
+            mediaContainer.classList.add('hidden');
+            button.innerHTML = '<i class="fas fa-eye mr-1"></i>View Image';
+        } else {
+            // Show image viewer
+            imageViewer.src = imageUrl;
+            imageContainer.classList.remove('hidden');
+            mediaContainer.classList.remove('hidden');
+            button.innerHTML = '<i class="fas fa-times mr-1"></i>Hide Image';
+        }
+    };
+    
+    function getAudioMimeType(url) {
+        const extension = url.split('.').pop().toLowerCase();
+        switch(extension) {
+            case 'mp3': return 'audio/mpeg';
+            case 'wav': return 'audio/wav';
+            case 'm4a': return 'audio/mp4';
+            case 'aac': return 'audio/aac';
+            case 'ogg': return 'audio/ogg';
+            default: return 'audio/mpeg';
+        }
+    }
+    
+    function getVideoMimeType(url) {
+        const extension = url.split('.').pop().toLowerCase();
+        switch(extension) {
+            case 'mp4': return 'video/mp4';
+            case 'mov': return 'video/quicktime';
+            case 'avi': return 'video/x-msvideo';
+            case 'wmv': return 'video/x-ms-wmv';
+            default: return 'video/mp4';
+        }
+    }
+    
+    // Quiz Accordion Toggle Function
+    window.toggleQuizAccordion = function(contentId) {
+        const content = document.getElementById(contentId);
+        const icon = document.getElementById('quiz_icon_' + contentId.replace('text_question_', 'text_').replace('quiz_field_', ''));
+        
+        if (content) {
+            if (content.classList.contains('hidden')) {
+                // Close all other accordions first
+                document.querySelectorAll('[id^="text_question_"], [id^="quiz_field_"]').forEach(function(el) {
+                    if (el.id !== contentId) {
+                        el.classList.add('hidden');
+                        const otherIcon = document.getElementById('quiz_icon_' + el.id.replace('text_question_', 'text_').replace('quiz_field_', ''));
+                        if (otherIcon) {
+                            otherIcon.classList.remove('fa-chevron-down');
+                            otherIcon.classList.add('fa-chevron-right');
+                        }
+                    }
+                });
+                
+                // Open this accordion
+                content.classList.remove('hidden');
+                if (icon) {
+                    icon.classList.remove('fa-chevron-right');
+                    icon.classList.add('fa-chevron-down');
+                }
+            } else {
+                // Close this accordion
+                content.classList.add('hidden');
+                if (icon) {
+                    icon.classList.remove('fa-chevron-down');
+                    icon.classList.add('fa-chevron-right');
+                }
+            }
+        }
+    };
+
+    // File Accordion Toggle Function
+    window.toggleFileAccordion = function(contentId) {
+        const content = document.getElementById(contentId);
+        const submissionId = contentId.replace('file_', '');
+        const icon = document.getElementById('file_icon_' + submissionId);
+        
+        if (content) {
+            if (content.classList.contains('hidden')) {
+                // Close all other file accordions first
+                document.querySelectorAll('[id^="file_"]').forEach(function(el) {
+                    if (el.id !== contentId && el.id.startsWith('file_') && !el.id.includes('icon')) {
+                        el.classList.add('hidden');
+                        const otherSubmissionId = el.id.replace('file_', '');
+                        const otherIcon = document.getElementById('file_icon_' + otherSubmissionId);
+                        if (otherIcon) {
+                            otherIcon.classList.remove('fa-chevron-down');
+                            otherIcon.classList.add('fa-chevron-right');
+                        }
+                    }
+                });
+                
+                // Open this accordion
+                content.classList.remove('hidden');
+                if (icon) {
+                    icon.classList.remove('fa-chevron-right');
+                    icon.classList.add('fa-chevron-down');
+                }
+            } else {
+                // Close this accordion
+                content.classList.add('hidden');
+                if (icon) {
+                    icon.classList.remove('fa-chevron-down');
+                    icon.classList.add('fa-chevron-right');
+                }
+            }
+        }
+    };
+
+    // Timeline Accordion Toggle Function
+    window.toggleTimelineAccordion = function(contentId) {
+        const content = document.getElementById(contentId);
+        const fieldId = contentId.replace('timeline_field_', '');
+        const icon = document.getElementById('timeline_icon_' + fieldId);
+        
+        if (content) {
+            if (content.classList.contains('hidden')) {
+                // Close all other timeline accordions first
+                document.querySelectorAll('[id^="timeline_field_"]').forEach(function(el) {
+                    if (el.id !== contentId) {
+                        el.classList.add('hidden');
+                        const otherFieldId = el.id.replace('timeline_field_', '');
+                        const otherIcon = document.getElementById('timeline_icon_' + otherFieldId);
+                        if (otherIcon) {
+                            otherIcon.classList.remove('fa-chevron-down');
+                            otherIcon.classList.add('fa-chevron-right');
+                        }
+                    }
+                });
+                
+                // Open this accordion
+                content.classList.remove('hidden');
+                if (icon) {
+                    icon.classList.remove('fa-chevron-right');
+                    icon.classList.add('fa-chevron-down');
+                }
+            } else {
+                // Close this accordion
+                content.classList.add('hidden');
+                if (icon) {
+                    icon.classList.remove('fa-chevron-down');
+                    icon.classList.add('fa-chevron-right');
+                }
+            }
+        }
+    };
+
+    // Previous Feedback Timeline Toggle Function
+    window.togglePreviousFeedbackTimeline = function() {
+        const timeline = document.getElementById('previous-feedback-timeline');
+        const icon = document.getElementById('previous-feedback-icon');
+        
+        if (timeline && icon) {
+            if (timeline.classList.contains('hidden')) {
+                timeline.classList.remove('hidden');
+                icon.classList.remove('fa-chevron-right');
+                icon.classList.add('fa-chevron-down');
+            } else {
+                timeline.classList.add('hidden');
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-right');
+            }
+        }
+    };
+
+    // Rubric Evaluation History Timeline Toggle Function
+    window.toggleRubricEvaluationHistory = function() {
+        const timeline = document.getElementById('rubric-evaluation-history');
+        const icon = document.getElementById('rubric-history-icon');
+        
+        if (timeline && icon) {
+            if (timeline.classList.contains('hidden')) {
+                timeline.classList.remove('hidden');
+                icon.classList.remove('fa-chevron-right');
+                icon.classList.add('fa-chevron-down');
+            } else {
+                timeline.classList.add('hidden');
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-right');
+            }
+        }
+    };
+
+    // Criterion Accordion Toggle Function
+    window.toggleCriterionAccordion = function(contentId) {
+        const content = document.getElementById(contentId);
+        const iconId = 'criterion_icon_' + contentId.replace('criterion_', '');
+        const icon = document.getElementById(iconId);
+        
+        if (content) {
+            if (content.classList.contains('hidden')) {
+                // Open this criterion
+                content.classList.remove('hidden');
+                if (icon) {
+                    icon.classList.remove('fa-chevron-right');
+                    icon.classList.add('fa-chevron-down');
+                }
+            } else {
+                // Close this criterion
+                content.classList.add('hidden');
+                if (icon) {
+                    icon.classList.remove('fa-chevron-down');
+                    icon.classList.add('fa-chevron-right');
+                }
+            }
+        }
+    };
+
+    // Grade File Upload Timeline Toggle Function
+    window.toggleGradeFileUploadTimeline = function() {
+        const timeline = document.getElementById('grade-file-upload-timeline');
+        const icon = document.getElementById('grade-file-upload-icon');
+        
+        if (timeline && icon) {
+            if (timeline.classList.contains('hidden')) {
+                timeline.classList.remove('hidden');
+                icon.classList.remove('fa-chevron-right');
+                icon.classList.add('fa-chevron-down');
+            } else {
+                timeline.classList.add('hidden');
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-right');
+            }
+        }
+    };
+    
+    // Missing Timeline Toggle Functions
+    function toggleGradeFileUploadTimeline() {
+        const timeline = document.getElementById('gradeFileUploadTimeline');
+        if (timeline) {
+            timeline.classList.toggle('hidden');
+        }
+    }
+    
+    function togglePreviousFeedbackTimeline() {
+        const timeline = document.getElementById('previousFeedbackTimeline');
+        if (timeline) {
+            timeline.classList.toggle('hidden');
+        }
+    }
+    
+    function toggleRubricEvaluationHistory() {
+        const history = document.getElementById('rubricEvaluationHistory');
+        if (history) {
+            history.classList.toggle('hidden');
+        }
+    }
+
+
+});
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'tinymce_editor/tinymce/tinymce.min.js' %}"></script>
+<script src="{% static 'tinymce_editor/js/tinymce-widget.js' %}"></script>
+<!-- Mobile Tabs Accordion JavaScript -->
+<script src="{% static 'core/js/mobile-tabs-accordion.js' %}"></script>
+<script>
+// ... existing TinyMCE initialization code ...
+</script>
+{% endblock %} 

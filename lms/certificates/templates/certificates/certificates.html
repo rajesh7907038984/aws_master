@@ -1,0 +1,1467 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Certificates{% endblock %}
+
+{% block extra_css %}
+<style>
+    .field-list {
+        border: 1px solid #ddd;
+        padding: 15px;
+        border-radius: 5px;
+        background: #f9f9f9;
+        min-height: 400px;
+    }
+    .field-item {
+        padding: 8px 12px;
+        margin-bottom: 8px;
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        cursor: move;
+    }
+    .certificate-container {
+        border: 1px solid #ddd;
+        padding: 15px;
+        border-radius: 5px;
+        min-height: 400px;
+        position: relative;
+    }
+    .certificate-preview {
+        width: 100%;
+        height: 0;
+        padding-bottom: 70.7%; /* A4 Landscape aspect ratio (210/297 = 0.707) */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f5f5f5;
+        border: 2px dashed #ccc;
+        position: relative;
+    }
+    .certificate-preview img {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+    .dropzone {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+    }
+    .field-placeholder {
+        position: absolute;
+        padding: 5px 10px;
+        background: rgba(255, 255, 255, 0.9);
+        border: 2px solid #0275d8;
+        border-radius: 4px;
+        z-index: 100;
+        text-align: center;
+        cursor: move;
+        user-select: none;
+        /* Ensure all fields use the same transform for positioning as in view_certificate.html */
+        transform: translate(-50%, -50%);
+        min-width: 60px;
+        min-height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: all 0.2s ease;
+    }
+    
+    .field-placeholder:hover {
+        background: rgba(255, 255, 255, 1);
+        border-color: #0056b3;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    /* Special styling for date fields */
+    .field-placeholder[data-field-type="date"] {
+        min-width: 100px;
+        white-space: nowrap !important;
+        padding: 0 !important;
+        letter-spacing: normal !important;
+        transform: translate(-50%, -50%);
+        display: inline-flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        margin: 0 !important;
+    }
+    .field-placeholder[data-field-type="date"] span {
+        display: inline-block !important;
+        white-space: nowrap !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        text-indent: 0 !important;
+    }
+    .upload-container {
+        margin-bottom: 20px;
+    }
+    .template-name-container {
+        margin-top: 20px;
+    }
+    .fields-column {
+        width: 20% !important;
+        flex: 0 0 20% !important;
+        max-width: 20% !important;
+    }
+    .certificate-column {
+        width: 80% !important;
+        flex: 0 0 80% !important;
+        max-width: 80% !important;
+    }
+    .template-selector {
+        margin-bottom: 20px;
+    }
+    /* Updated styles for certificate boxes */
+    .certificate-box .card-body {
+        padding: 1.5rem;
+    }
+    .certificate-box .card-title {
+        margin-top: 0.75rem;
+        margin-bottom: 0.75rem;
+    }
+    .certificate-box .card-text {
+        margin-bottom: 1rem;
+    }
+    /* Remove border from certificate boxes */
+    .certificate-box {
+        border: none !important;
+    }
+    .certificate-box.card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    .card.template-selector {
+        border: none;
+    }
+    .card {
+        border: none;
+    }
+    /* Signature Canvas Styles */
+    #signatureCanvas {
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        cursor: crosshair;
+        background-color: #fff;
+    }
+    .signature-container {
+        display: none;
+        margin-top: 20px;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        background: #f9f9f9;
+    }
+    .signature-tools {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 10px;
+    }
+    /* Field styling panel */
+    .field-styling-panel {
+        display: none;
+        padding: 15px;
+        margin-top: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        background: #f9f9f9;
+    }
+    .field-styling-panel h5 {
+        margin-bottom: 15px;
+    }
+    .field-styling-panel .form-group {
+        margin-bottom: 10px;
+    }
+    .selected-field {
+        box-shadow: 0 0 0 2px #0275d8 !important;
+        z-index: 200 !important;
+    }
+    .color-preview {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 1px solid #ccc;
+        vertical-align: middle;
+        margin-left: 5px;
+    }
+    #fontColorPicker {
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        border: none;
+        margin-left: 10px;
+    }
+    /* Add specific width handling for field types */
+    .field-placeholder[data-field-type="name"] {
+        min-width: 150px;
+    }
+    
+    .field-placeholder[data-field-type="course"] {
+        min-width: 200px; 
+    }
+    
+    .field-placeholder[data-field-type="date"] {
+        min-width: 100px;
+    }
+    
+    .field-placeholder[data-field-type="id"] {
+        min-width: 120px;
+    }
+    
+    .field-placeholder[data-field-type="email"] {
+        min-width: 180px;
+    }
+    
+    .field-placeholder[data-field-type="grade"] {
+        min-width: 80px;
+    }
+    
+    .field-placeholder[data-field-type="score"] {
+        min-width: 80px;
+    }
+    
+    .field-placeholder[data-field-type="instructor"] {
+        min-width: 150px;
+    }
+    
+    .field-placeholder[data-field-type="signature"] {
+        min-width: 150px;
+        min-height: 45px;
+    }
+    
+    /* Special styling for date fields */
+    .field-placeholder[data-field-type="date"] {
+        transform: translate(-50%, -50%);
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs container-fluid">
+    <div class="container">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                {% for breadcrumb in breadcrumbs %}
+                {% if breadcrumb.url %}
+                <li class="breadcrumb-item">
+                    <a href="{{ breadcrumb.url }}">
+                        <i class="fas {{ breadcrumb.icon }}"></i> {{ breadcrumb.label }}
+                    </a>
+                </li>
+                {% else %}
+                <li class="breadcrumb-item active" aria-current="page">
+                    <i class="fas {{ breadcrumb.icon }}"></i> {{ breadcrumb.label }}
+                </li>
+                {% endif %}
+                {% endfor %}
+            </ol>
+        </nav>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Breadcrumb -->
+<div class="mb-6">
+    {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+</div>
+
+<div class="container-fluid mt-4">
+    <div class="row">
+        <!-- Remove Certificate Management header section -->
+    </div>
+    
+    <!-- Issued Certificates Section -->
+    {% if issued_certificates %}
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Your Certificates</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for certificate in issued_certificates %}
+                        <div class="col-md-4 mb-4">
+                            <div class="card h-100 shadow-sm certificate-box">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">{{ certificate.course_name }}</h5>
+                                    <p class="card-text text-muted">
+                                        <small>Issued on {{ certificate.issue_date|date:"d/m/Y" }}</small>
+                                    </p>
+                                    
+                                    {% if certificate.certificate_file %}
+                                    <a href="{{ certificate.certificate_file.url }}" class="btn btn-primary btn-sm" target="_blank">
+                                        <i class="fas fa-eye"></i> View Certificate
+                                    </a>
+                                    {% else %}
+                                    <a href="{% url 'certificates:view_certificate' certificate.id %}?generate=true" class="btn btn-primary btn-sm" target="_blank">
+                                        <i class="fas fa-eye"></i> View Certificate
+                                    </a>
+                                    {% endif %}
+                                    
+                                    {% if certificate.issued_by == request.user or request.user.is_superuser or request.user.role == 'superadmin' %}
+                                    <form method="POST" action="{% url 'certificates:delete_certificate' certificate.id %}" style="display: inline-block; margin-top: 10px;" onsubmit="return confirm('Are you sure you want to delete this certificate?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-danger btn-sm">
+                                            <i class="fas fa-trash"></i> Delete Certificate
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if can_create_templates %}
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card template-selector">
+                <div class="card-header">
+                    <h5>Select Template to Edit</h5>
+                </div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <select id="templateSelector" class="form-control">
+                            <option value="0">Create New Template</option>
+                            {% for template in templates %}
+                            <option value="{{ template.id }}">{{ template.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row" style="display: flex; width: 100%;">
+        <!-- Left Column - Field List -->
+        <div class="fields-column" style="width: 20%; padding-right: 15px;">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Available Fields</h5>
+                </div>
+                <div class="card-body">
+                    <div class="field-list" id="fieldList">
+                        <div class="field-item" data-field-type="name" draggable="true">name</div>
+                        <div class="field-item" data-field-type="email" draggable="true">email</div>
+                        <div class="field-item" data-field-type="course" draggable="true">course</div>
+                        <div class="field-item" data-field-type="grade" draggable="true">grade</div>
+                        <div class="field-item" data-field-type="score" draggable="true">score</div>
+                        <div class="field-item" data-field-type="date" draggable="true">date</div>
+                        <div class="field-item" data-field-type="instructor" draggable="true">instructor</div>
+                        <div class="field-item" data-field-type="signature" draggable="true">signature</div>
+                        <div class="field-item" data-field-type="id" draggable="true">certificate ID</div>
+                    </div>
+                    
+                    <!-- Field Styling Panel -->
+                    <div class="field-styling-panel" id="fieldStylingPanel">
+                        <h5>Field Styling</h5>
+                        <div class="form-group">
+                            <label for="fontFamily">Font Family</label>
+                            <select id="fontFamily" class="form-control">
+                                <option value="Arial, sans-serif">Arial</option>
+                                <option value="'Times New Roman', serif">Times New Roman</option>
+                                <option value="'Courier New', monospace">Courier New</option>
+                                <option value="Georgia, serif">Georgia</option>
+                                <option value="Verdana, sans-serif">Verdana</option>
+                                <option value="'Open Sans', sans-serif">Open Sans</option>
+                                <option value="Roboto, sans-serif">Roboto</option>
+                                <option value="'Playfair Display', serif">Playfair Display</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="fontSize">Font Size</label>
+                            <input type="number" id="fontSize" class="form-control" min="8" max="72" value="14">
+                        </div>
+                        <div class="form-group">
+                            <label for="fontWeight">Font Style</label>
+                            <select id="fontWeight" class="form-control">
+                                <option value="normal">Normal</option>
+                                <option value="bold">Bold</option>
+                                <option value="italic">Italic</option>
+                                <option value="bold italic">Bold Italic</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="fontColor">Font Color</label>
+                            <div style="display: flex; align-items: center;">
+                                <input type="color" id="fontColorPicker" value="#000000">
+                                <span id="fontColorHex" class="ml-2">#000000</span>
+                            </div>
+                        </div>
+                        <button type="button" id="applyStyles" class="btn btn-primary btn-sm">Apply Styles</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+        
+        <!-- Right Column - Certificate Image Upload and Preview -->
+        {% if can_create_templates %}
+        <div class="certificate-column" style="width: 80%; padding-left: 15px;">
+        {% endif %}
+            {% if can_create_templates %}
+            <div class="card">
+                <div class="card-header">
+                    <h5>Certificate Template</h5>
+                </div>
+                <div class="card-body">
+                    <form id="templateForm" enctype="multipart/form-data" method="post" action="{% url 'certificates:save_template' %}">
+                        {% csrf_token %}
+                        <input type="hidden" id="templateId" name="template_id" value="">
+                        <div class="upload-container">
+                            <input type="file" id="certificateImage" name="image" class="form-control" accept="image/*">
+                            <small class="form-text text-muted">Upload a certificate image (PNG, JPG, JPEG)</small>
+                        </div>
+                        
+                        <div class="certificate-container">
+                            <div class="certificate-preview" id="certificatePreview">
+                                <div id="placeholderText">
+                                    <p>Upload a certificate image to start creating your template</p>
+                                </div>
+                                <div id="dropzone" class="dropzone"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Signature Upload Section -->
+                        <div class="signature-container" id="signatureSection">
+                            <h5>Upload Signature</h5>
+                            <p class="text-muted small">Draw your signature below or upload an image file</p>
+                            
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <canvas id="signatureCanvas" width="400" height="200"></canvas>
+                                    <div class="signature-tools">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" id="clearSignature">Clear</button>
+                                        <button type="button" class="btn btn-sm btn-primary" id="saveSignature">Use Signature</button>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label>Or upload image</label>
+                                        <input type="file" id="signatureImage" class="form-control" accept="image/*">
+                                        <small class="form-text text-muted">Upload a signature image (PNG with transparent background recommended)</small>
+                                    </div>
+                                    <div class="signature-preview mt-3" id="signaturePreview">
+                                        <img id="signaturePreviewImg" style="max-width: 100%; max-height: 45px; display: none;">
+                                    </div>
+                                </div>
+                            </div>
+                            <input type="hidden" id="signatureData" name="signature_data">
+                        </div>
+                        
+                        <div class="template-name-container">
+                            <div class="form-group">
+                                <label for="templateName">Template Name</label>
+                                <input type="text" id="templateName" name="name" class="form-control" placeholder="Enter template name">
+                            </div>
+                            <input type="hidden" id="fieldsData" name="fields" value="">
+                            <div class="btn-group">
+                                <button type="button" id="saveTemplate" class="btn btn-primary mt-2">Save Template</button>
+                                <button type="button" id="updateTemplate" class="btn mt-2 ml-2" style="display:none; background-color: #050c50 !important; color: white !important; padding: 0.5rem 1rem; border-radius: 0.375rem; font-size: 0.875rem; font-weight: 500; transition: all 0.2s; cursor: pointer;">Update Template</button>
+                                <button type="button" id="deleteTemplate" class="btn mt-2 ml-2" style="display:none; background-color: #dc3545 !important; color: white !important; padding: 0.5rem 1rem; border-radius: 0.375rem; font-size: 0.875rem; font-weight: 500; transition: all 0.2s; cursor: pointer;">Delete Template</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% else %}
+            <!-- Message for instructors who cannot create templates -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Certificate Templates</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i>
+                                <strong>Information:</strong> As an instructor, you can view and select from certificate templates created by your branch admin for use in your courses. You cannot create new certificate templates. Contact your branch administrator if you need new certificate templates.
+                            </div>
+                            
+                            {% if templates %}
+                                <h6>Available Certificate Templates:</h6>
+                                <div class="row">
+                                    {% for template in templates %}
+                                    <div class="col-md-6 mb-3">
+                                        <div class="card">
+                                            <div class="card-body">
+                                                <h6 class="card-title">{{ template.name }}</h6>
+                                                <p class="card-text text-muted">Created by: {{ template.created_by.get_full_name|default:template.created_by.username }}</p>
+                                                <p class="card-text text-muted">Created: {{ template.created_at|date:"M d, Y" }}</p>
+                                                <a href="{% url 'certificates:preview_certificate' template.id %}" class="btn btn-sm btn-primary">
+                                                    <i class="fas fa-eye"></i> Preview Template
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="text-muted">No certificate templates are available. Contact your branch administrator to create certificate templates.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        {% if can_create_templates %}
+        </div>
+    </div>
+        {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Variables to store field positions
+        let fields = [];
+        let certificateImage = null;
+        let currentTemplateId = null;
+        let selectedField = null;
+        
+        // File upload handling
+        const fileInput = document.getElementById('certificateImage');
+        const previewContainer = document.getElementById('certificatePreview');
+        const placeholderText = document.getElementById('placeholderText');
+        const dropzone = document.getElementById('dropzone');
+        const fieldsDataInput = document.getElementById('fieldsData');
+        const templateForm = document.getElementById('templateForm');
+        const templateNameInput = document.getElementById('templateName');
+        const templateIdInput = document.getElementById('templateId');
+        const saveButton = document.getElementById('saveTemplate');
+        const updateButton = document.getElementById('updateTemplate');
+        const templateSelector = document.getElementById('templateSelector');
+        const deleteButton = document.getElementById('deleteTemplate');
+        
+        // Add form validation
+        function validateForm() {
+            const templateName = templateNameInput.value.trim();
+            
+            if(!templateName) {
+                showError('Please enter a template name');
+                templateNameInput.focus();
+                return false;
+            }
+            
+            if(templateName.length < 3) {
+                showError('Template name must be at least 3 characters long');
+                templateNameInput.focus();
+                return false;
+            }
+            
+            if(!certificateImage && !currentTemplateId) {
+                showError('Please upload a certificate image');
+                fileInput.focus();
+                return false;
+            }
+            
+            if(fields.length === 0) {
+                showError('Please add at least one field to the certificate');
+                return false;
+            }
+            
+            return true;
+        }
+        
+        function showError(message) {
+            // Remove existing error messages
+            const existingError = document.querySelector('.form-error');
+            if(existingError) {
+                existingError.remove();
+            }
+            
+            // Create error message
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'alert alert-danger form-error';
+            errorDiv.style.marginTop = '10px';
+            errorDiv.innerHTML = `<i class="fa fa-exclamation-triangle"></i> ${message}`;
+            
+            // Insert after template name input
+            templateNameInput.parentNode.insertBefore(errorDiv, templateNameInput.parentNode.children[2]);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if(errorDiv.parentNode) {
+                    errorDiv.remove();
+                }
+            }, 5000);
+        }
+        
+        function showSuccess(message) {
+            // Remove existing success messages
+            const existingSuccess = document.querySelector('.form-success');
+            if(existingSuccess) {
+                existingSuccess.remove();
+            }
+            
+            // Create success message
+            const successDiv = document.createElement('div');
+            successDiv.className = 'alert alert-success form-success';
+            successDiv.style.marginTop = '10px';
+            successDiv.innerHTML = `<i class="fa fa-check-circle"></i> ${message}`;
+            
+            // Insert after template name input
+            templateNameInput.parentNode.insertBefore(successDiv, templateNameInput.parentNode.children[2]);
+            
+            // Auto-remove after 3 seconds
+            setTimeout(() => {
+                if(successDiv.parentNode) {
+                    successDiv.remove();
+                }
+            }, 3000);
+        }
+        
+        // Field styling panel elements
+        const fieldStylingPanel = document.getElementById('fieldStylingPanel');
+        const fontFamilySelect = document.getElementById('fontFamily');
+        const fontSizeInput = document.getElementById('fontSize');
+        const fontWeightSelect = document.getElementById('fontWeight');
+        const fontColorPicker = document.getElementById('fontColorPicker');
+        const fontColorHex = document.getElementById('fontColorHex');
+        const applyStylesButton = document.getElementById('applyStyles');
+        
+        // Font color picker event
+        fontColorPicker.addEventListener('input', function() {
+            fontColorHex.textContent = this.value;
+        });
+        
+        // Apply styles to selected field
+        applyStylesButton.addEventListener('click', function() {
+            if (selectedField) {
+                // Apply the styles to the selected field
+                const fontFamily = fontFamilySelect.value;
+                const fontSize = fontSizeInput.value + 'px';
+                const fontWeight = fontWeightSelect.value;
+                const fontColor = fontColorPicker.value;
+                
+                // Apply styles directly to the field
+                if (fontWeightSelect.value === 'italic') {
+                    selectedField.style.fontStyle = 'italic';
+                    selectedField.style.fontWeight = 'normal';
+                } else if (fontWeightSelect.value === 'bold italic') {
+                    selectedField.style.fontStyle = 'italic';
+                    selectedField.style.fontWeight = 'bold';
+                } else {
+                    selectedField.style.fontStyle = 'normal';
+                    selectedField.style.fontWeight = fontWeightSelect.value;
+                }
+                
+                selectedField.style.fontFamily = fontFamily;
+                selectedField.style.fontSize = fontSize;
+                selectedField.style.color = fontColor;
+                
+                // Update the field in the fields array
+                const fieldId = selectedField.dataset.id;
+                const fieldIndex = fields.findIndex(f => f.id === fieldId);
+                if (fieldIndex !== -1) {
+                    fields[fieldIndex].fontFamily = fontFamily;
+                    fields[fieldIndex].fontSize = fontSize;
+                    fields[fieldIndex].fontWeight = fontWeight;
+                    fields[fieldIndex].fontColor = fontColor;
+                    
+                    // Debug: Log the updated field data
+                    console.log('Updated field data:', fields[fieldIndex]);
+                } else {
+                    console.error('Field not found in fields array:', fieldId, fields);
+                }
+                
+                // Show success message
+                showSuccess('Field styles applied successfully');
+            } else {
+                console.error('No field selected for styling');
+            }
+        });
+        
+        // Function to select a field and show styling panel
+        function selectField(field) {
+            // Deselect any previously selected field
+            if (selectedField) {
+                selectedField.classList.remove('selected-field');
+            }
+            
+            // Select the new field
+            selectedField = field;
+            selectedField.classList.add('selected-field');
+            
+            // Show styling panel
+            fieldStylingPanel.style.display = 'block';
+            
+            // Set current styles in the panel
+            const fieldId = selectedField.dataset.id;
+            const fieldData = fields.find(f => f.id === fieldId);
+            
+            console.log('Selecting field:', fieldId, 'Field data:', fieldData, 'All fields:', fields);
+            
+            if (fieldData) {
+                // Set default values if not available
+                fontFamilySelect.value = fieldData.fontFamily || 'Arial, sans-serif';
+                fontSizeInput.value = fieldData.fontSize ? parseInt(fieldData.fontSize) : 14;
+                fontWeightSelect.value = fieldData.fontWeight || 'normal';
+                fontColorPicker.value = fieldData.fontColor || '#000000';
+                fontColorHex.textContent = fieldData.fontColor || '#000000';
+                
+                console.log('Applied field data to styling panel:', {
+                    fontFamily: fieldData.fontFamily,
+                    fontSize: fieldData.fontSize,
+                    fontWeight: fieldData.fontWeight,
+                    fontColor: fieldData.fontColor
+                });
+            } else {
+                // Set defaults
+                fontFamilySelect.value = 'Arial, sans-serif';
+                fontSizeInput.value = 14;
+                fontWeightSelect.value = 'normal';
+                fontColorPicker.value = '#000000';
+                fontColorHex.textContent = '#000000';
+                
+                console.log('No field data found, using defaults');
+            }
+        }
+        
+        // Template selector change event
+        templateSelector.addEventListener('change', function() {
+            const templateId = parseInt(this.value);
+            
+            // Clear current fields and image
+            clearTemplateData();
+            
+            if (templateId > 0) {
+                // Load template data
+                loadTemplateData(templateId);
+                // Show update button, hide save button, show delete button
+                saveButton.style.display = 'none';
+                updateButton.style.display = 'inline-block';
+                deleteButton.style.display = 'inline-block';
+            } else {
+                // New template - show save button, hide update button, hide delete button
+                saveButton.style.display = 'inline-block';
+                updateButton.style.display = 'none';
+                deleteButton.style.display = 'none';
+            }
+        });
+        
+        // Function to clear template data
+        function clearTemplateData() {
+            // Clear fields array
+            fields = [];
+            
+            // Clear image
+            const prevImg = previewContainer.querySelector('img');
+            if (prevImg) prevImg.remove();
+            
+            // Show placeholder
+            placeholderText.style.display = 'block';
+            
+            // Clear template name
+            templateNameInput.value = '';
+            
+            // Clear template ID
+            currentTemplateId = null;
+            templateIdInput.value = '';
+            
+            // Remove any field placeholders
+            const fieldPlaceholders = previewContainer.querySelectorAll('.field-placeholder');
+            fieldPlaceholders.forEach(placeholder => placeholder.remove());
+            
+            // Hide styling panel
+            fieldStylingPanel.style.display = 'none';
+            selectedField = null;
+        }
+        
+        // Function to load template data
+        function loadTemplateData(templateId) {
+            currentTemplateId = templateId;
+            templateIdInput.value = templateId;
+            
+            // Make AJAX request to get template data
+            fetch(`/certificates/templates/${templateId}/data/`)
+                .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Set template name
+                        templateNameInput.value = data.template.name;
+                        
+                        // Load template image
+                        if (data.template.image) {
+                            placeholderText.style.display = 'none';
+                            
+                            // Create image element
+                            certificateImage = document.createElement('img');
+                            certificateImage.src = data.template.image;
+                            certificateImage.id = 'certificateImg';
+                            previewContainer.insertBefore(certificateImage, dropzone);
+                        }
+                        
+                        // Load fields
+                        if (data.elements && data.elements.length > 0) {
+                            console.log('Loading template elements:', data.elements);
+                            data.elements.forEach(element => {
+                                // Create field placeholder
+                                const placeholder = document.createElement('div');
+                                placeholder.className = 'field-placeholder';
+                                placeholder.dataset.fieldType = element.element_type;
+                                
+                                // Display different text based on field type
+                                if (element.element_type === 'date') {
+                                    const now = new Date();
+                                    const day = String(now.getDate()).padStart(2, '0');
+                                    const month = String(now.getMonth() + 1).padStart(2, '0');
+                                    const year = now.getFullYear();
+                                    placeholder.innerHTML = `<span style="display:inline-block; white-space:nowrap; padding:0; margin:0;">${day}/${month}/${year}</span>`;
+                                } else if (element.element_type === 'signature') {
+                                    placeholder.innerHTML = `<span>signature</span>`;
+                                } else {
+                                    placeholder.innerHTML = `<span>${element.label}</span>`;
+                                }
+                                
+                                placeholder.style.left = `${element.position_x}%`;
+                                placeholder.style.top = `${element.position_y}%`;
+                                
+                                // Apply any saved styles
+                                if (element.font_family) placeholder.style.fontFamily = element.font_family;
+                                if (element.font_size) placeholder.style.fontSize = `${element.font_size}px`;
+                                if (element.font_weight) {
+                                    if (element.font_weight.includes('italic')) placeholder.style.fontStyle = 'italic';
+                                    if (element.font_weight.includes('bold')) placeholder.style.fontWeight = 'bold';
+                                }
+                                if (element.color) placeholder.style.color = element.color;
+
+                                // Ensure transform is applied correctly
+                                placeholder.style.transform = 'translate(-50%, -50%)';
+                                
+                                // Make the placeholder draggable
+                                placeholder.draggable = true;
+                                placeholder.addEventListener('dragstart', function(e) {
+                                    e.dataTransfer.setData('text/plain', 'move-placeholder');
+                                    e.dataTransfer.setData('application/json', JSON.stringify({
+                                        id: this.dataset.id,
+                                        type: this.dataset.fieldType
+                                    }));
+                                });
+                                
+                                // Make field clickable for styling
+                                placeholder.addEventListener('click', function(e) {
+                                    if (e.target.innerHTML !== ' ❌') {
+                                        selectField(this);
+                                        e.stopPropagation();
+                                    }
+                                });
+
+                                // Make field draggable and track position
+                                makeFieldDraggable(placeholder);
+                                
+                                // Add delete option
+                                const deleteBtn = document.createElement('span');
+                                deleteBtn.innerHTML = ' ❌';
+                                deleteBtn.style.cursor = 'pointer';
+                                deleteBtn.addEventListener('click', function() {
+                                    placeholder.remove();
+                                    // Remove from fields array
+                                    fields = fields.filter(f => f.id !== placeholder.dataset.id);
+                                    
+                                    // If this was the selected field, hide styling panel
+                                    if (selectedField === placeholder) {
+                                        fieldStylingPanel.style.display = 'none';
+                                        selectedField = null;
+                                    }
+                                });
+                                placeholder.appendChild(deleteBtn);
+                                
+                                // Add to fields array
+                                const fieldId = 'field-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5);
+                                placeholder.dataset.id = fieldId;
+                                placeholder.dataset.fieldType = element.element_type;
+                                const fieldData = {
+                                    id: fieldId,
+                                    type: element.element_type,
+                                    x: element.position_x,
+                                    y: element.position_y,
+                                    fontFamily: element.font_family,
+                                    fontSize: element.font_size ? `${element.font_size}px` : '14px',
+                                    fontWeight: element.font_weight || 'normal',
+                                    fontColor: element.color || '#000000'
+                                };
+                                fields.push(fieldData);
+                                console.log('Added field to array:', fieldData);
+                                
+                                previewContainer.appendChild(placeholder);
+                            });
+                        }
+                    } else {
+                        alert('Error loading template data: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while loading the template');
+                });
+        }
+        
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if(file && file.type.match('image.*')) {
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    placeholderText.style.display = 'none';
+                    
+                    // Remove previous image if exists
+                    const prevImg = previewContainer.querySelector('img');
+                    if(prevImg) prevImg.remove();
+                    
+                    // Create new image
+                    certificateImage = document.createElement('img');
+                    certificateImage.src = e.target.result;
+                    certificateImage.id = 'certificateImg';
+                    previewContainer.insertBefore(certificateImage, dropzone);
+                }
+                
+                reader.readAsDataURL(file);
+            }
+        });
+        
+        // Drag and drop functionality for fields
+        const fieldItems = document.querySelectorAll('.field-item');
+        
+        fieldItems.forEach(item => {
+            item.addEventListener('dragstart', function(e) {
+                e.dataTransfer.setData('text/plain', item.dataset.fieldType);
+            });
+        });
+        
+        dropzone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+        });
+        
+        dropzone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            
+            if(!certificateImage) {
+                alert('Please upload a certificate image first');
+                return;
+            }
+            
+            const fieldType = e.dataTransfer.getData('text/plain');
+            const rect = dropzone.getBoundingClientRect();
+            
+            // Calculate position relative to the certificate
+            const x = ((e.clientX - rect.left) / rect.width) * 100;
+            const y = ((e.clientY - rect.top) / rect.height) * 100;
+            
+            // Handle case where we're moving an existing placeholder
+            if (fieldType === 'move-placeholder') {
+                try {
+                    const fieldData = JSON.parse(e.dataTransfer.getData('application/json'));
+                    const movedElement = document.querySelector(`.field-placeholder[data-id="${fieldData.id}"]`);
+                    
+                    if (movedElement) {
+                        // Just update position of existing element
+                        movedElement.style.left = `${x}%`;
+                        movedElement.style.top = `${y}%`;
+                        
+                        // Update position in fields array
+                        const fieldIndex = fields.findIndex(f => f.id === fieldData.id);
+                        if (fieldIndex !== -1) {
+                            fields[fieldIndex].x = x;
+                            fields[fieldIndex].y = y;
+                        }
+                        return;
+                    }
+                } catch (err) {
+                    console.error('Error parsing field data:', err);
+                }
+            }
+            
+            // Create field placeholder for new elements
+            const placeholder = document.createElement('div');
+            placeholder.className = 'field-placeholder';
+            placeholder.dataset.fieldType = fieldType;
+            
+            // Display different text based on field type
+            if (fieldType === 'date') {
+                const now = new Date();
+                const day = String(now.getDate()).padStart(2, '0');
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const year = now.getFullYear();
+                placeholder.innerHTML = `<span style="display:inline-block; white-space:nowrap; padding:0; margin:0;">${day}/${month}/${year}</span>`;
+            } else {
+                placeholder.innerHTML = `<span>${fieldType}</span>`;
+            }
+            
+            placeholder.style.left = `${x}%`;
+            placeholder.style.top = `${y}%`;
+            
+            // Make the placeholder draggable
+            placeholder.draggable = true;
+            placeholder.addEventListener('dragstart', function(e) {
+                e.dataTransfer.setData('text/plain', 'move-placeholder');
+                e.dataTransfer.setData('application/json', JSON.stringify({
+                    id: this.dataset.id,
+                    type: this.dataset.fieldType
+                }));
+            });
+            
+            // Make field clickable for styling
+            placeholder.addEventListener('click', function(e) {
+                if (e.target.innerHTML !== ' ❌') {
+                    selectField(this);
+                    e.stopPropagation();
+                }
+            });
+            
+            // Make field draggable and track position
+            makeFieldDraggable(placeholder);
+            
+            // Add delete option
+            const deleteBtn = document.createElement('span');
+            deleteBtn.innerHTML = ' ❌';
+            deleteBtn.style.cursor = 'pointer';
+            deleteBtn.style.marginLeft = '5px';
+            deleteBtn.style.fontSize = '12px';
+            deleteBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if(confirm('Are you sure you want to remove this field?')) {
+                    placeholder.remove();
+                    // Remove from fields array
+                    fields = fields.filter(f => f.id !== placeholder.dataset.id);
+                    
+                    // If this was the selected field, hide styling panel
+                    if (selectedField === placeholder) {
+                        fieldStylingPanel.style.display = 'none';
+                        selectedField = null;
+                    }
+                }
+            });
+            placeholder.appendChild(deleteBtn);
+            
+            // Add to fields array
+            const fieldId = 'field-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5);
+            placeholder.dataset.id = fieldId;
+            fields.push({
+                id: fieldId,
+                type: fieldType,
+                x: x,
+                y: y,
+                fontFamily: 'Arial, sans-serif',
+                fontSize: '14px',
+                fontWeight: 'normal',
+                fontColor: '#000000'
+            });
+            
+            previewContainer.appendChild(placeholder);
+            
+            // Select the newly added field
+            selectField(placeholder);
+        });
+        
+        // Click outside of a field to deselect
+        previewContainer.addEventListener('click', function(e) {
+            if (e.target === previewContainer || e.target === certificateImage || e.target === dropzone) {
+                if (selectedField) {
+                    selectedField.classList.remove('selected-field');
+                    selectedField = null;
+                    fieldStylingPanel.style.display = 'none';
+                }
+            }
+        });
+        
+        // Function to make field placeholders draggable
+        function makeFieldDraggable(element) {
+            // Traditional drag and drop (already implemented)
+            element.addEventListener('dragend', function(e) {
+                const rect = dropzone.getBoundingClientRect();
+                
+                // Calculate new position relative to the certificate
+                const x = ((e.clientX - rect.left) / rect.width) * 100;
+                const y = ((e.clientY - rect.top) / rect.height) * 100;
+                
+                // Update element position
+                this.style.left = `${x}%`;
+                this.style.top = `${y}%`;
+                
+                // Update position in fields array
+                const fieldId = this.dataset.id;
+                const fieldIndex = fields.findIndex(f => f.id === fieldId);
+                if (fieldIndex !== -1) {
+                    fields[fieldIndex].x = x;
+                    fields[fieldIndex].y = y;
+                }
+            });
+            
+            // Add mouse drag functionality for more intuitive positioning
+            let isDragging = false;
+            let offsetX, offsetY;
+            
+            element.style.cursor = 'move';
+            
+            element.addEventListener('mousedown', function(e) {
+                // Only start drag if we're not clicking on the delete button
+                if (e.target.innerHTML !== ' ❌') {
+                    isDragging = true;
+                    
+                    // Get the initial mouse position
+                    const rect = this.getBoundingClientRect();
+                    
+                    // Always use center of element for consistent positioning
+                    offsetX = rect.width / 2;
+                    offsetY = rect.height / 2;
+                    
+                    // Add temporary styles for dragging
+                    this.style.opacity = '0.8';
+                    this.style.zIndex = '200';
+                    
+                    // Prevent default behavior to avoid text selection during drag
+                    e.preventDefault();
+                }
+            });
+            
+            document.addEventListener('mousemove', function(e) {
+                if (isDragging) {
+                    const dropzoneRect = dropzone.getBoundingClientRect();
+                    
+                    // Calculate new position relative to dropzone
+                    let newX = ((e.clientX - dropzoneRect.left) / dropzoneRect.width) * 100;
+                    let newY = ((e.clientY - dropzoneRect.top) / dropzoneRect.height) * 100;
+                    
+                    // Constrain to dropzone boundaries (with a little padding)
+                    newX = Math.max(2, Math.min(newX, 98));
+                    newY = Math.max(2, Math.min(newY, 98));
+                    
+                    // Update the element's position
+                    element.style.left = `${newX}%`;
+                    element.style.top = `${newY}%`;
+                }
+            });
+            
+            document.addEventListener('mouseup', function() {
+                if (isDragging) {
+                    isDragging = false;
+                    
+                    // Remove temporary styles
+                    element.style.opacity = '1';
+                    element.style.zIndex = '100';
+                    
+                    // Update position in fields array
+                    const fieldId = element.dataset.id;
+                    const fieldIndex = fields.findIndex(f => f.id === fieldId);
+                    if (fieldIndex !== -1) {
+                        fields[fieldIndex].x = parseFloat(element.style.left);
+                        fields[fieldIndex].y = parseFloat(element.style.top);
+                    }
+                }
+            });
+        }
+        
+        // Save template
+        saveButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            // Submit as new template
+            submitTemplateForm(false);
+        });
+        
+        // Update template
+        updateButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            // Submit as update
+            submitTemplateForm(true);
+        });
+        
+        // Delete template
+        deleteButton.addEventListener('click', function() {
+            if (currentTemplateId && confirm('Are you sure you want to delete this template?')) {
+                // Create a form for POST submission
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = `/certificates/templates/${currentTemplateId}/delete/`;
+                
+                // Add CSRF token
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrfmiddlewaretoken';
+                csrfInput.value = csrfToken;
+                form.appendChild(csrfInput);
+                
+                // Append to body, submit form, then remove it
+                document.body.appendChild(form);
+                form.submit();
+                document.body.removeChild(form);
+            }
+        });
+        
+        function submitTemplateForm(isUpdate) {
+            // Validate form
+            if(!validateForm()) {
+                return;
+            }
+            
+            // Validate field positions
+            let hasValidFields = false;
+            for(let field of fields) {
+                if(field.x >= 2 && field.x <= 98 && field.y >= 2 && field.y <= 98) {
+                    hasValidFields = true;
+                    break;
+                }
+            }
+            
+            if(!hasValidFields) {
+                showError('Please position at least one field on the certificate');
+                return;
+            }
+            
+            // Set fields data in hidden input
+            fieldsDataInput.value = JSON.stringify(fields);
+            
+            // Debug: Log the fields data being submitted
+            console.log('Submitting fields data:', fields);
+            
+            // Set action based on whether this is an update
+            if (isUpdate) {
+                templateForm.action = `/certificates/templates/${currentTemplateId}/update/`;
+            } else {
+                templateForm.action = "{% url 'certificates:save_template' %}";
+            }
+            
+            // Disable submit buttons to prevent double submission
+            saveButton.disabled = true;
+            updateButton.disabled = true;
+            
+            // Show loading state
+            const originalText = saveButton.innerHTML;
+            saveButton.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
+            
+            // Submit the form
+            templateForm.submit();
+        }
+        
+        // Signature Canvas functionality
+        const signatureCanvas = document.getElementById('signatureCanvas');
+        const signatureSection = document.getElementById('signatureSection');
+        let signatureContext = null;
+        const clearSignatureBtn = document.getElementById('clearSignature');
+        const saveSignatureBtn = document.getElementById('saveSignature');
+        const signatureFileInput = document.getElementById('signatureImage');
+        const signaturePreviewImg = document.getElementById('signaturePreviewImg');
+        const signatureDataInput = document.getElementById('signatureData');
+        
+        // Initialize signature canvas if it exists
+        if (signatureCanvas) {
+            signatureContext = signatureCanvas.getContext('2d');
+            signatureContext.lineWidth = 2;
+            signatureContext.lineCap = 'round';
+            signatureContext.strokeStyle = '#000000';
+        }
+        
+        // Show signature section only when a signature field is added
+        function toggleSignatureSection() {
+            // Check if there's a signature field
+            const hasSignatureField = fields.some(field => field.type === 'signature');
+            
+            // Show/hide signature section
+            if (hasSignatureField) {
+                signatureSection.style.display = 'block';
+            } else {
+                signatureSection.style.display = 'none';
+            }
+        }
+        
+        // Drawing functionality
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+        
+        function startDrawing(e) {
+            isDrawing = true;
+            [lastX, lastY] = [e.offsetX, e.offsetY];
+        }
+        
+        function draw(e) {
+            if (!isDrawing) return;
+            
+            signatureContext.beginPath();
+            signatureContext.moveTo(lastX, lastY);
+            signatureContext.lineTo(e.offsetX, e.offsetY);
+            signatureContext.stroke();
+            
+            [lastX, lastY] = [e.offsetX, e.offsetY];
+        }
+        
+        function stopDrawing() {
+            isDrawing = false;
+        }
+        
+        // Add signature canvas event listeners if canvas exists
+        if (signatureCanvas && signatureContext) {
+            signatureCanvas.addEventListener('mousedown', startDrawing);
+            signatureCanvas.addEventListener('mousemove', draw);
+            signatureCanvas.addEventListener('mouseup', stopDrawing);
+            signatureCanvas.addEventListener('mouseout', stopDrawing);
+        }
+        
+        // Clear signature
+        if (clearSignatureBtn) {
+            clearSignatureBtn.addEventListener('click', function() {
+                if (signatureContext) {
+                    signatureContext.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+                }
+                if (signatureDataInput) {
+                    signatureDataInput.value = '';
+                }
+                if (signaturePreviewImg) {
+                    signaturePreviewImg.style.display = 'none';
+                }
+            });
+        }
+        
+        // Save signature
+        if (saveSignatureBtn) {
+            saveSignatureBtn.addEventListener('click', function() {
+                if (!signatureContext) {
+                    showError('Signature canvas not available');
+                    return;
+                }
+                
+                // Convert canvas to base64 image
+                const signatureData = signatureCanvas.toDataURL('image/png');
+                if (signatureDataInput) {
+                    signatureDataInput.value = signatureData;
+                }
+                
+                // Show preview
+                if (signaturePreviewImg) {
+                    signaturePreviewImg.src = signatureData;
+                    signaturePreviewImg.style.display = 'block';
+                }
+                
+                // Add signature to any signature fields in the certificate
+                updateSignatureFields(signatureData);
+            });
+        }
+        
+        // Handle signature image upload
+        if (signatureFileInput) {
+            signatureFileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file && file.type.match('image.*')) {
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(e) {
+                        const img = new Image();
+                        img.onload = function() {
+                            if (!signatureContext) {
+                                showError('Signature canvas not available');
+                                return;
+                            }
+                            
+                            // Clear canvas
+                            signatureContext.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+                            
+                            // Calculate aspect ratio to fit in canvas
+                            const scale = Math.min(
+                                signatureCanvas.width / img.width,
+                                signatureCanvas.height / img.height
+                            ) * 0.8;
+                            
+                            // Calculate centered position
+                            const x = (signatureCanvas.width - img.width * scale) / 2;
+                            const y = (signatureCanvas.height - img.height * scale) / 2;
+                            
+                            // Draw image to canvas
+                            signatureContext.drawImage(img, x, y, img.width * scale, img.height * scale);
+                            
+                            // Save signature data
+                            const signatureData = signatureCanvas.toDataURL('image/png');
+                            if (signatureDataInput) {
+                                signatureDataInput.value = signatureData;
+                            }
+                            
+                            // Show preview
+                            if (signaturePreviewImg) {
+                                signaturePreviewImg.src = signatureData;
+                                signaturePreviewImg.style.display = 'block';
+                            }
+                            
+                            // Update signature fields
+                            updateSignatureFields(signatureData);
+                        };
+                        img.src = e.target.result;
+                    };
+                    
+                    reader.readAsDataURL(file);
+                } else {
+                    showError('Please select a valid image file');
+                }
+            });
+        }
+        
+        // Function to update signature fields in the certificate
+        function updateSignatureFields(signatureData) {
+            // Find all signature field placeholders
+            const signatureFields = Array.from(previewContainer.querySelectorAll('.field-placeholder'))
+                .filter(field => field.dataset.fieldType === 'signature');
+            
+            // Update each signature field
+            signatureFields.forEach(field => {
+                // Check if signature preview already exists
+                let signatureImg = field.querySelector('img');
+                
+                if (!signatureImg) {
+                    // Create new signature image
+                    signatureImg = document.createElement('img');
+                    signatureImg.style.maxWidth = '100%';
+                    signatureImg.style.maxHeight = '45px';
+                    
+                    // Clear field content and add image
+                    field.innerHTML = '';
+                    field.appendChild(signatureImg);
+                }
+                
+                // Update signature image
+                signatureImg.src = signatureData;
+            });
+        }
+        
+        // Watch for changes to fields array to show/hide signature section
+        const originalPush = Array.prototype.push;
+        Array.prototype.push = function() {
+            originalPush.apply(this, arguments);
+            if (this === fields) {
+                toggleSignatureSection();
+            }
+            return this.length;
+        };
+        
+        // Also filter method might be used to remove fields
+        const originalFilter = Array.prototype.filter;
+        Array.prototype.filter = function() {
+            const result = originalFilter.apply(this, arguments);
+            if (this === fields) {
+                setTimeout(toggleSignatureSection, 0);
+            }
+            return result;
+        };
+        
+        // Initial check
+        toggleSignatureSection();
+    });
+</script>
+{% endblock %} 

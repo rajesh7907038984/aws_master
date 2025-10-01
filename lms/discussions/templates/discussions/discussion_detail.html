@@ -1,0 +1,1715 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load discussion_extras %}
+{% load tinymce_tags %}
+
+{% block title %}{{ discussion.title }}{% endblock %}
+
+{% block extra_css %}
+<!-- TinyMCE CSS -->
+<link rel="stylesheet" href="{% static 'tinymce_editor/css/tinymce-widget.css' %}">
+<link rel="stylesheet" href="{% static 'tinymce_editor/css/aiwriter.css' %}">
+<style>
+    .reply-form {
+        display: none;
+        margin-left: 1rem;
+        margin-top: 1rem;
+    }
+    .comment-replies {
+        margin-left: 1rem;
+    }
+    
+    /* Mobile responsive adjustments */
+    @media (min-width: 768px) {
+        .reply-form {
+            margin-left: 2rem;
+        }
+        .comment-replies {
+            margin-left: 2rem;
+        }
+    }
+    .like-btn {
+        cursor: pointer;
+        color: #6c757d;
+        transition: transform 0.2s;
+    }
+    .like-btn:hover {
+        transform: scale(1.1);
+    }
+    .like-btn.liked {
+        color: #0d6efd;
+    }
+    .attachment-preview {
+        max-width: 100%;
+        max-height: 200px;
+        margin: 10px 0;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .attachment-list {
+        margin-top: 8px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    .attachment-item {
+        flex: 0 0 auto;
+        max-width: 100%;
+    }
+    
+    /* Reduce excessive spacing around attachments */
+    .attachment-list {
+        margin-top: 0.5rem !important;
+        margin-bottom: 0 !important;
+    }
+    
+    .attachment-list h6 {
+        margin-bottom: 0.25rem !important;
+        margin-top: 0 !important;
+    }
+    .video-preview {
+        max-width: 100%;
+        max-height: 200px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    /* Larger screens */
+    @media (min-width: 768px) {
+        .attachment-preview {
+            max-width: 300px;
+            max-height: 300px;
+        }
+        .video-preview {
+            max-width: 400px;
+            max-height: 300px;
+        }
+        .attachment-list {
+            gap: 0.75rem;
+        }
+    }
+    .document-preview {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        color: #495057;
+        text-decoration: none;
+    }
+    .document-preview i {
+        margin-right: 0.5rem;
+    }
+    
+    /* TinyMCE Styles */
+    .tox-tinymce {
+        border-radius: 0.375rem !important;
+        border: 1px solid #d1d5db !important;
+    }
+    
+    .tox-toolbar {
+        border-radius: 0.375rem 0.375rem 0 0 !important;
+    }
+    
+    .tox-edit-area {
+        border-radius: 0 0 0.375rem 0.375rem !important;
+    }
+    
+    /* Ensure TinyMCE container is properly sized */
+    .tox-tinymce-aux {
+        z-index: 1300 !important;
+    }
+    
+    .feedback-tab-content .tox-tinymce {
+        max-width: 100% !important;
+    }
+    
+    /* Text visibility and wrapping fixes */
+    .text-sm, .text-xs {
+        word-wrap: break-word !important;
+        overflow-wrap: break-word !important;
+        hyphens: auto !important;
+        line-height: 1.5 !important;
+        white-space: normal !important;
+        text-overflow: unset !important;
+    }
+    
+    /* Ensure comment content doesn't get hidden */
+    .flex-grow {
+        min-width: 0 !important;
+        word-wrap: break-word !important;
+        overflow-wrap: break-word !important;
+    }
+    
+    /* Override any truncation that might hide text */
+    .break-words {
+        overflow-wrap: break-word !important;
+        word-wrap: break-word !important;
+        word-break: break-word !important;
+        hyphens: auto !important;
+        white-space: pre-wrap !important;
+    }
+    
+    .overflow-wrap-anywhere {
+        overflow-wrap: anywhere !important;
+        word-break: break-word !important;
+    }
+    
+    /* Mobile-specific improvements */
+    @media (max-width: 640px) {
+        /* Fix text truncation issues */
+        .text-sm {
+            font-size: 14px !important;
+            line-height: 1.6 !important;
+            word-break: break-word !important;
+        }
+        
+        .text-xs {
+            font-size: 12px !important;
+            line-height: 1.4 !important;
+        }
+        
+        /* Ensure comment containers don't cut off text */
+        .flex {
+            flex-wrap: wrap !important;
+        }
+        
+        .flex-grow {
+            flex: 1 1 100% !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
+        }
+        
+        /* Better touch targets for mobile */
+        button, .like-btn, .reply-toggle, .edit-comment-btn {
+            min-height: 44px !important;
+            min-width: 44px !important;
+            padding: 12px !important;
+        }
+        
+        /* Improved form spacing */
+        .form-group {
+            margin-bottom: 1rem !important;
+        }
+        
+        /* Better file input styling */
+        input[type="file"] {
+            padding: 8px !important;
+            font-size: 14px !important;
+        }
+        
+        /* Improved textarea sizing */
+        textarea {
+            min-height: 80px !important;
+        }
+        
+        /* Better modal/section padding */
+        .p-6 {
+            padding: 1rem !important;
+        }
+        
+        /* Improved tab navigation */
+        .feedback-tab-btn {
+            padding: 12px 8px !important;
+            font-size: 14px !important;
+        }
+        
+        /* Fix comment layout on mobile */
+        .items-start {
+            align-items: flex-start !important;
+        }
+        
+        /* Ensure proper spacing */
+        .mr-4 {
+            margin-right: 0.75rem !important;
+        }
+        
+        /* Reduce attachment spacing on mobile */
+        .attachment-list {
+            margin-top: 0.25rem !important;
+            gap: 0.25rem !important;
+        }
+        
+        .attachment-list h6 {
+            margin-bottom: 0.125rem !important;
+            font-size: 11px !important;
+            line-height: 1.2 !important;
+        }
+        
+        /* Tighter spacing between comments on mobile */
+        .space-y-6 > * + * {
+            margin-top: 1rem !important;
+        }
+    }
+    
+    /* Autocomplete Styles */
+    .autocomplete-dropdown {
+        width: 100%;
+        max-width: 300px;
+        margin-top: 2px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        background: white;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
+    }
+    
+    .autocomplete-item {
+        padding: 8px 12px;
+        cursor: pointer;
+        border-bottom: 1px solid #f3f4f6;
+        display: flex;
+        align-items: center;
+    }
+    
+    .autocomplete-item:last-child {
+        border-bottom: none;
+    }
+    
+    .autocomplete-item:hover,
+    .autocomplete-item.selected {
+        background-color: #f3f4f6;
+    }
+    
+    .autocomplete-avatar {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background-color: #6b7280;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: bold;
+        margin-right: 8px;
+    }
+    
+    .autocomplete-name {
+        font-size: 14px;
+        color: #374151;
+    }
+    
+    .autocomplete-username {
+        font-size: 12px;
+        color: #6b7280;
+        margin-left: 4px;
+    }
+    
+    .position-relative {
+        position: relative;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen">
+    <div class="container mx-auto px-4 py-6">
+        <!-- Main grid with 70-30 split -->
+        <div class="grid grid-cols-12 gap-4 md:gap-6">
+            <!-- Main Content Column (70%) -->
+            <div class="col-span-12 lg:col-span-8 transition-all duration-300">
+                <!-- Breadcrumbs -->
+                {% with breadcrumbs=breadcrumbs %}
+                    {% include 'components/breadcrumb.html' %}
+                {% endwith %}
+
+                <div class="bg-white rounded-lg shadow-sm p-4 md:p-6 mb-6">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h1 class="text-xl md:text-2xl font-bold text-gray-800">{{ discussion.title }}</h1>
+                            {% if discussion.course and discussion.course.id and discussion.course.id != '' %}
+                            <div class="text-sm text-gray-600 mt-1">
+                                <i class="fas fa-graduation-cap mr-1"></i> 
+                                <a href="{% url 'courses:course_view' discussion.course.id %}" class="hover:underline">{{ discussion.course.title }}</a>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="flex items-center">
+                            <span class="like-btn me-3 {% if request.user in discussion.likes.all %}liked{% endif %}" 
+                                  data-id="{{ discussion.id }}" 
+                                  data-type="discussion"
+                                  title="Like this discussion">
+                                <i class="fas fa-thumbs-up"></i>
+                                <span class="likes-count">{{ discussion.likes.count }}</span>
+                            </span>
+                            <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">{{ discussion.get_visibility_display }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-start mb-6">
+                        <div class="flex-shrink-0 mr-4">
+                            <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">
+                                {{ discussion.created_by.first_name|first|upper }}
+                            </div>
+                        </div>
+                        <div>
+                            <div class="text-sm text-gray-500 mb-2">
+                                Created by {{ discussion.created_by.get_full_name }} - {{ discussion.created_at|date:"d/m/Y" }}
+                            </div>
+                            <div class="prose max-w-none">
+                                {{ discussion.content|decode_html }}
+                                {% if discussion.instructions %}
+                                <div class="mt-4">
+                                    <strong>Instructions:</strong><br>
+                                    {{ discussion.instructions|decode_html }}
+                                </div>
+                                {% endif %}
+                                {% if discussion.attachments.exists %}
+                                <div class="attachment-list mt-2">
+                                    <h6 class="text-sm font-semibold text-gray-600 mb-1">ATTACHMENTS:</h6>
+                                    <div class="flex flex-wrap gap-3">
+                                    {% for attachment in discussion.attachments.all %}
+                                        <div class="attachment-item">
+                                            {% if attachment.file_type == 'image' %}
+                                                <img src="{{ attachment.file.url }}" alt="Image attachment" class="attachment-preview object-cover">
+                                            {% elif attachment.file_type == 'video' %}
+                                                <video src="{{ attachment.file.url }}" controls class="video-preview" preload="metadata"></video>
+                                            {% elif attachment.file_type == 'audio' %}
+                                                <audio src="{{ attachment.file.url }}" controls class="w-full max-w-md">
+                                                    Your browser does not support the audio element.
+                                                </audio>
+                                            {% else %}
+                                                <a href="{{ attachment.file.url }}" target="_blank" class="document-preview">
+                                                    <i class="fas fa-file"></i>
+                                                    <span>{{ attachment.file.name|get_filename }}</span>
+                                                </a>
+                                            {% endif %}
+                                        </div>
+                                    {% endfor %}
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if discussion.created_by == request.user %}
+                    <div class="flex justify-end space-x-3">
+                        <a href="{% url 'discussions:edit_discussion' discussion_id=discussion.id %}" class="text-sm text-blue-600 hover:text-blue-800">Edit</a>
+                        <a href="{% url 'discussions:delete_discussion' discussion_id=discussion.id %}" class="text-sm text-red-600 hover:text-red-800">Delete</a>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Comments Section -->
+                <div class="bg-white rounded-lg shadow-sm p-4 md:p-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Comments ({{ comments.count }})</h2>
+                    
+                    <!-- Comment List -->
+                    <div class="space-y-6 mb-6">
+                        {% for comment in comments %}
+                        {% if not comment.parent %}  <!-- Only show top-level comments here -->
+                        <div class="border-b border-gray-100 pb-4 {% if forloop.last %}border-0{% endif %}">
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0 mr-3 sm:mr-4">
+                                    <div class="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-white font-bold">
+                                        {{ comment.created_by.first_name|first|upper }}
+                                    </div>
+                                </div>
+                                <div class="flex-grow min-w-0 overflow-hidden">
+                                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-2">
+                                        <div class="text-sm font-medium text-gray-700 truncate sm:truncate-none">{{ comment.created_by.get_full_name }}</div>
+                                        <div class="text-xs text-gray-500 mt-1 sm:mt-0 flex-shrink-0">{{ comment.created_at|date:"d/m/Y H:i" }}</div>
+                                    </div>
+                                    <div class="text-sm text-gray-600 break-words overflow-wrap-anywhere">
+                                        {{ comment.content|decode_html }}
+                                        {% if comment.attachments.exists %}
+                                        <div class="attachment-list mt-1">
+                                            <h6 class="text-xs font-semibold text-gray-600 mb-1">ATTACHMENTS:</h6>
+                                            <div class="flex flex-wrap gap-2">
+                                            {% for attachment in comment.attachments.all %}
+                                                <div class="attachment-item">
+                                                    {% if attachment.file_type == 'image' %}
+                                                        <img src="{{ attachment.file.url }}" alt="Image attachment" class="attachment-preview object-cover">
+                                                    {% elif attachment.file_type == 'video' %}
+                                                        <video src="{{ attachment.file.url }}" controls class="video-preview" preload="metadata"></video>
+                                                    {% elif attachment.file_type == 'audio' %}
+                                                        <audio src="{{ attachment.file.url }}" controls class="w-full max-w-md">
+                                                            Your browser does not support the audio element.
+                                                        </audio>
+                                                    {% else %}
+                                                        <a href="{{ attachment.file.url }}" target="_blank" class="document-preview">
+                                                            <i class="fas fa-file"></i>
+                                                            <span>{{ attachment.file.name|get_filename }}</span>
+                                                        </a>
+                                                    {% endif %}
+                                                </div>
+                                            {% endfor %}
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="flex items-center mt-2 space-x-4">
+                                        <span class="like-btn {% if request.user in comment.likes.all %}liked{% endif %}" 
+                                              data-id="{{ comment.id }}" 
+                                              data-type="comment">
+                                            <i class="fas fa-thumbs-up"></i>
+                                            <span class="likes-count">{{ comment.likes.count }}</span>
+                                        </span>
+                                        <button class="text-xs text-blue-600 hover:text-blue-800 reply-toggle" 
+                                                data-comment-id="{{ comment.id }}">Reply</button>
+                                        {% if comment.created_by == request.user %}
+                                        <button class="text-xs text-blue-600 hover:text-blue-800 edit-comment-btn" 
+                                                data-comment-id="{{ comment.id }}">Edit</button>
+                                        <form method="post" action="{% url 'discussions:delete_comment' discussion_id=discussion.id comment_id=comment.id %}" class="inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="text-xs text-red-600 hover:text-red-800">Delete</button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+
+                                    <!-- Reply Form -->
+                                    <div class="reply-form" id="reply-form-{{ comment.id }}">
+                                        <form method="post" action="{% url 'discussions:add_reply' discussion_id=discussion.id comment_id=comment.id %}" 
+                                              enctype="multipart/form-data">
+                                            {% csrf_token %}
+                                            <div class="form-group position-relative">
+                                                <textarea name="content" id="reply-textarea-{{ comment.id }}" class="reply-textarea w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" rows="2" required placeholder="Write your reply... (type @ to mention users)"></textarea>
+                                                <div id="reply-autocomplete-{{ comment.id }}" class="autocomplete-dropdown hidden absolute bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-40 overflow-y-auto"></div>
+                                            </div>
+                                            <div class="form-group mt-2">
+                                                <label for="attachments">Attachments:</label>
+                                                <input type="file" name="attachments" class="form-control" multiple>
+                                            </div>
+                                            <button type="submit" class="mt-2 px-3 py-1 text-white text-sm rounded" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">Submit Reply</button>
+                                        </form>
+                                    </div>
+                                    
+                                    <!-- Replies -->
+                                    {% if comment.replies.exists %}
+                                    <div class="comment-replies mt-3">
+                                        {% for reply in comment.replies.all %}
+                                        <div class="border-l-2 border-gray-200 pl-3 sm:pl-4 mb-3">
+                                            <div class="flex items-start">
+                                                <div class="flex-shrink-0 mr-2 sm:mr-3">
+                                                    <div class="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                                                        {{ reply.created_by.first_name|first|upper }}
+                                                    </div>
+                                                </div>
+                                                <div class="flex-grow min-w-0">
+                                                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-1">
+                                                        <div class="text-sm font-medium text-gray-700 truncate sm:truncate-none">{{ reply.created_by.get_full_name }}</div>
+                                                        <div class="text-xs text-gray-500 mt-1 sm:mt-0 flex-shrink-0">{{ reply.created_at|date:"d/m/Y H:i" }}</div>
+                                                    </div>
+                                                    <div class="text-sm text-gray-600 break-words overflow-wrap-anywhere">
+                                                        <!-- SECURITY FIX: Removed |safe filter to prevent XSS attacks -->
+                                                        {{ reply.content|linebreaks }}
+                                                        {% if reply.attachments.exists %}
+                                                        <div class="attachment-list mt-1">
+                                                            <h6 class="text-xs font-semibold text-gray-600 mb-1">ATTACHMENTS:</h6>
+                                                            <div class="flex flex-wrap gap-2">
+                                                            {% for attachment in reply.attachments.all %}
+                                                                <div class="attachment-item">
+                                                                    {% if attachment.file_type == 'image' %}
+                                                                        <img src="{{ attachment.file.url }}" alt="Image attachment" class="attachment-preview object-cover">
+                                                                    {% elif attachment.file_type == 'video' %}
+                                                                        <video src="{{ attachment.file.url }}" controls class="video-preview" preload="metadata"></video>
+                                                                    {% elif attachment.file_type == 'audio' %}
+                                                                        <audio src="{{ attachment.file.url }}" controls class="w-full max-w-md">
+                                                                            Your browser does not support the audio element.
+                                                                        </audio>
+                                                                    {% else %}
+                                                                        <a href="{{ attachment.file.url }}" target="_blank" class="document-preview">
+                                                                            <i class="fas fa-file"></i>
+                                                                            <span>{{ attachment.file.name|get_filename }}</span>
+                                                                        </a>
+                                                                    {% endif %}
+                                                                </div>
+                                                            {% endfor %}
+                                                            </div>
+                                                        </div>
+                                                        {% endif %}
+                                                    </div>
+                                                    <div class="flex items-center mt-2 space-x-4">
+                                                        <span class="like-btn {% if request.user in reply.likes.all %}liked{% endif %}" 
+                                                              data-id="{{ reply.id }}" 
+                                                              data-type="comment">
+                                                            <i class="fas fa-thumbs-up"></i>
+                                                            <span class="likes-count">{{ reply.likes.count }}</span>
+                                                        </span>
+                                                        {% if reply.created_by == request.user %}
+                                                        <form method="post" action="{% url 'discussions:delete_comment' discussion_id=discussion.id comment_id=reply.id %}" class="inline">
+                                                            {% csrf_token %}
+                                                            <button type="submit" class="text-xs text-red-600 hover:text-red-800">Delete</button>
+                                                        </form>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if comment.created_by == request.user %}
+                                    <!-- Edit Comment Form (Hidden by default) -->
+                                    <div id="edit-comment-form-{{ comment.id }}" class="mt-3 hidden">
+                                        <form method="post" action="{% url 'discussions:edit_comment' discussion_id=discussion.id comment_id=comment.id %}">
+                                            {% csrf_token %}
+                                            <textarea name="content" rows="3" class="w-full px-3 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">{{ comment.content }}</textarea>
+                                            <div class="flex justify-end space-x-2 mt-2">
+                                                <button type="button" class="text-xs text-gray-600 hover:text-gray-800 cancel-edit-btn" data-comment-id="{{ comment.id }}">Cancel</button>
+                                                <button type="submit" class="text-xs text-blue-600 hover:text-blue-800">Save</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% empty %}
+                        <div class="text-center py-6">
+                            <p class="text-gray-500">No comments yet. Be the first to comment!</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Add Comment Form -->
+                    <div>
+                        <h3 class="text-md font-medium text-gray-700 mb-2">Add a comment</h3>
+                        <form method="post" action="{% url 'discussions:add_comment' discussion_id=discussion.id %}" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            <div class="form-group position-relative">
+                                <textarea name="content" id="main-comment-textarea" rows="4" required placeholder="Write your comment here... (type @ to mention users)" class="w-full px-4 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
+                                <div id="main-comment-autocomplete" class="autocomplete-dropdown hidden absolute bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-40 overflow-y-auto"></div>
+                            </div>
+                            <div class="form-group mt-2">
+                                <label for="attachments">Attachments:</label>
+                                <input type="file" name="attachments" class="form-control" multiple>
+                            </div>
+                            <div class="flex justify-end mt-3">
+                                <button type="submit" class="px-4 py-2 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                                    Post Comment
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <!-- Grade Submissions Section (only visible to non-learners) -->
+                    {% if can_evaluate_rubric %}
+                    <div class="mt-6 bg-white rounded-lg shadow-sm overflow-hidden">
+                        <div class="bg-gray-100 p-4 border-b">
+                            <h2 class="text-xl font-semibold text-gray-800">Grade Submissions</h2>
+                            <p class="text-sm text-gray-600">View and grade student discussion submissions</p>
+                        </div>
+                        
+                        <div class="p-6">
+                            <!-- Student participants list -->
+                            <div class="mb-6">
+                                <h3 class="font-medium text-gray-800 mb-3">Student Participants</h3>
+                                
+                                {% if enrolled_students %}
+                                <div class="overflow-x-auto -mx-4 sm:mx-0">
+                                    <div class="inline-block min-w-full px-4 sm:px-0">
+                                        <table class="min-w-full bg-white border border-gray-200">
+                                            <thead>
+                                                <tr>
+                                                    <th class="px-2 sm:px-4 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Student</th>
+                                                    <th class="px-2 sm:px-4 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Participation</th>
+                                                    <th class="px-2 sm:px-4 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Grade</th>
+                                                    <th class="px-2 sm:px-4 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Grade Status</th>
+                                                    <th class="px-2 sm:px-4 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Actions</th>
+                                                </tr>
+                                            </thead>
+                                        <tbody>
+                                            {% for student in enrolled_students %}
+                                            <tr class="{% cycle 'bg-white' 'bg-gray-50' as rowcolors %}">
+                                                <td class="px-2 sm:px-4 py-3 border-b border-gray-200">
+                                                    <div class="flex items-center">
+                                                        <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm mr-2 sm:mr-3">
+                                                            {{ student.first_name|first|upper }}
+                                                        </div>
+                                                        <div class="min-w-0 flex-1">
+                                                            <div class="font-medium text-sm truncate">{{ student.get_full_name|default:student.username }}</div>
+                                                            <div class="text-xs text-gray-500 truncate">{{ student.email }}</div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td class="px-2 sm:px-4 py-3 border-b border-gray-200">
+                                                    {% with student_comments=comments|filter_by_user:student %}
+                                                    {% with comment_count=student_comments|length %}
+                                                    <div class="text-sm">
+                                                        <span class="font-medium">{{ comment_count }}</span> comment{{ comment_count|pluralize }}
+                                                    </div>
+                                                    {% if comment_count > 0 %}
+                                                    <div class="text-xs text-gray-500">Last: {{ student_comments.0.created_at|date:"M d, Y" }}</div>
+                                                    {% else %}
+                                                    <div class="text-xs text-gray-500">No activity</div>
+                                                    {% endif %}
+                                                    {% endwith %}
+                                                    {% endwith %}
+                                                </td>
+                                                <td class="px-2 sm:px-4 py-3 border-b border-gray-200">
+                                                    {% with student_score=student|get_rubric_evaluation_score:discussion %}
+                                                    {% if student_score %}
+                                                    <div class="text-sm">
+                                                        <span class="font-medium">{{ student_score.total_points }} / {{ student_score.max_points }}</span>
+                                                    </div>
+                                                    <div class="text-xs text-gray-500">{{ student_score.percentage }}%</div>
+                                                    {% else %}
+                                                    <div class="text-sm text-gray-400">Not graded</div>
+                                                    {% endif %}
+                                                    {% endwith %}
+                                                </td>
+                                                <td class="px-2 sm:px-4 py-3 border-b border-gray-200">
+                                                    {% with student_has_evaluation=student|has_rubric_evaluation:discussion %}
+                                                    {% if student_has_evaluation %}
+                                                    <span class="inline-flex items-center px-1.5 sm:px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                        <svg class="mr-1 sm:mr-1.5 h-2 w-2 text-green-400" fill="currentColor" viewBox="0 0 8 8">
+                                                            <circle cx="4" cy="4" r="3" />
+                                                        </svg>
+                                                        Graded
+                                                    </span>
+                                                    {% else %}
+                                                    <span class="inline-flex items-center px-1.5 sm:px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                                        <svg class="mr-1 sm:mr-1.5 h-2 w-2 text-yellow-400" fill="currentColor" viewBox="0 0 8 8">
+                                                            <circle cx="4" cy="4" r="3" />
+                                                        </svg>
+                                                        Not Graded
+                                                    </span>
+                                                    {% endif %}
+                                                    {% endwith %}
+                                                </td>
+                                                <td class="px-2 sm:px-4 py-3 border-b border-gray-200">
+                                                    <div class="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-2">
+                                                        {% with student_has_evaluation=student|has_rubric_evaluation:discussion %}
+                                                        <button onclick="showGradingForm({{ student.id }}, '{{ student.get_full_name|default:student.username|escapejs }}')" 
+                                                                class="text-blue-600 hover:text-blue-800 font-medium text-sm">
+                                                            {% if student_has_evaluation %}Review{% else %}Grade{% endif %}
+                                                        </button>
+                                                        {% endwith %}
+                                                        
+                                                        <!-- Details Report Button -->
+                                                        <button onclick="generateDiscussionDetailedReport({{ discussion.id }}, {{ student.id }})" 
+                                                                class="text-purple-600 hover:text-purple-800 font-medium text-sm">
+                                                            <i class="fas fa-file-alt mr-1"></i><span class="hidden sm:inline">Report</span>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <p class="text-gray-600">No enrolled students found for this discussion.</p>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Quick Actions -->
+                            <div class="flex flex-col sm:flex-row sm:justify-end space-y-3 sm:space-y-0 sm:space-x-4">
+                                <a href="{% url 'discussions:bulk_evaluate' discussion_id=discussion.id %}" 
+                                   class="inline-flex items-center justify-center px-4 py-2 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                                    <i class="fas fa-users mr-2"></i>
+                                    Bulk Evaluate
+                                </a>
+                                <a href="{% url 'discussions:discussion_scores' discussion_id=discussion.id %}" 
+                                   class="inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                                    <i class="fas fa-chart-bar mr-2"></i>
+                                    <span class="hidden sm:inline">View All Scores</span>
+                                    <span class="sm:hidden">View Scores</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Hidden Rubric Evaluation Section -->
+                    <div id="rubric-grading-section" class="mt-6 bg-white rounded-lg shadow-sm p-4 md:p-6" style="display: none;">
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                            <h3 class="text-lg font-semibold text-blue-900 mb-2">
+                                <i class="fas fa-clipboard-check mr-2"></i>
+                                <span id="grading-student-name">Grading Student</span>
+                            </h3>
+                            <div class="text-sm text-blue-700">
+                                <p><strong>Discussion:</strong> {{ discussion.title }}</p>
+                                <p><strong>Rubric:</strong> {{ rubric.title }}</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Student Interactions Summary -->
+                        <div id="student-interactions-summary" class="bg-gray-100 p-3 sm:p-4 rounded-lg mb-4" style="display: none;">
+                            <h4 class="text-sm font-medium text-gray-700 mb-3">Student Interactions:</h4>
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-3">
+                                <div class="bg-white p-2 sm:p-3 rounded shadow-sm">
+                                    <div class="text-xs text-gray-500">Comments</div>
+                                    <div class="text-lg sm:text-xl font-bold" id="comment-count">0</div>
+                                </div>
+                                <div class="bg-white p-2 sm:p-3 rounded shadow-sm">
+                                    <div class="text-xs text-gray-500">Replies</div>
+                                    <div class="text-lg sm:text-xl font-bold" id="reply-count">0</div>
+                                </div>
+                                <div class="bg-white p-2 sm:p-3 rounded shadow-sm">
+                                    <div class="text-xs text-gray-500">Likes Given</div>
+                                    <div class="text-lg sm:text-xl font-bold" id="likes-given">0</div>
+                                </div>
+                                <div class="bg-white p-2 sm:p-3 rounded shadow-sm">
+                                    <div class="text-xs text-gray-500">Total</div>
+                                    <div class="text-lg sm:text-xl font-bold" id="total-interactions">0</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <form method="post" action="{% url 'discussions:evaluate_rubric' discussion_id=discussion.id %}" id="rubric-evaluation-form" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            <input type="hidden" name="student_id" id="grading-student-id" value="">
+                            
+                            <div class="overflow-x-auto -mx-4 sm:mx-0">
+                                <div class="inline-block min-w-full px-4 sm:px-0">
+                                    <table class="min-w-full divide-y divide-gray-200">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th scope="col" class="px-2 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Criterion</th>
+                                                <th scope="col" class="px-2 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rating</th>
+                                                <th scope="col" class="px-2 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Points</th>
+                                                <th scope="col" class="px-2 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Comments</th>
+                                            </tr>
+                                        </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200">
+                                        {% for criterion in rubric.criteria.all %}
+                                        <tr>
+                                            <td class="px-2 sm:px-6 py-4 whitespace-normal">
+                                                <div class="text-sm font-medium text-gray-900">{{ criterion.description }}</div>
+                                                <div class="text-xs text-gray-500">Max points: {{ criterion.points }}</div>
+                                            </td>
+                                            <td class="px-2 sm:px-6 py-4 whitespace-normal">
+                                                {% if criterion.use_range %}
+                                                    <div class="text-sm text-gray-500">Range: 0 to {{ criterion.points }} pts</div>
+                                                    <input type="hidden" name="rating_{{ criterion.id }}" value="">
+                                                {% else %}
+                                                    <select name="rating_{{ criterion.id }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-xs sm:text-sm">
+                                                        <option value="">Select a rating</option>
+                                                        {% for rating in criterion.ratings.all %}
+                                                        <option value="{{ rating.id }}">
+                                                            {{ rating.title }} ({{ rating.points }} pts){% if not forloop.first %} - {{ rating.description|truncatechars:20 }}{% endif %}
+                                                        </option>
+                                                        {% endfor %}
+                                                    </select>
+                                                {% endif %}
+                                            </td>
+                                            <td class="px-2 sm:px-6 py-4 whitespace-normal">
+                                                <input type="number" 
+                                                       name="points_{{ criterion.id }}" 
+                                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-xs sm:text-sm" 
+                                                       min="0" 
+                                                       max="{{ criterion.points }}" 
+                                                       step="0.1" 
+                                                       value="0">
+                                            </td>
+                                            <td class="px-2 sm:px-6 py-4 whitespace-normal">
+                                                <textarea name="comments_{{ criterion.id }}" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-xs sm:text-sm"></textarea>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr class="bg-gray-50">
+                                            <td colspan="2" class="px-2 sm:px-6 py-4 text-right text-sm font-medium text-gray-900">Total Points:</td>
+                                            <td class="px-2 sm:px-6 py-4 text-sm text-gray-900" id="total-points-display">0 / {{ rubric.total_points }}</td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            <!-- Overall Feedback Section -->
+                            <div class="mt-8">
+                                <h4 class="text-lg font-bold mb-4 text-gray-800">
+                                    <i class="fas fa-comment-alt mr-2 text-blue-500"></i>
+                                    Overall Feedback
+                                </h4>
+                                
+                                <!-- Feedback Tabs -->
+                                <div class="border-b border-gray-200">
+                                    <nav class="-mb-px flex space-x-8">
+                                        <button type="button" class="feedback-tab-btn active py-2 px-1 border-b-2 border-blue-500 font-medium text-sm text-blue-600 whitespace-nowrap" data-target="text-feedback-tab">
+                                            <i class="fas fa-keyboard mr-2"></i>
+                                            Text Feedback
+                                        </button>
+                                        <button type="button" class="feedback-tab-btn py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap" data-target="audio-feedback-tab">
+                                            <i class="fas fa-microphone mr-2"></i>
+                                            Audio Feedback
+                                        </button>
+                                        <button type="button" class="feedback-tab-btn py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap" data-target="video-feedback-tab">
+                                            <i class="fas fa-video mr-2"></i>
+                                            Video Feedback
+                                        </button>
+                                    </nav>
+                                </div>
+                                
+                                <!-- Tab Content -->
+                                <div class="mt-4">
+                                    <!-- Text Feedback Tab -->
+                                    <div id="text-feedback-tab" class="feedback-tab-content">
+                                        <div class="relative">
+                                            <textarea name="overall_feedback" 
+                                                      id="discussion-feedback-editor-{{ discussion.id }}-{{ selected_student.id|default:'0' }}"
+                                                      rows="4"
+                                                      class="tinymce-editor w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                      placeholder="Provide overall feedback about the student's participation and rubric performance...">{% if existing_feedback %}{{ existing_feedback.feedback }}{% endif %}</textarea>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Audio Feedback Tab -->
+                                    <div id="audio-feedback-tab" class="feedback-tab-content hidden">
+                                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                                            <div class="text-center">
+                                                <i class="fas fa-microphone text-4xl text-gray-400 mb-4"></i>
+                                                <div class="mb-4">
+                                                    <label for="audio_feedback" class="block text-sm font-medium text-gray-700 mb-2">Upload Audio Feedback</label>
+                                                    <input type="file" name="audio_feedback" id="audio_feedback" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                                                    <p class="text-xs text-gray-500 mt-1">Supported formats: MP3, WAV, M4A, AAC, OGG (Max: 50MB)</p>
+                                                    {% if existing_feedback and existing_feedback.audio_feedback %}
+                                                    <div class="mt-4 p-4 bg-blue-50 rounded-lg">
+                                                        <p class="text-sm text-blue-800 mb-2">Current audio feedback:</p>
+                                                        <audio controls class="w-full">
+                                                            <source src="{{ existing_feedback.audio_feedback.url }}" type="audio/mpeg">
+                                                            Your browser does not support the audio element.
+                                                        </audio>
+                                                    </div>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Video Feedback Tab -->
+                                    <div id="video-feedback-tab" class="feedback-tab-content hidden">
+                                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                                            <div class="text-center">
+                                                <i class="fas fa-video text-4xl text-gray-400 mb-4"></i>
+                                                <div class="mb-4">
+                                                    <label for="video_feedback" class="block text-sm font-medium text-gray-700 mb-2">Upload Video Feedback</label>
+                                                    <input type="file" name="video_feedback" id="video_feedback" accept="video/*,.mp4,.mov,.avi,.wmv,.mkv" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                                                    <p class="text-xs text-gray-500 mt-1">Supported formats: MP4, MOV, AVI, WMV, MKV (Max: 100MB)</p>
+                                                    {% if existing_feedback and existing_feedback.video_feedback %}
+                                                    <div class="mt-4 p-4 bg-blue-50 rounded-lg">
+                                                        <p class="text-sm text-blue-800 mb-2">Current video feedback:</p>
+                                                        <video controls class="w-full max-w-md">
+                                                            <source src="{{ existing_feedback.video_feedback.url }}" type="video/mp4">
+                                                            Your browser does not support the video element.
+                                                        </video>
+                                                    </div>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-6 flex flex-col sm:flex-row sm:justify-between space-y-3 sm:space-y-0">
+                                <button type="button" onclick="hideGradingForm()" class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
+                                    <i class="fas fa-times mr-2"></i>
+                                    Cancel
+                                </button>
+                                <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
+                                    <button type="submit" name="view_scores" value="1" class="px-4 py-2 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                                        <i class="fas fa-save mr-2"></i>
+                                        <span class="hidden sm:inline">Save & View All Scores</span>
+                                        <span class="sm:hidden">Save & View Scores</span>
+                                    </button>
+                                    <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                                        <i class="fas fa-check mr-2"></i>
+                                        Save Evaluation
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Learner Feedback Display Section -->
+                    {% if learner_rubric_data and learner_rubric_data.has_evaluation %}
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h3 class="text-xl font-bold mb-4 text-gray-800">
+                            <i class="fas fa-star mr-2 text-yellow-500"></i>
+                            Your Evaluation Results
+                        </h3>
+                        
+                        <!-- Rubric Evaluation Results -->
+                        <div class="mb-6">
+                            <h4 class="text-lg font-semibold mb-4 text-gray-700">Rubric Evaluation</h4>
+                            
+                            <div class="overflow-x-auto -mx-4 sm:mx-0">
+                                <div class="inline-block min-w-full px-4 sm:px-0">
+                                    <table class="min-w-full divide-y divide-gray-200">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th scope="col" class="px-2 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Criterion</th>
+                                                <th scope="col" class="px-2 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rating</th>
+                                                <th scope="col" class="px-2 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Points</th>
+                                                <th scope="col" class="px-2 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Comments</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="bg-white divide-y divide-gray-200">
+                                            {% for criterion in learner_rubric_data.rubric.criteria.all %}
+                                            <tr>
+                                                <td class="px-2 sm:px-6 py-4 whitespace-normal">
+                                                    <div class="text-sm font-medium text-gray-900">{{ criterion.description }}</div>
+                                                    <div class="text-xs text-gray-500">Max points: {{ criterion.points }}</div>
+                                                </td>
+                                                <td class="px-2 sm:px-6 py-4 whitespace-normal">
+                                                    {% if criterion.id in learner_rubric_data.evaluations %}
+                                                    {% with evaluation=learner_rubric_data.evaluations|get_item:criterion.id %}
+                                                        {% if evaluation.rating %}
+                                                        <div class="text-sm">
+                                                            <span class="font-medium">{{ evaluation.rating.title }}</span>
+                                                            <div class="text-xs text-gray-500">{{ evaluation.rating.description|truncatechars:30 }}</div>
+                                                        </div>
+                                                        {% else %}
+                                                        <div class="text-sm text-gray-500">Custom points</div>
+                                                        {% endif %}
+                                                    {% endwith %}
+                                                    {% else %}
+                                                    <div class="text-sm text-gray-400">Not evaluated</div>
+                                                    {% endif %}
+                                                </td>
+                                                <td class="px-2 sm:px-6 py-4 whitespace-normal">
+                                                    {% if criterion.id in learner_rubric_data.evaluations %}
+                                                    {% with evaluation=learner_rubric_data.evaluations|get_item:criterion.id %}
+                                                    <div class="text-sm">
+                                                        <span class="font-medium">{{ evaluation.points }}</span> / {{ criterion.points }}
+                                                        <div class="text-xs text-gray-500">
+                                                            {{ evaluation.points|floatformat:0|floatformat:1 }}%
+                                                        </div>
+                                                    </div>
+                                                    {% endwith %}
+                                                    {% else %}
+                                                    <div class="text-sm text-gray-400">-</div>
+                                                    {% endif %}
+                                                </td>
+                                                <td class="px-2 sm:px-6 py-4 whitespace-normal">
+                                                    {% if criterion.id in learner_rubric_data.evaluations %}
+                                                    {% with evaluation=learner_rubric_data.evaluations|get_item:criterion.id %}
+                                                        {% if evaluation.comments %}
+                                                        <div class="text-sm text-gray-700">{{ evaluation.comments|truncatechars:50 }}</div>
+                                                        {% else %}
+                                                        <div class="text-sm text-gray-400">No comments</div>
+                                                        {% endif %}
+                                                    {% endwith %}
+                                                    {% else %}
+                                                    <div class="text-sm text-gray-400">-</div>
+                                                    {% endif %}
+                                                </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr class="bg-gray-50">
+                                            <td colspan="2" class="px-2 sm:px-6 py-4 text-right text-sm font-medium text-gray-900">Total Points:</td>
+                                            <td class="px-2 sm:px-6 py-4 text-sm font-bold text-gray-900">{{ learner_rubric_data.total_points }} / {{ learner_rubric_data.rubric.total_points }}</td>
+                                            <td class="px-2 sm:px-6 py-4 text-xs text-gray-500">
+                                                {% widthratio learner_rubric_data.total_points learner_rubric_data.rubric.total_points 100 %}%
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Overall Feedback Display -->
+                        {% if learner_rubric_data.overall_feedback %}
+                        <div class="mb-6">
+                            <h4 class="text-lg font-semibold mb-4 text-gray-700">
+                                <i class="fas fa-comment-alt mr-2 text-blue-500"></i>
+                                Instructor Feedback
+                            </h4>
+                            
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                {% if learner_rubric_data.overall_feedback.feedback %}
+                                <div class="mb-4">
+                                    <div class="flex items-center mb-2">
+                                        <i class="fas fa-keyboard text-blue-600 mr-2"></i>
+                                        <span class="font-medium text-blue-900">Written Feedback</span>
+                                    </div>
+                                    <div class="prose prose-sm max-w-none text-gray-700 bg-white p-3 rounded border">
+                                        {{ learner_rubric_data.overall_feedback.feedback|safe }}
+                                    </div>
+                                </div>
+                                {% endif %}
+                                
+                                {% if learner_rubric_data.overall_feedback.audio_feedback %}
+                                <div class="mb-4">
+                                    <div class="flex items-center mb-2">
+                                        <i class="fas fa-microphone text-blue-600 mr-2"></i>
+                                        <span class="font-medium text-blue-900">Audio Feedback</span>
+                                    </div>
+                                    <div class="bg-white p-3 rounded border">
+                                        <audio controls class="w-full">
+                                            <source src="{{ learner_rubric_data.overall_feedback.audio_feedback.url }}" type="audio/mpeg">
+                                            Your browser does not support the audio element.
+                                        </audio>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                
+                                {% if learner_rubric_data.overall_feedback.video_feedback %}
+                                <div class="mb-4">
+                                    <div class="flex items-center mb-2">
+                                        <i class="fas fa-video text-blue-600 mr-2"></i>
+                                        <span class="font-medium text-blue-900">Video Feedback</span>
+                                    </div>
+                                    <div class="bg-white p-3 rounded border">
+                                        <video controls class="w-full max-w-md">
+                                            <source src="{{ learner_rubric_data.overall_feedback.video_feedback.url }}" type="video/mp4">
+                                            Your browser does not support the video element.
+                                        </video>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                
+                                <div class="text-xs text-gray-500 mt-4">
+                                    <i class="fas fa-clock mr-1"></i>
+                                    Feedback provided on {{ learner_rubric_data.overall_feedback.created_at|date:"F j, Y \a\t g:i A" }}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Right Column (30%) -->
+            <div class="col-span-12 lg:col-span-4 transition-all duration-300">
+                {% include 'components/right_sidebar.html' %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Edit comment functionality
+        const editBtns = document.querySelectorAll('.edit-comment-btn');
+        const cancelBtns = document.querySelectorAll('.cancel-edit-btn');
+        
+        editBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const commentId = this.getAttribute('data-comment-id');
+                document.getElementById(`edit-comment-form-${commentId}`).classList.remove('hidden');
+            });
+        });
+        
+        cancelBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const commentId = this.getAttribute('data-comment-id');
+                document.getElementById(`edit-comment-form-${commentId}`).classList.add('hidden');
+            });
+        });
+
+        // Toggle reply forms
+        document.querySelectorAll('.reply-toggle').forEach(button => {
+            button.addEventListener('click', function() {
+                const commentId = this.dataset.commentId;
+                const replyForm = document.getElementById(`reply-form-${commentId}`);
+                replyForm.style.display = replyForm.style.display === 'none' ? 'block' : 'none';
+            });
+        });
+
+        // Handle likes
+        document.querySelectorAll('.like-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const id = this.dataset.id;
+                const type = this.dataset.type;
+                const url = type === 'discussion' 
+                    ? `/discussions/discussion/${id}/like/` 
+                    : `/discussions/comment/${id}/like/`;
+
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    },
+                    credentials: 'same-origin'
+                })
+                .then(response => {
+                    if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+                .then(data => {
+                    this.classList.toggle('liked', data.liked);
+                    this.querySelector('.likes-count').textContent = data.likes_count;
+                })
+                .catch(error => console.error('Error:', error));
+            });
+        });
+        
+        // Grading form show/hide functions
+        window.showGradingForm = function(studentId, studentName) {
+            document.getElementById('grading-student-id').value = studentId;
+            document.getElementById('grading-student-name').textContent = 'Grading: ' + studentName;
+            document.getElementById('rubric-grading-section').style.display = 'block';
+            
+            // Setup simple form handlers
+            setTimeout(setupFormHandlers, 100);
+            
+            // Ensure TinyMCE is initialized for the feedback textarea
+            setTimeout(() => {
+                if (typeof tinymce !== 'undefined') {
+                    initializeTinyMCE();
+                }
+            }, 200);
+            
+            // Scroll to the grading form
+            document.getElementById('rubric-grading-section').scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start' 
+            });
+            
+            // Load existing evaluation data for this student if available
+            loadStudentEvaluationData(studentId);
+        };
+        
+        window.hideGradingForm = function() {
+            document.getElementById('rubric-grading-section').style.display = 'none';
+            document.getElementById('rubric-evaluation-form').reset();
+            document.getElementById('student-interactions-summary').style.display = 'none';
+            calculateTotalPoints();
+        };
+        
+        // Load existing evaluation data for a student
+        function loadStudentEvaluationData(studentId) {
+            // Make AJAX call to get existing evaluation data
+            const discussionId = {{ discussion.id }};
+            const url = `/discussions/${discussionId}/student/${studentId}/evaluation-data/`;
+            
+            fetch(url, {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+            .then(data => {
+                if (data.success) {
+                    // Update interaction data
+                    document.getElementById('comment-count').textContent = data.interaction_data.comment_count;
+                    document.getElementById('reply-count').textContent = data.interaction_data.reply_count;
+                    document.getElementById('likes-given').textContent = data.interaction_data.likes_given;
+                    document.getElementById('total-interactions').textContent = data.interaction_data.total_interactions;
+                    document.getElementById('student-interactions-summary').style.display = 'block';
+                    
+                    // Update form fields with existing evaluation data
+                    Object.keys(data.evaluation_data).forEach(criterionId => {
+                        const evaluation = data.evaluation_data[criterionId];
+                        
+                        // Update points
+                        const pointsInput = document.querySelector(`input[name="points_${criterionId}"]`);
+                        if (pointsInput) {
+                            pointsInput.value = evaluation.points;
+                        }
+                        
+                        // Update rating
+                        const ratingSelect = document.querySelector(`select[name="rating_${criterionId}"]`);
+                        if (ratingSelect && evaluation.rating_id) {
+                            ratingSelect.value = evaluation.rating_id;
+                        }
+                        
+                        // Update comments
+                        const commentsTextarea = document.querySelector(`textarea[name="comments_${criterionId}"]`);
+                        if (commentsTextarea) {
+                            commentsTextarea.value = evaluation.comments;
+                        }
+                    });
+                    
+                    // Update total points display
+                    calculateTotalPoints();
+                    
+                    // Update overall feedback in TinyMCE editor
+                    if (data.overall_feedback) {
+                        const feedbackTextarea = document.querySelector('textarea[name="overall_feedback"]');
+                        if (feedbackTextarea) {
+                            if (typeof tinymce !== 'undefined' && tinymce.get(feedbackTextarea.id)) {
+                                // Update TinyMCE editor content
+                                const editor = tinymce.get(feedbackTextarea.id);
+                                editor.setContent(data.overall_feedback.feedback || '');
+                            } else {
+                                // Fallback: update textarea directly
+                                feedbackTextarea.value = data.overall_feedback.feedback || '';
+                            }
+                        }
+                    }
+                } else {
+                    console.error('Failed to load evaluation data:', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading evaluation data:', error);
+                // Still show the interactions summary even if AJAX fails
+                document.getElementById('student-interactions-summary').style.display = 'block';
+            });
+        }
+        
+                // Simple total points calculation
+        window.calculateTotalPoints = function() {
+            let total = 0;
+            const inputs = document.querySelectorAll('input[name*="points_"]');
+            inputs.forEach(input => {
+                total += parseFloat(input.value) || 0;
+            });
+            const display = document.getElementById('total-points-display');
+            if (display) {
+                display.textContent = total.toFixed(1) + ' / {{ rubric.total_points|default:0 }}';
+            }
+        };
+
+        // Auto-fill points when rating is selected
+        window.setupFormHandlers = function() {
+            // Rating change handlers
+            document.querySelectorAll('select[name*="rating_"]').forEach(select => {
+                select.addEventListener('change', function() {
+                    const option = this.options[this.selectedIndex];
+                    if (option.value) {
+                        const pointsText = option.textContent.match(/\((\d+(?:\.\d+)?)\s*pts?\)/);
+                        if (pointsText) {
+                            const ratingPoints = parseFloat(pointsText[1]);
+                            const criterionId = this.name.replace('rating_', '');
+                            const pointsInput = document.querySelector(`input[name="points_${criterionId}"]`);
+                            if (pointsInput) {
+                                const currentPoints = parseFloat(pointsInput.value) || 0;
+                                
+                                // Only auto-fill if points field is empty or contains 0
+                                if (currentPoints === 0 || pointsInput.value.trim() === '') {
+                                    pointsInput.style.transition = 'all 0.3s ease';
+                                    pointsInput.style.backgroundColor = '#e8eafd';
+                                    pointsInput.value = ratingPoints;
+                                    
+                                    setTimeout(() => {
+                                        pointsInput.style.backgroundColor = '';
+                                    }, 1000);
+                                } else {
+                                    // If instructor has entered custom points, show a subtle indicator
+                                    pointsInput.style.transition = 'all 0.3s ease';
+                                    pointsInput.style.borderColor = '#3b82f6';
+                                    pointsInput.title = `Rating suggests ${ratingPoints} points, but your custom value (${currentPoints}) is preserved.`;
+                                    
+                                    setTimeout(() => {
+                                        pointsInput.style.borderColor = '';
+                                    }, 2000);
+                                }
+                                calculateTotalPoints();
+                            }
+                        }
+                    }
+                });
+            });
+            
+            // Points input handlers
+            document.querySelectorAll('input[name*="points_"]').forEach(input => {
+                input.addEventListener('input', calculateTotalPoints);
+            });
+            
+            calculateTotalPoints();
+        };
+
+        // Feedback tabs functionality
+        window.setupFeedbackTabs = function() {
+            const tabButtons = document.querySelectorAll('.feedback-tab-btn');
+            const tabContents = document.querySelectorAll('.feedback-tab-content');
+            
+            tabButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const targetId = this.getAttribute('data-target');
+                    
+                    // Remove active class from all buttons
+                    tabButtons.forEach(btn => {
+                        btn.classList.remove('active', 'border-blue-500', 'text-blue-600');
+                        btn.classList.add('border-transparent', 'text-gray-500');
+                    });
+                    
+                    // Hide all tab contents
+                    tabContents.forEach(content => {
+                        content.classList.add('hidden');
+                    });
+                    
+                    // Add active class to clicked button
+                    this.classList.add('active', 'border-blue-500', 'text-blue-600');
+                    this.classList.remove('border-transparent', 'text-gray-500');
+                    
+                    // Show target tab content
+                    const targetContent = document.getElementById(targetId);
+                    if (targetContent) {
+                        targetContent.classList.remove('hidden');
+                        
+                        // If switching to text tab, ensure TinyMCE is visible
+                        if (targetId === 'text-feedback-tab') {
+                            const textareas = targetContent.querySelectorAll('textarea.tinymce-editor');
+                            textareas.forEach(textarea => {
+                                if (typeof tinymce !== 'undefined') {
+                                    const editor = tinymce.get(textarea.id);
+                                    if (editor) {
+                                        setTimeout(() => {
+                                            editor.focus();
+                                        }, 100);
+                                    } else {
+                                        // Reinitialize if editor doesn't exist
+                                        initializeTinyMCE();
+                                    }
+                                }
+                            });
+                        }
+                    }
+                });
+            });
+        };
+        
+        // Initialize feedback tabs
+        setupFeedbackTabs();
+    });
+
+    // Simple TinyMCE initialization for feedback textarea
+    function initializeTinyMCE() {
+        // Initialize TinyMCE with standard configuration
+        const textareas = document.querySelectorAll('textarea.tinymce-editor:not([data-tinymce-initialized])');
+        
+        textareas.forEach(textarea => {
+            if (!textarea.id) {
+                textarea.id = 'tinymce-' + Math.random().toString(36).substring(2, 9);
+            }
+            
+            // Use standard TinyMCE configuration similar to assignments
+            // Use centralized TinyMCE configuration
+        tinymce.init({
+                selector: '#' + textarea.id,
+                height: 200,
+                menubar: 'edit view insert format tools',
+                plugins: [
+                    'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                    'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                    'insertdatetime', 'media', 'table', 'wordcount', 'aiwriter'
+                ],
+                toolbar: 'undo redo | blocks | ' +
+                        'bold italic forecolor | alignleft aligncenter ' +
+                        'alignright alignjustify | bullist numlist outdent indent | ' +
+                        'removeformat | image media | aiwriter',
+                content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                image_advtab: true,
+                image_uploadtab: true,
+                images_upload_url: '/courses/upload-editor-image/',
+                automatic_uploads: true,
+                file_picker_types: 'image media',
+                media_upload_url: '/tinymce/upload_media_file/',
+                media_live_embeds: true,
+                external_plugins: {
+                    'aiwriter': '/static/tinymce_editor/js/plugins/aiwriter/plugin.min.js'
+                },
+                branding: false,
+                promotion: false,
+                statusbar: true,
+                resize: true,
+                browser_spellcheck: true,
+                contextmenu: false
+            });
+            
+            textarea.setAttribute('data-tinymce-initialized', 'true');
+        });
+    }
+    
+
+    
+    // Ensure form submission saves TinyMCE content
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('rubric-evaluation-form');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                // Save TinyMCE content before submission
+                if (typeof tinymce !== 'undefined') {
+                    tinymce.triggerSave();
+                }
+            });
+        }
+        
+        // Initialize TinyMCE
+        if (typeof tinymce !== 'undefined') {
+            initializeTinyMCE();
+        } else {
+            // Wait for TinyMCE to load
+            setTimeout(function() {
+                if (typeof tinymce !== 'undefined') {
+                    initializeTinyMCE();
+                }
+            }, 100);
+        }
+    });
+
+    // Generate discussion detailed report function
+    function generateDiscussionDetailedReport(discussionId, studentId) {
+        // Redirect to the student-specific print report page
+        window.location.href = `/discussions/${discussionId}/detailed-report/print/?student_id=${studentId}`;
+    }
+
+    // ============================================================================
+    // USER MENTION AUTOCOMPLETE FUNCTIONALITY
+    // ============================================================================
+    
+    class UserMentionAutocomplete {
+        constructor(textarea, dropdownElement) {
+            this.textarea = textarea;
+            this.dropdown = dropdownElement;
+            this.selectedIndex = -1;
+            this.users = [];
+            this.currentQuery = '';
+            this.mentionStartIndex = -1;
+            this.isOpen = false;
+            
+            this.initEventListeners();
+        }
+        
+        initEventListeners() {
+            // Handle input events
+            this.textarea.addEventListener('input', (e) => this.handleInput(e));
+            this.textarea.addEventListener('keydown', (e) => this.handleKeydown(e));
+            this.textarea.addEventListener('blur', (e) => this.handleBlur(e));
+            
+            // Handle dropdown clicks
+            this.dropdown.addEventListener('click', (e) => this.handleDropdownClick(e));
+        }
+        
+        handleInput(e) {
+            const cursorPosition = this.textarea.selectionStart;
+            const text = this.textarea.value;
+            
+            // Find the last @ before cursor position
+            const lastAtIndex = text.lastIndexOf('@', cursorPosition - 1);
+            
+            if (lastAtIndex === -1) {
+                this.hideDropdown();
+                return;
+            }
+            
+            // Check if the @ is at the start or after whitespace
+            const charBeforeAt = lastAtIndex > 0 ? text[lastAtIndex - 1] : ' ';
+            if (charBeforeAt !== ' ' && charBeforeAt !== '\n' && lastAtIndex !== 0) {
+                this.hideDropdown();
+                return;
+            }
+            
+            // Get query after @
+            const queryAfterAt = text.substring(lastAtIndex + 1, cursorPosition);
+            
+            // Check if query contains spaces (invalid mention)
+            if (queryAfterAt.includes(' ') || queryAfterAt.includes('\n')) {
+                this.hideDropdown();
+                return;
+            }
+            
+            if (queryAfterAt.length >= 1) {
+                this.currentQuery = queryAfterAt;
+                this.mentionStartIndex = lastAtIndex;
+                this.searchUsers(queryAfterAt);
+            } else if (queryAfterAt.length === 0) {
+                // Just typed @, show dropdown but don't search yet
+                this.currentQuery = '';
+                this.mentionStartIndex = lastAtIndex;
+                this.showEmptyDropdown();
+            } else {
+                this.hideDropdown();
+            }
+        }
+        
+        handleKeydown(e) {
+            if (!this.isOpen) return;
+            
+            switch (e.key) {
+                case 'ArrowDown':
+                    e.preventDefault();
+                    this.selectedIndex = Math.min(this.selectedIndex + 1, this.users.length - 1);
+                    this.updateSelection();
+                    break;
+                    
+                case 'ArrowUp':
+                    e.preventDefault();
+                    this.selectedIndex = Math.max(this.selectedIndex - 1, -1);
+                    this.updateSelection();
+                    break;
+                    
+                case 'Enter':
+                case 'Tab':
+                    if (this.selectedIndex >= 0) {
+                        e.preventDefault();
+                        this.selectUser(this.users[this.selectedIndex]);
+                    }
+                    break;
+                    
+                case 'Escape':
+                    e.preventDefault();
+                    this.hideDropdown();
+                    break;
+            }
+        }
+        
+        handleBlur(e) {
+            // Delay hiding to allow for dropdown clicks
+            setTimeout(() => {
+                if (!this.dropdown.matches(':hover')) {
+                    this.hideDropdown();
+                }
+            }, 150);
+        }
+        
+        handleDropdownClick(e) {
+            const item = e.target.closest('.autocomplete-item');
+            if (item) {
+                e.preventDefault();
+                const userId = item.dataset.userId;
+                const user = this.users.find(u => u.id == userId);
+                if (user) {
+                    this.selectUser(user);
+                }
+            }
+        }
+        
+        async searchUsers(query) {
+            if (query.length < 1) {
+                this.showEmptyDropdown();
+                return;
+            }
+            
+            try {
+                const response = await fetch(`{% url 'discussions:user_autocomplete_api' %}?q=${encodeURIComponent(query)}&discussion_id={{ discussion.id }}`);
+                const data = await response.json();
+                
+                if (data.users) {
+                    this.users = data.users;
+                    this.renderDropdown();
+                } else {
+                    this.showNoResultsDropdown();
+                }
+            } catch (error) {
+                console.error('Error searching users:', error);
+                this.hideDropdown();
+            }
+        }
+        
+        showEmptyDropdown() {
+            this.dropdown.innerHTML = '<div class="autocomplete-item text-gray-500">Type to search users...</div>';
+            this.showDropdown();
+        }
+        
+        showNoResultsDropdown() {
+            this.dropdown.innerHTML = '<div class="autocomplete-item text-gray-500">No users found</div>';
+            this.showDropdown();
+        }
+        
+        renderDropdown() {
+            if (this.users.length === 0) {
+                this.showNoResultsDropdown();
+                return;
+            }
+            
+            this.dropdown.innerHTML = '';
+            
+            this.users.forEach((user, index) => {
+                const item = document.createElement('div');
+                item.className = 'autocomplete-item';
+                item.dataset.userId = user.id;
+                
+                item.innerHTML = `
+                    <div class="autocomplete-avatar" style="background-color: #3b82f6">
+                        ${user.avatar_initial}
+                    </div>
+                    <div>
+                        <span class="autocomplete-name">${user.display_name}</span>
+                        <span class="autocomplete-username">@${user.username}</span>
+                    </div>
+                `;
+                
+                this.dropdown.appendChild(item);
+            });
+            
+            this.selectedIndex = -1;
+            this.showDropdown();
+        }
+        
+        updateSelection() {
+            const items = this.dropdown.querySelectorAll('.autocomplete-item');
+            items.forEach((item, index) => {
+                item.classList.toggle('selected', index === this.selectedIndex);
+            });
+        }
+        
+        selectUser(user) {
+            const text = this.textarea.value;
+            const beforeMention = text.substring(0, this.mentionStartIndex);
+            const afterMention = text.substring(this.textarea.selectionStart);
+            
+            const newText = beforeMention + `@${user.username} ` + afterMention;
+            const newCursorPosition = beforeMention.length + user.username.length + 2;
+            
+            this.textarea.value = newText;
+            this.textarea.setSelectionRange(newCursorPosition, newCursorPosition);
+            this.textarea.focus();
+            
+            this.hideDropdown();
+        }
+        
+        showDropdown() {
+            this.dropdown.classList.remove('hidden');
+            this.isOpen = true;
+        }
+        
+        hideDropdown() {
+            this.dropdown.classList.add('hidden');
+            this.isOpen = false;
+            this.selectedIndex = -1;
+        }
+    }
+    
+    // Initialize autocomplete for main comment textarea
+    document.addEventListener('DOMContentLoaded', function() {
+        const mainTextarea = document.getElementById('main-comment-textarea');
+        const mainDropdown = document.getElementById('main-comment-autocomplete');
+        
+        if (mainTextarea && mainDropdown) {
+            new UserMentionAutocomplete(mainTextarea, mainDropdown);
+        }
+        
+        // Initialize autocomplete for all reply textareas
+        function initializeReplyAutocomplete() {
+            document.querySelectorAll('.reply-textarea').forEach(textarea => {
+                const commentId = textarea.id.replace('reply-textarea-', '');
+                const dropdown = document.getElementById(`reply-autocomplete-${commentId}`);
+                
+                if (dropdown && !textarea.hasAttribute('data-autocomplete-initialized')) {
+                    new UserMentionAutocomplete(textarea, dropdown);
+                    textarea.setAttribute('data-autocomplete-initialized', 'true');
+                }
+            });
+        }
+        
+        // Initialize existing reply textareas
+        initializeReplyAutocomplete();
+        
+        // Re-initialize when reply forms are toggled
+        const originalToggleReplyHandler = document.querySelectorAll('.reply-toggle').forEach;
+        document.querySelectorAll('.reply-toggle').forEach(button => {
+            button.addEventListener('click', function() {
+                setTimeout(initializeReplyAutocomplete, 100);
+            });
+        });
+    });
+</script>
+
+<!-- Include TinyMCE Scripts -->
+<script src="{% static 'tinymce_editor/tinymce/tinymce.min.js' %}"></script>
+<script src="{% static 'tinymce_editor/js/tinymce-widget.js' %}"></script>
+
+{% endblock %} 

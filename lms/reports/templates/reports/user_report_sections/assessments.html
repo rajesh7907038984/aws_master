@@ -1,0 +1,110 @@
+{% extends 'reports/user_report_sections/base.html' %}
+{% load static %}
+
+{% block section_content %}
+<!-- Initial Assessments Summary -->
+<div class="bg-gray-100 p-6 rounded-lg mb-6">
+    <div class="grid grid-cols-3 gap-4 text-center">
+        <div>
+            <div class="text-2xl font-bold">{{ total_initial_assessments|default:"0" }}</div>
+            <div class="text-sm text-gray-600">Total assessments</div>
+        </div>
+        <div>
+            <div class="text-2xl font-bold">{{ initial_assessment_data|length|default:"0" }}</div>
+            <div class="text-sm text-gray-600">Completed</div>
+        </div>
+        <div>
+            <div class="text-2xl font-bold">
+                {% if initial_assessment_data %}
+                    {% with latest_assessment=initial_assessment_data|last %}
+                        {{ latest_assessment.latest_score|floatformat:0|default:"0" }}
+                    {% endwith %}
+                {% else %}
+                    0
+                {% endif %}%
+            </div>
+            <div class="text-sm text-gray-600">Latest score</div>
+        </div>
+    </div>
+</div>
+
+<!-- Initial Assessments Table -->
+<div class="bg-white rounded-lg shadow-sm overflow-hidden">
+    <table class="min-w-full">
+        <thead>
+            <tr class="bg-gray-50 border-b">
+                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Assessment Title</th>
+                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Score</th>
+                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Classification</th>
+                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Completion Date</th>
+                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Attempts</th>
+                <th class="py-3 px-4 text-center text-sm font-medium text-gray-700">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for assessment in initial_assessment_data %}
+            <tr class="border-b hover:bg-gray-50">
+                <td class="py-3 px-4">
+                    <div class="font-medium text-gray-900">{{ assessment.quiz.title }}</div>
+                    {% if assessment.quiz.description %}
+                        <div class="text-sm text-gray-600">{{ assessment.quiz.description|striptags|truncatechars:100 }}</div>
+                    {% endif %}
+                </td>
+                <td class="py-3 px-4">
+                    <div class="flex items-center">
+                        <span class="font-semibold {% if assessment.latest_score >= assessment.quiz.passing_score %}text-green-600{% else %}text-orange-600{% endif %}">
+                            {{ assessment.latest_score|floatformat:1 }}%
+                        </span>
+                        {% if assessment.latest_score >= assessment.quiz.passing_score %}
+                            <i class="fas fa-check-circle text-green-500 ml-2"></i>
+                        {% else %}
+                            <i class="fas fa-exclamation-triangle text-orange-500 ml-2"></i>
+                        {% endif %}
+                    </div>
+                </td>
+                <td class="py-3 px-4">
+                    {% if assessment.classification %}
+                        <div class="text-sm">
+                            <div class="font-medium">{{ assessment.classification.classification|title }}</div>
+                            <div class="text-gray-600 text-xs mt-1">
+                                L2: {{ assessment.classification.L2_Percentage|floatformat:0 }}% | 
+                                L1: {{ assessment.classification.L1_Percentage|floatformat:0 }}% | 
+                                Below L1: {{ assessment.classification.Below_Level1_Percentage|floatformat:0 }}%
+                            </div>
+                        </div>
+                    {% else %}
+                        <span class="text-gray-500">-</span>
+                    {% endif %}
+                </td>
+                <td class="py-3 px-4">{{ assessment.completion_date|date:"d/m/Y H:i" }}</td>
+                <td class="py-3 px-4">
+                    <span class="text-sm text-gray-600">{{ assessment.attempt_count }}</span>
+                </td>
+                <td class="py-3 px-4 text-center">
+                    <div class="flex justify-center space-x-2">
+                        <a href="{% url 'quiz:view_attempt' assessment.latest_attempt.id %}" 
+                           class="text-blue-600 hover:text-blue-800 text-xs">
+                            <i class="fas fa-eye mr-1"></i>View
+                        </a>
+                        <a href="{% url 'quiz:quiz_view' assessment.quiz.id %}" 
+                           class="text-green-600 hover:text-green-800 text-xs">
+                            <i class="fas fa-redo mr-1"></i>Retake
+                        </a>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr class="border-b">
+                <td colspan="6" class="py-8 px-4 text-center text-gray-500">
+                    <div class="flex flex-col items-center">
+                        <i class="fas fa-clipboard-list text-gray-300 text-3xl mb-2"></i>
+                        <p class="text-lg font-medium">No initial assessments completed</p>
+                        <p class="text-sm">Contact your instructor for assessment assignments.</p>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -1,0 +1,644 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ course.title }} - Course Report{% endblock %}
+
+{% block extra_css %}
+<style>
+    .tab-btn {
+        border-bottom: 2px solid transparent;
+        padding: 12px 16px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .tab-btn.active {
+        border-bottom-color: #3b82f6;
+        color: #3b82f6;
+    }
+    .tab-content {
+        display: none;
+    }
+    .tab-content.active {
+        display: block;
+    }
+    /* Using unified chart styles */
+        height: 200px;
+    }
+    .unit-matrix-table {
+        min-width: 800px;
+    }
+    .unit-matrix-table .sticky-column {
+        position: sticky;
+        left: 0;
+        background: white;
+        z-index: 10;
+    }
+    .unit-matrix-table .sticky-header {
+        position: sticky;
+        left: 0;
+        background: #f9fafb;
+        z-index: 10;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white text-black min-h-screen">
+    <div class="container mx-auto px-4 py-6">
+        <!-- Breadcrumbs -->
+        <div class="mb-6">
+            <nav class="flex" aria-label="Breadcrumb">
+                <ol class="inline-flex items-center space-x-1 md:space-x-3">
+                    <li class="inline-flex items-center">
+                        <a href="{% url 'users:role_based_redirect' %}" class="text-gray-700 hover:text-gray-900">
+                            <i class="fas fa-home mr-2"></i>Dashboard
+                        </a>
+                    </li>
+                    <li>
+                        <div class="flex items-center">
+                            <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                            <a href="{% url 'reports:overview' %}" class="text-gray-700 hover:text-gray-900">Reports</a>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="flex items-center">
+                            <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                            <a href="{% url 'reports:courses_report' %}" class="text-gray-700 hover:text-gray-900">Courses</a>
+                        </div>
+                    </li>
+                    <li aria-current="page">
+                        <div class="flex items-center">
+                            <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                            <span class="text-gray-500">{{ course.title }}</span>
+                        </div>
+                    </li>
+                </ol>
+            </nav>
+        </div>
+
+        <!-- Course Header -->
+        <div class="mb-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
+                        <i class="fas fa-lightbulb text-blue-600 text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-semibold text-gray-900">{{ course.code|default:"SK201" }}</h1>
+                        <p class="text-gray-600">{{ course.title }}</p>
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <button onclick="exportCourseTimeline()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">
+                        <i class="fas fa-download mr-2"></i>Export in Excel
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="border-b border-gray-200 mb-6">
+            <nav class="flex -mb-px">
+                <button id="tab-overview" class="tab-btn active" onclick="openTab(event, 'overview-content')">Overview</button>
+                <button id="tab-users" class="tab-btn" onclick="openTab(event, 'users-content')">Users</button>
+                <button id="tab-learning-activities" class="tab-btn" onclick="openTab(event, 'learning-activities-content')">Learning activities</button>
+                <button id="tab-unit-matrix" class="tab-btn" onclick="openTab(event, 'unit-matrix-content')">Unit matrix</button>
+                <button id="tab-timeline" class="tab-btn" onclick="openTab(event, 'timeline-content')">Timeline</button>
+            </nav>
+        </div>
+
+        <!-- Tab Content -->
+        
+        <!-- Overview Tab -->
+        <div id="overview-content" class="tab-content active">
+            <div class="grid grid-cols-12 gap-6">
+                <!-- Left Column -->
+                <div class="col-span-8">
+                    <!-- Overview Statistics -->
+                    <div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
+                        <h3 class="text-lg font-semibold mb-6">Overview</h3>
+                        
+                        <!-- Key Metrics Grid -->
+                        <div class="grid grid-cols-3 gap-6 mb-8">
+                            <!-- Completion Rate -->
+                            <div class="flex items-center">
+                                <div class="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg mr-3">
+                                    <i class="fas fa-percentage text-blue-600"></i>
+                                </div>
+                                <div>
+                                    <div class="text-2xl font-bold text-gray-900">{{ completion_rate }}%</div>
+                                    <div class="text-sm text-gray-600">Completion rate</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Completed -->
+                            <div class="flex items-center">
+                                <div class="flex items-center justify-center w-10 h-10 bg-green-100 rounded-lg mr-3">
+                                    <i class="fas fa-check-circle text-green-600"></i>
+                                </div>
+                                <div>
+                                    <div class="text-2xl font-bold text-gray-900">{{ course_stats.completed_learners|default:0 }}</div>
+                                    <div class="text-sm text-gray-600">Completed</div>
+                                </div>
+                            </div>
+                            
+                            <!-- In Progress -->
+                            <div class="flex items-center">
+                                <div class="flex items-center justify-center w-10 h-10 bg-yellow-100 rounded-lg mr-3">
+                                    <i class="fas fa-clock text-yellow-600"></i>
+                                </div>
+                                <div>
+                                    <div class="text-2xl font-bold text-gray-900">{{ course_stats.learners_in_progress|default:0 }}</div>
+                                    <div class="text-sm text-gray-600">In progress</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Not Passed -->
+                            <div class="flex items-center">
+                                <div class="flex items-center justify-center w-10 h-10 bg-red-100 rounded-lg mr-3">
+                                    <i class="fas fa-times-circle text-red-600"></i>
+                                </div>
+                                <div>
+                                    <div class="text-2xl font-bold text-gray-900">{{ not_passed_count|default:0 }}</div>
+                                    <div class="text-sm text-gray-600">Not passed</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Not Attempted -->
+                            <div class="flex items-center">
+                                <div class="flex items-center justify-center w-10 h-10 bg-gray-100 rounded-lg mr-3">
+                                    <i class="fas fa-user-clock text-gray-600"></i>
+                                </div>
+                                <div>
+                                    <div class="text-2xl font-bold text-gray-900">{{ course_stats.learners_not_started|default:0 }}</div>
+                                    <div class="text-sm text-gray-600">Not attempted</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Right Column -->
+                <div class="col-span-4">
+                    <div class="mb-6">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Users Tab -->
+        <div id="users-content" class="tab-content">
+            <div class="bg-white rounded-lg shadow-sm border">
+                <!-- Users Table -->
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="bg-gray-50 border-b">
+                                <th class="px-6 py-3 text-left text-sm font-medium text-gray-500">
+                                    User <i class="fas fa-sort ml-1"></i>
+                                </th>
+                                <th class="px-6 py-3 text-left text-sm font-medium text-gray-500">Role</th>
+                                <th class="px-6 py-3 text-left text-sm font-medium text-gray-500">Progress status</th>
+                                <th class="px-6 py-3 text-left text-sm font-medium text-gray-500">Score</th>
+                                <th class="px-6 py-3 text-left text-sm font-medium text-gray-500">Completion date</th>
+                                <th class="px-6 py-3 text-left text-sm font-medium text-gray-500">Time</th>
+                                <th class="px-6 py-3 text-center text-sm font-medium text-gray-500"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for learner in learners %}
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="px-6 py-4">{{ learner.get_full_name|default:learner.username }}</td>
+                                <td class="px-6 py-4">{{ learner.role|title }}</td>
+                                <td class="px-6 py-4">
+                                    <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full
+                                        {% if learner.status == 'Completed' %}bg-green-100 text-green-800
+                                        {% elif learner.status == 'In Progress' %}bg-yellow-100 text-yellow-800
+                                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                        {{ learner.status|default:"-" }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4">{{ learner.score|default:"-" }}</td>
+                                <td class="px-6 py-4">{{ learner.completion_date|date:"d/m/Y"|default:"-" }}</td>
+                                <td class="px-6 py-4">{{ learner.time_spent_formatted|default:"-" }}</td>
+                                <td class="px-6 py-4 text-center">
+                                    <button class="text-gray-500 hover:text-gray-700">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+                                    No users enrolled in this course
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Learning Activities Tab -->
+        <div id="learning-activities-content" class="tab-content">
+            <div class="bg-white rounded-lg shadow-sm border">
+                <!-- Learning Activities Table -->
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="bg-gray-50 border-b">
+                                <th class="px-6 py-3 text-left text-sm font-medium text-gray-500">
+                                    Learning activity <i class="fas fa-sort ml-1"></i>
+                                </th>
+                                <th class="px-6 py-3 text-left text-sm font-medium text-gray-500">Type</th>
+                                <th class="px-6 py-3 text-left text-sm font-medium text-gray-500">Completed</th>
+                                <th class="px-6 py-3 text-left text-sm font-medium text-gray-500">In progress</th>
+                                <th class="px-6 py-3 text-left text-sm font-medium text-gray-500">Not passed</th>
+                                <th class="px-6 py-3 text-left text-sm font-medium text-gray-500">Not attempted</th>
+                                <th class="px-6 py-3 text-left text-sm font-medium text-gray-500">Average score</th>
+                                <th class="px-6 py-3 text-center text-sm font-medium text-gray-500"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for topic in topics %}
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="px-6 py-4 flex items-center">
+                                    <i class="fas fa-file-alt text-gray-400 mr-2"></i>
+                                    {{ topic.title }}
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                                        Test
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4">{{ topic.completed_count|default:0 }}</td>
+                                <td class="px-6 py-4">{{ topic.in_progress_count|default:0 }}</td>
+                                <td class="px-6 py-4">0</td>
+                                <td class="px-6 py-4">{{ topic.not_started_count|default:0 }}</td>
+                                <td class="px-6 py-4">{{ topic.average_score|floatformat:1|default:"-" }}</td>
+                                <td class="px-6 py-4 text-center">
+                                    <button class="text-gray-500 hover:text-gray-700">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <!-- Sample data matching your screenshots -->
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="px-6 py-4 flex items-center">
+                                    <i class="fas fa-file-alt text-gray-400 mr-2"></i>
+                                    Assessment
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">Test</span>
+                                </td>
+                                <td class="px-6 py-4">0</td>
+                                <td class="px-6 py-4">0</td>
+                                <td class="px-6 py-4">0</td>
+                                <td class="px-6 py-4">0</td>
+                                <td class="px-6 py-4">-</td>
+                                <td class="px-6 py-4 text-center">
+                                    <button class="text-gray-500 hover:text-gray-700">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="px-6 py-4 flex items-center">
+                                    <i class="fas fa-file-alt text-gray-400 mr-2"></i>
+                                    Interim Assessment 1
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">Test</span>
+                                </td>
+                                <td class="px-6 py-4">0</td>
+                                <td class="px-6 py-4">0</td>
+                                <td class="px-6 py-4">0</td>
+                                <td class="px-6 py-4">0</td>
+                                <td class="px-6 py-4">-</td>
+                                <td class="px-6 py-4 text-center">
+                                    <button class="text-gray-500 hover:text-gray-700">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="px-6 py-4 flex items-center">
+                                    <i class="fas fa-file-alt text-gray-400 mr-2"></i>
+                                    Interim Assessment 2
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">Test</span>
+                                </td>
+                                <td class="px-6 py-4">0</td>
+                                <td class="px-6 py-4">0</td>
+                                <td class="px-6 py-4">0</td>
+                                <td class="px-6 py-4">0</td>
+                                <td class="px-6 py-4">-</td>
+                                <td class="px-6 py-4 text-center">
+                                    <button class="text-gray-500 hover:text-gray-700">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="px-6 py-4 flex items-center">
+                                    <i class="fas fa-file-alt text-gray-400 mr-2"></i>
+                                    Interim Assessment 3
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">Test</span>
+                                </td>
+                                <td class="px-6 py-4">0</td>
+                                <td class="px-6 py-4">0</td>
+                                <td class="px-6 py-4">0</td>
+                                <td class="px-6 py-4">0</td>
+                                <td class="px-6 py-4">-</td>
+                                <td class="px-6 py-4 text-center">
+                                    <button class="text-gray-500 hover:text-gray-700">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Unit Matrix Tab -->
+        <div id="unit-matrix-content" class="tab-content">
+            <div class="bg-white rounded-lg shadow-sm border">
+                {% if matrix_data and topics %}
+                    <!-- Unit Matrix Table -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full unit-matrix-table">
+                            <thead>
+                                <tr class="bg-gray-50 border-b">
+                                    <th class="px-6 py-3 text-left text-sm font-medium text-gray-500 sticky-header">
+                                        Learner <i class="fas fa-sort ml-1"></i>
+                                    </th>
+                                    {% for topic in topics %}
+                                    <th class="px-3 py-3 text-center text-sm font-medium text-gray-500 min-w-[120px]">
+                                        <div class="truncate" title="{{ topic.title }}">{{ topic.title }}</div>
+                                        <div class="text-xs text-gray-400 mt-1">{{ topic.get_content_type_display|default:"Unit" }}</div>
+                                    </th>
+                                    {% endfor %}
+                                    <th class="px-6 py-3 text-center text-sm font-medium text-gray-500">Overall</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in matrix_data %}
+                                <tr class="border-b hover:bg-gray-50">
+                                    <td class="px-6 py-4 font-medium text-gray-900 sticky-column">
+                                        <div class="flex items-center">
+                                            <div class="mr-3">
+                                                {% if row.learner.status == 'Completed' %}
+                                                <div class="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white">
+                                                    <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                                    </svg>
+                                                </div>
+                                                {% elif row.learner.status == 'In Progress' %}
+                                                <div class="w-5 h-5 rounded-full bg-yellow-500 flex items-center justify-center text-white">
+                                                    <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                    </svg>
+                                                </div>
+                                                {% else %}
+                                                <div class="w-5 h-5 rounded-full border-2 border-gray-300"></div>
+                                                {% endif %}
+                                            </div>
+                                            <div>
+                                                <div class="font-medium">{{ row.learner.get_full_name|default:row.learner.username }}</div>
+                                                <div class="text-sm text-gray-500">{{ row.learner.role|title }}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    {% for topic_progress in row.topics_progress %}
+                                    <td class="px-3 py-4 text-center">
+                                        <div class="flex flex-col items-center">
+                                            {% if topic_progress.status == 'completed' %}
+                                                <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white mb-1">
+                                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                                    </svg>
+                                                </div>
+                                                {% if topic_progress.score %}
+                                                <div class="text-xs text-gray-600">{{ topic_progress.score|floatformat:0 }}%</div>
+                                                {% endif %}
+                                            {% elif topic_progress.status == 'in_progress' %}
+                                                <div class="w-8 h-8 rounded-full bg-yellow-500 flex items-center justify-center text-white mb-1">
+                                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                    </svg>
+                                                </div>
+                                                {% if topic_progress.score %}
+                                                <div class="text-xs text-gray-600">{{ topic_progress.score|floatformat:0 }}%</div>
+                                                {% endif %}
+                                            {% else %}
+                                                <div class="w-8 h-8 rounded-full border-2 border-gray-300 mb-1"></div>
+                                                <div class="text-xs text-gray-400">-</div>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    {% endfor %}
+                                    <td class="px-6 py-4 text-center">
+                                        <div class="flex flex-col items-center">
+                                            <span class="text-sm font-medium text-gray-900">{{ row.learner.progress_percentage|default:0 }}%</span>
+                                            <div class="w-16 bg-gray-200 rounded-full h-2 mt-1">
+                                                <div class="bg-blue-600 h-2 rounded-full" style="width: {{ row.learner.progress_percentage|default:0 }}%"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="{{ topics|length|add:2 }}" class="px-6 py-8 text-center text-gray-500">
+                                        No learners enrolled in this course
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <!-- Empty state when no data available -->
+                    <div class="p-6">
+                        <div class="flex items-center justify-center h-64">
+                            <div class="text-center">
+                                <div class="flex items-center justify-center mb-4">
+                                    <div class="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
+                                        <i class="fas fa-clipboard-check text-blue-600 text-2xl"></i>
+                                    </div>
+                                    <div class="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-file-alt text-gray-400 text-2xl"></i>
+                                    </div>
+                                </div>
+                                <h4 class="text-xl font-medium text-gray-900 mb-2">No training data available</h4>
+                                <p class="text-gray-500">Training progress will appear upon unit creation and users' learning progress</p>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Timeline Tab -->
+        <div id="timeline-content" class="tab-content">
+            <div class="bg-white rounded-lg shadow-sm border">
+                <div class="p-6 border-b">
+                    <h3 class="text-lg font-semibold">Events</h3>
+                </div>
+                <div class="p-6">
+                    {% if course_events %}
+                        {% for event in course_events %}
+                        <div class="flex items-start mb-6">
+                            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center mr-4">
+                                <i class="fas fa-times text-red-600 text-sm"></i>
+                            </div>
+                            <div class="flex-1">
+                                <div class="text-sm text-gray-500 mb-1">{{ event.date|date:"d/m/Y" }}</div>
+                                <div class="text-gray-900">{{ event.description }}</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <!-- Sample timeline events matching your screenshots -->
+                        <div class="flex items-start mb-6">
+                            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center mr-4">
+                                <i class="fas fa-times text-red-600 text-sm"></i>
+                            </div>
+                            <div class="flex-1">
+                                <div class="text-sm text-gray-500 mb-1">01/03/2024</div>
+                                <div class="text-gray-900"><strong>Rishabh K.</strong> did not pass the <strong>Interim Assessment 1</strong> (score: 70%)</div>
+                            </div>
+                        </div>
+                        <div class="flex items-start mb-6">
+                            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center mr-4">
+                                <i class="fas fa-times text-red-600 text-sm"></i>
+                            </div>
+                            <div class="flex-1">
+                                <div class="text-sm text-gray-500 mb-1">01/03/2024</div>
+                                <div class="text-gray-900"><strong>Rishabh K.</strong> did not pass the <strong>Interim Assessment 1</strong> (score: 70%)</div>
+                            </div>
+                        </div>
+                        <div class="flex items-start mb-6">
+                            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center mr-4">
+                                <i class="fas fa-times text-red-600 text-sm"></i>
+                            </div>
+                            <div class="flex-1">
+                                <div class="text-sm text-gray-500 mb-1">01/03/2024</div>
+                                <div class="text-gray-900"><strong>Rishabh K.</strong> did not pass the <strong>Interim Assessment 1</strong> (score: 60%)</div>
+                            </div>
+                        </div>
+                        <div class="flex items-start mb-6">
+                            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center mr-4">
+                                <i class="fas fa-times text-red-600 text-sm"></i>
+                            </div>
+                            <div class="flex-1">
+                                <div class="text-sm text-gray-500 mb-1">01/03/2024</div>
+                                <div class="text-gray-900"><strong>Rishabh K.</strong> did not pass the <strong>Interim Assessment 1</strong> (score: 60%)</div>
+                            </div>
+                        </div>
+                        <div class="flex items-start mb-6">
+                            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-4">
+                                <i class="fas fa-sync text-blue-600 text-sm"></i>
+                            </div>
+                            <div class="flex-1">
+                                <div class="text-sm text-gray-500 mb-1">24/01/2024</div>
+                                <div class="text-gray-900"><strong>You</strong> updated the course <strong>.NET & C# (SK201)</strong></div>
+                            </div>
+                        </div>
+                        <div class="flex items-start mb-6">
+                            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-4">
+                                <i class="fas fa-sync text-blue-600 text-sm"></i>
+                            </div>
+                            <div class="flex-1">
+                                <div class="text-sm text-gray-500 mb-1">24/01/2024</div>
+                                <div class="text-gray-900"><strong>You</strong> updated the course <strong>.NET & C# (SK201)</strong></div>
+                            </div>
+                        </div>
+                        <div class="flex items-start mb-6">
+                            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-4">
+                                <i class="fas fa-sync text-blue-600 text-sm"></i>
+                            </div>
+                            <div class="flex-1">
+                                <div class="text-sm text-gray-500 mb-1">24/01/2024</div>
+                                <div class="text-gray-900"><strong>HR S.</strong> updated the course <strong>.NET & C# (SK201)</strong> (unit: <strong>Assessment 2</strong>)</div>
+                            </div>
+                        </div>
+                        <div class="flex items-start mb-6">
+                            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-4">
+                                <i class="fas fa-sync text-blue-600 text-sm"></i>
+                            </div>
+                            <div class="flex-1">
+                                <div class="text-sm text-gray-500 mb-1">15/08/2023</div>
+                                <div class="text-gray-900"><strong>George R.</strong> updated the course <strong>.NET & C# (SK201)</strong></div>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+
+
+<script>
+// Tab switching functionality
+function openTab(evt, tabName) {
+    // Get all tab content elements and tab buttons
+    var tabcontent = document.getElementsByClassName('tab-content');
+    var tabbtns = document.getElementsByClassName('tab-btn');
+    
+    // Hide all tab content
+    for (var i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].classList.remove('active');
+    }
+    
+    // Remove active class from all tab buttons
+    for (var i = 0; i < tabbtns.length; i++) {
+        tabbtns[i].classList.remove('active');
+    }
+    
+    // Show the selected tab content and mark button as active
+    document.getElementById(tabName).classList.add('active');
+    evt.currentTarget.classList.add('active');
+}
+
+// Excel export functionality
+function exportCourseTimeline() {
+    // Show loading indicator
+    const button = event.target.closest('button');
+    const originalContent = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Exporting...';
+    button.disabled = true;
+    
+    // Create the export URL
+    const courseId = {{ course.id }};
+    const exportUrl = `/reports/courses/${courseId}/timeline/excel/`;
+    
+    // Create a temporary link and trigger download
+    const link = document.createElement('a');
+    link.href = exportUrl;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Reset button after a delay
+    setTimeout(() => {
+        button.innerHTML = originalContent;
+        button.disabled = false;
+    }, 2000);
+}
+</script>
+{% endblock %} 

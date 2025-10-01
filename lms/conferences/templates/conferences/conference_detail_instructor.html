@@ -1,0 +1,1957 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load conference_tags %}
+{% load conference_extras %}
+{% load tinymce_tags %}
+
+{% block title %}{{ conference.title }} - Details{% endblock %}
+
+{% block extra_css %}
+<!-- TinyMCE CSS -->
+<link rel="stylesheet" href="{% static 'tinymce_editor/css/tinymce-widget.css' %}">
+<link rel="stylesheet" href="{% static 'tinymce_editor/css/aiwriter.css' %}">
+<style>
+    body {
+        background-color: #f5f7fa !important;
+    }
+    
+    .detail-card {
+        background-color: white;
+        border-radius: 12px;
+        box-shadow: 0px 0px 20px -8px rgba(0,0,0,0.15);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .stat-card {
+        background-color: white;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+        padding: 1rem;
+        text-align: center;
+    }
+    
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    .stat-label {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-top: 0.25rem;
+    }
+    
+    .tab-button {
+        padding: 0.75rem 1.5rem;
+        border-bottom: 2px solid transparent;
+        color: #6b7280;
+        font-weight: 500;
+        transition: all 0.2s;
+        background: none;
+        border: none;
+        cursor: pointer;
+    }
+    
+    .tab-button.active {
+        color: #3b82f6;
+        border-bottom-color: #3b82f6;
+    }
+    
+    .tab-button:hover {
+        color: #374151;
+    }
+    
+    .participant-row {
+        border-bottom: 1px solid #e5e7eb;
+        padding: 0.75rem 0;
+    }
+    
+    .participant-row:last-child {
+        border-bottom: none;
+    }
+    
+    .chat-message {
+        padding: 0.75rem;
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+    }
+    
+    .chat-message:nth-child(odd) {
+        background-color: #f9fafb;
+    }
+    
+    .recording-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        transition: all 0.2s;
+    }
+    
+    .recording-card:hover {
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    
+    .file-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        transition: all 0.2s;
+        background-color: white;
+    }
+    
+    .file-card:hover {
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    
+    .join-session {
+        background-color: #f3f4f6;
+        border-radius: 6px;
+        padding: 0.5rem;
+        margin-top: 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .timeline-item {
+        position: relative;
+        padding-left: 2rem;
+        padding-bottom: 1rem;
+    }
+    
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: 0.5rem;
+        top: 0.5rem;
+        width: 8px;
+        height: 8px;
+        background-color: #3b82f6;
+        border-radius: 50%;
+    }
+    
+    .timeline-item::after {
+        content: '';
+        position: absolute;
+        left: 0.75rem;
+        top: 1rem;
+        width: 1px;
+        height: calc(100% - 1rem);
+        background-color: #e5e7eb;
+    }
+    
+    .timeline-item:last-child::after {
+        display: none;
+    }
+    
+    /* Inline Rubric Evaluation Styles */
+    .criterion-section {
+        transition: all 0.2s ease;
+    }
+    
+    .criterion-section:hover {
+        background-color: #f9fafb;
+    }
+    
+    .rating-radio:checked + div {
+        background-color: #ede9fe;
+        border-color: #8b5cf6;
+    }
+    
+    .criterion-points:focus {
+        ring: 2px solid #8b5cf6;
+        border-color: #8b5cf6;
+    }
+    
+    .rubric-form-row {
+        background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+    }
+    
+    .toggle-button-active {
+        background-color: #e5e7eb !important;
+        color: #374151 !important;
+    }
+
+    /* Standardized Button Styles */
+    .btn-standard {
+        background-color: #050c50 !important;
+        color: white !important;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        display: inline-flex;
+        align-items: center;
+        text-decoration: none;
+        cursor: pointer;
+    }
+    
+    .btn-standard:hover {
+        background-color: #040a42 !important;
+        color: white !important;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .btn-standard:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(5, 12, 80, 0.2);
+    }
+    
+    .btn-standard:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
+    .btn-standard svg {
+        margin-right: 0.5rem;
+    }
+    
+    .btn-standard.btn-small {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+    }
+    
+    .btn-standard.btn-large {
+        padding: 0.75rem 1.5rem;
+        font-size: 1rem;
+    }
+    
+    .btn-standard.btn-secondary {
+        background-color: #6b7280 !important;
+        color: white !important;
+    }
+    
+    .btn-standard.btn-secondary:hover {
+        background-color: #4b5563 !important;
+        color: white !important;
+    }
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumbs -->
+    {% with breadcrumbs=breadcrumbs %}
+        {% include 'components/breadcrumb.html' %}
+    {% endwith %}
+
+    <!-- Conference Header -->
+    <div class="detail-card">
+        <div class="flex justify-between items-start mb-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">{{ conference.title }}</h1>
+                {% if conference.description %}
+                <div class="mt-2 text-gray-600">{{ conference.description|decode_html }}</div>
+                {% endif %}
+            </div>
+            <div class="flex space-x-2">
+                {% if conference.meeting_link %}
+                <!-- Auto-registration join button (same as learner view) -->
+                <button id="joinButton" onclick="autoRegisterAndJoin()" 
+                        class="btn-standard">
+                    <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                    </svg>
+                    <span id="joinButtonText">Join Conference</span>
+                </button>
+                
+                <!-- Messages for join status -->
+                <div id="joinMessages" class="hidden ml-4 flex items-center space-x-2">
+                    <div id="errorMessage" class="text-red-600 text-sm"></div>
+                    <div id="successMessage" class="text-green-600 text-sm"></div>
+                </div>
+                {% endif %}
+                {% if can_sync %}
+                <button id="syncDataBtn" 
+                        class="btn-standard btn-secondary">
+                    <svg class="mr-2 h-4 w-4 sync-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    <span id="syncButtonText">Sync Data</span>
+                </button>
+                
+                <!-- Sync Status Messages -->
+                <div id="syncMessages" class="hidden ml-4 flex items-center space-x-2">
+                    <div id="syncErrorMessage" class="text-red-600 text-sm"></div>
+                    <div id="syncSuccessMessage" class="text-green-600 text-sm"></div>
+                </div>
+                {% endif %}
+                
+                <!-- Hidden CSRF token for AJAX requests -->
+                <form style="display: none;">
+                    {% csrf_token %}
+                </form>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+            <div>
+                <span class="text-sm text-gray-500">Date & Time</span>
+                <p class="font-medium">
+                    {{ conference.date|date:"d/m/Y" }} {{ conference.start_time|time:"H:i" }} - {{ conference.end_time|time:"H:i" }}
+                    {% if conference.timezone %}
+                    <br><span class="text-xs text-gray-500">{{ conference.timezone }}</span>
+                    {% endif %}
+                </p>
+            </div>
+            <div>
+                <span class="text-sm text-gray-500">Platform</span>
+                <p class="font-medium">{{ conference.get_meeting_platform_display }}</p>
+            </div>
+            <div>
+                <span class="text-sm text-gray-500">Status</span>
+                <p class="font-medium">{{ conference.get_meeting_status_display }}</p>
+            </div>
+            <div>
+                <span class="text-sm text-gray-500">Created By</span>
+                <p class="font-medium">{{ conference.created_by.get_full_name }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="detail-card">
+        <div class="border-b border-gray-200 mb-4">
+
+            
+            <nav class="-mb-px flex space-x-8">
+                <button class="tab-button active" onclick="showTab('participants')">
+                    Participants ({{ participant_data|length }})
+                </button>
+                <button class="tab-button" onclick="showTab('chat')">
+                    Chat History ({{ chat_messages|length }})
+                </button>
+                <button class="tab-button" onclick="showTab('recordings')">
+                    Conference Files ({{ recordings|length }})
+                </button>
+                {% if can_evaluate and rubric_data %}
+                <button class="tab-button" onclick="showTab('rubric')">
+                    Rubric Evaluation
+                </button>
+                <button class="tab-button" onclick="showTab('rubric-history')">
+                    Rubric Evaluation History
+                </button>
+                {% endif %}
+            </nav>
+        </div>
+
+        <!-- Participants Tab -->
+        <div id="participants-tab" class="tab-content">
+            
+            <div class="overflow-x-auto">
+                <table class="min-w-full">
+                    <thead>
+                        <tr class="text-left text-sm text-gray-500">
+                            <th class="pb-3">Name / ID</th>
+                            <th class="pb-3">Email</th>
+                            <th class="pb-3">Total Joins</th>
+                            <th class="pb-3">Total Time (min)</th>
+                            <th class="pb-3">Sessions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for data in participant_data %}
+                        <tr class="participant-row">
+                            <td class="py-3">
+                                {% if data.participant.user %}
+                                <div class="font-medium text-gray-900">
+                                    {{ data.participant.user.get_full_name|default:data.participant.user.username }}
+                                    {% if data.participant.user == conference.created_by %}
+                                    <span class="ml-1 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                                        Instructor
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                <div class="text-sm text-gray-500">@{{ data.participant.user.username }}</div>
+                                {% if data.participant.display_name != data.participant.user.get_full_name and data.participant.display_name != data.participant.user.username %}
+                                <div class="text-xs text-orange-600 mt-1">
+                                    <svg class="inline-block w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                                    </svg>
+                                    Zoom Name: {{ data.participant.display_name }}
+                                </div>
+                                {% endif %}
+                                {% else %}
+                                <div class="font-medium text-gray-900">{{ data.participant.display_name }}</div>
+                                <div class="text-sm text-red-500">
+                                    <svg class="inline-block w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                                    </svg>
+                                    Unmatched Guest
+                                </div>
+                                {% endif %}
+                                {% if data.participant.join_method %}
+                                <div class="text-xs text-blue-600 mt-1">
+                                    <svg class="inline-block w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>
+                                    </svg>
+                                    {{ data.participant.get_join_method_display }}
+                                </div>
+                                {% endif %}
+                            </td>
+                            <td class="py-3 text-gray-600">
+                                {% if data.participant.user %}
+                                {{ data.participant.user.email|default:"-" }}
+                                {% else %}
+                                {{ data.participant.email_address|default:"-" }}
+                                {% endif %}
+                            </td>
+                            <td class="py-3 text-gray-600">{{ data.total_joins }}</td>
+                            <td class="py-3 text-gray-600">{{ data.total_time }}</td>
+                            <td class="py-3">
+                                {% for session in data.join_sessions %}
+                                <div class="join-session">
+                                    <span class="text-gray-700">Session {{ forloop.counter }}:</span>
+                                    {% if session.join_time %}
+                                    {{ session.join_time|date:"H:i:s" }} - 
+                                    {% else %}
+                                    - - 
+                                    {% endif %}
+                                    {% if session.leave_time %}
+                                    {{ session.leave_time|date:"H:i:s" }}
+                                    {% else %}
+                                    -
+                                    {% endif %}
+                                    ({{ session.duration|default:0 }} min)
+                                </div>
+                                {% empty %}
+                                <span class="text-gray-500">No session data</span>
+                                {% endfor %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-8 text-gray-500">
+                                No participants found. Try syncing data if the meeting has already occurred.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Chat History Tab -->
+        <div id="chat-tab" class="tab-content" style="display: none;">
+            {% if chat_messages %}
+            <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p class="text-sm text-blue-800">
+                    <svg class="inline-block w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                    </svg>
+                    Complete chat history including all participants: authenticated users, guests, and external participants. {{ chat_messages|length }} total messages.
+                </p>
+            </div>
+            
+            <!-- Enhanced Timeline Chat Display -->
+            <div class="chat-timeline max-h-96 overflow-y-auto">
+                <div class="relative">
+                    <!-- Timeline Line -->
+                    <div class="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-300"></div>
+                    
+                    <!-- Chat Messages -->
+                    {% for message in chat_messages %}
+                    <div class="relative flex items-start mb-4 pl-4">
+                        <!-- Timeline Node -->
+                        <div class="flex-shrink-0 relative z-10">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium shadow-md
+                                {% if message.sender == conference.created_by %}
+                                    bg-purple-500
+                                {% elif message.sender and message.sender.role == 'learner' %}
+                                    bg-blue-500
+                                {% elif message.sender and message.sender.role == 'admin' %}
+                                    bg-green-500
+                                {% else %}
+                                    bg-gray-500
+                                {% endif %}">
+                                {% if message.sender %}
+                                    {{ message.sender.get_full_name|default:message.sender.username|slice:":1"|upper }}
+                                {% else %}
+                                    {{ message.sender_name|default:"?"|slice:":1"|upper }}
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Message Content -->
+                        <div class="ml-4 flex-1 min-w-0">
+                            <!-- Message Header -->
+                            <div class="flex items-center justify-between mb-1">
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-sm font-semibold text-gray-900">
+                                        {% if message.sender %}
+                                            {{ message.sender.get_full_name|default:message.sender.username }}
+                                        {% else %}
+                                            {{ message.sender_name|default:"Unknown User" }}
+                                        {% endif %}
+                                    </span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                                        {% if message.sender == conference.created_by %}
+                                            bg-purple-100 text-purple-800
+                                        {% elif message.sender and message.sender.role == 'learner' %}
+                                            bg-blue-100 text-blue-800
+                                        {% elif message.sender and message.sender.role == 'admin' %}
+                                            bg-green-100 text-green-800
+                                        {% else %}
+                                            bg-gray-100 text-gray-800
+                                        {% endif %}">
+                                        {% if message.sender == conference.created_by %}
+                                            Instructor
+                                        {% elif message.sender and message.sender.role == 'learner' %}
+                                            Learner
+                                        {% elif message.sender and message.sender.role == 'admin' %}
+                                            Admin
+                                        {% else %}
+                                            Guest
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <div class="flex items-center space-x-1 text-xs text-gray-500">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    <span>{{ message.sent_at|date:"H:i:s" }}</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Message Body -->
+                            <div class="bg-gray-50 rounded-lg p-3 text-sm text-gray-700">
+                            {% if message.message_type == 'file' %}
+                                <!-- File content display -->
+                                <div class="bg-white border border-gray-200 rounded-lg p-3">
+                                    {% if message.metadata.filename %}
+                                        {% with file_ext=message.metadata.filename|slice:"-4:"|lower %}
+                                            {% if file_ext == '.jpg' or file_ext == '.jpeg' or file_ext == '.png' or file_ext == '.gif' or file_ext == '.bmp' %}
+                                                <!-- Image file display -->
+                                                <div class="space-y-2">
+                                                    <div class="flex items-center text-sm text-gray-600">
+                                                        <svg class="w-4 h-4 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 002 2z"/>
+                                                        </svg>
+                                                        <span class="font-medium">{{ message.metadata.filename }}</span>
+                                                    </div>
+                                                    <div class="bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                                                        <svg class="mx-auto h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 002 2z"/>
+                                                        </svg>
+                                                        <p class="mt-1 text-xs text-gray-500">Image shared</p>
+                                                    </div>
+                                                </div>
+                                            {% elif file_ext == '.pdf' %}
+                                                <!-- PDF file display -->
+                                                <div class="flex items-center space-x-2">
+                                                    <svg class="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7z" clip-rule="evenodd"/>
+                                                    </svg>
+                                                    <span class="text-sm font-medium">{{ message.metadata.filename }}</span>
+                                                    <span class="text-xs text-gray-500">PDF</span>
+                                                </div>
+                                            {% else %}
+                                                <!-- Other file types -->
+                                                <div class="flex items-center space-x-2">
+                                                    <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                                    </svg>
+                                                    <span class="text-sm font-medium">{{ message.metadata.filename }}</span>
+                                                </div>
+                                            {% endif %}
+                                        {% endwith %}
+                                    {% else %}
+                                        <!-- Fallback for files without metadata -->
+                                        <div class="flex items-center space-x-2">
+                                            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                            </svg>
+                                            <span class="text-sm">{{ message.message_text }}</span>
+                                        </div>
+                                    {% endif %}
+                                    
+                                    <!-- Recipient info for private messages -->
+                                    {% if message.metadata.recipient and message.metadata.recipient != 'Everyone' %}
+                                    <div class="mt-2 text-xs text-orange-600 flex items-center">
+                                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>
+                                        </svg>
+                                        Private to: {{ message.metadata.recipient }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            {% else %}
+                                <!-- Regular text message -->
+                                {{ message.message_text }}
+                            {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% else %}
+            <div class="text-center py-8 text-gray-500">
+                <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                </svg>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">No Chat Messages Yet</h3>
+                <p class="text-gray-500">Chat history will appear here after syncing conference data or when participants start sending messages.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Recordings Tab -->
+        <div id="recordings-tab" class="tab-content" style="display: none;">
+            {% if recordings %}
+                <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p class="text-sm text-blue-800">
+                        <svg class="inline-block w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                        </svg>
+                        Conference files: chat transcripts and shared screen recordings. Shows meeting data for both instructors and learners.
+                    </p>
+                </div>
+            {% endif %}
+            
+            {% for recording in recordings %}
+            <div class="recording-card">
+                <div class="flex justify-between items-start">
+                    <div class="flex-1">
+                        <h4 class="font-medium text-gray-900">{{ recording.title }}</h4>
+                        <div class="text-sm text-gray-500 mt-1">
+                            {{ recording.get_recording_type_display }} • 
+                            {{ recording.duration_minutes }} minutes • 
+                            {{ recording.file_size|filesizeformat }}
+                        </div>
+                        
+                        <!-- Meeting participant data -->
+                        <div class="mt-3">
+                            <h5 class="text-sm font-medium text-gray-700 mb-2">Meeting Participants:</h5>
+                            <div class="flex flex-wrap gap-2">
+                                {% for data in participant_data %}
+                                    {% if data.total_time > 0 %}
+                                    <div class="inline-flex items-center px-2 py-1 rounded-md text-xs border 
+                                        {% if data.participant.user == conference.created_by %}
+                                            bg-purple-50 border-purple-200 text-purple-800
+                                        {% elif data.user_role == 'learner' %}
+                                            bg-blue-50 border-blue-200 text-blue-800
+                                        {% elif data.user_role == 'admin' %}
+                                            bg-green-50 border-green-200 text-green-800
+                                        {% else %}
+                                            bg-gray-50 border-gray-200 text-gray-800
+                                        {% endif %}">
+                                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                            {% if data.participant.user == conference.created_by %}
+                                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd"/>
+                                            {% elif data.user_role == 'learner' %}
+                                            <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+                                            {% elif data.user_role == 'admin' %}
+                                            <path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                            {% else %}
+                                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                                            {% endif %}
+                                        </svg>
+                                        {{ data.participant.display_name }}
+                                        <span class="ml-1 text-xs opacity-75">({{ data.total_time }}min)</span>
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            
+                            <!-- Meeting Statistics -->
+                            <div class="mt-2 text-xs text-gray-500">
+                                Total attendees: {{ stats.total_attended }} | 
+                                Avg attendance: {{ stats.avg_duration }}min | 
+                                Attendance rate: {{ stats.attendance_rate|floatformat:0 }}%
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex flex-col space-y-2 ml-4">
+                        {% if recording.download_url %}
+                        <!-- ✅ FIX #5: Direct download for cloud recordings without password restrictions -->
+                        <a href="{% url 'conferences:download_conference_recording' conference.id recording.id %}" 
+                           class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                           target="_blank">
+                            <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
+                            </svg>
+                            Download
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="text-center py-8 text-gray-500">
+                No video recordings found. Audio-only recordings and chat transcripts are not displayed.
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Rubric Evaluation Tab -->
+        {% if can_evaluate and rubric_data %}
+        <div id="rubric-tab" class="tab-content" style="display: none;">
+            <!-- Rubric Actions Bar -->
+            <div class="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h4 class="font-semibold text-purple-900">Rubric: {{ rubric_data.rubric.title }}</h4>
+                        <p class="text-sm text-purple-700">{{ rubric_data.rubric.total_points }} points total • {{ rubric_data.total_evaluated }} participants evaluated</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <a href="{% url 'conferences:bulk_evaluate' conference.id %}" 
+                           class="inline-flex items-center px-4 py-2 border border-purple-300 shadow-sm text-sm font-medium rounded-md text-purple-700 bg-white hover:bg-purple-50">
+                            <i class="fas fa-users mr-2"></i>
+                            Bulk Evaluate
+                        </a>
+                        <a href="{% url 'conferences:conference_scores' conference.id %}" 
+                           class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700">
+                            <i class="fas fa-chart-bar mr-2"></i>
+                            View Scores
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rubric Evaluation Table -->
+            <div class="standard-table-container">
+                <div class="overflow-x-auto">
+                    <table class="standard-table conference-table">
+                        <thead>
+                            <tr>
+                                <th class="primary-text">Learner</th>
+                                <th class="primary-text">Email</th>
+                                <th class="primary-text">Total Time (min)</th>
+                                <th class="primary-text text-center">Evaluation Status</th>
+                                <th class="primary-text text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for attendance in rubric_data.learner_attendances %}
+                            <tr class="participant-row" id="participant-row-{{ attendance.id }}">
+                                <td>
+                                    <div class="primary-text font-medium">{{ attendance.user.get_full_name|default:attendance.user.username }}</div>
+                                    <div class="secondary-text text-sm">@{{ attendance.user.username }}</div>
+                                </td>
+                                <td class="secondary-text">{{ attendance.user.email|default:"-" }}</td>
+                                <td class="secondary-text">{{ attendance.duration_minutes|default:0 }}</td>
+                                <td class="text-center">
+                                    {% with participant_evaluations=rubric_data.evaluations_by_participant|get_item:attendance.user.id %}
+                                        {% if participant_evaluations %}
+                                            {% with total_points=participant_evaluations.values|sum_points %}
+                                            <span class="status-badge completed inline-flex items-center">
+                                                <i class="fas fa-check-circle mr-2"></i>
+                                                {{ total_points|floatformat:1 }}/{{ rubric_data.rubric.total_points }} points
+                                            </span>
+                                            {% endwith %}
+                                        {% else %}
+                                            <span class="status-badge pending inline-flex items-center">
+                                                <i class="fas fa-clock mr-2"></i>
+                                                Not Evaluated
+                                            </span>
+                                        {% endif %}
+                                    {% endwith %}
+                                </td>
+                                <td class="text-center">
+                                    <div class="flex justify-center space-x-2">
+                                        <button onclick="toggleRubricEvaluation({{ attendance.id }}, '{{ attendance.user.get_full_name|escapejs }}')" 
+                                                class="btn-standard btn-small"
+                                                id="toggle-btn-{{ attendance.id }}">
+                                            <i class="fas fa-edit mr-2"></i>
+                                            <span id="toggle-text-{{ attendance.id }}">Show Rubric</span>
+                                        </button>
+                                        
+                                        <!-- Details Report Button -->
+                                        <button onclick="generateConferenceDetailedReport({{ conference.id }}, {{ attendance.user.id }})" 
+                                                class="btn-standard btn-small bg-purple-600 hover:bg-purple-700 text-white">
+                                            <i class="fas fa-file-alt mr-2"></i>
+                                            Details Report
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <!-- Inline Rubric Evaluation Form -->
+                            <tr id="rubric-form-{{ attendance.id }}" class="hidden rubric-form-row">
+                                <td colspan="5" class="p-6 bg-gray-50 border-t-2 border-purple-200">
+                                <form method="post" action="{% url 'conferences:evaluate_rubric' conference.id %}" id="evaluation-form-{{ attendance.id }}" enctype="multipart/form-data">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="attendance_id" value="{{ attendance.id }}">
+                                    
+                                    <div class="mb-4">
+                                        <h4 class="font-semibold text-purple-900 mb-2">Evaluating: {{ attendance.user.get_full_name|default:attendance.user.username }}</h4>
+                                        <div class="bg-blue-50 p-4 rounded-lg mb-4">
+                                            <h5 class="font-semibold text-blue-900">{{ rubric_data.rubric.title }}</h5>
+                                            {% if rubric_data.rubric.description %}
+                                            <p class="text-sm text-blue-700 mt-1">{{ rubric_data.rubric.description }}</p>
+                                            {% endif %}
+                                            <p class="text-sm text-blue-700 mt-1">Total Points: {{ rubric_data.rubric.total_points }}</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Criteria Evaluation -->
+                                    <div class="space-y-6">
+                                        {% for criterion in rubric_data.criteria %}
+                                        <div class="border border-gray-200 rounded-lg p-4 criterion-section" data-criterion-id="{{ criterion.id }}" data-attendance-id="{{ attendance.id }}">
+                                            <div class="flex justify-between items-start mb-3">
+                                                <div class="flex-1">
+                                                    <h6 class="font-medium text-gray-900">{{ criterion.title }}</h6>
+                                                    <p class="text-sm text-gray-600 mt-1">{{ criterion.description }}</p>
+                                                </div>
+                                                <div class="text-sm text-gray-500 ml-4">
+                                                    Max: {{ criterion.points }} pts
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Rubric Ratings -->
+                                            {% if criterion.ratings.all %}
+                                            <div class="mb-4">
+                                                <label for="rating_{{ criterion.id }}_{{ attendance.id }}" class="block text-sm font-medium text-gray-700 mb-2">Select Rating:</label>
+                                                <select name="rating_{{ criterion.id }}_{{ attendance.id }}" 
+                                                        id="rating_{{ criterion.id }}_{{ attendance.id }}"
+                                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500 rating-select form-select text-sm" 
+                                                        data-criterion-id="{{ criterion.id }}"
+                                                        data-attendance-id="{{ attendance.id }}"
+                                                        onchange="updatePointsFromRatingDropdown({{ criterion.id }}, {{ attendance.id }}, this)">
+                                                    <option value="">-- Select a rating --</option>
+                                                    {% for rating in criterion.ratings.all %}
+                                                    <option value="{{ rating.id }}" 
+                                                            data-points="{{ rating.points }}"
+                                                            data-description="{{ rating.description|default:'' }}"
+                                                            {% with participant_evaluations=rubric_data.evaluations_by_participant|get_item:attendance.user.id %}
+                                                                {% if participant_evaluations %}
+                                                                    {% with evaluation=participant_evaluations|get_item:criterion.id %}
+                                                                        {% if evaluation and evaluation.rating and evaluation.rating.id == rating.id %}selected{% endif %}
+                                                                    {% endwith %}
+                                                                {% endif %}
+                                                            {% endwith %}>
+                                                        {{ rating.title }} ({{ rating.points }} pts)
+                                                    </option>
+                                                    {% endfor %}
+                                                </select>
+                                                
+                                                <!-- Rating Description Display -->
+                                                <div id="rating_description_{{ criterion.id }}_{{ attendance.id }}" class="mt-2 p-2 bg-blue-50 border-l-4 border-blue-400 text-sm text-blue-700 rounded-r hidden">
+                                                    <!-- Description will be populated by JavaScript -->
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                            
+                                            <!-- Manual Points Entry -->
+                                            <div class="mb-4">
+                                                <label for="points_{{ criterion.id }}_{{ attendance.id }}" class="block text-sm font-medium text-gray-700 mb-1">Points:</label>
+                                                <input type="number" 
+                                                       name="points_{{ criterion.id }}_{{ attendance.id }}" 
+                                                       id="points_{{ criterion.id }}_{{ attendance.id }}" 
+                                                       min="0" 
+                                                       max="{{ criterion.points }}" 
+                                                       step="0.1" 
+                                                       value="{% with participant_evaluations=rubric_data.evaluations_by_participant|get_item:attendance.user.id %}{% if participant_evaluations %}{% with evaluation=participant_evaluations|get_item:criterion.id %}{% if evaluation %}{{ evaluation.points }}{% else %}0{% endif %}{% endwith %}{% else %}0{% endif %}{% endwith %}"
+                                                       class="w-24 px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500 criterion-points"
+                                                       data-criterion-id="{{ criterion.id }}"
+                                                       data-attendance-id="{{ attendance.id }}"
+                                                       onchange="updateTotalPoints({{ attendance.id }})">
+                                            </div>
+                                            
+                                            <!-- Comments -->
+                                            <div>
+                                                <label for="comments_{{ criterion.id }}_{{ attendance.id }}" class="block text-sm font-medium text-gray-700 mb-1">Comments:</label>
+                                                <textarea name="comments_{{ criterion.id }}_{{ attendance.id }}" 
+                                                          id="comments_{{ criterion.id }}_{{ attendance.id }}" 
+                                                          rows="3" 
+                                                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500" 
+                                                          placeholder="Optional feedback for this criterion...">{% with participant_evaluations=rubric_data.evaluations_by_participant|get_item:attendance.user.id %}{% if participant_evaluations %}{% with evaluation=participant_evaluations|get_item:criterion.id %}{% if evaluation %}{{ evaluation.comments }}{% endif %}{% endwith %}{% endif %}{% endwith %}</textarea>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    
+                                    <!-- Total Score Display -->
+                                    <div class="mt-6 p-4 bg-blue-50 border border-blue-100 rounded-lg">
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-lg font-medium text-blue-900">Total Score:</span>
+                                            <span class="text-xl font-bold text-blue-900">
+                                                <span id="total-points-{{ attendance.id }}">0</span> / {{ rubric_data.rubric.total_points }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Overall Feedback Section -->
+                                    <div class="mt-6 border-t pt-6">
+                                        <h6 class="text-lg font-bold mb-4 text-gray-800">
+                                            <i class="fas fa-comment-alt mr-2 text-blue-500"></i>
+                                            Overall Feedback
+                                        </h6>
+                                        
+                                        <!-- Show existing feedback if any -->
+                                        {% with existing_feedback=rubric_data.overall_feedback_data|get_item:attendance.user.id %}
+                                        {% if existing_feedback %}
+                                        <div class="mb-4">
+                                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                                                <h6 class="font-medium text-blue-900 mb-2">
+                                                    <i class="fas fa-history mr-2"></i>
+                                                    Previous Feedback
+                                                </h6>
+                                                
+                                                {% if existing_feedback.feedback %}
+                                                <div class="mb-3">
+                                                    <div class="flex items-center mb-1">
+                                                        <i class="fas fa-keyboard text-blue-600 mr-2 text-sm"></i>
+                                                        <span class="font-medium text-blue-800 text-sm">Written Feedback</span>
+                                                    </div>
+                                                    <div class="prose prose-sm max-w-none text-gray-700 bg-white p-3 rounded border">
+                                                        {{ existing_feedback.feedback|safe }}
+                                                    </div>
+                                                </div>
+                                                {% endif %}
+                                                
+                                                {% if existing_feedback.audio_feedback %}
+                                                <div class="mb-3">
+                                                    <div class="flex items-center mb-1">
+                                                        <i class="fas fa-microphone text-green-600 mr-2 text-sm"></i>
+                                                        <span class="font-medium text-green-800 text-sm">Audio Feedback</span>
+                                                    </div>
+                                                    <div class="bg-green-50 p-2 rounded border">
+                                                        <audio controls class="w-full h-8" controlsList="nodownload">
+                                                            <source src="{{ existing_feedback.audio_feedback.url }}" type="audio/mpeg">
+                                                            <source src="{{ existing_feedback.audio_feedback.url }}" type="audio/wav">
+                                                            <source src="{{ existing_feedback.audio_feedback.url }}" type="audio/mp4">
+                                                            Your browser does not support the audio element.
+                                                        </audio>
+                                                    </div>
+                                                </div>
+                                                {% endif %}
+                                                
+                                                {% if existing_feedback.video_feedback %}
+                                                <div class="mb-3">
+                                                    <div class="flex items-center mb-1">
+                                                        <i class="fas fa-video text-purple-600 mr-2 text-sm"></i>
+                                                        <span class="font-medium text-purple-800 text-sm">Video Feedback</span>
+                                                    </div>
+                                                    <div class="bg-purple-50 p-2 rounded border">
+                                                        <video controls class="w-full max-w-sm rounded" controlsList="nodownload">
+                                                            <source src="{{ existing_feedback.video_feedback.url }}" type="video/mp4">
+                                                            <source src="{{ existing_feedback.video_feedback.url }}" type="video/mov">
+                                                            <source src="{{ existing_feedback.video_feedback.url }}" type="video/avi">
+                                                            Your browser does not support the video element.
+                                                        </video>
+                                                    </div>
+                                                </div>
+                                                {% endif %}
+                                                
+                                                <div class="text-xs text-gray-500 mt-2">
+                                                    <i class="fas fa-clock mr-1"></i>
+                                                    {{ existing_feedback.created_at|date:"M d, Y g:i A" }}
+                                                    {% if existing_feedback.created_by %}
+                                                    by {{ existing_feedback.created_by.get_full_name }}
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        <!-- Feedback Type Tabs -->
+                                        <div class="mb-4">
+                                            <div class="border-b border-gray-200">
+                                                <nav class="-mb-px flex space-x-8" aria-label="Feedback Types">
+                                                    <button type="button" 
+                                                            class="feedback-tab-btn-{{ attendance.id }} py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap border-blue-500 text-blue-600 active"
+                                                            data-tab="text-{{ attendance.id }}"
+                                                            onclick="switchFeedbackTab({{ attendance.id }}, 'text')">
+                                                        <i class="fas fa-keyboard mr-2"></i>Text Feedback
+                                                    </button>
+                                                    <button type="button" 
+                                                            class="feedback-tab-btn-{{ attendance.id }} py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                                                            data-tab="audio-{{ attendance.id }}"
+                                                            onclick="switchFeedbackTab({{ attendance.id }}, 'audio')">
+                                                        <i class="fas fa-microphone mr-2"></i>Audio Feedback
+                                                    </button>
+                                                    <button type="button" 
+                                                            class="feedback-tab-btn-{{ attendance.id }} py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                                                            data-tab="video-{{ attendance.id }}"
+                                                            onclick="switchFeedbackTab({{ attendance.id }}, 'video')">
+                                                        <i class="fas fa-video mr-2"></i>Video Feedback
+                                                    </button>
+                                                </nav>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Text Feedback Tab -->
+                                        <div id="text-feedback-tab-{{ attendance.id }}" class="feedback-tab-content-{{ attendance.id }}">
+                                            <div class="relative">
+                                                <textarea name="overall_feedback" 
+                                                          rows="4"
+                                                          class="tinymce-editor w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                          placeholder="Provide overall feedback about the student's conference participation and rubric performance...">{% if existing_feedback %}{{ existing_feedback.feedback }}{% endif %}</textarea>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Audio Feedback Tab -->
+                                        <div id="audio-feedback-tab-{{ attendance.id }}" class="feedback-tab-content-{{ attendance.id }} hidden">
+                                            <div class="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                                                <div class="text-center">
+                                                    <i class="fas fa-microphone text-gray-400 text-4xl mb-4"></i>
+                                                    <h3 class="text-lg font-medium text-gray-900 mb-2">Audio Feedback</h3>
+                                                    <p class="text-gray-500 mb-4">Record or upload audio feedback</p>
+                                                    <input type="file" name="audio_feedback" accept="audio/*" class="hidden" id="audio-file-{{ attendance.id }}">
+                                                    <label for="audio-file-{{ attendance.id }}" class="cursor-pointer inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                                                        <i class="fas fa-upload mr-2"></i>
+                                                        Upload Audio
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Video Feedback Tab -->
+                                        <div id="video-feedback-tab-{{ attendance.id }}" class="feedback-tab-content-{{ attendance.id }} hidden">
+                                            <div class="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                                                <div class="text-center">
+                                                    <i class="fas fa-video text-gray-400 text-4xl mb-4"></i>
+                                                    <h3 class="text-lg font-medium text-gray-900 mb-2">Video Feedback</h3>
+                                                    <p class="text-gray-500 mb-4">Record or upload video feedback</p>
+                                                    <input type="file" name="video_feedback" accept="video/*" class="hidden" id="video-file-{{ attendance.id }}">
+                                                    <label for="video-file-{{ attendance.id }}" class="cursor-pointer inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                                                        <i class="fas fa-upload mr-2"></i>
+                                                        Upload Video
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endwith %}
+                                    </div>
+                                    
+                                    <!-- Form Actions -->
+                                    <div class="mt-6 flex justify-end space-x-3">
+                                        <button type="button" 
+                                                onclick="toggleRubricEvaluation({{ attendance.id }}, '{{ attendance.user.get_full_name|escapejs }}')" 
+                                                class="btn-standard btn-secondary">
+                                            Cancel
+                                        </button>
+                                        <button type="submit" 
+                                                class="btn-standard">
+                                            <i class="fas fa-save mr-2"></i>
+                                            Save Evaluation
+                                        </button>
+                                    </div>
+                                </form>
+                            </td>
+                        </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center py-8 text-gray-500">
+                                    <div class="empty-state">
+                                        <i class="fas fa-users empty-state-icon"></i>
+                                        <div>No learner participants found for evaluation.</div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Rubric Evaluation History Tab -->
+        {% if can_evaluate and rubric_data %}
+        <div id="rubric-history-tab" class="tab-content" style="display: none;">
+            <!-- Check if there are any evaluations -->
+            {% if rubric_data.evaluations_by_participant %}
+            <div class="mb-8">
+                <!-- Collapsible Header -->
+                <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 cursor-pointer hover:bg-amber-100 transition-colors mb-2"
+                     onclick="toggleConferenceRubricEvaluationHistory()">
+                    <h3 class="text-lg font-semibold text-gray-800 flex items-center justify-between">
+                        <div class="flex items-center">
+                            <i id="conference-rubric-history-icon" class="fas fa-chevron-right mr-2 text-amber-600 transition-transform duration-200"></i>
+                            <i class="fas fa-clipboard-list mr-2 text-amber-600"></i>
+                            Conference Rubric Evaluation History
+                            <span class="text-sm font-normal text-gray-600 ml-2">({{ rubric_data.total_evaluated }} participant{{ rubric_data.total_evaluated|pluralize }})</span>
+                        </div>
+                        <span class="text-sm text-amber-600 font-normal">
+                            <i class="fas fa-eye mr-1"></i>Click to view/hide
+                        </span>
+                    </h3>
+                </div>
+                
+                <!-- Timeline Container (Collapsible) -->
+                <div id="conference-rubric-evaluation-history" class="hidden relative bg-gray-50 rounded-lg p-4 border border-gray-200 transition-all duration-300 ease-in-out">
+                    <!-- Timeline Line -->
+                    <div class="absolute left-6 top-0 bottom-0 w-0.5 bg-amber-300"></div>
+                    
+                    <!-- Timeline Items for Each Evaluated Participant -->
+                    <div class="space-y-6">
+                        {% for attendance in rubric_data.learner_attendances %}
+                            {% with participant_evaluations=rubric_data.evaluations_by_participant|get_item:attendance.user.id %}
+                                {% if participant_evaluations %}
+                                <div class="relative flex items-start space-x-3">
+                                    <!-- Timeline Node -->
+                                    <div class="flex-shrink-0">
+                                        <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center relative z-10 shadow-md">
+                                            <i class="fas fa-user text-white text-sm"></i>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Participant Content -->
+                                    <div class="flex-1 bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                                        <!-- Participant Header -->
+                                        <div class="bg-blue-50 px-4 py-3 border-b border-blue-100">
+                                            <div class="flex items-center justify-between">
+                                                <div class="font-medium text-blue-800">
+                                                    {{ attendance.user.get_full_name|default:attendance.user.username }}
+                                                    <span class="text-sm text-blue-600 ml-2">
+                                                        ({{ participant_evaluations|length }} criterion evaluat{{ participant_evaluations|length|pluralize:"ion,ions" }})
+                                                    </span>
+                                                </div>
+                                                <div class="text-xs text-blue-600">
+                                                    <i class="fas fa-clock mr-1"></i>
+                                                    {% with first_criterion=rubric_data.criteria.0 %}
+                                                        {% with first_evaluation=participant_evaluations|get_item:first_criterion.id %}
+                                                            {% if first_evaluation %}
+                                                                <span class="text-blue-600">Evaluated {{ first_evaluation.created_at|date:"M d, Y \a\t g:i A" }}</span>
+                                                            {% else %}
+                                                                <span class="text-blue-600">Participant evaluated</span>
+                                                            {% endif %}
+                                                        {% endwith %}
+                                                    {% endwith %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Criteria Evaluations for this participant -->
+                                        <div class="p-4 space-y-4">
+                                            {% for criterion in rubric_data.criteria %}
+                                                {% with evaluation=participant_evaluations|get_item:criterion.id %}
+                                                    {% if evaluation %}
+                                                    <div class="border border-gray-100 rounded-lg overflow-hidden">
+                                                        <!-- Criterion Header -->
+                                                        <div class="bg-amber-50 px-3 py-2 border-b border-amber-100">
+                                                            <div class="flex items-center justify-between">
+                                                                <div class="flex items-center space-x-2">
+                                                                    <div class="font-medium text-amber-800 text-sm">{{ criterion.description }}</div>
+                                                                </div>
+                                                                <div class="flex items-center space-x-3">
+                                                                    <div class="text-xs text-amber-600">
+                                                                        <i class="fas fa-star mr-1"></i>
+                                                                        {{ criterion.points }} points max
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <!-- Current Evaluation for this criterion -->
+                                                        <div class="p-3">
+                                                            <div class="border border-gray-100 rounded p-3 bg-green-50 border-green-200">
+                                                                <div class="flex items-center justify-between mb-2">
+                                                                    <div class="flex items-center space-x-2">
+                                                                        <span class="px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded-full font-medium">
+                                                                            <i class="fas fa-star mr-1"></i>Current Evaluation
+                                                                        </span>
+                                                                        {% if evaluation.evaluated_by %}
+                                                                        <span class="text-xs text-gray-600">
+                                                                            by {{ evaluation.evaluated_by.get_full_name }}
+                                                                        </span>
+                                                                        {% endif %}
+                                                                    </div>
+                                                                    <div class="text-xs text-gray-500">
+                                                                        <i class="fas fa-clock mr-1"></i>
+                                                                        {{ evaluation.created_at|date:"M d, Y H:i" }}
+                                                                    </div>
+                                                                </div>
+                                                                
+                                                                <div class="grid grid-cols-3 gap-2 text-sm">
+                                                                    <div>
+                                                                        <span class="text-gray-600">Points:</span>
+                                                                        <span class="font-semibold text-green-600 ml-1">{{ evaluation.points }}</span>
+                                                                    </div>
+                                                                    <div>
+                                                                        <span class="text-gray-600">Rating:</span>
+                                                                        <span class="text-gray-800 ml-1">
+                                                                            {% if evaluation.rating %}
+                                                                                {{ evaluation.rating.title }}
+                                                                            {% else %}
+                                                                                <em class="text-orange-500">No rating selected</em>
+                                                                            {% endif %}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div>
+                                                                        <span class="text-gray-600">Score:</span>
+                                                                        <span class="text-gray-800 ml-1">{{ evaluation.points }}/{{ criterion.points }}</span>
+                                                                    </div>
+                                                                </div>
+                                                                
+                                                                {% if evaluation.comments %}
+                                                                <div class="mt-2 p-2 bg-blue-50 rounded border-l-2 border-blue-300">
+                                                                    <div class="text-xs text-blue-600 mb-1">
+                                                                        <i class="fas fa-comment mr-1"></i>Comments:
+                                                                    </div>
+                                                                    <div class="text-sm text-gray-700">{{ evaluation.comments }}</div>
+                                                                </div>
+                                                                {% endif %}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {% endif %}
+                                                {% endwith %}
+                                            {% endfor %}
+                                            
+                                            <!-- Participant Total Score Summary -->
+                                            <div class="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-lg">
+                                                <div class="flex justify-between items-center">
+                                                    <span class="text-lg font-medium text-blue-900">Total Score:</span>
+                                                    <span class="text-xl font-bold text-blue-900">
+                                                        {% with total_points=participant_evaluations.values|sum_points %}
+                                                        {{ total_points|floatformat:1 }} / {{ rubric_data.rubric.total_points }}
+                                                        {% endwith %}
+                                                    </span>
+                                                </div>
+                                                <div class="text-sm text-blue-700 mt-1">
+                                                    {% with total_points=participant_evaluations.values|sum_points %}
+                                                    Percentage: {% widthratio total_points rubric_data.rubric.total_points 100 %}%
+                                                    {% endwith %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            {% endwith %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="text-center py-8 text-gray-500">
+                <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">No Rubric Evaluations Yet</h3>
+                <p class="text-gray-500">Rubric evaluation history will appear here once participants have been evaluated using the conference rubric.</p>
+                <div class="mt-4">
+                    <button onclick="showTab('rubric')" class="btn-standard">
+                        <i class="fas fa-edit mr-2"></i>
+                        Start Evaluating Participants
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+    </div>
+
+    <!-- Join Button for Instructors -->
+    <div class="text-center mt-6">
+        {% if conference.meeting_status == 'scheduled' or conference.meeting_status == 'started' %}
+
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Include TinyMCE Scripts -->
+<script src="{% static 'tinymce_editor/tinymce/tinymce.min.js' %}"></script>
+<script src="{% static 'tinymce_editor/js/tinymce-widget.js' %}"></script>
+
+<script>
+// TinyMCE initialization for feedback textarea
+function initializeTinyMCE() {
+    // Check if TinyMCE is available
+    if (typeof tinymce === 'undefined') {
+        console.warn('TinyMCE is not available yet');
+        return;
+    }
+    
+    // Initialize TinyMCE with standard configuration
+    const textareas = document.querySelectorAll('textarea.tinymce-editor:not([data-tinymce-initialized])');
+    
+    if (textareas.length === 0) {
+        return; // No textareas to initialize
+    }
+    
+    textareas.forEach(textarea => {
+        // For conferences page, initialize TinyMCE even for hidden textareas in tabs
+        // Check if textarea is actually in the DOM (not just hidden by CSS)
+        if (!document.body.contains(textarea)) {
+            return; // Skip if not in DOM
+        }
+        
+        if (!textarea.id) {
+            textarea.id = 'tinymce-' + Math.random().toString(36).substring(2, 9);
+        }
+        
+        // Remove any existing editor instance
+        if (tinymce.get(textarea.id)) {
+            tinymce.remove('#' + textarea.id);
+        }
+        
+        // Use standard TinyMCE configuration similar to assignments
+        // Use centralized TinyMCE configuration
+        tinymce.init({
+            selector: '#' + textarea.id,
+            height: 200,
+            menubar: 'edit view insert format tools',
+            plugins: [
+                'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                'insertdatetime', 'media', 'table', 'wordcount', 'aiwriter'
+            ],
+            toolbar: 'undo redo | blocks | ' +
+                    'bold italic forecolor | alignleft aligncenter ' +
+                    'alignright alignjustify | bullist numlist outdent indent | ' +
+                    'removeformat | image media | aiwriter',
+            content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+            image_advtab: true,
+            image_uploadtab: true,
+            images_upload_url: '/courses/upload-editor-image/',
+            automatic_uploads: true,
+            file_picker_types: 'image media',
+            media_upload_url: '/tinymce/upload_media_file/',
+            media_live_embeds: true,
+            external_plugins: {
+                'aiwriter': '/static/tinymce_editor/js/plugins/aiwriter/plugin.min.js'
+            },
+            branding: false,
+            promotion: false,
+            statusbar: true,
+            resize: true,
+            browser_spellcheck: true,
+            contextmenu: false
+        }).catch(error => {
+            console.warn('Failed to initialize TinyMCE for textarea:', textarea.id, error);
+        });
+        
+        textarea.setAttribute('data-tinymce-initialized', 'true');
+    });
+}
+
+// Initialize TinyMCE for a specific textarea (used for dynamic content)
+function initializeTinyMCEForTextarea(textarea) {
+    if (typeof tinymce === 'undefined') {
+        console.warn('TinyMCE is not available yet');
+        return;
+    }
+    
+    if (!document.body.contains(textarea)) {
+        return; // Skip if not in DOM
+    }
+    
+    if (!textarea.id) {
+        textarea.id = 'tinymce-' + Math.random().toString(36).substring(2, 9);
+    }
+    
+    // Remove any existing editor instance
+    if (tinymce.get(textarea.id)) {
+        tinymce.remove('#' + textarea.id);
+    }
+    
+    // Use standard TinyMCE configuration
+    // Use centralized TinyMCE configuration
+        tinymce.init({
+        selector: '#' + textarea.id,
+        height: 200,
+        menubar: 'edit view insert format tools',
+        plugins: [
+            'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+            'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+            'insertdatetime', 'media', 'table', 'wordcount', 'aiwriter'
+        ],
+        toolbar: 'undo redo | blocks | ' +
+                'bold italic forecolor | alignleft aligncenter ' +
+                'alignright alignjustify | bullist numlist outdent indent | ' +
+                'removeformat | image media | aiwriter',
+        content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+        image_advtab: true,
+        image_uploadtab: true,
+        images_upload_url: '/courses/upload-editor-image/',
+        automatic_uploads: true,
+        file_picker_types: 'image media',
+        media_upload_url: '/tinymce/upload_media_file/',
+        media_live_embeds: true,
+        external_plugins: {
+            'aiwriter': '/static/tinymce_editor/js/plugins/aiwriter/plugin.min.js'
+        },
+        branding: false,
+        promotion: false,
+        statusbar: true,
+        resize: true,
+        browser_spellcheck: true,
+        contextmenu: false,
+        setup: function(editor) {
+            editor.on('init', function() {
+                // Mark as initialized after successful init
+                textarea.setAttribute('data-tinymce-initialized', 'true');
+            });
+        }
+    }).catch(error => {
+        console.warn('Failed to initialize TinyMCE for textarea:', textarea.id, error);
+    });
+}
+
+// Initialize TinyMCE when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    // Robust TinyMCE initialization with retry mechanism
+    let initAttempts = 0;
+    const maxAttempts = 10;
+    
+    function tryInitialize() {
+        if (typeof tinymce !== 'undefined') {
+            // Initialize all visible TinyMCE editors first
+            initializeTinyMCE();
+            
+            // Also try to initialize editors that are in default visible tabs
+            setTimeout(() => {
+                const defaultTextTabs = document.querySelectorAll('[id^="text-feedback-tab-"]:not(.hidden)');
+                defaultTextTabs.forEach(tab => {
+                    const textareas = tab.querySelectorAll('textarea.tinymce-editor:not([data-tinymce-initialized])');
+                    textareas.forEach(textarea => {
+                        initializeTinyMCEForTextarea(textarea);
+                    });
+                });
+            }, 300);
+        } else if (initAttempts < maxAttempts) {
+            initAttempts++;
+            setTimeout(tryInitialize, 100 * initAttempts); // Increasing delay
+        } else {
+            console.error('TinyMCE failed to load after maximum attempts');
+        }
+    }
+    
+    tryInitialize();
+    
+    // Save TinyMCE content before form submission
+    const forms = document.querySelectorAll('form');
+    forms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            if (typeof tinymce !== 'undefined') {
+                try {
+                    tinymce.triggerSave();
+                } catch (error) {
+                    console.warn('Error saving TinyMCE content:', error);
+                }
+            }
+        });
+    });
+});
+
+function showTab(tabName) {
+    // Use the programmatic function for consistency
+    showTabProgrammatically(tabName);
+    
+    // Add active class to clicked button (when called from button click)
+    if (event && event.target) {
+        // Remove active from all first
+        document.querySelectorAll('.tab-button').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        // Add to clicked button
+        event.target.classList.add('active');
+    }
+}
+
+// Auto-registration and join function (same as learner view)
+function autoRegisterAndJoin() {
+    const button = document.getElementById('joinButton');
+    const buttonText = document.getElementById('joinButtonText');
+    const errorMessage = document.getElementById('errorMessage');
+    const successMessage = document.getElementById('successMessage');
+    const messagesContainer = document.getElementById('joinMessages');
+    
+    // Disable button and show loading
+    button.disabled = true;
+    buttonText.innerHTML = '<span class="loading-spinner"></span>Processing...';
+    
+    // Show messages container and hide previous messages
+    messagesContainer.classList.remove('hidden');
+    errorMessage.textContent = '';
+    successMessage.textContent = '';
+    
+    // Get CSRF token from meta tag (consistent with base template)
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    
+    // Make AJAX request to auto-register and get join link
+    fetch("{% url 'conferences:auto_register_and_join' conference_id=conference.id %}", {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken,
+            'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            successMessage.textContent = data.message;
+            
+            // Update button text
+            buttonText.textContent = 'Redirecting to meeting...';
+            
+            // Redirect to the meeting after a short delay
+            setTimeout(() => {
+                window.location.href = data.join_url;
+            }, 1500);
+        } else {
+            // Show error message
+            errorMessage.textContent = data.error || 'Failed to join conference. Please try again.';
+            
+            // Re-enable button
+            button.disabled = false;
+            buttonText.textContent = 'Join Conference';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        errorMessage.textContent = 'Network error. Please try again.';
+        
+        // Re-enable button
+        button.disabled = false;
+        buttonText.textContent = 'Join Conference';
+    });
+}
+
+// Cookie helper function
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Rubric evaluation inline functions
+{% if can_evaluate and rubric_data %}
+function toggleRubricEvaluation(attendanceId, participantName) {
+    const formRow = document.getElementById(`rubric-form-${attendanceId}`);
+    const toggleBtn = document.getElementById(`toggle-btn-${attendanceId}`);
+    const toggleText = document.getElementById(`toggle-text-${attendanceId}`);
+    
+    if (formRow.classList.contains('hidden')) {
+        // Show the evaluation form
+        formRow.classList.remove('hidden');
+        toggleText.textContent = 'Hide Rubric';
+        toggleBtn.classList.remove('bg-purple-100', 'text-purple-700');
+        toggleBtn.classList.add('bg-gray-100', 'text-gray-700');
+        
+        // Initialize TinyMCE editors in the newly shown form
+        setTimeout(() => {
+            if (typeof tinymce !== 'undefined') {
+                // Find all textareas in the newly shown form
+                const textareas = formRow.querySelectorAll('textarea.tinymce-editor');
+                textareas.forEach(textarea => {
+                    if (!textarea.getAttribute('data-tinymce-initialized')) {
+                        initializeTinyMCEForTextarea(textarea);
+                    }
+                });
+                
+                // Also ensure the text feedback tab is active by default
+                const textFeedbackTab = document.getElementById(`text-feedback-tab-${attendanceId}`);
+                if (textFeedbackTab) {
+                    textFeedbackTab.classList.remove('hidden');
+                    // Make sure text feedback button is active
+                    const textButton = document.querySelector(`.feedback-tab-btn-${attendanceId}[data-tab="text-${attendanceId}"]`);
+                    if (textButton) {
+                        textButton.classList.remove('border-transparent', 'text-gray-500');
+                        textButton.classList.add('border-blue-500', 'text-blue-600');
+                    }
+                }
+            }
+        }, 200);
+        
+        // Load existing evaluation data
+        loadExistingEvaluation(attendanceId);
+        
+        // Calculate initial total
+        updateTotalPoints(attendanceId);
+    } else {
+        // Hide the evaluation form
+        formRow.classList.add('hidden');
+        toggleText.textContent = 'Show Rubric';
+        toggleBtn.classList.remove('bg-gray-100', 'text-gray-700');
+        toggleBtn.classList.add('bg-purple-100', 'text-purple-700');
+    }
+}
+
+function updatePointsFromRating(criterionId, attendanceId, points) {
+    const pointsInput = document.getElementById(`points_${criterionId}_${attendanceId}`);
+    if (pointsInput) {
+        const currentPoints = parseFloat(pointsInput.value) || 0;
+        const ratingPoints = parseFloat(points);
+        
+        // Only auto-fill if points field is empty or contains 0
+        if (currentPoints === 0 || pointsInput.value.trim() === '') {
+            pointsInput.style.transition = 'all 0.3s ease';
+            pointsInput.style.backgroundColor = '#e8eafd';
+            pointsInput.value = ratingPoints;
+            
+            setTimeout(() => {
+                pointsInput.style.backgroundColor = '';
+            }, 1000);
+        } else {
+            // If instructor has entered custom points, show a subtle indicator
+            pointsInput.style.transition = 'all 0.3s ease';
+            pointsInput.style.borderColor = '#3b82f6';
+            pointsInput.title = `Rating suggests ${ratingPoints} points, but your custom value (${currentPoints}) is preserved.`;
+            
+            setTimeout(() => {
+                pointsInput.style.borderColor = '';
+            }, 2000);
+        }
+        updateTotalPoints(attendanceId);
+    }
+}
+
+function switchFeedbackTab(attendanceId, tabType) {
+    // Hide all feedback tabs for this attendance
+    const allTabs = document.querySelectorAll(`.feedback-tab-content-${attendanceId}`);
+    allTabs.forEach(tab => tab.classList.add('hidden'));
+    
+    // Show selected tab
+    const selectedTab = document.getElementById(`${tabType}-feedback-tab-${attendanceId}`);
+    if (selectedTab) {
+        selectedTab.classList.remove('hidden');
+        
+        // If switching to text feedback tab, ensure TinyMCE is properly initialized and visible
+        if (tabType === 'text') {
+            setTimeout(() => {
+                const textareas = selectedTab.querySelectorAll('textarea.tinymce-editor');
+                textareas.forEach(textarea => {
+                    if (typeof tinymce !== 'undefined') {
+                        let editor = tinymce.get(textarea.id);
+                        if (editor) {
+                            // Force TinyMCE to refresh its layout
+                            try {
+                                editor.fire('ResizeEditor');
+                                setTimeout(() => {
+                                    editor.focus();
+                                }, 200);
+                            } catch (e) {
+                                console.warn('Error refreshing TinyMCE editor:', e);
+                                // Try to reinitialize if refresh fails
+                                tinymce.remove('#' + textarea.id);
+                                editor = null;
+                            }
+                        }
+                        
+                        if (!editor) {
+                            // Initialize TinyMCE if not already initialized
+                            if (!textarea.getAttribute('data-tinymce-initialized')) {
+                                initializeTinyMCEForTextarea(textarea);
+                            }
+                        }
+                    }
+                });
+            }, 150);
+        }
+    }
+    
+    // Update tab button styles
+    const allButtons = document.querySelectorAll(`.feedback-tab-btn-${attendanceId}`);
+    allButtons.forEach(btn => {
+        btn.classList.remove('border-blue-500', 'text-blue-600', 'active');
+        btn.classList.add('border-transparent', 'text-gray-500');
+    });
+    
+    // Activate selected button
+    const selectedButton = document.querySelector(`.feedback-tab-btn-${attendanceId}[data-tab="${tabType}-${attendanceId}"]`);
+    if (selectedButton) {
+        selectedButton.classList.remove('border-transparent', 'text-gray-500');
+        selectedButton.classList.add('border-blue-500', 'text-blue-600', 'active');
+    }
+}
+
+function updatePointsFromRatingDropdown(criterionId, attendanceId, selectElement) {
+    const selectedOption = selectElement.options[selectElement.selectedIndex];
+    const points = selectedOption.getAttribute('data-points') || 0;
+    const description = selectedOption.getAttribute('data-description') || '';
+    const pointsInput = document.getElementById(`points_${criterionId}_${attendanceId}`);
+    const descriptionDiv = document.getElementById(`rating_description_${criterionId}_${attendanceId}`);
+    
+    if (pointsInput) {
+        const currentPoints = parseFloat(pointsInput.value) || 0;
+        const ratingPoints = parseFloat(points);
+        
+        // Only auto-fill if points field is empty or contains 0
+        if (currentPoints === 0 || pointsInput.value.trim() === '') {
+            pointsInput.style.transition = 'all 0.3s ease';
+            pointsInput.style.backgroundColor = '#e8eafd';
+            pointsInput.value = ratingPoints;
+            
+            setTimeout(() => {
+                pointsInput.style.backgroundColor = '';
+            }, 1000);
+        } else {
+            // If instructor has entered custom points, show a subtle indicator
+            pointsInput.style.transition = 'all 0.3s ease';
+            pointsInput.style.borderColor = '#3b82f6';
+            pointsInput.title = `Rating suggests ${ratingPoints} points, but your custom value (${currentPoints}) is preserved.`;
+            
+            setTimeout(() => {
+                pointsInput.style.borderColor = '';
+            }, 2000);
+        }
+        updateTotalPoints(attendanceId);
+    }
+    
+    // Show/hide rating description
+    if (descriptionDiv) {
+        if (selectedOption.value && description.trim()) {
+            descriptionDiv.innerHTML = description;
+            descriptionDiv.classList.remove('hidden');
+        } else {
+            descriptionDiv.classList.add('hidden');
+        }
+    }
+}
+
+function updateTotalPoints(attendanceId) {
+    const pointsInputs = document.querySelectorAll(`input[data-attendance-id="${attendanceId}"].criterion-points`);
+    let total = 0;
+    
+    pointsInputs.forEach(input => {
+        total += parseFloat(input.value) || 0;
+    });
+    
+    const totalElement = document.getElementById(`total-points-${attendanceId}`);
+    if (totalElement) {
+        totalElement.textContent = total.toFixed(1);
+    }
+}
+
+function loadExistingEvaluation(attendanceId) {
+    // The template already loads existing values, but ensure total is calculated
+    setTimeout(() => {
+        updateTotalPoints(attendanceId);
+        
+        // Update rating descriptions for all loaded dropdowns
+        const ratingSelects = document.querySelectorAll(`select[data-attendance-id="${attendanceId}"].rating-select`);
+        ratingSelects.forEach(select => {
+            const criterionId = select.getAttribute('data-criterion-id');
+            if (select.value) {
+                updatePointsFromRatingDropdown(criterionId, attendanceId, select);
+            }
+        });
+    }, 100);
+}
+
+// Add event listeners for points inputs to update totals
+document.addEventListener('DOMContentLoaded', function() {
+    const allPointsInputs = document.querySelectorAll('.criterion-points');
+    allPointsInputs.forEach(input => {
+        input.addEventListener('input', function() {
+            const attendanceId = this.dataset.attendanceId;
+            const maxPoints = parseFloat(this.max);
+            let value = parseFloat(this.value) || 0;
+            
+            // Enforce maximum points
+            if (value > maxPoints) {
+                value = maxPoints;
+                this.value = value;
+            }
+            
+            updateTotalPoints(attendanceId);
+        });
+    });
+});
+{% endif %}
+
+// Conference Rubric Evaluation History Timeline Toggle Function
+function toggleConferenceRubricEvaluationHistory() {
+    const timeline = document.getElementById('conference-rubric-evaluation-history');
+    const icon = document.getElementById('conference-rubric-history-icon');
+    
+    if (timeline && icon) {
+        if (timeline.classList.contains('hidden')) {
+            timeline.classList.remove('hidden');
+            icon.classList.remove('fa-chevron-right');
+            icon.classList.add('fa-chevron-down');
+        } else {
+            timeline.classList.add('hidden');
+            icon.classList.remove('fa-chevron-down');
+            icon.classList.add('fa-chevron-right');
+        }
+    }
+}
+
+// Sync conference data function
+function syncConferenceData() {
+    const button = document.getElementById('syncDataBtn');
+    const buttonText = document.getElementById('syncButtonText');
+    const syncIcon = button.querySelector('.sync-icon');
+    const errorMessage = document.getElementById('syncErrorMessage');
+    const successMessage = document.getElementById('syncSuccessMessage');
+    const messagesContainer = document.getElementById('syncMessages');
+    
+    // Store original button content
+    const originalButtonContent = button.innerHTML;
+    
+    // Disable button and show loading with animated spinner
+    button.disabled = true;
+    button.innerHTML = `
+        <svg class="animate-spin mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+        <span>Syncing...</span>
+    `;
+    
+    // Show messages container and hide previous messages
+    messagesContainer.classList.remove('hidden');
+    errorMessage.textContent = '';
+    successMessage.textContent = '';
+    
+    // Get CSRF token from meta tag (consistent with base template)
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    
+    // Make AJAX request to sync data
+    fetch("{% url 'conferences:sync_conference_data' conference_id=conference.id %}", {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken,
+            'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Update button to show completion
+            button.innerHTML = `
+                <svg class="mr-2 h-4 w-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+                <span>Sync Complete</span>
+            `;
+            
+            // Re-enable button and restore original content after delay
+            setTimeout(() => {
+                button.disabled = false;
+                button.innerHTML = originalButtonContent;
+            }, 3000);
+            
+            // Refresh page after delay to show updated data
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        } else {
+            // Show error message
+            errorMessage.textContent = data.error || 'Failed to sync conference data. Please try again.';
+            
+            // Re-enable button and restore original content
+            button.disabled = false;
+            button.innerHTML = originalButtonContent;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        errorMessage.textContent = 'An error occurred while syncing data. Please try again.';
+        
+        // Re-enable button and restore original content
+        button.disabled = false;
+        button.innerHTML = originalButtonContent;
+    });
+}
+
+// Add event listener for sync button and URL fragment handling
+document.addEventListener('DOMContentLoaded', function() {
+    const syncButton = document.getElementById('syncDataBtn');
+    if (syncButton) {
+        syncButton.addEventListener('click', syncConferenceData);
+    }
+    
+    // Handle URL fragments for tab navigation
+    const urlFragment = window.location.hash;
+    if (urlFragment === '#rubric-history') {
+        // Open the Rubric Evaluation History tab
+        showTabProgrammatically('rubric-history');
+        
+        // Also expand the student accordion within that tab
+        setTimeout(function() {
+            toggleConferenceRubricEvaluationHistory();
+        }, 100);
+    }
+});
+
+// Modified showTab function that can be called programmatically
+function showTabProgrammatically(tabName) {
+    // Hide all tabs
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.style.display = 'none';
+    });
+    
+    // Remove active class from all buttons
+    document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Show selected tab
+    const targetTab = document.getElementById(tabName + '-tab');
+    if (targetTab) {
+        targetTab.style.display = 'block';
+    }
+    
+    // Add active class to corresponding button
+    const tabButtons = document.querySelectorAll('.tab-button');
+    tabButtons.forEach(btn => {
+        if (btn.textContent.toLowerCase().includes(tabName.replace('-', ' '))) {
+            btn.classList.add('active');
+        }
+    });
+}
+
+// Generate conference detailed report function
+function generateConferenceDetailedReport(conferenceId, studentId) {
+    // Redirect to the student-specific detailed report page
+    window.location.href = `/conferences/${conferenceId}/detailed-report/?student_id=${studentId}`;
+}
+
+// ✅ FIX #5: Direct download for all cloud recordings - no password required
+
+</script>
+
+<style>
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+/* Loading spinner styles */
+.loading-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 1s linear infinite;
+    margin-right: 8px;
+}
+</style>
+
+<!-- Include the return help modal -->
+{% include 'conferences/return_help_modal.html' %}
+
+{% endblock %} 

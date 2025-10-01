@@ -1,0 +1,323 @@
+<!-- Learning Preferences Sub-Tab -->
+<div id="learning-preferences-tab" class="learning-profile-tab-content" style="display: none;">
+    <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+        <div class="flex items-center justify-between mb-3">
+            <h4 class="text-lg font-semibold text-gray-900 mb-4">Learning Preferences (VAK)</h4>
+        </div>
+        
+        <!-- VAK Quiz Attempts with Course/Topic Context -->
+        {% if vak_quiz_attempts %}
+            <div class="space-y-4">
+                {% for attempt_data in vak_quiz_attempts %}
+                <div class="border rounded-lg p-4 bg-white shadow-sm">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <h5 class="font-medium text-gray-900 mb-1">{{ attempt_data.quiz.title }}</h5>
+                            {% if attempt_data.course %}
+                                <p class="text-sm text-gray-600">
+                                    <i class="fas fa-graduation-cap mr-1"></i>
+                                    Course: <strong>{{ attempt_data.course.title }}</strong>
+                                </p>
+                            {% endif %}
+                            {% if attempt_data.topic %}
+                                <p class="text-sm text-gray-600">
+                                    <i class="fas fa-bookmark mr-1"></i>
+                                    Topic: <strong>{{ attempt_data.topic.title }}</strong>
+                                </p>
+                            {% endif %}
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-xs px-2 py-1 bg-green-100 text-green-800 rounded-full">VAK Test</span>
+                        </div>
+                    </div>
+                    
+                    {% if attempt_data.learning_scores %}
+                        <!-- Show VAK Test learning style scores -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                            <div class="bg-blue-50 rounded-lg p-4 text-center">
+                                <div class="text-blue-600 text-2xl font-bold mb-2">
+                                    <i class="fas fa-eye"></i>
+                                </div>
+                                <h6 class="font-medium text-blue-900 mb-1">Visual</h6>
+                                <div class="text-blue-600 text-xl font-bold mb-1">{{ attempt_data.learning_scores.visual.percentage }}%</div>
+                                <p class="text-sm text-blue-700">{{ attempt_data.learning_scores.visual.count }}/{{ attempt_data.learning_scores.visual.total }} selected</p>
+                            </div>
+                            
+                            <div class="bg-green-50 rounded-lg p-4 text-center">
+                                <div class="text-green-600 text-2xl font-bold mb-2">
+                                    <i class="fas fa-volume-up"></i>
+                                </div>
+                                <h6 class="font-medium text-green-900 mb-1">Auditory</h6>
+                                <div class="text-green-600 text-xl font-bold mb-1">{{ attempt_data.learning_scores.auditory.percentage }}%</div>
+                                <p class="text-sm text-green-700">{{ attempt_data.learning_scores.auditory.count }}/{{ attempt_data.learning_scores.auditory.total }} selected</p>
+                            </div>
+                            
+                            <div class="bg-purple-50 rounded-lg p-4 text-center">
+                                <div class="text-purple-600 text-2xl font-bold mb-2">
+                                    <i class="fas fa-hand-paper"></i>
+                                </div>
+                                <h6 class="font-medium text-purple-900 mb-1">Kinesthetic</h6>
+                                <div class="text-purple-600 text-xl font-bold mb-1">{{ attempt_data.learning_scores.kinesthetic.percentage }}%</div>
+                                <p class="text-sm text-purple-700">{{ attempt_data.learning_scores.kinesthetic.count }}/{{ attempt_data.learning_scores.kinesthetic.total }} selected</p>
+                            </div>
+                        </div>
+                        
+
+                        
+                        <!-- Action buttons -->
+                        {% if user.role == 'learner' and user.id == profile_user.id %}
+                        <div class="mt-4 pt-4 border-t border-gray-200">
+                            <a href="{% url 'quiz:quiz_view' attempt_data.quiz.id %}" 
+                               class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
+                                <i class="fas fa-redo mr-2"></i>
+                                Retake VAK Test
+                            </a>
+                            {% if attempt_data.course and attempt_data.course.id and attempt_data.course.id != '' %}
+                                <a href="{% url 'courses:course_view' attempt_data.course.id %}" 
+                                   class="ml-2 inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                    <i class="fas fa-graduation-cap mr-2"></i>
+                                    View Course
+                                </a>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <p class="text-gray-600 mb-2">No learning style data available</p>
+                            <p class="text-sm text-gray-500">The VAK test may not have been completed properly</p>
+                        </div>
+                    {% endif %}
+
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <!-- No VAK quiz attempts yet -->
+            <div class="border rounded-lg p-6 text-center">
+                <div class="text-gray-400 mb-4">
+                    <i class="fas fa-brain text-4xl"></i>
+                </div>
+                <h5 class="font-medium text-gray-900 mb-2">No VAK Tests Taken</h5>
+                <p class="text-gray-600 mb-4">
+                    {% if user.role == 'learner' and user.id == profile_user.id %}
+                        You haven't taken any VAK learning style tests yet. These tests are typically accessed through course topics.
+                    {% else %}
+                        This user hasn't taken any VAK learning style tests yet.
+                    {% endif %}
+                </p>
+                <div class="mt-4 p-4 bg-blue-50 rounded-lg">
+                    <p class="text-sm text-blue-700">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        <strong>Note:</strong> VAK tests are accessed through course topics. Look for "Quiz" topics in your enrolled courses that are marked as VAK tests.
+                    </p>
+                </div>
+            </div>
+        {% endif %}
+        
+        <!-- Manual VAK Scores Section (Only for instructors/admins) -->
+        {% if user.role == 'instructor' or user.role == 'admin' or user.role == 'superadmin' or user.role == 'globaladmin' %}
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+            <h6 class="font-medium text-blue-800 mb-3">
+                <i class="fas fa-edit mr-2"></i>
+                Manual VAK Scores
+            </h6>
+            <p class="text-sm text-blue-700 mb-3">Enter manual VAK scores for this learner (optional, overrides quiz results):</p>
+            
+            <!-- Display existing manual scores -->
+            {% if profile_user.manual_vak_score and profile_user.manual_vak_score.has_any_scores %}
+            <div class="mb-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-white rounded-lg p-3 border border-blue-200">
+                        <h6 class="font-medium text-blue-800 mb-1">Visual</h6>
+                        <div class="text-lg font-semibold text-blue-700">
+                            {{ profile_user.manual_vak_score.visual_score|floatformat:1|default:0 }}%
+                        </div>
+                        <p class="text-xs text-blue-600">Manual</p>
+                    </div>
+                    <div class="bg-white rounded-lg p-3 border border-green-200">
+                        <h6 class="font-medium text-green-800 mb-1">Auditory</h6>
+                        <div class="text-lg font-semibold text-green-700">
+                            {{ profile_user.manual_vak_score.auditory_score|floatformat:1|default:0 }}%
+                        </div>
+                        <p class="text-xs text-green-600">Manual</p>
+                    </div>
+                    <div class="bg-white rounded-lg p-3 border border-purple-200">
+                        <h6 class="font-medium text-purple-800 mb-1">Kinesthetic</h6>
+                        <div class="text-lg font-semibold text-purple-700">
+                            {{ profile_user.manual_vak_score.kinesthetic_score|floatformat:1|default:0 }}%
+                        </div>
+                        <p class="text-xs text-purple-600">Manual</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Manual VAK score form (integrated into main form) -->
+            <div id="manual-vak-form-preferences" class="mt-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="form-group">
+                        <label class="form-label" for="id_manual_visual_score">Visual Score</label>
+                        <input type="number" 
+                               id="id_manual_visual_score" 
+                               name="manual_visual_score" 
+                               class="form-input" 
+                               min="0" 
+                               max="100" 
+                               step="0.1" 
+                               placeholder="Visual Score (0-100)"
+                               value="{% if profile_user.manual_vak_score %}{{ profile_user.manual_vak_score.visual_score|default:'' }}{% endif %}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="id_manual_auditory_score">Auditory Score</label>
+                        <input type="number" 
+                               id="id_manual_auditory_score" 
+                               name="manual_auditory_score" 
+                               class="form-input" 
+                               min="0" 
+                               max="100" 
+                               step="0.1" 
+                               placeholder="Auditory Score (0-100)"
+                               value="{% if profile_user.manual_vak_score %}{{ profile_user.manual_vak_score.auditory_score|default:'' }}{% endif %}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="id_manual_kinesthetic_score">Kinesthetic Score</label>
+                        <input type="number" 
+                               id="id_manual_kinesthetic_score" 
+                               name="manual_kinesthetic_score" 
+                               class="form-input" 
+                               min="0" 
+                               max="100" 
+                               step="0.1" 
+                               placeholder="Kinesthetic Score (0-100)"
+                               value="{% if profile_user.manual_vak_score %}{{ profile_user.manual_vak_score.kinesthetic_score|default:'' }}{% endif %}">
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Manual VAK Scores Section (Read-only for learners) -->
+        {% if user.role == 'learner' and user.id == profile_user.id and profile_user.manual_vak_score and profile_user.manual_vak_score.has_any_scores %}
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-4">
+            <h6 class="font-medium text-gray-800 mb-3">
+                <i class="fas fa-clipboard-check mr-2"></i>
+                Manual VAK Scores (Instructor Assessment)
+            </h6>
+            <p class="text-sm text-gray-600 mb-3">Your instructor has provided the following manual VAK assessment scores:</p>
+            
+            <!-- Display manual scores for learner -->
+            <div class="mb-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-white rounded-lg p-4 border border-blue-200 text-center">
+                        <div class="text-blue-600 text-2xl font-bold mb-2">
+                            <i class="fas fa-eye"></i>
+                        </div>
+                        <h6 class="font-medium text-blue-800 mb-1">Visual</h6>
+                        <div class="text-2xl font-bold text-blue-700 mb-1">
+                            {{ profile_user.manual_vak_score.visual_score|floatformat:1|default:0 }}%
+                        </div>
+                        <p class="text-sm text-blue-600">Instructor Assessment</p>
+                    </div>
+                    <div class="bg-white rounded-lg p-4 border border-green-200 text-center">
+                        <div class="text-green-600 text-2xl font-bold mb-2">
+                            <i class="fas fa-volume-up"></i>
+                        </div>
+                        <h6 class="font-medium text-green-800 mb-1">Auditory</h6>
+                        <div class="text-2xl font-bold text-green-700 mb-1">
+                            {{ profile_user.manual_vak_score.auditory_score|floatformat:1|default:0 }}%
+                        </div>
+                        <p class="text-sm text-green-600">Instructor Assessment</p>
+                    </div>
+                    <div class="bg-white rounded-lg p-4 border border-purple-200 text-center">
+                        <div class="text-purple-600 text-2xl font-bold mb-2">
+                            <i class="fas fa-hand-paper"></i>
+                        </div>
+                        <h6 class="font-medium text-purple-800 mb-1">Kinesthetic</h6>
+                        <div class="text-2xl font-bold text-purple-700 mb-1">
+                            {{ profile_user.manual_vak_score.kinesthetic_score|floatformat:1|default:0 }}%
+                        </div>
+                        <p class="text-sm text-purple-600">Instructor Assessment</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Assessment details -->
+            <div class="mt-4 p-3 bg-white border border-gray-200 rounded-md">
+                <div class="flex items-center text-sm text-gray-600">
+                    <i class="fas fa-user-tie mr-2"></i>
+                    <span>Assessed by: <strong>{{ profile_user.manual_vak_score.entered_by.get_full_name|default:profile_user.manual_vak_score.entered_by.username }}</strong></span>
+                    <span class="ml-4">
+                        <i class="fas fa-clock mr-1"></i>
+                        Updated: {{ profile_user.manual_vak_score.updated_at|date:"M d, Y g:i A" }}
+                    </span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// Ensure tab state is preserved when making updates in this tab
+document.addEventListener('DOMContentLoaded', function() {
+    // Set tab state for form submission
+    function updateTabState() {
+        // Update global tab state explicitly for this tab
+        if (typeof currentTabState !== 'undefined') {
+            currentTabState.mainTab = 'ilp-tab';
+            currentTabState.subTab = 'learning-profile-tab';
+            currentTabState.nestedTab = 'learning-preferences-tab';
+            
+            console.log('Learning Preferences tab: Setting tab state to:', currentTabState);
+            
+            // Update hidden form fields directly
+            var activeTabField = document.getElementById('activeTabField');
+            var activeSubTabField = document.getElementById('activeSubTabField');
+            var activeNestedTabField = document.getElementById('activeNestedTabField');
+            
+            if (activeTabField) activeTabField.value = currentTabState.mainTab;
+            if (activeSubTabField) activeSubTabField.value = currentTabState.subTab;
+            if (activeNestedTabField) activeNestedTabField.value = currentTabState.nestedTab;
+        }
+    }
+    
+    // Update tab state when the tab becomes visible
+    var tabElement = document.getElementById('learning-preferences-tab');
+    if (tabElement) {
+        // Create a mutation observer to detect when the tab becomes visible
+        var observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && 
+                    mutation.attributeName === 'style' &&
+                    tabElement.style.display !== 'none') {
+                    updateTabState();
+                }
+                
+                if (mutation.type === 'attributes' && 
+                    mutation.attributeName === 'class' &&
+                    tabElement.classList.contains('active')) {
+                    updateTabState();
+                }
+            });
+        });
+        
+        observer.observe(tabElement, { attributes: true });
+        
+        // Also check if it's already visible
+        if (tabElement.style.display !== 'none' || tabElement.classList.contains('active')) {
+            updateTabState();
+        }
+    }
+    
+    // Add input listeners to all form elements in this tab
+    var formElements = document.querySelectorAll('#learning-preferences-tab input, #learning-preferences-tab textarea, #learning-preferences-tab select');
+    formElements.forEach(function(element) {
+        element.addEventListener('focus', updateTabState);
+        element.addEventListener('change', updateTabState);
+    });
+});
+
+// Manual VAK scores are integrated into the main form
+// VAK quiz attempts are displayed based on completed quizzes in courses
+// No separate form handling needed for VAK quiz assignments
+</script> 

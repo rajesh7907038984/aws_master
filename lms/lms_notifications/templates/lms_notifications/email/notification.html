@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ notification.title }} - {{ site_name }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+        }
+        .container {
+            background-color: #ffffff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .header {
+            background: #1c2260;
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .content {
+            padding: 30px 20px;
+        }
+        .notification-type {
+            display: inline-block;
+            background-color: #f8f9fa;
+            color: #333;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            margin-bottom: 20px;
+            border: 1px solid #dee2e6;
+        }
+        .priority {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            margin-left: 8px;
+            border: 1px solid #dee2e6;
+        }
+        .priority.urgent {
+            background-color: #333;
+            color: white;
+            border-color: #333;
+        }
+        .priority.high {
+            background-color: #1c2260;
+            color: white;
+            border-color: #1c2260;
+        }
+        .priority.normal {
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        .priority.low {
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        .title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1c2260;
+            margin: 0 0 15px 0;
+        }
+        .message {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #333;
+            margin: 20px 0;
+        }
+        .action-button {
+            display: inline-block;
+            background: #1c2260;
+            color: white;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: 500;
+            margin: 20px 0;
+            transition: all 0.3s ease;
+        }
+        .action-button:hover {
+            background: #15204d;
+            color: white;
+        }
+        .meta-info {
+            background-color: #f8f9fa;
+            border-left: 4px solid #1c2260;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 4px 4px 0;
+        }
+        .meta-info p {
+            margin: 5px 0;
+            font-size: 14px;
+            color: #333;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            border-top: 1px solid #dee2e6;
+        }
+        .footer p {
+            margin: 5px 0;
+            font-size: 14px;
+            color: #333;
+        }
+        .footer a {
+            color: #1c2260;
+            text-decoration: none;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        .divider {
+            height: 1px;
+            background-color: #dee2e6;
+            margin: 20px 0;
+        }
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+            .header {
+                padding: 20px 15px;
+            }
+            .header h1 {
+                font-size: 20px;
+            }
+            .content {
+                padding: 20px 15px;
+            }
+            .title {
+                font-size: 18px;
+            }
+            .message {
+                font-size: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>{{ site_name }}</h1>
+        </div>
+        
+        <div class="content">
+            <div>
+                <span class="notification-type">{{ notification.notification_type.display_name }}</span>
+                <span class="priority {{ notification.priority }}">{{ notification.get_priority_display }}</span>
+            </div>
+            
+            <h2 class="title">{{ notification.title }}</h2>
+            
+            {% load json_filters %}
+            <div class="message">
+                {{ notification.message|render_rich_content }}
+            </div>
+            
+            {% if notification.action_url %}
+            <div style="text-align: center;">
+                <a href="{{ action_url }}" class="action-button">
+                    {{ notification.action_text|default:"View Details" }}
+                </a>
+            </div>
+            {% endif %}
+            
+            <div class="divider"></div>
+            
+            <div class="meta-info">
+                <p><strong>Sent:</strong> {{ notification.created_at|date:"F j, Y \a\t g:i A" }}</p>
+                {% if notification.sender %}
+                <p><strong>From:</strong> {{ notification.sender.get_full_name|default:notification.sender.username }}</p>
+                {% else %}
+                <p><strong>From:</strong> System</p>
+                {% endif %}
+                {% if notification.related_course %}
+                <p><strong>Course:</strong> {{ notification.related_course.title }}</p>
+                {% endif %}
+                {% if notification.expires_at %}
+                <p><strong>Expires:</strong> {{ notification.expires_at|date:"F j, Y \a\t g:i A" }}</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>This notification was sent to {{ user.email }} as part of your {{ site_name }} account.</p>
+            <p>
+                <a href="{{ action_url|default:'#' }}">View in browser</a> | 
+                <a href="#">Notification preferences</a> | 
+                <a href="#">Unsubscribe</a>
+            </p>
+            <p>&copy; {{ "now"|date:"Y" }} {{ site_name }}. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html> 

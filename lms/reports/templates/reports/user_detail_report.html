@@ -1,0 +1,737 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<style>
+/* User Report Tab Styles - Conflict-Free Implementation */
+/* Override any mobile accordion styles that might interfere */
+.user-report-tab-content {
+    position: relative !important;
+    z-index: 10;
+}
+
+.user-report-tab-btn {
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    border-radius: 4px 4px 0 0 !important;
+    position: relative !important;
+    z-index: 11 !important;
+}
+
+.user-report-tab-btn:hover {
+    background-color: #f8fafc !important;
+}
+
+.user-report-tab-btn.active {
+    background-color: #eff6ff !important;
+    border-color: #3b82f6 !important;
+    color: #1d4ed8 !important;
+}
+
+/* Force display control - override any conflicting CSS */
+.user-report-tab-pane {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    position: relative !important;
+    z-index: 10 !important;
+}
+
+.user-report-tab-pane.active {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    height: auto !important;
+    overflow: visible !important;
+    min-height: auto !important;
+    padding: initial !important;
+    margin: initial !important;
+}
+
+/* Ensure tab content wrapper is always visible */
+.user-report-tab-content {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    height: auto !important;
+    overflow: visible !important;
+}
+
+/* Mobile responsiveness - but don't let mobile accordion interfere */
+@media (max-width: 768px) {
+    .user-report-tab-content .user-report-tab-pane {
+        padding: 1rem !important;
+    }
+    
+    .user-report-tab-btn {
+        font-size: 0.875rem !important;
+        padding: 0.75rem 1rem !important;
+    }
+}
+
+/* Animation for smooth transitions */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.user-report-tab-pane.active {
+    animation: fadeIn 0.3s ease-out !important;
+}
+
+/* Prevent mobile accordion CSS from affecting user reports */
+.user-report-tab-content * {
+    box-sizing: border-box !important;
+}
+
+/* Force visibility on desktop for user report tabs */
+@media (min-width: 769px) {
+    .user-report-tab-content .user-report-tab-pane {
+        /* Don't let mobile accordion CSS hide our desktop tabs */
+        min-height: auto !important;
+        padding: initial !important;
+        margin: initial !important;
+    }
+    
+    .user-report-tab-content .user-report-tab-pane.active {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+}
+</style>
+{% endblock %}
+
+{% block title %}{{ user.get_full_name|default:user.username }} - User Report{% endblock %}
+
+{% block content %}
+<div class="bg-white text-black min-h-screen">
+    <div class="container mx-auto px-4 py-6">
+        <!-- Breadcrumbs -->
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+        <!-- User header with type and profile info -->
+        <div class="mt-6 mb-8">
+            <div class="flex items-center gap-6">
+                {% if user.profile_image %}
+                    <img src="{{ user.profile_image.url }}" alt="{{ user.get_full_name|default:user.username }}" 
+                         class="w-16 h-16 rounded-full object-cover border-2 border-gray-200">
+                {% else %}
+                    <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+                        {{ user.get_full_name.0|default:user.username.0 }}
+                    </div>
+                {% endif %}
+                <div>
+                    <div class="text-sm text-gray-500 uppercase">LEARNER-TYPE</div>
+                    <h1 class="text-xl font-semibold text-gray-900">{{ user.get_full_name|default:user.username }}</h1>
+                    <div class="text-sm text-gray-500">{{ user.email }}</div>
+                </div>
+                <div class="ml-auto flex gap-3">
+                    <button onclick="window.history.back()" class="inline-flex items-center bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 transition-all">
+                        <i class="fas fa-arrow-left mr-2"></i>
+                        Back
+                    </button>
+                    <div class="dropdown relative inline-block">
+                        <a href="{% url 'reports:user_detail_report' user.id %}?export=excel" class="text-white py-2 px-4 rounded-md transition-all" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                            Export in Excel
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="border-b border-gray-200 mb-6">
+            <nav class="flex -mb-px space-x-1">
+                <button data-tab="overview" class="user-report-tab-btn px-6 py-3 border-b-2 border-blue-500 text-blue-600 font-medium transition-colors active">Overview</button>
+                <button data-tab="courses" class="user-report-tab-btn px-6 py-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors">Courses</button>
+                <button data-tab="learning-activities" class="user-report-tab-btn px-6 py-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors">Learning Activities</button>
+                <button data-tab="initial-assessments" class="user-report-tab-btn px-6 py-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors">Initial Assessments</button>
+                <button data-tab="certificates" class="user-report-tab-btn px-6 py-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors">Certificates</button>
+                <button data-tab="timeline" class="user-report-tab-btn px-6 py-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors">Timeline</button>
+            </nav>
+        </div>
+
+
+        <!-- Tab Content -->
+        <div class="user-report-tab-content">
+            <!-- Overview Tab -->
+            <div data-tab-content="overview" class="user-report-tab-pane active">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Left Column -->
+                    <div>
+                        <!-- Overview Section -->
+                        <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+                            <h2 class="text-lg font-semibold mb-4">Overview</h2>
+                            <div class="space-y-4">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <i class="fas fa-chart-line text-gray-400"></i>
+                                        <span class="text-sm text-gray-700">Completion rate</span>
+                                    </div>
+                                    <span class="font-semibold">{{ completion_rate }}%</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <i class="fas fa-check-circle text-gray-400"></i>
+                                        <span class="text-sm text-gray-700">Completed courses</span>
+                                    </div>
+                                    <span class="font-semibold">{{ completed_courses }}</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <i class="fas fa-sync text-gray-400"></i>
+                                        <span class="text-sm text-gray-700">Courses in progress</span>
+                                    </div>
+                                    <span class="font-semibold">{{ courses_in_progress }}</span>
+                                </div>
+
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <i class="fas fa-play-circle text-gray-400"></i>
+                                        <span class="text-sm text-gray-700">Courses not started</span>
+                                    </div>
+                                    <span class="font-semibold">{{ courses_not_started }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Courses chart is now handled by the global reusable component -->
+
+                    <!-- Right Column -->
+                    <div>
+                        <!-- Activity Section - Using Reusable Component -->
+                        <div class="mb-6">
+                        </div>
+                        
+                        <!-- Achievements Section -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Courses Tab -->
+            <div data-tab-content="courses" class="user-report-tab-pane">
+                <!-- Stats Summary -->
+                <div class="bg-gray-100 p-6 rounded-lg mb-6">
+                    <div class="grid grid-cols-6 gap-4 text-center">
+                        <div>
+                            <div class="text-2xl font-bold">{{ completion_rate }}%</div>
+                            <div class="text-sm text-gray-600">Completion rate</div>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold">{{ completed_courses }}</div>
+                            <div class="text-sm text-gray-600">Completed courses</div>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold">{{ courses_in_progress }}</div>
+                            <div class="text-sm text-gray-600">Courses in progress</div>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold">{{ courses_not_passed }}</div>
+                            <div class="text-sm text-gray-600">Courses not passed</div>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold">{{ courses_not_started }}</div>
+                            <div class="text-sm text-gray-600">Courses not started</div>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold">{{ total_courses }}</div>
+                            <div class="text-sm text-gray-600">Total courses</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Courses Table -->
+                <div class="responsive-table-wrapper full-width" style="width: 100%; margin: 0; padding: 0;">
+                    <!-- Desktop Table View -->
+                    <div class="desktop-table table-scroll-wrapper" style="width: 100%;">
+                        <table class="responsive-table" style="width: 100%; table-layout: auto;">
+                        <thead>
+                            <tr class="bg-gray-50 border-b">
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Course</th>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">
+                                    Progress status
+                                    <i class="fas fa-chevron-down ml-1 text-xs"></i>
+                                </th>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Score</th>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Enrolled on</th>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Completion date</th>
+                                <th class="py-3 px-4 text-center text-sm font-medium text-gray-700"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Loop through actual course data -->
+                            {% for enrollment in user_courses %}
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="py-3 px-4">{{ enrollment.course.title }}</td>
+                                <td class="py-3 px-4">
+                                    <div class="flex flex-col">
+                                        {% if enrollment.calculated_progress is not None %}
+                                            <span class="text-sm mb-1">{{ enrollment.calculated_progress }}%</span>
+                                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                                <div class="{% if enrollment.completed %}bg-green-500{% else %}bg-blue-500{% endif %} h-2 rounded-full" style="width: {{ enrollment.calculated_progress }}%"></div>
+                                            </div>
+                                        {% else %}
+                                            <span class="text-sm mb-1">0%</span>
+                                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                                <div class="bg-gray-400 h-2 rounded-full" style="width: 0%"></div>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="py-3 px-4">{{ enrollment.calculated_score|default:"-" }}</td>
+                                <td class="py-3 px-4">{{ enrollment.enrolled_at|date:"d/m/Y" }}</td>
+                                <td class="py-3 px-4">{% if enrollment.completed %}{{ enrollment.completion_date|date:"d/m/Y" }}{% else %}-{% endif %}</td>
+                                <td class="py-3 px-4 text-center">
+                                    <a href="{% url 'reports:course_detail' enrollment.course.id %}" class="text-gray-500 hover:text-gray-700 inline-block p-2">
+                                        <i class="fas fa-ellipsis-h"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr class="border-b">
+                                <td colspan="6" class="py-4 px-4 text-center text-gray-500">No courses data available</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Learning Activities Tab -->
+            <div data-tab-content="learning-activities" class="user-report-tab-pane">
+                <!-- Stats Summary -->
+                <div class="bg-gray-100 p-6 rounded-lg mb-6">
+                    <div class="grid grid-cols-5 gap-4 text-center">
+                        <div>
+                            <div class="text-2xl font-bold">{{ total_activities|default:"0" }}</div>
+                            <div class="text-sm text-gray-600">Total activities</div>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold">{{ completed_activities|default:"0" }}</div>
+                            <div class="text-sm text-gray-600">Completed</div>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold">{{ activities_in_progress|default:"0" }}</div>
+                            <div class="text-sm text-gray-600">In progress</div>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold">{{ activities_not_started|default:"0" }}</div>
+                            <div class="text-sm text-gray-600">Not started</div>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold">{{ avg_activity_score|default:"0" }}%</div>
+                            <div class="text-sm text-gray-600">Average score</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Learning Activities Table -->
+                <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+                    <table class="min-w-full">
+                        <thead>
+                            <tr class="bg-gray-50 border-b">
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Activity Name</th>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Course</th>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">
+                                    Status
+                                    <i class="fas fa-chevron-down ml-1 text-xs"></i>
+                                </th>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Score</th>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Completion Date</th>
+                                <th class="py-3 px-4 text-center text-sm font-medium text-gray-700"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Loop through actual activity data -->
+                            {% for progress in topic_progress %}
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="py-3 px-4">{{ progress.topic.title }}</td>
+                                <td class="py-3 px-4">{{ progress.course_title|default:"N/A" }}</td>
+                                <td class="py-3 px-4">
+                                    <div class="flex flex-col">
+                                        {% if progress.completed %}
+                                            <span class="text-sm mb-1">100%</span>
+                                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                                <div class="bg-green-500 h-2 rounded-full" style="width: 100%"></div>
+                                            </div>
+                                        {% elif progress.get_progress_percentage > 0 %}
+                                            <span class="text-sm mb-1">{{ progress.get_progress_percentage }}%</span>
+                                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                                <div class="bg-blue-500 h-2 rounded-full" style="width: {{ progress.get_progress_percentage }}%"></div>
+                                            </div>
+                                        {% else %}
+                                            <span class="text-sm mb-1">0%</span>
+                                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                                <div class="bg-gray-400 h-2 rounded-full" style="width: 0%"></div>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="py-3 px-4">{{ progress.last_score|default:"-" }}</td>
+                                <td class="py-3 px-4">{% if progress.completed %}{{ progress.completed_at|date:"d/m/Y" }}{% else %}-{% endif %}</td>
+                                <td class="py-3 px-4 text-center">
+                                    <a href="{% url 'reports:activity_detail' progress.topic.id %}" class="text-gray-500 hover:text-gray-700 inline-block p-2">
+                                        <i class="fas fa-ellipsis-h"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr class="border-b">
+                                <td colspan="6" class="py-4 px-4 text-center text-gray-500">No learning activities data available</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Initial Assessments Tab -->
+            <div data-tab-content="initial-assessments" class="user-report-tab-pane">
+                <!-- Initial Assessments Summary -->
+                <div class="bg-gray-100 p-6 rounded-lg mb-6">
+                    <div class="grid grid-cols-3 gap-4 text-center">
+                        <div>
+                            <div class="text-2xl font-bold">{{ total_initial_assessments|default:"0" }}</div>
+                            <div class="text-sm text-gray-600">Total assessments</div>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold">{{ initial_assessment_data|length|default:"0" }}</div>
+                            <div class="text-sm text-gray-600">Completed</div>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold">
+                                {% if initial_assessment_data %}
+                                    {% with latest_assessment=initial_assessment_data|last %}
+                                        {{ latest_assessment.latest_score|floatformat:0|default:"0" }}
+                                    {% endwith %}
+                                {% else %}
+                                    0
+                                {% endif %}%
+                            </div>
+                            <div class="text-sm text-gray-600">Latest score</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Initial Assessments Table -->
+                <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+                    <table class="min-w-full">
+                        <thead>
+                            <tr class="bg-gray-50 border-b">
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Assessment Title</th>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Score</th>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Classification</th>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Completion Date</th>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Attempts</th>
+                                <th class="py-3 px-4 text-center text-sm font-medium text-gray-700">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for assessment in initial_assessment_data %}
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="py-3 px-4">
+                                    <div class="font-medium text-gray-900">{{ assessment.quiz.title }}</div>
+                                    {% if assessment.quiz.description %}
+                                        <div class="text-sm text-gray-600">{{ assessment.quiz.description|striptags|truncatechars:100 }}</div>
+                                    {% endif %}
+                                </td>
+                                <td class="py-3 px-4">
+                                    <div class="flex items-center">
+                                        <span class="font-semibold {% if assessment.latest_score >= assessment.quiz.passing_score %}text-green-600{% else %}text-orange-600{% endif %}">
+                                            {{ assessment.latest_score|floatformat:1 }}%
+                                        </span>
+                                        {% if assessment.latest_score >= assessment.quiz.passing_score %}
+                                            <i class="fas fa-check-circle text-green-500 ml-2"></i>
+                                        {% else %}
+                                            <i class="fas fa-exclamation-triangle text-orange-500 ml-2"></i>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="py-3 px-4">
+                                    {% if assessment.classification %}
+                                        <div class="text-sm">
+                                            <div class="font-medium">{{ assessment.classification.classification|title }}</div>
+                                            <div class="text-gray-600 text-xs mt-1">
+                                                L2: {{ assessment.classification.L2_Percentage|floatformat:0 }}% | 
+                                                L1: {{ assessment.classification.L1_Percentage|floatformat:0 }}% | 
+                                                Below L1: {{ assessment.classification.Below_Level1_Percentage|floatformat:0 }}%
+                                            </div>
+                                        </div>
+                                        {% comment %}
+                                        <!-- Debug section - uncomment to troubleshoot classification data structure -->
+                                        {% if user.is_superuser %}
+                                        <div class="text-xs text-gray-400 mt-2 p-2 bg-gray-100 rounded">
+                                            <strong>Debug:</strong> {{ assessment.classification|truncatechars:200 }}
+                                        </div>
+                                        {% endif %}
+                                        {% endcomment %}
+                                    {% else %}
+                                        <span class="text-gray-500">-</span>
+                                        {% comment %}
+                                        <!-- Debug section - uncomment to troubleshoot missing classification -->
+                                        {% if user.is_superuser %}
+                                        <div class="text-xs text-red-400 mt-1">
+                                            Debug: No classification data available for attempt {{ assessment.latest_attempt.id }}
+                                        </div>
+                                        {% endif %}
+                                        {% endcomment %}
+                                    {% endif %}
+                                </td>
+                                <td class="py-3 px-4">{{ assessment.completion_date|date:"d/m/Y H:i" }}</td>
+                                <td class="py-3 px-4">
+                                    <span class="text-sm text-gray-600">{{ assessment.attempt_count }}</span>
+                                </td>
+                                <td class="py-3 px-4 text-center">
+                                    <div class="flex justify-center space-x-2">
+                                        <a href="{% url 'quiz:view_attempt' assessment.latest_attempt.id %}" 
+                                           class="text-blue-600 hover:text-blue-800 text-xs">
+                                            <i class="fas fa-eye mr-1"></i>View
+                                        </a>
+                                        <a href="{% url 'quiz:quiz_view' assessment.quiz.id %}" 
+                                           class="text-green-600 hover:text-green-800 text-xs">
+                                            <i class="fas fa-redo mr-1"></i>Retake
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr class="border-b">
+                                <td colspan="6" class="py-8 px-4 text-center text-gray-500">
+                                    <div class="flex flex-col items-center">
+                                        <i class="fas fa-clipboard-list text-gray-300 text-3xl mb-2"></i>
+                                        <p class="text-lg font-medium">No initial assessments completed</p>
+                                        <p class="text-sm">Contact your instructor for assessment assignments.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Badges Tab -->
+            
+            <!-- Certificates Tab -->
+            <div data-tab-content="certificates" class="user-report-tab-pane">
+                <!-- Certificates Summary -->
+                <div class="bg-gray-100 p-6 rounded-lg mb-6">
+                    <div class="grid grid-cols-2 gap-4 text-center">
+                        <div>
+                            <div class="text-2xl font-bold">{{ total_certificates|default:"0" }}</div>
+                            <div class="text-sm text-gray-600">Total certificates</div>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold">{{ user_certificates.first.issue_date|date:"d/m/Y"|default:"-" }}</div>
+                            <div class="text-sm text-gray-600">Latest certificate</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Certificates List -->
+                <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+                    <table class="min-w-full">
+                        <thead>
+                            <tr class="bg-gray-50 border-b">
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Certificate</th>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Course</th>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Issue Date</th>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Score</th>
+                                <th class="py-3 px-4 text-center text-sm font-medium text-gray-700">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cert in user_certificates %}
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="py-3 px-4">{{ cert.certificate_number }}</td>
+                                <td class="py-3 px-4">{{ cert.course_name|default:"N/A" }}</td>
+                                <td class="py-3 px-4">{{ cert.issue_date|date:"d/m/Y" }}</td>
+                                <td class="py-3 px-4">{{ cert.grade|default:"-" }}</td>
+                                <td class="py-3 px-4 text-center">
+                                    {% if cert.certificate_file %}
+                                    <a href="{{ cert.certificate_file.url }}" target="_blank" class="text-white py-1 px-3 rounded text-xs" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                                        <i class="fas fa-download mr-1"></i> Download
+                                    </a>
+                                    {% else %}
+                                    <a href="{% url 'certificates:view_certificate' cert.id %}?generate=true" target="_blank" class="bg-green-500 text-white py-1 px-3 rounded text-xs hover:bg-green-600">
+                                        <i class="fas fa-certificate mr-1"></i> Generate
+                                    </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr class="border-b">
+                                <td colspan="5" class="py-4 px-4 text-center text-gray-500">No certificates available</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Timeline Tab -->
+            <div data-tab-content="timeline" class="user-report-tab-pane">
+                <div class="mb-6">
+                    <h2 class="text-xl font-semibold mb-2">User Activity Timeline</h2>
+                    <p class="text-gray-500 text-sm">Showing the most recent activity events for {{ user.get_full_name|default:user.username }}</p>
+                </div>
+                
+                <!-- Timeline View -->
+                <div id="timeline-container" class="relative pl-8 border-l-2 border-gray-200 ml-6 space-y-10">
+                    {% for activity in user_activities %}
+                    <div class="relative timeline-item">
+                        <!-- Date marker -->
+                        <div class="absolute -left-10 mt-1.5 w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center">
+                            <i class="fas fa-check text-white text-xs"></i>
+                        </div>
+                        
+                        <!-- Activity card -->
+                        <div class="bg-white rounded-lg shadow-sm p-4">
+                            <div class="flex items-start">
+                                <div class="flex-grow">
+                                    <div class="text-xs text-gray-500 mb-1">{{ activity.created_at|date:"d/m/Y H:i" }}</div>
+                                    <div class="font-medium">
+                                        {{ activity.get_type_display }}
+                                        {% if activity.course %}
+                                            - {{ activity.course.title }}
+                                        {% endif %}
+                                    </div>
+                                    {% if activity.description %}
+                                    <div class="text-sm text-gray-600 mt-1">
+                                        {{ activity.description }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="text-{% if activity.type == 'LOGIN' %}blue{% elif activity.type == 'COURSE_COMPLETE' %}green{% elif activity.type == 'ASSIGNMENT_SUBMIT' %}purple{% elif activity.type == 'QUIZ_TAKE' %}orange{% else %}gray{% endif %}-500 ml-4">
+                                    <i class="fas fa-{% if activity.type == 'LOGIN' %}sign-in-alt{% elif activity.type == 'COURSE_START' %}play{% elif activity.type == 'COURSE_COMPLETE' %}check-circle{% elif activity.type == 'ASSIGNMENT_SUBMIT' %}file-upload{% elif activity.type == 'QUIZ_TAKE' %}question-circle{% elif activity.type == 'FORUM_POST' %}comment{% elif activity.type == 'RESOURCE_VIEW' %}eye{% else %}star{% endif %} text-xl"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="py-6 text-center" id="no-activities-message">
+                        <div class="text-gray-400 mb-2"><i class="fas fa-history text-4xl"></i></div>
+                        <p class="text-gray-500">No activity data available</p>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- Load More Button -->
+                <div class="mt-6 text-center" id="load-more-container" {% if not user_activities %}style="display: none;"{% endif %}>
+                    <button id="load-more-btn" class="bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300 transition-all" data-offset="20">
+                        <span class="load-more-text">Load More</span>
+                        <span class="load-more-spinner" style="display: none;">
+                            <i class="fas fa-spinner fa-spin mr-2"></i>Loading...
+                        </span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<!-- User report tabs script -->
+<script src="{% static 'reports/js/user-report-tabs.js' %}"></script>
+<!-- Manual testing helper -->
+<script>
+// console.log('🔧 Loading manual testing helpers...');
+
+// Define functions immediately (not in window.load event)
+window.testTabClick = function(tabName) {
+    // console.log('🧪 Manual tab test for:', tabName);
+    if (window.showUserReportTab) {
+        window.showUserReportTab(tabName);
+    } else {
+        console.error('❌ showUserReportTab function not available');
+    }
+};
+
+window.forceInitTabs = function() {
+    // console.log('🔧 Force initializing tabs...');
+    if (window.initUserReportTabs) {
+        return window.initUserReportTabs();
+    } else {
+        console.error('❌ initUserReportTabs function not available');
+        return false;
+    }
+};
+
+window.checkTabElements = function() {
+    // console.log('🔍 Checking tab elements:');
+    // console.log('Tab container:', !!document.querySelector('.user-report-tab-content'));
+    // console.log('Tab buttons:', document.querySelectorAll('.user-report-tab-btn').length);
+    // console.log('Tab panes:', document.querySelectorAll('.user-report-tab-pane').length);
+    
+    const buttons = document.querySelectorAll('.user-report-tab-btn');
+    buttons.forEach((btn, i) => {
+        // console.log(`Button ${i}:`, {
+            'data-tab': btn.getAttribute('data-tab'),
+            text: btn.textContent.trim(),
+            clickable: !btn.disabled,
+            visible: btn.offsetParent !== null
+        });
+    });
+};
+
+// Simple click test function
+window.clickTab = function(tabName) {
+    // console.log('👆 Simulating click on tab:', tabName);
+    const button = document.querySelector(`[data-tab="${tabName}"]`);
+    if (button) {
+        // console.log('✅ Found button, triggering click');
+        button.click();
+    } else {
+        console.error('❌ Button not found for tab:', tabName);
+    }
+};
+
+// Direct show function
+window.showTab = function(tabName) {
+    // console.log('👁️ Directly showing tab:', tabName);
+    
+    // Hide all panes
+    document.querySelectorAll('.user-report-tab-pane').forEach(pane => {
+        pane.style.display = 'none';
+        pane.classList.remove('active');
+    });
+    
+    // Remove active from all buttons
+    document.querySelectorAll('.user-report-tab-btn').forEach(btn => {
+        btn.classList.remove('active', 'border-blue-500', 'text-blue-600');
+        btn.classList.add('border-transparent', 'text-gray-500');
+    });
+    
+    // Show target pane
+    const targetPane = document.querySelector(`[data-tab-content="${tabName}"]`);
+    const targetButton = document.querySelector(`[data-tab="${tabName}"]`);
+    
+    if (targetPane && targetButton) {
+        targetPane.style.display = 'block';
+        targetPane.classList.add('active');
+        targetButton.classList.add('active', 'border-blue-500', 'text-blue-600');
+        targetButton.classList.remove('border-transparent', 'text-gray-500');
+        // console.log('✅ Tab switched successfully');
+    } else {
+        console.error('❌ Elements not found - Pane:', !!targetPane, 'Button:', !!targetButton);
+    }
+};
+
+// console.log('✅ Manual testing functions loaded:');
+// console.log('  - checkTabElements()');
+// console.log('  - forceInitTabs()');
+// console.log('  - testTabClick("tab-name")');
+// console.log('  - clickTab("courses")');
+// console.log('  - showTab("learning-activities")');
+</script>
+{% endblock %}

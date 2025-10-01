@@ -1,0 +1,1290 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load outcome_tags %}
+
+{% block content %}
+<div class="container">
+    <!-- Breadcrumbs -->
+    {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+    
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Outcomes</h1>
+        <div class="flex gap-2">
+            <a href="{% url 'lms_outcomes:import_outcomes' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                <span class="mr-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                    </svg>
+                </span>
+                Import
+            </a>
+            <a href="{% url 'lms_outcomes:create_outcome' %}" id="create-outcome-btn" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                <span class="mr-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                </span>
+                Create
+            </a>
+            <button class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                <span class="mr-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                    </svg>
+                </span>
+                Find
+            </button>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="border-b border-gray-200 mb-6">
+        <nav class="flex -mb-px">
+            <a href="{% url 'lms_outcomes:manage' %}" class="py-4 px-6 text-sm font-medium border-b-2 {% if active_tab == 'manage' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %}">
+                Manage
+            </a>
+            <a href="{% url 'lms_outcomes:alignments' %}" class="py-4 px-6 text-sm font-medium border-b-2 {% if active_tab == 'alignments' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %}">
+                Alignments
+            </a>
+        </nav>
+    </div>
+
+    <!-- Two Column Layout -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Left Column: Outcome Groups -->
+        <div class="md:col-span-1">
+            <div class="bg-white shadow rounded-lg overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-800">Outcome Groups</h2>
+                </div>
+                <div class="p-4" id="outcome-groups-container">
+                    <!-- Groups will be rendered here -->
+                    {% for group in outcome_groups %}
+                        {% include "lms_outcomes/partials/group_tree.html" with group=group %}
+                    {% endfor %}
+                    
+                    <!-- Ungrouped Outcomes Section -->
+                    <div class="mb-3 group-container" data-group-id="ungrouped">
+                        <div class="flex items-center mb-2 group-header cursor-pointer">
+                            <span class="text-sm font-medium text-gray-600 italic">Ungrouped Outcomes</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Add root level group -->
+                    <div class="mt-4">
+                        <button id="add-root-group-btn" class="inline-flex items-center text-sm text-gray-600 hover:text-blue-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-1">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                            </svg>
+                            Create new group
+                        </button>
+                        <div class="mt-2 add-group-form hidden" id="root-group-form">
+                            <div class="relative">
+                                <input type="text" id="new-root-group" class="block w-full border border-gray-300 rounded p-2 pr-16 text-sm" placeholder="Enter new group name">
+                                <div class="absolute right-0 top-0 h-full flex items-center">
+                                    <button type="button" class="h-full px-2 text-gray-400 hover:text-gray-600 cancel-add-group">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                    <button type="button" class="h-full px-2 text-green-600 hover:text-green-800 save-new-group" data-parent-id="">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Column: Outcomes -->
+        <div class="md:col-span-2">
+            <div class="bg-white shadow rounded-lg overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                    <h2 class="text-lg font-semibold text-gray-800" id="group-outcomes-title">Select a Group</h2>
+                    <div class="flex items-center space-x-3">
+                        <div class="relative">
+                            <input type="text" id="search-outcomes" class="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm" placeholder="Search within outcomes">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-gray-400">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                                </svg>
+                            </div>
+                        </div>
+                        <!-- Dropdown Menu Button -->
+                        <div class="relative">
+                            <button id="outcome-options-btn" class="text-gray-500 hover:text-gray-700 focus:outline-none">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z" />
+                                </svg>
+                            </button>
+                            <!-- Dropdown Menu -->
+                            <div id="outcome-options-menu" class="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg z-10 hidden">
+                                <div class="border border-gray-200 rounded-md">
+                                    <a href="{% url 'lms_outcomes:create_outcome' %}" class="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-100">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-3">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                                        </svg>
+                                        Edit
+                                    </a>
+                                    <a href="javascript:void(0)" id="move-outcomes-option" class="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-100">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-3">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                                        </svg>
+                                        Move
+                                    </a>
+                                    <a href="{% url 'lms_outcomes:create_outcome' %}" class="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-100">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-3">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                                        </svg>
+                                        Add Outcomes
+                                    </a>
+                                    <a href="{% url 'lms_outcomes:import_outcomes' %}" class="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-100">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-3">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                                        </svg>
+                                        Import outcomes
+                                    </a>
+                                    <a href="javascript:void(0)" id="remove-outcomes-option" class="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-100">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-3">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                        Remove
+                                    </a>
+                                    <a href="javascript:void(0)" id="view-description-option" class="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-100">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-3">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+                                        </svg>
+                                        View Description
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-6" id="outcomes-container">
+                    <div id="select-group-message" class="text-center py-12">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-12 h-12 text-gray-400 mx-auto mb-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
+                        </svg>
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">Select a Group</h3>
+                        <p class="text-sm text-gray-500">Choose a group from the left panel to view its outcomes</p>
+                    </div>
+                    
+                    <div id="outcomes-table-container" class="hidden">
+                        {% if outcomes %}
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th scope="col" class="px-4 py-3">
+                                                <div class="flex items-center">
+                                                    <input id="select-all-outcomes" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                                </div>
+                                            </th>
+                                            <th scope="col" class="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                            <th scope="col" class="px-6 py-3 text-right text-sm font-medium text-gray-500 uppercase tracking-wider">Options</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200" id="outcomes-table-body">
+                                        {% for outcome in outcomes %}
+                                            <tr class="outcome-row" data-group-id="{% if outcome.group %}{{ outcome.group.id }}{% else %}ungrouped{% endif %}" data-outcome-id="{{ outcome.id }}">
+                                                <td class="px-4 py-4">
+                                                    <div class="flex items-center">
+                                                        <input type="checkbox" class="outcome-checkbox h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                                    </div>
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ outcome.title }}</td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-right">
+                                                    <div class="flex justify-end space-x-3">
+                                                        <a href="javascript:void(0)" class="text-blue-600 hover:text-blue-900 edit-outcome" data-outcome-id="{{ outcome.id }}">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+                                                            </svg>
+                                                        </a>
+                                                        <a href="javascript:void(0)" class="text-red-600 hover:text-red-900 delete-outcome" data-outcome-id="{{ outcome.id }}">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                                            </svg>
+                                                        </a>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div id="no-outcomes-message" class="hidden mt-4 text-sm text-gray-500 italic">
+                                No outcomes in this group yet.
+                            </div>
+                        {% else %}
+                            <p class="text-sm text-gray-500 italic">No outcomes created yet.</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+            <!-- Footer Actions -->
+            <div class="flex items-center justify-between bg-gray-50 p-4 rounded-lg mt-6">
+                <div class="flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-gray-500 mr-2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.042 21.672 13.684 16.6m0 0-2.51 2.225.569-9.47 5.227 7.917-3.286-.672ZM12 2.25v-1.5" />
+                    </svg>
+                    <span class="text-sm text-gray-500" id="selected-count">0 Outcomes Selected</span>
+                </div>
+                <div class="flex gap-2">
+                    <button id="remove-btn" disabled class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-400 bg-gray-100 cursor-not-allowed">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 inline-block mr-1">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                        </svg>
+                        Remove
+                    </button>
+                    <button id="move-btn" disabled class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-400 bg-gray-100 cursor-not-allowed">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 inline-block mr-1">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                        </svg>
+                        Move
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Move Outcomes Modal -->
+<div id="moveOutcomesModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-900">Move Outcomes</h3>
+            <button type="button" id="close-move-modal-btn" class="text-gray-400 hover:text-gray-500">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        
+        <p class="mb-4 text-sm text-gray-600" id="move-count-text">Select a destination group for the outcomes.</p>
+        
+        <div class="mb-4">
+            <label for="target-group" class="block text-sm font-medium text-gray-700 mb-1">Destination Group</label>
+            <select id="target-group" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
+                {% for group in all_groups %}
+                <option value="{{ group.id }}">
+                    {% for _ in group.level|times %}—{% endfor %}
+                    {{ group.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="flex justify-end space-x-3">
+            <button type="button" id="cancel-move-btn" class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                Cancel
+            </button>
+            <button type="button" id="confirm-move-btn" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                Move
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Rename Group Modal -->
+<div id="renameGroupModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-900">Rename Group</h3>
+            <button type="button" id="close-rename-modal-btn" class="text-gray-400 hover:text-gray-500">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        
+        <div class="mb-4">
+            <label for="rename-group-input" class="block text-sm font-medium text-gray-700 mb-1">Group Name</label>
+            <input type="text" id="rename-group-input" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm" placeholder="Enter new name">
+            <input type="hidden" id="rename-group-id">
+        </div>
+        
+        <div class="flex justify-end space-x-3">
+            <button type="button" id="cancel-rename-btn" class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                Cancel
+            </button>
+            <button type="button" id="confirm-rename-btn" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                Rename
+            </button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle outcome options dropdown menu
+    const outcomeOptionsBtn = document.getElementById('outcome-options-btn');
+    const outcomeOptionsMenu = document.getElementById('outcome-options-menu');
+    
+    if (outcomeOptionsBtn && outcomeOptionsMenu) {
+        outcomeOptionsBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            outcomeOptionsMenu.classList.toggle('hidden');
+        });
+        
+        // Close the dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!outcomeOptionsMenu.contains(e.target) && !outcomeOptionsBtn.contains(e.target)) {
+                outcomeOptionsMenu.classList.add('hidden');
+            }
+        });
+        
+        // Handle dropdown menu item clicks
+        const moveOutcomesOption = document.getElementById('move-outcomes-option');
+        if (moveOutcomesOption) {
+            moveOutcomesOption.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                outcomeOptionsMenu.classList.add('hidden');
+                
+                // Show the move modal
+                const moveModal = document.getElementById('moveOutcomesModal');
+                if (moveModal) {
+                    moveModal.classList.remove('hidden');
+                }
+            });
+        }
+        
+        const removeOutcomesOption = document.getElementById('remove-outcomes-option');
+        if (removeOutcomesOption) {
+            removeOutcomesOption.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                outcomeOptionsMenu.classList.add('hidden');
+                
+                // Get all selected outcomes
+                const selectedCheckboxes = document.querySelectorAll('.outcome-checkbox:checked');
+                if (selectedCheckboxes.length > 0) {
+                    if (confirm(`Are you sure you want to remove ${selectedCheckboxes.length} selected outcome(s)?`)) {
+                        // Trigger the remove action
+                        const removeBtn = document.getElementById('remove-btn');
+                        if (removeBtn) {
+                            removeBtn.click();
+                        }
+                    }
+                } else {
+                    alert('Please select at least one outcome to remove');
+                }
+            });
+        }
+        
+        const viewDescriptionOption = document.getElementById('view-description-option');
+        if (viewDescriptionOption) {
+            viewDescriptionOption.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            outcomeOptionsMenu.classList.add('hidden');
+            
+            // Get all selected outcomes
+            const selectedCheckboxes = document.querySelectorAll('.outcome-checkbox:checked');
+            if (selectedCheckboxes.length === 1) {
+                const outcomeRow = selectedCheckboxes[0].closest('.outcome-row');
+                const outcomeId = outcomeRow.dataset.outcomeId;
+                const outcomeTitle = outcomeRow.querySelector('td:nth-child(2)').textContent;
+                
+                // Fetch the outcome details to get the description
+                fetch(`/outcomes/api/outcome/${outcomeId}/`)
+                    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+                    .then(data => {
+                        alert(`${outcomeTitle}\n\n${data.description || 'No description'}`);
+                    })
+                    .catch(error => {
+                        alert(`${outcomeTitle}\n\nUnable to load description.`);
+                    });
+            } else if (selectedCheckboxes.length === 0) {
+                alert('Please select an outcome to view its description');
+            } else {
+                alert('Please select only one outcome to view its description');
+            }
+                    });
+        }
+    }
+    
+    // Toggle group content
+    document.addEventListener('click', function(e) {
+        const toggleBtn = e.target.closest('.toggle-btn');
+        if (toggleBtn) {
+            const container = toggleBtn.closest('.group-container');
+            const content = container.querySelector('.group-content');
+            const icon = toggleBtn.querySelector('svg');
+            
+            if (content) {
+                content.classList.toggle('hidden');
+                if (!content.classList.contains('hidden')) {
+                    icon.style.transform = 'rotate(180deg)';
+                } else {
+                    icon.style.transform = 'rotate(0)';
+                }
+            }
+        }
+    });
+    
+    // Group click to show outcomes - don't trigger if clicking a button
+    document.addEventListener('click', function(e) {
+        const header = e.target.closest('.group-header');
+        if (header && 
+            !e.target.closest('.toggle-btn') && 
+            !e.target.closest('.add-subgroup-btn') &&
+            !e.target.closest('.rename-group-btn') &&
+            !e.target.closest('.delete-group-btn')) {
+            
+            const groupId = header.closest('.group-container').dataset.groupId;
+            const groupName = header.querySelector('span').textContent;
+            
+            // Hide the select group message and show the outcomes table
+            document.getElementById('select-group-message').classList.add('hidden');
+            document.getElementById('outcomes-table-container').classList.remove('hidden');
+            
+            // Show only outcomes for this group
+            filterOutcomesByGroup(groupId);
+            
+            // Update heading
+            document.getElementById('group-outcomes-title').textContent = `${groupName} Outcomes`;
+            
+            // Update create button to include group_id
+            const createBtn = document.getElementById('create-outcome-btn');
+            const baseUrl = "{% url 'lms_outcomes:create_outcome' %}";
+            createBtn.href = `${baseUrl}?group_id=${groupId}`;
+        }
+    });
+    
+    // Delete group button click handler
+    document.addEventListener('click', function(e) {
+        const deleteBtn = e.target.closest('.delete-group-btn');
+        if (deleteBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const groupId = deleteBtn.dataset.groupId;
+            const groupContainer = deleteBtn.closest('.group-container');
+            const groupName = groupContainer.querySelector('.group-header span').textContent;
+            
+            if (confirm(`Are you sure you want to delete the group "${groupName}"? This will also delete all outcomes in this group and all subgroups.`)) {
+                deleteGroup(groupId, groupContainer);
+            }
+        }
+    });
+    
+    // Rename group button click handler
+    document.addEventListener('click', function(e) {
+        const renameBtn = e.target.closest('.rename-group-btn');
+        if (renameBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const groupId = renameBtn.dataset.groupId;
+            const groupContainer = renameBtn.closest('.group-container');
+            const groupName = groupContainer.querySelector('.group-header span').textContent;
+            
+            // Set the values in the rename modal
+            document.getElementById('rename-group-input').value = groupName;
+            document.getElementById('rename-group-id').value = groupId;
+            
+            // Show the rename modal
+            document.getElementById('renameGroupModal').classList.remove('hidden');
+            
+            // Focus on the input
+            document.getElementById('rename-group-input').focus();
+        }
+    });
+    
+    // Cancel rename button click handler
+    const cancelRenameBtn = document.getElementById('cancel-rename-btn');
+    if (cancelRenameBtn) {
+        cancelRenameBtn.addEventListener('click', closeRenameModal);
+    }
+    
+    // Close rename modal button click handler
+    const closeRenameModalBtn = document.getElementById('close-rename-modal-btn');
+    if (closeRenameModalBtn) {
+        closeRenameModalBtn.addEventListener('click', closeRenameModal);
+    }
+    
+    // Confirm rename button click handler
+    const confirmRenameBtn = document.getElementById('confirm-rename-btn');
+    if (confirmRenameBtn) {
+        confirmRenameBtn.addEventListener('click', renameGroup);
+    }
+    
+    // Function to close rename modal
+    function closeRenameModal() {
+        const renameModal = document.getElementById('renameGroupModal');
+        if (renameModal) {
+            renameModal.classList.add('hidden');
+        }
+    }
+    
+    // Function to rename a group
+    function renameGroup() {
+        const groupId = document.getElementById('rename-group-id').value;
+        const newName = document.getElementById('rename-group-input').value.trim();
+        
+        if (!newName) {
+            alert('Group name is required');
+            return;
+        }
+        
+        // Disable the rename button and show loading state
+        const renameBtn = document.getElementById('confirm-rename-btn');
+        const originalText = renameBtn.innerHTML;
+        renameBtn.disabled = true;
+        renameBtn.innerHTML = `
+            <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Renaming...
+        `;
+        
+        // Create JSON data
+        const data = {
+            group_id: groupId,
+            new_name: newName
+        };
+        
+        // Send AJAX request
+        fetch('{% url "lms_outcomes:rename_group" %}', {
+            method: 'POST',
+            body: JSON.stringify(data),
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // Close the modal
+                closeRenameModal();
+                
+                // Update the group name in the DOM
+                const groupContainer = document.querySelector(`.group-container[data-group-id="${groupId}"]`);
+                if (groupContainer) {
+                    const nameSpan = groupContainer.querySelector('.group-header span');
+                    if (nameSpan) {
+                        nameSpan.textContent = newName;
+                    }
+                }
+                
+                // Show success message
+                alert(data.message || 'Group renamed successfully');
+            } else {
+                alert('Error: ' + (data.error || 'Failed to rename group'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while renaming the group. Please try again.');
+        })
+        .finally(() => {
+            // Reset button state
+            renameBtn.disabled = false;
+            renameBtn.innerHTML = originalText;
+        });
+    }
+    
+    // Function to delete a group
+    function deleteGroup(groupId, groupContainer) {
+        // Create JSON data
+        const data = {
+            group_id: groupId
+        };
+        
+        // Send AJAX request
+        fetch('{% url "lms_outcomes:delete_group" %}', {
+            method: 'POST',
+            body: JSON.stringify(data),
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // Remove the group from the DOM
+                if (groupContainer) {
+                    groupContainer.remove();
+                }
+                
+                // Show success message
+                alert(data.message || 'Group deleted successfully');
+                
+                // If we were viewing the outcomes of this group, reset to select group view
+                const title = document.getElementById('group-outcomes-title');
+                if (title.textContent.includes(data.group_name)) {
+                    // Reset to select group view
+                    title.textContent = 'Select a Group';
+                    
+                    // Hide outcomes table and show select group message
+                    document.getElementById('outcomes-table-container').classList.add('hidden');
+                    document.getElementById('select-group-message').classList.remove('hidden');
+                    
+                    // Reset create button
+                    const createBtn = document.getElementById('create-outcome-btn');
+                    createBtn.href = "{% url 'lms_outcomes:create_outcome' %}";
+                }
+            } else {
+                alert('Error: ' + (data.error || 'Failed to delete group'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while deleting the group. Please try again.');
+        });
+    }
+    
+    // Add keyboard event handling for the rename modal
+    document.addEventListener('keydown', function(event) {
+        const renameModal = document.getElementById('renameGroupModal');
+        
+        // Close modal with Escape key
+        if (event.key === 'Escape' && !renameModal.classList.contains('hidden')) {
+            closeRenameModal();
+        }
+        
+        // Submit with Enter key
+        if (event.key === 'Enter' && !renameModal.classList.contains('hidden')) {
+            event.preventDefault();
+            renameGroup();
+        }
+    });
+    
+    // Add click outside to close rename modal
+    const renameGroupModal = document.getElementById('renameGroupModal');
+    if (renameGroupModal) {
+        renameGroupModal.addEventListener('click', function(event) {
+            // Only close if clicking directly on the backdrop (not the modal content)
+            if (event.target === this) {
+                closeRenameModal();
+            }
+        });
+    }
+    
+    // Add subgroup button click
+    document.addEventListener('click', function(e) {
+        const addSubgroupBtn = e.target.closest('.add-subgroup-btn');
+        if (addSubgroupBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const parentId = addSubgroupBtn.dataset.parentId;
+            const formId = `form-${parentId}`;
+            
+            // Show this form and hide any others
+            document.querySelectorAll('.add-group-form').forEach(form => {
+                form.classList.add('hidden');
+            });
+            
+            document.getElementById(formId).classList.remove('hidden');
+            document.getElementById(`new-group-${parentId}`).focus();
+        }
+    });
+    
+    // Root group button click
+    const addRootGroupBtn = document.getElementById('add-root-group-btn');
+    if (addRootGroupBtn) {
+        addRootGroupBtn.addEventListener('click', function() {
+        // Show root form and hide any others
+        document.querySelectorAll('.add-group-form').forEach(form => {
+            form.classList.add('hidden');
+        });
+        
+        document.getElementById('root-group-form').classList.remove('hidden');
+        document.getElementById('new-root-group').focus();
+        });
+    }
+    
+    // Cancel buttons for add group forms
+    document.querySelectorAll('.cancel-add-group').forEach(btn => {
+        btn.addEventListener('click', function() {
+            this.closest('.add-group-form').classList.add('hidden');
+        });
+    });
+    
+    // Save buttons for creating new groups
+    document.querySelectorAll('.save-new-group').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const parentId = this.dataset.parentId;
+            let inputField;
+            
+            if (parentId) {
+                inputField = document.getElementById(`new-group-${parentId}`);
+            } else {
+                inputField = document.getElementById('new-root-group');
+            }
+            
+            const name = inputField.value.trim();
+            
+            if (name) {
+                createGroup(name, parentId);
+            } else {
+                alert('Group name is required');
+            }
+        });
+    });
+    
+    // Helper function to create a group
+    function createGroup(name, parentId) {
+        // Create JSON data
+        const data = {
+            name: name
+        };
+        
+        if (parentId) {
+            data.parent_id = parentId;
+        }
+        
+        // Send AJAX request
+        fetch('{% url "lms_outcomes:create_group_ajax" %}', {
+            method: 'POST',
+            body: JSON.stringify(data),
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        })
+        .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+        .then(data => {
+            if (data.success) {
+                // Refresh the page to show the new group
+                window.location.reload();
+            } else {
+                alert('Error creating group: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while creating the group');
+        });
+    }
+    
+    // Filter outcomes by group
+    document.querySelectorAll('.group-header').forEach(header => {
+        header.addEventListener('click', function() {
+            const groupId = this.closest('.group-container').getAttribute('data-group-id');
+            const groupName = this.querySelector('span').textContent;
+            
+            // Update title
+            document.getElementById('group-outcomes-title').textContent = `${groupName} Outcomes`;
+            
+            // Filter outcomes
+            filterOutcomesByGroup(groupId);
+        });
+    });
+    
+    // Search functionality
+    const searchOutcomesInput = document.getElementById('search-outcomes');
+    if (searchOutcomesInput) {
+        searchOutcomesInput.addEventListener('input', function() {
+            const searchText = this.value.toLowerCase();
+            searchOutcomes(searchText);
+        });
+    }
+    
+    // Add "All Outcomes" button click handler
+    const groupOutcomesTitle = document.getElementById('group-outcomes-title');
+    if (groupOutcomesTitle) {
+        groupOutcomesTitle.addEventListener('click', function() {
+        // Reset heading
+        this.textContent = 'Select a Group';
+        
+        // Hide outcomes table and show select group message
+        document.getElementById('outcomes-table-container').classList.add('hidden');
+        document.getElementById('select-group-message').classList.remove('hidden');
+        
+        // Reset create button
+        const createBtn = document.getElementById('create-outcome-btn');
+        createBtn.href = "{% url 'lms_outcomes:create_outcome' %}";
+        
+        // Reset selection
+        selectedOutcomes = [];
+        document.querySelectorAll('.outcome-checkbox').forEach(checkbox => {
+            checkbox.checked = false;
+        });
+        document.getElementById('select-all-outcomes').checked = false;
+        updateButtonStates();
+        });
+    }
+    
+    // Function to filter outcomes by group
+    function filterOutcomesByGroup(groupId) {
+        const rows = document.querySelectorAll('#outcomes-table-body .outcome-row');
+        let hasVisibleRows = false;
+        
+        // Handle ungrouped outcomes specially
+        if (groupId === 'ungrouped') {
+            rows.forEach(row => {
+                if (row.dataset.groupId === 'ungrouped') {
+                    row.classList.remove('hidden');
+                    hasVisibleRows = true;
+                } else {
+                    row.classList.add('hidden');
+                }
+            });
+        } else {
+            // First, get all child groups of the selected group
+            const childGroupIds = getAllChildGroupIds(groupId);
+            
+            // Show outcomes from the selected group and all its child groups
+            rows.forEach(row => {
+                if (row.dataset.groupId === groupId || childGroupIds.includes(row.dataset.groupId)) {
+                    row.classList.remove('hidden');
+                    hasVisibleRows = true;
+                } else {
+                    row.classList.add('hidden');
+                }
+            });
+        }
+        
+        // Show/hide no outcomes message
+        const noOutcomesMessage = document.getElementById('no-outcomes-message');
+        if (noOutcomesMessage) {
+            if (hasVisibleRows) {
+                noOutcomesMessage.classList.add('hidden');
+            } else {
+                noOutcomesMessage.classList.remove('hidden');
+            }
+        }
+    }
+    
+    // Helper function to get all child group IDs recursively
+    function getAllChildGroupIds(parentId) {
+        const childIds = [];
+        
+        // Find all direct child groups
+        const childGroups = document.querySelectorAll(`.group-container[data-parent-id="${parentId}"]`);
+        
+        childGroups.forEach(childGroup => {
+            const childId = childGroup.dataset.groupId;
+            childIds.push(childId);
+            
+            // Recursively get all descendants
+            const descendantIds = getAllChildGroupIds(childId);
+            childIds.push(...descendantIds);
+        });
+        
+        return childIds;
+    }
+    
+    function searchOutcomes(searchText) {
+        const rows = document.querySelectorAll('#outcomes-table-body .outcome-row');
+        let hasVisibleRows = false;
+        
+        rows.forEach(row => {
+            const title = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+            
+            if (title.includes(searchText)) {
+                row.classList.remove('hidden');
+                hasVisibleRows = true;
+            } else {
+                row.classList.add('hidden');
+            }
+        });
+        
+        // Show/hide no outcomes message
+        const noOutcomesMessage = document.getElementById('no-outcomes-message');
+        if (noOutcomesMessage) {
+            if (hasVisibleRows) {
+                noOutcomesMessage.classList.add('hidden');
+            } else {
+                noOutcomesMessage.classList.remove('hidden');
+            }
+        }
+    }
+
+    // Add outcome selection functionality
+    const selectAllCheckbox = document.getElementById('select-all-outcomes');
+    const outcomeCheckboxes = document.querySelectorAll('.outcome-checkbox');
+    const removeBtn = document.getElementById('remove-btn');
+    const moveBtn = document.getElementById('move-btn');
+    const selectedCountSpan = document.getElementById('selected-count');
+    let selectedOutcomes = [];
+    
+    // Select all checkbox
+    selectAllCheckbox.addEventListener('change', function() {
+        const isChecked = this.checked;
+        let visibleCheckboxes = 0;
+        
+        outcomeCheckboxes.forEach(checkbox => {
+            const row = checkbox.closest('.outcome-row');
+            if (!row.classList.contains('hidden')) {
+                checkbox.checked = isChecked;
+                visibleCheckboxes++;
+                
+                if (isChecked) {
+                    const outcomeId = row.dataset.outcomeId;
+                    if (!selectedOutcomes.includes(outcomeId)) {
+                        selectedOutcomes.push(outcomeId);
+                    }
+                }
+            }
+        });
+        
+        if (!isChecked) {
+            // Clear all selected outcomes if unchecking "select all"
+            selectedOutcomes = [];
+        }
+        
+        updateButtonStates();
+    });
+    
+    // Individual checkboxes
+    outcomeCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const row = this.closest('.outcome-row');
+            const outcomeId = row.dataset.outcomeId;
+            
+            if (this.checked) {
+                if (!selectedOutcomes.includes(outcomeId)) {
+                    selectedOutcomes.push(outcomeId);
+                }
+            } else {
+                const index = selectedOutcomes.indexOf(outcomeId);
+                if (index > -1) {
+                    selectedOutcomes.splice(index, 1);
+                }
+                
+                // Uncheck "select all" if any individual item is unchecked
+                selectAllCheckbox.checked = false;
+            }
+            
+            updateButtonStates();
+        });
+    });
+    
+    // Remove button click handler
+    removeBtn.addEventListener('click', function() {
+        if (selectedOutcomes.length > 0) {
+            if (confirm(`Are you sure you want to remove ${selectedOutcomes.length} selected outcome(s)?`)) {
+                // Disable the remove button and show loading state
+                const originalText = this.innerHTML;
+                this.disabled = true;
+                this.innerHTML = `
+                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Removing...
+                `;
+                
+                // Send AJAX request to delete outcomes
+                fetch('{% url "lms_outcomes:delete_outcomes" %}', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        outcome_ids: selectedOutcomes
+                    }),
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        // Remove the rows from the table
+                        selectedOutcomes.forEach(outcomeId => {
+                            const row = document.querySelector(`.outcome-row[data-outcome-id="${outcomeId}"]`);
+                            if (row) {
+                                row.remove();
+                            }
+                        });
+                        
+                        // Show success message
+                        alert(data.message);
+                        
+                        // Reset selection
+                        selectedOutcomes = [];
+                        outcomeCheckboxes.forEach(checkbox => {
+                            checkbox.checked = false;
+                        });
+                        selectAllCheckbox.checked = false;
+                        updateButtonStates();
+                    } else {
+                        alert('Error: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while deleting outcomes. Please try again.');
+                })
+                .finally(() => {
+                    // Reset button state
+                    this.disabled = false;
+                    this.innerHTML = originalText;
+                });
+            }
+        }
+    });
+    
+    // Move button click handler
+    moveBtn.addEventListener('click', function() {
+        if (selectedOutcomes.length > 0) {
+            // Update the count text
+            document.getElementById('move-count-text').textContent = 
+                `Select a destination group for ${selectedOutcomes.length} outcome${selectedOutcomes.length !== 1 ? 's' : ''}.`;
+            
+            // Show the move modal
+            document.getElementById('moveOutcomesModal').classList.remove('hidden');
+        }
+    });
+    
+    // Modal close button click handler
+    const closeMoveModalBtn = document.getElementById('close-move-modal-btn');
+    if (closeMoveModalBtn) {
+        closeMoveModalBtn.addEventListener('click', closeMoveModal);
+    }
+    
+    // Modal cancel button click handler
+    const cancelMoveBtn = document.getElementById('cancel-move-btn');
+    if (cancelMoveBtn) {
+        cancelMoveBtn.addEventListener('click', closeMoveModal);
+    }
+    
+    // Modal confirm move button click handler
+    const confirmMoveBtn = document.getElementById('confirm-move-btn');
+    if (confirmMoveBtn) {
+        confirmMoveBtn.addEventListener('click', moveOutcomes);
+    }
+    
+    // Function to close move modal
+    function closeMoveModal() {
+        document.getElementById('moveOutcomesModal').classList.add('hidden');
+    }
+    
+    // Function to move outcomes to selected group
+    function moveOutcomes() {
+        const targetGroupId = document.getElementById('target-group').value;
+        
+        if (!targetGroupId) {
+            alert('Please select a destination group');
+            return;
+        }
+        
+        // Disable the confirm button and show loading state
+        const confirmBtn = document.getElementById('confirm-move-btn');
+        const confirmBtnText = confirmBtn.innerHTML;
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = `
+            <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Moving...
+        `;
+        
+        // Build JSON payload
+        const payload = {
+            outcome_ids: selectedOutcomes,
+            target_group_id: targetGroupId
+        };
+
+        // Send AJAX request with JSON body
+        fetch('{% url "lms_outcomes:move_outcomes" %}', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // Close the modal
+                closeMoveModal();
+                
+                // Update the data-group-id attribute for each row
+                selectedOutcomes.forEach(outcomeId => {
+                    const row = document.querySelector(`.outcome-row[data-outcome-id="${outcomeId}"]`);
+                    if (row) {
+                        // Update the data-group-id attribute
+                        row.dataset.groupId = targetGroupId;
+                    }
+                });
+                
+                // Show success message
+                alert(data.message);
+                
+                // Reset selection
+                selectedOutcomes = [];
+                outcomeCheckboxes.forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+                selectAllCheckbox.checked = false;
+                updateButtonStates();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while moving outcomes. Please try again.');
+        })
+        .finally(() => {
+            // Reset button state
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = confirmBtnText;
+        });
+    }
+    
+    // Update button states based on selection
+    function updateButtonStates() {
+        const count = selectedOutcomes.length;
+        selectedCountSpan.textContent = `${count} Outcome${count !== 1 ? 's' : ''} Selected`;
+        
+        if (count > 0) {
+            removeBtn.disabled = false;
+            moveBtn.disabled = false;
+            removeBtn.classList.remove('text-gray-400', 'bg-gray-100', 'cursor-not-allowed');
+            moveBtn.classList.remove('text-gray-400', 'bg-gray-100', 'cursor-not-allowed');
+            removeBtn.classList.add('text-red-600', 'bg-white', 'hover:bg-red-50');
+            moveBtn.classList.add('text-gray-700', 'bg-white', 'hover:bg-gray-50');
+        } else {
+            removeBtn.disabled = true;
+            moveBtn.disabled = true;
+            removeBtn.classList.add('text-gray-400', 'bg-gray-100', 'cursor-not-allowed');
+            moveBtn.classList.add('text-gray-400', 'bg-gray-100', 'cursor-not-allowed');
+            removeBtn.classList.remove('text-red-600', 'bg-white', 'hover:bg-red-50');
+            moveBtn.classList.remove('text-gray-700', 'bg-white', 'hover:bg-gray-50');
+        }
+    }
+
+    // Add keyboard event handling for the modal
+    document.addEventListener('keydown', function(event) {
+        const moveModal = document.getElementById('moveOutcomesModal');
+        
+        // Close modal with Escape key
+        if (event.key === 'Escape' && !moveModal.classList.contains('hidden')) {
+            closeMoveModal();
+        }
+    });
+    
+    // Handle Enter key in the target group select
+    const targetGroupSelect = document.getElementById('target-group');
+    if (targetGroupSelect) {
+        targetGroupSelect.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                moveOutcomes();
+            }
+        });
+    }
+    
+    // Add click outside to close modal
+    const moveOutcomesModal = document.getElementById('moveOutcomesModal');
+    if (moveOutcomesModal) {
+        moveOutcomesModal.addEventListener('click', function(event) {
+        // Only close if clicking directly on the backdrop (not the modal content)
+        if (event.target === this) {
+            closeMoveModal();
+        }
+        });
+    }
+    
+    // Handle individual outcome edit buttons
+    document.querySelectorAll('.edit-outcome').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const outcomeId = this.dataset.outcomeId;
+            // Redirect to an edit page
+            window.location.href = `/outcomes/edit/${outcomeId}/`;
+        });
+    });
+    
+    // Handle individual outcome delete buttons
+    document.querySelectorAll('.delete-outcome').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const outcomeId = this.dataset.outcomeId;
+            
+            if (confirm('Are you sure you want to delete this outcome?')) {
+                // Send delete request with JSON data
+                fetch('{% url "lms_outcomes:delete_outcomes" %}', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        outcome_ids: [outcomeId]
+                    }),
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        // Remove the row from the table
+                        const row = document.querySelector(`.outcome-row[data-outcome-id="${outcomeId}"]`);
+                        if (row) {
+                            row.remove();
+                        }
+                        
+                        // Show success message
+                        alert(data.message || 'Outcome deleted successfully');
+                    } else {
+                        alert('Error: ' + (data.error || 'Failed to delete outcome'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while deleting the outcome. Please try again.');
+                });
+            }
+        });
+    });
+});
+</script>
+{% endblock %} 

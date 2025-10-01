@@ -1,0 +1,60 @@
+/* Default state - white text and icons */
+#sidebar a.menu-item {
+    color: white !important;
+    text-decoration: none;
+}
+
+#sidebar a.menu-item svg,
+#sidebar a.menu-item .icon-container svg {
+    color: white !important;
+    stroke: white !important;
+}
+
+#sidebar a.menu-item span.menu-text {
+    color: white !important;
+}
+
+/* Active state - black text and icons with white background */
+#sidebar a.menu-item.active,
+#sidebar a.menu-item[class*="bg-[#f3f8fc]"] {
+    background-color: white !important;
+}
+
+#sidebar a.menu-item.active svg,
+#sidebar a.menu-item.active .icon-container svg,
+#sidebar a.menu-item[class*="bg-[#f3f8fc]"] svg,
+#sidebar a.menu-item[class*="bg-[#f3f8fc]"] .icon-container svg {
+    color: black !important;
+    stroke: black !important;
+    fill: black !important;
+}
+
+#sidebar a.menu-item.active span.menu-text,
+#sidebar a.menu-item[class*="bg-[#f3f8fc]"] span.menu-text {
+    color: black !important;
+}
+
+/* Hover state - slightly lighter background but keep white text */
+#sidebar a.menu-item:hover:not(.active):not([class*="bg-[#f3f8fc]"]) {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+#sidebar a.menu-item:hover:not(.active):not([class*="bg-[#f3f8fc]"]) svg,
+#sidebar a.menu-item:hover:not(.active):not([class*="bg-[#f3f8fc]"]) .icon-container svg {
+    color: white !important;
+    stroke: white !important;
+    fill: white !important;
+}
+
+#sidebar a.menu-item:hover:not(.active):not([class*="bg-[#f3f8fc]"]) span.menu-text {
+    color: white !important;
+}
+
+/* Remove any other overriding styles */
+html body #sidebar a.menu-item:not(.active):not([class*="bg-[#f3f8fc]"]):not(:hover),
+html body #sidebar a.menu-item:not(.active):not([class*="bg-[#f3f8fc]"]):not(:hover) svg,
+html body #sidebar a.menu-item:not(.active):not([class*="bg-[#f3f8fc]"]):not(:hover) .icon-container svg,
+html body #sidebar a.menu-item:not(.active):not([class*="bg-[#f3f8fc]"]):not(:hover) span.menu-text {
+    color: white !important;
+    stroke: white !important;
+} 

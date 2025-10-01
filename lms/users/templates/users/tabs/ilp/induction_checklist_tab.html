@@ -1,0 +1,502 @@
+<!-- Induction Checklist Tab Content -->
+<div id="induction-checklist-tab" class="ilp-tab-content" style="display: none;">
+    <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+        <div class="flex items-center justify-between mb-6">
+            <h4 class="text-lg font-semibold text-gray-900">Induction Checklist</h4>
+            <div class="text-sm text-gray-500">
+                <i class="fas fa-clipboard-check mr-1"></i>
+                Track induction progress
+            </div>
+        </div>
+        
+        <!-- Instructor/Admin View -->
+        {% if user.role == 'admin' or user.role == 'instructor' or user.role == 'superadmin' or user.role == 'globaladmin' %}
+        <div class="space-y-6">
+            
+            <!-- Add New Item Button -->
+            <div class="flex justify-between items-center bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div>
+                    <h5 class="text-md font-medium text-blue-800">Manage Induction Items</h5>
+                    <p class="text-sm text-blue-600">Add induction checklist items for the learner to review and confirm</p>
+                </div>
+                <button type="button" id="add-induction-item-btn" class="text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                    <i class="fas fa-plus mr-2"></i>Add Item
+                </button>
+            </div>
+            
+            <!-- Existing Items Container -->
+            <div id="existing-induction-items" class="space-y-4">
+                {% if induction_sections %}
+                    {% for section in induction_sections %}
+                        {% for question in section.questions.all %}
+                        <div class="bg-white border border-gray-200 rounded-lg shadow-sm" id="existing-item-{{ question.id }}">
+                            <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+                                <div class="flex items-center">
+                                    <span class="text-sm font-medium text-gray-800">Item {{ forloop.counter }}</span>
+                                    <span class="ml-3 px-2 py-1 text-xs rounded-full {% if question.student_confirmed == 'yes' %}bg-green-100 text-green-800{% elif question.student_confirmed == 'no' %}bg-red-100 text-red-800{% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                                        {% if question.student_confirmed == 'yes' %}Approved{% elif question.student_confirmed == 'no' %}Not Approved{% else %}Pending{% endif %}
+                                    </span>
+                                </div>
+                                <button type="button" class="text-red-600 hover:text-red-800 text-sm" onclick="deleteExistingInductionItem({{ question.id }})">
+                                    <i class="fas fa-trash"></i> Delete
+                                </button>
+                            </div>
+                            
+                            <div class="p-4 space-y-4">
+                                <!-- Question Content -->
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Induction Item:</label>
+                                    <textarea 
+                                        name="existing_induction_item_{{ question.id }}_question" 
+                                        rows="3" 
+                                        class="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                        placeholder="Enter the induction checklist item..."
+                                    >{{ question.question_text }}</textarea>
+                                </div>
+
+                                <!-- File Upload -->
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Upload File (Optional):</label>
+                                    <input 
+                                        type="file" 
+                                        name="existing_induction_item_{{ question.id }}_file" 
+                                        class="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                        accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+                                    >
+                                    <div class="text-xs text-gray-500 mt-1">Upload supporting documents (PDF, DOC, DOCX, TXT, Images)</div>
+                                    
+                                    <!-- Show existing files attached to this specific question -->
+                                    {% if question.documents.all %}
+                                    <div class="mt-2">
+                                        <p class="text-sm text-gray-600 mb-1">Existing files:</p>
+                                        {% for doc in question.documents.all %}
+                                        <div class="flex items-center text-sm text-blue-600">
+                                            <i class="fas fa-file mr-1"></i>
+                                            <a href="{{ doc.document_file.url }}" target="_blank" class="hover:underline">{{ doc.title }}</a>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Show learner response if exists -->
+                                {% if question.student_confirmed and question.student_confirmed != '' %}
+                                <div class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+                                    <div class="flex items-center mb-2">
+                                        <i class="fas fa-user text-blue-600 mr-2"></i>
+                                        <span class="text-sm font-medium text-gray-700">Learner Response:</span>
+                                        <span class="ml-2 px-2 py-1 text-xs rounded-full {% if question.student_confirmed == 'yes' %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                                            {% if question.student_confirmed == 'yes' %}Agreed{% else %}Disagreed{% endif %}
+                                        </span>
+                                    </div>
+                                    {% if question.student_comment %}
+                                    <p class="text-gray-700 mb-3">{{ question.student_comment }}</p>
+                                    {% endif %}
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium text-blue-700 mb-2">Your Reply:</label>
+                                        <textarea 
+                                            name="existing_induction_item_{{ question.id }}_instructor_reply" 
+                                            rows="3" 
+                                            class="w-full p-3 border border-blue-300 rounded-md focus:ring-blue-500 focus:border-blue-500" 
+                                            placeholder="Reply to learner's feedback..."
+                                        >{{ question.instructor_reply|default:"" }}</textarea>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% endfor %}
+                {% endif %}
+            </div>
+            
+            <!-- Dynamic Items Container -->
+            <div id="induction-items-container" class="space-y-4">
+                <!-- Dynamic items will be added here -->
+            </div>
+            
+            <!-- Item Template (Hidden) -->
+            <div id="induction-item-template" class="bg-white border border-gray-200 rounded-lg shadow-sm" style="display: none;">
+                <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+                    <span class="item-number text-sm font-medium text-gray-800">New Item</span>
+                    <div class="flex space-x-2">
+                        <button type="button" class="toggle-item-btn text-gray-600 hover:text-gray-800" title="Toggle">
+                            <i class="fas fa-chevron-up"></i>
+                        </button>
+                        <button type="button" class="delete-item-btn text-red-600 hover:text-red-800" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="item-content p-4 space-y-4">
+                    <!-- Question Field -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Induction Item:</label>
+                        <textarea 
+                            class="induction-question w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" 
+                            rows="3" 
+                            placeholder="Enter the induction checklist item..."
+                        ></textarea>
+                    </div>
+                    
+                    <!-- File Upload Field -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Upload File (Optional):</label>
+                        <input 
+                            type="file" 
+                            class="induction-file w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" 
+                            accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+                        >
+                        <div class="text-xs text-gray-500 mt-1">Upload supporting documents (PDF, DOC, DOCX, TXT, Images)</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Learner View -->
+        {% elif user.role == 'learner' and user.id == profile_user.id %}
+        <div class="space-y-6">
+            
+            {% if induction_sections %}
+                {% for section in induction_sections %}
+                    {% for question in section.questions.all %}
+                    <div class="bg-white border border-gray-200 rounded-lg shadow-sm">
+                        <div class="bg-blue-50 px-4 py-3 border-b border-blue-200">
+                            <div class="flex items-center justify-between">
+                                <h5 class="text-md font-medium text-blue-800">Induction Item {{ forloop.counter }}</h5>
+                                <span class="px-2 py-1 text-xs rounded-full {% if question.student_confirmed == 'yes' %}bg-green-100 text-green-800{% elif question.student_confirmed == 'no' %}bg-red-100 text-red-800{% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                                    {% if question.student_confirmed == 'yes' %}Agreed{% elif question.student_confirmed == 'no' %}Disagreed{% else %}Pending{% endif %}
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="p-4 space-y-4">
+                            <!-- Instructor's Item -->
+                            <div class="p-4 bg-gray-50 border border-gray-200 rounded-md">
+                                <p class="text-sm text-gray-600 mb-2">
+                                    <i class="fas fa-user-tie mr-1"></i>
+                                    Instructor Item:
+                                </p>
+                                <p class="text-gray-800">{{ question.question_text }}</p>
+                                
+                                <!-- Show attached files specific to this question -->
+                                {% if question.documents.all %}
+                                <div class="mt-3">
+                                    <p class="text-sm text-gray-600 mb-2">Attached Documents:</p>
+                                    <div class="space-y-1">
+                                        {% for doc in question.documents.all %}
+                                        <div class="flex items-center text-sm">
+                                            <i class="fas fa-file text-blue-600 mr-2"></i>
+                                            <a href="{{ doc.document_file.url }}" target="_blank" class="text-blue-600 hover:underline">{{ doc.title }}</a>
+                                            {% if doc.description %}
+                                            <span class="text-gray-500 ml-2">- {{ doc.description }}</span>
+                                            {% endif %}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Confirmation Section -->
+                            <div class="border-t border-gray-200 pt-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-3">Do you agree with this induction item?</label>
+                                <div class="space-y-3">
+                                    <div class="flex items-center">
+                                        <input 
+                                            id="induction_agree_{{ question.id }}" 
+                                            name="induction_item_{{ question.id }}_confirmation" 
+                                            type="radio" 
+                                            value="yes" 
+                                            class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300"
+                                            {% if question.student_confirmed == 'yes' %}checked{% endif %}
+                                        >
+                                        <label for="induction_agree_{{ question.id }}" class="ml-3 text-sm text-gray-700">
+                                            <i class="fas fa-thumbs-up text-green-600 mr-1"></i>
+                                            Agree
+                                        </label>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <input 
+                                            id="induction_disagree_{{ question.id }}" 
+                                            name="induction_item_{{ question.id }}_confirmation" 
+                                            type="radio" 
+                                            value="no" 
+                                            class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300"
+                                            {% if question.student_confirmed == 'no' %}checked{% endif %}
+                                        >
+                                        <label for="induction_disagree_{{ question.id }}" class="ml-3 text-sm text-gray-700">
+                                            <i class="fas fa-thumbs-down text-red-600 mr-1"></i>
+                                            Disagree
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-4">
+                                    <label for="induction_comment_{{ question.id }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                        Your Comments:
+                                    </label>
+                                    <textarea 
+                                        id="induction_comment_{{ question.id }}" 
+                                        name="induction_item_{{ question.id }}_comment" 
+                                        rows="3" 
+                                        class="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" 
+                                        placeholder="Add your comments about this induction item..."
+                                    >{{ question.student_comment|default:"" }}</textarea>
+                                </div>
+                            </div>
+
+                            <!-- Show instructor reply if exists -->
+                            {% if question.instructor_reply and question.instructor_reply != 'None' %}
+                            <div class="mt-4 p-4 bg-green-50 border border-green-200 rounded-md">
+                                <p class="text-sm text-green-600 mb-1">
+                                    <i class="fas fa-reply mr-1"></i>
+                                    Instructor Reply:
+                                </p>
+                                <p class="text-gray-800">{{ question.instructor_reply }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% endfor %}
+            {% else %}
+            <div class="text-center py-12">
+                <div class="text-gray-400 mb-4">
+                    <i class="fas fa-clock text-6xl"></i>
+                </div>
+                <h5 class="text-lg font-medium text-gray-900 mb-2">No Induction Items Yet</h5>
+                <p class="text-gray-600">
+                    Your instructor hasn't added any induction checklist items yet.<br>
+                    Check back later or contact your instructor.
+                </p>
+            </div>
+            {% endif %}
+
+        </div>
+
+        <!-- Other roles view -->
+        {% else %}
+        <div class="text-center py-12">
+            <div class="text-gray-400 mb-4">
+                <i class="fas fa-lock text-6xl"></i>
+            </div>
+            <h5 class="text-lg font-medium text-gray-900 mb-2">Access Restricted</h5>
+            <p class="text-gray-600">You do not have permission to view this induction checklist.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// Induction Checklist functionality
+(function() {
+    let inductionItemCounter = 0;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeInductionChecklist();
+    });
+
+    function initializeInductionChecklist() {
+        console.log('Initializing Induction Checklist...');
+        
+        // Add Item button functionality
+        const addButton = document.getElementById('add-induction-item-btn');
+        if (addButton) {
+            console.log('Add button found, attaching event listener');
+            addButton.addEventListener('click', addInductionItem);
+        }
+        
+        // Initialize item counter based on existing items
+        const existingItems = document.querySelectorAll('.active-item');
+        inductionItemCounter = existingItems.length;
+    }
+
+    window.addInductionItem = function() {
+        const container = document.getElementById('induction-items-container');
+        const template = document.getElementById('induction-item-template');
+        
+        if (!container || !template) {
+            console.error('Container or template not found for induction checklist');
+            return;
+        }
+        
+        // Clone the template
+        const newItem = template.cloneNode(true);
+        newItem.id = `induction-item-${inductionItemCounter}`;
+        newItem.style.display = 'block';
+        newItem.classList.add('active-item');
+        
+        // Update item number
+        const itemNumber = newItem.querySelector('.item-number');
+        if (itemNumber) {
+            itemNumber.textContent = `Item ${inductionItemCounter + 1}`;
+        }
+        
+        // Set unique names for inputs
+        const questionInput = newItem.querySelector('.induction-question');
+        if (questionInput) {
+            questionInput.name = `new_induction_item_${inductionItemCounter}_question`;
+            questionInput.required = true;
+        }
+        
+        const fileInput = newItem.querySelector('.induction-file');
+        if (fileInput) {
+            fileInput.name = `new_induction_item_${inductionItemCounter}_file`;
+        }
+        
+        // Add event listeners
+        const deleteBtn = newItem.querySelector('.delete-item-btn');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', function() {
+                deleteInductionItem(newItem);
+            });
+        }
+        
+        const toggleBtn = newItem.querySelector('.toggle-item-btn');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', function() {
+                toggleInductionItem(newItem);
+            });
+        }
+        
+        // Append to container
+        container.appendChild(newItem);
+        
+        // Increment counter
+        inductionItemCounter++;
+        
+        // Focus on question input
+        if (questionInput) {
+            setTimeout(() => questionInput.focus(), 100);
+        }
+        
+        // Scroll to new item
+        newItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        
+        console.log('Added new induction item successfully');
+    };
+
+    function deleteInductionItem(itemElement) {
+        if (confirm('Are you sure you want to delete this induction item?')) {
+            itemElement.remove();
+            updateItemNumbers();
+            showMessage('Induction item deleted', 'success');
+        }
+    }
+
+    window.deleteExistingInductionItem = function(itemId) {
+        if (confirm('Are you sure you want to delete this induction item? This action cannot be undone.')) {
+            const itemElement = document.getElementById(`existing-item-${itemId}`);
+            if (itemElement) {
+                itemElement.style.display = 'none';
+                
+                // Mark item for deletion by adding a hidden input
+                const hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = `delete_induction_item_${itemId}`;
+                hiddenInput.value = 'true';
+                itemElement.appendChild(hiddenInput);
+                
+                showMessage('Item marked for deletion. Save the form to confirm changes.', 'warning');
+            } else {
+                // Element not found
+            }
+        }
+    };
+
+    function toggleInductionItem(itemElement) {
+        const content = itemElement.querySelector('.item-content');
+        const icon = itemElement.querySelector('.toggle-item-btn i');
+        
+        if (content.style.display === 'none') {
+            content.style.display = 'block';
+            icon.className = 'fas fa-chevron-up';
+        } else {
+            content.style.display = 'none';
+            icon.className = 'fas fa-chevron-down';
+        }
+    }
+
+    function updateItemNumbers() {
+        const items = document.querySelectorAll('.active-item');
+        items.forEach((item, index) => {
+            const itemNumber = item.querySelector('.item-number');
+            if (itemNumber) {
+                itemNumber.textContent = `Item ${index + 1}`;
+            }
+        });
+    }
+
+    // Simple message function
+    function showMessage(message, type) {
+        const toast = document.createElement('div');
+        toast.className = `fixed top-4 right-4 px-4 py-2 rounded shadow-lg z-50 text-white ${type === 'success' ? 'bg-green-600' : type === 'warning' ? 'bg-yellow-600' : 'bg-red-600'}`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.remove();
+        }, 3000);
+    }
+})();
+
+// Ensure tab state is preserved when making updates in this tab
+document.addEventListener('DOMContentLoaded', function() {
+    // Set tab state for form submission
+    function updateTabState() {
+        // Update global tab state explicitly for this tab
+        if (typeof currentTabState !== 'undefined') {
+            currentTabState.mainTab = 'ilp-tab';
+            currentTabState.subTab = 'induction-checklist-tab';
+            
+            console.log('Induction Checklist tab: Setting tab state to:', currentTabState);
+            
+            // Update hidden form fields directly
+            var activeTabField = document.getElementById('activeTabField');
+            var activeSubTabField = document.getElementById('activeSubTabField');
+            
+            if (activeTabField) activeTabField.value = currentTabState.mainTab;
+            if (activeSubTabField) activeSubTabField.value = currentTabState.subTab;
+        }
+    }
+    
+    // Update tab state when the tab becomes visible
+    var tabElement = document.getElementById('induction-checklist-tab');
+    if (tabElement) {
+        // Create a mutation observer to detect when the tab becomes visible
+        var observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && 
+                    mutation.attributeName === 'style' &&
+                    tabElement.style.display !== 'none') {
+                    updateTabState();
+                }
+                
+                if (mutation.type === 'attributes' && 
+                    mutation.attributeName === 'class' &&
+                    tabElement.classList.contains('active')) {
+                    updateTabState();
+                }
+            });
+        });
+        
+        observer.observe(tabElement, { attributes: true });
+        
+        // Also check if it's already visible
+        if (tabElement.style.display !== 'none' || tabElement.classList.contains('active')) {
+            updateTabState();
+        }
+    }
+    
+    // Add input listeners to all form elements in this tab
+    var formElements = document.querySelectorAll('#induction-checklist-tab input, #induction-checklist-tab textarea, #induction-checklist-tab select');
+    formElements.forEach(function(element) {
+        element.addEventListener('focus', updateTabState);
+        element.addEventListener('change', updateTabState);
+    });
+});
+</script> 

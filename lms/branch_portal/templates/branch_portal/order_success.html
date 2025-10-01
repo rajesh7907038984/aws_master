@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Success - LMS Learning Platform</title>
+    {% load static %}
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'branch_portal/css/landing_page.css' %}">
+    <style>
+        .success-icon {
+            font-size: 4rem;
+            color: #198754;
+            margin-bottom: 1rem;
+        }
+        
+        .order-container {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .next-steps {
+            background-color: #e6f2ff;
+            padding: 20px;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header Section -->
+    <header class="header">
+        <div class="container">
+            <nav class="navbar navbar-expand-lg navbar-light">
+                <div class="container-fluid">
+                    <a class="navbar-brand" href="#">
+                        {% if portal.logo %}
+                        <img src="{{ portal.logo.url }}" alt="{{ portal.business_name }}" class="logo">
+                        {% else %}
+                        <!-- Show only branch name without default logo -->
+                        <span class="fw-bold" style="font-size: 1.5rem; color: {{ portal.primary_color }};">{{ portal.business_name }}</span>
+                        {% endif %}
+                    </a>
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                    <div class="collapse navbar-collapse" id="navbarNav">
+                        <ul class="navbar-nav ms-auto">
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'branch_portal:marketing_landing' %}">Home</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'branch_portal:marketing_landing' %}#courses">Courses</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'branch_portal:marketing_landing' %}#testimonials">Testimonials</a>
+                            </li>
+                        </ul>
+                        <div class="ms-3 d-flex">
+                            {% if request.user.is_authenticated %}
+                                <a href="{% url 'users:role_based_redirect' %}" class="btn btn-outline-primary me-2">Dashboard</a>
+                                <a href="{% url 'branch_portal:view_cart' %}" class="btn btn-primary">
+                                    <i class="fas fa-shopping-cart"></i> Cart
+                                </a>
+                            {% else %}
+                                <a href="{% url 'login' %}" class="btn btn-outline-primary me-2">Login</a>
+                                <a href="{% url 'users:register' %}" class="btn btn-primary">Register</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <section class="py-5">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-lg-8">
+                    <!-- Success Message -->
+                    <div class="text-center mb-5">
+                        <i class="fas fa-check-circle success-icon"></i>
+                        <h1 class="mb-2">Order Submitted Successfully!</h1>
+                        <p class="text-muted">Your enrollment request has been received</p>
+                    </div>
+
+                    <!-- Order Details -->
+                    <div class="order-container mb-4">
+                        <div class="card-header bg-white py-3 border-bottom">
+                            <h5 class="mb-0">Order Details</h5>
+                        </div>
+                        <div class="card-body p-4">
+                            <div class="row mb-4">
+                                <div class="col-md-6 mb-3">
+                                    <h6 class="text-muted mb-1">Order Number</h6>
+                                    <p class="mb-0">{{ order.order_number }}</p>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <h6 class="text-muted mb-1">Date</h6>
+                                    <p class="mb-0">{{ order.created_at|date:"F j, Y, g:i a" }}</p>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <h6 class="text-muted mb-1">Status</h6>
+                                    <span class="badge 
+                                        {% if order.status == 'pending' %}bg-warning
+                                        {% elif order.status == 'approved' %}bg-success
+                                        {% elif order.status == 'rejected' %}bg-danger
+                                        {% elif order.status == 'completed' %}bg-primary
+                                        {% else %}bg-secondary{% endif %}">
+                                        {{ order.get_status_display }}
+                                    </span>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <h6 class="text-muted mb-1">Payment Status</h6>
+                                    <span class="badge 
+                                        {% if order.payment_status == 'pending' %}bg-warning
+                                        {% elif order.payment_status == 'paid' %}bg-success
+                                        {% elif order.payment_status == 'failed' %}bg-danger
+                                        {% else %}bg-secondary{% endif %}">
+                                        {{ order.get_payment_status_display }}
+                                    </span>
+                                </div>
+                                <div class="col-12 mb-3">
+                                    <h6 class="text-muted mb-1">Branch</h6>
+                                    <p class="mb-0">{{ order.branch.name }}</p>
+                                </div>
+                                <div class="col-12 mb-3">
+                                    <h6 class="text-muted mb-1">Total Amount</h6>
+                                    <h3 class="mb-0">${{ order.total }}</h3>
+                                </div>
+                                {% if order.user_notes %}
+                                <div class="col-12">
+                                    <h6 class="text-muted mb-1">Your Notes</h6>
+                                    <p class="mb-0">{{ order.user_notes }}</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Order Items -->
+                            <h5 class="mt-4 mb-3">Courses</h5>
+                            <div class="table-responsive">
+                                <table class="table table-borderless">
+                                    <tbody>
+                                        {% for item in order.items.all %}
+                                        <tr class="border-bottom">
+                                            <td class="py-3">
+                                                <div class="d-flex align-items-center">
+                                                    <div class="me-3" style="width: 40px; height: 40px;">
+                                                        {% if item.course.course_image %}
+                                                        <img src="{{ item.course.course_image.url }}" alt="{{ item.course.title }}" class="img-fluid rounded" style="width: 40px; height: 40px; object-fit: cover;">
+                                                        {% else %}
+                                                        <div style="width: 40px; height: 40px; background-color: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+                                                            <i class="fas fa-book text-secondary"></i>
+                                                        </div>
+                                                        {% endif %}
+                                                    </div>
+                                                    <div>
+                                                        <h6 class="mb-0">{{ item.course.title }}</h6>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td class="py-3 text-end">${{ item.price }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Next Steps -->
+                    <div class="next-steps mb-4">
+                        <h5 class="mb-3">What's Next?</h5>
+                        <ol class="ps-3">
+                            <li class="mb-2">The branch admin will review your enrollment request.</li>
+                            <li class="mb-2">You will receive email notifications about your order status updates.</li>
+                            <li class="mb-2">Once your order is approved, you will gain access to the courses.</li>
+                            <li>You can track your order status in your account dashboard.</li>
+                        </ol>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="d-flex justify-content-center flex-wrap gap-3">
+                        <a href="{% url 'users:role_based_redirect' %}" class="btn btn-primary">
+                            <i class="fas fa-tachometer-alt me-2"></i> Go to Dashboard
+                        </a>
+                        <a href="{% url 'branch_portal:marketing_landing' %}#courses" class="btn btn-outline-secondary">
+                            <i class="fas fa-search me-2"></i> Browse More Courses
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer py-5">
+        <div class="container">
+            <div class="footer-bottom mt-4 pt-4 border-top">
+                <div class="row">
+                    <div class="col-md-12 text-center">
+                        <p>&copy; 2023 - 2025 | All rights reserved</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 

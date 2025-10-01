@@ -1,0 +1,202 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block title %}User Settings - {{ user.username }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .main-content {
+        background-color: #ffffff !important;
+    }
+
+    .p-6.space-y-6 {
+        background-color: white;
+    }
+
+    .settings-section {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    }
+
+    .settings-header {
+        border-bottom: 1px solid #E5E7EB;
+        padding: 1.5rem;
+    }
+
+    .settings-content {
+        padding: 1.5rem;
+    }
+
+    .settings-group {
+        margin-bottom: 2rem;
+    }
+
+    .settings-group:last-child {
+        margin-bottom: 0;
+    }
+
+    .settings-label {
+        display: block;
+        color: #374151;
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+
+    .settings-input {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #D1D5DB;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        color: #111827;
+    }
+
+    .settings-input:focus {
+        outline: none;
+        border-color: #2563EB;
+        box-shadow: 0 0 0 1px #2563EB;
+    }
+
+    .settings-select {
+        width: 100%;
+        padding: 0.5rem 2.5rem 0.5rem 0.75rem;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+        background-position: right 0.5rem center;
+        background-repeat: no-repeat;
+        background-size: 1.5em 1.5em;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+    }
+
+    .settings-help {
+        color: #6B7280;
+        font-size: 0.75rem;
+        margin-top: 0.25rem;
+    }
+
+    .settings-error {
+        color: #DC2626;
+        font-size: 0.75rem;
+        margin-top: 0.25rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex-1 p-8 overflow-x-hidden overflow-y-auto bg-white">
+    <div class="p-6 space-y-6 bg-white">
+        <!-- Breadcrumb -->
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+        <!-- Main Content -->
+        <div class="container mx-auto max-w-3xl">
+            <div class="settings-section">
+                <div class="settings-header">
+                    <h1 class="text-xl font-semibold text-gray-900">User Settings</h1>
+                    <p class="mt-1 text-sm text-gray-500">Manage your account preferences and settings</p>
+                </div>
+                <div class="settings-content">
+                    <form method="post" class="space-y-6">
+                        {% csrf_token %}
+                        {% if form.non_field_errors %}
+                        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                            {{ form.non_field_errors }}
+                        </div>
+                        {% endif %}
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Personal Information -->
+                            <div class="settings-group">
+                                <h2 class="text-lg font-medium text-gray-900 mb-4">Personal Information</h2>
+                                <div class="space-y-4">
+                                    <div>
+                                        <label for="language" class="settings-label">Language</label>
+                                        <select id="language" name="language" class="settings-select">
+                                            {% for code, name in languages %}
+                                            <option value="{{ code }}" {% if user.language == code %}selected{% endif %}>{{ name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="timezone" class="settings-label">Timezone</label>
+                                        <select id="timezone" name="timezone" class="settings-select">
+                                            {% for tz in timezones %}
+                                            <option value="{{ tz }}" {% if user.timezone == tz %}selected{% endif %}>{{ tz }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <div class="settings-help">
+                                            <div id="timezone-status" class="text-sm text-gray-600 mt-2">
+                                                <span class="inline-flex items-center">
+                                                    <i class="fas fa-clock mr-1"></i>
+                                                    <span id="current-device-time">Loading...</span>
+                                                </span>
+                                            </div>
+                                            <div id="auto-detection-status" class="text-xs text-blue-600 mt-1" style="display: none;">
+                                                <i class="fas fa-magic mr-1"></i>
+                                                Timezone was auto-detected from your device
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end space-x-4 mt-6 pt-6 border-t border-gray-200">
+                            <a href="{% url 'users:user_list' %}" class="px-4 py-2 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
+                                Cancel
+                            </a>
+                            <button type="submit" class="px-4 py-2 text-white rounded-lg transition-colors" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                                Save Settings
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Update device time display
+    function updateDeviceTime() {
+        const timeElement = document.getElementById('current-device-time');
+        if (timeElement && window.userDeviceTime) {
+            const currentTime = window.userDeviceTime.getCurrentTimeString({ 
+                hour12: true, 
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            const timezone = window.userDeviceTime.getTimezone();
+            timeElement.textContent = `${currentTime} (${timezone})`;
+        }
+    }
+    
+    // Check if timezone was auto-detected
+    function checkAutoDetection() {
+        const autoDetected = localStorage.getItem('timezone_auto_detected');
+        const statusElement = document.getElementById('auto-detection-status');
+        if (autoDetected === 'true' && statusElement) {
+            statusElement.style.display = 'block';
+        }
+    }
+    
+    // Initialize
+    setTimeout(() => {
+        updateDeviceTime();
+        checkAutoDetection();
+        
+        // Update time every minute
+        setInterval(updateDeviceTime, 60000);
+    }, 1000);
+});
+</script>
+{% endblock %} 

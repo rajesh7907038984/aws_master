@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ group.name }} - Group Details - LMS{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background-color: #ffffff !important;
+    }
+    
+    .main-content {
+        background-color: #ffffff !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex-1 overflow-x-hidden overflow-y-auto bg-white">
+    <div class="p-6 space-y-6 bg-white">
+        <!-- Breadcrumb -->
+        {% include 'components/breadcrumb.html' with items=breadcrumbs %}
+
+        <!-- Main Content -->
+        <div class="container mx-auto">
+            <!-- Main grid with 70-30 split -->
+            <div class="grid grid-cols-12 gap-4 md:gap-6">
+                <!-- Left Column (70%) -->
+                <div class="col-span-12 lg:col-span-8 transition-all duration-300">
+                    <!-- Group Details Card -->
+                    <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+                        <div class="flex justify-between items-start mb-6">
+                            <div>
+                                <h1 class="text-2xl font-bold text-gray-900">{{ group.name }}</h1>
+                                {% if group.branch %}
+                                <p class="text-sm text-gray-600 mt-1">Branch: {{ group.branch.name }}</p>
+                                {% endif %}
+                            </div>
+                            <div class="flex space-x-3">
+                                {% if group.course_access.exists %}
+                                <a href="{% url 'groups:group_edit' group.id %}?type=course&tab=course-groups" 
+                                   class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                                    Edit Group
+                                </a>
+                                {% else %}
+                                <a href="{% url 'groups:group_edit' group.id %}?type=user&tab=user-groups" 
+                                   class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                                    Edit Group
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Group Info -->
+                        <div class="space-y-4">
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900 mb-2">Description</h3>
+                                <p class="text-gray-700">{{ group.description|default:"No description provided." }}</p>
+                            </div>
+
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900 mb-2">Status</h3>
+                                <div class="flex items-center">
+                                    {% if group.is_active %}
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                                        <span class="h-2 w-2 rounded-full bg-green-500 mr-2"></span>
+                                        Active
+                                    </span>
+                                    {% else %}
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
+                                        <span class="h-2 w-2 rounded-full bg-red-500 mr-2"></span>
+                                        Inactive
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Members Section -->
+                    <div class="bg-white rounded-lg shadow-sm p-6">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-xl font-bold text-gray-900">Members</h2>
+                            <a href="{% url 'groups:member_add' group.id %}{% if group.course_access.exists %}?tab=course-groups{% else %}?tab=user-groups{% endif %}" 
+                               class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                                Add Member
+                            </a>
+                        </div>
+
+                        {% if members %}
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Member
+                                        </th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Role
+                                        </th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Status
+                                        </th>
+                                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Actions
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    {% for membership in members %}
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="flex items-center">
+                                                <div>
+                                                    <div class="text-sm font-medium text-gray-900">
+                                                        {{ membership.user.get_full_name|default:membership.user.username }}
+                                                    </div>
+                                                    <div class="text-sm text-gray-500">
+                                                        {{ membership.user.email }}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">
+                                                {{ membership.custom_role.name|default:"No Role" }}
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                                    {% if membership.is_active %}
+                                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                        Active
+                                                    </span>
+                                                    {% else %}
+                                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                                        Inactive
+                                                    </span>
+                                                    {% endif %}
+                                                </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                            <form method="post" action="{% url 'groups:member_delete' group.id membership.id %}" class="inline">
+                                                {% csrf_token %}
+                                                {% if group.course_access.exists %}
+                                                <input type="hidden" name="tab" value="course-groups">
+                                                {% else %}
+                                                <input type="hidden" name="tab" value="user-groups">
+                                                {% endif %}
+                                                <button type="submit" class="text-red-600 hover:text-red-900" onclick="return confirm('Are you sure you want to remove this member?')">
+                                                    Remove
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-8">
+                            <p class="text-gray-500">No members in this group yet.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Right Column (30%) -->
+                <div class="col-span-12 lg:col-span-4 transition-all duration-300">
+                    {% include 'components/right_sidebar.html' %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

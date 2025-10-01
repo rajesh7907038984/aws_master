@@ -1,0 +1,872 @@
+{% load static %}
+{% load account_settings_tags %}
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if branch_portal %}Register - {{ branch.name }}{% else %}Register - Nexsy LMS{% endif %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="{% static 'css/style.css' %}" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+</head>
+<body>
+    <div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8" style="background: #ffffff; align-items: flex-start; padding: 1rem 0.5rem; box-sizing: border-box;">
+        <div class="registration-container max-w-6xl w-full">
+            
+            <!-- Logo -->
+            <div class="text-center mb-6" style="display: flex; justify-content: center; margin-bottom: 1.5rem; animation: fadeInUp 0.8s ease-out 0.2s both;">
+                <img src="{% static 'core/img/logo-light.png' %}" alt="Nexsy LMS Logo" style="height: auto; width: 180px; object-fit: contain; transition: transform 0.3s ease;">
+            </div>
+            
+            <!-- Branch Logo/Header -->
+            <div class="text-center mb-8" style="animation: fadeInUp 0.8s ease-out 0.4s both;">
+                {% if branch_portal and branch.portal.logo %}
+                <div class="mb-6">
+                    <img src="{{ branch.portal.logo.url }}" alt="{{ branch.name }} Logo" class="mx-auto h-20 w-auto object-contain">
+                </div>
+                {% endif %}
+                
+                {% if branch_portal %}
+                <h1 class="text-2xl font-bold text-gray-900 mb-2" style="animation: fadeInUp 0.8s ease-out 0.8s both;">Join {{ branch.name }}</h1>
+                <p class="text-gray-600">Create your learner account to get started</p>
+                {% else %}
+                <h1 class="text-2xl font-bold text-gray-900 mb-2" style="animation: fadeInUp 0.8s ease-out 0.8s both;">Create Your Account</h1>
+                <p class="text-gray-600">Join Nexsy LMS to start your learning journey</p>
+                {% endif %}
+            </div>
+
+            <!-- Registration Form -->
+            <div>
+                
+                <!-- OAuth Sign-In Buttons -->
+                {% is_google_oauth_enabled as google_oauth_enabled %}
+                {% is_microsoft_oauth_enabled as microsoft_oauth_enabled %}
+                {% if google_oauth_enabled or microsoft_oauth_enabled %}
+                <div class="mb-6 {% if google_oauth_enabled and microsoft_oauth_enabled %}grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4{% else %}flex justify-center{% endif %}">
+                    
+                    {% if google_oauth_enabled %}
+                    <!-- Google Sign-In Button -->
+                    <a href="{% url 'users:google_login' %}{% if branch_portal %}?branch={{ branch.portal.slug }}{% endif %}" 
+                       class="oauth-button w-full flex justify-center items-center text-gray-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <svg class="w-5 h-5 mr-3" viewBox="0 0 24 24">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                        </svg>
+                        Continue with Google
+                    </a>
+                    {% endif %}
+                    
+                    {% if microsoft_oauth_enabled %}
+                    <!-- Microsoft Sign-In Button -->
+                    <a href="{% url 'users:microsoft_login' %}{% if branch_portal %}?branch={{ branch.portal.slug }}{% endif %}" 
+                       class="oauth-button w-full flex justify-center items-center bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 border-blue-600">
+                        <svg class="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M11.4 24H0V12.6h11.4V24zM24 24H12.6V12.6H24V24zM11.4 11.4H0V0h11.4v11.4zM24 11.4H12.6V0H24v11.4z"/>
+                        </svg>
+                        Continue with Microsoft
+                    </a>
+                    {% endif %}
+                    
+                </div>
+                
+                <!-- Divider -->
+                <div class="form-divider text-center">
+                    <span>Or register manually</span>
+                </div>
+                {% endif %}
+
+                <form method="post" class="space-y-6">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                    <div class="error-message">
+                        <div class="flex items-center">
+                            <i class="fas fa-exclamation-circle mr-2"></i>
+                            {{ form.non_field_errors }}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Three-column form fields container -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                        {% for field in form %}
+                        {% if field.name != 'terms_acceptance' %}
+                        <div class="form-group" style="margin-bottom: 1rem; animation: fadeInUp 0.6s ease-out both;">
+                            <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                                {{ field.label }}{% if field.field.required %} *{% endif %}
+                            </label>
+                            <div class="mt-1">
+                                {{ field.errors }}
+                                <div class="relative input-container">
+                                    <div class="input-icon">
+                                        {% if 'username' in field.name %}
+                                            <i class="fas fa-user"></i>
+                                        {% elif 'email' in field.name %}
+                                            <i class="fas fa-envelope"></i>
+                                        {% elif 'password' in field.name %}
+                                            <i class="fas fa-lock"></i>
+                                        {% elif 'first_name' in field.name %}
+                                            <i class="fas fa-user"></i>
+                                        {% elif 'last_name' in field.name %}
+                                            <i class="fas fa-user"></i>
+                                        {% elif 'phone' in field.name %}
+                                            <i class="fas fa-phone"></i>
+                                        {% else %}
+                                            <i class="fas fa-user"></i>
+                                        {% endif %}
+                                    </div>
+                                    {{ field }}
+                                    {% if field.help_text %}
+                                    <p class="mt-1 text-sm text-gray-500">{{ field.help_text }}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+
+                    <!-- Terms and Privacy Acceptance -->
+                    <div class="form-group">
+                        <div class="terms-acceptance-container" id="terms-container">
+                            <div class="flex items-start space-x-3">
+                                <div class="flex items-center">
+                                    <input id="terms-acceptance" name="terms_acceptance" type="checkbox" required 
+                                           class="terms-checkbox">
+                                </div>
+                                <div class="flex-1">
+                                    <label for="terms-acceptance" class="terms-label">
+                                        I agree to the 
+                                        <a href="{% url 'core:terms_of_service' %}" target="_blank" class="terms-link">Terms of Service</a>
+                                        and 
+                                        <a href="{% url 'core:privacy_policy' %}" target="_blank" class="terms-link">Privacy Policy</a>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Full-width submit button and centered sign-in link -->
+                    <div class="space-y-4 mt-6">
+                        <div class="form-group">
+                            <button type="submit" class="login-btn w-full">
+                            <i class="fas fa-user-plus"></i>
+                            <span>{% if branch_portal %}Join {{ branch.name }}{% else %}Create Account{% endif %}</span>
+                        </button>
+                        </div>
+                        
+                        <!-- Already have an account link -->
+                        <div class="text-center">
+                            <p class="text-gray-600 mb-3 text-sm">
+                                <i class="fas fa-user text-blue-500 mr-1"></i>
+                                Already have an account?
+                            </p>
+                            <a href="{% url 'login' %}{% if branch_portal %}?branch={{ branch.portal.slug }}{% endif %}" class="secondary-btn inline-flex items-center justify-center text-decoration-none">
+                                <i class="fas fa-sign-in-alt mr-2"></i>
+                                Sign In Instead
+                            </a>
+                        </div>
+                    </div>
+                </form>
+                
+                <!-- Security Notice -->
+                <div class="info-card mt-6">
+                    <div class="flex items-start">
+                        <i class="fas fa-shield-alt text-blue-600 mt-1 mr-3"></i>
+                        <div class="text-sm text-blue-800">
+                            <p class="font-medium mb-1">Secure Registration</p>
+                            <p class="text-xs">
+                                {% if branch_portal %}
+                                Your account will be automatically enrolled in {{ branch.name }} with learner access.
+                                {% else %}
+                                You'll be registered as a learner with access to available courses.
+                                {% endif %}
+                                All data is encrypted and secure.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Additional Links -->
+                <div class="text-center mt-4 links-section">
+                    {% if branch_portal %}
+                    <a href="{% url 'branch_portal:portal_landing' slug=branch.portal.slug %}" class="text-sm text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-arrow-left mr-1"></i> Back to {{ branch.name }}
+                    </a>
+                    {% else %}
+                    <a href="/" class="text-sm text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-arrow-left mr-1"></i> Back to Home
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        /* Enhanced Background */
+        body {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            min-height: 100vh;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        /* Modern Registration Container */
+        .registration-container {
+            background: linear-gradient(145deg, #ffffff 0%, #fefefe 100%);
+            border-radius: 1.5rem;
+            box-shadow: 
+                0 20px 40px -12px rgba(0, 0, 0, 0.08),
+                0 8px 20px -8px rgba(0, 0, 0, 0.04),
+                0 1px 3px rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            max-width: 1200px;
+            width: 100%;
+            max-height: calc(100vh - 2rem);
+            padding: 3rem;
+            position: relative;
+            overflow-x: hidden;
+            overflow-y: auto;
+            margin: auto;
+            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        .registration-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #1c2260, #3b82f6, #1c2260);
+            border-radius: 1.5rem 1.5rem 0 0;
+        }
+
+        /* Enhanced Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(40px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes scaleIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* Enhanced Form Group Styling */
+        .form-group {
+            margin-bottom: 1.75rem;
+            position: relative;
+        }
+
+        .form-group:nth-child(3n+1) { animation: slideInLeft 0.6s ease-out both; }
+        .form-group:nth-child(3n+2) { animation: fadeInUp 0.6s ease-out both; }
+        .form-group:nth-child(3n+3) { animation: slideInRight 0.6s ease-out both; }
+
+        .form-group:nth-child(1) { animation-delay: 0.1s; }
+        .form-group:nth-child(2) { animation-delay: 0.2s; }
+        .form-group:nth-child(3) { animation-delay: 0.3s; }
+        .form-group:nth-child(4) { animation-delay: 0.4s; }
+        .form-group:nth-child(5) { animation-delay: 0.5s; }
+        .form-group:nth-child(6) { animation-delay: 0.6s; }
+
+        /* Enhanced Labels */
+        .form-group label {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            letter-spacing: 0.025em;
+            transition: color 0.2s ease;
+        }
+
+        .form-group:focus-within label {
+            color: #1c2260;
+        }
+
+        /* Input Container - Matching Login Page */
+        .input-container {
+            position: relative;
+        }
+
+        /* Input Icons - Custom Positioning */
+        .input-icon {
+            position: static;
+            transform: translateY(146%) translateX(4%);
+            color: #64748b;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+
+        .input-container:hover .input-icon {
+            color: #3b82f6;
+        }
+
+        .input-container:focus-within .input-icon {
+            color: #3b82f6;
+            transform: translateY(146%) translateX(4%);
+        }
+
+        /* Form Fields - Matching Login Page Exactly */
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        select {
+            width: 100%;
+            padding: 0.75rem 1rem 0.75rem 2.5rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            color: #1f2937;
+            background: #ffffff;
+            transition: all 0.2s ease;
+        }
+
+        input[type="text"]:focus,
+        input[type="email"]:focus,
+        input[type="password"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+            background: #ffffff;
+        }
+
+        /* Placeholder Styling */
+        input::placeholder {
+            color: #9ca3af;
+            font-weight: 400;
+        }
+
+        /* Modern Premium Button */
+        .login-btn {
+            background: linear-gradient(135deg, #1c2260 0%, #2563eb 100%);
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 0.875rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            letter-spacing: 0.025em;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            border: none;
+            width: 100%;
+            position: relative;
+            box-shadow: 
+                0 8px 25px rgba(28, 34, 96, 0.25),
+                0 4px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .login-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+            transition: left 0.6s ease;
+        }
+
+        .login-btn::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+            border-radius: 0.875rem;
+        }
+
+        .login-btn:hover {
+            background: linear-gradient(135deg, #181f56 0%, #1d4ed8 100%);
+            box-shadow: 
+                0 12px 35px rgba(28, 34, 96, 0.3),
+                0 6px 15px rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .login-btn:hover::before {
+            left: 100%;
+        }
+
+        .login-btn:active {
+            transform: translateY(-1px) scale(0.99);
+            box-shadow: 
+                0 8px 25px rgba(28, 34, 96, 0.25),
+                0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .login-btn i {
+            margin-right: 0.75rem;
+            transition: all 0.3s ease;
+            z-index: 1;
+            position: relative;
+            font-size: 1rem;
+        }
+
+        .login-btn:hover i {
+            transform: translateX(2px) scale(1.05);
+        }
+
+        .login-btn span {
+            z-index: 1;
+            position: relative;
+        }
+
+        /* Select styling */
+        select {
+            appearance: none;
+            padding-right: 2.5rem;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.75rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+        }
+
+        select option {
+            background-color: #ffffff;
+            color: #1f2937;
+            padding: 0.5rem;
+        }
+
+        /* Error message styling for light theme */
+        .errorlist {
+            list-style-type: none;
+            padding: 0;
+            margin: 0.25rem 0;
+            color: #dc2626;
+            font-size: 0.875rem;
+        }
+
+        /* Help text styling for light theme */
+        .helptext {
+            color: #6b7280;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+            display: block;
+        }
+
+        /* Password validation list styling */
+        ul.errorlist {
+            margin-bottom: 0.5rem;
+        }
+
+        ul.errorlist li {
+            margin-bottom: 0.25rem;
+        }
+
+        /* Modern OAuth Buttons */
+        .oauth-button {
+            background: #ffffff;
+            border: 2px solid #f1f5f9;
+            border-radius: 0.75rem;
+            padding: 0.875rem 1.5rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .oauth-button:hover {
+            border-color: #e2e8f0;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+            transform: translateY(-1px);
+        }
+
+        /* Modern Divider */
+        .form-divider {
+            position: relative;
+            margin: 2rem 0;
+        }
+
+        .form-divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
+        }
+
+        .form-divider span {
+            background: #ffffff;
+            color: #64748b;
+            padding: 0 1.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Enhanced Terms Acceptance */
+        .terms-acceptance-container {
+            background: linear-gradient(145deg, #f8fafc, #f1f5f9);
+            border: 2px solid #f1f5f9;
+            border-radius: 0.875rem;
+            padding: 1.5rem;
+            margin: 2rem 0;
+            transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .terms-acceptance-container:hover {
+            background: linear-gradient(145deg, #f1f5f9, #e2e8f0);
+            border-color: #cbd5e1;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+        }
+
+        .terms-acceptance-container:focus-within {
+            border-color: #3b82f6;
+            background: linear-gradient(145deg, #dbeafe, #bfdbfe);
+            box-shadow: 
+                0 0 0 3px rgba(59, 130, 246, 0.1),
+                0 4px 20px rgba(59, 130, 246, 0.15);
+        }
+
+        .terms-checkbox {
+            width: 1.25rem;
+            height: 1.25rem;
+            accent-color: #1c2260;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-radius: 0.25rem;
+        }
+
+        .terms-checkbox:focus {
+            outline: 2px solid rgba(28, 34, 96, 0.3);
+            outline-offset: 2px;
+        }
+
+        .terms-label {
+            color: #374151;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            cursor: pointer;
+            user-select: none;
+            font-weight: 500;
+        }
+
+        .terms-link {
+            color: #1c2260;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .terms-link::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #1c2260;
+            transform: scaleX(0);
+            transition: transform 0.2s ease;
+        }
+
+        .terms-link:hover {
+            color: #3b82f6;
+        }
+
+        .terms-link:hover::after {
+            transform: scaleX(1);
+        }
+
+        .checkbox-error {
+            border-color: #ef4444;
+            background: linear-gradient(145deg, #fee2e2, #fecaca);
+        }
+
+        .checkbox-error .terms-label {
+            color: #dc2626;
+        }
+
+        /* Enhanced Secondary Button */
+        .secondary-btn {
+            background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            font-weight: 500;
+            font-size: 0.875rem;
+            transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            border: none;
+            box-shadow: 0 4px 12px rgba(100, 116, 139, 0.25);
+        }
+
+        .secondary-btn:hover {
+            background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            box-shadow: 0 6px 18px rgba(100, 116, 139, 0.3);
+            transform: translateY(-1px);
+        }
+
+        /* Enhanced Links Section */
+        .links-section {
+            animation: fadeInUp 0.8s ease-out 1.4s both;
+        }
+
+        .info-card {
+            background: linear-gradient(145deg, #f0f9ff, #e0f2fe);
+            border: 2px solid #bae6fd;
+            border-radius: 0.875rem;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(56, 189, 248, 0.1);
+        }
+
+        .info-card:hover {
+            box-shadow: 0 8px 25px rgba(56, 189, 248, 0.15);
+            transform: translateY(-1px);
+        }
+
+        /* Shake animation for validation errors */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-8px); }
+            20%, 40%, 60%, 80% { transform: translateX(8px); }
+        }
+
+        /* Enhanced Error messages */
+        .error-message {
+            background: linear-gradient(145deg, #fee2e2, #fecaca);
+            border: 2px solid #f87171;
+            color: #b91c1c;
+            padding: 1rem;
+            border-radius: 0.875rem;
+            margin-bottom: 1.5rem;
+            animation: fadeInUp 0.5s ease-out;
+            box-shadow: 0 4px 12px rgba(248, 113, 113, 0.2);
+        }
+
+        /* Wide form responsive design for 3-column layout */
+        @media (max-width: 768px) {
+            .max-w-6xl {
+                max-width: 450px !important;
+                padding: 2rem !important;
+            }
+            
+            /* Stack everything in single column on mobile */
+            .grid.grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-3 {
+                display: block;
+            }
+            
+            .grid.grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-3 > * {
+                margin-bottom: 1rem;
+            }
+        }
+
+        @media (min-width: 769px) and (max-width: 1023px) {
+            .max-w-6xl {
+                max-width: 850px;
+                padding: 2.5rem;
+            }
+            
+            /* 2-column layout for tablet */
+            .grid.grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-3 {
+                gap: 1.5rem;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .max-w-6xl {
+                max-width: 1200px;
+                padding: 3.5rem;
+            }
+            
+            /* 3-column layout for desktop */
+            .grid.grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-3 {
+                gap: 1.75rem;
+            }
+            
+            /* Better alignment for wide screens */
+            body {
+                align-items: center;
+            }
+        }
+
+        @media (min-width: 1280px) {
+            .max-w-6xl {
+                max-width: 1350px;
+                padding: 4rem;
+            }
+            
+            .grid.grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-3 {
+                gap: 2rem;
+            }
+        }
+
+        @media (min-width: 1536px) {
+            .max-w-6xl {
+                max-width: 1500px;
+                padding: 4.5rem;
+            }
+        }
+
+        /* Ensure form fields maintain proper spacing in 3-column layout */
+        .form-group {
+            min-height: 80px;
+        }
+
+        /* Hover effect for the wide container */
+        .max-w-6xl:hover {
+            box-shadow: 
+                0 12px 35px rgba(0, 0, 0, 0.12),
+                0 6px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        /* Improved field focus states for 3-column layout */
+        .form-group:focus-within {
+            transform: translateY(-2px);
+            transition: transform 0.2s ease;
+        }
+
+        /* Better visual hierarchy for 3-column layout */
+        .form-group label {
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+    </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Terms acceptance validation and enhancement
+            const termsCheckbox = document.getElementById('terms-acceptance');
+            const termsContainer = document.getElementById('terms-container');
+            const form = document.querySelector('form');
+            const submitButton = document.querySelector('button[type="submit"]');
+            
+            if (termsCheckbox && termsContainer) {
+                // Remove error state when checkbox is checked
+                termsCheckbox.addEventListener('change', function() {
+                    if (this.checked) {
+                        termsContainer.classList.remove('checkbox-error');
+                        // Remove any existing error messages
+                        const errorMsg = termsContainer.querySelector('.terms-error-message');
+                        if (errorMsg) {
+                            errorMsg.remove();
+                        }
+                    }
+                });
+                
+                // Add visual feedback when clicking on container
+                termsContainer.addEventListener('click', function(e) {
+                    if (e.target !== termsCheckbox && !e.target.closest('a')) {
+                        termsCheckbox.checked = !termsCheckbox.checked;
+                        termsCheckbox.dispatchEvent(new Event('change'));
+                    }
+                });
+            }
+
+            // Enhanced form submission with terms validation
+            if (form && submitButton) {
+                form.addEventListener('submit', function(e) {
+                    // Validate terms acceptance
+                    if (termsCheckbox && !termsCheckbox.checked) {
+                        e.preventDefault();
+                        termsContainer.classList.add('checkbox-error');
+                        
+                        // Add shake animation
+                        termsContainer.style.animation = 'shake 0.5s ease-in-out';
+                        setTimeout(() => {
+                            termsContainer.style.animation = '';
+                        }, 500);
+                        
+                        // Show error message
+                        const existingError = termsContainer.querySelector('.terms-error-message');
+                        if (!existingError) {
+                            const errorMsg = document.createElement('div');
+                            errorMsg.className = 'terms-error-message text-sm text-red-600 mt-2';
+                            errorMsg.innerHTML = '<i class="fas fa-exclamation-triangle mr-1"></i>You must agree to the Terms of Service and Privacy Policy to create an account.';
+                            termsContainer.appendChild(errorMsg);
+                            
+                            // Remove error message after 5 seconds
+                            setTimeout(() => {
+                                if (errorMsg.parentNode) {
+                                    errorMsg.remove();
+                                }
+                            }, 5000);
+                        }
+                        
+                        // Focus on the checkbox
+                        termsCheckbox.focus();
+                        return false;
+                    }
+
+                    // Show loading state
+                    const originalText = submitButton.innerHTML;
+                    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Creating Account...';
+                    submitButton.disabled = true;
+                    
+                    // Re-enable after 10 seconds in case of issues (registration takes longer)
+                    setTimeout(() => {
+                        if (submitButton.disabled) {
+                            submitButton.innerHTML = originalText;
+                            submitButton.disabled = false;
+                        }
+                    }, 10000);
+                });
+            }
+
+            // Add visual feedback for form fields
+            const formFields = document.querySelectorAll('input[type="text"], input[type="email"], input[type="password"], select');
+            formFields.forEach(field => {
+                field.addEventListener('focus', function() {
+                    this.parentNode.style.transform = 'scale(1.01)';
+                });
+                
+                field.addEventListener('blur', function() {
+                    this.parentNode.style.transform = 'scale(1)';
+                });
+            });
+        });
+    </script>
+</body>
+</html>

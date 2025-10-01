@@ -1,0 +1,479 @@
+/* Global Responsive Tables CSS */
+
+/* Base responsive table styles */
+.responsive-table-wrapper {
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+    overflow: hidden;
+    width: 100%;
+}
+
+/* Full width table wrapper for reports */
+.responsive-table-wrapper.full-width {
+    width: 100vw !important;
+    margin-left: calc(-50vw + 50%) !important;
+    margin-right: calc(-50vw + 50%) !important;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0 2rem;
+    max-width: none !important;
+}
+
+/* Default table styling for desktop */
+.responsive-table {
+    width: 100% !important;
+    border-collapse: collapse;
+    background: white;
+    table-layout: auto;
+}
+
+/* Full width table specific styling */
+.responsive-table-wrapper.full-width .responsive-table {
+    width: 100% !important;
+    min-width: 100% !important;
+}
+
+.responsive-table th,
+.responsive-table td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid #e5e7eb;
+    vertical-align: top;
+}
+
+.responsive-table th {
+    background-color: #f9fafb;
+    font-weight: 600;
+    color: #374151;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.responsive-table td {
+    color: #6b7280;
+    font-size: 0.875rem;
+}
+
+.responsive-table tr:hover td {
+    background-color: #f9fafb;
+}
+
+/* Horizontal scroll for desktop when needed */
+.table-scroll-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile responsive cards */
+.mobile-table-cards {
+    display: none;
+}
+
+.mobile-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+
+.mobile-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.mobile-card-title {
+    font-weight: 600;
+    color: #111827;
+    font-size: 1rem;
+    line-height: 1.25;
+}
+
+.mobile-card-subtitle {
+    color: #6b7280;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+.mobile-card-body {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.mobile-card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.mobile-card-label {
+    font-weight: 500;
+    color: #374151;
+    font-size: 0.875rem;
+    min-width: 100px;
+    flex-shrink: 0;
+}
+
+.mobile-card-value {
+    color: #6b7280;
+    font-size: 0.875rem;
+    text-align: right;
+    word-break: break-word;
+    flex-grow: 1;
+}
+
+.mobile-card-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #f3f4f6;
+}
+
+.mobile-card-actions .btn {
+    flex: 1;
+    min-width: 0;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    text-align: center;
+    border-radius: 0.375rem;
+    text-decoration: none;
+    border: 1px solid #d1d5db;
+    background: white;
+    color: #374151;
+    transition: all 0.15s ease;
+    font-weight: 500;
+}
+
+.mobile-card-actions .btn:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+}
+
+.mobile-card-actions .btn-primary {
+    background: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+}
+
+.mobile-card-actions .btn-primary:hover {
+    background: #2563eb;
+    border-color: #2563eb;
+}
+
+.mobile-card-actions .btn-secondary {
+    background: #6b7280;
+    color: white;
+    border-color: #6b7280;
+}
+
+.mobile-card-actions .btn-secondary:hover {
+    background: #4b5563;
+    border-color: #4b5563;
+}
+
+.mobile-card-actions .btn-danger {
+    background: #ef4444;
+    color: white;
+    border-color: #ef4444;
+}
+
+.mobile-card-actions .btn-danger:hover {
+    background: #dc2626;
+    border-color: #dc2626;
+}
+
+/* Status badges */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    px: 2.5;
+    py: 0.5;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.status-badge-success {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.status-badge-warning {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.status-badge-error {
+    background-color: #fecaca;
+    color: #991b1b;
+}
+
+.status-badge-info {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.status-badge-neutral {
+    background-color: #f3f4f6;
+    color: #374151;
+}
+
+/* Progress bars for mobile */
+.mobile-progress-bar {
+    width: 100%;
+    height: 0.5rem;
+    background-color: #e5e7eb;
+    border-radius: 9999px;
+    overflow: hidden;
+    margin-top: 0.25rem;
+}
+
+.mobile-progress-fill {
+    height: 100%;
+    background-color: #3b82f6;
+    border-radius: 9999px;
+    transition: width 0.3s ease;
+}
+
+/* Responsive breakpoints */
+@media (max-width: 768px) {
+    .desktop-table {
+        display: none !important;
+    }
+    
+    .mobile-table-cards {
+        display: block !important;
+        padding: 1rem;
+    }
+    
+    .table-scroll-wrapper {
+        display: none;
+    }
+    
+    /* Hide desktop table controls on mobile */
+    .table-controls-desktop {
+        display: none;
+    }
+    
+    /* Show mobile table controls */
+    .table-controls-mobile {
+        display: block;
+        padding: 1rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    /* Adjust card spacing */
+    .mobile-card {
+        margin: 0 0 1rem 0;
+        border-radius: 0.5rem;
+    }
+    
+    .mobile-card:last-child {
+        margin-bottom: 0;
+    }
+}
+
+/* Very small screens (phones) */
+@media (max-width: 480px) {
+    .mobile-table-cards {
+        padding: 0.75rem;
+    }
+    
+    .mobile-card {
+        padding: 0.75rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .mobile-card-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+    
+    .mobile-card-value {
+        text-align: left;
+        font-weight: 500;
+        color: #111827;
+    }
+    
+    .mobile-card-label {
+        min-width: auto;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .mobile-card-actions {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .mobile-card-actions .btn {
+        flex: none;
+        width: 100%;
+    }
+}
+
+/* Gradebook specific responsive styles */
+.gradebook-wrapper {
+    position: relative;
+}
+
+.gradebook-mobile {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .gradebook-table {
+        display: none;
+    }
+    
+    .gradebook-mobile {
+        display: block;
+    }
+    
+    .gradebook-mobile-student {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .gradebook-mobile-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #f3f4f6;
+    }
+    
+    .gradebook-mobile-activities {
+        display: grid;
+        gap: 0.75rem;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    }
+    
+    .gradebook-mobile-activity {
+        background: #f9fafb;
+        padding: 0.75rem;
+        border-radius: 0.375rem;
+        border: 1px solid #e5e7eb;
+    }
+    
+    .gradebook-mobile-activity-title {
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: #111827;
+        margin-bottom: 0.25rem;
+    }
+    
+    .gradebook-mobile-activity-score {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #3b82f6;
+    }
+    
+    .gradebook-mobile-activity-type {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.5rem;
+    }
+    
+    .gradebook-mobile-activity-type.assignment {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+    
+    .gradebook-mobile-activity-type.quiz {
+        background: #dcfce7;
+        color: #166534;
+    }
+    
+    .gradebook-mobile-activity-type.assessment {
+        background: #fef3c7;
+        color: #92400e;
+    }
+}
+
+@media (max-width: 480px) {
+    .gradebook-mobile-activities {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Loading states */
+.table-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+    color: #6b7280;
+}
+
+.table-loading-spinner {
+    width: 2rem;
+    height: 2rem;
+    border: 2px solid #e5e7eb;
+    border-top: 2px solid #3b82f6;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 0.5rem;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Empty states */
+.table-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1rem;
+    text-align: center;
+    color: #6b7280;
+}
+
+.table-empty-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    color: #d1d5db;
+}
+
+.table-empty-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 0.5rem;
+}
+
+.table-empty-description {
+    font-size: 0.875rem;
+    color: #6b7280;
+    max-width: 28rem;
+}

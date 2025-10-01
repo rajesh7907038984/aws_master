@@ -1,0 +1,1904 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load course_filters %}
+
+{% block title %}{{ course.title|format_course_title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .course-container {
+        max-width: 1600px;
+        margin: 0 auto;
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        
+    }
+
+    .course-header {
+        background-color: #fff;
+        border-radius: 12px;
+        padding: 1.75rem;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        box-shadow: 0px 0px 20px -8px rgba(0,0,0,0.15);
+    }
+
+    .course-image-container {
+        width: 100%;
+        max-width: 300px;
+        height: 200px;
+        background-color: #f3f4f6;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #9ca3af;
+        margin: 0 auto;
+    }
+
+    /* Desktop layout */
+    @media (min-width: 768px) {
+        .course-header {
+            flex-direction: row;
+        }
+        
+        .course-image-container {
+            flex: 0 0 300px;
+            margin: 0;
+        }
+    }
+
+    .course-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        position: relative;
+    }
+    
+    /* Course action buttons container */
+    .course-action-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: stretch;
+        margin-top: 1rem;
+    }
+
+    /* Desktop layout for action buttons */
+    @media (min-width: 768px) {
+        .course-action-buttons {
+            position: absolute;
+            top: 0;
+            right: 0;
+            flex-direction: row;
+            align-items: center;
+            margin-top: 0;
+        }
+    }
+    
+    /* Course button base styles */
+    .course-button {
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 1.25rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+    
+    .course-button i {
+        font-size: 0.875rem;
+    }
+    
+    /* Gradebook button styles */
+    .course-gradebook-button {
+        background-color: #10B981;
+        color: white;
+        box-shadow: 0 2px 10px rgba(16, 185, 129, 0.2);
+    }
+    
+    .course-gradebook-button:hover {
+        background-color: #059669;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        color: white;
+        text-decoration: none;
+    }
+    
+    /* Delete button styles */
+    .course-delete-button {
+        background-color: #EF4444;
+        color: white;
+        box-shadow: 0 2px 10px rgba(239, 68, 68, 0.2);
+    }
+    
+    .course-delete-button:hover {
+        background-color: #DC2626;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+        color: white;
+        text-decoration: none;
+    }
+    
+    /* Edit button styles */
+    .course-edit-button {
+        background-color: #4262FF;
+        color: white;
+        box-shadow: 0 2px 10px rgba(66, 98, 255, 0.2);
+    }
+    
+    .course-edit-button:hover {
+        background-color: #3748DB;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(66, 98, 255, 0.3);
+        color: white;
+        text-decoration: none;
+    }
+
+    .course-title {
+        font-size: 24px;
+        font-weight: 600;
+        color: #111827;
+        margin: 0;
+        line-height: 1.2;
+    }
+
+    .course-meta {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        color: #6b7280;
+        font-size: 14px;
+    }
+
+    .course-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .progress-section {
+        background-color: #fff;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        margin-top: 16px;
+    }
+
+    .progress-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+
+    .progress-header h3 {
+        font-size: 16px;
+        font-weight: 500;
+        color: #111827;
+        margin: 0;
+    }
+
+    .progress-percentage {
+        color: #4f46e5;
+        font-weight: 600;
+        font-size: 14px;
+    }
+
+    .progress-bar-container {
+        height: 8px;
+        background-color: #e5e7eb;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        background-color: #4f46e5;
+        border-radius: 4px;
+        transition: width 0.5s ease;
+    }
+
+    .progress-status {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+
+    .progress-status-label {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+    }
+
+    .completed {
+        background-color: #22c55e;
+        color: white;
+    }
+
+    .in-progress {
+        background-color: #2563eb;
+        color: white;
+    }
+
+    .not-started {
+        background-color: #6b7280;
+        color: white;
+    }
+
+    .start-button {
+        display: inline-flex;
+        align-items: center;
+        background-color: #22c55e;
+        color: white;
+        padding: 8px 12px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 14px;
+        max-width: 162px;
+        
+    }
+
+    .resume-button {
+        background-color: #2563eb;
+    }
+
+    .completed-button {
+        background-color: #22c55e;
+    }
+
+    .start-button svg {
+        margin-left: 8px;
+        max-width: 16px;
+        height: 16px;
+    }
+
+    .course-content-row {
+        display: grid;
+        grid-template-columns: 1fr 350px;
+        gap: 24px;
+        align-items: start;
+    }
+
+    .video-container {
+        background-color: #000;
+        border-radius: 8px 8px 0 0;
+        aspect-ratio: 16/9;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #9ca3af;
+        position: relative;
+    }
+
+    .video-container iframe,
+    .video-container video {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+
+    .main-content {
+        background-color: white;
+        border-radius: 12px;
+        box-shadow: 0px 0px 20px -8px rgba(0,0,0,0.15);
+        overflow: hidden;
+        max-width: 100%;
+    }
+
+    .tabs {
+        display: flex;
+        border-bottom: 1px solid #e5e7eb;
+        padding: 0;
+        margin: 0;
+        list-style: none;
+    }
+
+    .tab {
+        padding: 16px 24px;
+        color: #6b7280;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        font-size: 14px;
+    }
+
+    .tab.active {
+        color: #111827;
+        border-bottom-color: #2563eb;
+        font-weight: 500;
+    }
+
+    .tab-content {
+        padding: 24px;
+    }
+    
+    /* Prevent inactive tab content from creating blank space */
+    .tab-content > div:not([style*="block"]) {
+        display: none !important;
+        height: 0 !important;
+        overflow: hidden !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    .overview-content {
+        padding: 20px;
+    }
+
+    .overview-content .ql-editor {
+        padding: 0;
+        line-height: 1.5;
+    }
+
+    /* TinyMCE Content Styles - Properly render HTML content */
+    /* Target elements that are direct children of the content containers */
+    .overview-content .ql-editor > h1,
+    .overview-content .clean-content > h1,
+    .overview-content .ql-editor h1,
+    .overview-content .clean-content h1 {
+        font-size: 1.875rem;
+        font-weight: 600;
+        margin: 1.5rem 0 1rem 0;
+        color: #111827;
+        line-height: 1.2;
+    }
+
+    .overview-content .ql-editor > h2,
+    .overview-content .clean-content > h2,
+    .overview-content .ql-editor h2,
+    .overview-content .clean-content h2 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin: 1.25rem 0 0.75rem 0;
+        color: #111827;
+        line-height: 1.3;
+    }
+
+    .overview-content .ql-editor > h3,
+    .overview-content .clean-content > h3,
+    .overview-content .ql-editor h3,
+    .overview-content .clean-content h3 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin: 1rem 0 0.5rem 0;
+        color: #111827;
+        line-height: 1.4;
+    }
+
+    .overview-content .ql-editor > p,
+    .overview-content .clean-content > p,
+    .overview-content .ql-editor p,
+    .overview-content .clean-content p {
+        margin-bottom: 1em;
+        color: #4b5563;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    .overview-content .ql-editor > ul,
+    .overview-content .clean-content > ul,
+    .overview-content .ql-editor ul,
+    .overview-content .clean-content ul {
+        margin: 1rem 0;
+        padding-left: 1.5rem;
+        color: #4b5563;
+        font-size: 14px;
+        line-height: 1.6;
+        list-style-type: disc;
+    }
+
+    .overview-content .ql-editor > ol,
+    .overview-content .clean-content > ol,
+    .overview-content .ql-editor ol,
+    .overview-content .clean-content ol {
+        margin: 1rem 0;
+        padding-left: 1.5rem;
+        color: #4b5563;
+        font-size: 14px;
+        line-height: 1.6;
+        list-style-type: decimal;
+    }
+
+    .overview-content .ql-editor > ul > li,
+    .overview-content .clean-content > ul > li,
+    .overview-content .ql-editor ul li,
+    .overview-content .clean-content ul li {
+        margin-bottom: 0.5rem;
+        color: #4b5563;
+        font-size: 14px;
+        line-height: 1.6;
+        display: list-item;
+    }
+
+    .overview-content .ql-editor > ol > li,
+    .overview-content .clean-content > ol > li,
+    .overview-content .ql-editor ol li,
+    .overview-content .clean-content ol li {
+        margin-bottom: 0.5rem;
+        color: #4b5563;
+        font-size: 14px;
+        line-height: 1.6;
+        display: list-item;
+    }
+
+    .overview-content .ql-editor strong,
+    .overview-content .clean-content strong {
+        font-weight: 600;
+        color: #111827;
+    }
+
+    .overview-content .ql-editor em,
+    .overview-content .clean-content em {
+        font-style: italic;
+    }
+
+    .overview-content .ql-editor blockquote,
+    .overview-content .clean-content blockquote {
+        margin: 1rem 0;
+        padding-left: 1rem;
+        border-left: 4px solid #d1d5db;
+        color: #6b7280;
+        font-style: italic;
+    }
+
+    /* Table styles for Quill Editor content */
+    .overview-content table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1rem 0;
+    }
+
+    .overview-content table th,
+    .overview-content table td {
+        border: 1px solid #e5e7eb;
+        padding: 0.75rem;
+        text-align: left;
+    }
+
+    .overview-content table th {
+        background-color: #f9fafb;
+        font-weight: 600;
+    }
+
+    .overview-content table tr:nth-child(even) {
+        background-color: #f9fafb;
+    }
+
+    .overview-content table tr:hover {
+        background-color: #f3f4f6;
+    }
+
+    .section-title {
+        font-size: 18px;
+        font-weight: 600;
+        margin-top: 32px;
+        margin-bottom: 16px;
+        color: #111827;
+    }
+
+    .learning-list {
+        list-style-type: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .learning-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 12px;
+        color: #4b5563;
+        font-size: 14px;
+    }
+
+    .learning-item::before {
+        content: '';
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        margin-right: 12px;
+        background-color: #10b981;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    
+    /* Topic badge styles */
+    .topic-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 500;
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-left: 6px;
+    }
+    
+    .draft-badge {
+        background-color: #f97316;
+        color: white;
+    }
+
+    .topics-panel {
+        background-color: white;
+        border-radius: 12px;
+        box-shadow: 0px 0px 20px -8px rgba(0,0,0,0.15);
+    }
+
+    .topics-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .topics-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #111827;
+        margin: 0;
+    }
+
+    .topics-list {
+        padding: 16px;
+    }
+
+    .section {
+        margin-bottom: 16px;
+        background-color: white;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+        overflow: hidden;
+    }
+
+    .section-header {
+        padding: 12px 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        background-color: #f9fafb;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .section-header:hover {
+        background-color: #f3f4f6;
+    }
+
+    .section-name {
+        font-size: 14px;
+        font-weight: 500;
+        color: #111827;
+        margin: 0;
+    }
+
+    .section-toggle {
+        transition: transform 0.3s ease;
+    }
+
+    .section.active .section-toggle {
+        transform: rotate(180deg);
+    }
+
+    .section-topics {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease;
+        background-color: #f9fafb;
+    }
+
+    .section.active .section-topics {
+        max-height: 1000px;
+        padding: 12px;
+    }
+
+    .topic-item {
+        margin-bottom: 8px;
+        background-color: white;
+        border-radius: 6px;
+        border: 1px solid #e5e7eb;
+        padding: 12px 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        text-decoration: none;
+        cursor: pointer;
+        color: inherit;
+        transition: background-color 0.2s ease;
+        position: relative;
+    }
+
+    .topic-item:hover {
+        background-color: #f3f4f6;
+    }
+
+    .topic-name {
+        font-size: 14px;
+        color: #4b5563;
+        margin: 0;
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    /* Ensure all elements inside the topic-item are above the link */
+    .topic-info, .status-icons {
+        position: relative;
+        z-index: 2;
+    }
+
+    .topic-button {
+        display: inline-flex;
+        padding: 8px 12px;
+        background-color: #2563eb;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        font-size: 13px;
+        cursor: pointer;
+        text-align: center;
+        text-decoration: none;
+        transition: background-color 0.2s;
+    }
+
+    .topic-button:hover {
+        background-color: #1d4ed8;
+    }
+
+    /* Mobile optimizations - Extra small screens */
+    @media (max-width: 480px) {
+        .course-container {
+            padding: 0.75rem;
+            gap: 12px;
+        }
+        
+        .course-header {
+            padding: 0.75rem;
+        }
+        
+        .main-content {
+            border-radius: 8px;
+        }
+        
+        /* Very small screen tabs */
+        .tab {
+            flex: 0 0 auto;
+            padding: 10px 12px;
+            font-size: 12px;
+            white-space: nowrap;
+            min-width: fit-content;
+        }
+        
+        /* Ultra-compact content */
+        .tab-content {
+            padding: 12px;
+        }
+        
+        .overview-content {
+            padding: 0;
+        }
+        
+        /* Smaller text for very small screens */
+        .overview-content .ql-editor > p,
+        .overview-content .clean-content > p,
+        .overview-content .ql-editor p,
+        .overview-content .clean-content p {
+            font-size: 13px;
+            line-height: 1.5;
+        }
+    }
+
+    /* Mobile optimizations - Small screens */
+    @media (max-width: 640px) {
+        .course-container {
+            padding: 1rem;
+            gap: 16px;
+        }
+        
+        .course-header {
+            padding: 1rem;
+        }
+        
+        .course-button {
+            padding: 0.625rem 1rem;
+            font-size: 0.8rem;
+        }
+        
+        .course-image-container {
+            height: 150px;
+        }
+        
+        /* Fix tabs for mobile - make them horizontally scrollable */
+        .tabs {
+            overflow-x: auto;
+            flex-wrap: nowrap;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE/Edge */
+        }
+        
+        .tabs::-webkit-scrollbar {
+            display: none; /* Chrome/Safari */
+        }
+        
+        .tab {
+            flex: 0 0 auto;
+            padding: 12px 16px;
+            font-size: 13px;
+            white-space: nowrap;
+            min-width: fit-content;
+        }
+        
+        /* Fix content padding and text overflow */
+        .tab-content {
+            padding: 16px;
+        }
+        
+        .overview-content {
+            padding: 0;
+        }
+        
+        /* Ensure text content doesn't overflow */
+        .overview-content .ql-editor,
+        .overview-content .clean-content {
+            max-width: 100%;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+            word-break: break-word;
+        }
+        
+        .overview-content .ql-editor > p,
+        .overview-content .clean-content > p,
+        .overview-content .ql-editor p,
+        .overview-content .clean-content p {
+            max-width: 100%;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+        }
+        
+        /* Fix tables to be responsive */
+        .overview-content table {
+            font-size: 12px;
+            display: block;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+        
+        .overview-content table th,
+        .overview-content table td {
+            padding: 0.5rem;
+        }
+        
+        /* Fix lists for mobile */
+        .overview-content .ql-editor > ul,
+        .overview-content .clean-content > ul,
+        .overview-content .ql-editor ul,
+        .overview-content .clean-content ul {
+            font-size: 13px;
+            padding-left: 1rem;
+        }
+        
+        .overview-content .ql-editor > ol,
+        .overview-content .clean-content > ol,
+        .overview-content .ql-editor ol,
+        .overview-content .clean-content ol {
+            font-size: 13px;
+            padding-left: 1rem;
+        }
+    }
+    
+    @media (max-width: 1024px) {
+        .course-container {
+            padding: 16px;
+        }
+
+        .course-header {
+            flex-direction: column;
+        }
+
+        .course-content-row {
+            grid-template-columns: 1fr;
+        }
+
+        .course-image-container {
+            width: 100%;
+            flex: 0 0 auto;
+        }
+        
+        .course-edit-button {
+            position: static;
+            align-self: flex-start;
+            margin-bottom: 1rem;
+        }
+        
+        /* Improve tabs for tablet sizes */
+        .tabs {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .tab {
+            flex: 0 0 auto;
+            min-width: fit-content;
+            white-space: nowrap;
+        }
+        
+        /* Adjust content padding for tablets */
+        .tab-content {
+            padding: 20px;
+        }
+        
+        /* Ensure content doesn't overflow on tablets */
+        .overview-content .ql-editor,
+        .overview-content .clean-content {
+            max-width: 100%;
+            overflow-wrap: break-word;
+        }
+        
+        /* Topics panel adjustments */
+        .topics-panel {
+            margin-top: 16px;
+        }
+    }
+
+    /* Prevent editor UI controls from showing in the content */
+    .clean-content .image-controls,
+    .clean-content .image-selection-info,
+    .clean-content .image-size-controls,
+    .clean-content .editor-controls,
+    .clean-content [data-editor-control],
+    .clean-content .image-resize-controls,
+    .clean-content .image-options {
+        display: none !important;
+    }
+    
+    /* Hide specific UI elements that might be part of the saved content */
+    .clean-content div[style*="position: absolute"],
+    .clean-content span[contenteditable="false"] {
+        display: none !important; 
+    }
+    
+    /* Clean up any editor toolbar that might have been saved */
+    .clean-content [class*="toolbar"],
+    .clean-content [id*="toolbar"] {
+        display: none !important;
+    }
+    
+    /* Only hide editor elements that aren't tables */
+    .clean-content [class*="editor-"]:not(table.editor-table):not(table.editor-table th):not(table.editor-table td),
+    .clean-content [id*="editor-"] {
+        display: none !important;
+    }
+    
+    /* Ensure editor tables display properly */
+    .clean-content table.editor-table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 15px 0;
+        font-size: 14px;
+        color: #374151;
+        background-color: #ffffff;
+        border: 1px solid #d1d5db;
+    }
+    
+    .clean-content table.editor-table th,
+    .clean-content table.editor-table td {
+        border: 1px solid #d1d5db;
+        padding: 8px;
+    }
+    
+    .clean-content table.editor-table th {
+        background-color: #f3f4f6;
+        font-weight: bold;
+    }
+    
+    /* Improve image display */
+    .clean-content img {
+        max-width: 100%;
+        height: auto;
+        margin: 10px 0;
+        display: block;
+    }
+
+    /* Topic title hover styling */
+    .topic-name {
+        max-width: 150px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: inline-block;
+        position: relative;
+    }
+    
+    .topic-name:hover::after {
+        content: attr(title);
+        position: absolute;
+        left: 0;
+        top: 100%;
+        z-index: 100;
+        background-color: #1e293b;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        white-space: nowrap;
+        font-size: 12px;
+        margin-top: 4px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    /* Additional TinyMCE Content Styles */
+    .overview-content .ql-editor a,
+    .overview-content .clean-content a {
+        color: #2563eb;
+        text-decoration: underline;
+    }
+
+    .overview-content .ql-editor a:hover,
+    .overview-content .clean-content a:hover {
+        color: #1d4ed8;
+    }
+
+    .overview-content .ql-editor img,
+    .overview-content .clean-content img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 4px;
+        margin: 0.5rem 0;
+    }
+
+    .overview-content .ql-editor code,
+    .overview-content .clean-content code {
+        background-color: #f3f4f6;
+        padding: 0.125rem 0.25rem;
+        border-radius: 0.25rem;
+        font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+        font-size: 0.875rem;
+        color: #dc2626;
+    }
+
+    .overview-content .ql-editor pre,
+    .overview-content .clean-content pre {
+        background-color: #f3f4f6;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        overflow-x: auto;
+        margin: 1rem 0;
+        font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+        font-size: 0.875rem;
+        line-height: 1.4;
+    }
+
+    .overview-content .ql-editor hr,
+    .overview-content .clean-content hr {
+        border: none;
+        border-top: 1px solid #e5e7eb;
+        margin: 2rem 0;
+    }
+
+    /* Text alignment styles */
+    .overview-content .ql-editor .ql-align-center,
+    .overview-content .clean-content .ql-align-center,
+    .overview-content .ql-editor [style*="text-align: center"],
+    .overview-content .clean-content [style*="text-align: center"] {
+        text-align: center;
+    }
+
+    .overview-content .ql-editor .ql-align-right,
+    .overview-content .clean-content .ql-align-right,
+    .overview-content .ql-editor [style*="text-align: right"],
+    .overview-content .clean-content [style*="text-align: right"] {
+        text-align: right;
+    }
+
+    .overview-content .ql-editor .ql-align-justify,
+    .overview-content .clean-content .ql-align-justify,
+    .overview-content .ql-editor [style*="text-align: justify"],
+    .overview-content .clean-content [style*="text-align: justify"] {
+        text-align: justify;
+    }
+
+    /* Font styles that might be applied inline */
+    .overview-content .ql-editor .ql-font-serif,
+    .overview-content .clean-content .ql-font-serif {
+        font-family: Georgia, serif;
+    }
+
+    .overview-content .ql-editor .ql-font-monospace,
+    .overview-content .clean-content .ql-font-monospace {
+        font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+    }
+
+    /* Preserve any inline color styles */
+    .overview-content .ql-editor span,
+    .overview-content .clean-content span {
+        /* Let inline styles pass through */
+    }
+
+    /* Ensure nested elements inherit proper styling */
+    .overview-content .ql-editor div,
+    .overview-content .clean-content div {
+        /* Reset any unwanted inheritance */
+        font-size: inherit;
+        color: inherit;
+        line-height: inherit;
+    }
+
+    .course-description {
+        margin-bottom: 20px;
+        color: #4b5563;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    .course-description p {
+        margin-bottom: 1em;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Breadcrumb -->
+{% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+{% csrf_token %}
+
+<div class="course-container" data-course-id="{{ course.id }}">
+    <div class="course-header">
+        {% if course.course_image %}
+        <div class="course-image-container">
+            <img src="{{ course.course_image.url }}" alt="{{ course.title }}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">
+        </div>
+        {% endif %}
+        <div class="course-content">
+            <!-- Action buttons for users with appropriate permissions -->
+            {% if user|can_view_course:course and user.role in 'instructor,admin,superadmin,globaladmin'|split:',' %}
+            <div class="course-action-buttons">
+                <!-- Gradebook button -->
+                {% if user|can_manage_topics:course %}
+                <a href="{% url 'gradebook:course_detail' course.id %}" class="course-button course-gradebook-button" title="View Course Gradebook">
+                    <i class="fas fa-table"></i>
+                    Gradebook
+                </a>
+                {% endif %}
+                
+                <!-- Delete button (before edit button) -->
+                {% if user|can_delete:course %}
+                <button type="button" class="course-button course-delete-button" onclick="confirmDeleteCourse({{ course.id }})" title="Delete Course">
+                    <i class="fas fa-trash"></i>
+                    Delete
+                </button>
+                {% endif %}
+                
+                <!-- Edit button -->
+                {% if user|can_edit_course:course %}
+                <a href="{% url 'courses:course_edit' course.id %}" class="course-button course-edit-button" title="Edit Course">
+                    <i class="fas fa-edit"></i>
+                    Edit Course
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+            
+            <h1 class="course-title">{{ course.title|format_course_title }}</h1>
+            <div class="course-meta">
+                <div class="course-meta-item">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                        <path d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 00-13.074.003z" />
+                    </svg>
+                    <span>{{ course.enrolled_students.count }} students enrolled</span>
+                </div>
+                <div class="course-meta-item">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z" clip-rule="evenodd" />
+                    </svg>
+                    <span>{{ course.duration|default:"Self-paced" }}</span>
+                </div>
+            </div>
+            {% if is_enrolled and user.role == 'learner' %}
+                 <!-- Course Progress -->
+                 <div class="mb-6 progress-container" data-is-enrolled="true">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm font-medium text-gray-600">Your Progress</span>
+                        <span class="text-sm font-medium text-gray-800" id="progress-percentage">
+                            {{ completed_topics_count }}/{{ total_topics_count }} ({{ progress }}%)
+                        </span>
+                    </div>
+                    <div class="h-2 bg-gray-200 rounded-full overflow-hidden" style="min-height: 8px; width: 100%;">
+                        <div id="progress-bar" class="h-full bg-green-500 rounded-full" style="width: {{ progress }}%; min-height: 8px; transition: width 0.3s ease;"></div>
+                    </div>
+                </div>
+            {% else %}
+                <!-- User not enrolled - Add an empty placeholder with data attribute -->
+                <div class="not-enrolled-placeholder" data-is-enrolled="false"></div>
+            {% endif %}
+            
+            <!-- Progress-based button with consistent state -->
+            {% if progress == 100 and course.issue_certificate %}
+                <!-- When completed and certificate is enabled, show certificate button -->
+                <a href="javascript:void(0)" id="show-certificate-btn" class="start-button completed-button" onclick="return showCertificateTab()" data-progress="100">
+                    <span class="button-text">Show Certificate</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                    </svg>
+                </a>
+            {% elif progress == 100 %}
+                <!-- Course completed but no certificate -->
+                <span class="start-button completed-button cursor-default" data-progress="100">
+                    <span class="button-text">Course Completed</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                </span>
+            {% elif is_enrolled %}
+                <!-- Show Start/Resume button for enrolled users -->
+                <a href="{% if first_topic %}{% url 'courses:topic_view' first_topic.id %}?manual=True{% else %}{% url 'courses:course_view' course.id %}{% endif %}" 
+                   class="start-button {% if progress > 0 %}resume-button{% endif %}"
+                   id="progress-button"
+                   data-progress="{{ progress|default:0 }}">
+                    <span class="button-text">{% if progress > 0 %}Resume Course{% else %}Start Course{% endif %}</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                    </svg>
+                </a>
+            {% elif user.role == 'learner' %}
+                <!-- Enrollment required for learners -->
+                <span class="start-button cursor-default bg-gray-400 hover:bg-gray-400" data-progress="0">
+                    <span class="button-text">Enrollment Required</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+                    </svg>
+                </span>
+            {% else %}
+                <!-- For instructors/admins - course access -->
+                <a href="{% url 'courses:course_view' course.id %}" 
+                   class="start-button"
+                   id="access-button">
+                    <span class="button-text">Access Course</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                    </svg>
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="course-content-row">
+        <div class="main-content">
+            {% if course.course_video %}
+            <div class="video-container">
+                <video id="courseVideo" controls preload="metadata" style="width: 100%; height: 100%;" playsinline controlsList="nodownload">
+                    <source src="{% url 'courses:stream_video' course.course_video.name %}" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+                <div id="video-error" class="hidden bg-red-100 p-4 rounded absolute inset-0 flex items-center justify-center">
+                    <p class="text-red-700">Error loading video. Please try refreshing the page.</p>
+                </div>
+            </div>
+            {% endif %}
+            <div class="tabs">
+                <div class="tab active">Overview</div>
+                <div class="tab">Discussions</div>
+                <div class="tab">Files</div>
+                <div class="tab">Outcomes</div>
+                <div class="tab">Rubrics</div>
+                <div class="tab">Certificate</div>
+            </div>
+
+            <div class="tab-content">
+                <div class="overview-content" style="display: block;">
+                    {% load json_filters %}
+                    {% if course.description %}
+                        <div class="ql-editor clean-content">
+                            {{ course.description|render_rich_content }}
+                        </div>
+                    {% else %}
+                        <p>No description available for this course.</p>
+                    {% endif %}
+
+                    {% if course.learning_objectives.all %}
+                    <h2 class="section-title">What you will learn</h2>
+                    <ul class="learning-list">
+                        {% for objective in course.learning_objectives.all %}
+                        <li class="learning-item">{{ objective.description }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+
+                    {% if course.features.all %}
+                    <h2 class="section-title">Features</h2>
+                    <ul class="learning-list">
+                        {% for feature in course.features.all %}
+                        <li class="learning-item">{{ feature.description }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                </div>
+                
+                <!-- Discussions Tab Content (Hidden by default) -->
+                <div class="discussions-content" style="display: none;">
+                    <p>Discussions content will appear here.</p>
+                </div>
+                
+                <!-- Files Tab Content (Hidden by default) -->
+                <div class="files-content" style="display: none;">
+                    <p>Files content will appear here.</p>
+                </div>
+                
+                <!-- Outcomes Tab Content (Hidden by default) -->
+                <div class="outcomes-content" style="display: none;">
+                    {% load course_tags %}
+                    {% get_outcomes_for_course course as all_course_outcomes %}
+                    {% if all_course_outcomes %}
+                        <div class="space-y-4">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Learning Outcome</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    {% for outcome in all_course_outcomes %}
+                                    <tr>
+                                        <td class="px-6 py-4 text-sm text-gray-900">
+                                            {% if user.role == 'learner' %}
+                                                <div class="font-medium">{{ outcome.friendly_name|default:outcome.title }}</div>
+                                            {% else %}
+                                                <div class="font-medium">{{ outcome.title }}</div>
+                                            {% endif %}
+                                        </td>
+                                        <td class="px-6 py-4 text-sm text-gray-600">
+                                            {% if user.role == 'learner' %}
+                                                {{ outcome.friendly_description|default:outcome.description|default:"" }}
+                                            {% else %}
+                                                {{ outcome.description|default:"" }}
+                                            {% endif %}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {% if outcome.course == course %}
+                                                <span class="inline-block bg-green-100 text-green-800 px-2 py-1 rounded-md text-xs mr-1 mb-1">
+                                                    Direct Course Link
+                                                </span>
+                                            {% endif %}
+                                            
+                                            <!-- Check if outcome is linked via rubric criteria -->
+                                            {% for connection in outcome.criterion_connections.all %}
+                                                {% if connection.criterion.rubric.assignments.all %}
+                                                    {% for assignment in connection.criterion.rubric.assignments.all %}
+                                                        {% if assignment in course.assignments.all or assignment in course.course_assignments.all %}
+                                                            {% get_topic_for_assignment assignment.id as topic %}
+                                                            {% if topic %}
+                                                                <span class="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded-md text-xs mr-1 mb-1">
+                                                                    {{ topic.title }} (Via Rubric)
+                                                                </span>
+                                                            {% else %}
+                                                                <span class="inline-block bg-purple-100 text-purple-800 px-2 py-1 rounded-md text-xs mr-1 mb-1">
+                                                                    Assignment Rubric
+                                                                </span>
+                                                            {% endif %}
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                {% endif %}
+                                            {% endfor %}
+                                            
+                                            <!-- Legacy alignment check for compatibility -->
+                                            {% for alignment in outcome.alignments.all %}
+                                                {% if alignment.content_type == 'assignment' %}
+                                                    {% get_topic_for_assignment alignment.object_id as topic %}
+                                                    {% if topic %}
+                                                        <span class="inline-block bg-orange-100 text-orange-800 px-2 py-1 rounded-md text-xs mr-1 mb-1">
+                                                            {{ topic.title }} (Legacy Assignment)
+                                                        </span>
+                                                    {% else %}
+                                                        <span class="inline-block bg-gray-100 text-gray-600 px-2 py-1 rounded-md text-xs mr-1 mb-1">Legacy Assignment</span>
+                                                    {% endif %}
+                                                {% elif alignment.content_type == 'quiz' %}
+                                                    {% get_topic_for_quiz alignment.object_id as topic %}
+                                                    {% if topic %}
+                                                        <span class="inline-block bg-green-100 text-green-800 px-2 py-1 rounded-md text-xs mr-1 mb-1">
+                                                            {{ topic.title }} (Quiz)
+                                                        </span>
+                                                    {% else %}
+                                                        <span class="inline-block bg-gray-100 text-gray-600 px-2 py-1 rounded-md text-xs mr-1 mb-1">Quiz</span>
+                                                    {% endif %}
+                                                {% elif alignment.content_type == 'discussion' %}
+                                                    {% get_topic_for_discussion alignment.object_id as topic %}
+                                                    {% if topic %}
+                                                        <span class="inline-block bg-purple-100 text-purple-800 px-2 py-1 rounded-md text-xs mr-1 mb-1">
+                                                            {{ topic.title }} (Discussion)
+                                                        </span>
+                                                    {% else %}
+                                                        <span class="inline-block bg-gray-100 text-gray-600 px-2 py-1 rounded-md text-xs mr-1 mb-1">Discussion</span>
+                                                    {% endif %}
+                                                {% else %}
+                                                    <span class="inline-block bg-gray-100 text-gray-600 px-2 py-1 rounded-md text-xs mr-1 mb-1">{{ alignment.content_type }}</span>
+                                                {% endif %}
+                                            {% empty %}
+                                            {% endfor %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% elif course.course_outcomes %}
+                        <div class="ql-editor clean-content">
+                            {{ course.course_outcomes|render_rich_content }}
+                        </div>
+                    {% else %}
+                        <p>No learning outcomes specified for this course.</p>
+                    {% endif %}
+                </div>
+                
+                <!-- Rubrics Tab Content (Hidden by default) -->
+                <div class="rubrics-content" style="display: none;">
+                    {% load course_tags %}
+                    {% get_rubrics_for_course course as all_course_rubrics %}
+                    {% if all_course_rubrics %}
+                        <div class="space-y-4">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Points</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    {% for rubric in all_course_rubrics %}
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ rubric.title }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ rubric.total_points }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {% if rubric.course == course %}
+                                                <span class="inline-block bg-green-100 text-green-800 px-2 py-1 rounded-md text-xs mr-1 mb-1">
+                                                    Direct Course Link
+                                                </span>
+                                            {% endif %}
+                                            
+                                            {% get_topics_for_rubric rubric as rubric_topics %}
+                                            {% if rubric_topics %}
+                                                {% for topic in rubric_topics %}
+                                                    <span class="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded-md text-xs mr-1 mb-1">
+                                                        {{ topic.title }} (Assignment)
+                                                    </span>
+                                                {% endfor %}
+                                            {% else %}
+                                                {% if rubric.course != course %}
+                                                    <span class="inline-block bg-purple-100 text-purple-800 px-2 py-1 rounded-md text-xs mr-1 mb-1">
+                                                        Assignment Rubric
+                                                    </span>
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% elif course.course_rubrics %}
+                        <div class="ql-editor clean-content">
+                            {{ course.course_rubrics|render_rich_content }}
+                        </div>
+                    {% else %}
+                        <p>No assessment rubrics specified for this course.</p>
+                    {% endif %}
+                </div>
+                
+                <!-- Certificate Tab Content (Hidden by default) -->
+                <div class="certificate-content" style="display: none;">
+                    {% if progress == 100 and course.issue_certificate %}
+                        <div class="p-4 bg-white rounded-lg shadow-md">
+                            <h2 class="text-2xl font-bold mb-4">Course Completion Certificate</h2>
+                            
+                            <p class="mb-6">Congratulations on completing the course "<strong>{{ course.title }}</strong>"!</p>
+                            
+                            {% if user_certificate %}
+                                <div class="certificate-preview mb-6 border rounded-lg overflow-hidden">
+                                    {% if user_certificate.certificate_file %}
+                                        <div class="p-4 text-center">
+                                            <a href="{{ user_certificate.certificate_file.url }}" target="_blank" class="inline-block text-white py-2 px-4 rounded transition" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                                                <i class="fas fa-download mr-2"></i> Download PDF Certificate
+                                            </a>
+                                        </div>
+                                    {% else %}
+                                        <div class="p-4 text-center">
+                                            <a href="{% url 'certificates:view_certificate' user_certificate.id %}?generate=true" class="inline-block bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600 transition">
+                                                <i class="fas fa-certificate mr-2"></i> Generate PDF Certificate
+                                            </a>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="certificate-details bg-gray-50 p-4 rounded-lg">
+                                    <h3 class="text-lg font-medium mb-3">Certificate Details</h3>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <p><strong>Certificate Number:</strong> {{ user_certificate.certificate_number }}</p>
+                                            <p><strong>Issued Date:</strong> {{ user_certificate.issue_date|date:"F j, Y" }}</p>
+                                        </div>
+                                        <div>
+                                            <p><strong>Recipient:</strong> {{ user_certificate.recipient.get_full_name }}</p>
+                                            <p><strong>Issued By:</strong> {{ user_certificate.issued_by.get_full_name|default:user_certificate.issued_by.username }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="p-6 bg-yellow-50 border-yellow-200 border rounded-lg text-center">
+                                    <p class="mb-4">You have completed this course but your certificate has not been generated yet.</p>
+                                    <form method="post" action="{% url 'courses:generate_certificate' course.id %}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600 transition">
+                                            <i class="fas fa-certificate mr-2"></i> Generate My Certificate
+                                        </button>
+                                    </form>
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <div class="p-6 bg-gray-50 rounded-lg text-center">
+                            <p>Complete the course to receive your certificate.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="topics-panel">
+            <div class="topics-header">
+                <h2 class="topics-title">Topics</h2>
+            </div>
+            <div class="topics-list">
+                {% for section in sections %}
+                <div class="section {% if forloop.first %}active{% endif %}">
+                    <div class="section-header">
+                        <h3 class="section-name">{{ section.name }}</h3>
+                        <div class="section-toggle {% if not forloop.first %}collapsed{% endif %}">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
+                                <path fill-rule="evenodd" d="M14.77 12.79a.75.75 0 01-1.06-.02L10 8.832 6.29 12.77a.75.75 0 11-1.08-1.04l4.25-4.5a.75.75 0 011.08 0l4.25 4.5a.75.75 0 01-.02 1.06z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="section-topics" {% if forloop.first %}style="display: block;"{% endif %}>
+                        {% for topic in topics %}
+                        {% if topic.section == section %}
+                        <a href="{% url 'courses:topic_view' topic.id %}?manual=True" class="topic-item" data-topic-id="{{ topic.id }}">
+                            <div class="topic-info flex items-center">
+                                <div class="mr-3">
+                                    {% with progress=topic|get_topic_progress:user %}
+                                    {% if progress and progress.completed %}
+                                    <div class="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white">
+                                        <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                        </svg>
+                                    </div>
+                                    {% else %}
+                                    <div class="w-5 h-5 rounded-full border-2 border-gray-300"></div>
+                                    {% endif %}
+                                    {% endwith %}
+                                </div>
+                                <div class="topic-name truncate max-w-[150px] inline-block" title="{{ topic.title }}">{{ topic.title }}</div>
+                                {% if topic.content_type %}
+                                <span class="topic-type text-xs text-gray-500 ml-2">{{ topic.get_content_type_display }}</span>
+                                {% endif %}
+                            </div>
+                        </a>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+                
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script src="{% static 'courses/js/course_progress.js' %}"></script>
+<script src="{% static 'js/courses/topic_actions.js' %}"></script>
+<script>
+    // Auto-collapse sidebar for course details page to provide better viewing experience
+    document.addEventListener('DOMContentLoaded', function() {
+        // Only collapse on desktop (screen width >= 768px)
+        if (window.innerWidth >= 768) {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('main-content');
+            
+            if (sidebar && mainContent) {
+                // Force sidebar to collapsed state for course details page
+                if (!sidebar.classList.contains('collapsed')) {
+                    sidebar.classList.add('collapsed');
+                    mainContent.classList.add('sidebar-collapsed');
+                    
+                    // Store the collapsed state in localStorage
+                    localStorage.setItem('sidebar_collapsed', 'true');
+                    
+                    console.log('Sidebar auto-collapsed for course details page');
+                }
+            }
+        }
+    });
+</script>
+<script>
+    // Function to show certificate tab when button is clicked
+    function showCertificateTab() {
+        // Get all tabs and tab contents
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content > div');
+        
+        // Find certificate tab and content (index 5 based on HTML structure)
+        const certificateTab = tabs[5];
+        const certificateContent = tabContents[5];
+        
+        if (certificateTab && certificateContent) {
+            // Remove active class from all tabs
+            tabs.forEach(tab => tab.classList.remove('active'));
+            
+            // Hide all tab contents
+            tabContents.forEach(content => content.style.display = 'none');
+            
+            // Activate certificate tab
+            certificateTab.classList.add('active');
+            certificateContent.style.display = 'block';
+            
+            // Scroll to certificate section
+            certificateContent.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // Prevent default link behavior
+        return false;
+    }
+    
+    // Function to confirm course deletion
+    function confirmDeleteCourse(courseId) {
+        if (confirm('Are you sure you want to delete this course? This action cannot be undone.')) {
+            // Create a form and submit it to the delete URL
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/courses/${courseId}/delete/`;
+            
+            // Add CSRF token
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrfmiddlewaretoken';
+            csrfInput.value = csrfToken;
+            form.appendChild(csrfInput);
+            
+            // Submit the form
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+
+    // Enhanced button state validation with consistent logic
+    (function() {
+        // Run after a small delay to ensure DOM is ready
+        setTimeout(function() {
+            // Check progress value and course settings
+            const progress = {{ progress|default:0 }};
+            const isEnrolled = {{ is_enrolled|yesno:"true,false" }};
+            const issueCertificate = {{ course.issue_certificate|yesno:"true,false" }};
+            const userRole = "{{ user.role|escapejs }}";
+            
+            console.log('Button state validation:', {
+                progress: progress,
+                isEnrolled: isEnrolled,
+                issueCertificate: issueCertificate,
+                userRole: userRole
+            });
+            
+            // Get start button or related elements
+            const startButton = document.querySelector('.start-button');
+            const buttonText = startButton ? startButton.querySelector('.button-text') : null;
+            
+            if (startButton && buttonText) {
+                const currentText = buttonText.textContent.trim();
+                const expectedState = getExpectedButtonState(progress, isEnrolled, issueCertificate, userRole);
+                
+                console.log('Current button text:', currentText);
+                console.log('Expected state:', expectedState);
+                
+                // Validate and correct button state if necessary
+                if (currentText !== expectedState.text) {
+                    console.log(`Correcting button from "${currentText}" to "${expectedState.text}"`);
+                    buttonText.textContent = expectedState.text;
+                    
+                    // Update classes
+                    startButton.className = `start-button ${expectedState.classes}`;
+                    
+                    // Update attributes
+                    if (expectedState.href) {
+                        startButton.href = expectedState.href;
+                    }
+                    if (expectedState.onclick) {
+                        startButton.setAttribute('onclick', expectedState.onclick);
+                    } else {
+                        startButton.removeAttribute('onclick');
+                    }
+                    if (expectedState.dataProgress !== undefined) {
+                        startButton.setAttribute('data-progress', expectedState.dataProgress);
+                    }
+                }
+            }
+            
+            function getExpectedButtonState(progress, isEnrolled, issueCertificate, userRole) {
+                if (progress === 100 && issueCertificate) {
+                    return {
+                        text: 'Show Certificate',
+                        classes: 'completed-button',
+                        href: '#',
+                        onclick: 'return showCertificateTab()',
+                        dataProgress: 100
+                    };
+                } else if (progress === 100) {
+                    return {
+                        text: 'Course Completed',
+                        classes: 'completed-button cursor-default',
+                        dataProgress: 100
+                    };
+                } else if (isEnrolled) {
+                    return {
+                        text: progress > 0 ? 'Resume Course' : 'Start Course',
+                        classes: progress > 0 ? 'resume-button' : '',
+                        href: `{% if first_topic %}{% url 'courses:topic_view' first_topic.id %}?manual=True{% else %}{% url 'courses:course_view' course.id %}{% endif %}`,
+                        dataProgress: progress
+                    };
+                } else if (userRole === 'learner') {
+                    return {
+                        text: 'Enrollment Required',
+                        classes: 'cursor-default bg-gray-400 hover:bg-gray-400',
+                        dataProgress: 0
+                    };
+                } else {
+                    return {
+                        text: 'Access Course',
+                        classes: '',
+                        href: `{% url 'courses:course_view' course.id %}`
+                    };
+                }
+            }
+        }, 100);
+    })();
+
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM loaded - Course ID:', {{ course.id|escapejs }});
+        
+        const videoElement = document.getElementById('courseVideo');
+        const videoError = document.getElementById('video-error');
+        
+        if (videoElement) {
+            // Add event listeners for video
+            videoElement.addEventListener('error', function(e) {
+                console.error('Video error:', e);
+                if (videoError) {
+                    videoError.classList.remove('hidden');
+                    videoError.innerHTML = `<p class="text-red-700">Error loading video: ${e.target.error ? e.target.error.message : 'Unknown error'}</p>`;
+                }
+                
+                // Check the video status via API
+                checkVideoStatus();
+            });
+            
+            videoElement.addEventListener('loadeddata', function() {
+                console.log('Video loaded successfully');
+                if (videoError) {
+                    videoError.classList.add('hidden');
+                }
+            });
+            
+            // Initial check for video status
+            checkVideoStatus();
+        }
+        
+        function checkVideoStatus() {
+            fetch(`/courses/{{ course.id }}/check-video/`)
+                .then(response => {
+                    if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+                .then(data => {
+                    console.log('Video status:', data);
+                    
+                    if (data.success && data.video_exists) {
+                        console.log('Video exists, available at:', data.stream_url);
+                        
+                        // If we have a source element, update it
+                        if (videoElement.querySelector('source')) {
+                            const sourceElement = videoElement.querySelector('source');
+                            const currentSrc = sourceElement.src;
+                            
+                            // Only reload if source has changed
+                            if (currentSrc !== data.stream_url) {
+                                sourceElement.src = data.stream_url;
+                                videoElement.load();
+                            }
+                        }
+                    } else {
+                        console.error('Video check failed:', data.error || 'Unknown error');
+                        if (videoError) {
+                            videoError.classList.remove('hidden');
+                            videoError.innerHTML = `<p class="text-red-700">Video check failed: ${data.error || 'Unknown error'}</p>`;
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking video status:', error);
+                });
+        }
+        
+        // Add tab functionality
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content > div');
+        
+        tabs.forEach((tab, index) => {
+            tab.addEventListener('click', () => {
+                // Remove active class from all tabs
+                tabs.forEach(t => t.classList.remove('active'));
+                
+                // Hide all tab contents
+                tabContents.forEach(content => content.style.display = 'none');
+                
+                // Add active class to clicked tab
+                tab.classList.add('active');
+                
+                // Show corresponding tab content
+                if (tabContents[index]) {
+                    tabContents[index].style.display = 'block';
+                }
+            });
+        });
+        
+        // Section toggle functionality
+        const sectionHeaders = document.querySelectorAll('.section-header');
+        
+        sectionHeaders.forEach(header => {
+            header.addEventListener('click', () => {
+                const section = header.parentElement;
+                section.classList.toggle('active');
+                
+                // If section is active, show topics. Otherwise, hide them.
+                const topicsContainer = section.querySelector('.section-topics');
+                if (topicsContainer) {
+                    topicsContainer.style.display = section.classList.contains('active') ? 'block' : 'none';
+                }
+            });
+        });
+
+        // Get all topic items in the course
+        const courseId = document.querySelector('.course-container').getAttribute('data-course-id');
+        const allTopicItems = document.querySelectorAll('.topic-item');
+        
+        // Check local storage for completed topics
+        let completedCount = 0;
+        allTopicItems.forEach(item => {
+            const topicId = item.getAttribute('data-topic-id');
+            // Check if this topic is completed either by server-side data (completed-icon) or client-side data (localStorage)
+            if (item.querySelector('.bg-green-500') || 
+                (topicId && localStorage.getItem(`topic_${topicId}_completed`) === 'true')) {
+                completedCount++;
+            }
+        });
+    });
+</script>
+
+<!-- Prerequisite Modal -->
+{% if not prerequisite_check.can_access and prerequisite_check.missing_prerequisites %}
+<div id="prerequisiteModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+        <div class="flex items-center mb-4">
+            <div class="flex-shrink-0">
+                <svg class="h-8 w-8 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-lg font-medium text-gray-900">
+                    Prerequisites Required
+                </h3>
+            </div>
+        </div>
+        
+        <div class="mb-4">
+            <p class="text-sm text-gray-700 mb-3">
+                You must complete the following course{% if prerequisite_check.missing_prerequisites|length > 1 %}s{% endif %} before starting this course:
+            </p>
+            
+            <ul class="space-y-2">
+                {% for prereq_course in prerequisite_check.missing_prerequisites %}
+                <li class="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    <div class="flex items-center">
+                        <svg class="h-5 w-5 text-amber-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                        </svg>
+                        <span class="text-sm font-medium text-gray-900">{{ prereq_course.title }}</span>
+                    </div>
+                    <a href="{% url 'courses:course_details' prereq_course.id %}" 
+                       class="text-sm text-white px-3 py-1 rounded-md transition-colors" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                        View Course
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        
+        <div class="flex justify-end">
+            <button onclick="closePrerequisiteModal()" 
+                    class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors">
+                I Understand
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Show prerequisite modal on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        const modal = document.getElementById('prerequisiteModal');
+        if (modal) {
+            // Show modal immediately
+            modal.style.display = 'flex';
+            
+            // Disable course interaction
+            const startButton = document.querySelector('.start-button');
+            if (startButton) {
+                startButton.style.opacity = '0.5';
+                startButton.style.pointerEvents = 'none';
+                startButton.href = '#';
+                startButton.onclick = function(e) {
+                    e.preventDefault();
+                    // Show modal again if they try to click
+                    modal.style.display = 'flex';
+                    return false;
+                };
+            }
+        }
+    });
+    
+    function closePrerequisiteModal() {
+        const modal = document.getElementById('prerequisiteModal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    }
+    
+    // Close modal when clicking outside
+    document.addEventListener('click', function(e) {
+        const modal = document.getElementById('prerequisiteModal');
+        if (modal && e.target === modal) {
+            closePrerequisiteModal();
+        }
+    });
+    
+    // Close modal with Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closePrerequisiteModal();
+        }
+    });
+</script>
+{% endif %}
+
+{% endblock %}

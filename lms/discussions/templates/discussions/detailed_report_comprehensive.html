@@ -1,0 +1,859 @@
+{% extends "base.html" %}
+{% load static %}
+{% load assignment_filters %}
+{% load discussion_extras %}
+
+{% block title %}Discussion Timeline Report - {{ student.get_full_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .timeline-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+    
+    .timeline-header {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .timeline-section {
+        background: white;
+        border-radius: 0.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+    
+    .timeline-title {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+        padding: 1.25rem 1.5rem;
+        font-size: 1.25rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .timeline-icon {
+        width: 2.5rem;
+        height: 2.5rem;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .timeline-content {
+        padding: 1.5rem;
+    }
+    
+    .timeline-event {
+        position: relative;
+        padding-left: 3rem;
+        padding-bottom: 2rem;
+        border-left: 2px solid #e5e7eb;
+        margin-left: 1.25rem;
+    }
+    
+    .timeline-event:last-child {
+        border-left: none;
+        padding-bottom: 0;
+    }
+    
+    .timeline-event::before {
+        content: '';
+        position: absolute;
+        left: -0.5rem;
+        top: 0.25rem;
+        width: 1rem;
+        height: 1rem;
+        background: #3b82f6;
+        border-radius: 50%;
+        border: 3px solid white;
+        box-shadow: 0 0 0 2px #e5e7eb;
+    }
+    
+    .timeline-event.rubric_evaluation::before {
+        background: #10b981;
+    }
+    
+    .timeline-event.comment_post::before {
+        background: #f59e0b;
+    }
+    
+    .timeline-event.reply_post::before {
+        background: #8b5cf6;
+    }
+    
+    .timeline-event.like_action::before {
+        background: #ef4444;
+    }
+    
+    .timeline-event.attachment_upload::before {
+        background: #06b6d4;
+    }
+    
+    .timeline-event.comment_edit::before {
+        background: #84cc16;
+    }
+    
+    .timeline-event.discussion_view::before {
+        background: #6366f1;
+    }
+    
+    .timeline-event.overall_feedback::before {
+        background: #10b981;
+    }
+    
+    .event-card {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-top: 0.5rem;
+    }
+    
+    .event-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 0.5rem;
+    }
+    
+    .event-title {
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    .event-time {
+        color: #6b7280;
+        font-size: 0.875rem;
+        white-space: nowrap;
+    }
+    
+    .event-description {
+        color: #4b5563;
+        margin-bottom: 0.5rem;
+    }
+    
+    .event-data {
+        background: #f3f4f6;
+        border-radius: 0.375rem;
+        padding: 0.75rem;
+        font-size: 0.875rem;
+        color: #374151;
+    }
+    
+    .event-data dt {
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    .event-data dd {
+        margin-left: 1rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .print-btn {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .print-btn:hover {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        transform: translateY(-1px);
+    }
+    
+    /* Attachment preview styles */
+    .attachment-preview {
+        max-width: 300px;
+        max-height: 300px;
+        margin: 10px 0;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        object-fit: cover;
+    }
+    
+    .attachment-list {
+        margin-top: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    
+    .attachment-item {
+        flex: 0 0 auto;
+    }
+    
+    .video-preview {
+        max-width: 400px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .document-preview {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        color: #495057;
+        text-decoration: none;
+        transition: background-color 0.2s;
+    }
+    
+    .document-preview:hover {
+        background-color: #e9ecef;
+        text-decoration: none;
+    }
+    
+    .document-preview i {
+        margin-right: 0.5rem;
+        font-size: 1.25rem;
+    }
+    
+    .attachment-embedded {
+        margin-top: 1rem;
+        padding: 1rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+    }
+    
+
+    
+    .rubric-section {
+        margin-bottom: 2rem;
+    }
+    
+    .rubric-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+    }
+    
+    .rubric-table th,
+    .rubric-table td {
+        border: 1px solid #e5e7eb;
+        padding: 0.75rem;
+        text-align: left;
+        vertical-align: top;
+    }
+    
+    .rubric-table th {
+        background: #f9fafb;
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    .points-cell {
+        text-align: center;
+        font-weight: 600;
+    }
+    
+    .points-earned {
+        color: #059669;
+    }
+    
+    .points-total {
+        color: #6b7280;
+    }
+    
+    .comment-content {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-top: 0.5rem;
+    }
+    
+    .engagement-score {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #059669;
+    }
+    
+    .no-print {
+        display: block;
+    }
+    
+    @media print {
+        @page {
+            margin: 0.5in;
+            size: A4;
+        }
+        
+        .no-print {
+            display: none !important;
+        }
+        
+        .timeline-container {
+            max-width: none;
+            padding: 0;
+        }
+        
+        .timeline-section {
+            box-shadow: none;
+            border: 1px solid #e5e7eb;
+            page-break-inside: avoid;
+        }
+        
+        .timeline-event {
+            page-break-inside: avoid;
+        }
+        
+        .event-card {
+            page-break-inside: avoid;
+        }
+        
+        .attachment-preview {
+            max-width: 200px;
+            max-height: 200px;
+        }
+        
+        .video-preview, audio {
+            display: none; /* Hide video/audio in print */
+        }
+        
+        .video-preview::after, audio::after {
+            content: "[Video/Audio content - view online]";
+            display: block;
+            background: #f3f4f6;
+            padding: 1rem;
+            border-radius: 4px;
+            text-align: center;
+            color: #6b7280;
+        }
+        
+        /* Hide default browser print headers and footers */
+        body {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+    }
+    
+    /* Responsive design for attachments */
+    @media (max-width: 768px) {
+        .attachment-preview {
+            max-width: 250px;
+            max-height: 250px;
+        }
+        
+        .video-preview {
+            max-width: 100%;
+        }
+        
+        .attachment-list {
+            flex-direction: column;
+        }
+        
+        .document-preview {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-scroll to specific events if hash is present
+    document.addEventListener('DOMContentLoaded', function() {
+        if (window.location.hash) {
+            const targetElement = document.querySelector(window.location.hash);
+            if (targetElement) {
+                targetElement.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
+                // Add highlight effect
+                targetElement.style.backgroundColor = '#fef3c7';
+                setTimeout(() => {
+                    targetElement.style.backgroundColor = '';
+                }, 3000);
+            }
+        }
+    });
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="timeline-container">
+    <!-- Breadcrumbs -->
+    <div class="mb-6 no-print">
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+    </div>
+    
+    <!-- Header Information -->
+    <div class="timeline-header">
+        <div class="flex justify-between items-start mb-4">
+            <h1 class="text-2xl font-bold text-gray-900">Discussion Timeline Report</h1>
+            <button onclick="printReport()" class="print-btn">
+                <i class="fas fa-print mr-2"></i>Generate Report
+            </button>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <h2 class="text-lg font-semibold text-gray-800 mb-2">Discussion Information</h2>
+                <div class="space-y-1 text-sm">
+                    <p><strong>Title:</strong> {{ discussion.title }}</p>
+                    <p><strong>Created:</strong> {{ discussion.created_at|date:"M d, Y g:i A" }}</p>
+                    <p><strong>Updated:</strong> {{ discussion.updated_at|date:"M d, Y g:i A" }}</p>
+                    <p><strong>Status:</strong> {{ discussion.get_status_display }}</p>
+                    <p><strong>Visibility:</strong> {{ discussion.get_visibility_display }}</p>
+                    {% if discussion.course %}
+                        <p><strong>Course:</strong> {{ discussion.course.title }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div>
+                <h2 class="text-lg font-semibold text-gray-800 mb-2">Student Information</h2>
+                <div class="space-y-1 text-sm">
+                    <p><strong>Name:</strong> {{ student.get_full_name }}</p>
+                    <p><strong>Email:</strong> {{ student.email }}</p>
+                    <p><strong>Role:</strong> {{ student.get_role_display }}</p>
+                    {% if student.branch %}
+                        <p><strong>Branch:</strong> {{ student.branch.name }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+
+    
+    <!-- Rubric Evaluation Section -->
+    {% if discussion.rubric and rubric_evaluations %}
+    <div class="timeline-section">
+        <div class="timeline-title">
+            <div class="timeline-icon">
+                <i class="fas fa-clipboard-check"></i>
+            </div>
+            Rubric Evaluation Results
+        </div>
+        
+        <div class="timeline-content">
+            <div class="rubric-section">
+                <h3 class="text-lg font-semibold text-gray-800 mb-3">{{ discussion.rubric.title }}</h3>
+                
+                <table class="rubric-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 30%">Criterion</th>
+                            <th style="width: 15%">Points</th>
+                            <th style="width: 20%">Rating</th>
+                            <th style="width: 35%">Comments</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for evaluation in rubric_evaluations %}
+                        <tr>
+                            <td>
+                                <strong>{{ evaluation.criterion.description }}</strong>
+                                {% if evaluation.criterion.rubric_description %}
+                                    <br><small class="text-gray-600">{{ evaluation.criterion.rubric_description }}</small>
+                                {% endif %}
+                            </td>
+                            <td class="points-cell">
+                                <span class="points-earned">{{ evaluation.points|floatformat:1 }}</span>
+                                <span class="points-total">/ {{ evaluation.criterion.points|floatformat:1 }}</span>
+                            </td>
+                            <td>
+                                {% if evaluation.rating %}
+                                    <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">
+                                        {{ evaluation.rating.title }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-gray-500">No rating</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                                                    {% if evaluation.comments %}
+                                        {{ evaluation.comments|striptags }}
+                                    {% else %}
+                                        <span class="text-gray-500">No comments</span>
+                                    {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        <tr class="bg-gray-50">
+                            <td><strong>Total Score</strong></td>
+                            <td class="points-cell">
+                                <span class="points-earned text-lg">{{ rubric_total_score|floatformat:1 }}</span>
+                                <span class="points-total text-lg">/ {{ discussion.rubric.total_points|floatformat:1 }}</span>
+                            </td>
+                            <td colspan="2">
+                                <strong>{{ rubric_total_score|div:discussion.rubric.total_points|mul:100|floatformat:1 }}%</strong>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Participation Summary -->
+    <div class="timeline-section">
+        <div class="timeline-title">
+            <div class="timeline-icon">
+                <i class="fas fa-user-check"></i>
+            </div>
+            Participation Summary
+        </div>
+        
+        <div class="timeline-content">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h4 class="font-semibold text-gray-800 mb-3">Activity Summary</h4>
+                    <div class="space-y-2 text-sm">
+                        <p><strong>Total Comments:</strong> {{ participation_stats.total_comments }}</p>
+                        <p><strong>Total Replies:</strong> {{ participation_stats.total_replies }}</p>
+                        <p><strong>Total Likes Given:</strong> {{ participation_stats.total_likes_given }}</p>
+                        <p><strong>Total Attachments:</strong> {{ participation_stats.total_attachments }}</p>
+                        <p><strong>Engagement Score:</strong> {{ participation_stats.engagement_score }}</p>
+                    </div>
+                </div>
+                
+                <div>
+                    <h4 class="font-semibold text-gray-800 mb-3">Timeline</h4>
+                    <div class="space-y-2 text-sm">
+                        {% if participation_stats.first_activity %}
+                            <p><strong>First Activity:</strong> {{ participation_stats.first_activity|date:"M d, Y g:i A" }}</p>
+                        {% endif %}
+                        {% if participation_stats.last_activity %}
+                            <p><strong>Last Activity:</strong> {{ participation_stats.last_activity|date:"M d, Y g:i A" }}</p>
+                        {% endif %}
+                        {% if participation_stats.first_activity and participation_stats.last_activity %}
+                            <p><strong>Active Period:</strong> {{ participation_stats.last_activity|timesince:participation_stats.first_activity }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Timeline Events -->
+    <div class="timeline-section">
+        <div class="timeline-title">
+            <div class="timeline-icon">
+                <i class="fas fa-clock"></i>
+            </div>
+            Detailed Timeline
+        </div>
+        
+        <div class="timeline-content">
+            {% if timeline_events %}
+                {% for event in timeline_events %}
+                <div class="timeline-event {{ event.type }}" id="event-{{ forloop.counter }}">
+                    <div class="event-card">
+                        <div class="event-header">
+                            <div class="event-title">{{ event.title }}</div>
+                            <div class="event-time">{{ event.timestamp|date:"M d, Y g:i A" }}</div>
+                        </div>
+                        
+                        <div class="event-description">{{ event.description }}</div>
+                        
+                        {% if event.data %}
+                        <div class="event-data">
+                            <dl>
+                                {% for key, value in event.data.items %}
+                                    {% if value and key != 'comment_id' and key != 'reply_id' and key != 'attachment_id' %}
+                                    <dt>{{ key|title|replace_underscores }}:</dt>
+                                    <dd>
+                                        {% if key == 'content' or key == 'parent_comment' or key == 'liked_content' or key == 'feedback_text' or key == 'discussion_content' or key == 'comments' %}
+                                            <div class="comment-content">{{ value|striptags }}</div>
+                                        {% elif key == 'file_size' %}
+                                            {{ value|filesizeformat }}
+                                        {% elif key == 'edit_time_diff' %}
+                                            {{ value|floatformat:1 }} minutes after posting
+                                        {% elif key == 'points' %}
+                                            {{ value|floatformat:1 }}
+                                        {% elif key == 'max_points' %}
+                                            {{ value|floatformat:1 }}
+                                        {% elif key == 'attachments_count' %}
+                                            {{ value }} attachment{% if value != 1 %}s{% endif %}
+                                        {% elif key == 'has_audio' or key == 'has_video' or key == 'is_private' or key == 'is_reply' %}
+                                            {% if value %}Yes{% else %}No{% endif %}
+                                        {% else %}
+                                            {{ value|striptags }}
+                                        {% endif %}
+                                    </dd>
+                                    {% endif %}
+                                {% endfor %}
+                            </dl>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="text-center py-8">
+                    <p class="text-gray-500">No timeline events found for this student.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Comments Section -->
+    {% if student_comments %}
+    <div class="timeline-section">
+        <div class="timeline-title">
+            <div class="timeline-icon">
+                <i class="fas fa-comments"></i>
+            </div>
+            Student Comments ({{ student_comments.count }})
+        </div>
+        
+        <div class="timeline-content">
+            <div class="space-y-4">
+                {% for comment in student_comments %}
+                <div class="event-card">
+                    <div class="event-header">
+                        <div class="event-title">
+                            {% if comment.parent %}
+                                Reply to {{ comment.parent.created_by.get_full_name }}
+                            {% else %}
+                                Main Comment
+                            {% endif %}
+                        </div>
+                        <div class="event-time">{{ comment.created_at|date:"M d, Y g:i A" }}</div>
+                    </div>
+                    <div class="comment-content">
+                        {{ comment.content|striptags }}
+                    </div>
+                    {% if comment.attachments.all %}
+                        <div class="mt-3">
+                            <strong class="text-sm font-semibold text-gray-700">Attachments:</strong>
+                            <div class="attachment-list mt-2">
+                                {% for attachment in comment.attachments.all %}
+                                    <div class="attachment-item">
+                                        {% if attachment.file_type == 'image' %}
+                                            <img src="{{ attachment.file.url }}" alt="Image attachment" class="attachment-preview">
+                                        {% elif attachment.file_type == 'video' %}
+                                            <video src="{{ attachment.file.url }}" controls class="video-preview" preload="metadata">
+                                                Your browser does not support the video tag.
+                                            </video>
+                                        {% elif attachment.file_type == 'audio' %}
+                                            <audio src="{{ attachment.file.url }}" controls class="w-full max-w-md">
+                                                Your browser does not support the audio tag.
+                                            </audio>
+                                        {% else %}
+                                            <a href="{{ attachment.file.url }}" target="_blank" class="document-preview">
+                                                {% with file_ext=attachment.file.name|lower %}
+                                                    {% if '.pdf' in file_ext %}
+                                                        <i class="fas fa-file-pdf text-red-600"></i>
+                                                    {% elif '.doc' in file_ext or '.docx' in file_ext %}
+                                                        <i class="fas fa-file-word text-blue-600"></i>
+                                                    {% elif '.xls' in file_ext or '.xlsx' in file_ext %}
+                                                        <i class="fas fa-file-excel text-green-600"></i>
+                                                    {% elif '.ppt' in file_ext or '.pptx' in file_ext %}
+                                                        <i class="fas fa-file-powerpoint text-orange-600"></i>
+                                                    {% elif '.txt' in file_ext %}
+                                                        <i class="fas fa-file-alt text-gray-600"></i>
+                                                    {% elif '.zip' in file_ext or '.rar' in file_ext %}
+                                                        <i class="fas fa-file-archive text-purple-600"></i>
+                                                    {% else %}
+                                                        <i class="fas fa-file text-gray-600"></i>
+                                                    {% endif %}
+                                                {% endwith %}
+                                                <span>{{ attachment.file.name|basename|striptags }}</span>
+                                            </a>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+                    {% if comment.updated_at > comment.created_at %}
+                        <div class="text-xs text-gray-500 mt-2">
+                            <i class="fas fa-edit"></i> Edited {{ comment.updated_at|date:"M d, Y g:i A" }}
+                        </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Attachments Section -->
+    {% if student_attachments %}
+    <div class="timeline-section">
+        <div class="timeline-title">
+            <div class="timeline-icon">
+                <i class="fas fa-paperclip"></i>
+            </div>
+            Attachments ({{ student_attachments.count }})
+        </div>
+        
+        <div class="timeline-content">
+            <div class="space-y-4">
+                {% for attachment in student_attachments %}
+                <div class="event-card">
+                    <div class="event-header">
+                        <div class="event-title">{{ attachment.file.name|basename|striptags }}</div>
+                        <div class="event-time">{{ attachment.uploaded_at|date:"M d, Y g:i A" }}</div>
+                    </div>
+                    
+                    <!-- Embedded File Preview -->
+                    <div class="attachment-embedded">
+                        {% if attachment.file_type == 'image' %}
+                            <div class="attachment-item">
+                                <img src="{{ attachment.file.url }}" alt="Image attachment" class="attachment-preview">
+                            </div>
+                        {% elif attachment.file_type == 'video' %}
+                            <div class="attachment-item">
+                                <video src="{{ attachment.file.url }}" controls class="video-preview" preload="metadata">
+                                    Your browser does not support the video tag.
+                                </video>
+                            </div>
+                        {% elif attachment.file_type == 'audio' %}
+                            <div class="attachment-item">
+                                <audio src="{{ attachment.file.url }}" controls class="w-full max-w-md">
+                                    Your browser does not support the audio tag.
+                                </audio>
+                            </div>
+                        {% else %}
+                            <div class="attachment-item">
+                                <a href="{{ attachment.file.url }}" target="_blank" class="document-preview">
+                                    {% with file_ext=attachment.file.name|lower %}
+                                        {% if '.pdf' in file_ext %}
+                                            <i class="fas fa-file-pdf text-red-600"></i>
+                                        {% elif '.doc' in file_ext or '.docx' in file_ext %}
+                                            <i class="fas fa-file-word text-blue-600"></i>
+                                        {% elif '.xls' in file_ext or '.xlsx' in file_ext %}
+                                            <i class="fas fa-file-excel text-green-600"></i>
+                                        {% elif '.ppt' in file_ext or '.pptx' in file_ext %}
+                                            <i class="fas fa-file-powerpoint text-orange-600"></i>
+                                        {% elif '.txt' in file_ext %}
+                                            <i class="fas fa-file-alt text-gray-600"></i>
+                                        {% elif '.zip' in file_ext or '.rar' in file_ext %}
+                                            <i class="fas fa-file-archive text-purple-600"></i>
+                                        {% else %}
+                                            <i class="fas fa-file text-gray-600"></i>
+                                        {% endif %}
+                                    {% endwith %}
+                                    <span>{{ attachment.file.name|basename|striptags }}</span>
+                                </a>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="text-sm text-gray-600 mt-3">
+                        <p><strong>Type:</strong> {{ attachment.get_file_type_display }}</p>
+                        <p><strong>Size:</strong> {{ attachment.file|safe_file_size|filesizeformat }}</p>
+                        <p><strong>Attached to:</strong> 
+                            {% if attachment.discussion %}
+                                Main Discussion
+                            {% elif attachment.comment %}
+                                Comment #{{ attachment.comment.id }}
+                            {% else %}
+                                Unknown
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Overall Feedback Section -->
+    {% if overall_feedback %}
+    <div class="timeline-section">
+        <div class="timeline-title">
+            <div class="timeline-icon">
+                <i class="fas fa-comment-dots"></i>
+            </div>
+            Overall Feedback
+        </div>
+        
+        <div class="timeline-content">
+            <div class="event-card">
+                <div class="event-header">
+                    <div class="event-title">Feedback from {{ overall_feedback.created_by.get_full_name }}</div>
+                    <div class="event-time">{{ overall_feedback.created_at|date:"M d, Y g:i A" }}</div>
+                </div>
+                <div class="comment-content">
+                    {{ overall_feedback.feedback|striptags }}
+                </div>
+                
+                <!-- Audio Feedback -->
+                {% if overall_feedback.audio_feedback %}
+                <div class="mt-4">
+                    <div class="flex items-center mb-2">
+                        <i class="fas fa-microphone text-blue-600 mr-2"></i>
+                        <span class="font-medium text-blue-900">Audio Feedback</span>
+                    </div>
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <audio controls class="w-full">
+                            <source src="{{ overall_feedback.audio_feedback.url }}" type="audio/mpeg">
+                            <source src="{{ overall_feedback.audio_feedback.url }}" type="audio/wav">
+                            <source src="{{ overall_feedback.audio_feedback.url }}" type="audio/m4a">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Video Feedback -->
+                {% if overall_feedback.video_feedback %}
+                <div class="mt-4">
+                    <div class="flex items-center mb-2">
+                        <i class="fas fa-video text-purple-600 mr-2"></i>
+                        <span class="font-medium text-purple-900">Video Feedback</span>
+                    </div>
+                    <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                        <video controls class="w-full max-w-md">
+                            <source src="{{ overall_feedback.video_feedback.url }}" type="video/mp4">
+                            <source src="{{ overall_feedback.video_feedback.url }}" type="video/mov">
+                            <source src="{{ overall_feedback.video_feedback.url }}" type="video/avi">
+                            Your browser does not support the video element.
+                        </video>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="mt-2 text-sm text-gray-600">
+                    {% if overall_feedback.is_private %}
+                        <span class="bg-red-100 text-red-800 px-2 py-1 rounded">Private Feedback</span>
+                    {% else %}
+                        <span class="bg-green-100 text-green-800 px-2 py-1 rounded">Public Feedback</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function printReport() {
+    // Use the browser's native print functionality
+    window.print();
+}
+
+</script>
+
+{% endblock %} 

@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Bulk Notifications - {{ block.super }}{% endblock %}
+
+{% block global_breadcrumbs %}
+<!-- Breadcrumb -->
+{% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.section-box {
+    border-radius: 8px;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    background-color: white;
+    transition: all 0.2s ease-in-out;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.section-box:hover {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.status-draft {
+    background-color: rgb(249 250 251);
+    color: rgb(75 85 99);
+}
+
+.status-scheduled {
+    background-color: rgb(239 246 255);
+    color: rgb(59 130 246);
+}
+
+.status-sending {
+    background-color: rgb(254 249 195);
+    color: rgb(217 119 6);
+}
+
+.status-completed {
+    background-color: rgb(240 253 244);
+    color: rgb(22 163 74);
+}
+
+.status-failed {
+    background-color: rgb(254 242 242);
+    color: rgb(220 38 38);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-3xl font-semibold text-gray-900">Bulk Notifications</h1>
+            <p class="text-gray-600 mt-1">Manage and send notifications to multiple users</p>
+        </div>
+        <div class="flex gap-3">
+            <a href="{% url 'lms_notifications:notification_center' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                <i class="fas fa-arrow-left mr-2"></i> Back to Notifications
+            </a>
+            <a href="{% url 'lms_notifications:bulk_notification_create' %}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+                <i class="fas fa-plus mr-2"></i> Create New Bulk Notification
+            </a>
+        </div>
+    </div>
+
+    <!-- Bulk Notifications List -->
+    <div class="space-y-4">
+        {% for bulk_notification in bulk_notifications %}
+        <div class="section-box hover:shadow-lg transition-shadow duration-200">
+            <div class="flex items-start justify-between">
+                <div class="flex-1">
+                    <div class="flex items-center space-x-3 mb-2">
+                        <h3 class="text-lg font-medium text-gray-900">{{ bulk_notification.title }}</h3>
+                        <span class="status-badge status-{{ bulk_notification.status }}">
+                            {% if bulk_notification.status == 'draft' %}
+                                <i class="fas fa-pencil-alt mr-1"></i> Draft
+                            {% elif bulk_notification.status == 'scheduled' %}
+                                <i class="fas fa-clock mr-1"></i> Scheduled
+                            {% elif bulk_notification.status == 'sending' %}
+                                <i class="fas fa-spinner fa-spin mr-1"></i> Sending
+                            {% elif bulk_notification.status == 'completed' %}
+                                <i class="fas fa-check mr-1"></i> Completed
+                            {% elif bulk_notification.status == 'failed' %}
+                                <i class="fas fa-exclamation-triangle mr-1"></i> Failed
+                            {% endif %}
+                        </span>
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium {% if bulk_notification.priority == 'urgent' %}bg-red-100 text-red-800{% elif bulk_notification.priority == 'high' %}bg-orange-100 text-orange-800{% elif bulk_notification.priority == 'low' %}bg-gray-100 text-gray-800{% else %}bg-blue-100 text-blue-800{% endif %}">
+                            {{ bulk_notification.get_priority_display }}
+                        </span>
+                    </div>
+                    
+                    <p class="text-gray-600 text-sm mb-3">{{ bulk_notification.short_message }}</p>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-500">
+                        <div>
+                            <strong>Recipient Type:</strong> {{ bulk_notification.get_recipient_type_display }}
+                        </div>
+                        <div>
+                            <strong>Total Recipients:</strong> {{ bulk_notification.total_recipients|default:"Calculating..." }}
+                        </div>
+                        <div>
+                            <strong>Created:</strong> {{ bulk_notification.created_at|timesince }} ago
+                        </div>
+                    </div>
+                    
+                    {% if bulk_notification.status == 'completed' %}
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-500 mt-2">
+                        <div>
+                            <strong>Sent:</strong> {{ bulk_notification.sent_count }}
+                        </div>
+                        <div>
+                            <strong>Failed:</strong> {{ bulk_notification.failed_count }}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if bulk_notification.scheduled_for %}
+                    <div class="text-sm text-blue-600 mt-2">
+                        <i class="fas fa-clock mr-1"></i>
+                        <strong>Scheduled for:</strong> {{ bulk_notification.scheduled_for }}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="flex items-center space-x-2 ml-4">
+                    <!-- Preview button -->
+                    <a href="{% url 'lms_notifications:bulk_notification_preview' bulk_notification.id %}" 
+                       class="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50" 
+                       title="Preview Recipients">
+                        <i class="fas fa-eye"></i>
+                    </a>
+                    
+                    <!-- Edit button (only for drafts) -->
+                    {% if bulk_notification.status == 'draft' %}
+                    <a href="{% url 'lms_notifications:bulk_notification_edit' bulk_notification.id %}" 
+                       class="inline-flex items-center px-3 py-2 border border-blue-300 rounded-md shadow-sm text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100" 
+                       title="Edit">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                    {% endif %}
+                    
+                    <!-- Send button (only for drafts) -->
+                    {% if bulk_notification.status == 'draft' %}
+                    <form method="POST" action="{% url 'lms_notifications:bulk_notification_send' bulk_notification.id %}" class="inline">
+                        {% csrf_token %}
+                        <button type="submit" 
+                                class="inline-flex items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700" 
+                                title="Send Now"
+                                onclick="return confirm('Are you sure you want to send this bulk notification? This action cannot be undone.')">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </form>
+                    {% endif %}
+                    
+                    <!-- Delete button (only for drafts) -->
+                    {% if bulk_notification.status == 'draft' %}
+                    <form method="POST" action="{% url 'lms_notifications:bulk_notification_delete' bulk_notification.id %}" class="inline">
+                        {% csrf_token %}
+                        <button type="submit" 
+                                class="inline-flex items-center px-3 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50" 
+                                title="Delete"
+                                onclick="return confirm('Are you sure you want to delete this bulk notification?')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="section-box text-center py-12">
+            <i class="fas fa-bullhorn text-6xl text-gray-400 mb-4"></i>
+            <h4 class="text-xl font-medium text-gray-900 mb-2">No bulk notifications found</h4>
+            <p class="text-gray-600 mb-4">You haven't created any bulk notifications yet.</p>
+            <a href="{% url 'lms_notifications:bulk_notification_create' %}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+                <i class="fas fa-plus mr-2"></i> Create Your First Bulk Notification
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if bulk_notifications.has_other_pages %}
+    <div class="flex justify-center mt-6">
+        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+            {% if bulk_notifications.has_previous %}
+            <a href="?page={{ bulk_notifications.previous_page_number }}" 
+               class="relative inline-flex items-center px-3 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                <i class="fas fa-chevron-left mr-1"></i> Previous
+            </a>
+            {% endif %}
+            
+            {% for num in bulk_notifications.paginator.page_range %}
+            {% if num == bulk_notifications.number %}
+            <span class="relative inline-flex items-center px-4 py-2 border border-blue-500 bg-blue-50 text-sm font-medium text-blue-600">
+                {{ num }}
+            </span>
+            {% elif num > bulk_notifications.number|add:'-3' and num < bulk_notifications.number|add:'3' %}
+            <a href="?page={{ num }}" 
+               class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
+                {{ num }}
+            </a>
+            {% endif %}
+            {% endfor %}
+            
+            {% if bulk_notifications.has_next %}
+            <a href="?page={{ bulk_notifications.next_page_number }}" 
+               class="relative inline-flex items-center px-3 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                Next <i class="fas fa-chevron-right ml-1"></i>
+            </a>
+            {% endif %}
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %} 

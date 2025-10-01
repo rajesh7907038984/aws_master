@@ -1,0 +1,986 @@
+{% extends 'base.html' %}
+{% load course_filters %}
+{% load static %}
+
+{% block title %}Courses - Nexsy{% endblock %}
+
+{% block extra_css %}
+<!-- CSRF token for JavaScript -->
+<meta name="csrf-token" content="{{ csrf_token }}">
+<style>
+    /* Global styles for all pages */
+    body {
+        background-color: #f5f7fa !important;
+    }
+    
+    .main-content {
+        background-color: #f5f7fa !important;
+    }
+    
+    main.flex-1.bg-white {
+        background-color: #f5f7fa !important;
+    }
+    
+    /* Section box styles */
+    .section-box {
+        border-radius: 12px;
+        box-shadow: 0px 0px 20px -8px rgba(0,0,0,0.15);
+        background-color: white;
+        transition: all 0.25s ease-in-out;
+    }
+    
+    .section-box:hover {
+        transform: translateY(-3px);
+        box-shadow: 0px 10px 25px -5px rgba(0,0,0,0.1);
+    }
+    
+    /* Unique padding for different sections */
+    .section-box.activity {
+        padding: 1.75rem !important;
+    }
+    
+    .section-box.calendar {
+        padding: 0.875rem !important;
+    }
+
+    /* Calendar specific styles */
+    .calendar-day {
+        min-height: 2rem;
+    }
+
+    .calendar-event {
+        font-size: 8px;
+        padding: 1px 2px;
+        border-radius: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Course view styles */
+    .course-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.75rem;
+    }
+
+    .course-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
+    /* Filter styles */
+    .filter-section {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding: 1.25rem;
+        background-color: white;
+        border-radius: 12px;
+        box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .filter-container {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        flex-grow: 1;
+    }
+
+    .filter-group {
+        flex: 1;
+        min-width: 200px;
+    }
+
+    .filter-select {
+        width: 100%;
+        padding: 0.6rem 1rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        background-color: white;
+        font-size: 0.95rem;
+        color: #4a5568;
+        transition: all 0.2s;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%234a5568'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z' clip-rule='evenodd'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        background-size: 1rem;
+    }
+
+    .filter-select:focus {
+        outline: none;
+        border-color: #4262FF;
+        box-shadow: 0 0 0 3px rgba(66, 98, 255, 0.15);
+    }
+
+    .filter-reset {
+        padding: 0.6rem 1.5rem;
+        border: none;
+        border-radius: 8px;
+        background-color: #f1f5f9;
+        color: #64748b;
+        font-weight: 500;
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+
+    .filter-reset:hover {
+        background-color: #e2e8f0;
+        color: #475569;
+    }
+
+    .filter-label {
+        display: block;
+        font-size: 1rem;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        color: #374151;
+    }
+
+    /* Common card styles */
+    .course-card {
+        background-color: white;
+        border: none;
+        border-radius: 12px;
+        overflow: visible;
+        transition: all 0.25s ease-in-out;
+        cursor: pointer;
+        position: relative;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    }
+
+    .course-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Edit button styles */
+    .course-edit-btn {
+        position: absolute;
+        background-color: rgba(255, 255, 255, 0.95);
+        border-radius: 8px;
+        padding: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.875rem;
+        color: #4262FF;
+        border: none;
+        z-index: 20;
+        transition: all 0.2s ease-in-out;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+        width: 32px;
+        height: 32px;
+    }
+
+    .course-edit-btn:hover {
+        background-color: #4262FF;
+        color: white;
+    }
+
+    .course-grid .course-edit-btn {
+        position: absolute;
+    }
+
+    .course-grid .course-edit-btn:first-child {
+        top: 1rem;
+        right: 3.5rem;
+    }
+
+    .course-grid .course-edit-btn:last-child {
+        top: 1rem;
+        right: 1rem;
+    }
+
+    .course-list .course-edit-btn {
+        position: static;
+        margin-left: 0.5rem;
+    }
+
+    /* Course action buttons container */
+    .course-actions {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        display: flex;
+        gap: 0.75rem;
+        z-index: 20;
+    }
+    
+    /* Ensure delete button is clickable */
+    .course-delete-btn {
+        cursor: pointer;
+        pointer-events: auto;
+        position: relative;
+    }
+    
+    .course-delete-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    
+    .course-delete-btn:disabled:hover {
+        background-color: #ef4444 !important;
+    }
+
+    /* Course link styles */
+    .course-link {
+        color: inherit;
+        text-decoration: none;
+    }
+
+    .course-link:hover {
+        text-decoration: none;
+    }
+
+    .course-link:hover .course-title {
+        color: #4262FF;
+    }
+
+    /* List view specific styles */
+    .course-list .course-card {
+        display: flex;
+        align-items: flex-start;
+        padding: 1.5rem;
+        border-radius: 12px;
+        background-color: white;
+    }
+
+    .course-list .course-image {
+        position: relative;
+        flex-shrink: 0;
+        margin-right: 1.5rem;
+        width: 130px;
+        height: 90px;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .course-list .course-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+    }
+
+    .course-list .course-content {
+        flex-grow: 1;
+    }
+
+    .course-list .course-meta {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        margin-top: 1.25rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid #f0f2f5;
+    }
+
+    /* Grid view specific styles */
+    .course-grid .course-card {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        padding: 0;
+        overflow: visible;
+        border-radius: 12px;
+    }
+
+    .course-grid .course-image {
+        position: relative;
+        width: 100%;
+        height: 180px;
+        margin: 0;
+        overflow: hidden;
+    }
+
+    .course-grid .course-image::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 50%;
+        background: linear-gradient(to top, rgba(0,0,0,0.5), transparent);
+        z-index: 1;
+    }
+
+    .course-grid .course-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+        transition: transform 0.5s ease;
+    }
+    
+    .course-grid .course-card:hover .course-image img {
+        transform: scale(1.05);
+    }
+
+    .course-grid .course-content {
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+        padding: 1.5rem;
+        background-color: white;
+    }
+
+    .course-grid .course-category {
+        position: absolute;
+        top: 1rem;
+        left: 1rem;
+        background-color: rgba(66, 98, 255, 0.85);
+        color: white;
+        font-size: 0.75rem;
+        font-weight: 500;
+        padding: 0.35rem 0.75rem;
+        border-radius: 20px;
+        z-index: 2;
+    }
+
+    .course-grid .course-meta {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 0.75rem;
+        margin-top: auto;
+        padding-top: 1rem;
+        border-top: 1px solid #f0f2f5;
+    }
+    
+    .course-grid .course-progress-wrapper {
+        margin-top: auto;
+        padding-top: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .course-grid .course-meta span {
+        display: flex;
+        align-items: center;
+        color: #64748b;
+        font-weight: 500;
+    }
+    
+    .course-grid .course-meta i {
+        color: #4262FF;
+        margin-right: 0.5rem;
+    }
+
+    .course-grid .course-description {
+        margin: 1rem 0 1.5rem;
+        flex-grow: 1;
+        color: #64748b;
+        font-size: 0.875rem;
+        line-height: 1.6;
+    }
+
+    /* Fallback styles for no image */
+    .course-image-fallback {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #4262FF, #6B8CFF);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .course-image-fallback span {
+        font-size: 2rem;
+        font-weight: bold;
+        color: white;
+        opacity: 0.85;
+    }
+    
+    /* Play button overlay styles */
+    .play-button-overlay {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 60px;
+        height: 60px;
+        background-color: rgba(255, 255, 255, 0.9);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 3;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    .play-button-overlay:hover {
+        background-color: #4262FF;
+        transform: translate(-50%, -50%) scale(1.1);
+    }
+    
+    .play-button-overlay:hover .play-icon {
+        color: white;
+    }
+    
+    .play-icon {
+        font-size: 24px;
+        color: #4262FF;
+        margin-left: 3px; /* Slight offset to center the triangle */
+        transition: color 0.3s ease;
+    }
+    
+    /* Progress bar styles */
+    .course-progress-wrapper {
+        margin-top: 0.5rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .course-grid .course-progress-wrapper {
+        margin-top: auto;
+        margin-bottom: 1rem;
+    }
+    
+    .course-list .course-progress-wrapper {
+        width: 180px;
+        margin-right: 1.5rem;
+    }
+    
+    /* Course description visibility */
+    .course-grid .text-sm.text-gray-600.mb-4 {
+        display: none;
+    }
+    
+    .course-list .course-description {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hidden CSRF form for JavaScript access -->
+<form id="csrf-form" style="display: none;">
+    {% csrf_token %}
+</form>
+
+<div class="bg-white text-black min-h-screen">
+    <div class="container mx-auto px-4 py-6">
+        <!-- Global Breadcrumb -->
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+        <!-- Main grid with 70-30 split -->
+        <div class="grid grid-cols-12 gap-4 md:gap-6">
+            <!-- Left Column (70%) -->
+            <div class="col-span-12 lg:col-span-8 transition-all duration-300">
+                <!-- Course List -->
+                <div class="mb-4 md:mb-6">
+                    <section class="section-box activity">
+                        <div class="flex justify-between items-center mb-4 md:mb-6">
+                            <h2 class="text-xl font-semibold text-gray-800">All Courses</h2>
+                            <div class="flex items-center gap-4">
+                                {% if user.role != 'learner' %}
+                                <a href="{% url 'courses:course_manage' %}" class="px-4 py-2 text-white rounded-lg transition-colors flex items-center" style="background-color: #191f56;" onmouseover="this.style.backgroundColor='#141a4a'" onmouseout="this.style.backgroundColor='#191f56'">
+                                    <i class="fas fa-plus mr-2"></i>
+                                    Create Course
+                                </a>
+                                {% endif %}
+                                <!-- View Switcher -->
+                                <div class="flex items-center border rounded-lg overflow-hidden">
+                                    <button id="grid-view" class="px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 transition-colors">
+                                        <i class="fas fa-th-large"></i>
+                                    </button>
+                                    <button id="list-view" class="px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 transition-colors">
+                                        <i class="fas fa-list"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Filter Section -->
+                        <!-- Search Input -->
+                        <div class="mb-6">
+                            <div class="relative">
+                                <input type="text" id="course-search" class="w-full px-4 py-3 pl-10 pr-4 text-gray-700 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Search courses by title, description or instructor..." value="{{ search_query }}">
+                                <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                    <i class="fas fa-search text-gray-400"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Filter Section -->
+                        <div class="filter-section mb-6">
+                            <div class="flex flex-col w-full">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="text-lg font-medium text-gray-700">Sort by</h3>
+                                    <h3 class="text-lg font-medium text-gray-700 ml-4">Filter by</h3>
+                                </div>
+                                <div class="flex flex-wrap gap-4">
+                                    <!-- Sort Options -->
+                                    <div class="filter-group">
+                                        <select id="sort-by" class="filter-select">
+                                            <option value="recently_accessed" {% if sort_by == 'recently_accessed' %}selected{% endif %}>Recently Accessed</option>
+                                            <option value="title_asc" {% if sort_by == 'title_asc' %}selected{% endif %}>Title A-Z</option>
+                                            <option value="title_desc" {% if sort_by == 'title_desc' %}selected{% endif %}>Title Z-A</option>
+                                            <option value="date_added" {% if sort_by == 'date_added' %}selected{% endif %}>Date Added</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <!-- Filter Options -->
+                                    <div class="filter-group">
+                                        <select id="category-filter" class="filter-select">
+                                            <option value="">Categories</option>
+                                            {% for category in categories %}
+                                            <option value="{{ category.id }}" {% if category_filter == category.id|stringformat:"i" %}selected{% endif %}>{{ category.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="filter-group">
+                                        <select id="progress-filter" class="filter-select">
+                                            <option value="">Progress</option>
+                                            <option value="not_started" {% if progress_filter == 'not_started' %}selected{% endif %}>Not Started</option>
+                                            <option value="in_progress" {% if progress_filter == 'in_progress' %}selected{% endif %}>In Progress</option>
+                                            <option value="completed" {% if progress_filter == 'completed' %}selected{% endif %}>Completed</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="filter-group">
+                                        <select id="instructor-filter" class="filter-select">
+                                            <option value="">Instructor</option>
+                                            <!-- Use a simpler approach to track seen instructors -->
+                                            {% with seen_instructors=","|add:"," %}
+                                                {% for course in courses %}
+                                                    {% if course.instructor %}
+                                                        {% with check_id=","|add:course.instructor.id|stringformat:"i"|add:"," %}
+                                                            {% if check_id not in seen_instructors %}
+                                                                <option value="{{ course.instructor.id }}" {% if instructor_filter == course.instructor.id|stringformat:"i" %}selected{% endif %}>
+                                                                    {{ course.instructor.get_full_name|default:course.instructor.username }}
+                                                                </option>
+                                                                {% with seen_instructors=seen_instructors|add:check_id %}{% endwith %}
+                                                            {% endif %}
+                                                        {% endwith %}
+                                                    {% endif %}
+                                                {% endfor %}
+                                            {% endwith %}
+                                        </select>
+                                    </div>
+                                    
+                                    <button id="reset-filters" class="filter-reset">
+                                        Reset
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Course Container -->
+                        <div id="course-container" class="course-list">
+                            {% for course in courses %}
+                            <div class="relative group">
+                                <a href="{% url 'courses:course_details' course.id %}" class="block hover:no-underline">
+                                    <div class="course-card">
+                                                                <!-- Course Image -->
+                        <div class="course-image">
+                            {% if course.course_image and course.course_image.url %}
+                                <img src="{{ course.course_image.url }}" 
+                                     alt="{{ course.title }}" 
+                                     class="w-full h-full object-cover"
+                                     loading="lazy"
+                                     onerror="this.onerror=null; this.src='{% static 'core/img/course-placeholder.png' %}';">
+                            {% else %}
+                                <div class="course-image-fallback">
+                                    <span>{{ course.title|first|upper }}</span>
+                                </div>
+                            {% endif %}
+                            <!-- Play Button Overlay -->
+                            <div class="play-button-overlay">
+                                <i class="fas fa-play play-icon"></i>
+                            </div>
+                            <div class="course-category">
+                                {{ course.category.name|default:"Technology" }}
+                            </div>
+                        </div>
+
+                                        <div class="course-content">
+                                            <!-- Course Title -->
+                                            <h3 class="text-base font-semibold text-gray-900 mb-2 course-title">
+                                                {{ course.title|format_course_title }}
+                                            </h3>
+
+                                            <!-- Course Description - List view only -->
+                                            <p class="text-sm text-gray-600 mb-4">
+                                                {{ course.short_description|default:course.description|striptags|truncatewords:20 }}
+                                            </p>
+
+                                            <!-- Course Description - Grid view -->
+                                            <p class="course-description">
+                                                {{ course.short_description|default:course.description|striptags|truncatewords:15 }}
+                                            </p>
+
+                                            <!-- Course Progress Bar - List view -->
+                                            {% if course|is_enrolled:user and user.role == 'learner' %}
+                                            <div class="course-progress-wrapper">
+                                                {% comment %}OPTIMIZATION: Use prefetched enrollment from user_enrollments attribute{% endcomment %}
+                                                {% if course.user_enrollments %}
+                                                    {% with enrollment=course.user_enrollments.0 %}
+                                                    <div class="flex justify-between mb-1">
+                                                        <span class="text-xs font-medium text-gray-700">Progress</span>
+                                                        <span class="text-xs font-medium text-blue-600">{{ enrollment.progress_percentage }}%</span>
+                                                    </div>
+                                                    <div class="w-full bg-gray-200 rounded-full h-2">
+                                                        <div class="h-2 rounded-full" style="background-color: #191f56; width: {{ enrollment.progress_percentage }}%"></div>
+                                                    </div>
+                                                    {% endwith %}
+                                                {% endif %}
+                                            </div>
+                                            {% endif %}
+
+                                            <!-- Course Meta -->
+                                            <div class="course-meta text-xs text-gray-500">
+                                                <span class="flex items-center">
+                                                    <i class="fas fa-user-graduate mr-2"></i>
+                                                    {% if course.instructor %}
+                                                        {{ course.instructor.get_full_name|default:course.instructor.username }}
+                                                    {% else %}
+                                                        No Instructor
+                                                    {% endif %}
+                                                </span>
+                                                <span class="flex items-center">
+                                                    <i class="fas fa-clock mr-2"></i>
+                                                    {{ course.duration|default:"8 weeks" }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </a>
+                                {% if user|can_edit_course:course %}
+                                <div class="course-actions">
+                                    <a href="{% url 'courses:course_edit' course.id %}" class="course-edit-btn">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% if user|can_delete:course %}
+                                    <button type="button" 
+                                            class="course-edit-btn text-white course-delete-btn" 
+                                            style="background-color: #ef4444;" 
+                                            onmouseover="this.style.backgroundColor='#dc2626'" 
+                                            onmouseout="this.style.backgroundColor='#ef4444'"
+                                            data-course-id="{{ course.id }}"
+                                            data-course-title="{{ course.title }}"
+                                            onclick="handleCourseDelete(this)">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% empty %}
+                            <div class="flex flex-col items-center justify-center py-12 text-center">
+                                <div class="w-16 h-16 mb-4 text-gray-300">
+                                    <i class="fas fa-book-open text-4xl"></i>
+                                </div>
+                                <h3 class="text-lg font-medium text-gray-900 mb-2">No Courses Found</h3>
+                                <p class="text-sm text-gray-500">There are no courses available at the moment.</p>
+                            </div>
+                            {% endfor %}
+
+                            <!-- No Search Results Message -->
+                            <div id="no-search-results" class="flex flex-col items-center justify-center py-12 text-center" style="display: none;">
+                                <div class="w-16 h-16 mb-4 text-gray-300">
+                                    <i class="fas fa-search text-4xl"></i>
+                                </div>
+                                <h3 class="text-lg font-medium text-gray-900 mb-2">No Matching Courses</h3>
+                                <p class="text-sm text-gray-500">Try adjusting your search criteria.</p>
+                            </div>
+                        </div>
+
+                        <!-- Pagination -->
+                        {% if courses.has_other_pages %}
+                        <div class="mt-8 flex justify-center">
+                            <nav class="flex items-center gap-1">
+                                {% if courses.has_previous %}
+                                <a href="?page={{ courses.previous_page_number }}" 
+                                   class="px-3 py-1 rounded-md text-sm text-gray-500 hover:bg-gray-100">
+                                    Previous
+                                </a>
+                                {% endif %}
+
+                                {% for num in courses.paginator.page_range %}
+                                    {% if courses.number == num %}
+                                    <span class="px-3 py-1 rounded-md text-sm text-white" style="background-color: #191f56;">
+                                        {{ num }}
+                                    </span>
+                                    {% else %}
+                                    <a href="?page={{ num }}" 
+                                       class="px-3 py-1 rounded-md text-sm text-gray-500 hover:bg-gray-100">
+                                        {{ num }}
+                                    </a>
+                                    {% endif %}
+                                {% endfor %}
+
+                                {% if courses.has_next %}
+                                <a href="?page={{ courses.next_page_number }}" 
+                                   class="px-3 py-1 rounded-md text-sm text-gray-500 hover:bg-gray-100">
+                                    Next
+                                </a>
+                                {% endif %}
+                            </nav>
+                        </div>
+                        {% endif %}
+                    </section>
+                </div>
+            </div>
+
+            <!-- Right Column (30%) -->
+            <div class="col-span-12 lg:col-span-4 transition-all duration-300">
+                {% include 'components/right_sidebar.html' %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // View Switcher
+        const gridView = document.getElementById('grid-view');
+        const listView = document.getElementById('list-view');
+        const courseContainer = document.getElementById('course-container');
+        
+        // Search Input
+        const searchInput = document.getElementById('course-search');
+        const courseCards = document.querySelectorAll('.course-card');
+        const noSearchResults = document.getElementById('no-search-results');
+        
+        // Filter elements
+        const categoryFilter = document.getElementById('category-filter');
+        const progressFilter = document.getElementById('progress-filter');
+        const instructorFilter = document.getElementById('instructor-filter');
+        const sortBy = document.getElementById('sort-by');
+        const resetButton = document.getElementById('reset-filters');
+        
+        // Pagination handling - preserve search query on pagination links
+        function updatePaginationLinks() {
+            const paginationLinks = document.querySelectorAll('.mt-8 a');
+            const currentUrl = new URL(window.location.href);
+            const searchParams = currentUrl.searchParams;
+            
+            // Get current search and filter parameters
+            const searchQuery = searchInput.value;
+            const categoryValue = categoryFilter.value;
+            const progressValue = progressFilter.value;
+            const instructorValue = instructorFilter.value;
+            const sortValue = sortBy.value;
+            
+            paginationLinks.forEach(link => {
+                const linkUrl = new URL(link.href);
+                
+                // Preserve search query if exists
+                if (searchQuery) {
+                    linkUrl.searchParams.set('q', searchQuery);
+                }
+                
+                // Preserve filter values if set
+                if (categoryValue) {
+                    linkUrl.searchParams.set('category', categoryValue);
+                }
+                
+                if (progressValue) {
+                    linkUrl.searchParams.set('progress', progressValue);
+                }
+                
+                if (instructorValue) {
+                    linkUrl.searchParams.set('instructor', instructorValue);
+                }
+                
+                if (sortValue && sortValue !== 'recently_accessed') {
+                    linkUrl.searchParams.set('sort', sortValue);
+                }
+                
+                link.href = linkUrl.toString();
+            });
+        }
+        
+        // Call this initially to update links on page load
+        updatePaginationLinks();
+        
+        // Check local storage for saved view preference
+        const savedView = localStorage.getItem('courseView') || 'grid';
+        
+        function setView(view) {
+            if (view === 'grid') {
+                courseContainer.classList.remove('course-list');
+                courseContainer.classList.add('course-grid');
+                gridView.classList.add('bg-gray-100', 'text-blue-600');
+                listView.classList.remove('bg-gray-100', 'text-blue-600');
+            } else {
+                courseContainer.classList.remove('course-grid');
+                courseContainer.classList.add('course-list');
+                listView.classList.add('bg-gray-100', 'text-blue-600');
+                gridView.classList.remove('bg-gray-100', 'text-blue-600');
+            }
+            localStorage.setItem('courseView', view);
+        }
+        
+        // Initialize view
+        setView(savedView);
+        
+        // View switcher event listeners
+        gridView.addEventListener('click', function() {
+            setView('grid');
+        });
+        
+        listView.addEventListener('click', function() {
+            setView('list');
+        });
+        
+        // Submit search form on keyup or after a short delay
+        let searchTimeout;
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase().trim();
+            
+            // Clear previous timeout
+            clearTimeout(searchTimeout);
+            
+            // Set a timeout to submit the form if the user stops typing
+            searchTimeout = setTimeout(function() {
+                if (searchTerm.length > 2 || searchTerm.length === 0) {
+                    // Set the search parameter in the URL
+                    const currentUrl = new URL(window.location.href);
+                    
+                    if (searchTerm) {
+                        currentUrl.searchParams.set('q', searchTerm);
+                    } else {
+                        currentUrl.searchParams.delete('q');
+                    }
+                    
+                    // Reset to first page when searching
+                    currentUrl.searchParams.delete('page');
+                    
+                    // Navigate to the new URL
+                    window.location.href = currentUrl.toString();
+                }
+            }, 500);
+        });
+        
+        // Apply filters and redirect with filter parameters
+        function applyFiltersAndRedirect() {
+            const categoryValue = categoryFilter.value;
+            const progressValue = progressFilter.value;
+            const instructorValue = instructorFilter.value;
+            const sortValue = sortBy.value;
+            const searchTerm = searchInput.value.trim();
+            
+            // Create URL with filter parameters
+            const currentUrl = new URL(window.location.href);
+            
+            // Reset to first page when filtering
+            currentUrl.searchParams.delete('page');
+            
+            // Update search parameters
+            if (categoryValue) {
+                currentUrl.searchParams.set('category', categoryValue);
+            } else {
+                currentUrl.searchParams.delete('category');
+            }
+            
+            if (progressValue) {
+                currentUrl.searchParams.set('progress', progressValue);
+            } else {
+                currentUrl.searchParams.delete('progress');
+            }
+            
+            if (instructorValue) {
+                currentUrl.searchParams.set('instructor', instructorValue);
+            } else {
+                currentUrl.searchParams.delete('instructor');
+            }
+            
+            if (sortValue && sortValue !== 'recently_accessed') {
+                currentUrl.searchParams.set('sort', sortValue);
+            } else {
+                currentUrl.searchParams.delete('sort');
+            }
+            
+            if (searchTerm) {
+                currentUrl.searchParams.set('q', searchTerm);
+            } else {
+                currentUrl.searchParams.delete('q');
+            }
+            
+            // Navigate to filtered URL
+            window.location.href = currentUrl.toString();
+        }
+        
+        // Event listeners for filters
+        categoryFilter.addEventListener('change', applyFiltersAndRedirect);
+        progressFilter.addEventListener('change', applyFiltersAndRedirect);
+        instructorFilter.addEventListener('change', applyFiltersAndRedirect);
+        sortBy.addEventListener('change', applyFiltersAndRedirect);
+        
+        // Reset filters and redirect
+        resetButton.addEventListener('click', function() {
+            // Simply clear all parameters and go back to base URL
+            const baseUrl = window.location.pathname;
+            window.location.href = baseUrl;
+        });
+    });
+    
+    // Course deletion handler
+    function handleCourseDelete(button) {
+        const courseId = button.getAttribute('data-course-id');
+        const courseTitle = button.getAttribute('data-course-title');
+        
+        // Show confirmation dialog
+        if (!confirm(`Are you sure you want to delete the course "${courseTitle}"? This action cannot be undone.`)) {
+            return;
+        }
+        
+        // Disable the button to prevent double-clicks
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        
+        // Get CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                         document.querySelector('meta[name=csrf-token]')?.getAttribute('content') ||
+                         getCookie('csrftoken');
+        
+        if (!csrfToken) {
+            alert('Security token not found. Please refresh the page and try again.');
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-trash"></i>';
+            return;
+        }
+        
+        // Create and submit form dynamically
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/courses/${courseId}/delete/`;
+        
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = csrfToken;
+        
+        form.appendChild(csrfInput);
+        document.body.appendChild(form);
+        
+        // Submit the form
+        form.submit();
+    }
+    
+    // Helper function to get cookie value
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+{% endblock %}

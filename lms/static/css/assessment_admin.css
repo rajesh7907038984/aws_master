@@ -1,0 +1,28 @@
+/* Assessment Admin Styles */
+.field-question_text {
+    width: 50%;
+}
+
+.field-marks {
+    width: 10%;
+}
+
+.field-correct_answer {
+    width: 20%;
+}
+
+/* Improve readability in admin list view */
+.field-get_question_type {
+    width: 15%;
+}
+
+/* Custom styling for assessment admin forms */
+.assessment-admin-form {
+    margin: 1em 0;
+}
+
+.inline-group {
+    padding: 1em;
+    border: 1px solid #eee;
+    margin-bottom: 1em;
+} 

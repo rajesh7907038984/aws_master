@@ -1,0 +1,113 @@
+<!-- SEND Accommodations Sub-Tab -->
+<div id="send-accommodations-tab" class="learning-profile-tab-content" style="display: none;">
+    <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+        <h4 class="text-lg font-semibold text-gray-900 mb-4">SEND Accommodations</h4>
+        
+        <!-- Accommodation Type -->
+        <div class="form-group">
+            <label for="send_accommodation_type" class="form-label">Accommodation Type</label>
+            <select id="send_accommodation_type" name="send_accommodation_type" class="form-select accommodation-type-select">
+                <option value="">Select accommodation type</option>
+                <option value="visual" {% if is_edit_mode and profile_user.accommodation.send_accommodation_type == 'visual' %}selected{% endif %}>Visual Impairments</option>
+                <option value="hearing" {% if is_edit_mode and profile_user.accommodation.send_accommodation_type == 'hearing' %}selected{% endif %}>Hearing Impairments</option>
+                <option value="mobility" {% if is_edit_mode and profile_user.accommodation.send_accommodation_type == 'mobility' %}selected{% endif %}>Mobility/Physical</option>
+                <option value="cognitive" {% if is_edit_mode and profile_user.accommodation.send_accommodation_type == 'cognitive' %}selected{% endif %}>Cognitive/Learning</option>
+                <option value="mental_health" {% if is_edit_mode and profile_user.accommodation.send_accommodation_type == 'mental_health' %}selected{% endif %}>Mental Health</option>
+                <option value="other" {% if is_edit_mode and profile_user.accommodation.send_accommodation_type == 'other' %}selected{% endif %}>Other</option>
+            </select>
+            <div class="form-help-text">Select the type of accommodation needed</div>
+        </div>
+        
+        <!-- Other Accommodation Type -->
+        <div class="form-group send-accommodation-other-container" style="display: {% if is_edit_mode and profile_user.accommodation.send_accommodation_type == 'other' %}block{% else %}none{% endif %};">
+            <label for="send_accommodation_type_other" class="form-label">Other Accommodation Type</label>
+            <input type="text" id="send_accommodation_type_other" name="send_accommodation_type_other" 
+                   class="form-input" placeholder="Please specify"
+                   value="{% if is_edit_mode and profile_user.accommodation %}{{ profile_user.accommodation.send_accommodation_type_other|default:'' }}{% endif %}">
+            <div class="form-help-text">Please specify the type of accommodation needed</div>
+        </div>
+        
+        <!-- Description -->
+        <div class="form-group">
+            <label for="send_accommodation_description" class="form-label">Description</label>
+            <textarea id="send_accommodation_description" name="send_accommodation_description" 
+                      class="form-textarea" rows="4" 
+                      placeholder="Describe the accommodation needed and how it should be implemented">{% if is_edit_mode and profile_user.accommodation %}{{ profile_user.accommodation.send_accommodation_description|default:'' }}{% endif %}</textarea>
+            <div class="form-help-text">Provide a detailed description of the accommodation needed and how it should be implemented</div>
+        </div>
+        
+        <!-- Active Accommodation Checkbox -->
+        <div class="form-group">
+            <div class="flex items-center">
+                <input type="checkbox" id="send_accommodation_active" name="send_accommodation_active" 
+                       class="form-checkbox mr-3" value="1" 
+                       {% if is_edit_mode and profile_user.accommodation.send_accommodation_active %}checked{% endif %}>
+                <label for="send_accommodation_active" class="form-label mb-0">
+                    Active Accommodation
+                </label>
+            </div>
+            <div class="form-help-text ml-6">Check this box if the accommodation is currently active and should be applied</div>
+        </div>
+    </div>
+</div> 
+
+<script>
+// Ensure tab state is preserved when making updates in this tab
+document.addEventListener('DOMContentLoaded', function() {
+    // Set tab state for form submission
+    function updateTabState() {
+        // Update global tab state explicitly for this tab
+        if (typeof currentTabState !== 'undefined') {
+            currentTabState.mainTab = 'ilp-tab';
+            currentTabState.subTab = 'learning-profile-tab';
+            currentTabState.nestedTab = 'send-accommodations-tab';
+            
+            console.log('SEND Accommodations tab: Setting tab state to:', currentTabState);
+            
+            // Update hidden form fields directly
+            var activeTabField = document.getElementById('activeTabField');
+            var activeSubTabField = document.getElementById('activeSubTabField');
+            var activeNestedTabField = document.getElementById('activeNestedTabField');
+            
+            if (activeTabField) activeTabField.value = currentTabState.mainTab;
+            if (activeSubTabField) activeSubTabField.value = currentTabState.subTab;
+            if (activeNestedTabField) activeNestedTabField.value = currentTabState.nestedTab;
+        }
+    }
+    
+    // Update tab state when the tab becomes visible
+    var tabElement = document.getElementById('send-accommodations-tab');
+    if (tabElement) {
+        // Create a mutation observer to detect when the tab becomes visible
+        var observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && 
+                    mutation.attributeName === 'style' &&
+                    tabElement.style.display !== 'none') {
+                    updateTabState();
+                }
+                
+                if (mutation.type === 'attributes' && 
+                    mutation.attributeName === 'class' &&
+                    tabElement.classList.contains('active')) {
+                    updateTabState();
+                }
+            });
+        });
+        
+        observer.observe(tabElement, { attributes: true });
+        
+        // Also check if it's already visible
+        if (tabElement.style.display !== 'none' || tabElement.classList.contains('active')) {
+            updateTabState();
+        }
+    }
+    
+    // Add input listeners to all form elements in this tab
+    var formElements = document.querySelectorAll('#send-accommodations-tab input, #send-accommodations-tab textarea, #send-accommodations-tab select');
+    formElements.forEach(function(element) {
+        element.addEventListener('focus', updateTabState);
+        element.addEventListener('change', updateTabState);
+    });
+});
+</script> 

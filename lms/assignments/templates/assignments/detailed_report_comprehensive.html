@@ -1,0 +1,1855 @@
+{% extends "base.html" %}
+{% load static %}
+{% load assignment_filters %}
+
+{% block title %}Assignment Timeline Report - {{ student.get_full_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .timeline-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+    
+    .timeline-header {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .timeline-section {
+        background: white;
+        border-radius: 0.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+    
+    .timeline-title {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+        padding: 1.25rem 1.5rem;
+        font-size: 1.25rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .timeline-icon {
+        width: 2.5rem;
+        height: 2.5rem;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .timeline-content {
+        padding: 1.5rem;
+    }
+    
+    .timeline-event {
+        position: relative;
+        padding-left: 3rem;
+        padding-bottom: 2rem;
+        border-left: 2px solid #e5e7eb;
+        margin-left: 1.25rem;
+    }
+    
+    .timeline-event:last-child {
+        border-left: none;
+        padding-bottom: 0;
+    }
+    
+    .timeline-event::before {
+        content: '';
+        position: absolute;
+        left: -0.5rem;
+        top: 0.25rem;
+        width: 1rem;
+        height: 1rem;
+        background: #3b82f6;
+        border-radius: 50%;
+        border: 3px solid white;
+        box-shadow: 0 0 0 2px #e5e7eb;
+    }
+    
+    .timeline-event.feedback::before {
+        background: #10b981;
+    }
+    
+    .timeline-event.rubric::before {
+        background: #f59e0b;
+    }
+    
+    .timeline-event.revision::before {
+        background: #8b5cf6;
+    }
+    
+    .timeline-event.upload::before {
+        background: #ef4444;
+    }
+    
+    .timeline-event.status-change::before {
+        background: #3b82f6;
+    }
+    
+    .timeline-event.internal-verification::before {
+        background: #f59e0b;
+        border: 3px solid white;
+        box-shadow: 0 0 0 2px #f59e0b;
+    }
+    
+    .event-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 0.75rem;
+    }
+    
+    .event-title {
+        font-weight: 600;
+        color: #1f2937;
+        font-size: 1.125rem;
+    }
+    
+    .event-time {
+        font-size: 0.875rem;
+        color: #6b7280;
+        white-space: nowrap;
+    }
+    
+    .event-actor {
+        font-size: 0.875rem;
+        color: #3b82f6;
+        margin-bottom: 0.5rem;
+    }
+    
+    .event-content {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.375rem;
+        padding: 1rem;
+        margin-top: 0.5rem;
+    }
+    
+    .event-detail {
+        margin: 0.5rem 0;
+        font-size: 0.9375rem;
+        color: #374151;
+    }
+    
+    .event-label {
+        font-weight: 600;
+        color: #4b5563;
+        margin-right: 0.5rem;
+    }
+    
+    .no-events {
+        text-align: center;
+        padding: 3rem;
+        color: #9ca3af;
+    }
+    
+    .no-events i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        display: block;
+    }
+    
+    .student-info {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+    
+    .info-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .info-label {
+        font-weight: 600;
+        color: #4b5563;
+    }
+    
+    .info-value {
+        color: #1f2937;
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .status-submitted { background: #dbeafe; color: #1e40af; }
+    .status-graded { background: #d1fae5; color: #065f46; }
+    .status-returned { background: #fed7aa; color: #92400e; }
+    
+    .points-change {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 600;
+    }
+    
+    .points-change .old { color: #ef4444; text-decoration: line-through; }
+    .points-change .new { color: #10b981; }
+    
+    .file-info {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #3b82f6;
+        text-decoration: none;
+        margin-top: 0.5rem;
+    }
+    
+    .file-info:hover {
+        text-decoration: underline;
+    }
+    
+    .iteration-badge {
+        display: inline-block;
+        background: #3b82f6;
+        color: white;
+        padding: 0.125rem 0.5rem;
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    
+    .print-btn {
+        background: #3b82f6;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 0.375rem;
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        transition: background-color 0.2s;
+    }
+    
+    .print-btn:hover {
+        background: #2563eb;
+    }
+    
+    .internal-verification-banner {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 0.5rem;
+        padding: 1rem;
+    }
+    
+    .internal-verification-form {
+        background: #fffbeb;
+        border: 1px solid #fed7aa;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .radio-group {
+        display: flex;
+        gap: 1rem;
+        margin: 0.75rem 0;
+    }
+    
+    .radio-option {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .radio-option input[type="radio"] {
+        width: 1rem;
+        height: 1rem;
+    }
+    
+    .internal-verifier-feedback-textarea {
+        width: 100%;
+        min-height: 100px;
+        padding: 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.375rem;
+        resize: vertical;
+    }
+    
+    .approve-btn {
+        background: #10b981;
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.375rem;
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    
+    .approve-btn:hover {
+        background: #059669;
+    }
+    
+    /* Verification Activity Styles */
+    .activity-item {
+        transition: all 0.2s ease;
+    }
+    
+    .activity-item:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .clickable-activity {
+        cursor: pointer;
+        position: relative;
+    }
+    
+    .clickable-activity:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        border-color: #f59e0b;
+    }
+    
+    .clickable-activity:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .clickable-activity::after {
+        content: '👁';
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        font-size: 0.8rem;
+    }
+    
+    .clickable-activity:hover::after {
+        opacity: 0.7;
+    }
+    
+    /* Timeline section highlight animation */
+    .timeline-section.highlight {
+        animation: highlightSection 2s ease-out;
+    }
+    
+    @keyframes highlightSection {
+        0% {
+            background-color: #fef3c7;
+            border-color: #f59e0b;
+            transform: scale(1.01);
+        }
+        100% {
+            background-color: transparent;
+            border-color: transparent;
+            transform: scale(1);
+        }
+    }
+    
+    /* Timeline event specific highlight animation */
+    .timeline-event.highlight-event {
+        animation: highlightEvent 3s ease-out;
+        border: 2px solid #f59e0b !important;
+        border-radius: 0.5rem;
+    }
+    
+    @keyframes highlightEvent {
+        0% {
+            background-color: #fef3c7;
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.5);
+            transform: scale(1.02);
+        }
+        50% {
+            background-color: #fef3c7;
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+            transform: scale(1.01);
+        }
+        100% {
+            background-color: transparent;
+            box-shadow: none;
+            transform: scale(1);
+        }
+    }
+    
+    .activity-detail-badge {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 0.25rem;
+        font-weight: 500;
+    }
+    
+    .activity-scroll {
+        scrollbar-width: thin;
+        scrollbar-color: #f59e0b #fef3c7;
+    }
+    
+    .activity-scroll::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .activity-scroll::-webkit-scrollbar-track {
+        background: #fef3c7;
+        border-radius: 3px;
+    }
+    
+    .activity-scroll::-webkit-scrollbar-thumb {
+        background: #f59e0b;
+        border-radius: 3px;
+    }
+    
+    .activity-scroll::-webkit-scrollbar-thumb:hover {
+        background: #d97706;
+    }
+    
+    @media print {
+        /* Hide navigation and non-essential elements */
+        .print-btn, .internal-verification-form, .no-print, nav, header, 
+        .navbar, .sidebar, .menu, .navigation, .header-content,
+        .site-header, .main-nav, .top-nav, #header, #navbar,
+        .breadcrumb-container {
+            display: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            height: 0 !important;
+        }
+        
+        /* Hide global breadcrumbs specifically */
+        *[class*="breadcrumb"] {
+            display: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            height: 0 !important;
+        }
+        
+        /* Remove all default spacing from page structure */
+        * {
+            box-sizing: border-box !important;
+        }
+        
+        html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            height: auto !important;
+            overflow: visible !important;
+        }
+        
+        /* Main content containers */
+        main, .main-content, .content, .container {
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        
+        .timeline-container {
+            padding: 0.25rem !important;
+            margin: 0 !important;
+            margin-top: 0 !important;
+            max-width: none !important;
+            position: relative !important;
+            top: 0 !important;
+            display: block !important;
+            height: auto !important;
+        }
+        
+        /* Force timeline sections to appear immediately after header */
+        .timeline-container > .timeline-section:first-of-type {
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+        }
+        
+        .timeline-section {
+            box-shadow: none !important;
+            border: 1px solid #e5e7eb !important;
+            margin-bottom: 0.5rem !important;
+            margin-top: 0 !important;
+            page-break-inside: avoid;
+            display: block !important;
+            visibility: visible !important;
+        }
+        
+        .timeline-header {
+            margin: 0 !important;
+            margin-bottom: 0.5rem !important;
+            padding: 0.5rem !important;
+            padding-top: 0.25rem !important;
+        }
+        
+        /* Ensure timeline content is visible */
+        .timeline-content {
+            display: block !important;
+            visibility: visible !important;
+            height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
+        }
+        
+        .timeline-event {
+            display: block !important;
+            visibility: visible !important;
+            margin-bottom: 0.5rem !important;
+        }
+        
+        /* Make sure no-events divs are still shown */
+        .no-events {
+            display: block !important;
+            visibility: visible !important;
+            padding: 1rem !important;
+        }
+        
+        /* Reduce spacing between header and timeline sections */
+        .timeline-header + .timeline-section {
+            margin-top: 0 !important;
+        }
+        
+        /* Compact timeline layout for print */
+        .timeline-title {
+            padding: 0.5rem !important;
+            margin-bottom: 0 !important;
+        }
+        
+        .timeline-icon {
+            width: 1.5rem !important;
+            height: 1.5rem !important;
+        }
+        
+        /* Ensure sections appear on same page */
+        .timeline-section:first-child {
+            page-break-before: avoid !important;
+        }
+        
+        /* Debug: Force visibility */
+        .timeline-section, .timeline-content, .timeline-event {
+            opacity: 1 !important;
+            visibility: visible !important;
+            display: block !important;
+        }
+        
+        /* Force content to stay on same page */
+        .timeline-header, .timeline-section {
+            page-break-before: avoid !important;
+            page-break-after: avoid !important;
+            page-break-inside: avoid !important;
+        }
+        
+        /* Remove any min-height that might cause spacing */
+        * {
+            min-height: 0 !important;
+            min-width: 0 !important;
+        }
+        
+        /* Force timeline sections to appear immediately after header */
+        .timeline-container {
+            height: auto !important;
+            min-height: 0 !important;
+            overflow: visible !important;
+        }
+        
+        /* Remove any potential height constraints */
+        .student-info, .timeline-header {
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
+        }
+        
+        /* Aggressive spacing removal */
+        .timeline-container > * {
+            margin-top: 0 !important;
+            margin-bottom: 0.25rem !important;
+        }
+        
+        /* Ensure first timeline section starts immediately */
+        .timeline-section:first-of-type {
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+            page-break-before: auto !important;
+        }
+        
+        /* Remove any potential spacing from base layout elements */
+        .mb-6, .mb-4, .mb-3, .mb-2, .mb-1,
+        .mt-6, .mt-4, .mt-3, .mt-2, .mt-1,
+        .py-6, .py-4, .py-3, .py-2, .py-1,
+        .px-6, .px-4, .px-3, .px-2, .px-1 {
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        
+        /* Ensure first element starts at top */
+        .timeline-container > *:first-child {
+            margin-top: 0 !important;
+        }
+        
+        /* Force immediate start for print */
+        @page {
+            margin: 0.5in !important;
+            size: letter;
+        }
+        
+        /* Remove any bootstrap or framework margins that might be hidden */
+        .container, .container-fluid, .row, .col,
+        .d-flex, .flex, .grid, .w-100, .h-100 {
+            margin: 0 !important;
+            padding: 0 !important;
+            height: auto !important;
+            min-height: 0 !important;
+        }
+        
+        /* Force all elements to have no extra space */
+        div, section, article, main, aside,
+        .timeline-section, .timeline-content, .timeline-header {
+            border-spacing: 0 !important;
+            line-height: 1.2 !important;
+        }
+        
+        /* Override any framework margins */
+        .container, .container-fluid, .row, .col, [class*="col-"] {
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        
+        /* Remove any top spacing from Django base template */
+        #content, .content-wrapper, .page-wrapper, .wrapper {
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        
+        /* Override main content padding from base template */
+        #main-content, main {
+            padding: 0 !important;
+            margin: 0 !important;
+            margin-left: 0 !important;
+            width: 100% !important;
+        }
+        
+        /* Override Tailwind spacing classes */
+        .p-6, .p-4, .p-3, .p-2, .p-1,
+        .pt-6, .pt-4, .pt-3, .pt-2, .pt-1,
+        .pb-6, .pb-4, .pb-3, .pb-2, .pb-1,
+        .pl-6, .pl-4, .pl-3, .pl-2, .pl-1,
+        .pr-6, .pr-4, .pr-3, .pr-2, .pr-1 {
+            padding: 0 !important;
+        }
+        
+        /* Override flex and grid layouts that might cause spacing */
+        .flex, .grid, .flex-1, .flex-col {
+            display: block !important;
+        }
+        
+        /* Ensure student info grid becomes simple block layout */
+        .student-info {
+            display: block !important;
+            margin: 0 !important;
+            padding: 0.5rem !important;
+        }
+        
+        .info-item {
+            display: block !important;
+            margin-bottom: 0.25rem !important;
+        }
+        
+        /* Remove any justify or align properties that might add space */
+        .justify-between, .justify-center, .justify-start, .justify-end,
+        .items-center, .items-start, .items-end {
+            display: block !important;
+        }
+        
+        /* Show file URLs for media content */
+        .print-url {
+            display: block !important;
+            font-size: 0.8rem;
+            color: #666;
+            word-break: break-all;
+            margin-top: 0.5rem;
+        }
+        
+        /* Hide media controls, show URLs instead */
+        audio, video {
+            display: none !important;
+        }
+        
+        .file-info {
+            color: #333 !important;
+        }
+        
+        /* Optimize for print */
+        .timeline-event {
+            page-break-inside: avoid;
+            margin-bottom: 1rem;
+        }
+        
+        .event-content {
+            border: 1px solid #ddd !important;
+            background: #f9f9f9 !important;
+        }
+        
+        /* Ensure text is readable */
+        .event-title, .event-label {
+            color: #000 !important;
+        }
+        
+        .event-detail {
+            color: #333 !important;
+        }
+    }
+    
+    /* Print URL styles - hidden by default, shown only when printing */
+    .print-url {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="timeline-container">
+    <!-- Breadcrumbs -->
+    <div class="mb-6 no-print">
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+    </div>
+    
+    <!-- Header Information -->
+    <div class="timeline-header">
+        <div class="flex justify-between items-start mb-4">
+            <h1 class="text-2xl font-bold text-gray-900">Assignment Timeline Report</h1>
+            <button onclick="window.print()" class="print-btn">
+                <i class="fas fa-file-alt mr-2"></i>Generate Report
+            </button>
+        </div>
+        
+        <!-- Admin Approval Status -->
+        {% if submission and submission.admin_approval_status %}
+        <div class="internal-verification-banner mb-4" style="page-break-after: avoid;">
+            <div class="flex items-center">
+                <i class="fas fa-check-circle text-green-600 mr-2"></i>
+                <span class="font-semibold text-green-800">Internal Verifier Approval Status: {{ submission.get_admin_approval_status_display }}</span>
+            </div>
+            {% if submission.admin_approval_feedback %}
+            <div class="mt-2 text-sm text-gray-700">
+                <strong>Internal Verifier Feedback:</strong> {{ submission.admin_approval_feedback|striptags }}
+            </div>
+            {% endif %}
+            {% if submission.admin_approved_by %}
+            <div class="text-xs text-gray-600 mt-1">
+                Approved by {{ submission.admin_approved_by.get_full_name }} on {{ submission.admin_approval_date|date:"M d, Y g:i A" }}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        <div class="student-info">
+            <div class="info-item">
+                <span class="info-label">Student:</span>
+                <span class="info-value">{{ student.get_full_name }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Email:</span>
+                <span class="info-value">{{ student.email }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Assignment:</span>
+                <span class="info-value">{{ assignment.title }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Status:</span>
+                <span class="info-value">
+                    {% if submission %}
+                        <span class="status-badge status-{{ submission.status }}">{{ submission.get_status_display }}</span>
+                    {% else %}
+                        <span class="status-badge">Not Submitted</span>
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Final Grade, Status change timeline -->
+    <div id="grade-status-timeline-section" class="timeline-section" style="page-break-before: avoid; margin-top: 0;">
+        <div class="timeline-title">
+            <div class="timeline-icon">
+                <i class="fas fa-star"></i>
+            </div>
+            Final Grade, Status Change Timeline
+        </div>
+        <div class="timeline-content">
+            {% if grade_history or submission %}
+                <!-- Current Status Display -->
+                {% if submission %}
+                <div class="timeline-event status-change">
+                    <div class="event-header">
+                        <div>
+                            <div class="event-title">Current Status</div>
+                            <div class="event-actor">
+                                <i class="fas fa-info-circle"></i> Current Assignment State
+                            </div>
+                        </div>
+                        <div class="event-time">
+                            {% if submission.graded_at %}
+                                {{ submission.graded_at|date:"M d, Y g:i A" }}
+                            {% else %}
+                                {{ submission.last_modified|date:"M d, Y g:i A" }}
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="event-content">
+                        <div class="event-detail">
+                            <span class="event-label">Status:</span>
+                            <span class="status-badge status-{{ submission.status }}">{{ submission.get_status_display }}</span>
+                        </div>
+                        {% if submission.grade %}
+                        <div class="event-detail">
+                            <span class="event-label">Final Grade:</span>
+                            <span class="font-bold text-green-600">{{ submission.grade|floatformat:2 }}%</span>
+                        </div>
+                        {% endif %}
+                        {% if submission.graded_by %}
+                        <div class="event-detail">
+                            <span class="event-label">Graded by:</span>
+                            {{ submission.graded_by.get_full_name }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Grade and Status History -->
+                {% for history in grade_history %}
+                <div id="grade-history-{{ history.id }}-{{ history.changed_at|date:'Y-m-d-H-i-s' }}" class="timeline-event status-change"
+                     data-timestamp="{{ history.changed_at|date:'c' }}"
+                     data-event-type="grade_status_change">
+                    <div class="event-header">
+                        <div>
+                            <div class="event-title">
+                                {% if history.previous_grade != history.new_grade and history.previous_status != history.new_status %}
+                                    Grade & Status Changed
+                                {% elif history.previous_grade != history.new_grade %}
+                                    Grade Changed
+                                {% elif history.previous_status != history.new_status %}
+                                    Status Changed
+                                {% else %}
+                                    Assignment Updated
+                                {% endif %}
+                            </div>
+                            <div class="event-actor">
+                                <i class="fas fa-user-tie"></i> {{ history.changed_by.get_full_name|default:"System" }}
+                            </div>
+                        </div>
+                        <div class="event-time">
+                            {{ history.changed_at|date:"M d, Y g:i A" }}
+                        </div>
+                    </div>
+                    
+                    <div class="event-content">
+                        {% if history.previous_grade != history.new_grade %}
+                        <div class="event-detail">
+                            <span class="event-label">Grade Change:</span>
+                            <div class="points-change">
+                                {% if history.previous_grade %}
+                                    <span class="old">{{ history.previous_grade|floatformat:2 }}%</span>
+                                {% else %}
+                                    <span class="old">No Grade</span>
+                                {% endif %}
+                                <i class="fas fa-arrow-right mx-2"></i>
+                                {% if history.new_grade %}
+                                    <span class="new">{{ history.new_grade|floatformat:2 }}%</span>
+                                {% else %}
+                                    <span class="new">No Grade</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if history.previous_status != history.new_status %}
+                        <div class="event-detail">
+                            <span class="event-label">Status Change:</span>
+                            <div class="flex items-center gap-2">
+                                {% if history.previous_status %}
+                                    <span class="status-badge status-{{ history.previous_status }}">
+                                        {{ history.get_previous_status_display }}
+                                    </span>
+                                {% else %}
+                                    <span class="status-badge">No Status</span>
+                                {% endif %}
+                                <i class="fas fa-arrow-right text-gray-500"></i>
+                                {% if history.new_status %}
+                                    <span class="status-badge status-{{ history.new_status }}">
+                                        {{ history.get_new_status_display }}
+                                    </span>
+                                {% else %}
+                                    <span class="status-badge">No Status</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if history.comment %}
+                        <div class="event-detail">
+                            <span class="event-label">Comment:</span>
+                            <div class="mt-1">{{ history.comment|striptags|linebreaks }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="no-events">
+                    <i class="fas fa-star"></i>
+                    <p>No grade or status changes yet</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Instructor Feedback Timeline -->
+    <div id="instructor-feedback-section" class="timeline-section" style="page-break-before: avoid; margin-top: 0;">
+        <div class="timeline-title">
+            <div class="timeline-icon">
+                <i class="fas fa-comments"></i>
+            </div>
+            Instructor Feedback Timeline
+        </div>
+        <div class="timeline-content">
+            {% if feedback_entries %}
+                {% for feedback in feedback_entries %}
+                <div id="feedback-{{ feedback.id }}-{{ feedback.created_at|date:'Y-m-d-H-i-s' }}" class="timeline-event feedback"
+                     data-timestamp="{{ feedback.created_at|date:'c' }}"
+                     data-event-type="instructor_feedback">
+                    <div class="event-header">
+                        <div>
+                            <div class="event-title">Instructor Feedback</div>
+                            <div class="event-actor">
+                                <i class="fas fa-user-tie"></i> {{ feedback.created_by.get_full_name }}
+                            </div>
+                        </div>
+                        <div class="event-time">
+                            {{ feedback.created_at|date:"M d, Y g:i A" }}
+                        </div>
+                    </div>
+                    
+                    <div class="event-content">
+                        {% if feedback.feedback %}
+                            <div class="event-detail">{{ feedback.feedback|striptags|linebreaks }}</div>
+                        {% endif %}
+                        
+                        {% if feedback.audio_feedback %}
+                            <div class="event-detail">
+                                <span class="event-label"><i class="fas fa-microphone"></i> Audio Feedback:</span>
+                                <audio controls class="mt-2" style="width: 100%; max-width: 400px;">
+                                    <source src="{{ feedback.audio_feedback.url }}" type="audio/mpeg">
+                                </audio>
+                                <!-- Print-only: Show direct URL for audio file -->
+                                <div class="print-url">
+                                    <strong>Audio URL:</strong> {{ request.scheme }}://{{ request.get_host }}{{ feedback.audio_feedback.url }}
+                                </div>
+                            </div>
+                        {% endif %}
+                        
+                        {% if feedback.video_feedback %}
+                            <div class="event-detail">
+                                <span class="event-label"><i class="fas fa-video"></i> Video Feedback:</span>
+                                <video controls class="mt-2" style="width: 100%; max-width: 500px;">
+                                    <source src="{{ feedback.video_feedback.url }}" type="video/mp4">
+                                </video>
+                                <!-- Print-only: Show direct URL for video file -->
+                                <div class="print-url">
+                                    <strong>Video URL:</strong> {{ request.scheme }}://{{ request.get_host }}{{ feedback.video_feedback.url }}
+                                </div>
+                            </div>
+                        {% endif %}
+                        
+                        {% if feedback.is_private %}
+                            <div class="event-detail">
+                                <i class="fas fa-lock text-yellow-600"></i>
+                                <span class="text-sm text-yellow-600">Private feedback</span>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="no-events">
+                    <i class="fas fa-comments"></i>
+                    <p>No instructor feedback yet</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Rubric Evaluation History -->
+    <div id="rubric-evaluation-section" class="timeline-section">
+        <div class="timeline-title">
+            <div class="timeline-icon">
+                <i class="fas fa-clipboard-check"></i>
+            </div>
+            Rubric Evaluation History
+        </div>
+        <div class="timeline-content">
+            {% if rubric_history %}
+                {% for history in rubric_history %}
+                <div id="rubric-{{ history.id }}-{{ history.created_at|date:'Y-m-d-H-i-s' }}" class="timeline-event rubric"
+                     data-timestamp="{{ history.evaluation_date|default:history.created_at|date:'c' }}"
+                     data-event-type="rubric_evaluation">
+                    <div class="event-header">
+                        <div>
+                            <div class="event-title">
+                                Rubric Evaluation
+                                <span class="iteration-badge ml-2">Version {{ history.version }}</span>
+                                {% if history.is_current %}
+                                    <span class="iteration-badge ml-1" style="background: #10b981;">Current</span>
+                                {% endif %}
+                            </div>
+                            <div class="event-actor">
+                                <i class="fas fa-user-tie"></i> {% if history.evaluated_by %}{{ history.evaluated_by.get_full_name }}{% else %}Unknown{% endif %}
+                            </div>
+                        </div>
+                        <div class="event-time">
+                            {% if history.evaluation_date %}
+                                {{ history.evaluation_date|date:"M d, Y g:i A" }}
+                            {% else %}
+                                {{ history.created_at|date:"M d, Y g:i A" }}
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="event-content">
+                        <div class="event-detail">
+                            <span class="event-label">Criterion:</span>
+                            {{ history.criterion.description }}
+                        </div>
+                        
+                        <div class="event-detail">
+                            <span class="event-label">Points:</span>
+                            <span class="rubric-score">{{ history.points }} / {{ history.criterion.points }}</span>
+                        </div>
+                        
+                        {% if history.rating %}
+                        <div class="event-detail">
+                            <span class="event-label">Rating:</span>
+                            {{ history.rating.title }}{% if history.rating.description %} - {{ history.rating.description }}{% endif %}
+                        </div>
+                        {% endif %}
+                        
+                        {% if history.comments %}
+                        <div class="event-detail">
+                            <span class="event-label">Comments:</span>
+                            <div class="mt-1">{{ history.comments|striptags|linebreaks }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="no-events">
+                    <i class="fas fa-clipboard-check"></i>
+                    <p>No rubric evaluation history</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Submit Revised Response Timeline -->
+    <div id="revised-response-section" class="timeline-section">
+        <div class="timeline-title">
+            <div class="timeline-icon">
+                <i class="fas fa-edit"></i>
+            </div>
+            Submit Revised Response Timeline
+        </div>
+        <div class="timeline-content">
+            {% if text_question_iterations or text_field_iterations %}
+                <!-- Text Question Iterations -->
+                {% for iteration in text_question_iterations %}
+                    {% if iteration.submitted_at %}
+                    <div id="text-iteration-{{ iteration.id }}-{{ iteration.submitted_at|date:'Y-m-d-H-i-s' }}" class="timeline-event revision"
+                         data-timestamp="{{ iteration.submitted_at|date:'c' }}"
+                         data-event-type="text_revision"
+                         data-iteration-number="{{ iteration.iteration_number }}">
+                        <div class="event-header">
+                            <div>
+                                <div class="event-title">
+                                    Text Response Revision
+                                    <span class="iteration-badge ml-2">#{{ iteration.iteration_number }}</span>
+                                </div>
+                                <div class="event-actor">
+                                    <i class="fas fa-user"></i> {{ student.get_full_name }}
+                                </div>
+                            </div>
+                            <div class="event-time">
+                                {{ iteration.submitted_at|date:"M d, Y g:i A" }}
+                            </div>
+                        </div>
+                        
+                        <div class="event-content">
+                            <div class="event-detail">
+                                <span class="event-label">Question:</span>
+                                {{ iteration.question.question_text|striptags|truncatewords:20 }}
+                            </div>
+                            <div class="event-detail">
+                                <span class="event-label">Revised Answer:</span>
+                                <div class="mt-1">{{ iteration.answer_text|striptags|truncatewords:50|linebreaks }}</div>
+                            </div>
+                            
+                            {% for feedback in iteration.feedback_entries.all %}
+                            <div class="event-detail mt-3 pt-3 border-t">
+                                <span class="event-label">
+                                    <i class="fas fa-reply"></i> Instructor Response:
+                                </span>
+                                <div class="text-sm text-gray-600">
+                                    {{ feedback.created_by.get_full_name }} - {{ feedback.created_at|date:"M d, Y g:i A" }}
+                                </div>
+                                <div class="mt-1">{{ feedback.feedback_text|striptags|linebreaks }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+                
+                <!-- Text Field Iterations -->
+                {% for iteration in text_field_iterations %}
+                    {% if iteration.submitted_at %}
+                    <div id="field-iteration-{{ iteration.id }}-{{ iteration.submitted_at|date:'Y-m-d-H-i-s' }}" class="timeline-event revision"
+                         data-timestamp="{{ iteration.submitted_at|date:'c' }}"
+                         data-event-type="field_revision"
+                         data-iteration-number="{{ iteration.iteration_number }}">
+                        <div class="event-header">
+                            <div>
+                                <div class="event-title">
+                                    Field Response Revision
+                                    <span class="iteration-badge ml-2">#{{ iteration.iteration_number }}</span>
+                                </div>
+                                <div class="event-actor">
+                                    <i class="fas fa-user"></i> {{ student.get_full_name }}
+                                </div>
+                            </div>
+                            <div class="event-time">
+                                {{ iteration.submitted_at|date:"M d, Y g:i A" }}
+                            </div>
+                        </div>
+                        
+                        <div class="event-content">
+                            <div class="event-detail">
+                                <span class="event-label">Field:</span>
+                                {{ iteration.field.label }}
+                            </div>
+                            <div class="event-detail">
+                                <span class="event-label">Revised Response:</span>
+                                <div class="mt-1">{{ iteration.answer_text|striptags|truncatewords:50|linebreaks }}</div>
+                            </div>
+                            
+                            {% for feedback in iteration.feedback_entries.all %}
+                            <div class="event-detail mt-3 pt-3 border-t">
+                                <span class="event-label">
+                                    <i class="fas fa-reply"></i> Instructor Response:
+                                </span>
+                                <div class="text-sm text-gray-600">
+                                    {{ feedback.created_by.get_full_name }} - {{ feedback.created_at|date:"M d, Y g:i A" }}
+                                </div>
+                                <div class="mt-1">{{ feedback.feedback_text|striptags|linebreaks }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+                <div class="no-events">
+                    <i class="fas fa-edit"></i>
+                    <p>No revised responses submitted</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- File Upload Timeline -->
+    <div id="file-upload-section" class="timeline-section">
+        <div class="timeline-title">
+            <div class="timeline-icon">
+                <i class="fas fa-upload"></i>
+            </div>
+            File Upload Timeline
+        </div>
+        <div class="timeline-content">
+            {% if submission and submission.submission_file or file_iterations %}
+                <!-- Initial File Upload -->
+                {% if submission and submission.submission_file %}
+                <div class="timeline-event upload">
+                    <div class="event-header">
+                        <div>
+                            <div class="event-title">Initial File Upload</div>
+                            <div class="event-actor">
+                                <i class="fas fa-user"></i> {{ student.get_full_name }}
+                            </div>
+                        </div>
+                        <div class="event-time">
+                            {{ submission.submitted_at|date:"M d, Y g:i A" }}
+                        </div>
+                    </div>
+                    
+                    <div class="event-content">
+                        <a href="{% url 'assignments:download_file' 'submission' submission.id %}" class="file-info">
+                            <i class="fas fa-file"></i>
+                            {{ submission.submission_file.name|basename }}
+                        </a>
+                        <!-- Print-only: Show direct URL for file download -->
+                        <div class="print-url">
+                            <strong>File URL:</strong> {{ request.scheme }}://{{ request.get_host }}{% url 'assignments:download_file' 'submission' submission.id %}
+                        </div>
+                        {% if submission.submission_text %}
+                        <div class="event-detail mt-2">
+                            <span class="event-label">Comments:</span>
+                            {{ submission.submission_text|safe }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- File Iterations/Resubmissions -->
+                {% for iteration in file_iterations %}
+                <div id="file-iteration-{{ iteration.id }}-{{ iteration.submitted_at|default:iteration.created_at|date:'Y-m-d-H-i-s' }}" class="timeline-event upload"
+                     data-timestamp="{{ iteration.submitted_at|default:iteration.created_at|date:'c' }}"
+                     data-event-type="file_resubmission"
+                     data-iteration-number="{{ iteration.iteration_number }}">
+                    <div class="event-header">
+                        <div>
+                            <div class="event-title">
+                                File Resubmission
+                                <span class="iteration-badge ml-2">#{{ iteration.iteration_number }}</span>
+                            </div>
+                            <div class="event-actor">
+                                <i class="fas fa-user"></i> {{ student.get_full_name }}
+                            </div>
+                        </div>
+                        <div class="event-time">
+                            {% if iteration.submitted_at %}
+                                {{ iteration.submitted_at|date:"M d, Y g:i A" }}
+                            {% else %}
+                                {{ iteration.created_at|date:"M d, Y g:i A" }} (Draft)
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="event-content">
+                        {% if iteration.file %}
+                            <a href="{{ iteration.file.url }}" class="file-info" target="_blank">
+                                <i class="fas fa-file"></i>
+                                {{ iteration.file_name|default:iteration.file.name|basename }}
+                            </a>
+                            <!-- Print-only: Show direct URL for iteration file -->
+                            <div class="print-url">
+                                <strong>File URL:</strong> {{ request.scheme }}://{{ request.get_host }}{{ iteration.file.url }}
+                            </div>
+                            {% if iteration.file_size %}
+                            <div class="event-detail text-sm text-gray-600">
+                                Size: {{ iteration.file_size|filesizeformat }}
+                            </div>
+                            {% endif %}
+                        {% else %}
+                            <div class="text-gray-500 italic">No file uploaded</div>
+                        {% endif %}
+                        
+                        {% if iteration.description %}
+                        <div class="event-detail mt-2">
+                            <span class="event-label">Description:</span>
+                            {{ iteration.description|safe }}
+                        </div>
+                        {% endif %}
+                        
+                        {% for feedback in iteration.feedback_entries.all %}
+                        <div class="event-detail mt-3 pt-3 border-t">
+                            <span class="event-label">
+                                <i class="fas fa-reply"></i> Instructor Response:
+                            </span>
+                            <div class="text-sm text-gray-600">
+                                {{ feedback.created_by.get_full_name }} - {{ feedback.created_at|date:"M d, Y g:i A" }}
+                            </div>
+                            <div class="mt-1">{{ feedback.feedback_text|striptags|linebreaks }}</div>
+                            {% if not feedback.allows_new_iteration %}
+                            <div class="text-sm text-red-600 mt-1">
+                                <i class="fas fa-lock"></i> No further resubmissions allowed
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="no-events">
+                    <i class="fas fa-upload"></i>
+                    <p>No files uploaded</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Internal Verification Section -->
+    {% if user.role == 'admin' or user.role == 'superadmin' %}
+        <div id="internal-verification-section" class="timeline-section">
+            <div class="timeline-title">
+                <div class="timeline-icon">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+                Internal Verification
+            </div>
+            <div class="timeline-content">
+                <!-- Show approval history if exists -->
+                {% if admin_approval_history %}
+                    {% for approval in admin_approval_history %}
+                    <div class="timeline-event internal-verification">
+                        <div class="event-header">
+                            <div>
+                                <div class="event-title">
+                                    {{ approval.get_approval_status_display }}
+                                    {% if approval.is_current %}
+                                        <span class="iteration-badge ml-2" style="background: #10b981;">Current</span>
+                                    {% endif %}
+                                </div>
+                                <div class="event-actor">
+                                    <i class="fas fa-user-shield"></i> {{ approval.approved_by.get_full_name }}
+                                </div>
+                            </div>
+                            <div class="event-time">
+                                {{ approval.approval_date|date:"M d, Y g:i A" }}
+                            </div>
+                        </div>
+                        
+                        <div class="event-content">
+                            {% if approval.admin_feedback %}
+                                <div class="event-detail">
+                                    <span class="event-label">Internal Verifier Feedback:</span>
+                                    <div class="mt-1">{{ approval.admin_feedback|striptags|linebreaks }}</div>
+                                </div>
+                            {% endif %}
+                            
+                            {% if approval.trigger_reason %}
+                                <div class="event-detail">
+                                    <span class="event-label">Triggered by:</span>
+                                    <span class="text-sm text-blue-600">{{ approval.trigger_reason|title }}</span>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+                
+                <!-- Show re-verification alert if needed -->
+                {% if needs_re_verification %}
+                    <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                        <div class="flex items-center mb-3">
+                            <i class="fas fa-exclamation-triangle text-amber-600 mr-2"></i>
+                            <span class="font-semibold text-amber-800">Verification Required</span>
+                        </div>
+                        
+                        {% if detected_activities %}
+                            <div class="text-sm text-amber-700 mb-3">
+                                <strong>{{ detected_activities|length }} new activit{{ detected_activities|length|pluralize:"y,ies" }}</strong> detected since the last approval:
+                                <div class="text-xs text-amber-600 mt-1 flex items-center">
+                                    <i class="fas fa-crosshairs mr-1"></i>
+                                    Click any activity to navigate directly to that exact event
+                                </div>
+                            </div>
+                            
+                            <!-- Detailed Activity List -->
+                            <div class="space-y-3 max-h-64 overflow-y-auto activity-scroll">
+                                {% for activity in detected_activities %}
+                                <div class="bg-white border border-amber-300 rounded p-3 activity-item clickable-activity" 
+                                     data-activity-type="{{ activity.type }}" 
+                                     data-timestamp="{{ activity.timestamp|date:'c' }}"
+                                     data-target-id="{{ activity.target_id|default:'' }}"
+                                     onclick="navigateToSpecificEvent('{{ activity.type }}', '{{ activity.target_id|default:'' }}')"
+                                     title="Click to view exact event in timeline">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <div class="flex-1">
+                                            <div class="font-medium text-amber-900 flex items-center">
+                                                {% if activity.type == 'instructor_feedback' %}
+                                                    <i class="fas fa-comment text-green-600 mr-2"></i>
+                                                {% elif activity.type == 'file_resubmission' %}
+                                                    <i class="fas fa-upload text-blue-600 mr-2"></i>
+                                                {% elif activity.type == 'text_revision' %}
+                                                    <i class="fas fa-edit text-purple-600 mr-2"></i>
+                                                {% elif activity.type == 'field_revision' %}
+                                                    <i class="fas fa-pen text-purple-600 mr-2"></i>
+                                                {% elif activity.type == 'rubric_evaluation' %}
+                                                    <i class="fas fa-clipboard-check text-orange-600 mr-2"></i>
+                                                {% elif activity.type == 'grade_change' %}
+                                                    <i class="fas fa-star text-yellow-600 mr-2"></i>
+                                                {% elif activity.type == 'comment' %}
+                                                    <i class="fas fa-message text-gray-600 mr-2"></i>
+                                                {% elif activity.type == 'iteration_feedback' %}
+                                                    <i class="fas fa-reply text-teal-600 mr-2"></i>
+                                                {% else %}
+                                                    <i class="fas fa-circle text-gray-600 mr-2"></i>
+                                                {% endif %}
+                                                {{ activity.title }}
+                                            </div>
+                                            <div class="text-xs text-amber-700 mt-1">
+                                                {{ activity.description }}
+                                            </div>
+                                        </div>
+                                        <div class="text-xs text-amber-600 whitespace-nowrap ml-3">
+                                            {{ activity.timestamp|date:"M d, Y g:i A" }}
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Activity Details -->
+                                    {% if activity.details %}
+                                    <div class="text-xs text-amber-600 bg-amber-25 rounded p-2 mt-2">
+                                        {% if activity.type == 'instructor_feedback' %}
+                                            <div class="flex flex-wrap gap-2">
+                                                {% if activity.details.has_text %}<span class="inline-flex items-center activity-detail-badge bg-green-100 text-green-700"><i class="fas fa-font mr-1"></i>Text</span>{% endif %}
+                                                {% if activity.details.has_audio %}<span class="inline-flex items-center activity-detail-badge bg-blue-100 text-blue-700"><i class="fas fa-microphone mr-1"></i>Audio</span>{% endif %}
+                                                {% if activity.details.has_video %}<span class="inline-flex items-center activity-detail-badge bg-purple-100 text-purple-700"><i class="fas fa-video mr-1"></i>Video</span>{% endif %}
+                                                {% if activity.details.is_private %}<span class="inline-flex items-center activity-detail-badge bg-yellow-100 text-yellow-700"><i class="fas fa-lock mr-1"></i>Private</span>{% endif %}
+                                            </div>
+                                        {% elif activity.type == 'file_resubmission' %}
+                                            <div><strong>File:</strong> {{ activity.details.file_name|default:"Untitled" }}</div>
+                                            {% if activity.details.description %}
+                                            <div><strong>Note:</strong> {{ activity.details.description|striptags|truncatechars:100 }}</div>
+                                            {% endif %}
+                                        {% elif activity.type == 'text_revision' %}
+                                            <div><strong>Question:</strong> {{ activity.details.question_text|striptags }}</div>
+                                        {% elif activity.type == 'field_revision' %}
+                                            <div><strong>Field:</strong> {{ activity.details.field_label }}</div>
+                                        {% elif activity.type == 'rubric_evaluation' %}
+                                            <div><strong>Criterion:</strong> {{ activity.details.criterion }}</div>
+                                            <div><strong>Score:</strong> {{ activity.details.points }}/{{ activity.details.max_points }} points</div>
+                                            {% if activity.details.rating %}
+                                            <div><strong>Rating:</strong> {{ activity.details.rating }}</div>
+                                            {% endif %}
+                                        {% elif activity.type == 'grade_change' %}
+                                            <div class="flex items-center space-x-2">
+                                                <span class="text-red-600 line-through">{{ activity.details.previous_grade|default:"No grade" }}</span>
+                                                <i class="fas fa-arrow-right text-gray-500"></i>
+                                                <span class="text-green-600 font-medium">{{ activity.details.new_grade|default:"No grade" }}</span>
+                                            </div>
+                                            {% if activity.details.previous_status != activity.details.new_status %}
+                                            <div class="mt-1">
+                                                <span class="text-red-600 line-through">{{ activity.details.previous_status|capfirst }}</span>
+                                                <i class="fas fa-arrow-right text-gray-500 mx-1"></i>
+                                                <span class="text-green-600 font-medium">{{ activity.details.new_status|capfirst }}</span>
+                                            </div>
+                                            {% endif %}
+                                        {% elif activity.type == 'comment' %}
+                                            <div>{{ activity.details.content_preview|striptags }}</div>
+                                            {% if activity.details.is_private %}<div class="text-yellow-600 mt-1"><i class="fas fa-lock mr-1"></i>Private comment</div>{% endif %}
+                                        {% elif activity.type == 'iteration_feedback' %}
+                                            <div><strong>Question:</strong> {{ activity.details.question_text|striptags }}</div>
+                                            <div><strong>Allows resubmission:</strong> 
+                                                {% if activity.details.allows_new_iteration %}
+                                                    <span class="text-green-600">Yes</span>
+                                                {% else %}
+                                                    <span class="text-red-600">No</span>
+                                                {% endif %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                            
+                            <div class="text-sm text-amber-700 mt-3 pt-3 border-t border-amber-300">
+                                <strong>Last approval:</strong> {{ submission.admin_approval_date|date:"M d, Y g:i A" }} by {{ submission.admin_approved_by.get_full_name }}
+                            </div>
+                        {% else %}
+                            <p class="text-sm text-amber-700 mt-1">
+                                New activities have been detected since the last approval ({{ latest_activity_date|date:"M d, Y g:i A" }}). 
+                                Please review and re-verify this report.
+                            </p>
+                        {% endif %}
+                    </div>
+                {% endif %}
+                
+                <!-- Show approval form if no approval or needs re-verification -->
+                {% if submission and not submission.admin_approval_status or needs_re_verification %}
+                    <div class="internal-verification-form">
+                        {% if needs_re_verification %}
+                            <h4 class="text-md font-semibold text-amber-800 mb-3">
+                                <i class="fas fa-redo mr-2"></i>Re-verification Required
+                            </h4>
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                                <div class="text-sm text-blue-800">
+                                    <strong>Previous Approval:</strong> {{ submission.get_admin_approval_status_display }} 
+                                    by {{ submission.admin_approved_by.get_full_name }} 
+                                    on {{ submission.admin_approval_date|date:"M d, Y g:i A" }}
+                                </div>
+                                {% if submission.admin_approval_feedback %}
+                                    <div class="text-sm text-blue-700 mt-2">
+                                        <strong>Previous Internal Verifier Feedback:</strong> {{ submission.admin_approval_feedback|striptags }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <h4 class="text-md font-semibold text-amber-800 mb-3">
+                                <i class="fas fa-clipboard-check mr-2"></i>Initial Verification
+                            </h4>
+                        {% endif %}
+                        
+                        <form method="post" action="{% url 'assignments:admin_approve_report' assignment.id %}?student_id={{ student.id }}">
+                            {% csrf_token %}
+                            
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Approval Decision:
+                                </label>
+                                <div class="radio-group">
+                                    <div class="radio-option">
+                                        <input type="radio" id="approve" name="approval_status" value="approved" required>
+                                        <label for="approve" class="text-sm text-gray-700">Approve Report</label>
+                                    </div>
+                                    <div class="radio-option">
+                                        <input type="radio" id="needs_revision" name="approval_status" value="needs_revision" required>
+                                        <label for="needs_revision" class="text-sm text-gray-700">Return for Revision</label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="admin_feedback" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Internal Verifier Feedback {% if needs_re_verification %}(Re-verification){% else %}(Optional){% endif %}:
+                                </label>
+                                <textarea 
+                                    id="admin_feedback" 
+                                    name="admin_feedback" 
+                                    class="internal-verifier-feedback-textarea"
+                                    placeholder="{% if needs_re_verification %}Provide internal verifier feedback on the recent changes...{% else %}Provide internal verifier feedback on this report...{% endif %}"
+                                ></textarea>
+                            </div>
+                            
+                            <button type="submit" class="approve-btn">
+                                <i class="fas fa-check mr-2"></i>{% if needs_re_verification %}Submit Re-verification{% else %}Submit Approval{% endif %}
+                            </button>
+                        </form>
+                    </div>
+                {% else %}
+                    <!-- Show when no action is needed -->
+                    <div class="no-events">
+                        <i class="fas fa-check-circle text-green-600"></i>
+                        <p>Report verification is up to date</p>
+                        <p class="text-sm text-gray-600 mt-2">No new activities detected since last approval</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Internal Verifier Feedback Timeline Section -->
+    {% if admin_approval_history %}
+        <div class="timeline-section">
+            <div class="timeline-title">
+                <div class="timeline-icon">
+                    <i class="fas fa-clipboard-list"></i>
+                </div>
+                Internal Verifier Feedback: Timeline
+            </div>
+            <div class="timeline-content">
+                {% for approval in admin_approval_history %}
+                    <div class="timeline-event internal-verification">
+                        <div class="event-header">
+                            <div>
+                                <div class="event-title">
+                                    <i class="fas fa-user-shield mr-2"></i>
+                                    Internal Verification {{ approval.get_approval_status_display }}
+                                    {% if approval.is_current %}
+                                        <span class="iteration-badge ml-2" style="background: #10b981;">Current Status</span>
+                                    {% endif %}
+                                </div>
+                                <div class="event-actor">
+                                    <i class="fas fa-user"></i> {{ approval.approved_by.get_full_name }}
+                                    {% if approval.approved_by.role %}
+                                        <span class="text-xs text-gray-500">({{ approval.approved_by.role|capfirst }})</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="event-time">
+                                {{ approval.approval_date|date:"M d, Y g:i A" }}
+                            </div>
+                        </div>
+
+                        <div class="event-content">
+                            <!-- Approval Status with Visual Indicator -->
+                            <div class="event-detail mb-3">
+                                <span class="event-label">Status:</span>
+                                <span class="status-badge 
+                                    {% if approval.approval_status == 'approved' %}bg-green-100 text-green-800
+                                    {% elif approval.approval_status == 'needs_revision' %}bg-yellow-100 text-yellow-800
+                                    {% elif approval.approval_status == 'rejected' %}bg-red-100 text-red-800
+                                    {% endif %}">
+                                    {% if approval.approval_status == 'approved' %}
+                                        <i class="fas fa-check-circle mr-1"></i>
+                                    {% elif approval.approval_status == 'needs_revision' %}
+                                        <i class="fas fa-exclamation-triangle mr-1"></i>
+                                    {% elif approval.approval_status == 'rejected' %}
+                                        <i class="fas fa-times-circle mr-1"></i>
+                                    {% endif %}
+                                    {{ approval.get_approval_status_display }}
+                                </span>
+                            </div>
+
+                            <!-- Internal Verifier Feedback -->
+                            {% if approval.admin_feedback %}
+                                <div class="event-detail">
+                                    <span class="event-label">
+                                        <i class="fas fa-comment-dots mr-1"></i>
+                                        Internal Verifier Feedback:
+                                    </span>
+                                    <div class="mt-2 p-3 bg-gray-50 border-l-4 border-blue-500 rounded-r">
+                                        {{ approval.admin_feedback|striptags|linebreaks }}
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="event-detail">
+                                    <span class="event-label">
+                                        <i class="fas fa-comment-dots mr-1"></i>
+                                        Internal Verifier Feedback:
+                                    </span>
+                                    <div class="mt-1 text-gray-500 italic">No feedback provided</div>
+                                </div>
+                            {% endif %}
+
+                            <!-- Trigger Reason (if available) -->
+                            {% if approval.trigger_reason %}
+                                <div class="event-detail mt-3 pt-3 border-t border-gray-200">
+                                    <span class="event-label">
+                                        <i class="fas fa-info-circle mr-1"></i>
+                                        Trigger:
+                                    </span>
+                                    <span class="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                        {{ approval.trigger_reason|replace_underscores|title }}
+                                    </span>
+                                </div>
+                            {% endif %}
+
+                            <!-- Timeline Context -->
+                            <div class="event-detail mt-3 pt-3 border-t border-gray-200">
+                                <div class="text-xs text-gray-500">
+                                    <i class="fas fa-clock mr-1"></i>
+                                    {% if forloop.first %}
+                                        Most recent verification
+                                    {% elif forloop.last %}
+                                        Initial verification
+                                    {% else %}
+                                        Verification #{{ forloop.revcounter }}
+                                    {% endif %}
+                                    • {{ approval.approval_date|timesince }} ago
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+function navigateToSpecificEvent(activityType, targetId) {
+    // First try to navigate to the specific event
+    if (targetId) {
+        const targetElement = document.getElementById(targetId);
+        
+        if (targetElement) {
+            // Remove any existing highlights
+            const existingHighlight = document.querySelector('.timeline-event.highlight-event');
+            if (existingHighlight) {
+                existingHighlight.classList.remove('highlight-event');
+            }
+            
+            // Smooth scroll to the specific event
+            targetElement.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
+                inline: 'nearest'
+            });
+            
+            // Add highlight animation to the specific event
+            setTimeout(() => {
+                targetElement.classList.add('highlight-event');
+            }, 500);
+            
+            // Remove highlight class after animation completes
+            setTimeout(() => {
+                targetElement.classList.remove('highlight-event');
+            }, 3000);
+            
+            // Show a specific notification
+            showSpecificEventFeedback(activityType, targetId);
+            return;
+        }
+    }
+    
+    // Fallback to section navigation if specific event not found
+    navigateToTimelineSection(activityType);
+}
+
+function navigateToTimelineSection(activityType) {
+    // Map activity types to their corresponding timeline section IDs
+    const sectionMapping = {
+        'instructor_feedback': 'instructor-feedback-section',
+        'file_resubmission': 'file-upload-section', 
+        'text_revision': 'revised-response-section',
+        'field_revision': 'revised-response-section',
+        'rubric_evaluation': 'rubric-evaluation-section',
+        'grade_change': 'instructor-feedback-section', // Grade changes usually appear in feedback section
+        'comment': 'instructor-feedback-section', // Comments usually appear in feedback section  
+        'iteration_feedback': 'revised-response-section'
+    };
+    
+    const targetSectionId = sectionMapping[activityType];
+    
+    if (targetSectionId) {
+        const targetSection = document.getElementById(targetSectionId);
+        
+        if (targetSection) {
+            // Remove any existing highlight
+            const existingHighlight = document.querySelector('.timeline-section.highlight');
+            if (existingHighlight) {
+                existingHighlight.classList.remove('highlight');
+            }
+            
+            // Smooth scroll to the target section
+            targetSection.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start',
+                inline: 'nearest'
+            });
+            
+            // Add highlight animation after a short delay
+            setTimeout(() => {
+                targetSection.classList.add('highlight');
+            }, 500);
+            
+            // Remove highlight class after animation completes
+            setTimeout(() => {
+                targetSection.classList.remove('highlight');
+            }, 2500);
+            
+            // Show a subtle notification
+            showNavigationFeedback(activityType);
+        }
+    }
+}
+
+function showSpecificEventFeedback(activityType, targetId) {
+    // Create a temporary notification for specific event
+    const notification = document.createElement('div');
+    notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 transition-all duration-300';
+    notification.style.transform = 'translateX(100%)';
+    
+    const activityNames = {
+        'instructor_feedback': 'Instructor Feedback',
+        'file_resubmission': 'File Upload', 
+        'text_revision': 'Text Revision',
+        'field_revision': 'Field Revision',
+        'rubric_evaluation': 'Rubric Evaluation',
+        'grade_change': 'Grade Change',
+        'comment': 'Comment',
+        'iteration_feedback': 'Iteration Feedback'
+    };
+    
+    notification.innerHTML = `
+        <div class="flex items-center space-x-2">
+            <i class="fas fa-bullseye"></i>
+            <span>Found exact ${activityNames[activityType] || 'event'} in timeline</span>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Animate in
+    setTimeout(() => {
+        notification.style.transform = 'translateX(0)';
+    }, 100);
+    
+    // Animate out after 2.5 seconds
+    setTimeout(() => {
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+            document.body.removeChild(notification);
+        }, 300);
+    }, 2500);
+}
+
+function showNavigationFeedback(activityType) {
+    // Create a temporary notification
+    const notification = document.createElement('div');
+    notification.className = 'fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 transition-all duration-300';
+    notification.style.transform = 'translateX(100%)';
+    
+    const activityNames = {
+        'instructor_feedback': 'Instructor Feedback',
+        'file_resubmission': 'File Upload', 
+        'text_revision': 'Text Revision',
+        'field_revision': 'Field Revision',
+        'rubric_evaluation': 'Rubric Evaluation',
+        'grade_change': 'Grade Change',
+        'comment': 'Comment',
+        'iteration_feedback': 'Iteration Feedback'
+    };
+    
+    notification.innerHTML = `
+        <div class="flex items-center space-x-2">
+            <i class="fas fa-arrow-down"></i>
+            <span>Navigated to ${activityNames[activityType] || 'Timeline'} section</span>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Animate in
+    setTimeout(() => {
+        notification.style.transform = 'translateX(0)';
+    }, 100);
+    
+    // Animate out after 2 seconds
+    setTimeout(() => {
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+            document.body.removeChild(notification);
+        }, 300);
+    }, 2000);
+}
+
+// Add click tracking for analytics (optional)
+document.addEventListener('DOMContentLoaded', function() {
+    const activityItems = document.querySelectorAll('.clickable-activity');
+    
+    activityItems.forEach(item => {
+        item.addEventListener('mouseenter', function() {
+            // Add subtle pulse effect on hover
+            this.style.animation = 'pulse 1.5s infinite';
+        });
+        
+        item.addEventListener('mouseleave', function() {
+            this.style.animation = '';
+        });
+    });
+});
+
+// Add pulse animation CSS
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.02); }
+    }
+`;
+document.head.appendChild(style);
+</script>
+
+{% endblock %} 

@@ -1,0 +1,132 @@
+/* Claude AI integration styles */
+
+/* AI Button Styles */
+.ai-generate-btn {
+    background-color: #5436DA !important;
+    color: white !important;
+    transition: all 0.2s ease-in-out;
+}
+
+.ai-generate-btn:hover {
+    background-color: #4429b3 !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Modal styles */
+.ai-modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.ai-modal {
+    background-color: white;
+    border-radius: 8px;
+    padding: 20px;
+    width: 90%;
+    max-width: 600px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.ai-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ai-modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.ai-modal-header button {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    color: #666;
+}
+
+.ai-modal-content label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+.ai-modal-content textarea {
+    width: 100%;
+    padding: 10px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    resize: vertical;
+}
+
+.ai-options {
+    margin-top: 10px;
+}
+
+.ai-option {
+    margin-top: 5px;
+}
+
+.ai-status {
+    padding: 10px;
+    border-radius: 4px;
+    margin-top: 10px;
+}
+
+.ai-status.loading {
+    background-color: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+}
+
+.ai-status.error {
+    background-color: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+
+.ai-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.ai-modal-footer button {
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.ai-modal-footer button.btn-secondary {
+    background-color: #f3f4f6;
+    border: 1px solid #d1d5db;
+    color: #374151;
+}
+
+.ai-modal-footer button.btn-primary {
+    background-color: #5436DA;
+    border: none;
+    color: white;
+}
+
+.ai-modal-footer button.btn-primary:disabled {
+    background-color: #a8a4be;
+    cursor: not-allowed;
+} 

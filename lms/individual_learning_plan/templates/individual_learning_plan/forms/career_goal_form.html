@@ -1,0 +1,366 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+    {% if is_create %}Set{% else %}Edit{% endif %} Career Goals - {{ target_user.get_full_name|default:target_user.username }}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        max-width: 900px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        padding: 30px;
+    }
+    
+    .form-group {
+        margin-bottom: 24px;
+    }
+    
+    .form-label {
+        display: block;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 8px;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 16px;
+        transition: border-color 0.2s;
+    }
+    
+    .form-control:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    
+    .form-control.textarea {
+        min-height: 120px;
+        resize: vertical;
+    }
+    
+    .btn {
+        padding: 12px 24px;
+        border-radius: 6px;
+        font-weight: 600;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        display: inline-block;
+        transition: all 0.2s;
+    }
+    
+    .btn-primary {
+        background-color: #3b82f6;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background-color: #2563eb;
+        color: white;
+    }
+    
+    .btn-secondary {
+        background-color: #6b7280;
+        color: white;
+    }
+    
+    .btn-secondary:hover {
+        background-color: #4b5563;
+        color: white;
+    }
+    
+    .form-help {
+        font-size: 14px;
+        color: #6b7280;
+        margin-top: 4px;
+    }
+    
+    .form-error {
+        color: #ef4444;
+        font-size: 14px;
+        margin-top: 4px;
+    }
+    
+    .form-section {
+        margin-bottom: 32px;
+        padding: 24px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        background: #f9fafb;
+    }
+    
+    .form-section h3 {
+        font-size: 18px;
+        font-weight: 600;
+        color: #111827;
+        margin-bottom: 16px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        align-items: center;
+    }
+    
+    .goal-timeline {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        margin-bottom: 24px;
+    }
+    
+    @media (max-width: 768px) {
+        .goal-timeline {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    .timeline-item {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 20px;
+    }
+    
+    .timeline-item h4 {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+    }
+    
+    .timeline-short {
+        border-left: 4px solid #3b82f6;
+    }
+    
+    .timeline-long {
+        border-left: 4px solid #10b981;
+    }
+    
+    .info-box {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 6px;
+        padding: 16px;
+        margin-bottom: 24px;
+    }
+    
+    .info-box h4 {
+        margin: 0 0 8px 0;
+        color: #1e40af;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+    }
+    
+    .info-box p {
+        margin: 0;
+        color: #1e40af;
+        font-size: 14px;
+    }
+    
+    .skills-section {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-top: 24px;
+    }
+    
+    .skills-section h4 {
+        color: #166534;
+        font-weight: 600;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50">
+    <div class="p-6">
+        <!-- Breadcrumb -->
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+        <!-- Form Container -->
+        <div class="form-container">
+            <div class="mb-6">
+                <h1 class="text-2xl font-bold text-gray-900">
+                    {% if is_create %}Set{% else %}Edit{% endif %} Career Goals
+                </h1>
+                <p class="text-gray-600 mt-2">
+                    Define career aspirations and goals for {{ target_user.get_full_name|default:target_user.username }}.
+                </p>
+            </div>
+
+            <!-- Information Box -->
+            <div class="info-box">
+                <h4><i class="fas fa-lightbulb mr-2"></i>Career Goal Planning</h4>
+                <p>Setting clear short-term and long-term career goals helps create a focused learning path and provides direction for skill development.</p>
+            </div>
+
+            <!-- Form -->
+            <form method="post">
+                {% csrf_token %}
+                
+                <!-- Career Goals Timeline -->
+                <div class="goal-timeline">
+                    <!-- Short-term Goal -->
+                    <div class="timeline-item timeline-short">
+                        <h4><i class="fas fa-clock mr-2 text-blue-600"></i>Short-term Goal (1-2 years)</h4>
+                        <div class="form-group">
+                            <label for="id_short_term_goal" class="form-label">
+                                Short-term Career Goal <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.short_term_goal }}
+                            {% if form.short_term_goal.errors %}
+                                <div class="form-error">{{ form.short_term_goal.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-help">
+                                What do you want to achieve in your career within the next 1-2 years?
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Long-term Goal -->
+                    <div class="timeline-item timeline-long">
+                        <h4><i class="fas fa-rocket mr-2 text-green-600"></i>Long-term Goal (5+ years)</h4>
+                        <div class="form-group">
+                            <label for="id_long_term_goal" class="form-label">
+                                Long-term Career Goal <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.long_term_goal }}
+                            {% if form.long_term_goal.errors %}
+                                <div class="form-error">{{ form.long_term_goal.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-help">
+                                Where do you see yourself in 5+ years? What is your ultimate career aspiration?
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Industry and Skills Section -->
+                <div class="form-section">
+                    <h3><i class="fas fa-industry mr-2 text-purple-600"></i>Industry & Skills Focus</h3>
+                    
+                    <!-- Target Industry -->
+                    <div class="form-group">
+                        <label for="id_target_industry" class="form-label">
+                            Target Industry
+                        </label>
+                        {{ form.target_industry }}
+                        {% if form.target_industry.errors %}
+                            <div class="form-error">{{ form.target_industry.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-help">
+                            Which industry or sector are you targeting for your career? (e.g., Technology, Healthcare, Finance, Education)
+                        </div>
+                    </div>
+
+                    <!-- Required Skills -->
+                    <div class="skills-section">
+                        <h4><i class="fas fa-cogs mr-2"></i>Skills Development Plan</h4>
+                        <div class="form-group">
+                            <label for="id_required_skills" class="form-label">
+                                Required Skills & Competencies
+                            </label>
+                            {{ form.required_skills }}
+                            {% if form.required_skills.errors %}
+                                <div class="form-error">{{ form.required_skills.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-help">
+                                What skills, qualifications, or competencies do you need to develop to achieve your career goals? Include both technical and soft skills.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Examples Section -->
+                <div class="form-section">
+                    <h3><i class="fas fa-examples mr-2 text-orange-600"></i>Goal Examples</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                            <h5 class="font-semibold text-blue-800 mb-2">Short-term Examples:</h5>
+                            <ul class="text-sm text-blue-700 space-y-1">
+                                <li>• Complete certification in [specific skill]</li>
+                                <li>• Gain promotion to [specific role]</li>
+                                <li>• Lead a project team</li>
+                                <li>• Develop expertise in [technology/method]</li>
+                            </ul>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+                            <h5 class="font-semibold text-green-800 mb-2">Long-term Examples:</h5>
+                            <ul class="text-sm text-green-700 space-y-1">
+                                <li>• Become a [senior role/manager]</li>
+                                <li>• Start own business/consultancy</li>
+                                <li>• Become subject matter expert</li>
+                                <li>• Transition to [new industry/role]</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="flex items-center justify-between pt-6 border-t border-gray-200">
+                    <a href="{% url 'users:role_based_redirect' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left mr-2"></i>Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save mr-2"></i>
+                        {% if is_create %}Save Career Goals{% else %}Update Career Goals{% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-resize textareas
+    const textareas = document.querySelectorAll('textarea');
+    textareas.forEach(textarea => {
+        textarea.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = this.scrollHeight + 'px';
+        });
+        
+        // Initial resize
+        textarea.style.height = 'auto';
+        textarea.style.height = textarea.scrollHeight + 'px';
+    });
+    
+    // Character count for textareas (optional enhancement)
+    textareas.forEach(textarea => {
+        const maxLength = textarea.getAttribute('maxlength');
+        if (maxLength) {
+            const counter = document.createElement('div');
+            counter.className = 'text-sm text-gray-500 mt-1 text-right';
+            counter.textContent = `${textarea.value.length}/${maxLength} characters`;
+            
+            textarea.parentNode.appendChild(counter);
+            
+            textarea.addEventListener('input', function() {
+                counter.textContent = `${this.value.length}/${maxLength} characters`;
+                
+                if (this.value.length > maxLength * 0.9) {
+                    counter.className = 'text-sm text-orange-500 mt-1 text-right';
+                } else {
+                    counter.className = 'text-sm text-gray-500 mt-1 text-right';
+                }
+            });
+        }
+    });
+});
+</script>
+{% endblock %} 

@@ -1,0 +1,63 @@
+{% load static %}
+
+<div class="user-stats-container bg-gray-50 rounded-lg shadow p-4">
+  <div class="flex flex-wrap -mx-2">
+    <div class="w-full md:w-1/5 px-2 mb-4 md:mb-0">
+      <div class="stat-card bg-white rounded-lg shadow-sm p-4 h-full flex flex-col items-center justify-center transition-all hover:shadow-md">
+        <div class="stat-icon mb-2 text-blue-500">
+          <i class="fas fa-graduation-cap fa-2x"></i>
+        </div>
+        <div class="stat-value text-2xl font-bold">{{ completed_courses }}</div>
+        <div class="stat-label text-sm text-gray-600">Courses Completed</div>
+      </div>
+    </div>
+    
+    <div class="w-full md:w-1/5 px-2 mb-4 md:mb-0">
+      <div class="stat-card bg-white rounded-lg shadow-sm p-4 h-full flex flex-col items-center justify-center transition-all hover:shadow-md">
+        <div class="stat-icon mb-2 text-green-500">
+          <i class="fas fa-tasks fa-2x"></i>
+        </div>
+        <div class="stat-value text-2xl font-bold">{{ assignments_submitted }}</div>
+        <div class="stat-label text-sm text-gray-600">Assignments Submitted</div>
+      </div>
+    </div>
+    
+    <div class="w-full md:w-1/5 px-2 mb-4 md:mb-0">
+      <div class="stat-card bg-white rounded-lg shadow-sm p-4 h-full flex flex-col items-center justify-center transition-all hover:shadow-md">
+        <div class="stat-icon mb-2 text-yellow-500">
+          <i class="fas fa-medal fa-2x"></i>
+        </div>
+        <div class="stat-value text-2xl font-bold">{{ badges_earned }}</div>
+        <div class="stat-label text-sm text-gray-600">Badges Earned</div>
+      </div>
+    </div>
+    
+    <div class="w-full md:w-1/5 px-2 mb-4 md:mb-0">
+      <div class="stat-card bg-white rounded-lg shadow-sm p-4 h-full flex flex-col items-center justify-center transition-all hover:shadow-md">
+        <div class="stat-icon mb-2 text-red-500">
+          <i class="fas fa-star fa-2x"></i>
+        </div>
+        <div class="stat-value text-2xl font-bold">
+          {% if avg_grade %}
+            {{ avg_grade|floatformat:1 }}%
+          {% else %}
+            --
+          {% endif %}
+        </div>
+        <div class="stat-label text-sm text-gray-600">Average Grade</div>
+      </div>
+    </div>
+    
+    {% if total_points > 0 %}
+    <div class="w-full md:w-1/5 px-2">
+      <div class="stat-card bg-white rounded-lg shadow-sm p-4 h-full flex flex-col items-center justify-center transition-all hover:shadow-md">
+        <div class="stat-icon mb-2 text-purple-500">
+          <i class="fas fa-trophy fa-2x"></i>
+        </div>
+        <div class="stat-value text-2xl font-bold">{{ total_points }}</div>
+        <div class="stat-label text-sm text-gray-600">Total Points</div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div> 

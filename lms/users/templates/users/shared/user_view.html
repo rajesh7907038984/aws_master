@@ -1,0 +1,685 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}View User - {{ profile_user.get_full_name|default:profile_user.username }} - LMS{% endblock %}
+
+{% block extra_css %}
+<style>
+    .info-card {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e5e7eb;
+    }
+    
+    .info-section {
+        border-bottom: 1px solid #e5e7eb;
+        padding: 1.5rem;
+    }
+    
+    .info-section:last-child {
+        border-bottom: none;
+    }
+    
+    .section-title {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #111827;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+    }
+    
+    .info-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .info-label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #6b7280;
+    }
+    
+    .info-value {
+        font-size: 0.875rem;
+        color: #111827;
+        word-break: break-word;
+    }
+    
+    .info-value.empty {
+        color: #9ca3af;
+        font-style: italic;
+    }
+    
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .status-badge.active {
+        background-color: #d1fae5;
+        color: #065f46;
+    }
+    
+    .status-badge.inactive {
+        background-color: #fee2e2;
+        color: #991b1b;
+    }
+    
+    .role-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 0.375rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .role-badge.superadmin {
+        background-color: #fef3c7;
+        color: #92400e;
+    }
+    
+    .role-badge.admin {
+        background-color: #e0e7ff;
+        color: #3730a3;
+    }
+    
+    .role-badge.instructor {
+        background-color: #dbeafe;
+        color: #1e40af;
+    }
+    
+    .role-badge.learner {
+        background-color: #d1fae5;
+        color: #065f46;
+    }
+    
+    .course-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .course-item {
+        padding: 0.75rem;
+        background-color: #f9fafb;
+        border-radius: 0.375rem;
+        border: 1px solid #e5e7eb;
+    }
+    
+    .course-title {
+        font-weight: 500;
+        color: #111827;
+        font-size: 0.875rem;
+    }
+    
+    .course-info {
+        font-size: 0.75rem;
+        color: #6b7280;
+        margin-top: 0.25rem;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+    
+    .btn-primary {
+        background-color: #2563eb;
+        color: white;
+        padding: 0.625rem 1.25rem;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-decoration: none;
+        border: 1px solid #2563eb;
+        transition: all 0.2s;
+    }
+    
+    .btn-primary:hover {
+        background-color: #1d4ed8;
+        border-color: #1d4ed8;
+        color: white;
+        text-decoration: none;
+    }
+    
+    .btn-secondary {
+        background-color: white;
+        color: #374151;
+        padding: 0.625rem 1.25rem;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-decoration: none;
+        border: 1px solid #d1d5db;
+        transition: all 0.2s;
+    }
+    
+    .btn-secondary:hover {
+        background-color: #f9fafb;
+        border-color: #9ca3af;
+        color: #374151;
+        text-decoration: none;
+    }
+    
+    .user-avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 2rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .assessment-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+    
+    .assessment-item {
+        text-align: center;
+        padding: 1rem;
+        background-color: #f9fafb;
+        border-radius: 0.375rem;
+        border: 1px solid #e5e7eb;
+    }
+    
+    .assessment-status {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 0.5rem;
+    }
+    
+    .assessment-status.completed {
+        background-color: #10b981;
+    }
+    
+    .assessment-status.pending {
+        background-color: #f59e0b;
+    }
+    
+    .assessment-status.not-started {
+        background-color: #ef4444;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header Section -->
+<div class="bg-white border-b">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="py-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <div class="user-avatar">
+                        {% if profile_user.profile_image %}
+                            <img src="{{ profile_user.profile_image.url }}" alt="{{ profile_user.get_full_name }}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 50%;">
+                        {% else %}
+                            {{ profile_user.first_name|first|default:profile_user.username|first }}{{ profile_user.last_name|first|default:"" }}
+                        {% endif %}
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">
+                            {{ profile_user.get_full_name|default:profile_user.username }}
+                        </h1>
+                        <div class="flex items-center space-x-3 mt-2">
+                            <span class="role-badge {{ profile_user.role }}">{{ profile_user.get_role_display }}</span>
+                            <span class="status-badge {% if profile_user.is_active %}active{% else %}inactive{% endif %}">
+                                {% if profile_user.is_active %}Active{% else %}Inactive{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="action-buttons">
+                    {% if can_edit %}
+                        <a href="{% url 'users:edit_user' profile_user.id %}" class="btn-primary">
+                            <i class="fas fa-edit mr-2"></i>Edit User
+                        </a>
+                    {% endif %}
+                    <a href="{% url 'users:password_change' profile_user.id %}" class="btn-secondary">
+                        <i class="fas fa-key mr-2"></i>Change Password
+                    </a>
+                    <a href="{% url 'users:user_list' %}" class="btn-secondary">
+                        <i class="fas fa-arrow-left mr-2"></i>Back to List
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content -->
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <!-- Left Column - Main Information -->
+        <div class="lg:col-span-2 space-y-6">
+            
+            <!-- Basic Information -->
+            <div class="info-card">
+                <div class="info-section">
+                    <h2 class="section-title">
+                        <i class="fas fa-user text-blue-600"></i>
+                        Basic Information
+                    </h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">Username</span>
+                            <span class="info-value">{{ profile_user.username }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Email</span>
+                            <span class="info-value">{{ profile_user.email|default:"Not provided" }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Phone Number</span>
+                            <span class="info-value {% if not profile_user.phone_number %}empty{% endif %}">
+                                {{ profile_user.phone_number|default:"Not provided" }}
+                            </span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Branch</span>
+                            <span class="info-value">{{ profile_user.branch.name|default:"No branch assigned" }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Date Joined</span>
+                            <span class="info-value">{{ profile_user.date_joined|date:"M d, Y" }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Last Login</span>
+                            <span class="info-value">{{ profile_user.last_login|date:"M d, Y H:i"|default:"Never logged in" }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Personal Information -->
+            {% if profile_user.given_names or profile_user.family_name or profile_user.date_of_birth %}
+            <div class="info-card">
+                <div class="info-section">
+                    <h2 class="section-title">
+                        <i class="fas fa-id-card text-green-600"></i>
+                        Personal Information
+                    </h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">Given Names</span>
+                            <span class="info-value {% if not profile_user.given_names %}empty{% endif %}">
+                                {{ profile_user.given_names|default:"Not provided" }}
+                            </span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Family Name</span>
+                            <span class="info-value {% if not profile_user.family_name %}empty{% endif %}">
+                                {{ profile_user.family_name|default:"Not provided" }}
+                            </span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Date of Birth</span>
+                            <span class="info-value {% if not profile_user.date_of_birth %}empty{% endif %}">
+                                {{ profile_user.date_of_birth|date:"M d, Y"|default:"Not provided" }}
+                            </span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Gender/Sex</span>
+                            <span class="info-value {% if not profile_user.sex %}empty{% endif %}">
+                                {{ profile_user.sex|default:"Not specified" }}
+                            </span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Ethnicity</span>
+                            <span class="info-value {% if not profile_user.ethnicity %}empty{% endif %}">
+                                {{ profile_user.ethnicity|default:"Not specified" }}
+                            </span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">ULN</span>
+                            <span class="info-value {% if not profile_user.unique_learner_number %}empty{% endif %}">
+                                {{ profile_user.unique_learner_number|default:"Not provided" }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Address Information -->
+            {% if profile_user.address_line1 or profile_user.current_postcode %}
+            <div class="info-card">
+                <div class="info-section">
+                    <h2 class="section-title">
+                        <i class="fas fa-map-marker-alt text-red-600"></i>
+                        Address Information
+                    </h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">Address Line 1</span>
+                            <span class="info-value {% if not profile_user.address_line1 %}empty{% endif %}">
+                                {{ profile_user.address_line1|default:"Not provided" }}
+                            </span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Address Line 2</span>
+                            <span class="info-value {% if not profile_user.address_line2 %}empty{% endif %}">
+                                {{ profile_user.address_line2|default:"Not provided" }}
+                            </span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">City/Town</span>
+                            <span class="info-value {% if not profile_user.city %}empty{% endif %}">
+                                {{ profile_user.city|default:"Not provided" }}
+                            </span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">County</span>
+                            <span class="info-value {% if not profile_user.county %}empty{% endif %}">
+                                {{ profile_user.county|default:"Not provided" }}
+                            </span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Postcode</span>
+                            <span class="info-value {% if not profile_user.current_postcode %}empty{% endif %}">
+                                {{ profile_user.current_postcode|default:"Not provided" }}
+                            </span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Country</span>
+                            <span class="info-value">{{ profile_user.country|default:"United Kingdom" }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Education & Employment -->
+            {% if profile_user.study_area or profile_user.job_role %}
+            <div class="info-card">
+                <div class="info-section">
+                    <h2 class="section-title">
+                        <i class="fas fa-graduation-cap text-purple-600"></i>
+                        Education & Employment
+                    </h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">Study Area</span>
+                            <span class="info-value {% if not profile_user.study_area %}empty{% endif %}">
+                                {{ profile_user.study_area|default:"Not specified" }}
+                            </span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Level of Study</span>
+                            <span class="info-value {% if not profile_user.level_of_study %}empty{% endif %}">
+                                {{ profile_user.level_of_study|default:"Not specified" }}
+                            </span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Current Job Role</span>
+                            <span class="info-value {% if not profile_user.job_role %}empty{% endif %}">
+                                {{ profile_user.job_role|default:"Not specified" }}
+                            </span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Industry</span>
+                            <span class="info-value {% if not profile_user.industry %}empty{% endif %}">
+                                {{ profile_user.industry|default:"Not specified" }}
+                            </span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Duration in Role</span>
+                            <span class="info-value {% if not profile_user.duration %}empty{% endif %}">
+                                {{ profile_user.duration|default:"Not specified" }}
+                            </span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Learning Difficulty</span>
+                            <span class="info-value {% if not profile_user.has_learning_difficulty %}empty{% endif %}">
+                                {{ profile_user.has_learning_difficulty|default:"Not specified" }}
+                            </span>
+                        </div>
+                    </div>
+                    {% if profile_user.key_skills %}
+                    <div class="mt-4">
+                        <span class="info-label">Key Skills</span>
+                        <div class="info-value mt-2">{{ profile_user.key_skills }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Assessment Data -->
+            {% if profile_user.role == 'learner' %}
+            <div class="info-card">
+                <div class="info-section">
+                    <h2 class="section-title">
+                        <i class="fas fa-chart-line text-orange-600"></i>
+                        Assessment Status
+                    </h2>
+                    <div class="assessment-grid">
+                        <div class="assessment-item">
+                            <h4 class="font-medium text-gray-900 mb-2">Initial Assessment</h4>
+                            <div class="space-y-1">
+                                <div class="flex items-center justify-center">
+                                    <span class="assessment-status {% if profile_user.initial_assessment_english %}completed{% else %}not-started{% endif %}"></span>
+                                    <span class="text-sm">English</span>
+                                </div>
+                                <div class="flex items-center justify-center">
+                                    <span class="assessment-status {% if profile_user.initial_assessment_maths %}completed{% else %}not-started{% endif %}"></span>
+                                    <span class="text-sm">Maths</span>
+                                </div>
+                                <div class="flex items-center justify-center">
+                                    <span class="assessment-status {% if profile_user.initial_assessment_subject_specific %}completed{% else %}not-started{% endif %}"></span>
+                                    <span class="text-sm">Subject Specific</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="assessment-item">
+                            <h4 class="font-medium text-gray-900 mb-2">Diagnostic Assessment</h4>
+                            <div class="space-y-1">
+                                <div class="flex items-center justify-center">
+                                    <span class="assessment-status {% if profile_user.diagnostic_assessment_english %}completed{% else %}not-started{% endif %}"></span>
+                                    <span class="text-sm">English</span>
+                                </div>
+                                <div class="flex items-center justify-center">
+                                    <span class="assessment-status {% if profile_user.diagnostic_assessment_maths %}completed{% else %}not-started{% endif %}"></span>
+                                    <span class="text-sm">Maths</span>
+                                </div>
+                                <div class="flex items-center justify-center">
+                                    <span class="assessment-status {% if profile_user.diagnostic_assessment_subject_specific %}completed{% else %}not-started{% endif %}"></span>
+                                    <span class="text-sm">Subject Specific</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="assessment-item">
+                            <h4 class="font-medium text-gray-900 mb-2">Functional Skills</h4>
+                            <div class="space-y-1">
+                                <div class="flex items-center justify-center">
+                                    <span class="assessment-status {% if profile_user.functional_skills_english %}completed{% else %}not-started{% endif %}"></span>
+                                    <span class="text-sm">English</span>
+                                </div>
+                                <div class="flex items-center justify-center">
+                                    <span class="assessment-status {% if profile_user.functional_skills_maths %}completed{% else %}not-started{% endif %}"></span>
+                                    <span class="text-sm">Maths</span>
+                                </div>
+                                <div class="flex items-center justify-center">
+                                    <span class="assessment-status {% if profile_user.functional_skills_other %}completed{% else %}not-started{% endif %}"></span>
+                                    <span class="text-sm">Other</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Right Column - Summary & Quick Info -->
+        <div class="space-y-6">
+            
+            <!-- Course Enrollment Summary -->
+            {% if profile_user.role == 'learner' %}
+            <div class="info-card">
+                <div class="info-section">
+                    <h2 class="section-title">
+                        <i class="fas fa-book text-indigo-600"></i>
+                        Course Enrollment
+                    </h2>
+                    <div class="text-center py-4">
+                        <div class="text-3xl font-bold text-indigo-600">{{ total_courses }}</div>
+                        <div class="text-sm text-gray-500">Total Courses</div>
+                    </div>
+                    {% if enrolled_courses %}
+                    <div class="course-list">
+                        {% for enrollment in enrolled_courses %}
+                        <div class="course-item">
+                            <div class="course-title">{{ enrollment.course.title }}</div>
+                            <div class="course-info">
+                                Enrolled: {{ enrollment.enrollment_date|date:"M d, Y" }}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% if total_courses > 5 %}
+                    <div class="text-center mt-4">
+                        <a href="#" class="text-sm text-indigo-600 hover:text-indigo-800">
+                            View all {{ total_courses }} courses
+                        </a>
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <p class="text-center text-gray-500 py-4">No courses enrolled</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- ILP Status -->
+            {% if ilp %}
+            <div class="info-card">
+                <div class="info-section">
+                    <h2 class="section-title">
+                        <i class="fas fa-clipboard-list text-green-600"></i>
+                        Individual Learning Plan
+                    </h2>
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-medium">Completion</span>
+                            <span class="text-sm text-gray-600">{{ ilp.completion_percentage }}%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-green-600 h-2 rounded-full" style="width: {{ ilp.completion_percentage }}%"></div>
+                        </div>
+                        <div class="text-xs text-gray-500">
+                            Created: {{ ilp.created_at|date:"M d, Y" }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Health & Safety Status -->
+            {% if health_safety %}
+            <div class="info-card">
+                <div class="info-section">
+                    <h2 class="section-title">
+                        <i class="fas fa-shield-alt text-red-600"></i>
+                        Health & Safety
+                    </h2>
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-medium">Questionnaire</span>
+                            <span class="status-badge {% if health_safety.completion_percentage == 100 %}active{% else %}inactive{% endif %}">
+                                {% if health_safety.completion_percentage == 100 %}Complete{% else %}Incomplete{% endif %}
+                            </span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-red-600 h-2 rounded-full" style="width: {{ health_safety.completion_percentage }}%"></div>
+                        </div>
+                        <div class="text-xs text-gray-500">
+                            {{ health_safety.completion_percentage }}% Complete
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Recent Activity -->
+            {% if recent_assignments %}
+            <div class="info-card">
+                <div class="info-section">
+                    <h2 class="section-title">
+                        <i class="fas fa-clock text-yellow-600"></i>
+                        Recent Activity
+                    </h2>
+                    <div class="space-y-3">
+                        {% for submission in recent_assignments %}
+                        <div class="text-sm">
+                            <div class="font-medium">{{ submission.assignment.title }}</div>
+                            <div class="text-gray-500">
+                                Submitted {{ submission.submission_date|timesince }} ago
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Quick Actions -->
+            <div class="info-card">
+                <div class="info-section">
+                    <h2 class="section-title">
+                        <i class="fas fa-bolt text-yellow-600"></i>
+                        Quick Actions
+                    </h2>
+                    <div class="space-y-2">
+                        {% if can_edit %}
+                            <a href="{% url 'users:edit_user' profile_user.id %}" class="block w-full text-center btn-primary">
+                            Edit Profile
+                        </a>
+                        {% endif %}
+                        <a href="{% url 'users:password_change' profile_user.id %}" class="block w-full text-center btn-secondary">
+                            Reset Password
+                        </a>
+                        {% if profile_user.role == 'learner' and request.user.role in 'globaladmin,superadmin,admin' %}
+                        <a href="#" class="block w-full text-center btn-secondary">
+                            View Progress
+                        </a>
+                        <a href="#" class="block w-full text-center btn-secondary">
+                            Send Message
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,532 @@
+<!-- Learning Goals & Progress Review Tab Content -->
+<div id="learning-goal-tab" class="ilp-tab-content" style="display: none;">
+    <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+        <div class="flex items-center justify-between mb-6">
+            <h4 class="text-lg font-semibold text-gray-900">Learning Goals & Progress Review</h4>
+            {% if user.role == 'admin' or user.role == 'instructor' or user.role == 'superadmin' or user.role == 'globaladmin' %}
+            <button type="button" onclick="addLearningGoalItem()" class="inline-flex items-center px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors duration-200" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                <i class="fas fa-plus mr-2"></i>
+                Add Learning Goal
+            </button>
+            {% endif %}
+        </div>
+        
+        <!-- Learning Goals Items Container -->
+        <div id="learning-goals-items-container">
+            {% if existing_learning_goals %}
+                {% for goal in existing_learning_goals %}
+                <div class="learning-goal-item border border-gray-200 rounded-lg p-4 mb-4" data-goal-id="{{ goal.id }}">
+                    <div class="flex items-start justify-between mb-3">
+                        <div class="flex items-center space-x-3">
+                            <h5 class="text-md font-medium text-gray-800">{{ goal.title }}</h5>
+                            <span class="inline-block px-2 py-1 text-xs rounded-full
+                                {% if goal.status == 'completed' %}bg-green-100 text-green-800
+                                {% elif goal.status == 'in_progress' %}bg-blue-100 text-blue-800
+                                {% elif goal.status == 'on_hold' %}bg-yellow-100 text-yellow-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ goal.get_status_display }}
+                            </span>
+                            <span class="inline-block px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800">
+                                {{ goal.get_goal_type_display }}
+                            </span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            {% if user.role == 'admin' or user.role == 'instructor' or user.role == 'superadmin' or user.role == 'globaladmin' %}
+                            <button type="button" onclick="deleteLearningGoalItem({{ goal.id }})" class="text-red-600 hover:text-red-800 text-sm">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Goal Description (Instructor/Admin View) -->
+                    {% if user.role == 'admin' or user.role == 'instructor' or user.role == 'superadmin' or user.role == 'globaladmin' %}
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Goal Title</label>
+                            <input type="text" name="existing_learning_goal_{{ goal.id }}_title" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                   value="{{ goal.title }}" placeholder="Enter goal title">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Goal Type</label>
+                            <select name="existing_learning_goal_{{ goal.id }}_goal_type" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    onchange="toggleCustomTargetName(this, 'existing_{{ goal.id }}')">
+                                <option value="short_term" {% if goal.goal_type == 'short_term' %}selected{% endif %}>Short Term Goal</option>
+                                <option value="long_term" {% if goal.goal_type == 'long_term' %}selected{% endif %}>Long Term Goal</option>
+                                <option value="custom" {% if goal.goal_type == 'custom' %}selected{% endif %}>Custom Target</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Custom Target Name Field (only visible when goal type is 'custom') -->
+                    <div id="custom_target_name_existing_{{ goal.id }}" class="mb-4" style="{% if goal.goal_type != 'custom' %}display: none;{% endif %}">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Custom Target Name</label>
+                        <input type="text" name="existing_learning_goal_{{ goal.id }}_custom_target_name" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                               value="{{ goal.custom_target_name|default:'' }}" 
+                               placeholder="e.g., Personal Development Goal, Skill Building Target, etc.">
+                        <div class="text-xs text-gray-500 mt-1">Specify what kind of custom target this is</div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Goal Description</label>
+                        <textarea name="existing_learning_goal_{{ goal.id }}_description" 
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                  rows="3" placeholder="Enter goal description">{{ goal.description }}</textarea>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Target Completion Date</label>
+                            <input type="date" name="existing_learning_goal_{{ goal.id }}_target_date" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                   value="{{ goal.target_completion_date|date:'Y-m-d'|default:'' }}">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                            <select name="existing_learning_goal_{{ goal.id }}_status" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="not_started" {% if goal.status == 'not_started' %}selected{% endif %}>Not Started</option>
+                                <option value="in_progress" {% if goal.status == 'in_progress' %}selected{% endif %}>In Progress</option>
+                                <option value="completed" {% if goal.status == 'completed' %}selected{% endif %}>Completed</option>
+                                <option value="on_hold" {% if goal.status == 'on_hold' %}selected{% endif %}>On Hold</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    {% if goal.teacher_input %}
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Teacher Input</label>
+                        <textarea name="existing_learning_goal_{{ goal.id }}_teacher_input" 
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                  rows="2" placeholder="Add teacher guidance">{{ goal.teacher_input }}</textarea>
+                    </div>
+                    {% else %}
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Teacher Input (Optional)</label>
+                        <textarea name="existing_learning_goal_{{ goal.id }}_teacher_input" 
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                  rows="2" placeholder="Add teacher guidance or instructions for this goal">{{ goal.teacher_input|default:"" }}</textarea>
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <!-- Goal Display (Learner View) -->
+                    <div class="mb-4">
+                        <div class="p-4 bg-gray-50 rounded-md">
+                            <h6 class="font-medium text-gray-800 mb-2">{{ goal.title }}</h6>
+                            <p class="text-gray-700 text-sm mb-3">{{ goal.description }}</p>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                                <div>
+                                    <span class="font-medium text-gray-600">Type:</span>
+                                    <span class="text-gray-800">
+                                        {% if goal.goal_type == 'custom' and goal.custom_target_name %}
+                                            {{ goal.custom_target_name }}
+                                        {% else %}
+                                            {{ goal.get_goal_type_display }}
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                {% if goal.target_completion_date %}
+                                <div>
+                                    <span class="font-medium text-gray-600">Target Date:</span>
+                                    <span class="text-gray-800">{{ goal.target_completion_date|date:"M d, Y" }}</span>
+                                </div>
+                                {% endif %}
+                                <div>
+                                    <span class="font-medium text-gray-600">Status:</span>
+                                    <span class="text-gray-800">{{ goal.get_status_display }}</span>
+                                </div>
+                            </div>
+                            
+                            {% if goal.teacher_input %}
+                            <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                                <p class="text-sm text-blue-600 mb-1">
+                                    <i class="fas fa-user-tie mr-1"></i>
+                                    Teacher Guidance:
+                                </p>
+                                <p class="text-gray-800 text-sm">{{ goal.teacher_input }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Learner Feedback Section (for learners only) -->
+                    {% if user.role == 'learner' %}
+                    <div class="border-t border-gray-200 pt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-3">Your Feedback on this Learning Goal</label>
+                        <div class="mb-4">
+                            <textarea 
+                                name="learning_goal_{{ goal.id }}_learner_comment" 
+                                rows="3" 
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                placeholder="Share your thoughts, concerns, or questions about this learning goal..."
+                            >{{ goal.learner_comment|default:"" }}</textarea>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Show learner feedback and instructor reply section for instructors -->
+                    {% if user.role == 'admin' or user.role == 'instructor' or user.role == 'superadmin' or user.role == 'globaladmin' %}
+                        {% if goal.learner_comment %}
+                        <div class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+                            <div class="flex items-center mb-2">
+                                <i class="fas fa-user text-blue-600 mr-2"></i>
+                                <span class="text-sm font-medium text-gray-700">Learner Feedback:</span>
+                            </div>
+                            <p class="text-gray-700 mb-3">{{ goal.learner_comment }}</p>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-blue-700 mb-2">Your Reply:</label>
+                                <textarea name="existing_learning_goal_{{ goal.id }}_instructor_reply" 
+                                          class="w-full px-3 py-2 border border-blue-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                          rows="3" placeholder="Reply to learner's feedback...">{{ goal.instructor_reply|default:"" }}</textarea>
+                            </div>
+                        </div>
+                        {% else %}
+                        <!-- Show instructor reply field for goals without learner feedback -->
+                        <div class="mt-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Additional Notes/Instructions</label>
+                            <textarea name="existing_learning_goal_{{ goal.id }}_instructor_reply" 
+                                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                      rows="2" placeholder="Add any additional information or instructions for the learner">{{ goal.instructor_reply|default:"" }}</textarea>
+                        </div>
+                        {% endif %}
+                    {% endif %}
+                    
+                    <!-- Show instructor reply to learners (outside of instructor-only section) -->
+                    {% if goal.instructor_reply and user.role == 'learner' %}
+                    <div class="mt-4 p-4 bg-green-50 border border-green-200 rounded-md">
+                        <p class="text-sm text-green-600 mb-1">
+                            <i class="fas fa-reply mr-1"></i>
+                            Instructor Response:
+                        </p>
+                        <div class="text-gray-800 prose prose-sm max-w-none">{{ goal.instructor_reply|safe }}</div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Progress Tracking Section -->
+                    {% if goal.progress_entries.all %}
+                    <div class="mt-4 pt-3 border-t border-gray-200">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Progress History</label>
+                        <div class="space-y-2">
+                            {% for progress in goal.progress_entries.all %}
+                            <div class="flex items-center justify-between p-2 bg-gray-50 rounded-md">
+                                <div class="flex items-center">
+                                    <i class="fas fa-chart-line text-gray-500 mr-2"></i>
+                                    <span class="text-sm text-gray-700">{{ progress.progress_percentage }}% Complete</span>
+                                    {% if progress.learner_comment %}
+                                    <span class="text-xs text-gray-500 ml-2">- {{ progress.learner_comment|truncatewords:10 }}</span>
+                                    {% endif %}
+                                </div>
+                                <span class="text-xs text-gray-500">{{ progress.created_at|date:"M d, Y" }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <!-- Empty state when no learning goals exist -->
+                <div class="text-center py-12">
+                    <div class="text-gray-400 mb-4">
+                        <i class="fas fa-bullseye text-6xl"></i>
+                    </div>
+                    <h5 class="text-lg font-medium text-gray-900 mb-2">No Learning Goals Yet</h5>
+                    <p class="text-gray-600 mb-4">
+                        {% if user.role == 'learner' %}
+                        Your instructor will add learning goals for you to review and provide feedback on.
+                        {% else %}
+                        Start by adding learning goals for this learner to help guide their educational journey.
+                        {% endif %}
+                    </p>
+                    {% if user.role == 'admin' or user.role == 'instructor' or user.role == 'superadmin' or user.role == 'globaladmin' %}
+                    <button type="button" onclick="addLearningGoalItem()" class="inline-flex items-center px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors duration-200" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                        <i class="fas fa-plus mr-2"></i>
+                        Add First Learning Goal
+                    </button>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    .learning-goal-item {
+        transition: all 0.2s ease;
+    }
+    
+    .learning-goal-item:hover {
+        border-color: #d1d5db;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    }
+    
+    .form-input, .form-select, .form-textarea {
+        border: 1px solid #d1d5db;
+        border-radius: 0.375rem;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+    
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+</style>
+
+<script>
+// Learning Goals functionality
+function addLearningGoalItem() {
+    const container = document.getElementById('learning-goals-items-container');
+    // Only count NEW learning goals (with data-goal-id starting with "new_") to get correct index
+    const newGoalCount = container.querySelectorAll('.learning-goal-item[data-goal-id^="new_"]').length;
+    const newGoalIndex = newGoalCount;
+    
+    // Remove empty state if it exists
+    const emptyState = container.querySelector('.text-center.py-12');
+    if (emptyState) {
+        emptyState.remove();
+    }
+    
+    const goalItemHtml = `
+        <div class="learning-goal-item border border-gray-200 rounded-lg p-4 mb-4" data-goal-id="new_${newGoalIndex}">
+            <div class="flex items-start justify-between mb-3">
+                <h5 class="text-md font-medium text-gray-800">New Learning Goal</h5>
+                <button type="button" onclick="removeLearningGoalItem(this)" class="text-red-600 hover:text-red-800 text-sm">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Goal Title</label>
+                    <input type="text" name="new_learning_goal_${newGoalIndex}_title" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                           placeholder="Enter goal title" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Goal Type</label>
+                    <select name="new_learning_goal_${newGoalIndex}_goal_type" 
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            onchange="toggleCustomTargetName(this, 'new_${newGoalIndex}')">
+                        <option value="short_term">Short Term Goal</option>
+                        <option value="long_term">Long Term Goal</option>
+                        <option value="custom">Custom Target</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Custom Target Name Field for new goal (only visible when goal type is 'custom') -->
+            <div id="custom_target_name_new_${newGoalIndex}" class="mb-4" style="display: none;">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Custom Target Name</label>
+                <input type="text" name="new_learning_goal_${newGoalIndex}_custom_target_name" 
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                       placeholder="e.g., Personal Development Goal, Skill Building Target, etc.">
+                <div class="text-xs text-gray-500 mt-1">Specify what kind of custom target this is</div>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Goal Description</label>
+                <textarea name="new_learning_goal_${newGoalIndex}_description" 
+                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                          rows="3" placeholder="Describe what the learner should achieve" required></textarea>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Target Completion Date</label>
+                    <input type="date" name="new_learning_goal_${newGoalIndex}_target_date" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                    <select name="new_learning_goal_${newGoalIndex}_status" 
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="not_started" selected>Not Started</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                        <option value="on_hold">On Hold</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Teacher Input (Optional)</label>
+                <textarea name="new_learning_goal_${newGoalIndex}_teacher_input" 
+                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                          rows="2" placeholder="Add teacher guidance or instructions for this goal"></textarea>
+            </div>
+        </div>
+    `;
+    
+    container.insertAdjacentHTML('beforeend', goalItemHtml);
+    
+    // Update the count field
+    const countField = document.querySelector('input[name="new_learning_goals_count"]');
+    if (countField) {
+        countField.value = container.querySelectorAll('.learning-goal-item[data-goal-id^="new_"]').length;
+    } else {
+        // Create the count field if it doesn't exist
+        const hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.name = 'new_learning_goals_count';
+        hiddenInput.value = container.querySelectorAll('.learning-goal-item[data-goal-id^="new_"]').length;
+        container.parentNode.appendChild(hiddenInput);
+    }
+    
+    // Focus on the new title input
+    const newItem = container.lastElementChild;
+    const titleInput = newItem.querySelector('input[type="text"]');
+    if (titleInput) {
+        titleInput.focus();
+    }
+}
+
+function removeLearningGoalItem(button) {
+    const goalItem = button.closest('.learning-goal-item');
+    const container = document.getElementById('learning-goals-items-container');
+    
+    if (goalItem) {
+        goalItem.remove();
+        
+        // Update count
+        const countField = document.querySelector('input[name="new_learning_goals_count"]');
+        if (countField) {
+            countField.value = container.querySelectorAll('.learning-goal-item[data-goal-id^="new_"]').length;
+        }
+        
+        // Show empty state if no goals left
+        if (container.querySelectorAll('.learning-goal-item').length === 0) {
+            const emptyStateHtml = `
+                <div class="text-center py-12">
+                    <div class="text-gray-400 mb-4">
+                        <i class="fas fa-bullseye text-6xl"></i>
+                    </div>
+                    <h5 class="text-lg font-medium text-gray-900 mb-2">No Learning Goals Yet</h5>
+                    <p class="text-gray-600 mb-4">Start by adding learning goals for this learner to help guide their educational journey.</p>
+                    <button type="button" onclick="addLearningGoalItem()" class="inline-flex items-center px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors duration-200" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                        <i class="fas fa-plus mr-2"></i>
+                        Add First Learning Goal
+                    </button>
+                </div>
+            `;
+            container.innerHTML = emptyStateHtml;
+        }
+    }
+}
+
+function deleteLearningGoalItem(goalId) {
+    if (confirm('Are you sure you want to delete this learning goal? This action cannot be undone.')) {
+        const goalItem = document.querySelector(`[data-goal-id="${goalId}"]`);
+        if (goalItem) {
+            // Add a hidden input to mark for deletion
+            const deleteInput = document.createElement('input');
+            deleteInput.type = 'hidden';
+            deleteInput.name = 'delete_learning_goal_ids';
+            deleteInput.value = goalId;
+            goalItem.parentNode.appendChild(deleteInput);
+            
+            // Remove the visual element
+            goalItem.remove();
+            
+            // Show empty state if no goals left
+            const container = document.getElementById('learning-goals-items-container');
+            if (container.querySelectorAll('.learning-goal-item').length === 0) {
+                const emptyStateHtml = `
+                    <div class="text-center py-12">
+                        <div class="text-gray-400 mb-4">
+                            <i class="fas fa-bullseye text-6xl"></i>
+                        </div>
+                        <h5 class="text-lg font-medium text-gray-900 mb-2">No Learning Goals Yet</h5>
+                        <p class="text-gray-600 mb-4">Start by adding learning goals for this learner to help guide their educational journey.</p>
+                        <button type="button" onclick="addLearningGoalItem()" class="inline-flex items-center px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors duration-200" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                            <i class="fas fa-plus mr-2"></i>
+                            Add First Learning Goal
+                        </button>
+                    </div>
+                `;
+                container.innerHTML = emptyStateHtml;
+            }
+        }
+    }
+}
+
+// Toggle Custom Target Name field visibility
+function toggleCustomTargetName(selectElement, goalId) {
+    const isCustom = selectElement.value === 'custom';
+    const customNameField = document.getElementById('custom_target_name_' + goalId);
+    
+    if (customNameField) {
+        customNameField.style.display = isCustom ? 'block' : 'none';
+        
+        // Clear the custom target name if changing away from custom
+        if (!isCustom) {
+            const customNameInput = customNameField.querySelector('input');
+            if (customNameInput) {
+                customNameInput.value = '';
+            }
+        }
+    }
+}
+
+// Ensure tab state is preserved when making updates in this tab
+document.addEventListener('DOMContentLoaded', function() {
+    // Set tab state for form submission
+    function updateTabState() {
+        // Update global tab state explicitly for this tab
+        if (typeof currentTabState !== 'undefined') {
+            currentTabState.mainTab = 'ilp-tab';
+            currentTabState.subTab = 'learning-goal-tab';
+            
+            console.log('Learning Goal tab: Setting tab state to:', currentTabState);
+            
+            // Update hidden form fields directly
+            var activeTabField = document.getElementById('activeTabField');
+            var activeSubTabField = document.getElementById('activeSubTabField');
+            
+            if (activeTabField) activeTabField.value = currentTabState.mainTab;
+            if (activeSubTabField) activeSubTabField.value = currentTabState.subTab;
+        }
+    }
+    
+    // Update tab state when the tab becomes visible
+    var tabElement = document.getElementById('learning-goal-tab');
+    if (tabElement) {
+        // Create a mutation observer to detect when the tab becomes visible
+        var observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && 
+                    mutation.attributeName === 'style' &&
+                    tabElement.style.display !== 'none') {
+                    updateTabState();
+                }
+                
+                if (mutation.type === 'attributes' && 
+                    mutation.attributeName === 'class' &&
+                    tabElement.classList.contains('active')) {
+                    updateTabState();
+                }
+            });
+        });
+        
+        observer.observe(tabElement, { attributes: true });
+        
+        // Also check if it's already visible
+        if (tabElement.style.display !== 'none' || tabElement.classList.contains('active')) {
+            updateTabState();
+        }
+    }
+    
+    // Add input listeners to all form elements in this tab
+    var formElements = document.querySelectorAll('#learning-goal-tab input, #learning-goal-tab textarea, #learning-goal-tab select');
+    formElements.forEach(function(element) {
+        element.addEventListener('focus', updateTabState);
+        element.addEventListener('change', updateTabState);
+    });
+});
+</script> 

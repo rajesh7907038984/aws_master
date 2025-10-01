@@ -1,0 +1,209 @@
+/* Custom Sidebar Styles with high specificity and !important rules */
+/* Content-Type: text/css */
+
+#sidebar {
+    background-color: #1C2260 !important;
+}
+
+#sidebar nav {
+    background-color: #1C2260 !important;
+}
+
+/* Default state - white text and icons */
+#sidebar a.menu-item,
+#sidebar button.menu-item {
+    color: white !important;
+    text-decoration: none;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    transition: all 0.3s ease;
+    position: relative;
+    background-color: transparent !important;
+    padding: 12px 24px !important;
+    height: 48px !important;
+    min-height: 48px !important;
+}
+
+#sidebar a.menu-item svg,
+#sidebar button.menu-item svg,
+#sidebar a.menu-item .icon-container svg,
+#sidebar button.menu-item .icon-container svg {
+    color: white !important;
+    stroke: white !important;
+    fill: none !important;
+    width: 24px !important;
+    height: 24px !important;
+}
+
+#sidebar a.menu-item span.menu-text,
+#sidebar button.menu-item span.menu-text {
+    color: white !important;
+}
+
+/* Active state - dark blue background with white text and icons */
+#sidebar a.menu-item.active,
+#sidebar button.menu-item.active {
+    background-color: #050c50 !important;
+    color: white !important;
+    border-radius: 0 !important;
+    border-left: 4px solid #02f711 !important;
+}
+
+#sidebar a.menu-item.active svg,
+#sidebar button.menu-item.active svg,
+#sidebar a.menu-item.active .icon-container svg,
+#sidebar button.menu-item.active .icon-container svg {
+    color: white !important;
+    stroke: #ffffff !important;
+    fill: none !important;
+}
+
+#sidebar a.menu-item.active span.menu-text,
+#sidebar button.menu-item.active span.menu-text {
+    color: white !important;
+}
+
+/* Hover state - dark blue background with white text and icons */
+#sidebar a.menu-item:hover,
+#sidebar button.menu-item:hover {
+    background-color: #050c50 !important;
+    color: white !important;
+    border-radius: 0 !important;
+    border-left: 4px solid #02f711 !important;
+}
+
+#sidebar a.menu-item:hover svg,
+#sidebar button.menu-item:hover svg,
+#sidebar a.menu-item:hover .icon-container svg,
+#sidebar button.menu-item:hover .icon-container svg {
+    color: white !important;
+    stroke: #ffffff !important;
+    fill: none !important;
+}
+
+#sidebar a.menu-item:hover span.menu-text,
+#sidebar button.menu-item:hover span.menu-text {
+    color: white !important;
+}
+
+/* Submenu styles with higher specificity */
+#sidebar .submenu {
+    background-color: rgba(0, 0, 0, 0.1) !important;
+    overflow-y: auto !important;
+    transition: all 0.3s ease;
+    max-height: 0;
+}
+
+#sidebar .submenu:not(.hidden) {
+    max-height: 1200px;
+}
+
+#sidebar .submenu a.menu-item,
+#sidebar .submenu button.menu-item {
+    padding: 12px 24px 12px 52px !important;
+    font-size: 0.875rem !important;
+    opacity: 0.9;
+    height: 48px !important;
+    min-height: 48px !important;
+    background-color: transparent !important;
+}
+
+#sidebar .submenu a.menu-item:hover,
+#sidebar .submenu button.menu-item:hover {
+    background-color: #050c50 !important;
+    opacity: 1;
+}
+
+/* Parent menu item with submenu */
+#sidebar .menu-item.has-submenu {
+    position: relative;
+}
+
+#sidebar .menu-item.has-submenu .arrow-icon {
+    position: absolute;
+    right: 1rem;
+    transition: transform 0.3s ease;
+}
+
+#sidebar .menu-item.has-submenu.expanded .arrow-icon {
+    transform: rotate(180deg);
+}
+
+/* Collapsed state styles */
+#sidebar.collapsed .submenu {
+    display: none !important;
+}
+
+#sidebar.collapsed .menu-text {
+    display: none !important;
+}
+
+#sidebar.collapsed .menu-item {
+    justify-content: center !important;
+    padding: 12px !important;
+    height: 48px !important;
+    min-height: 48px !important;
+}
+
+#sidebar.collapsed .icon-container {
+    margin: 0 !important;
+    min-width: auto !important;
+}
+
+#sidebar.collapsed .arrow-icon {
+    display: none !important;
+}
+
+/* Override any other styles that might be interfering */
+html body #sidebar a.menu-item:not([class*="bg-[#f3f8fc]"]):not(:hover):not(.active),
+html body #sidebar button.menu-item:not([class*="bg-[#f3f8fc]"]):not(:hover):not(.active) {
+    color: white !important;
+}
+
+/* Force white color for non-active menu items */
+html body #sidebar a.menu-item:not(.active):not([class*="bg-[#f3f8fc]"]):not(:hover),
+html body #sidebar button.menu-item:not(.active):not([class*="bg-[#f3f8fc]"]):not(:hover) {
+    color: white !important;
+}
+
+/* Extra high specificity override for active state */
+html body #sidebar a.menu-item.active,
+html body #sidebar button.menu-item.active {
+    color: white !important;
+    background-color: #050c50 !important;
+    border-left: 4px solid #02f711 !important;
+}
+
+html body #sidebar a.menu-item.active *,
+html body #sidebar button.menu-item.active *,
+html body #sidebar a.menu-item[class*="bg-[#f3f8fc]"] *,
+html body #sidebar button.menu-item[class*="bg-[#f3f8fc]"] * {
+    color: white !important;
+    stroke: #ffffff !important;
+    fill: none !important;
+}
+
+/* Highest specificity for hover state */
+html body #sidebar a.menu-item:hover,
+html body #sidebar button.menu-item:hover {
+    color: white !important;
+    background-color: #050c50 !important;
+    border-left: 4px solid #02f711 !important;
+}
+
+html body #sidebar a.menu-item:hover *,
+html body #sidebar button.menu-item:hover * {
+    color: white !important;
+    stroke: #ffffff !important;
+    fill: none !important;
+}
+
+#sidebar .icon-container {
+    min-width: 32px !important;
+    width: 32px !important;
+    height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+} 

@@ -1,0 +1,1144 @@
+<!-- base.html -->
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Nexsy LMS{% endblock %}</title>
+    
+    <!-- Error handling scripts removed to fix syntax errors -->
+    
+    <!-- Performance Monitor - load first to catch issues early -->
+    <script src="{% static 'js/performance-monitor.js' %}"></script>
+    
+    <!-- Version manager - load first for proper file versioning -->
+    <script src="{% static 'core/js/version-manager.js' %}"></script>
+    
+    <!-- CSRF Token Manager - centralized token management -->
+    <script src="{% static 'js/csrf-token-manager.js' %}"></script>
+    
+    <!-- Enhanced Fetch with CSRF handling - wraps all fetch calls -->
+    <script src="{% static 'js/csrf-enhanced-fetch.js' %}"></script>
+    
+    <!-- Unified CSRF handler - load early for consistent CSRF handling -->
+    <script src="{% static 'core/js/unified-csrf-handler.js' %}"></script>
+    
+    <!-- Safe fetch utilities - load early for consistent AJAX handling -->
+    <script src="{% static 'core/js/safe-fetch-utils.js' %}"></script>
+    
+    <!-- Unified timezone handler - consolidates all timezone functionality -->
+    <script src="{% static 'core/js/unified-timezone-handler.js' %}"></script>
+    
+    <!-- User device time utility - always load for time utilities -->
+    <script src="{% static 'core/js/user-device-time.js' %}"></script>
+    
+    <!-- Unified Authentication Handler - prevents conflicts -->
+    <script src="{% static 'core/js/unified-auth-handler.js' %}"></script>
+    
+    <!-- Set authentication status for unified handler -->
+    <script>
+        window.userAuthenticated = {% if user.is_authenticated %}true{% else %}false{% endif %};
+    </script>
+    
+    <!-- Authentication Fix Validator (for testing) -->
+    <script src="{% static 'core/js/auth-fix-validator.js' %}"></script>
+    
+    <!-- Auto-logout prevention system - moved to after jQuery is loaded -->
+    
+    <!-- Global file upload validator - load early for all file upload forms -->
+    <script src="{% static 'core/js/secure_filename_validator.js' %}"></script>
+    
+    <!-- Existing content loader - ensures previously added data renders properly in edit forms -->
+    <script src="{% static 'core/js/existing-content-loader.js' %}"></script>
+    
+    {% load tinymce_tags %}
+    {% tinymce_browser_compat %}
+    
+    <!-- Responsive Tables CSS -->
+    <link rel="stylesheet" href="{% static 'core/css/responsive-tables.css' %}">
+    
+    <!-- Responsive Tables JavaScript -->
+    <script src="{% static 'core/js/responsive-tables.js' %}" defer></script>
+    
+    <!-- Mobile Course Settings JavaScript -->
+    <script src="{% static 'js/mobile-course-settings.js' %}" defer></script>
+    
+    <!-- Global fix for UI issues - ensure sidebar/header components are displayed across all pages -->
+    <script>
+        // Ensure UI components are displayed across all pages
+        window.addEventListener('load', function() {
+            // Handle responsive behavior for sidebar and main content
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('main-content');
+            
+            // Apply responsive rules
+            if (sidebar && mainContent) {
+                if (window.innerWidth < 768) {
+                    // Mobile view
+                    sidebar.classList.add('hidden');
+                    sidebar.classList.remove('md:block');
+                    mainContent.classList.remove('md:ml-[200px]');
+                    mainContent.classList.add('ml-0');
+                    mainContent.classList.add('w-full');
+                    mainContent.classList.remove('md:w-[calc(100%-200px)]');
+                } else {
+                    // Desktop view
+                    sidebar.classList.remove('hidden');
+                    sidebar.classList.add('md:block');
+                    
+                    // Check if sidebar is collapsed
+                    if (sidebar.classList.contains('collapsed')) {
+                        mainContent.classList.add('sidebar-collapsed');
+                    } else {
+                        mainContent.classList.remove('sidebar-collapsed');
+                    }
+                }
+            }
+            
+            // Fix header components
+            const header = document.querySelector('header');
+            if (header) {
+                // Target all header icons including discussion and notification icons
+            const headerIcons = header.querySelectorAll('a.header-icon, a.discussion-icon, a.notification-icon');
+            headerIcons.forEach(icon => {
+                if (icon) {
+                    icon.classList.remove('hidden');
+                    
+                    // Fix the SVG icons inside
+                    const svg = icon.querySelector('svg');
+                    if (svg) {
+                        svg.style.display = 'inline';
+                    }
+                    
+                    // Fix notification dots
+                    const notificationDot = icon.querySelector('span');
+                    if (notificationDot) {
+                        notificationDot.style.display = 'block';
+                    }
+                }
+            });
+                
+                // Fix the mobile-menu-toggle button
+                const mobileMenuToggle = header.querySelector('#mobile-menu-toggle');
+                if (mobileMenuToggle) {
+                    if (window.innerWidth < 768) {
+                        mobileMenuToggle.classList.remove('md:hidden');
+                    } else {
+                        mobileMenuToggle.classList.add('md:hidden');
+                    }
+                }
+            }
+        });
+
+        // Handle window resize events
+        window.addEventListener('resize', function() {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('main-content');
+            
+            if (sidebar && mainContent) {
+                if (window.innerWidth < 768) {
+                    // Mobile view
+                    sidebar.classList.add('hidden');
+                    sidebar.classList.remove('md:block');
+                    mainContent.style.marginLeft = '0';
+                    mainContent.style.width = '100%';
+                } else {
+                    // Desktop view
+                    sidebar.classList.remove('hidden');
+                    sidebar.classList.add('md:block');
+                    
+                    // Check if sidebar is collapsed
+                    if (sidebar.classList.contains('collapsed')) {
+                        mainContent.style.marginLeft = '3.5rem';
+                        mainContent.style.width = 'calc(100% - 3.5rem)';
+                    } else {
+                        mainContent.style.marginLeft = '16rem';
+                        mainContent.style.width = 'calc(100% - 16rem)';
+                    }
+                }
+            }
+        });
+    </script>
+    
+    <!-- DOMNodeInserted deprecation fix -->
+    <script>
+        // Handle DOMNodeInserted events gracefully
+        const originalAddEventListener = EventTarget.prototype.addEventListener;
+        EventTarget.prototype.addEventListener = function(type, listener, options) {
+            if (type === 'DOMNodeInserted') {
+                // Use a MutationObserver instead if you need this functionality
+                return;
+            }
+            return originalAddEventListener.call(this, type, listener, options);
+        };
+    </script>
+    
+    <!-- Disable console logs in production -->
+    <script src="{% static 'core/js/disable-console-logs.js' %}"></script>
+    
+    <!-- CSRF Token Setup -->
+    {% csrf_token %}
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    
+    <!-- CSRF Token Manager -->
+    <script src="{% static 'js/csrf-token-manager.js' %}"></script>
+    
+    <!-- User Authentication Status for JavaScript -->
+    <script>
+        window.userAuthenticated = {% if user.is_authenticated %}true{% else %}false{% endif %};
+        window.userName = "{{ user.username|escapejs }}";
+        window.userRole = "{{ user.role|default:'anonymous'|escapejs }}";
+        window.userBranch = "{{ user.branch.name|default:'none'|escapejs }}";
+    </script>
+    
+    <!-- Favicon -->
+    <link rel="icon" href="{% static 'core/img/favicon.png' %}" type="image/x-icon">
+    <link rel="shortcut icon" href="{% static 'core/img/favicon.png' %}" type="image/x-icon">
+    <link rel="icon" type="image/png" sizes="16x16" href="{% static 'core/img/favicon-16x16.png' %}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'core/img/favicon-32x32.png' %}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{% static 'core/img/favicon-192x192.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'core/img/apple-touch-icon.png' %}">
+    <link rel="apple-touch-icon-precomposed" href="{% static 'core/img/apple-touch-icon.png' %}">
+    <meta name="msapplication-TileImage" content="{% static 'core/img/favicon-192x192.png' %}">
+    <meta name="msapplication-TileColor" content="#0ea5e9">
+    <meta name="theme-color" content="#0ea5e9">
+    
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- jQuery UI -->
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+    
+    <!-- Auto-logout prevention system - load after jQuery for authenticated users -->
+    {% if user.is_authenticated %}
+        <script src="{% static 'core/js/auto-logout-prevention.js' %}"></script>
+    {% endif %}
+    
+    <!-- Unified Notifications - load after jQuery -->
+    <script src="{% static 'core/js/unified-notifications.js' %}"></script>
+    
+    <!-- Chart.js - Load before other chart-related scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Session Timeout Handler -->
+    <script src="{% static 'js/session-timeout.js' %}"></script>
+    
+    <!-- Unified Chart System - Load chart components -->
+    <script src="{% static 'core/js/chart-http-service.js' %}"></script>
+    <script src="{% static 'core/js/unified-chart-service.js' %}"></script>
+    <script src="{% static 'core/js/chart-initializer.js' %}"></script>
+    <script src="{% static 'core/js/user-progress-chart.js' %}"></script>
+    
+    <!-- Tailwind and Alpine.js -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" type="text/css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" type="text/css">
+    
+    <!-- Custom CSS -->
+    <link href="{% static 'core/css/style.css' %}" rel="stylesheet" type="text/css">
+    <link href="{% static 'core/css/font-standards.css' %}" rel="stylesheet" type="text/css">
+    <link href="{% static 'core/css/table-standards.css' %}" rel="stylesheet" type="text/css">
+    <link href="{% static 'core/css/chart-styles-unified.css' %}" rel="stylesheet" type="text/css">
+    <link href="{% static 'courses/css/course_create.css' %}" rel="stylesheet" type="text/css">
+    <link href="{% static 'css/sidebar-unified.css' %}?v=5.0" rel="stylesheet" type="text/css">
+    
+    <!-- Sidebar Conflict Resolver - Load LAST to override all conflicts -->
+    <style>
+        /* SIDEBAR CONFLICT RESOLVER - Override all conflicting rules */
+        #sidebar .arrow-icon,
+        #sidebar.collapsed .arrow-icon,
+        html body #sidebar .arrow-icon,
+        html body #sidebar.collapsed .arrow-icon {
+            display: inline-block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            color: white !important;
+            stroke: white !important;
+            fill: none !important;
+        }
+        
+        #sidebar.collapsed .arrow-icon {
+            opacity: 0.7 !important;
+        }
+        
+        /* Ensure submenu toggles work consistently */
+        #sidebar .menu-item.has-submenu .arrow-icon {
+            position: absolute !important;
+            right: 1rem !important;
+            transition: transform 0.3s ease !important;
+            width: 0.75rem !important;
+            height: 0.75rem !important;
+        }
+        
+        #sidebar .menu-item.has-submenu.expanded .arrow-icon {
+            transform: rotate(180deg) !important;
+        }
+        
+        /* Mobile menu arrow icons */
+        #mobile-menu .arrow-icon {
+            display: inline-block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            color: white !important;
+            stroke: white !important;
+            fill: none !important;
+        }
+    </style>
+    
+    <!-- Toast Notification CSS -->
+    <style>
+        .toast-enter {
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        .toast-leave {
+            animation: slideOut 0.3s ease-in forwards;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+
+        /* Global mobile responsiveness improvements */
+        @media (max-width: 480px) {
+            /* Ensure minimum touch targets */
+            button, 
+            a, 
+            input[type="submit"], 
+            input[type="button"], 
+            .btn,
+            .clickable {
+                min-height: 44px !important;
+                min-width: 44px !important;
+            }
+            
+            /* Improve form inputs on very small screens */
+            input[type="text"],
+            input[type="email"],
+            input[type="password"],
+            input[type="number"],
+            input[type="tel"],
+            input[type="url"],
+            textarea,
+            select {
+                font-size: 16px !important; /* Prevents zoom on iOS */
+                min-height: 44px !important;
+                padding: 12px 16px !important;
+            }
+            
+            /* Better spacing for mobile */
+            .container,
+            .content,
+            main {
+                padding-left: 1rem !important;
+                padding-right: 1rem !important;
+            }
+            
+            /* Responsive text sizes */
+            h1 { font-size: 1.5rem !important; }
+            h2 { font-size: 1.25rem !important; }
+            h3 { font-size: 1.125rem !important; }
+            
+            /* Toast notifications on mobile */
+            .toast-enter {
+                max-width: calc(100vw - 2rem) !important;
+                margin: 0 1rem !important;
+                font-size: 0.875rem !important;
+            }
+        }
+        
+        @media (max-width: 360px) {
+            /* Extra small screens (older phones) */
+            .container,
+            .content,
+            main {
+                padding-left: 0.75rem !important;
+                padding-right: 0.75rem !important;
+            }
+            
+            /* Smaller text on very small screens */
+            body {
+                font-size: 14px !important;
+            }
+            
+            h1 { font-size: 1.375rem !important; }
+            h2 { font-size: 1.125rem !important; }
+            h3 { font-size: 1rem !important; }
+        }
+        
+        /* Landscape orientation on mobile */
+        @media (max-height: 480px) and (orientation: landscape) {
+            /* Optimize for landscape mobile */
+            .mobile-landscape-compact {
+                padding: 0.5rem !important;
+            }
+            
+            .mobile-landscape-compact .form-group {
+                margin-bottom: 0.75rem !important;
+            }
+        }
+        
+        /* High DPI screens */
+        @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+            /* Ensure crisp icons and images on retina displays */
+            .icon,
+            .logo,
+            svg {
+                image-rendering: -webkit-optimize-contrast;
+            }
+        }
+        
+        /* Clean mobile optimizations */
+        .mobile-optimized {
+            background-color: #ffffff !important;
+            color: #111827 !important;
+        }
+        
+        /* Reduced motion for accessibility */
+        @media (prefers-reduced-motion: reduce) {
+            .toast-enter,
+            .toast-leave,
+            .transition-all,
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+        
+        /* Improve focus indicators for keyboard navigation */
+        @media (any-hover: none) {
+            /* Touch devices - improve focus states */
+            button:focus,
+            a:focus,
+            input:focus,
+            select:focus,
+            textarea:focus {
+                outline: 3px solid #3b82f6 !important;
+                outline-offset: 2px !important;
+            }
+        }
+
+        /* Global header protection against CSS conflicts */
+        header {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            z-index: 50 !important;
+        }
+        
+        /* Mobile header improvements */
+        @media (max-width: 768px) {
+            header {
+                min-height: 4rem;
+                height: auto;
+            }
+            
+            /* Ensure header content doesn't overflow */
+            header .flex.items-center {
+                flex-wrap: nowrap;
+                overflow: hidden;
+            }
+            
+            /* Make sure all header elements are properly sized */
+            header .flex-shrink-0 {
+                flex-shrink: 0;
+            }
+            
+            /* Improve mobile search toggle visibility */
+            #mobile-search-toggle {
+                display: flex !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+            }
+            
+            /* Ensure main content has proper top spacing on mobile */
+            #main-content {
+                padding-top: 4rem !important;
+            }
+            
+            /* Adjust body padding for mobile */
+            body {
+                padding-top: 0 !important;
+            }
+        }
+        
+        /* Extra small mobile screens */
+        @media (max-width: 480px) {
+            header {
+                min-height: 3.5rem;
+            }
+            
+            #main-content {
+                padding-top: 3.5rem !important;
+            }
+        }
+        
+        /* Very small screens */
+        @media (max-width: 320px) {
+            header {
+                min-height: 3rem;
+            }
+            
+            #main-content {
+                padding-top: 3rem !important;
+            }
+        }
+
+        /* Desktop search responsive behavior - managed in header.html */
+
+        /* Mobile search toggle responsive behavior - managed in header.html */
+
+        /* Ensure header icons are always visible */
+        .header-icon,
+        .discussion-icon,
+        .notification-icon {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+
+        /* Fix for header icons SVG */
+        .header-icon svg,
+        .discussion-icon svg,
+        .notification-icon svg {
+            display: inline !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+
+        /* Fix for notification dots */
+        .header-icon span,
+        .discussion-icon span,
+        .notification-icon span {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+
+        /* Prevent TinyMCE from interfering with header */
+        .tox-tinymce,
+        .tox-toolbar {
+            z-index: 10 !important;
+        }
+    </style>
+    
+    <!-- Highlight.js only -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    
+    <script>
+        // Initialize highlight.js
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.hljs) {
+                window.hljs.configure({
+                    ignoreUnescapedHTML: true
+                });
+                document.querySelectorAll('pre code').forEach(function(block) {
+                    window.hljs.highlightElement(block);
+                });
+            }
+        });
+    </script>
+    
+    <script>
+        // Tailwind Configuration - Wait for tailwind to be available
+        function configureTailwind() {
+            if (typeof tailwind !== 'undefined') {
+                tailwind.config = {
+                    theme: {
+                        extend: {
+                            colors: {
+                                primary: {
+                                    50: '#f0f9ff',
+                                    100: '#e0f2fe',
+                                    200: '#bae6fd',
+                                    300: '#7dd3fc',
+                                    400: '#38bdf8',
+                                    500: '#0ea5e9',
+                                    600: '#0284c7',
+                                    700: '#0369a1',
+                                    800: '#075985',
+                                    900: '#0c4a6e',
+                                    950: '#082f49',
+                                },
+                                dark: {
+                                    100: '#1e293b',
+                                    200: '#1C2260',
+                                    300: '#151521',
+                                }
+                            },
+                            fontFamily: {
+                                sans: ['Inter', 'sans-serif'],
+                            },
+                            screens: {
+                                'xs': '480px',
+                                'sm': '640px',
+                                'md': '768px',
+                                'lg': '1024px',
+                                'xl': '1280px',
+                                '2xl': '1536px',
+                                // Mobile-first breakpoints
+                                'mobile': {'max': '639px'},
+                                'tablet': {'min': '640px', 'max': '1023px'},
+                                'desktop': {'min': '1024px'},
+                            },
+                            spacing: {
+                                '18': '4.5rem',
+                                '88': '22rem',
+                                '128': '32rem',
+                            },
+                            minHeight: {
+                                'touch': '44px', // Touch-friendly minimum height
+                            },
+                            minWidth: {
+                                'touch': '44px', // Touch-friendly minimum width
+                            }
+                        },
+                    },
+                };
+            } else {
+                // Retry after a short delay if tailwind is not yet available
+                setTimeout(configureTailwind, 100);
+            }
+        }
+        
+        // Try to configure Tailwind immediately, or wait for it to load
+        configureTailwind();
+        
+        // Also ensure it runs after DOM is loaded as a fallback
+        document.addEventListener('DOMContentLoaded', function() {
+            configureTailwind();
+        });
+    </script>
+    
+    {% block extra_css %}{% endblock %}
+    
+    <!-- Fix for sidebar submenu toggle issues -->
+    <script>
+        // Global function to reinitialize submenu toggles
+        window.reinitializeSubmenuToggles = function() {
+            // Use a debounce mechanism to prevent too many logs
+            if (window.reinitializeInProgress) return;
+            window.reinitializeInProgress = true;
+            
+            // Only reinitialize if SidebarManager is available
+            if (window.SidebarManager && window.SidebarManager.isInitialized) {
+                window.SidebarManager.setupSubmenuToggles();
+            }
+            
+            // Reset debounce flag after a short delay
+            setTimeout(function() {
+                window.reinitializeInProgress = false;
+            }, 200);
+        };
+        
+        // Call after DOM load and only once when content changes
+        document.addEventListener('DOMContentLoaded', function() {
+            // Wait for SidebarManager to be available
+            const waitForSidebarManager = () => {
+                if (window.SidebarManager && window.SidebarManager.isInitialized) {
+                    window.reinitializeSubmenuToggles();
+                } else {
+                    setTimeout(waitForSidebarManager, 100);
+                }
+            };
+            
+            // Start waiting for SidebarManager
+            waitForSidebarManager();
+            
+            // Create a mutation observer with proper cleanup
+            let observer = null;
+            
+            function initializeObserver() {
+                if (observer) {
+                    observer.disconnect();
+                }
+                
+                observer = new MutationObserver(function(mutations) {
+                    let shouldReinitialize = false;
+                    
+                    mutations.forEach(function(mutation) {
+                        // Check if menu-related elements were added
+                        if (mutation.addedNodes && mutation.addedNodes.length) {
+                            for (let i = 0; i < mutation.addedNodes.length; i++) {
+                                const node = mutation.addedNodes[i];
+                                if (node.nodeType !== Node.ELEMENT_NODE) continue;
+                                
+                                // If this is a menu item or contains menu items
+                                if ((node.classList && (node.classList.contains('menu-item') || 
+                                                       node.classList.contains('has-submenu'))) ||
+                                    node.querySelector('.menu-item, .has-submenu, [data-submenu]')) {
+                                    shouldReinitialize = true;
+                                    break;
+                                }
+                            }
+                        }
+                    });
+                    
+                    if (shouldReinitialize) {
+                        // Wait for SidebarManager before reinitializing
+                        if (window.SidebarManager && window.SidebarManager.isInitialized) {
+                            window.reinitializeSubmenuToggles();
+                        }
+                    }
+                });
+                
+                // Observe the document body for changes
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true
+                });
+            }
+            
+            // Initialize observer after a short delay to avoid conflicts
+            setTimeout(initializeObserver, 500);
+            
+            // Clean up observer on page unload
+            window.addEventListener('beforeunload', function() {
+                if (observer) {
+                    observer.disconnect();
+                    observer = null;
+                }
+            });
+            
+            // Clean up observer on navigation (for SPA-like behavior)
+            window.addEventListener('pagehide', function() {
+                if (observer) {
+                    observer.disconnect();
+                    observer = null;
+                }
+            });
+        });
+        
+        // Immediately try to initialize in case DOM is already loaded
+        if (document.readyState === "complete" || document.readyState === "interactive") {
+            setTimeout(function() {
+                if (window.reinitializeSubmenuToggles) {
+                    window.reinitializeSubmenuToggles();
+                }
+            }, 100);
+        }
+        
+        // Enhanced submenu fix - removed to prevent conflicts with SidebarManager
+        
+        // Removed duplicate submenu fix code to prevent conflicts
+    </script>
+</head>
+<body class="h-full bg-white">
+    <div class="min-h-screen flex flex-col">
+        <!-- Include the header component -->
+        {% block header %}
+        {% include 'components/header.html' %}
+        {% endblock %}
+
+        <div class="flex flex-1 pt-12">
+            <!-- Include the sidebar component -->
+            {% block sidebar %}
+            {% include 'components/sidebar.html' %}
+            {% endblock %}
+
+            <!-- Main Content - Responsive adjustments handled by JavaScript and CSS -->
+            <main id="main-content" class="flex-1 transition-all duration-300 ml-0 md:ml-[16rem] w-full md:w-[calc(100%-16rem)] overflow-x-hidden bg-white text-gray-900 p-6">
+                {% if messages %}
+                <div class="fixed top-20 right-4 z-[100] space-y-4 pointer-events-none">
+                    {% for message in messages %}
+                    <div class="toast-enter bg-white text-black px-6 py-4 rounded-xl shadow-lg flex items-center justify-between max-w-md border border-gray-200 backdrop-blur-sm pointer-events-auto">
+                        <div class="flex items-center">
+                            {% if message.tags == 'success' %}
+                            <i class="fas fa-check-circle text-emerald-500 mr-3 text-xl"></i>
+                            {% elif message.tags == 'error' %}
+                            <i class="fas fa-exclamation-circle text-red-500 mr-3 text-xl"></i>
+                            {% elif message.tags == 'warning' %}
+                            <i class="fas fa-exclamation-triangle text-amber-500 mr-3 text-xl"></i>
+                            {% else %}
+                            <i class="fas fa-info-circle text-blue-500 mr-3 text-xl"></i>
+                            {% endif %}
+                            <span class="text-sm font-medium">{{ message }}</span>
+                        </div>
+                        <button class="ml-4 text-gray-500 hover:text-gray-700 focus:outline-none" onclick="this.parentElement.classList.add('toast-leave'); setTimeout(() => this.parentElement.remove(), 300)">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- Content Container -->
+                <div class="w-full">
+                    <!-- Global Breadcrumbs -->
+                    {% block global_breadcrumbs %}{% endblock %}
+                    
+                    {% block content %}{% endblock %}
+                </div>
+            </main>
+            
+            <!-- Right Sidebar -->
+            {% block right_sidebar %}{% endblock %}
+        </div>
+    </div>
+
+    <!-- Type Safety Utilities - Load first for type checking -->
+    <script src="{% static 'js/type-safety-utils.js' %}"></script>
+    
+    <!-- Universal Error Handler - Foundation for all error handling -->
+    <script src="{% static 'js/universal-error-handler.js' %}"></script>
+    
+    <!-- Production Error Handler - Enhanced error handling for production -->
+    {% if not debug %}
+    <script src="{% static 'js/production-error-handler.js' %}"></script>
+    {% endif %}
+    
+    <!-- Global Form Handler - Comprehensive Submit Button Fix -->
+    <script src="{% static 'js/global-form-handler.js' %}"></script>
+    
+    <!-- Enhanced Grading Handler for Instructor Forms -->
+    <script src="{% static 'core/js/enhanced-grading-handler.js' %}"></script>
+    
+    <!-- Form Validation System - Client-side validation for required fields -->
+    <script src="{% static 'core/js/form-validation.js' %}"></script>
+    
+    <!-- CSRF token setup - enhanced version with multiple fallbacks -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Try multiple methods to get CSRF token
+            let csrfToken = null;
+            
+            // Method 1: Meta tag
+            const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
+            if (csrfTokenMeta) {
+                csrfToken = csrfTokenMeta.getAttribute('content');
+            }
+            
+            // Method 2: Cookie (if HTTPONLY is disabled)
+            if (!csrfToken) {
+                const cookies = document.cookie.split(';');
+                for (let cookie of cookies) {
+                    const [name, value] = cookie.trim().split('=');
+                    if (name === 'csrftoken') {
+                        csrfToken = value;
+                        break;
+                    }
+                }
+            }
+            
+            // Method 3: Form input
+            if (!csrfToken) {
+                const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+                if (csrfInput) {
+                    csrfToken = csrfInput.value;
+                }
+            }
+            
+            if (csrfToken) {
+                // Store token globally for easy access
+                window.CSRF_TOKEN = csrfToken;
+                console.log('CSRF token loaded successfully');
+            } else {
+                console.error('CRITICAL: No CSRF token found - forms will fail');
+                // Show user-friendly error
+                if (typeof createSimpleNotification !== 'undefined') {
+                    createSimpleNotification('Security token missing. Please refresh the page.', 'error');
+                }
+                return;
+            }
+            
+            // Enhanced CSRF token handling for fetch requests
+            const originalFetch = window.fetch;
+            window.fetch = function() {
+                const args = Array.from(arguments);
+                const url = args[0];
+                const options = args[1] || {};
+                
+                // Skip external URLs
+                if (typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://')) && !url.includes(window.location.host)) {
+                    return originalFetch.apply(this, args);
+                }
+                
+                if (options.method && options.method.toUpperCase() !== 'GET') {
+                    options.headers = options.headers || {};
+                    if (!options.headers['X-CSRFToken'] && !options.headers['x-csrftoken']) {
+                        options.headers['X-CSRFToken'] = csrfToken;
+                    }
+                }
+                
+                return originalFetch.apply(this, [url, options]);
+            };
+            
+            // Legacy XMLHttpRequest support
+            const originalXhr = window.XMLHttpRequest.prototype.open;
+            window.XMLHttpRequest.prototype.open = function() {
+                const result = originalXhr.apply(this, arguments);
+                this.addEventListener('loadstart', function() {
+                    if (this._method && this._method.toUpperCase() !== 'GET') {
+                        this.setRequestHeader('X-CSRFToken', csrfToken);
+                    }
+                });
+                return result;
+            };
+        });
+
+        // Enhanced mobile detection
+        function isMobileDevice() {
+            return (window.innerWidth < 768) || 
+                   (navigator.userAgent.match(/Android/i) ||
+                    navigator.userAgent.match(/webOS/i) ||
+                    navigator.userAgent.match(/iPhone/i) ||
+                    navigator.userAgent.match(/iPad/i) ||
+                    navigator.userAgent.match(/iPod/i) ||
+                    navigator.userAgent.match(/BlackBerry/i) ||
+                    navigator.userAgent.match(/Windows Phone/i));
+        }
+
+        // Handle toast notifications
+        function showToast(message, type = 'info') {
+            if (!document.body) {
+                console.error('Cannot show toast: document.body not available');
+                return;
+            }
+            
+            const toastContainer = document.querySelector('.fixed.top-20.right-4') || document.createElement('div');
+            if (toastContainer && !toastContainer.classList.contains('fixed')) {
+                toastContainer.classList.add('fixed', 'top-20', 'right-4', 'z-[100]', 'space-y-4', 'pointer-events-none');
+                document.body.appendChild(toastContainer);
+            }
+            
+            const toast = document.createElement('div');
+            toast.classList.add('toast-enter', 'bg-white', 'text-black', 'px-6', 'py-4', 'rounded-xl', 'shadow-lg', 'flex', 'items-center', 'justify-between', 'max-w-md', 'border', 'border-gray-200', 'backdrop-blur-sm', 'pointer-events-auto');
+            
+            let iconClass = 'fas fa-info-circle text-blue-500';
+            if (type === 'success') iconClass = 'fas fa-check-circle text-emerald-500';
+            if (type === 'error') iconClass = 'fas fa-exclamation-circle text-red-500';
+            if (type === 'warning') iconClass = 'fas fa-exclamation-triangle text-amber-500';
+            
+            toast.innerHTML = `
+                <div class="flex items-center">
+                    <i class="${iconClass} mr-3 text-xl"></i>
+                    <span class="text-sm font-medium">${message}</span>
+                </div>
+                <button class="ml-4 text-gray-500 hover:text-gray-700 focus:outline-none">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            const closeButton = toast.querySelector('button');
+            if (closeButton) {
+                closeButton.addEventListener('click', function() {
+                    toast.classList.add('toast-leave');
+                    setTimeout(() => toast.remove(), 300);
+                });
+            }
+            
+            toastContainer.appendChild(toast);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.classList.add('toast-leave');
+                    setTimeout(() => toast.remove(), 300);
+                }
+            }, 5000);
+        }
+        
+        // Make toast function globally available
+        window.showToast = showToast;
+
+        // Global header fix to prevent display issues
+        function ensureHeaderVisibility() {
+            const header = document.querySelector('header');
+            if (header) {
+                header.style.display = 'block';
+                header.style.visibility = 'visible';
+                header.style.opacity = '1';
+                header.style.zIndex = '50';
+            }
+
+            // Search container responsive behavior is handled in header.html
+
+            // Mobile search toggle responsive behavior is handled in header.html
+
+            // Fix header icons
+            const headerIcons = document.querySelectorAll('.header-icon, .discussion-icon, .notification-icon');
+            headerIcons.forEach(icon => {
+                icon.style.display = 'flex';
+                icon.style.visibility = 'visible';
+                icon.style.opacity = '1';
+                
+                // Fix SVG icons
+                const svg = icon.querySelector('svg');
+                if (svg) {
+                    svg.style.display = 'inline';
+                    svg.style.visibility = 'visible';
+                    svg.style.opacity = '1';
+                }
+                
+                // Fix notification dots
+                const span = icon.querySelector('span');
+                if (span) {
+                    span.style.display = 'block';
+                    span.style.visibility = 'visible';
+                    span.style.opacity = '1';
+                }
+            });
+        }
+
+        // Run header fix on page load and after DOM changes
+        document.addEventListener('DOMContentLoaded', ensureHeaderVisibility);
+        window.addEventListener('load', ensureHeaderVisibility);
+        
+        // Run header fix after any dynamic content changes
+        const observer = new MutationObserver(function(mutations) {
+            let shouldFix = false;
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                    for (let node of mutation.addedNodes) {
+                        if (node.nodeType === Node.ELEMENT_NODE) {
+                            // Check if any TinyMCE or other editor elements were added
+                            if (node.classList && (node.classList.contains('tox-tinymce') || 
+                                                 node.classList.contains('tox-toolbar') ||
+                                                 node.querySelector('.tox-tinymce, .tox-toolbar'))) {
+                                shouldFix = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            });
+            if (shouldFix) {
+                setTimeout(ensureHeaderVisibility, 100);
+            }
+        });
+        
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    </script>
+    
+    {% block extra_js %}
+    <!-- Chart.js is already loaded via CDN above (line 173) -->
+    <!-- Removed duplicate Chart.js to fix production conflicts -->
+    
+    <!-- Admin Dashboard JavaScript - Load for admin pages -->
+    {% if user.is_authenticated and user.role in 'admin,superadmin,globaladmin' %}
+        <script src="{% static 'admin_dashboard/js/admin-header.js' %}"></script>
+    {% endif %}
+    {% endblock %}
+    
+    <!-- Auto-dismiss specific notifications -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Find all toast notifications
+            const toasts = document.querySelectorAll('.toast-enter');
+            
+            // Check each toast for the specific error message
+            toasts.forEach(toast => {
+                const messageText = toast.textContent.trim();
+                if (messageText.includes('No attempt ID provided for grading')) {
+                    // Auto-dismiss this notification
+                    toast.classList.add('toast-leave');
+                    setTimeout(() => toast.remove(), 300);
+                }
+            });
+        });
+    </script>
+    
+    <!-- Unified Sidebar JavaScript -->
+    <script src="{% static 'js/sidebar-unified.js' %}?v=5.2"></script>
+    
+    <!-- Sidebar Debug Fix Script -->
+    
+    <!-- Sidebar Submenu Fix Script -->
+    <script src="{% static 'js/sidebar-submenu-fix.js' %}?v=1.2"></script>
+    
+    <!-- Sidebar Toggle Fallback Function -->
+    <script>
+        // Enhanced fallback function for sidebar toggle - now only used as backup
+        function handleSidebarToggle(event) {
+            try {
+                if (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                
+                console.log('🖱️ Fallback sidebar toggle function called');
+                
+                // Check if we're on mobile
+                const isMobile = window.innerWidth < 768;
+                console.log('📱 Is mobile:', isMobile);
+                
+                if (isMobile) {
+                    // Mobile behavior - toggle mobile menu
+                    const mobileMenu = document.getElementById('mobile-menu');
+                    console.log('📱 Mobile menu element:', mobileMenu);
+                    
+                    if (mobileMenu) {
+                        const wasOpen = mobileMenu.classList.contains('open');
+                        mobileMenu.classList.toggle('open');
+                        
+                        if (!wasOpen) {
+                            document.body.classList.add('overflow-hidden');
+                            console.log('📱 Mobile menu opened via fallback');
+                        } else {
+                            document.body.classList.remove('overflow-hidden');
+                            console.log('📱 Mobile menu closed via fallback');
+                        }
+                    } else {
+                        console.error('❌ Mobile menu element not found');
+                    }
+                } else {
+                    // Desktop behavior - toggle sidebar collapse
+                    const sidebar = document.getElementById('sidebar');
+                    const mainContent = document.getElementById('main-content');
+                    
+                    console.log('🖥️ Sidebar element:', sidebar);
+                    console.log('🖥️ Main content element:', mainContent);
+                    
+                    if (sidebar && mainContent) {
+                        const wasCollapsed = sidebar.classList.contains('collapsed');
+                        sidebar.classList.toggle('collapsed');
+                        mainContent.classList.toggle('sidebar-collapsed');
+                        
+                        // Store state
+                        localStorage.setItem('sidebar_collapsed', !wasCollapsed);
+                        console.log('🖥️ Sidebar toggled via fallback:', !wasCollapsed);
+                    } else {
+                        console.error('❌ Sidebar or main content element not found');
+                        console.error('Sidebar:', sidebar);
+                        console.error('Main content:', mainContent);
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Error in handleSidebarToggle:', error);
+            }
+        }
+        
+        // Make function globally available as fallback
+        window.handleSidebarToggle = handleSidebarToggle;
+    </script>
+</body>
+</html>

@@ -1,0 +1,367 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}New Discussion{% endblock %}
+
+{% block extra_css %}
+{% include 'components/tinymce_includes.html' %}
+<style>
+    /* TinyMCE Editor fixes */
+    .tox .tox-toolbar__primary {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        background: #fff !important;
+        border-bottom: 1px solid #e5e7eb !important;
+        padding: 4px !important;
+    }
+    
+    .tox .tox-toolbar__group {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        padding: 0 4px !important;
+        background: none !important;
+    }
+    
+    .tox .tox-tbtn {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        margin: 0 1px !important;
+        color: #374151 !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    
+    .tox .tox-tbtn svg {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        fill: currentColor !important;
+    }
+    
+    /* Fix for any other TinyMCE elements that might be hidden */
+    .tox .tox-editor-container {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        flex-direction: column !important;
+        background: #fff !important;
+        border: 1px solid #e5e7eb !important;
+        border-radius: 0.375rem !important;
+    }
+    
+    .tox .tox-toolbar-overlord {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        background: none !important;
+    }
+    
+    .tox .tox-sidebar-wrap {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        flex-direction: column !important;
+    }
+    
+    .tox .tox-edit-area {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        background: #fff !important;
+    }
+    
+    .tox .tox-edit-area__iframe {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        background: #fff !important;
+        min-height: 200px !important;
+    }
+    
+    .tox .tox-statusbar {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        background: #f9fafb !important;
+        border-top: 1px solid #e5e7eb !important;
+        padding: 2px 8px !important;
+    }
+    
+    .tox .tox-statusbar__help-text {
+        display: none !important;
+    }
+    
+    .tox .tox-statusbar__path {
+        display: none !important;
+    }
+    
+    .tox .tox-statusbar__text-container {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+    
+    .tox .tox-statusbar__wordcount {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        font-size: 12px !important;
+        color: #6b7280 !important;
+    }
+    
+    /* File upload area styling */
+    .file-upload-area {
+        border: 1px dashed #D1D5DB;
+        border-radius: 0.375rem;
+        padding: 2rem 1rem;
+        text-align: center;
+        cursor: pointer;
+        margin-top: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumbs -->
+    {% with breadcrumbs=breadcrumbs %}
+        {% include 'components/breadcrumb.html' %}
+    {% endwith %}
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h1 class="text-xl font-semibold text-gray-900">{{ title }}</h1>
+            <p class="mt-1 text-sm text-gray-600">{{ description }}</p>
+        </div>
+
+        <div class="px-6 py-4">
+            <form method="post" enctype="multipart/form-data" class="space-y-6">
+                {% csrf_token %}
+                
+                <!-- Title -->
+                <div>
+                    <label for="title" class="block text-sm font-medium text-gray-700">Title</label>
+                    <input type="text" name="title" id="title" required
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                </div>
+
+                <!-- Content (Description) -->
+                <div>
+                    <label for="content" class="block text-sm font-medium text-gray-700">Description</label>
+                    <div id="tinymce-toolbar-container-content"></div>
+                    <textarea name="content" id="content" class="tinymce-editor" style="min-height: 200px;"></textarea>
+                    <p class="mt-1 text-xs text-gray-500">Describe the topic for this discussion.</p>
+                </div>
+
+                <!-- Instructions -->
+                <div>
+                    <label for="instructions" class="block text-sm font-medium text-gray-700">Instructions</label>
+                    <div id="tinymce-toolbar-container-instructions"></div>
+                    <textarea name="instructions" id="instructions" class="tinymce-editor" style="min-height: 200px;"></textarea>
+                    <p class="mt-1 text-xs text-gray-500">Provide instructions for participants joining the discussion.</p>
+                </div>
+
+                <!-- Visibility -->
+                <div>
+                    <label for="visibility" class="block text-sm font-medium text-gray-700">Visibility</label>
+                    <select name="visibility" id="visibility" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        <option value="public">Public</option>
+                        <option value="private">Private</option>
+                    </select>
+                </div>
+
+                <!-- Rubric Selection (Optional) -->
+                <div>
+                    <label for="rubric" class="block text-sm font-medium text-gray-700">Rubric (Optional)</label>
+                    <select name="rubric" id="rubric" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        <option value="">Select a rubric (optional)</option>
+                        {% for rubric in available_rubrics %}
+                        <option value="{{ rubric.id }}">{{ rubric.title }}</option>
+                        {% endfor %}
+                    </select>
+                    <p class="mt-1 text-xs text-gray-500">Optionally select a rubric to evaluate this discussion</p>
+                </div>
+
+                <!-- Attachments -->
+                <div>
+                    <label for="attachments" class="block text-sm font-medium text-gray-700">Attachments</label>
+                    <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                        <div class="space-y-1 text-center">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                            <div class="flex text-sm text-gray-600">
+                                <label for="attachments" class="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
+                                    <span>Upload files</span>
+                                    <input id="attachments" name="attachments" type="file" class="sr-only" multiple>
+                                </label>
+                                <p class="pl-1">or drag and drop</p>
+                            </div>
+                            <p class="text-xs text-gray-500">
+                                PDF, DOC, DOCX, TXT, PPT, PPTX, MP4, MOV, AVI, WMV, MP3, WAV, M4A, AAC, OGG up to 100MB
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="flex justify-end space-x-3">
+                    <a href="{% url 'discussions:discussion_list' %}" 
+                       class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Cancel
+                    </a>
+                    <button type="submit" 
+                            class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Create Discussion
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'tinymce_editor/js/tinymce-json-handler.js' %}"></script>
+<script src="{% static 'tinymce_editor/js/toolbar-fixer.js' %}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const contentField = document.getElementById('content');
+        const instructionsField = document.getElementById('instructions');
+        
+        // Process JSON content if present
+        if (contentField && typeof window.TinyMCEJsonHandler !== 'undefined') {
+            window.TinyMCEJsonHandler.processJsonContentField(contentField);
+        }
+        
+        if (instructionsField && typeof window.TinyMCEJsonHandler !== 'undefined') {
+            window.TinyMCEJsonHandler.processJsonContentField(instructionsField);
+        }
+        
+        // Initialize TinyMCE with better configuration
+        if (typeof tinymce !== 'undefined') {
+            // First remove any existing editors
+            if (tinymce.get('content')) {
+                tinymce.remove('#content');
+            }
+            
+            if (tinymce.get('instructions')) {
+                tinymce.remove('#instructions');
+            }
+            
+            // Common editor configuration
+            const editorConfig = {
+                height: 300,
+                menubar: 'edit view insert format tools table',
+                plugins: 'advlist autolink link image lists charmap preview anchor searchreplace visualblocks code fullscreen insertdatetime media table wordcount help',
+                toolbar: 'formatselect bold italic underline strikethrough | forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | link image media table | code fullscreen help | aiwriter',
+                toolbar_mode: 'wrap',
+                toolbar_sticky: true,
+                branding: false,
+                promotion: false,
+                statusbar: true,
+                resize: 'both',
+                automatic_uploads: true,
+                images_upload_url: '/discussions/upload_image/',
+                entity_encoding: 'raw',
+                convert_urls: false,
+                relative_urls: false,
+                document_base_url: window.location.origin,
+                external_plugins: {
+                    'aiwriter': '/static/tinymce_editor/js/plugins/aiwriter/plugin.js'
+                },
+                setup: function(editor) {
+                    editor.on('init', function() {
+                        // Force refresh of UI components
+                        setTimeout(function() {
+                            editor.focus();
+                            editor.nodeChanged();
+                            
+                            // Fix any toolbar visibility issues manually
+                            const container = editor.container;
+                            if (!container) return;
+                            
+                            // Fix toolbar visibility
+                            const toolbar = container.querySelector('.tox-toolbar__primary');
+                            if (toolbar) {
+                                toolbar.style.display = 'flex';
+                                toolbar.style.visibility = 'visible';
+                                toolbar.style.opacity = '1';
+                            }
+                            
+                            // Fix toolbar groups visibility
+                            const groups = container.querySelectorAll('.tox-toolbar__group');
+                            if (groups && groups.length) {
+                                groups.forEach(group => {
+                                    group.style.display = 'flex';
+                                    group.style.visibility = 'visible';
+                                    group.style.opacity = '1';
+                                    
+                                    // Fix button visibility
+                                    const buttons = group.querySelectorAll('.tox-tbtn');
+                                    if (buttons && buttons.length) {
+                                        buttons.forEach(button => {
+                                            button.style.display = 'flex';
+                                            button.style.visibility = 'visible';
+                                            button.style.opacity = '1';
+                                            
+                                            // Fix icon visibility
+                                            const icon = button.querySelector('svg');
+                                            if (icon) {
+                                                icon.style.display = 'block';
+                                                icon.style.visibility = 'visible';
+                                                icon.style.opacity = '1';
+                                            }
+                                        });
+                                    }
+                                });
+                            }
+                            
+                            // Fix editor container visibility
+                            const editorContainer = container.querySelector('.tox-editor-container');
+                            if (editorContainer) {
+                                editorContainer.style.display = 'flex';
+                                editorContainer.style.visibility = 'visible';
+                                editorContainer.style.opacity = '1';
+                            }
+                            
+                            // Fix edit area visibility
+                            const editArea = container.querySelector('.tox-edit-area');
+                            if (editArea) {
+                                editArea.style.display = 'flex';
+                                editArea.style.visibility = 'visible';
+                                editArea.style.opacity = '1';
+                            }
+                            
+                            // Fix iframe visibility
+                            const iframe = container.querySelector('.tox-edit-area__iframe');
+                            if (iframe) {
+                                iframe.style.display = 'block';
+                                iframe.style.visibility = 'visible';
+                                iframe.style.opacity = '1';
+                            }
+                        }, 100);
+                    });
+                }
+            };
+            
+            // Initialize content editor
+            // Use centralized TinyMCE configuration
+        tinymce.init({
+                ...editorConfig,
+                selector: '#content'
+            });
+            
+            // Initialize instructions editor
+            // Use centralized TinyMCE configuration
+        tinymce.init({
+                ...editorConfig,
+                selector: '#instructions'
+            });
+        }
+    });
+</script>
+{% endblock %} 

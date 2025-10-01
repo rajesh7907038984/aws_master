@@ -1,0 +1,140 @@
+<div class="file-upload-form">
+    <h4 class="text-lg font-semibold mb-4">Share a File</h4>
+    <form id="conference-file-upload-form" method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="mb-4">
+            <label for="{{ form.file.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                {{ form.file.label }}
+            </label>
+            {{ form.file }}
+            {% if form.file.help_text %}
+            <p class="mt-1 text-sm text-gray-500">{{ form.file.help_text }}</p>
+            {% endif %}
+            {% if form.file.errors %}
+            <p class="mt-1 text-sm text-red-600">{{ form.file.errors.0 }}</p>
+            {% endif %}
+        </div>
+        
+        <div class="mb-4">
+            <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                {{ form.description.label }}
+            </label>
+            {{ form.description }}
+            {% if form.description.errors %}
+            <p class="mt-1 text-sm text-red-600">{{ form.description.errors.0 }}</p>
+            {% endif %}
+        </div>
+        
+        <div class="flex justify-end space-x-3">
+            <button type="button" onclick="closeFileUploadModal()" 
+                    class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                Cancel
+            </button>
+            <button type="submit" 
+                    class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                <span class="upload-text">Upload File</span>
+                <span class="uploading-text hidden">
+                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Uploading...
+                </span>
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+function closeFileUploadModal() {
+    const modal = document.getElementById('file-upload-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+document.getElementById('conference-file-upload-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const form = e.target;
+    const formData = new FormData(form);
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const uploadText = submitBtn.querySelector('.upload-text');
+    const uploadingText = submitBtn.querySelector('.uploading-text');
+    
+    // Show loading state
+    uploadText.classList.add('hidden');
+    uploadingText.classList.remove('hidden');
+    submitBtn.disabled = true;
+    
+    fetch('{% url "conferences:upload_conference_file" conference_id=conference.id %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            showNotification('File uploaded successfully!', 'success');
+            
+            // Reset form
+            form.reset();
+            
+            // Close modal
+            closeFileUploadModal();
+            
+            // Refresh the shared files tab if it's currently active
+            const filesTab = document.getElementById('files-tab');
+            if (filesTab && !filesTab.classList.contains('hidden')) {
+                // Reload the page to show new file
+                location.reload();
+            }
+        } else {
+            // Show error messages
+            if (data.errors) {
+                for (const [field, error] of Object.entries(data.errors)) {
+                    showNotification(error, 'error');
+                }
+            } else {
+                showNotification(data.error || 'Failed to upload file', 'error');
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Upload error:', error);
+        showNotification('An error occurred while uploading the file', 'error');
+    })
+    .finally(() => {
+        // Reset button state
+        uploadText.classList.remove('hidden');
+        uploadingText.classList.add('hidden');
+        submitBtn.disabled = false;
+    });
+});
+
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 ${
+        type === 'success' ? 'bg-green-500 text-white' : 
+        type === 'error' ? 'bg-red-500 text-white' : 
+        'bg-blue-500 text-white'
+    }`;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    // Remove after 5 seconds
+    setTimeout(() => {
+        notification.remove();
+    }, 5000);
+}
+</script> 

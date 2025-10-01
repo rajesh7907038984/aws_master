@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ user.get_full_name|default:user.username }} - {{ section_title }}{% endblock %}
+
+{% block content %}
+<div class="bg-white text-black min-h-screen">
+    <div class="container mx-auto px-4 py-6">
+        <!-- Breadcrumbs -->
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+        <!-- User header with type and profile info -->
+        <div class="mt-6 mb-8">
+            <div class="flex items-center gap-6">
+                {% if user.profile_image %}
+                    <img src="{{ user.profile_image.url }}" alt="{{ user.get_full_name|default:user.username }}" 
+                         class="w-16 h-16 rounded-full object-cover border-2 border-gray-200">
+                {% else %}
+                    <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+                        {{ user.get_full_name.0|default:user.username.0 }}
+                    </div>
+                {% endif %}
+                <div>
+                    <div class="text-sm text-gray-500 uppercase">LEARNER-TYPE</div>
+                    <h1 class="text-xl font-semibold text-gray-900">{{ user.get_full_name|default:user.username }}</h1>
+                    <div class="text-sm text-gray-500">{{ user.email }}</div>
+                </div>
+                <div class="ml-auto flex gap-3">
+                    <button onclick="window.history.back()" class="inline-flex items-center bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 transition-all">
+                        <i class="fas fa-arrow-left mr-2"></i>
+                        Back
+                    </button>
+                    <div class="dropdown relative inline-block">
+                        <a href="{% url 'reports:user_detail_report' user.id %}?export=excel" class="text-white py-2 px-4 rounded-md transition-all" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                            Export in Excel
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="border-b border-gray-200 mb-6">
+            <nav class="flex -mb-px space-x-1">
+                {% if user.id == request.user.id %}
+                    <!-- My Learning Report navigation -->
+                    <a href="{% url 'reports:my_report_overview' %}" 
+                       class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'overview' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+                        <i class="fas fa-chart-line mr-2"></i>Overview
+                    </a>
+                    <a href="{% url 'reports:my_report_courses' %}" 
+                       class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'courses' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+                        <i class="fas fa-book mr-2"></i>Courses
+                    </a>
+                    <a href="{% url 'reports:my_report_activities' %}" 
+                       class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'learning-activities' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+                        <i class="fas fa-tasks mr-2"></i>Learning Activities
+                    </a>
+                    <a href="{% url 'reports:my_report_assessments' %}" 
+                       class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'initial-assessments' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+                        <i class="fas fa-clipboard-check mr-2"></i>Initial Assessments
+                    </a>
+                    <a href="{% url 'reports:my_report_certificates' %}" 
+                       class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'certificates' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+                        <i class="fas fa-certificate mr-2"></i>Certificates
+                    </a>
+                    <a href="{% url 'reports:my_report_timeline' %}" 
+                       class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'timeline' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+                        <i class="fas fa-clock mr-2"></i>Timeline
+                    </a>
+                {% else %}
+                    <!-- User Detail Report navigation -->
+                    <a href="{% url 'reports:user_report_overview' user.id %}" 
+                       class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'overview' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+                        <i class="fas fa-chart-line mr-2"></i>Overview
+                    </a>
+                    <a href="{% url 'reports:user_report_courses' user.id %}" 
+                       class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'courses' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+                        <i class="fas fa-book mr-2"></i>Courses
+                    </a>
+                    <a href="{% url 'reports:user_report_activities' user.id %}" 
+                       class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'learning-activities' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+                        <i class="fas fa-tasks mr-2"></i>Learning Activities
+                    </a>
+                    <a href="{% url 'reports:user_report_assessments' user.id %}" 
+                       class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'initial-assessments' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+                        <i class="fas fa-clipboard-check mr-2"></i>Initial Assessments
+                    </a>
+                    <a href="{% url 'reports:user_report_certificates' user.id %}" 
+                       class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'certificates' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+                        <i class="fas fa-certificate mr-2"></i>Certificates
+                    </a>
+                    <a href="{% url 'reports:user_report_timeline' user.id %}" 
+                       class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'timeline' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+                        <i class="fas fa-clock mr-2"></i>Timeline
+                    </a>
+                {% endif %}
+            </nav>
+        </div>
+
+        <!-- Section Content -->
+        {% block section_content %}
+        {% endblock %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<!-- No JavaScript needed - pure page navigation -->
+{% endblock %}

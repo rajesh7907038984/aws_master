@@ -1,0 +1,29 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- Error handler removed to fix syntax errors -->
+    
+    
+    <!-- CSRF Token Manager - centralized token management -->
+    <script src="{% static 'js/csrf-token-manager.js' %}"></script>
+    
+    <!-- Enhanced Fetch with CSRF handling - wraps all fetch calls -->
+    <script src="{% static 'js/csrf-enhanced-fetch.js' %}"></script>
+    
+    <!-- Safe fetch utilities - load early for consistent AJAX handling -->
+    <script src="{% static 'core/js/safe-fetch-utils.js' %}"></script>
+    
+    <title>{% block title %}LMS{% endblock %}</title>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    {% block content %}{% endblock %}
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html> 

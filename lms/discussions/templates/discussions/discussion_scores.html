@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load discussion_extras %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen">
+    <div class="container mx-auto px-4 py-6">
+        <!-- Main Content -->
+        <div class="bg-white rounded-lg shadow-sm p-4 md:p-6 mb-6">
+            <!-- Breadcrumbs -->
+            {% with breadcrumbs=breadcrumbs %}
+                {% include 'components/breadcrumb.html' %}
+            {% endwith %}
+            
+            <div class="mb-6">
+                <h1 class="text-2xl font-bold text-gray-800 mb-2">{{ discussion.title }}</h1>
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">Student Rubric Evaluations</h2>
+                
+                <div class="mb-4">
+                    <a href="{% url 'discussions:discussion_detail' discussion_id=discussion.id %}" class="text-blue-600 hover:text-blue-800">
+                        <i class="fas fa-arrow-left mr-1"></i> Back to Discussion
+                    </a>
+                    <a href="{% url 'discussions:bulk_evaluate' discussion_id=discussion.id %}" class="ml-4 text-blue-600 hover:text-blue-800">
+                        <i class="fas fa-users mr-1"></i> Bulk Evaluate Students
+                    </a>
+                </div>
+            </div>
+            
+            {% if scores_by_student %}
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
+                                {% for criterion in rubric.criteria.all %}
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    {{ criterion.description|truncatechars:30 }}
+                                    <div class="text-xxs text-gray-400 normal-case">({{ criterion.points }} pts)</div>
+                                </th>
+                                {% endfor %}
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Score</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            {% for student_id, data in scores_by_student.items %}
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        <div class="flex-shrink-0 h-10 w-10 bg-gray-300 rounded-full flex items-center justify-center text-white font-bold">
+                                            {{ data.student.first_name|first|upper }}
+                                        </div>
+                                        <div class="ml-4">
+                                            <div class="text-sm font-medium text-gray-900">{{ data.student.get_full_name }}</div>
+                                            <div class="text-sm text-gray-500">{{ data.student.email }}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                {% for criterion in rubric.criteria.all %}
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    {% if criterion.id in data.criterion_scores %}
+                                    {% with eval=data.criterion_scores|get_item:criterion.id %}
+                                    <div class="text-sm text-gray-900">{{ eval.points }} / {{ criterion.points }}</div>
+                                    {% if eval.comments %}
+                                    <div class="text-xs text-gray-500 mt-1">{{ eval.comments|truncatechars:50 }}</div>
+                                    {% endif %}
+                                    {% endwith %}
+                                    {% else %}
+                                    <div class="text-sm text-gray-400">Not evaluated</div>
+                                    {% endif %}
+                                </td>
+                                {% endfor %}
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm font-medium text-gray-900">{{ data.total_points }} / {{ rubric.total_points }}</div>
+                                    <div class="text-xs text-gray-500">
+                                        {% widthratio data.total_points rubric.total_points 100 %}%
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <a href="{% url 'discussions:discussion_detail' discussion_id=discussion.id %}?student_id={{ data.student.id }}" class="text-blue-600 hover:text-blue-800">
+                                        Edit Evaluation
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="bg-gray-100 p-4 rounded-lg text-center">
+                    <p class="text-gray-700">No students have been evaluated yet.</p>
+                    <a href="{% url 'discussions:discussion_detail' discussion_id=discussion.id %}" class="mt-2 inline-block text-blue-600 hover:text-blue-800">
+                        Return to discussion to evaluate students
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %} 

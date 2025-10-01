@@ -1,0 +1,68 @@
+{% extends "admin/change_list.html" %}
+{% load admin_urls static admin_list %}
+
+{% block content_title %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h1>{{ title }}</h1>
+    <div>
+        <a href="/admin/users/" 
+           class="default" 
+           style="background: #417690; color: white; padding: 8px 16px; border-radius: 4px; text-decoration: none; margin-right: 10px;">
+            <i class="fas fa-tachometer-alt"></i> Switch to Dashboard View
+        </a>
+        {% if has_add_permission %}
+        <a href="{% url 'users:user_create' %}" 
+           class="addlink" 
+           style="background: #79aec8; color: white; padding: 8px 16px; border-radius: 4px; text-decoration: none;">
+            Add User via Dashboard
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .dashboard-notice {
+        background: #e7f3ff;
+        border: 1px solid #b8daff;
+        border-radius: 4px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    .dashboard-notice h3 {
+        margin: 0 0 10px 0;
+        color: #004085;
+    }
+    .dashboard-notice p {
+        margin: 0;
+        color: #004085;
+    }
+    .dashboard-btn {
+        display: inline-block;
+        background: #007cba;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 4px;
+        text-decoration: none;
+        margin-top: 10px;
+    }
+    .dashboard-btn:hover {
+        background: #005a87;
+        color: white;
+        text-decoration: none;
+    }
+</style>
+{% endblock %}
+
+{% block result_list %}
+<div class="dashboard-notice">
+    <h3><i class="fas fa-info-circle"></i> Enhanced User Management Available</h3>
+    <p>A modern dashboard interface is now available for user management with enhanced features including to-do lists, analytics, and better user experience.</p>
+    <a href="/admin/users/" class="dashboard-btn">
+        <i class="fas fa-external-link-alt"></i> Open Dashboard Interface
+    </a>
+</div>
+{{ block.super }}
+{% endblock %} 

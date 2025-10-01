@@ -1,0 +1,177 @@
+/* User Profile Template Tags Styles */
+
+/* Level Progress Styles */
+.level-progress-container {
+  background-color: white;
+  border-radius: 8px;
+  padding: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.level-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #6055D3, #8952E0);
+  color: white;
+  border-radius: 50%;
+  font-weight: bold;
+  font-size: 1.25rem;
+}
+
+.level-progress-bar {
+  height: 10px;
+  background-color: #e5e7eb;
+  border-radius: 5px;
+  overflow: hidden;
+  margin: 1rem 0;
+}
+
+.level-progress-fill {
+  height: 100%;
+  background: linear-gradient(to right, #6055D3, #8952E0);
+  border-radius: 5px;
+  transition: width 0.6s ease;
+}
+
+/* User Badges Styles */
+.user-badges {
+  background-color: white;
+  border-radius: 8px;
+  padding: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.badges-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 1rem;
+}
+
+.badge-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.badge-item.earned .badge-img {
+  border: 3px solid transparent;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+
+.badge-img {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: #f9fafb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+
+.badge-img.gold {
+  border-color: #FFD700;
+}
+
+.badge-img.silver {
+  border-color: #C0C0C0;
+}
+
+.badge-img.bronze {
+  border-color: #CD7F32;
+}
+
+.badge-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.badge-earned-date {
+  font-size: 0.75rem;
+  color: #6B7280;
+}
+
+.view-all-badges {
+  display: inline-block;
+  font-size: 0.875rem;
+  color: #6055D3;
+  text-decoration: none;
+}
+
+.view-all-badges:hover {
+  text-decoration: underline;
+}
+
+.empty-badges {
+  padding: 2rem 0;
+}
+
+/* User Stats Styles */
+.user-stats-container {
+  margin: 1rem 0;
+}
+
+.stat-card {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  height: 100%;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.stat-icon {
+  color: #6055D3;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1F2937;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: #6B7280;
+}
+
+.points-display {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.points-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #6055D3;
+}
+
+/* Avatar Styles */
+.avatar {
+  object-fit: cover;
+}
+
+.avatar-sm {
+  width: 32px;
+  height: 32px;
+}
+
+.avatar-md {
+  width: 64px;
+  height: 64px;
+}
+
+.avatar-lg {
+  width: 128px;
+  height: 128px;
+} 

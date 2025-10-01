@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ course.title }} - Course Progress{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+    
+    <div class="row">
+        <div class="col-12">
+            <div class="card mb-4">
+                <div class="card-header pb-0 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Course Progress: {{ course.title }}</h5>
+                </div>
+                <div class="card-body px-0 pt-0 pb-2">
+                    <div class="table-responsive p-0">
+                        <table class="table align-items-center mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">User</th>
+                                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Progress</th>
+                                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Completed Topics</th>
+                                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Last Accessed</th>
+                                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Status</th>
+                                    <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for data in progress_data %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex px-2 py-1">
+                                            <div>
+                                                {% if data.user.profile_image %}
+                                                    <img src="{{ data.user.profile_image.url }}" class="avatar avatar-sm me-3" alt="{{ data.user.get_full_name }}">
+                                                {% else %}
+                                                    <div class="avatar avatar-sm me-3 bg-primary rounded-circle">
+                                                        {{ data.user.get_initials }}
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                            <div class="d-flex flex-column justify-content-center">
+                                                <h6 class="mb-0 text-sm">{{ data.user.get_full_name }}</h6>
+                                                <p class="text-xs text-secondary mb-0">{{ data.user.email }}</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="progress-wrapper w-75">
+                                            <div class="progress-info">
+                                                <div class="progress-percentage">
+                                                    <span class="text-xs font-weight-bold">{{ data.progress }}%</span>
+                                                </div>
+                                            </div>
+                                            <div class="progress">
+                                                <div class="progress-bar bg-gradient-info" role="progressbar" aria-valuenow="{{ data.progress }}" aria-valuemin="0" aria-valuemax="100" style="width: {{ data.progress }}%;"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <p class="text-xs font-weight-bold mb-0">{{ data.completed_topics }} / {{ data.total_topics }}</p>
+                                    </td>
+                                    <td>
+                                        <span class="text-secondary text-xs font-weight-bold">
+                                            {% if data.last_accessed %}
+                                                {{ data.last_accessed|date:"M d, Y" }}
+                                            {% else %}
+                                                Never
+                                            {% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-sm {% if data.completed %}bg-gradient-success{% else %}bg-gradient-secondary{% endif %}">
+                                            {% if data.completed %}Completed{% else %}In Progress{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'courses:user_course_progress' course_id=course.id user_id=data.user.id %}" class="btn btn-link text-info text-gradient px-3 mb-0">
+                                            <i class="fas fa-chart-line me-2"></i>View Details
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4">
+                                        <p class="text-sm mb-0">No users are enrolled in this course yet.</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Initialize any needed JS here
+    });
+</script>
+{% endblock %} 

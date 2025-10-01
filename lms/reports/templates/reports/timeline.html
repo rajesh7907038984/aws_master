@@ -1,0 +1,364 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<style>
+    /* Simple, clean timeline styling */
+    .timeline-container {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .timeline-event {
+        display: flex;
+        margin-bottom: 20px;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 6px;
+        border-left: 3px solid #007bff;
+    }
+    
+    .timeline-time {
+        font-size: 0.8rem;
+        color: #6c757d;
+        margin-bottom: 5px;
+    }
+    
+    .timeline-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 5px;
+    }
+    
+    .timeline-meta {
+        font-size: 0.9rem;
+        color: #6c757d;
+    }
+    
+    .nav-tabs {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        overflow: hidden;
+    }
+    
+    .nav-tabs nav {
+        display: flex;
+    }
+    
+    .nav-tab {
+        flex: 1;
+        padding: 15px 20px;
+        text-decoration: none;
+        color: #6c757d;
+        font-weight: 500;
+        text-align: center;
+        border-bottom: 3px solid transparent;
+        transition: all 0.3s ease;
+    }
+    
+    .nav-tab:hover {
+        color: #007bff;
+        background-color: #f8f9fa;
+    }
+    
+    .nav-tab.active {
+        color: #007bff;
+        border-bottom-color: #007bff;
+        background-color: #f8f9fa;
+    }
+    
+    .filters-section {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    
+    .filters-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .filter-label {
+        font-weight: 500;
+        color: #495057;
+        margin-bottom: 5px;
+        font-size: 0.9rem;
+    }
+    
+    .filter-input {
+        padding: 8px 12px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 0.9rem;
+    }
+    
+    .btn {
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-primary {
+        background: #007bff;
+        color: white;
+    }
+    
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #6c757d;
+    }
+    
+    .empty-icon {
+        font-size: 3rem;
+        margin-bottom: 20px;
+        opacity: 0.5;
+    }
+    
+    .pagination {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 30px;
+        padding: 20px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="report-full-width">
+    <div class="report-full-width-content">
+        <!-- Breadcrumbs -->
+        <div class="report-breadcrumb">
+            {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+        </div>
+
+    <!-- Navigation Tabs -->
+    <div class="nav-tabs">
+        <nav>
+            <a href="{% url 'reports:overview' %}" class="nav-tab">
+                Overview
+            </a>
+            <a href="{% url 'reports:training_matrix' %}" class="nav-tab">
+                Training matrix
+            </a>
+            <a href="{% url 'reports:timeline' %}" class="nav-tab active">
+                Timeline
+            </a>
+        </nav>
+    </div>
+
+    <!-- Filters Section -->
+    <div class="filters-section">
+        <form id="timeline-filters">
+            <div class="filters-grid">
+                <div class="filter-group">
+                    <label class="filter-label">From Date</label>
+                    <input type="date" name="from_date" value="{{ from_date|date:'Y-m-d' }}" 
+                           class="filter-input">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">To Date</label>
+                    <input type="date" name="to_date" value="{{ to_date|date:'Y-m-d' }}"
+                           class="filter-input">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Event Type</label>
+                    <select name="event_type" class="filter-input">
+                        <option value="">All Events</option>
+                        {% for type_code, type_name in event_types %}
+                        <option value="{{ type_code }}" {% if type_code == selected_event_type %}selected{% endif %}>
+                            {{ type_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">User</label>
+                    <select name="user" class="filter-input">
+                        <option value="">All Users</option>
+                        {% for user in all_users %}
+                        <option value="{{ user.id }}" {% if user.id == selected_user_id %}selected{% endif %}>
+                            {{ user.get_full_name|default:user.username }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Course</label>
+                    <select name="course" class="filter-input">
+                        <option value="">All Courses</option>
+                        {% for course in all_courses %}
+                        <option value="{{ course.id }}" {% if course.id == selected_course_id %}selected{% endif %}>
+                            {{ course.title }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-secondary" data-days="7">Last 7 days</button>
+                    <button type="button" class="btn btn-secondary" data-days="30">Last 30 days</button>
+                    <button type="button" class="btn btn-secondary" data-days="90">Last 90 days</button>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button type="reset" class="btn btn-secondary">
+                        Clear Filters
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        Apply Filters
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Main grid with full width -->
+    <div class="grid grid-cols-12 gap-4 md:gap-6">
+        <!-- Full Width Column -->
+        <div class="col-span-12 transition-all duration-300">
+            <div class="bg-white rounded-lg shadow-sm">
+                <div class="p-6">
+                    <!-- Timeline Section -->
+                    <div class="timeline-container">
+        {% for event in events %}
+        <div class="timeline-event">
+            <div>
+                <div class="timeline-time">{{ event.created_at|date:"M d, Y H:i" }}</div>
+                <div class="timeline-title">{{ event.get_type_display }}</div>
+                <div class="timeline-meta">
+                    {% if event.user %}
+                        <strong>{{ event.user.get_full_name|default:event.user.username }}</strong>
+                    {% endif %}
+                    {% if event.course %}
+                        in <strong>{{ event.course.title }}</strong>
+                    {% endif %}
+                </div>
+                {% if event.description %}
+                <div style="margin-top: 8px; font-size: 0.9rem; color: #6c757d;">
+                    {{ event.description }}
+                </div>
+                {% endif %}
+            </div>
+            {% if event.course %}
+            <div style="margin-left: auto;">
+                <a href="{% url 'courses:course_details' event.course.id %}" class="btn btn-secondary" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">
+                    View Course
+                </a>
+            </div>
+            {% endif %}
+        </div>
+        {% empty %}
+        <div class="empty-state">
+            <div class="empty-icon">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div style="font-size: 1.2rem; font-weight: 600; margin-bottom: 10px; color: #495057;">No Events Found</div>
+            <div style="font-size: 0.9rem; line-height: 1.5;">
+                No events found for the selected filters. Try adjusting your filter criteria.
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if events.has_other_pages %}
+    <div class="pagination">
+        <div style="color: #6c757d; font-size: 0.9rem;">
+            Showing page {{ events.number }} of {{ events.paginator.num_pages }}
+        </div>
+        
+        <div style="display: flex; gap: 10px;">
+            {% if events.has_previous %}
+            <a href="?page={{ events.previous_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}" 
+               class="btn btn-secondary">
+                Previous
+            </a>
+            {% else %}
+            <span class="btn btn-secondary" style="opacity: 0.5; cursor: not-allowed;">Previous</span>
+            {% endif %}
+            
+            {% if events.has_next %}
+            <a href="?page={{ events.next_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}"
+               class="btn btn-primary">
+                Next
+            </a>
+            {% else %}
+            <span class="btn btn-primary" style="opacity: 0.5; cursor: not-allowed;">Next</span>
+            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle form reset
+    document.querySelector('#timeline-filters button[type="reset"]').addEventListener('click', function(e) {
+        e.preventDefault();
+        window.location.href = window.location.pathname;
+    });
+
+    // Handle quick date buttons
+    document.querySelectorAll('.report-quick-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const days = parseInt(this.dataset.days);
+            const toDate = new Date();
+            const fromDate = new Date();
+            fromDate.setDate(fromDate.getDate() - days);
+            
+            document.querySelector('input[name="to_date"]').value = toDate.toISOString().split('T')[0];
+            document.querySelector('input[name="from_date"]').value = fromDate.toISOString().split('T')[0];
+        });
+    });
+
+    // Initialize select2 for searchable dropdowns if available
+    if (typeof $ !== 'undefined' && $.fn.select2) {
+        $('select[name="user"], select[name="course"]').select2({
+            theme: 'default',
+            width: '100%',
+            placeholder: 'Select an option',
+            allowClear: true
+        });
+    }
+});
+</script>
+{% endblock %} 

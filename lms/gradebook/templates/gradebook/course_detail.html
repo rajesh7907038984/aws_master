@@ -1,0 +1,3251 @@
+{% extends "base.html" %}
+{% load static %}
+{% load gradebook_tags %}
+{% load rubric_tags %}
+
+{% block title %}{{ course.title }} - Detailed Gradebook{% endblock %}
+
+{% block extra_css %}
+<!-- Include TinyMCE CSS -->
+<link rel="stylesheet" href="{% static 'tinymce_editor/css/tinymce-widget.css' %}">
+
+<style>
+  /* Minimal gradebook design with admin dashboard styling */
+  .gradebook-table {
+    border-collapse: collapse;
+    width: 100%;
+    background: white;
+    font-size: 0.95rem;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    min-width: 800px; /* Ensure horizontal scroll on mobile */
+  }
+  
+  .gradebook-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+    padding: 20px 16px;
+    border-bottom: 2px solid #e9ecef;
+    border-right: 1px solid #e9ecef;
+    color: #495057;
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    font-size: 0.9rem;
+    min-width: 160px;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  
+  .gradebook-table th:first-child {
+    text-align: left;
+    background: #f8f9fa;
+    position: sticky;
+    left: 0;
+    z-index: 25;
+    min-width: 200px;
+    border-right: 2px solid #e9ecef;
+    padding: 20px 20px;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  
+  .gradebook-table th:last-child {
+    border-right: none;
+    min-width: 180px;
+    padding: 20px 20px;
+    z-index: 22;
+    position: sticky;
+    right: 0;
+    background: #f8f9fa;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  
+  .gradebook-table td {
+    padding: 18px 16px;
+    border-bottom: 1px solid #e9ecef;
+    border-right: 1px solid #e9ecef;
+    vertical-align: middle;
+    text-align: center;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    min-width: 160px;
+    background: white;
+    z-index: 1;
+  }
+  
+  .gradebook-table td:first-child {
+    text-align: left;
+    font-weight: 600;
+    background: #fafbfc;
+    position: sticky;
+    left: 0;
+    z-index: 15;
+    border-right: 2px solid #e9ecef;
+    color: #212529;
+    min-width: 200px;
+    padding: 18px 20px;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  
+  .gradebook-table td:last-child {
+    border-right: none;
+    min-width: 180px;
+    padding: 18px 20px;
+    z-index: 12;
+    position: sticky;
+    right: 0;
+    background: white;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  
+  .gradebook-table tr:last-child td {
+    border-bottom: none;
+  }
+  
+  .gradebook-table tbody tr:hover td {
+    background-color: #f8f9fa;
+  }
+  
+  .gradebook-table tbody tr:hover td:first-child {
+    background-color: #f1f3f4;
+  }
+  
+  /* Clean activity cells */
+  .activity-cell {
+    min-width: 140px;
+    padding: 12px 8px;
+  }
+  
+  .submission-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .submission-date {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-bottom: 4px;
+  }
+  
+  /* Minimal grade styling */
+  .grade-score {
+    font-weight: 600;
+    font-size: 0.95rem;
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: inline-block;
+    min-width: 60px;
+  }
+  
+  .grade-excellent {
+    color: #198754;
+    background: #d1e7dd;
+  }
+  
+  .grade-good {
+    color: #0d6efd;
+    background: #cfe2ff;
+  }
+  
+  .grade-average {
+    color: #fd7e14;
+    background: #ffe5d0;
+  }
+  
+  .grade-poor {
+    color: #dc3545;
+    background: #f8d7da;
+  }
+  
+  .grade-pending {
+    color: #856404;
+    background: #fff3cd;
+    font-weight: 500;
+  }
+  
+  .grade-revision {
+    color: #0c5460;
+    background: #d1ecf1;
+    font-weight: 500;
+    border: 1px solid #bee5eb;
+  }
+  
+  .grade-late {
+    color: #721c24;
+    background: #f8d7da;
+    font-weight: 500;
+    border: 1px solid #f5c6cb;
+  }
+  
+  .grade-draft {
+    color: #383d41;
+    background: #e2e3e5;
+    font-weight: 400;
+    font-style: italic;
+  }
+  
+  .grade-none {
+    color: #6c757d;
+    background: #f8f9fa;
+    font-style: italic;
+  }
+  
+  .grade-unpublished {
+    color: #dc3545;
+    background: #f8d7da;
+    font-style: italic;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+  }
+  
+  .grade-info {
+    color: #0c5460;
+    background: #d1ecf1;
+    font-weight: 600;
+  }
+  
+  /* Clean button styling */
+  .view-btn {
+    font-size: 0.75rem;
+    padding: 4px 8px;
+    border: 1px solid;
+    border-radius: 4px;
+    text-decoration: none;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.2s;
+    margin-top: 4px;
+  }
+  
+  .view-btn:hover {
+    transform: translateY(-1px);
+  }
+  
+  /* Sidebar maximize styles */
+  #gradingSidebar {
+    transition: all 0.3s ease-in-out;
+  }
+  
+
+  
+  .assignment-view-btn {
+    color: #198754;
+    border-color: #198754;
+    background: white;
+  }
+  
+  .assignment-view-btn:hover {
+    background: #198754;
+    color: white;
+  }
+  
+  .need-review-btn {
+    color: #fd7e14;
+    border-color: #fd7e14;
+    background: white;
+  }
+  
+  .need-review-btn:hover {
+    background: #fd7e14;
+    color: white;
+  }
+  
+  .quiz-view-btn {
+    color: #0d6efd;
+    border-color: #0d6efd;
+    background: white;
+  }
+  
+  .quiz-view-btn:hover {
+    background: #0d6efd;
+    color: white;
+  }
+  
+  .grade-btn {
+    color: #dc3545;
+    border-color: #dc3545;
+    background: white;
+    font-weight: 600;
+  }
+  
+  .grade-btn:hover {
+    background: #dc3545;
+    color: white;
+    transform: translateY(-1px);
+  }
+  
+  /* Enhanced sidebar and TinyMCE styling */
+  #gradingSidebar {
+    max-width: 100vw;
+    min-width: 320px; /* Minimum sidebar width */
+    /* Force visibility and proper positioning */
+    display: block !important;
+    position: fixed !important;
+    z-index: 60 !important;
+    top: 0 !important;
+    right: 0 !important;
+    height: 100vh !important;
+    overflow-y: auto !important;
+    background-color: white !important;
+    box-shadow: -2px 0 10px rgba(0,0,0,0.1) !important;
+  }
+  
+  /* Ensure sidebar overlay works correctly */
+  #sidebarOverlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    background-color: rgba(0,0,0,0.5) !important;
+    z-index: 55 !important;
+  }
+  
+  /* Drag resize styling */
+  #gradingSidebar.resizing {
+    transition: none !important; /* Disable transitions during drag */
+  }
+  
+  body.sidebar-resizing {
+    cursor: col-resize !important;
+    user-select: none !important;
+  }
+  
+  /* Resize handle improvements */
+  #sidebarResizeHandle {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 8px;
+    cursor: col-resize;
+    z-index: 10;
+  }
+  
+  #sidebarResizeHandle::before {
+    content: '';
+    position: absolute;
+    left: 2px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 40px;
+    background: linear-gradient(to bottom, transparent, #cbd5e0, transparent);
+    border-radius: 2px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+  
+  #sidebarResizeHandle:hover::before {
+    opacity: 1;
+  }
+  
+  /* Active resize state */
+  #sidebarResizeHandle.active {
+    background: rgba(59, 130, 246, 0.1);
+  }
+  
+  #sidebarResizeHandle.active::before {
+    opacity: 1;
+    background: linear-gradient(to bottom, transparent, #3b82f6, transparent);
+  }
+  
+  /* Ensure TinyMCE editor visibility in sidebar */
+  .tox-tinymce {
+    border: 1px solid #d1d5db !important;
+    border-radius: 0.375rem !important;
+    z-index: 1 !important;
+    min-height: 350px !important;  /* Ensure adequate height */
+  }
+  
+  .tox-toolbar__primary {
+    background: #f8f9fa !important;
+    border-bottom: 1px solid #e9ecef !important;
+    display: flex !important;
+    visibility: visible !important;
+  }
+  
+  .tox-edit-area {
+    border: none !important;
+    min-height: 280px !important;  /* Ensure content area has adequate height */
+  }
+  
+  .tox-edit-area__iframe {
+    min-height: 280px !important;  /* Ensure iframe has adequate height */
+  }
+  
+  .tox-editor-container {
+    border-radius: 0.375rem !important;
+    min-height: 350px !important;  /* Ensure container has adequate height */
+  }
+  
+  .tox-toolbar-overlord {
+    display: block !important;
+    visibility: visible !important;
+  }
+  
+  /* Responsive tab improvements */
+  @media (max-width: 640px) {
+    .feedback-tab-btn {
+      font-size: 0.75rem;
+      padding: 0.5rem 0.25rem;
+    }
+    
+    .feedback-tab-btn i {
+      font-size: 0.875rem;
+    }
+    
+    #gradingSidebar {
+      width: 100vw !important;
+    }
+  }
+  
+  /* Loading state styling */
+  .sidebar-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 350px;  /* Increased to match editor height */
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .sidebar-loading i {
+    animation: spin 1s linear infinite;
+  }
+  
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  
+  /* Tab content visibility fixes */
+  .feedback-tab-content {
+    transition: opacity 0.2s ease-in-out;
+  }
+  
+  /* Prevent TinyMCE from being compressed during sidebar resize */
+  #gradingSidebar .tox-tinymce {
+    min-height: 350px !important;
+    max-height: none !important;
+  }
+  
+  #gradingSidebar .tox-edit-area {
+    min-height: 280px !important;
+    max-height: none !important;
+  }
+  
+  #gradingSidebar .tox-edit-area__iframe {
+    min-height: 280px !important;
+    max-height: none !important;
+  }
+  
+  .feedback-tab-content.hidden {
+    display: none !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  
+  .feedback-tab-content.block {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: initial !important;
+    margin: initial !important;
+  }
+  
+  /* Enhanced tab button styling */
+  .feedback-tab-btn {
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+    user-select: none;
+  }
+  
+  .feedback-tab-btn:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+  }
+  
+  /* Activity headers */
+  .activity-header {
+    min-width: 160px;
+    padding: 20px 16px;
+  }
+  
+  /* Outcome column styling */
+  .outcome-column {
+    min-width: 140px;
+    background-color: #f0f9ff;
+    border-left: 2px solid #3b82f6;
+  }
+  
+  .outcome-type-label {
+    background-color: #3b82f6 !important;
+    color: white !important;
+  }
+  
+  .outcome-score-container {
+    text-align: center;
+    padding: 8px 4px;
+  }
+  
+  .outcome-score {
+    font-weight: 600;
+    font-size: 1.1em;
+    color: #1f2937;
+    margin-bottom: 4px;
+  }
+  
+  .proficiency-level {
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 2px 6px;
+    border-radius: 12px;
+    margin-bottom: 2px;
+    display: inline-block;
+  }
+  
+  .proficiency-exceeds-mastery { background-color: #10b981; color: white; }
+  .proficiency-mastery { background-color: #059669; color: white; }
+  .proficiency-near-mastery { background-color: #f59e0b; color: white; }
+  .proficiency-below-mastery { background-color: #ef4444; color: white; }
+  .proficiency-no-evidence { background-color: #6b7280; color: white; }
+  .proficiency-met { background-color: #10b981; color: white; }
+  .proficiency-not-met { background-color: #ef4444; color: white; }
+  
+  .evidence-count {
+    font-size: 0.65rem;
+    color: #6b7280;
+  }
+
+  /* Maximum view controls */
+  .gradebook-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    background: #f8f9fa;
+    border-radius: 0.5rem;
+    border: 1px solid #e9ecef;
+  }
+
+  .view-controls {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .view-toggle-btn {
+    padding: 0.5rem 1rem;
+    border: 1px solid #dee2e6;
+    background: white;
+    color: #495057;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .view-toggle-btn:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+  }
+
+  .view-toggle-btn.active {
+    background: #0d6efd;
+    color: white;
+    border-color: #0d6efd;
+  }
+
+  .view-toggle-btn.active:hover {
+    background: #0b5ed7;
+    border-color: #0a58ca;
+  }
+
+  /* Fullscreen mode styles */
+  .gradebook-fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 9999;
+    background: white;
+    overflow: auto;
+  }
+
+  .gradebook-fullscreen .gradebook-table {
+    font-size: 0.85rem;
+  }
+
+  .gradebook-fullscreen .gradebook-table th {
+    padding: 16px 12px;
+    font-size: 0.8rem;
+  }
+
+  .gradebook-fullscreen .gradebook-table td {
+    padding: 14px 12px;
+    font-size: 0.8rem;
+  }
+
+  .fullscreen-header {
+    display: none;
+    position: sticky;
+    top: 0;
+    background: white;
+    border-bottom: 2px solid #e9ecef;
+    padding: 1rem;
+    z-index: 100;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .gradebook-fullscreen .fullscreen-header {
+    display: flex;
+  }
+
+  .exit-fullscreen-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+
+  .exit-fullscreen-btn:hover {
+    background: #c82333;
+  }
+
+  /* Filter Controls Styling */
+  .filter-controls {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .filter-row {
+    display: grid;
+    grid-template-columns: 2fr 1.5fr 1fr 1.5fr 1fr auto;
+    gap: 1rem;
+    align-items: end;
+  }
+
+  /* Adjusted layout for learner users (without Student Name filter) */
+  .filter-row.learner-layout {
+    grid-template-columns: 2fr 1fr 1.5fr 1fr auto;
+  }
+
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .filter-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .filter-label i {
+    color: #6b7280;
+    font-size: 0.75rem;
+  }
+
+  .filter-input,
+  .filter-select {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    background: white;
+    transition: all 0.2s ease;
+    min-width: 0;
+  }
+
+  .filter-input:focus,
+  .filter-select:focus {
+    outline: none;
+    ring: 2px;
+    ring-color: #3b82f6;
+    ring-opacity: 0.5;
+    border-color: #3b82f6;
+  }
+
+  .filter-input::placeholder {
+    color: #9ca3af;
+  }
+
+  .filter-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .clear-filters-btn,
+  .export-filtered-btn {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid;
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    white-space: nowrap;
+  }
+
+  .clear-filters-btn {
+    background: white;
+    color: #dc2626;
+    border-color: #dc2626;
+  }
+
+  .clear-filters-btn:hover {
+    background: #dc2626;
+    color: white;
+  }
+
+  .export-filtered-btn {
+    background: white;
+    color: #059669;
+    border-color: #059669;
+  }
+
+  .export-filtered-btn:hover {
+    background: #059669;
+    color: white;
+  }
+
+  .filter-summary {
+    margin-top: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    background: #dbeafe;
+    border: 1px solid #93c5fd;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    color: #1e40af;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .filter-count {
+    font-weight: 600;
+  }
+
+  /* Table row filtering states */
+  .gradebook-table tbody tr.filtered-hidden {
+    display: none !important;
+  }
+
+  .gradebook-table tbody tr.filtered-visible {
+    display: table-row !important;
+  }
+
+  /* Activity column filtering */
+  .gradebook-table th.activity-filtered,
+  .gradebook-table td.activity-filtered {
+    display: none !important;
+  }
+
+  /* Responsive filter controls */
+  @media (max-width: 1400px) {
+    .filter-row {
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    .filter-actions {
+      flex-direction: row;
+      grid-column: span 3;
+      justify-content: flex-end;
+    }
+  }
+
+  @media (max-width: 1200px) {
+    .filter-row {
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    .filter-actions {
+      flex-direction: row;
+      grid-column: span 2;
+      justify-content: flex-end;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .filter-row {
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
+    }
+
+    .filter-actions {
+      grid-column: span 1;
+      flex-direction: column;
+    }
+
+    .filter-controls {
+      padding: 0.75rem;
+    }
+
+    .clear-filters-btn,
+    .export-filtered-btn {
+      font-size: 0.75rem;
+      padding: 0.375rem 0.5rem;
+    }
+  }
+  
+  .activity-type-label {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-bottom: 4px;
+  }
+  
+  .activity-type-assignment {
+    color: #198754;
+    background: #d1e7dd;
+  }
+  
+  .activity-type-quiz {
+    color: #0d6efd;
+    background: #cfe2ff;
+  }
+  
+  .activity-type-assessment {
+    color: #20c997;
+    background: #d1ecf1;
+  }
+  
+  .activity-type-discussion {
+    color: #fd7e14;
+    background: #ffe5d0;
+  }
+  
+  .activity-type-conference {
+    color: #6610f2;
+    background: #e7d9ff;
+  }
+  
+  .activity-type-scorm {
+    color: #6f42c1;
+    background: #e2d9f3;
+  }
+  
+  .activity-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    line-height: 1.3;
+    margin: 4px 0;
+    color: #212529;
+  }
+  
+  .activity-points {
+    font-size: 0.75rem;
+    color: #6c757d;
+    font-weight: 500;
+  }
+  
+  /* Total column styling */
+  .assignment-total {
+    background: #f8f9fa !important;
+    border-left: 3px solid #0d6efd;
+    font-weight: 700;
+  }
+  
+  .total-score-container {
+    padding: 8px;
+  }
+  
+  .total-points {
+    font-size: 0.8rem;
+    color: #495057;
+    margin-bottom: 4px;
+    font-weight: 600;
+  }
+  
+  .total-percentage {
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+  
+
+  
+  /* Container styling */
+  .table-container {
+    overflow: auto;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    max-height: calc(100vh - 280px);
+    background: white;
+  }
+  
+  /* Course header - minimal design */
+  .course-header {
+    background: white;
+    border-bottom: 2px solid #e9ecef;
+    padding: 2rem;
+    margin-bottom: 0;
+  }
+  
+  .course-title {
+    color: #212529;
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+  
+  .course-subtitle {
+    color: #6c757d;
+    font-size: 1.1rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .course-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+  
+  .stat-card {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 6px;
+    text-align: center;
+    border: 1px solid #e9ecef;
+  }
+  
+  /* Status-specific colors for overview metrics */
+  .stat-card:nth-child(3) {
+    background: #fef2f2;
+    border-color: #fecaca;
+  }
+  
+  .stat-card:nth-child(3) .stat-number {
+    color: #dc2626;
+  }
+  
+  .stat-card:nth-child(4) {
+    background: #fff7ed;
+    border-color: #fed7aa;
+  }
+  
+  .stat-card:nth-child(4) .stat-number {
+    color: #ea580c;
+  }
+  
+  .stat-card:nth-child(5), .stat-card:last-child {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+  }
+  
+  .stat-card:nth-child(5) .stat-number, .stat-card:last-child .stat-number {
+    color: #16a34a;
+  }
+  
+  .stat-number {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #212529;
+    display: block;
+  }
+  
+  .stat-label {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
+    font-weight: 500;
+  }
+  
+  /* Info notice */
+  .info-notice {
+    background: #cfe2ff;
+    border-left: 4px solid #0d6efd;
+    color: #084298;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    border-radius: 0 4px 4px 0;
+  }
+  
+  /* Responsive design */
+  @media (max-width: 768px) {
+    .gradebook-table {
+      font-size: 0.85rem;
+    }
+    
+    .gradebook-table th,
+    .gradebook-table td {
+      padding: 10px 8px;
+      min-width: 120px;
+    }
+    
+    .gradebook-table th:first-child,
+    .gradebook-table td:first-child {
+      min-width: 160px;
+      padding: 10px 12px;
+    }
+    
+    .gradebook-table th:last-child,
+    .gradebook-table td:last-child {
+      min-width: 150px;
+      padding: 10px 12px;
+    }
+    
+    .activity-cell {
+      min-width: 120px;
+      padding: 10px 6px;
+    }
+    
+    .activity-header {
+      min-width: 120px;
+      padding: 10px 8px;
+    }
+    
+    .course-title {
+      font-size: 1.5rem;
+    }
+    
+    .course-subtitle {
+      font-size: 1rem;
+    }
+    
+    .course-stats {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .gradebook-controls {
+      flex-direction: column;
+      gap: 0.75rem;
+      align-items: stretch;
+    }
+
+    .view-controls {
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .view-toggle-btn {
+      font-size: 0.75rem;
+      padding: 0.375rem 0.75rem;
+    }
+  }
+  
+  @media (max-width: 1024px) and (min-width: 769px) {
+    .gradebook-table th,
+    .gradebook-table td {
+      min-width: 140px;
+    }
+    
+    .gradebook-table th:first-child,
+    .gradebook-table td:first-child {
+      min-width: 180px;
+    }
+    
+    .gradebook-table th:last-child,
+    .gradebook-table td:last-child {
+      min-width: 160px;
+    }
+    
+    .activity-cell {
+      min-width: 140px;
+    }
+    
+    .activity-header {
+      min-width: 140px;
+    }
+    
+    .course-stats {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  /* Large screen optimizations */
+  @media (min-width: 1400px) {
+    .gradebook-table th,
+    .gradebook-table td {
+      min-width: 180px;
+      padding: 22px 18px;
+    }
+    
+    .gradebook-table th:first-child,
+    .gradebook-table td:first-child {
+      min-width: 220px;
+      padding: 22px 24px;
+    }
+    
+    .gradebook-table th:last-child,
+    .gradebook-table td:last-child {
+      min-width: 200px;
+      padding: 22px 24px;
+    }
+    
+    .activity-header {
+      min-width: 180px;
+      padding: 22px 18px;
+    }
+    
+    .activity-cell {
+      min-width: 180px;
+      padding: 22px 18px;
+    }
+  }
+  
+  /* Pagination styles */
+  .pagination-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 0;
+    border-top: 1px solid #e9ecef;
+    margin-top: 1rem;
+  }
+  
+  .pagination-info {
+    color: #6c757d;
+    font-size: 0.875rem;
+  }
+  
+  .pagination {
+    display: flex;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    gap: 0.25rem;
+  }
+  
+  .page-item {
+    display: flex;
+  }
+  
+  .page-link {
+    display: block;
+    padding: 0.5rem 0.75rem;
+    color: #0d6efd;
+    text-decoration: none;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    transition: all 0.2s;
+  }
+  
+  .page-link:hover {
+    background-color: #e9ecef;
+    border-color: #adb5bd;
+  }
+  
+  .page-item.active .page-link {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: white;
+  }
+  
+  .page-item.active .page-link:hover {
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+  }
+  
+  @media (max-width: 768px) {
+    .pagination-container {
+      flex-direction: column;
+      gap: 1rem;
+    }
+    
+    .pagination-info {
+      order: 2;
+    }
+    
+    .pagination-controls {
+      order: 1;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Breadcrumbs -->
+{% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+<div class="container mx-auto px-3 py-4">
+  <!-- Right Sidebar for Grading (Initially Hidden) - Enhanced Responsive Design -->
+  <div id="gradingSidebar" class="fixed right-0 top-0 h-full w-full sm:w-96 md:w-[28rem] lg:w-[32rem] bg-white shadow-2xl transform translate-x-full transition-transform duration-300 z-[60] overflow-y-auto border-l border-gray-200">
+    <!-- Resize Handle -->
+    <div 
+      id="sidebarResizeHandle" 
+      class="absolute left-0 top-0 h-full w-2 cursor-col-resize bg-transparent hover:bg-blue-200 transition-colors duration-200 z-10"
+      title="Drag to resize sidebar">
+      <div class="h-full w-0.5 bg-gray-300 hover:bg-blue-500 transition-colors duration-200 ml-0.75"></div>
+    </div>
+    
+    <div class="p-4 sm:p-6">
+      <!-- Sidebar Header -->
+      <div class="flex justify-between items-center mb-4 sm:mb-6">
+        <h2 class="text-lg sm:text-xl font-bold text-gray-800">Quick Grading</h2>
+        <button onclick="closeSidebar()" class="text-gray-500 hover:text-gray-700 p-2 hover:bg-gray-100 rounded-full transition-colors">
+          <i class="fas fa-times text-lg sm:text-xl"></i>
+        </button>
+      </div>
+      
+      <!-- Sidebar Content (Will be populated dynamically) -->
+      <div id="sidebarContent" class="pb-4">
+        <!-- Content will be loaded here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Overlay for sidebar -->
+  <div id="sidebarOverlay" class="fixed top-0 left-0 right-0 bottom-0 w-full h-full bg-black bg-opacity-50 z-[55] hidden" onclick="closeSidebar()"></div>
+
+  <div class="bg-white shadow rounded-lg overflow-hidden">
+    <!-- Course Header -->
+    <div class="course-header">
+      <h1 class="course-title">{{ course.title }}</h1>
+      <p class="course-subtitle">Detailed Gradebook</p>
+      
+      {% if overview_metrics %}
+      <div class="course-stats">
+        {% if user.role != 'learner' %}
+        <div class="stat-card">
+          <span class="stat-number">{{ overview_metrics.students_count }}</span>
+          <span class="stat-label">Students</span>
+        </div>
+        {% endif %}
+        <div class="stat-card">
+          <span class="stat-number">{{ overview_metrics.total_activities }}</span>
+          <span class="stat-label">Gradeable Activities</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-number">{{ overview_metrics.total_not_started }}</span>
+          <span class="stat-label">Not Started</span>
+        </div>
+        {% if overview_metrics.total_in_progress > 0 %}
+        <div class="stat-card">
+          <span class="stat-number">{{ overview_metrics.total_in_progress }}</span>
+          <span class="stat-label">In Progress</span>
+        </div>
+        {% endif %}
+        <div class="stat-card">
+          <span class="stat-number">{{ overview_metrics.total_submitted }}</span>
+          <span class="stat-label">Submitted</span>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+    
+    <!-- Outcome Mastery Summary - Hidden for learners -->
+    {% if has_outcome_connections and user.role != 'learner' %}
+    <div class="px-6 py-4 bg-blue-50 border-b border-blue-200">
+      <div class="mb-4">
+        <h3 class="text-lg font-semibold text-gray-800 flex items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2 text-blue-600">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
+          </svg>
+          Learning Outcome Tracking
+        </h3>
+        {% if outcome_summary %}
+        <p class="text-sm text-gray-600">Student progress toward learning outcomes based on rubric evaluations</p>
+        {% else %}
+        <p class="text-sm text-gray-600">Outcome connections are set up. Evaluations will be calculated automatically when students are graded.</p>
+        {% endif %}
+      </div>
+      
+      {% if outcome_summary %}
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+        {% for outcome_id, summary in outcome_summary.items %}
+        <div class="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+          <div class="flex items-start justify-between mb-3">
+            <div class="flex-1">
+              <h4 class="font-medium text-gray-900 text-sm leading-tight">{{ summary.outcome.title }}</h4>
+              {% if summary.outcome.friendly_name %}
+              <p class="text-xs text-gray-500 mt-1">{{ summary.outcome.friendly_name }}</p>
+              {% endif %}
+            </div>
+            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+              {{ summary.outcome.get_calculation_method_display }}
+            </span>
+          </div>
+          
+          <div class="space-y-2">
+            <!-- Mastery Rate -->
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-gray-600">Mastery Rate:</span>
+              <div class="flex items-center">
+                <div class="w-16 bg-gray-200 rounded-full h-2 mr-2">
+                  <div class="bg-green-500 h-2 rounded-full" style="width: {{ summary.mastery_rate }}%"></div>
+                </div>
+                <span class="text-xs font-medium">{{ summary.mastery_rate|floatformat:1 }}%</span>
+              </div>
+            </div>
+            
+            <!-- Score Range -->
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-gray-600">Score Range:</span>
+              <span class="font-medium">{{ summary.lowest_score|floatformat:1 }} - {{ summary.highest_score|floatformat:1 }}</span>
+            </div>
+            
+            <!-- Average Score -->
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-gray-600">Average:</span>
+              <span class="font-medium">{{ summary.average_score|floatformat:1 }}</span>
+            </div>
+            
+            <!-- Student Count -->
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-gray-600">Students Assessed:</span>
+              <span class="font-medium">{{ summary.total_students }}</span>
+            </div>
+            
+            <!-- Proficiency Distribution -->
+            {% if summary.proficiency_distribution %}
+            <div class="mt-3 pt-2 border-t border-gray-100">
+              <div class="text-xs text-gray-600 mb-1">Proficiency Distribution:</div>
+              <div class="flex flex-wrap gap-1">
+                {% for level, count in summary.proficiency_distribution.items %}
+                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-700">
+                  {{ level }}: {{ count }}
+                </span>
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      
+      <div class="text-center">
+        <button id="toggleOutcomeDetails" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+          Show detailed outcome results in gradebook ▼
+        </button>
+      </div>
+      {% else %}
+      <div class="text-center">
+        <p class="text-sm text-gray-600">Outcome evaluations will appear here once students are graded on assignments with connected rubrics.</p>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+    
+    <!-- Gradebook Table -->
+    <div class="p-6">
+      <div class="info-notice">
+        <i class="fas fa-info-circle mr-2"></i>
+        <strong>Note:</strong> For students with multiple submissions, only the latest submission/attempt is displayed.
+      </div>
+
+      <!-- Gradebook Controls -->
+      <div class="gradebook-controls">
+        <div class="flex items-center gap-2">
+          <span class="text-sm text-gray-600" id="tableStats">{{ students|length }} Student{{ students|length|pluralize }} • {{ activities|length }} Gradeable Activit{{ activities|length|pluralize:"y,ies" }}</span>
+        </div>
+      </div>
+
+      <!-- Filter and Search Controls -->
+      <div class="filter-controls">
+        <div class="filter-row{% if user.role == 'learner' %} learner-layout{% endif %}">
+          <div class="filter-group">
+            <label class="filter-label">
+              <i class="fas fa-search"></i>
+              Search All
+            </label>
+            <input type="text" 
+                   id="globalSearch" 
+                   placeholder="{% if user.role == 'learner' %}Search activities...{% else %}Search students or activities...{% endif %}" 
+                   class="filter-input"
+                   onkeyup="applyFilters()">
+          </div>
+          
+          {% if user.role != 'learner' %}
+          <div class="filter-group">
+            <label class="filter-label">
+              <i class="fas fa-user"></i>
+              Student Name
+            </label>
+            <select id="studentFilter" class="filter-select" onchange="applyFilters()">
+              <option value="">All Students</option>
+              {% for student in students %}
+                <option value="{{ student.get_full_name|default:student.username }}">{{ student.get_full_name|default:student.username }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endif %}
+          
+          <div class="filter-group">
+            <label class="filter-label">
+              <i class="fas fa-tasks"></i>
+              Activity Type
+            </label>
+            <select id="activityTypeFilter" class="filter-select" onchange="applyFilters()">
+              <option value="">All Types</option>
+              <option value="assignment">Assignments</option>
+              <option value="quiz">Quizzes</option>
+              <option value="discussion">Discussions</option>
+              <option value="conference">Conferences</option>
+              <option value="scorm">SCORM Content</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label class="filter-label">
+              <i class="fas fa-search"></i>
+              Activity Name
+            </label>
+            <input type="text" 
+                   id="activitySearch" 
+                   placeholder="Search activity names..." 
+                   class="filter-input"
+                   onkeyup="applyFilters()">
+          </div>
+          
+          <div class="filter-group">
+            <label class="filter-label">
+              <i class="fas fa-filter"></i>
+              Status Filter
+            </label>
+            <select id="statusFilter" class="filter-select" onchange="applyFilters()">
+              <option value="">All Status</option>
+              <option value="submitted">Submitted</option>
+              <option value="graded">Graded</option>
+              <option value="not-started">Not Started</option>
+              <option value="in-progress">In Progress</option>
+            </select>
+          </div>
+          
+          <div class="filter-actions">
+            <button onclick="clearAllFilters()" class="clear-filters-btn">
+              <i class="fas fa-times"></i>
+              Clear Filters
+            </button>
+          </div>
+        </div>
+        
+        <div class="filter-summary" id="filterSummary" style="display: none;">
+          <span id="filterResults"></span>
+          <span class="filter-count" id="visibleCount"></span>
+        </div>
+      </div>
+      
+      <!-- Fullscreen Header (hidden by default) -->
+      <div class="fullscreen-header" id="fullscreenHeader">
+        <div>
+          <h1 class="text-xl font-bold">{{ course.title }} - Gradebook (Fullscreen)</h1>
+          <p class="text-sm text-gray-600">{{ students|length }} Student{{ students|length|pluralize }} • {{ activities|length }} Gradeable Activit{{ activities|length|pluralize:"y,ies" }}</p>
+        </div>
+      </div>
+
+      <div class="table-container" id="gradebookContainer">
+        {% if not activities %}
+        <!-- Show message when no gradeable activities are available -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
+          <div class="flex items-center justify-center mb-4">
+            <i class="fas fa-info-circle text-blue-500 text-2xl mr-3"></i>
+            <h3 class="text-lg font-semibold text-blue-800">No Gradeable Activities Found</h3>
+          </div>
+          <p class="text-blue-700 mb-4">
+            This course currently has no gradeable activities to display in the gradebook.
+          </p>
+          <div class="text-sm text-blue-600">
+            <p class="mb-2"><strong>Note:</strong> Only VAK tests are diagnostic tools and do not appear in the gradebook.</p>
+            <p>Gradeable activities include: Assignments, Quizzes, Initial Assessments, Discussions, Conferences, and SCORM content.</p>
+          </div>
+          {% if user.role != 'learner' %}
+          <div class="mt-4">
+            <a href="{% url 'courses:course_details' course.id %}" 
+               class="text-white px-4 py-2 rounded transition duration-200" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+              <i class="fas fa-arrow-left mr-2"></i>Return to Course
+            </a>
+          </div>
+          {% endif %}
+        </div>
+        {% else %}
+        <div class="gradebook-wrapper">
+        <!-- Desktop Gradebook Table -->
+        <table class="gradebook-table" id="gradebookTable">
+          <thead>
+            <tr>
+              {% if user.role != 'learner' %}
+              <th>Student Name</th>
+              {% endif %}
+              {% for activity in activities %}
+                <th class="activity-header" title="{{ activity.title }}">
+                  {% if activity.type == 'assignment' %}
+                    <span class="activity-type-label activity-type-assignment">ASG {{ activity.activity_number }}</span>
+                    <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
+                    <div class="activity-points">{{ activity.max_score }} pts</div>
+                  {% elif activity.type == 'quiz' %}
+                    <span class="activity-type-label activity-type-quiz">QUZ {{ activity.activity_number }}</span>
+                    <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
+                    {% if not activity.object.is_active %}
+                      <div class="activity-points grade-unpublished">INACTIVE</div>
+                    {% else %}
+                      <div class="activity-points">{{ activity.max_score }} pts</div>
+                    {% endif %}
+                  {% elif activity.type == 'initial_assessment' %}
+                    <span class="activity-type-label activity-type-assessment">IA {{ activity.activity_number }}</span>
+                    <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
+                    {% if not activity.object.is_active %}
+                      <div class="activity-points grade-unpublished">INACTIVE</div>
+                    {% else %}
+                      <div class="activity-points">{{ activity.max_score }} pts</div>
+                    {% endif %}
+                  {% elif activity.type == 'discussion' %}
+                    <span class="activity-type-label activity-type-discussion">DSC {{ activity.activity_number }}</span>
+                    <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
+                    {% if activity.max_score > 0 %}
+                      <div class="activity-points">{{ activity.max_score }} pts</div>
+                    {% else %}
+                      <div class="activity-points">Participation</div>
+                    {% endif %}
+                  {% elif activity.type == 'conference' %}
+                    <span class="activity-type-label activity-type-conference">CNF {{ activity.activity_number }}</span>
+                    <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
+                    {% if activity.max_score > 0 %}
+                      <div class="activity-points">{{ activity.max_score }} pts</div>
+                    {% else %}
+                      <div class="activity-points">Attendance</div>
+                    {% endif %}
+                  {% elif activity.type == 'scorm' %}
+                    <span class="activity-type-label activity-type-scorm">SCO {{ activity.activity_number }}</span>
+                    <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
+                    <div class="activity-points">{{ activity.max_score }} pts</div>
+                  {% elif activity.type == 'scorm_topic' %}
+                    <span class="activity-type-label activity-type-scorm">SCO {{ activity.activity_number }}</span>
+                    <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
+                    <div class="activity-points">{{ activity.max_score }} pts</div>
+                  {% endif %}
+                </th>
+              {% endfor %}
+              
+              {% if activities %}
+              <th class="assignment-total">Total Points</th>
+              {% endif %}
+              
+              <!-- Outcome Mastery Columns -->
+              {% if outcome_summary %}
+                {% for outcome_id, summary in outcome_summary.items %}
+                <th class="outcome-column" title="{{ summary.outcome.title }}" style="display: none;">
+                  <span class="activity-type-label outcome-type-label">OUT</span>
+                  <div class="activity-title">{{ summary.outcome.title|truncatechars:10 }}</div>
+                  <div class="activity-points">{{ summary.outcome.get_calculation_method_display|truncatechars:8 }}</div>
+                </th>
+                {% endfor %}
+              {% endif %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for student in students %}
+              <tr>
+                {% if user.role != 'learner' %}
+                <td>{{ student.get_full_name|default:student.username }}</td>
+                {% endif %}
+                
+                {% for activity in activities %}
+                  <td class="activity-cell">
+                    {% get_student_activity_score student_scores student.id activity.object.id as score_data %}
+                    
+                    <div class="submission-info">
+                      {% if activity.type == 'assignment' %}
+                        {% if score_data.excused %}
+                          <span class="grade-score grade-none">(Excused)</span>
+                          {% if score_data.submission %}
+                            {% if user.role != 'learner' %}
+                              <button onclick="openGradingSidebar('assignment', {{ activity.object.id }}, {{ student.id }}, {{ score_data.submission.id|default:'null' }})" class="view-btn grade-btn">
+                                GRADE
+                              </button>
+                              <a href="{% url 'assignments:assignment_detailed_report' activity.object.id %}?student_id={{ student.id }}" class="view-btn assignment-view-btn mt-1" style="font-size: 0.65rem;">
+                                DETAILED
+                              </a>
+                            {% else %}
+                              <a href="{% url 'assignments:assignment_detail' activity.object.id %}" class="view-btn assignment-view-btn">
+                                VIEW
+                              </a>
+                            {% endif %}
+                          {% endif %}
+                        {% elif score_data.score is not None %}
+                          <div class="submission-date">
+                            {{ score_data.date|date:"M d, Y" }}
+                          </div>
+                          <span class="grade-score 
+                            {% if score_data.score >= activity.max_score|mul:0.9 %}grade-excellent
+                            {% elif score_data.score >= activity.max_score|mul:0.8 %}grade-good
+                            {% elif score_data.score >= activity.max_score|mul:0.7 %}grade-average
+                            {% else %}grade-poor{% endif %}">
+                            {{ score_data.score|floatformat:1 }}/{{ activity.max_score|floatformat:1 }}
+                          </span>
+                          {% if user.role != 'learner' %}
+                            <button onclick="openGradingSidebar('assignment', {{ activity.object.id }}, {{ student.id }}, {{ score_data.submission.id|default:'null' }})" class="view-btn grade-btn">
+                              GRADE
+                            </button>
+                            <a href="{% url 'assignments:assignment_detailed_report' activity.object.id %}?student_id={{ student.id }}" class="view-btn assignment-view-btn mt-1" style="font-size: 0.65rem;">
+                              DETAILED
+                            </a>
+                          {% else %}
+                            {% has_feedback_available activity student.id as has_feedback %}
+                            {% if has_feedback %}
+                              <button onclick="showFeedback('assignment', {{ activity.object.id }}, {{ student.id }})" class="view-btn assignment-view-btn">
+                                VIEW FEEDBACK
+                              </button>
+                            {% else %}
+                              <a href="{% url 'assignments:assignment_detail' activity.object.id %}" class="view-btn assignment-view-btn">
+                                VIEW
+                              </a>
+                            {% endif %}
+                          {% endif %}
+                        {% elif score_data.submission and score_data.has_submission %}
+                          {# BUGFIX: Show actual submission status instead of generic message #}
+                          <div class="submission-date">
+                            {{ score_data.date|date:"M d, Y" }}
+                          </div>
+                          {% if score_data.submission.status == 'submitted' %}
+                            <span class="grade-score grade-pending">Submitted - Awaiting Grade</span>
+                          {% elif score_data.submission.status == 'not_graded' %}
+                            <span class="grade-score grade-pending">Not Graded Yet</span>
+                          {% elif score_data.submission.status == 'returned' %}
+                            <span class="grade-score grade-revision">Returned for Revision</span>
+                          {% elif score_data.submission.status == 'late' %}
+                            <span class="grade-score grade-late">Late Submission</span>
+                          {% elif score_data.submission.status == 'draft' %}
+                            <span class="grade-score grade-draft">Draft (Not Submitted)</span>
+                          {% else %}
+                            <span class="grade-score grade-pending">{{ score_data.submission.get_status_display }}</span>
+                          {% endif %}
+                          {% if user.role != 'learner' %}
+                            <button onclick="openGradingSidebar('assignment', {{ activity.object.id }}, {{ student.id }}, {{ score_data.submission.id|default:'null' }})" class="view-btn grade-btn">
+                              {% if score_data.submission.status == 'returned' %}RE-GRADE{% else %}GRADE NOW{% endif %}
+                            </button>
+                            <a href="{% url 'assignments:assignment_detailed_report' activity.object.id %}?student_id={{ student.id }}" class="view-btn assignment-view-btn mt-1" style="font-size: 0.65rem;">
+                              DETAILED
+                            </a>
+                          {% else %}
+                            {% if score_data.submission.status == 'returned' %}
+                              <a href="{% url 'assignments:assignment_detail' activity.object.id %}" class="view-btn assignment-view-btn grade-revision">
+                                REVISE
+                              </a>
+                            {% else %}
+                              <a href="{% url 'assignments:assignment_detail' activity.object.id %}" class="view-btn assignment-view-btn">
+                                VIEW
+                              </a>
+                            {% endif %}
+                          {% endif %}
+                        {% else %}
+                          <span class="grade-score grade-none">Not Submitted</span>
+                          {% if user.role == 'learner' %}
+                            <a href="{% url 'assignments:assignment_detail' activity.object.id %}" class="view-btn assignment-view-btn">
+                              ATTEMPT
+                            </a>
+                          {% endif %}
+                        {% endif %}
+                        
+                      {% elif activity.type == 'quiz' %}
+                        {% if not activity.object.is_active %}
+                          <span class="grade-score grade-unpublished">Inactive</span>
+                        {% elif score_data.score is not None %}
+                          <div class="submission-date">
+                            {{ score_data.date|date:"M d, Y" }}
+                          </div>
+                          {% if score_data.score_source == 'rubric' %}
+                            {% comment %}For rubric-based scoring, show points/total_points{% endcomment %}
+                            {% if score_data.score >= score_data.max_score|mul:0.7 %}
+                              <span class="grade-score grade-excellent">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
+                            {% else %}
+                              <span class="grade-score grade-poor">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
+                            {% endif %}
+                          {% else %}
+                            {% comment %}For auto-calculated scoring, show percentage{% endcomment %}
+                            {% if score_data.score >= activity.object.passing_score|default:70 %}
+                              <span class="grade-score grade-excellent">{{ score_data.score|floatformat:1 }}%</span>
+                            {% else %}
+                              <span class="grade-score grade-poor">{{ score_data.score|floatformat:1 }}%</span>
+                            {% endif %}
+                          {% endif %}
+                          {% if user.role != 'learner' %}
+                            <button onclick="openGradingSidebar('quiz', {{ activity.object.id }}, {{ student.id }}, {{ score_data.attempt.id|default:'null' }})" class="view-btn grade-btn">
+                              GRADE
+                            </button>
+                            <a href="{% url 'quiz:quiz_detailed_report' activity.object.id %}?student_id={{ student.id }}" class="view-btn quiz-view-btn mt-1" style="font-size: 0.65rem;">
+                              DETAILED
+                            </a>
+                          {% else %}
+                            {% has_feedback_available activity student.id as quiz_has_feedback %}
+                            {% comment %}Quiz feedback logic: always show feedback if available, otherwise show results{% endcomment %}
+                            {% if quiz_has_feedback %}
+                              <button onclick="showFeedback('quiz', {{ activity.object.id }}, {{ student.id }})" class="view-btn quiz-view-btn">
+                                VIEW FEEDBACK
+                              </button>
+                            {% elif score_data.attempt and score_data.attempt.id %}
+                              <a href="{% url 'quiz:view_attempt' score_data.attempt.id %}" class="view-btn quiz-view-btn">
+                                VIEW RESULTS
+                              </a>
+                            {% endif %}
+                          {% endif %}
+                        {% else %}
+                          <span class="grade-score grade-none">Not Attempted</span>
+                          {% if user.role == 'learner' %}
+                            <a href="{% url 'quiz:quiz_detail' activity.object.id %}" class="view-btn quiz-view-btn">
+                              ATTEMPT
+                            </a>
+                          {% endif %}
+                        {% endif %}
+                        
+                      {% elif activity.type == 'initial_assessment' %}
+                        {% if not activity.object.is_active %}
+                          <span class="grade-score grade-unpublished">Inactive</span>
+                        {% elif score_data.score is not None %}
+                          <div class="submission-date">
+                            {{ score_data.date|date:"M d, Y" }}
+                          </div>
+                          {% comment %}Display classification for initial assessments{% endcomment %}
+                          <div class="initial-assessment-result">
+                            <span class="grade-score grade-info" title="Classification: {{ score_data.classification }}">
+                              {{ score_data.classification }}
+                            </span>
+                            <div class="text-xs text-gray-600 mt-1">
+                              Score: {{ score_data.score|floatformat:0 }}%
+                            </div>
+                          </div>
+                          {% comment %}View only buttons for initial assessments{% endcomment %}
+                          {% if score_data.attempt and score_data.attempt.id %}
+                            <a href="{% url 'quiz:view_attempt' score_data.attempt.id %}" class="view-btn quiz-view-btn" title="View detailed results">
+                              VIEW DETAILS
+                            </a>
+                          {% endif %}
+                          {% if user.role != 'learner' %}
+                            <a href="{% url 'users:edit_user' student.id %}#ilp-tab-assessment" class="view-btn assignment-view-btn mt-1" style="font-size: 0.65rem;" title="View in student profile">
+                              PROFILE
+                            </a>
+                          {% endif %}
+                        {% else %}
+                          <span class="grade-score grade-none">Not Taken</span>
+                          {% if user.role == 'learner' %}
+                            <a href="{% url 'quiz:quiz_detail' activity.object.id %}" class="view-btn quiz-view-btn">
+                              TAKE ASSESSMENT
+                            </a>
+                          {% endif %}
+                        {% endif %}
+                        
+                      {% elif activity.type == 'discussion' %}
+                        {% if score_data.score is not None %}
+                          <div class="submission-date">
+                            {{ score_data.date|date:"M d, Y" }}
+                          </div>
+                          {% if score_data.score >= score_data.max_score|mul:0.9 %}
+                            <span class="grade-score grade-excellent">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
+                          {% elif score_data.score >= score_data.max_score|mul:0.8 %}
+                            <span class="grade-score grade-good">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
+                          {% elif score_data.score >= score_data.max_score|mul:0.6 %}
+                            <span class="grade-score grade-average">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
+                          {% else %}
+                            <span class="grade-score grade-poor">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
+                          {% endif %}
+                          {% if user.role != 'learner' %}
+                            <button onclick="openGradingSidebar('discussion', {{ activity.object.id }}, {{ student.id }})" class="view-btn grade-btn">
+                              GRADE
+                            </button>
+                            <a href="{% url 'discussions:discussion_detailed_report' activity.object.id %}?student_id={{ student.id }}" class="view-btn assignment-view-btn mt-1" style="font-size: 0.65rem;">
+                              DETAILED
+                            </a>
+                          {% else %}
+                            <a href="{% url 'discussions:discussion_detail' activity.object.id %}" class="view-btn assignment-view-btn">
+                              VIEW
+                            </a>
+                          {% endif %}
+                        {% elif activity.max_score > 0 %}
+                          {% has_student_participation activity student.id as has_participation %}
+                          {% if has_participation %}
+                            <span class="grade-score grade-none">Not Evaluated</span>
+                            {% if user.role != 'learner' %}
+                              <button onclick="openGradingSidebar('discussion', {{ activity.object.id }}, {{ student.id }})" class="view-btn grade-btn">
+                                GRADE
+                              </button>
+                              <a href="{% url 'discussions:discussion_detailed_report' activity.object.id %}?student_id={{ student.id }}" class="view-btn assignment-view-btn mt-1" style="font-size: 0.65rem;">
+                                DETAILED
+                              </a>
+                            {% else %}
+                              <a href="{% url 'discussions:discussion_detail' activity.object.id %}" class="view-btn assignment-view-btn">
+                                VIEW
+                              </a>
+                            {% endif %}
+                          {% else %}
+                            <span class="grade-score grade-none">No Interaction</span>
+                          {% endif %}
+                        {% else %}
+                          <span class="grade-score grade-none">No Activity</span>
+                        {% endif %}
+                        
+                      {% elif activity.type == 'conference' %}
+                        {% if score_data.score is not None %}
+                          <div class="submission-date">
+                            {{ score_data.date|date:"M d, Y" }}
+                          </div>
+                          {% if score_data.score >= score_data.max_score|mul:0.9 %}
+                            <span class="grade-score grade-excellent">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
+                          {% elif score_data.score >= score_data.max_score|mul:0.8 %}
+                            <span class="grade-score grade-good">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
+                          {% elif score_data.score >= score_data.max_score|mul:0.6 %}
+                            <span class="grade-score grade-average">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
+                          {% else %}
+                            <span class="grade-score grade-poor">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
+                          {% endif %}
+                          {% if user.role != 'learner' %}
+                            <button onclick="openGradingSidebar('conference', {{ activity.object.id }}, {{ student.id }})" class="view-btn grade-btn">
+                              GRADE
+                            </button>
+                            <a href="{% url 'conferences:conference_detailed_report' activity.object.id %}?student_id={{ student.id }}" class="view-btn assignment-view-btn mt-1" style="font-size: 0.65rem;">
+                              DETAILED
+                            </a>
+                          {% else %}
+                            {% has_student_participation activity student.id as has_participation %}
+                            {% if has_participation %}
+                              <a href="{% url 'conferences:conference_detailed_report' activity.object.id %}?student_id={{ student.id }}" class="view-btn assignment-view-btn">
+                                VIEW DETAILS
+                              </a>
+                            {% endif %}
+                          {% endif %}
+                        {% elif activity.max_score > 0 %}
+                          {% has_student_participation activity student.id as has_participation %}
+                          {% if has_participation %}
+                            <span class="grade-score grade-none">Not Evaluated</span>
+                            {% if user.role != 'learner' %}
+                              <button onclick="openGradingSidebar('conference', {{ activity.object.id }}, {{ student.id }})" class="view-btn grade-btn">
+                                GRADE
+                              </button>
+                              <a href="{% url 'conferences:conference_detailed_report' activity.object.id %}?student_id={{ student.id }}" class="view-btn assignment-view-btn mt-1" style="font-size: 0.65rem;">
+                                DETAILED
+                              </a>
+                            {% else %}
+                              {% has_student_participation activity student.id as has_participation %}
+                              {% if has_participation %}
+                                <a href="{% url 'conferences:conference_detailed_report' activity.object.id %}?student_id={{ student.id }}" class="view-btn assignment-view-btn">
+                                  VIEW DETAILS
+                                </a>
+                              {% endif %}
+                            {% endif %}
+                          {% else %}
+                            <span class="grade-score grade-none">No Interaction</span>
+                          {% endif %}
+                        {% else %}
+                          <span class="grade-score grade-none">No Activity</span>
+                        {% endif %}
+                        
+                      {% elif activity.type == 'scorm' %}
+                        {% get_student_activity_score student_scores student.id activity.object.id as score_data %}
+                        {% if score_data.score is not None or score_data.completed or score_data.completion_status == 'completed' or score_data.success_status == 'passed' %}
+                          <div class="submission-date">
+                            {{ score_data.date|date:"M d, Y" }}
+                          </div>
+                          {% if score_data.success_status == 'passed' or score_data.completed %}
+                            <span class="grade-score grade-excellent">
+                              {% if score_data.score is not None %}
+                                {{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}
+                              {% else %}
+                                Completed
+                              {% endif %}
+                            </span>
+                          {% elif score_data.score is not None %}
+                            {% if score_data.score >= score_data.max_score|mul:0.8 %}
+                              <span class="grade-score grade-good">{{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}</span>
+                            {% elif score_data.score >= score_data.max_score|mul:0.6 %}
+                              <span class="grade-score grade-average">{{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}</span>
+                            {% else %}
+                              <span class="grade-score grade-poor">{{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}</span>
+                            {% endif %}
+                          {% endif %}
+                          {% if user.role == 'learner' %}
+                            {% get_scorm_topic activity.object as scorm_topic %}
+                            {% if scorm_topic %}
+                              <a href="{% url 'courses:topic_view' scorm_topic.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
+                                VIEW
+                              </a>
+                            {% endif %}
+                          {% endif %}
+                        {% else %}
+                          <span class="grade-score grade-none">Not Started</span>
+                          {% if user.role == 'learner' %}
+                            {% get_scorm_topic activity.object as scorm_topic %}
+                            {% if scorm_topic %}
+                              <a href="{% url 'courses:topic_view' scorm_topic.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
+                                LAUNCH
+                              </a>
+                            {% endif %}
+                          {% endif %}
+                        {% endif %}
+                        
+                      {% elif activity.type == 'scorm_topic' %}
+                        {% comment %}SCORM topics - check TopicProgress for scores{% endcomment %}
+                        {% get_student_activity_score student_scores student.id activity.object.id as score_data %}
+                        {% if score_data.score is not None or score_data.completed %}
+                          <div class="submission-date">
+                            {{ score_data.date|date:"M d, Y" }}
+                          </div>
+                          {% if score_data.success_status == 'passed' or score_data.completed %}
+                            <span class="grade-score grade-excellent">
+                              {% if score_data.score is not None %}
+                                {{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}
+                              {% else %}
+                                Completed
+                              {% endif %}
+                            </span>
+                          {% elif score_data.score is not None %}
+                            {% if score_data.score >= score_data.max_score|mul:0.8 %}
+                              <span class="grade-score grade-good">{{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}</span>
+                            {% elif score_data.score >= score_data.max_score|mul:0.6 %}
+                              <span class="grade-score grade-average">{{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}</span>
+                            {% else %}
+                              <span class="grade-score grade-poor">{{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}</span>
+                            {% endif %}
+                          {% endif %}
+                          {% if user.role == 'learner' %}
+                            <a href="{% url 'courses:topic_view' activity.object.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
+                              VIEW
+                            </a>
+                          {% endif %}
+                        {% else %}
+                          <span class="grade-score grade-none">Not Started</span>
+                          {% if user.role == 'learner' %}
+                            <a href="{% url 'courses:topic_view' activity.object.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
+                              LAUNCH
+                            </a>
+                          {% endif %}
+                        {% endif %}
+                        
+                      {% endif %}
+                    </div>
+                  </td>
+                {% endfor %}
+                
+                {% if activities %}
+                <td class="assignment-total activity-cell">
+                  {% calculate_student_total_optimized student_scores student.id activities as total_data %}
+                  <div class="total-score-container">
+                    {% if total_data.possible > 0 %}
+                      <div class="total-points">
+                        {{ total_data.earned|floatformat:1 }}/{{ total_data.possible|floatformat:1 }} pts
+                      </div>
+                      {% if total_data.percentage >= 90 %}
+                        <div class="grade-score grade-excellent total-percentage">{{ total_data.percentage|floatformat:1 }}%</div>
+                      {% elif total_data.percentage >= 80 %}
+                        <div class="grade-score grade-good total-percentage">{{ total_data.percentage|floatformat:1 }}%</div>
+                      {% elif total_data.percentage >= 70 %}
+                        <div class="grade-score grade-average total-percentage">{{ total_data.percentage|floatformat:1 }}%</div>
+                      {% elif total_data.percentage >= 60 %}
+                        <div class="grade-score grade-poor total-percentage">{{ total_data.percentage|floatformat:1 }}%</div>
+                      {% else %}
+                        <div class="grade-score grade-poor total-percentage">{{ total_data.percentage|floatformat:1 }}%</div>
+                      {% endif %}
+                    {% else %}
+                      <div class="grade-score grade-none">No Activities</div>
+                    {% endif %}
+                  </div>
+                </td>
+                {% endif %}
+                
+                <!-- Outcome Mastery Data -->
+                {% if outcome_summary %}
+                  {% for outcome_id, summary in outcome_summary.items %}
+                  <td class="outcome-column activity-cell" style="display: none;">
+                    {% if outcome_evaluations|lookup:student.id|lookup:outcome_id %}
+                      {% with evaluation=outcome_evaluations|lookup:student.id|lookup:outcome_id %}
+                      <div class="outcome-score-container">
+                        <div class="outcome-score">{{ evaluation.score|floatformat:1 }}</div>
+                        <div class="proficiency-level proficiency-{{ evaluation.proficiency_level|slugify }}">
+                          {{ evaluation.proficiency_level }}
+                        </div>
+                        <div class="evidence-count text-xs text-gray-500">
+                          {{ evaluation.evidence_count }} evidence{{ evaluation.evidence_count|pluralize }}
+                        </div>
+                      </div>
+                      {% endwith %}
+                    {% else %}
+                      <div class="outcome-score-container">
+                        <div class="grade-score grade-none">Not Assessed</div>
+                      </div>
+                    {% endif %}
+                  </td>
+                  {% endfor %}
+                {% endif %}
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="100%" class="text-center text-gray-500 py-8">
+                  No students enrolled in this course.
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        
+        </div> <!-- End gradebook-wrapper -->
+        {% endif %}
+      </div>
+      
+      <!-- Pagination Controls -->
+      {% if students_page.has_other_pages %}
+      <div class="pagination-container mt-4">
+        <div class="pagination-info">
+          <span class="text-sm text-gray-600">
+            Showing {{ students_page.start_index }}-{{ students_page.end_index }} of {{ total_students }} students
+          </span>
+        </div>
+        
+        <div class="pagination-controls">
+          <nav aria-label="Students pagination">
+            <ul class="pagination">
+              {% if students_page.has_previous %}
+                <li class="page-item">
+                  <a class="page-link" href="?page={{ students_page.previous_page_number }}" aria-label="Previous">
+                    <span aria-hidden="true">&laquo;</span>
+                  </a>
+                </li>
+              {% endif %}
+              
+              {% for num in students_page.paginator.page_range %}
+                {% if students_page.number == num %}
+                  <li class="page-item active">
+                    <span class="page-link">{{ num }}</span>
+                  </li>
+                {% elif num > students_page.number|add:'-3' and num < students_page.number|add:'3' %}
+                  <li class="page-item">
+                    <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                  </li>
+                {% endif %}
+              {% endfor %}
+              
+              {% if students_page.has_next %}
+                <li class="page-item">
+                  <a class="page-link" href="?page={{ students_page.next_page_number }}" aria-label="Next">
+                    <span aria-hidden="true">&raquo;</span>
+                  </a>
+                </li>
+              {% endif %}
+            </ul>
+          </nav>
+        </div>
+      </div>
+      {% endif %}
+      
+      {% if user.role != 'learner' %}
+      <div class="mt-4 flex justify-end items-center">
+        <div class="flex space-x-2">
+          <button onclick="exportGradebook()" class="text-white px-3 py-1.5 rounded text-sm transition duration-200" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+            <i class="fas fa-download mr-1"></i>Export CSV
+          </button>
+          <a href="{% url 'gradebook:index' %}" class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1.5 rounded text-sm transition duration-200">
+            <i class="fas fa-arrow-left mr-1"></i>Back
+          </a>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+
+
+{% endblock %}
+
+{% block extra_js %}
+<!-- TinyMCE Scripts - Load globally for proper functionality -->
+<script src="{% static 'tinymce_editor/tinymce/tinymce.min.js' %}"></script>
+<script src="{% static 'tinymce_editor/js/tinymce-widget.js' %}"></script>
+<script>
+
+// View mode management
+let currentViewMode = 'compact';
+let isFullscreen = false;
+
+// Set view mode functionality
+function setViewMode(mode) {
+    const table = document.getElementById('gradebookTable');
+    
+    // Apply compact mode for better UI
+    table.classList.add('compact-mode');
+    currentViewMode = 'compact';
+}
+
+// Toggle fullscreen functionality
+function toggleFullscreen() {
+    if (isFullscreen) {
+        exitFullscreen();
+    } else {
+        enterFullscreen();
+    }
+}
+
+function enterFullscreen() {
+    const container = document.getElementById('gradebookContainer').parentElement;
+    
+    container.classList.add('gradebook-fullscreen');
+    isFullscreen = true;
+    
+    // Hide page header and other elements
+    const pageHeader = document.querySelector('.course-header');
+    const breadcrumbs = document.querySelector('.breadcrumb');
+    if (pageHeader) pageHeader.style.display = 'none';
+    if (breadcrumbs) breadcrumbs.style.display = 'none';
+    
+    console.log('✅ Entered fullscreen mode (use F11 or ESC to exit)');
+}
+
+function exitFullscreen() {
+    const container = document.getElementById('gradebookContainer').parentElement;
+    
+    container.classList.remove('gradebook-fullscreen');
+    isFullscreen = false;
+    
+    // Show page header and other elements
+    const pageHeader = document.querySelector('.course-header');
+    const breadcrumbs = document.querySelector('.breadcrumb');
+    if (pageHeader) pageHeader.style.display = 'block';
+    if (breadcrumbs) breadcrumbs.style.display = 'block';
+    
+    console.log('✅ Exited fullscreen mode');
+}
+
+// Filter and Search Functionality
+function applyFilters() {
+    const globalSearch = document.getElementById('globalSearch').value.toLowerCase();
+    // BUGFIX: Check if studentFilter exists (not available for learners)
+    const studentFilterElement = document.getElementById('studentFilter');
+    const studentFilter = studentFilterElement ? studentFilterElement.value.toLowerCase() : '';
+    const activityTypeFilter = document.getElementById('activityTypeFilter').value.toLowerCase();
+    const activitySearch = document.getElementById('activitySearch').value.toLowerCase();
+    const statusFilter = document.getElementById('statusFilter').value.toLowerCase();
+    
+    const tableBody = document.querySelector('.gradebook-table tbody');
+    const rows = tableBody.querySelectorAll('tr');
+    const activityHeaders = document.querySelectorAll('.gradebook-table thead th');
+    const activityCells = document.querySelectorAll('.gradebook-table tbody td');
+    
+    let visibleRows = 0;
+    let visibleActivities = new Set();
+    
+    // Filter rows (students)
+    rows.forEach((row, rowIndex) => {
+        const studentCell = row.querySelector('td:first-child');
+        if (!studentCell) return;
+        
+        const studentName = studentCell.textContent.toLowerCase();
+        let rowVisible = true;
+        
+        // Apply student name filter
+        if (studentFilter && !studentName.includes(studentFilter)) {
+            rowVisible = false;
+        }
+        
+        // Apply global search (search in student name and all activities)
+        if (globalSearch) {
+            const rowText = row.textContent.toLowerCase();
+            if (!rowText.includes(globalSearch)) {
+                rowVisible = false;
+            }
+        }
+        
+        // Apply status filter
+        if (statusFilter) {
+            const activityCells = row.querySelectorAll('td:not(:first-child):not(:last-child)');
+            let hasMatchingStatus = false;
+            
+            activityCells.forEach(cell => {
+                const cellText = cell.textContent.toLowerCase();
+                
+                if (statusFilter === 'submitted') {
+                    // BUGFIX: Check for new assignment statuses AND quiz/scorm scores
+                    // Assignment statuses: "Submitted - Awaiting Grade", "Not Graded Yet", "Late Submission"
+                    // Quiz/SCORM: scores like "85.0/100" or "85%", or "Completed"
+                    if (cellText.includes('submitted') || 
+                        cellText.includes('not graded yet') ||
+                        cellText.includes('late submission') ||
+                        cellText.includes('awaiting grade') ||
+                        cellText.includes('grade now') ||
+                        cellText.includes('completed') ||
+                        // Numerical scores (but NOT "not submitted" or "not attempted")
+                        ((cellText.includes('/') || cellText.includes('%')) && 
+                         !cellText.includes('not submitted') && 
+                         !cellText.includes('not attempted') &&
+                         !cellText.includes('not started'))) {
+                        hasMatchingStatus = true;
+                    }
+                } else if (statusFilter === 'graded') {
+                    // Check for numerical scores (formats like "85.0/100" or "85%")
+                    // Exclude statuses that are submitted but not graded
+                    if (((cellText.includes('/') && cellText.match(/\d+/)) || 
+                        (cellText.includes('%') && cellText.match(/\d+/))) &&
+                        !cellText.includes('awaiting grade') &&
+                        !cellText.includes('not graded yet') &&
+                        !cellText.includes('grade now')) {
+                        hasMatchingStatus = true;
+                    }
+                } else if (statusFilter === 'not-started') {
+                    // Check for various "not started" states
+                    // BUGFIX: More specific matching to avoid false positives
+                    if (cellText.includes('not started') || 
+                        cellText.includes('not attempted') || 
+                        (cellText.includes('not submitted') && !cellText.includes('draft')) ||
+                        cellText.includes('no activity') ||
+                        cellText.includes('no interaction')) {
+                        hasMatchingStatus = true;
+                    }
+                } else if (statusFilter === 'in-progress') {
+                    // Check for "in progress", "draft", "returned for revision" states
+                    if (cellText.includes('in progress') ||
+                        cellText.includes('draft') ||
+                        cellText.includes('returned for revision') ||
+                        cellText.includes('incomplete')) {
+                        hasMatchingStatus = true;
+                    }
+                }
+            });
+            
+            if (!hasMatchingStatus) {
+                rowVisible = false;
+            }
+        }
+        
+        // Show/hide row
+        if (rowVisible) {
+            row.classList.remove('filtered-hidden');
+            row.classList.add('filtered-visible');
+            visibleRows++;
+        } else {
+            row.classList.add('filtered-hidden');
+            row.classList.remove('filtered-visible');
+        }
+    });
+    
+    // Filter activity columns
+    activityHeaders.forEach((header, colIndex) => {
+        if (colIndex === 0 || header.classList.contains('assignment-total')) return; // Skip student name and total columns
+        
+        const activityTitle = header.textContent.toLowerCase();
+        const activityTypeLabels = header.querySelectorAll('.activity-type-label');
+        let activityType = '';
+        
+        if (activityTypeLabels.length > 0) {
+            const labelText = activityTypeLabels[0].textContent.toLowerCase();
+            if (labelText.includes('asg')) activityType = 'assignment';
+            else if (labelText.includes('quz')) activityType = 'quiz';
+            else if (labelText.includes('dsc')) activityType = 'discussion';
+            else if (labelText.includes('cnf')) activityType = 'conference';
+            else if (labelText.includes('sco')) activityType = 'scorm';
+        }
+        
+        let columnVisible = true;
+        
+        // Apply activity type filter
+        if (activityTypeFilter && activityType !== activityTypeFilter) {
+            columnVisible = false;
+        }
+        
+        // Apply activity name search
+        if (activitySearch && !activityTitle.includes(activitySearch)) {
+            columnVisible = false;
+        }
+        
+        // Show/hide column
+        const allCellsInColumn = document.querySelectorAll(`.gradebook-table tr td:nth-child(${colIndex + 1}), .gradebook-table tr th:nth-child(${colIndex + 1})`);
+        
+        if (columnVisible) {
+            allCellsInColumn.forEach(cell => {
+                cell.classList.remove('activity-filtered');
+            });
+            visibleActivities.add(colIndex);
+        } else {
+            allCellsInColumn.forEach(cell => {
+                cell.classList.add('activity-filtered');
+            });
+        }
+    });
+    
+    // Update filter summary
+    updateFilterSummary(visibleRows, visibleActivities.size);
+}
+
+function updateFilterSummary(visibleRows, visibleActivities) {
+    const filterSummary = document.getElementById('filterSummary');
+    const filterResults = document.getElementById('filterResults');
+    const visibleCount = document.getElementById('visibleCount');
+    const tableStats = document.getElementById('tableStats');
+    
+    const totalRows = document.querySelectorAll('.gradebook-table tbody tr').length;
+    const totalActivities = document.querySelectorAll('.gradebook-table thead th:not(:first-child):not(.assignment-total)').length;
+    
+    // BUGFIX: Check if studentFilter exists before accessing its value
+    const studentFilterElement = document.getElementById('studentFilter');
+    const isFiltered = document.getElementById('globalSearch').value || 
+                      (studentFilterElement && studentFilterElement.value) || 
+                      document.getElementById('activityTypeFilter').value || 
+                      document.getElementById('activitySearch').value || 
+                      document.getElementById('statusFilter').value;
+    
+    if (isFiltered) {
+        filterSummary.style.display = 'flex';
+        filterResults.textContent = `Showing ${visibleRows} of ${totalRows} students`;
+        visibleCount.textContent = `${visibleActivities} of ${totalActivities} activities`;
+        tableStats.textContent = `Filtered: ${visibleRows} Student${visibleRows !== 1 ? 's' : ''} • ${visibleActivities} Activit${visibleActivities !== 1 ? 'ies' : 'y'}`;
+    } else {
+        filterSummary.style.display = 'none';
+        tableStats.textContent = `${totalRows} Student${totalRows !== 1 ? 's' : ''} • ${totalActivities} Activit${totalActivities !== 1 ? 'ies' : 'y'}`;
+    }
+}
+
+window.clearAllFilters = function() {
+    // Clear all filter inputs
+    document.getElementById('globalSearch').value = '';
+    // BUGFIX: Check if studentFilter exists (not available for learners)
+    const studentFilterElement = document.getElementById('studentFilter');
+    if (studentFilterElement) {
+        studentFilterElement.value = '';
+    }
+    document.getElementById('activityTypeFilter').value = '';
+    document.getElementById('activitySearch').value = '';
+    document.getElementById('statusFilter').value = '';
+    
+    // Reset all table visibility
+    const rows = document.querySelectorAll('.gradebook-table tbody tr');
+    const cells = document.querySelectorAll('.gradebook-table th, .gradebook-table td');
+    
+    rows.forEach(row => {
+        row.classList.remove('filtered-hidden', 'filtered-visible');
+    });
+    
+    cells.forEach(cell => {
+        cell.classList.remove('activity-filtered');
+    });
+    
+    // Update summary
+    const totalRows = document.querySelectorAll('.gradebook-table tbody tr').length;
+    const totalActivities = document.querySelectorAll('.gradebook-table thead th:not(:first-child):not(.assignment-total)').length;
+    updateFilterSummary(totalRows, totalActivities);
+}
+
+function exportFilteredData() {
+    const visibleRows = document.querySelectorAll('.gradebook-table tbody tr:not(.filtered-hidden)');
+    const visibleHeaders = document.querySelectorAll('.gradebook-table thead th:not(.activity-filtered)');
+    
+    if (visibleRows.length === 0) {
+        alert('No data to export. Please adjust your filters.');
+        return;
+    }
+    
+    // Create CSV content
+    let csvContent = '';
+    
+    // Add headers
+    const headerRow = [];
+    visibleHeaders.forEach(header => {
+        const headerText = header.textContent.trim().replace(/\n/g, ' ').replace(/,/g, ';');
+        headerRow.push(`"${headerText}"`);
+    });
+    csvContent += headerRow.join(',') + '\n';
+    
+    // Add data rows
+    visibleRows.forEach(row => {
+        const visibleCells = row.querySelectorAll('td:not(.activity-filtered)');
+        const dataRow = [];
+        visibleCells.forEach(cell => {
+            const cellText = cell.textContent.trim().replace(/\n/g, ' ').replace(/,/g, ';');
+            dataRow.push(`"${cellText}"`);
+        });
+        csvContent += dataRow.join(',') + '\n';
+    });
+    
+    // Download CSV
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `gradebook_filtered_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Add responsive behavior for mobile
+    const table = document.querySelector('.gradebook-table');
+    const container = document.querySelector('.table-container');
+    
+    // Check if we need horizontal scroll
+    if (table.offsetWidth > container.offsetWidth) {
+        container.style.overflowX = 'auto';
+    }
+    
+    // Add compact mode styles
+    const style = document.createElement('style');
+    style.textContent = `
+        .gradebook-table.compact-mode th {
+            padding: 12px 8px !important;
+            font-size: 0.8rem !important;
+            min-width: 120px !important;
+        }
+        .gradebook-table.compact-mode td {
+            padding: 10px 8px !important;
+            font-size: 0.8rem !important;
+            min-width: 120px !important;
+        }
+        .gradebook-table.compact-mode th:first-child,
+        .gradebook-table.compact-mode td:first-child {
+            min-width: 160px !important;
+            padding: 12px 12px !important;
+        }
+        .gradebook-table.compact-mode th:last-child,
+        .gradebook-table.compact-mode td:last-child {
+            min-width: 140px !important;
+            padding: 12px 12px !important;
+        }
+        .gradebook-table.compact-mode .activity-header {
+            min-width: 120px !important;
+            padding: 12px 8px !important;
+        }
+        .gradebook-table.compact-mode .activity-cell {
+            min-width: 120px !important;
+            padding: 10px 6px !important;
+        }
+        .gradebook-table.compact-mode .grade-score {
+            font-size: 0.75rem !important;
+            padding: 2px 6px !important;
+        }
+        .gradebook-table.compact-mode .view-btn {
+            font-size: 0.65rem !important;
+            padding: 2px 6px !important;
+        }
+        .gradebook-table.compact-mode .activity-type-label {
+            font-size: 0.6rem !important;
+            padding: 1px 4px !important;
+        }
+        .gradebook-table.compact-mode .activity-title {
+            font-size: 0.75rem !important;
+        }
+        .gradebook-table.compact-mode .activity-points {
+            font-size: 0.7rem !important;
+        }
+    `;
+    document.head.appendChild(style);
+    
+    // Initialize compact mode by default
+    setViewMode('compact');
+    
+    // Initialize filter system
+    const totalRows = document.querySelectorAll('.gradebook-table tbody tr').length;
+    const totalActivities = document.querySelectorAll('.gradebook-table thead th:not(:first-child):not(.assignment-total)').length;
+    updateFilterSummary(totalRows, totalActivities);
+    
+    // Add keyboard shortcuts for filters
+    const globalSearch = document.getElementById('globalSearch');
+    if (globalSearch) {
+        globalSearch.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                applyFilters();
+            }
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                clearAllFilters();
+            }
+        });
+    }
+    
+    const activitySearch = document.getElementById('activitySearch');
+    if (activitySearch) {
+        activitySearch.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                applyFilters();
+            }
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                clearAllFilters();
+            }
+        });
+    }
+    
+    // Add keyboard shortcuts for sidebar and fullscreen
+    document.addEventListener('keydown', function(e) {
+        const sidebar = document.getElementById('gradingSidebar');
+        const isOpen = !sidebar.classList.contains('translate-x-full');
+        
+        if (isOpen) {
+            // ESC key to close sidebar
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                closeSidebar();
+            }
+        } else {
+            // F11 key to toggle fullscreen (when sidebar is closed)
+            if (e.key === 'F11') {
+                e.preventDefault();
+                toggleFullscreen();
+            }
+        }
+    });
+});
+
+// Sidebar functionality - Make sure it's globally accessible
+window.openGradingSidebar = function(activityType, activityId, studentId, submissionId = null) {
+    console.log('🔄 Opening grading sidebar for:', activityType, activityId, studentId, submissionId);
+    
+    const sidebar = document.getElementById('gradingSidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    const content = document.getElementById('sidebarContent');
+    
+    // Debug: Check if elements exist
+    if (!sidebar) {
+        console.error('❌ Sidebar element not found!');
+        return;
+    }
+    if (!overlay) {
+        console.error('❌ Overlay element not found!');
+        return;
+    }
+    if (!content) {
+        console.error('❌ Content element not found!');
+        return;
+    }
+    
+    console.log('✅ All required elements found');
+    
+    // Show enhanced loading
+    content.innerHTML = '<div class="sidebar-loading"><i class="fas fa-spinner fa-spin text-2xl text-blue-500"></i><p class="text-gray-600 text-sm">Loading grading interface...</p></div>';
+    
+    // Show sidebar and overlay
+    console.log('🔄 Showing sidebar and overlay');
+    sidebar.classList.remove('translate-x-full');
+    overlay.classList.remove('hidden');
+    
+    // Force refresh of styles
+    sidebar.offsetHeight; // Trigger reflow
+    overlay.offsetHeight; // Trigger reflow
+    
+    console.log('✅ Sidebar classes updated');
+    
+    // Initialize sidebar resize functionality and restore width
+    setTimeout(function() {
+        console.log('🔄 Initializing sidebar resize');
+        initializeSidebarResize();
+        restoreSidebarWidth();
+    }, 100);
+    
+    // Load content directly - TinyMCE is already loaded globally
+    console.log('🔄 Loading grading content');
+    loadGradingContent(activityType, activityId, studentId, submissionId);
+}
+
+window.closeSidebar = function() {
+    console.log('🔄 Closing sidebar');
+    
+    const sidebar = document.getElementById('gradingSidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    const sidebarContent = document.getElementById('sidebarContent');
+    
+    if (!sidebar || !overlay) {
+        console.error('❌ Sidebar or overlay elements not found during close');
+        return;
+    }
+    
+    // Clean up TinyMCE instances using the new approach
+    if (sidebarContent) {
+        cleanupSidebarTinyMCE(sidebarContent);
+    }
+    
+    // Clean up resize state if active
+    if (typeof isResizing !== 'undefined' && isResizing) {
+        stopResize();
+    }
+    
+    sidebar.classList.add('translate-x-full');
+    overlay.classList.add('hidden');
+    
+    console.log('✅ Sidebar closed');
+}
+
+
+
+
+
+// Sidebar resize functionality
+let isResizing = false;
+let startX = 0;
+let startWidth = 0;
+let currentSidebarWidth = 384; // Default width (w-96 = 24rem = 384px)
+
+function initializeSidebarResize() {
+    const resizeHandle = document.getElementById('sidebarResizeHandle');
+    const sidebar = document.getElementById('gradingSidebar');
+    
+    if (!resizeHandle || !sidebar) return;
+    
+    resizeHandle.addEventListener('mousedown', startResize);
+    
+    // Add touch events for mobile support
+    resizeHandle.addEventListener('touchstart', startResize);
+}
+
+function startResize(e) {
+    console.log('🔄 Starting resize');
+    
+    e.preventDefault();
+    isResizing = true;
+    startX = e.clientX || e.touches[0].clientX;
+    
+    const sidebar = document.getElementById('gradingSidebar');
+    const resizeHandle = document.getElementById('sidebarResizeHandle');
+    
+    if (!sidebar || !resizeHandle) {
+        console.error('❌ Sidebar or resize handle not found');
+        return;
+    }
+    
+    // Get current sidebar width
+    const computedStyle = window.getComputedStyle(sidebar);
+    startWidth = parseInt(computedStyle.width);
+    currentSidebarWidth = startWidth;
+    
+    // Add visual feedback
+    document.body.classList.add('sidebar-resizing');
+    sidebar.classList.add('resizing');
+    resizeHandle.classList.add('active');
+    
+    // Add event listeners
+    document.addEventListener('mousemove', handleResize);
+    document.addEventListener('mouseup', stopResize);
+    document.addEventListener('touchmove', handleResize);
+    document.addEventListener('touchend', stopResize);
+    
+    console.log('✅ Starting sidebar resize from width:', startWidth);
+}
+
+function handleResize(e) {
+    if (!isResizing) return;
+    
+    e.preventDefault();
+    const currentX = e.clientX || e.touches[0].clientX;
+    const deltaX = startX - currentX; // Note: subtract because we're resizing from the right
+    
+    // Calculate new width
+    let newWidth = startWidth + deltaX;
+    
+    // Constrain width between min and max
+    const minWidth = 320; // 20rem
+    const maxWidth = Math.min(window.innerWidth * 0.8, 1200); // 80% of viewport or 1200px max
+    
+    newWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
+    
+    // Apply new width
+    const sidebar = document.getElementById('gradingSidebar');
+    sidebar.style.width = newWidth + 'px';
+    
+    // Remove default width classes
+    sidebar.classList.remove('w-96', 'w-full', 'max-w-6xl');
+    
+    currentSidebarWidth = newWidth;
+    
+    // Save to localStorage
+    localStorage.setItem('sidebarWidth', newWidth);
+    
+    // Update TinyMCE editors if they exist
+    setTimeout(function() {
+        try {
+            const sidebarContent = document.getElementById('sidebarContent');
+            if (sidebarContent && typeof tinymce !== 'undefined') {
+                const tinyMceTextareas = sidebarContent.querySelectorAll('textarea.tinymce-editor');
+                tinyMceTextareas.forEach(textarea => {
+                    const editor = tinymce.get(textarea.id);
+                    if (editor) {
+                        editor.fire('ResizeEditor');
+                    }
+                });
+            }
+        } catch (error) {
+            console.warn('Could not refresh TinyMCE during resize:', error);
+        }
+    }, 100);
+}
+
+function stopResize() {
+    if (!isResizing) return;
+    
+    isResizing = false;
+    
+    const sidebar = document.getElementById('gradingSidebar');
+    const resizeHandle = document.getElementById('sidebarResizeHandle');
+    
+    // Remove visual feedback
+    document.body.classList.remove('sidebar-resizing');
+    sidebar.classList.remove('resizing');
+    resizeHandle.classList.remove('active');
+    
+    // Remove event listeners
+    document.removeEventListener('mousemove', handleResize);
+    document.removeEventListener('mouseup', stopResize);
+    document.removeEventListener('touchmove', handleResize);
+    document.removeEventListener('touchend', stopResize);
+    
+    // Store the new width for future use
+    console.log('✅ Sidebar resize completed. New width:', currentSidebarWidth);
+    
+    // Save the preferred width to localStorage
+    try {
+        localStorage.setItem('gradebook_sidebar_width', currentSidebarWidth);
+    } catch (error) {
+        console.warn('Could not save sidebar width to localStorage:', error);
+    }
+}
+
+function restoreSidebarWidth() {
+    try {
+        const savedWidth = localStorage.getItem('gradebook_sidebar_width');
+        if (savedWidth) {
+            const width = parseInt(savedWidth);
+            if (width >= 320 && width <= 1200) {
+                const sidebar = document.getElementById('gradingSidebar');
+                sidebar.style.width = width + 'px';
+                sidebar.classList.remove('w-96');
+                currentSidebarWidth = width;
+                console.log('✅ Restored sidebar width from localStorage:', width);
+            }
+        }
+    } catch (error) {
+        console.warn('Could not restore sidebar width from localStorage:', error);
+    }
+}
+
+window.loadGradingContent = function(activityType, activityId, studentId, submissionId) {
+    console.log('🔄 Loading grading content for:', activityType, activityId, studentId, submissionId);
+    
+    const content = document.getElementById('sidebarContent');
+    
+    // Build the URL for fetching grading content
+    let url = '';
+    if (activityType === 'assignment') {
+        url = `/gradebook/grade-sidebar/assignment/${activityId}/${studentId}/`;
+        if (submissionId) {
+            url += `?submission_id=${submissionId}`;
+        }
+    } else if (activityType === 'quiz') {
+        url = `/gradebook/grade-sidebar/quiz/${activityId}/${studentId}/`;
+        if (submissionId) {
+            url += `?attempt_id=${submissionId}`;
+        }
+    } else if (activityType === 'discussion') {
+        url = `/gradebook/grade-sidebar/discussion/${activityId}/${studentId}/`;
+    } else if (activityType === 'conference') {
+        url = `/gradebook/grade-sidebar/conference/${activityId}/${studentId}/`;
+    }
+    
+    console.log('🔄 Fetching content from URL:', url);
+    
+    // Fetch the content with proper credentials
+    fetch(url, {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/json',
+        }
+    })
+        .then(response => {
+            console.log('📥 Received response:', response.status, response.statusText);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.text();
+        })
+        .then(html => {
+            console.log('✅ Content loaded successfully, length:', html.length);
+            content.innerHTML = html;
+            
+            // Initialize sidebar resize functionality
+            initializeSidebarResize();
+            
+            // Restore saved sidebar width
+            restoreSidebarWidth();
+            
+            // Initialize any form handlers in the loaded content
+            initializeSidebarForms();
+            
+            // Initialize TinyMCE editors using enhanced approach with multiple retries
+            function ensureTinyMCEInitialized(retryCount = 0) {
+                try {
+                    console.log(`🔄 Attempt ${retryCount + 1}: Initializing TinyMCE in sidebar content...`);
+                    
+                    // Use the new unified approach
+                    initializeSidebarTinyMCE(content);
+                    
+                    // Use the widget system as a fallback
+                    if (typeof window.TinyMCEWidget !== 'undefined' && window.TinyMCEWidget.initializeAll) {
+                        setTimeout(() => {
+                            window.TinyMCEWidget.initializeAll();
+                            console.log('✅ TinyMCE sidebar editors initialized using widget system');
+                        }, 200);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error during TinyMCE initialization:', error);
+                    if (retryCount < 3) {
+                        setTimeout(() => ensureTinyMCEInitialized(retryCount + 1), 500);
+                    }
+                }
+            }
+            
+            // Initialize TinyMCE with slight delay to ensure content is fully loaded
+            setTimeout(() => {
+                ensureTinyMCEInitialized();
+            }, 100);
+            
+            // Initialize feedback tabs after content is loaded
+            setTimeout(function() {
+                try {
+                    initializeFeedbackTabsInContent(content);
+                } catch (error) {
+                    console.error('❌ Error initializing feedback tabs:', error);
+                }
+            }, 200);
+        })
+        .catch(error => {
+            console.error('Error loading grading content:', error);
+            content.innerHTML = '<div class="text-center py-8 text-red-500"><i class="fas fa-exclamation-triangle text-2xl"></i><p class="mt-2">Error loading content</p></div>';
+        });
+}
+
+window.showFeedback = function(activityType, activityId, studentId) {
+    // For learners, show feedback in a modal or navigate to feedback page
+    const url = `/${activityType}s/${activityId}/feedback/`;
+    window.open(url, '_blank');
+};
+
+// Enhanced TinyMCE initialization for sidebar content
+function initializeSidebarTinyMCE(container) {
+    console.log('🔄 Starting sidebar TinyMCE initialization...');
+    
+    // Use a more robust approach with proper timing
+    function attemptInitialization(retryCount = 0) {
+        const MAX_RETRIES = 5;
+        const RETRY_DELAY = 300;
+        
+        // Check if TinyMCE is available
+        if (typeof tinymce === 'undefined') {
+            if (retryCount < MAX_RETRIES) {
+                console.log(`⏳ TinyMCE not available, retrying in ${RETRY_DELAY}ms... (${retryCount + 1}/${MAX_RETRIES})`);
+                setTimeout(() => attemptInitialization(retryCount + 1), RETRY_DELAY);
+            } else {
+                console.error('❌ TinyMCE failed to load after maximum retries');
+            }
+            return;
+        }
+        
+        // Find all textareas that need TinyMCE
+        const textareas = container.querySelectorAll('textarea.tinymce-editor, textarea[data-tinymce-config]');
+        console.log(`📝 Found ${textareas.length} textareas to initialize`);
+        
+        if (textareas.length === 0) {
+            console.log('ℹ️ No TinyMCE textareas found in sidebar content');
+            return;
+        }
+        
+        // Initialize each textarea
+        textareas.forEach(textarea => {
+            // Ensure textarea has an ID
+            if (!textarea.id) {
+                textarea.id = 'tinymce-sidebar-' + Math.random().toString(36).substring(2, 9);
+            }
+            
+            // Skip if already initialized
+            if (tinymce.get(textarea.id)) {
+                console.log(`✅ TinyMCE already initialized for: ${textarea.id}`);
+                return;
+            }
+            
+            // Get configuration from data attribute or use default
+            let config = {};
+            try {
+                const configData = textarea.getAttribute('data-tinymce-config');
+                if (configData) {
+                    config = JSON.parse(configData);
+                }
+            } catch (e) {
+                console.warn('Failed to parse TinyMCE config:', e);
+            }
+            
+            // Set essential configuration for sidebar
+            config.selector = '#' + textarea.id;
+            config.height = config.height || 350;  // Increased height for better content editing
+            config.menubar = config.menubar || 'edit view insert format tools';
+            config.statusbar = config.statusbar || true;
+            config.branding = false;
+            config.promotion = false;
+            config.license_key = 'gpl';
+            
+            // TinyMCE 7.0 compatible paste configuration
+            config.paste_as_text = false;
+            config.paste_data_images = true;
+            
+            // Add custom paste preprocessing for TinyMCE 7.0 compatibility
+            config.paste_preprocess = function(plugin, args) {
+                // Custom paste preprocessing logic can be added here
+                // Configure paste filtering functionality
+                return args;
+            };
+            
+            // Essential plugins for feedback
+            if (!config.plugins) {
+                config.plugins = ['lists', 'link', 'autolink', 'paste', 'searchreplace', 'image', 'media', 'table', 'wordcount'];
+            }
+            
+            // Enhanced toolbar for feedback
+            if (!config.toolbar) {
+                config.toolbar = 'undo redo | blocks | bold italic underline | bullist numlist | link | image media | removeformat | wordcount';
+            }
+            
+            // Setup function to handle initialization
+            config.setup = function(editor) {
+                editor.on('init', function() {
+                    console.log(`✅ TinyMCE initialized for: ${editor.id}`);
+                    
+                    // Ensure editor is visible
+                    const container = editor.getContainer();
+                    if (container) {
+                        container.style.visibility = 'visible';
+                        container.style.display = 'block';
+                    }
+                    
+                    // Handle form submission
+                    const form = textarea.closest('form');
+                    if (form) {
+                        form.addEventListener('submit', function() {
+                            editor.save();
+                        });
+                    }
+                });
+                
+                // Handle editor changes
+                editor.on('change keyup', function() {
+                    editor.save();
+                });
+                
+                // Handle resize when switching tabs
+                editor.on('show', function() {
+                    setTimeout(() => {
+                        editor.execCommand('mceResize');
+                    }, 100);
+                });
+            };
+            
+            // Initialize TinyMCE
+            tinymce.init(config).then(function(editors) {
+                if (editors.length > 0) {
+                    console.log(`✅ TinyMCE successfully initialized for: ${textarea.id}`);
+                }
+            }).catch(function(error) {
+                console.error(`❌ Failed to initialize TinyMCE for ${textarea.id}:`, error);
+            });
+        });
+    }
+    
+    // Start initialization with a small delay to ensure DOM is ready
+    setTimeout(() => attemptInitialization(), 100);
+}
+
+// Enhanced feedback tab initialization
+function initializeFeedbackTabsInContent(container) {
+    console.log('🔄 Initializing feedback tabs in loaded sidebar content...');
+    
+    const tabButtons = container.querySelectorAll('.feedback-tab-btn');
+    const tabContents = container.querySelectorAll('.feedback-tab-content');
+    
+    console.log(`Found ${tabButtons.length} feedback tab buttons and ${tabContents.length} feedback tab contents`);
+    
+    if (tabButtons.length === 0 || tabContents.length === 0) {
+        console.log('ℹ️ No feedback tabs found in sidebar content');
+        return;
+    }
+    
+    // Enhanced tab functionality
+    function switchToTab(targetTab) {
+        console.log(`🔄 Switching to feedback tab: ${targetTab}`);
+        
+        // Update button states
+        tabButtons.forEach(btn => {
+            const isActive = btn.dataset.tab === targetTab;
+            btn.className = `feedback-tab-btn py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${isActive ? btn.dataset.activeClass : btn.dataset.inactiveClass}`;
+        });
+        
+        // Update content visibility
+        tabContents.forEach(content => {
+            const tabName = content.id.replace('-feedback-tab', '');
+            const isTarget = tabName === targetTab;
+            
+            if (isTarget) {
+                content.classList.remove('hidden');
+                content.classList.add('block');
+                content.style.display = 'block';
+                
+                // Refresh TinyMCE editors when switching to text tab
+                if (targetTab === 'text') {
+                    setTimeout(() => {
+                        const textareas = content.querySelectorAll('textarea.tinymce-editor');
+                        textareas.forEach(textarea => {
+                            const editor = tinymce.get(textarea.id);
+                            if (editor) {
+                                console.log(`🔄 Refreshing TinyMCE editor: ${textarea.id}`);
+                                
+                                // Add error handling for TinyMCE operations
+                                try {
+                                    // Check if editor is initialized and has selection
+                                    if (editor.initialized && editor.selection) {
+                                        editor.execCommand('mceResize');
+                                        editor.fire('ResizeEditor');
+                                    } else {
+                                        console.warn(`Editor ${textarea.id} not fully initialized, skipping refresh`);
+                                    }
+                                } catch (error) {
+                                    console.warn(`Error refreshing TinyMCE editor ${textarea.id}:`, error);
+                                }
+                            }
+                        });
+                    }, 150);
+                }
+            } else {
+                content.classList.add('hidden');
+                content.classList.remove('block');
+                content.style.display = 'none';
+            }
+        });
+        
+        console.log(`✅ Feedback tab switched to: ${targetTab}`);
+    }
+    
+    // Add click handlers
+    tabButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            switchToTab(this.dataset.tab);
+        });
+    });
+    
+    // Initialize to first tab (text) by default
+    if (tabButtons.length > 0) {
+        switchToTab('text');
+    }
+    
+    console.log('✅ Feedback tabs initialized successfully');
+}
+
+// Clean up TinyMCE editors in sidebar
+function cleanupSidebarTinyMCE(container) {
+    console.log('🧹 Cleaning up sidebar TinyMCE editors...');
+    
+    if (typeof tinymce === 'undefined') {
+        console.log('ℹ️ TinyMCE not available for cleanup');
+        return;
+    }
+    
+    const textareas = container.querySelectorAll('textarea.tinymce-editor, textarea[data-tinymce-config]');
+    textareas.forEach(textarea => {
+        if (textarea.id) {
+            const editor = tinymce.get(textarea.id);
+            if (editor) {
+                try {
+                    editor.remove();
+                    console.log(`✅ Cleaned up TinyMCE editor: ${textarea.id}`);
+                } catch (error) {
+                    console.warn(`Could not clean up TinyMCE editor ${textarea.id}:`, error);
+                }
+            }
+        }
+    });
+}
+
+function initializeSidebarForms() {
+    // Initialize any forms loaded in the sidebar
+    const forms = document.querySelectorAll('#sidebarContent form');
+    forms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            submitSidebarForm(this);
+        });
+    });
+}
+
+function submitSidebarForm(form) {
+    const formData = new FormData(form);
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    
+    // Show loading
+    submitBtn.textContent = 'Saving...';
+    submitBtn.disabled = true;
+    
+    fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            showToast('Grade saved successfully!', 'success');
+            // Refresh the gradebook or update the specific cell
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        } else {
+            showToast(data.error || 'Error saving grade', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Error saving grade', 'error');
+    })
+    .finally(() => {
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    });
+}
+
+function showToast(message, type) {
+    // Simple toast notification
+    const toast = document.createElement('div');
+    toast.className = `fixed top-4 right-4 px-4 py-2 rounded-lg text-white z-50 ${
+        type === 'success' ? 'bg-green-500' : 'bg-red-500'
+    }`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
+}
+
+// Export gradebook functionality
+window.exportGradebook = function() {
+    const currentUrl = window.location.href;
+    const exportUrl = currentUrl.replace('/gradebook/course/', '/gradebook/export/');
+    window.open(exportUrl, '_blank');
+};
+
+// Initialize everything when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('✅ Gradebook page loaded');
+    
+    // Check if required elements exist
+    const sidebar = document.getElementById('gradingSidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    const content = document.getElementById('sidebarContent');
+    
+    if (!sidebar) {
+        console.error('❌ Sidebar element missing from DOM');
+    } else {
+        console.log('✅ Sidebar element found');
+    }
+    
+    if (!overlay) {
+        console.error('❌ Overlay element missing from DOM');
+    } else {
+        console.log('✅ Overlay element found');
+    }
+    
+    if (!content) {
+        console.error('❌ Content element missing from DOM');
+    } else {
+        console.log('✅ Content element found');
+    }
+    
+    // Initialize view mode
+    if (typeof setViewMode === 'function') {
+        setViewMode('compact');
+    }
+    
+    // Initialize sidebar resize
+    initializeSidebarResize();
+    
+    // Restore saved sidebar width
+    restoreSidebarWidth();
+    
+    // Initialize outcome toggle functionality
+    initializeOutcomeToggle();
+});
+
+// Outcome toggle functionality
+function initializeOutcomeToggle() {
+    const toggleBtn = document.getElementById('toggleOutcomeDetails');
+    const outcomeColumns = document.querySelectorAll('.outcome-column');
+    let outcomeVisible = false;
+    
+    if (toggleBtn && outcomeColumns.length > 0) {
+        // Update button state based on current visibility
+        const isCurrentlyVisible = outcomeColumns[0].style.display !== 'none';
+        outcomeVisible = isCurrentlyVisible;
+        updateButtonText();
+        
+        toggleBtn.addEventListener('click', function() {
+            outcomeVisible = !outcomeVisible;
+            
+            // Toggle all outcome column headers and cells
+            outcomeColumns.forEach(column => {
+                column.style.display = outcomeVisible ? 'table-cell' : 'none';
+            });
+            
+            updateButtonText();
+        });
+        
+        function updateButtonText() {
+            if (outcomeVisible) {
+                toggleBtn.innerHTML = 'Hide detailed outcome results in gradebook ▲';
+                toggleBtn.classList.remove('text-blue-600');
+                toggleBtn.classList.add('text-red-600');
+            } else {
+                toggleBtn.innerHTML = 'Show detailed outcome results in gradebook ▼';
+                toggleBtn.classList.remove('text-red-600');
+                toggleBtn.classList.add('text-blue-600');
+            }
+        }
+    }
+}
+</script>
+
+
+</script>
+
+{% endblock %} 

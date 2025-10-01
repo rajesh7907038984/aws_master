@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+
+{% block title %}Content Not Available{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-warning">
+                    <h4 class="card-title mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Unsupported Content
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <p>The requested content is currently unavailable. This may be due to one of the following reasons:</p>
+                        
+                        <ul class="mt-3">
+                            <li>SCORM Cloud integration is not configured</li>
+                            <li>The content type is not supported in your current environment</li>
+                            <li>The content files may be missing or corrupted</li>
+                            <li>You may not have the necessary permissions to access this content</li>
+                        </ul>
+                        
+                        <p class="mt-3 mb-0">Please contact your course administrator for assistance.</p>
+                    </div>
+                    
+                    {% if error_message %}
+                    <div class="mt-3">
+                        <h5>Error Details:</h5>
+                        <pre class="bg-light p-3">{{ error_message }}</pre>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mt-4 text-center">
+                        {% if topic.course.id and topic.course.id != '' %}
+                        <a href="{% url 'courses:course_view' topic.course.id %}" class="btn btn-primary">
+                            <i class="fas fa-arrow-left me-2"></i>
+                            Return to Course
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

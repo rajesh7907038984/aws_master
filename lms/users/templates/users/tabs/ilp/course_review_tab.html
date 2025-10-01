@@ -1,0 +1,225 @@
+<!-- Course Review Tab Content -->
+<div id="course-review-tab" class="ilp-tab-content" style="display: none;">
+    <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+        <h4 class="text-lg font-semibold text-gray-900 mb-4">Internal Course Review</h4>
+        
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <p class="text-blue-800 text-sm">
+                <i class="fas fa-info-circle mr-2"></i>
+                This section captures comprehensive course review information and should be completed by appropriate staff members throughout the learning journey.
+            </p>
+        </div>
+        
+        <div class="space-y-6">
+            <!-- Question 1: Initial IAG Session Review -->
+            <div class="form-group border-b border-gray-200 pb-4">
+                <label for="iag_session_review" class="form-label font-medium text-gray-800 mb-3 block">
+                    Review of initial IAG session and learner's feelings relating to the success of the identified actions.
+                </label>
+                <textarea id="iag_session_review" name="iag_session_review" 
+                          class="form-textarea" rows="5" 
+                          placeholder="Provide detailed review of the initial Information, Advice and Guidance session, including learner's feedback and feelings about the identified actions...">{% if is_edit_mode and profile_user.coursereview %}{{ profile_user.coursereview.iag_session_review|default:'' }}{% endif %}</textarea>
+                <div class="form-help-text">Document the effectiveness of the initial IAG session and the learner's response to the guidance provided</div>
+            </div>
+
+            <!-- Question 2: Action Completion and Skill Improvement -->
+            <div class="form-group border-b border-gray-200 pb-4">
+                <label for="action_completion_skills" class="form-label font-medium text-gray-800 mb-3 block">
+                    Did the learner complete the actions and have they improved their skills?
+                </label>
+                <textarea id="action_completion_skills" name="action_completion_skills" 
+                          class="form-textarea" rows="5" 
+                          placeholder="Assess whether the learner completed the identified actions and document any skill improvements observed...">{% if is_edit_mode and profile_user.coursereview %}{{ profile_user.coursereview.action_completion_skills|default:'' }}{% endif %}</textarea>
+                <div class="form-help-text">Evaluate the learner's progress in completing recommended actions and any observed skill development</div>
+            </div>
+
+            <!-- Question 3: National Careers Service -->
+            <div class="form-group border-b border-gray-200 pb-4">
+                <label for="careers_service_advice" class="form-label font-medium text-gray-800 mb-3 block">
+                    Advise learner of National Careers Service (Career Connect) and issue contact details. (PA)
+                </label>
+                <textarea id="careers_service_advice" name="careers_service_advice" 
+                          class="form-textarea" rows="4" 
+                          placeholder="Document advice given to learner about National Careers Service, contact details provided, and any referrals made...">{% if is_edit_mode and profile_user.coursereview %}{{ profile_user.coursereview.careers_service_advice|default:'' }}{% endif %}</textarea>
+                <div class="form-help-text">Record information provided about National Careers Service and any follow-up actions taken</div>
+            </div>
+
+            <!-- Question 4: Progression Routes -->
+            <div class="form-group border-b border-gray-200 pb-4">
+                <label for="progression_routes" class="form-label font-medium text-gray-800 mb-3 block">
+                    Discuss possible progression routes (provide details of external training required). (PA)
+                </label>
+                <textarea id="progression_routes" name="progression_routes" 
+                          class="form-textarea" rows="5" 
+                          placeholder="Detail possible progression routes discussed with the learner, including any external training requirements, qualifications needed, and pathways explored...">{% if is_edit_mode and profile_user.coursereview %}{{ profile_user.coursereview.progression_routes|default:'' }}{% endif %}</textarea>
+                <div class="form-help-text">Outline potential career progression paths and associated training or qualification requirements</div>
+            </div>
+
+            <!-- Question 5: Career Objectives -->
+            <div class="form-group border-b border-gray-200 pb-4">
+                <label for="career_objectives_review" class="form-label font-medium text-gray-800 mb-3 block">
+                    Discuss learner career objectives and how they may be achieved. (PA)
+                </label>
+                <textarea id="career_objectives_review" name="career_objectives_review" 
+                          class="form-textarea" rows="5" 
+                          placeholder="Document the learner's career objectives and the strategies discussed for achieving them, including timelines and support needed...">{% if is_edit_mode and profile_user.coursereview %}{{ profile_user.coursereview.career_objectives_review|default:'' }}{% endif %}</textarea>
+                <div class="form-help-text">Record career goals discussed and specific strategies for achieving them</div>
+            </div>
+
+            <!-- Question 6: Qualification Achievement -->
+            <div class="form-group border-b border-gray-200 pb-4">
+                <label class="form-label font-medium text-gray-800 mb-3 block">
+                    Did the learner achieve their qualification? If No, then please provide reasons for non-achievement. (Assessor)
+                </label>
+                <div class="mb-4">
+                    <div class="flex space-x-4">
+                        <label class="inline-flex items-center">
+                            <input type="radio" class="form-radio text-green-600" name="qualification_achieved" value="yes" 
+                                   {% if is_edit_mode and profile_user.coursereview.qualification_achieved == 'yes' %}checked{% endif %}>
+                            <span class="ml-2 text-green-700 font-medium">Yes - Qualification Achieved</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" class="form-radio text-red-600" name="qualification_achieved" value="no"
+                                   {% if is_edit_mode and profile_user.coursereview.qualification_achieved == 'no' %}checked{% endif %}>
+                            <span class="ml-2 text-red-700 font-medium">No - Qualification Not Achieved</span>
+                        </label>
+                    </div>
+                </div>
+                <div id="qualification-details">
+                    <textarea id="qualification_details" name="qualification_details" 
+                              class="form-textarea" rows="5" 
+                              placeholder="If qualification was not achieved, provide detailed reasons for non-achievement, barriers encountered, and any recommendations for future learning...">{% if is_edit_mode and profile_user.coursereview %}{{ profile_user.coursereview.qualification_details|default:'' }}{% endif %}</textarea>
+                    <div class="form-help-text">If qualification was not achieved, explain the reasons and any recommendations for future success</div>
+                </div>
+            </div>
+
+            <!-- Additional Review Questions -->
+            <div class="form-group border-b border-gray-200 pb-4">
+                <label for="overall_course_evaluation" class="form-label font-medium text-gray-800 mb-3 block">
+                    Overall Course Evaluation
+                </label>
+                <textarea id="overall_course_evaluation" name="overall_course_evaluation" 
+                          class="form-textarea" rows="4" 
+                          placeholder="Provide an overall evaluation of the course delivery, learner engagement, and outcomes achieved...">{% if is_edit_mode and profile_user.coursereview %}{{ profile_user.coursereview.overall_course_evaluation|default:'' }}{% endif %}</textarea>
+                <div class="form-help-text">Assess the overall effectiveness of the course and learning experience</div>
+            </div>
+
+            <!-- Learner Feedback -->
+            <div class="form-group border-b border-gray-200 pb-4">
+                <label for="learner_feedback_summary" class="form-label font-medium text-gray-800 mb-3 block">
+                    Learner Feedback Summary
+                </label>
+                <textarea id="learner_feedback_summary" name="learner_feedback_summary" 
+                          class="form-textarea" rows="4" 
+                          placeholder="Summarize key feedback received from the learner about their learning experience...">{% if is_edit_mode and profile_user.coursereview %}{{ profile_user.coursereview.learner_feedback_summary|default:'' }}{% endif %}</textarea>
+                <div class="form-help-text">Capture the learner's feedback about their experience, satisfaction, and suggestions for improvement</div>
+            </div>
+
+            <!-- Future Recommendations -->
+            <div class="form-group">
+                <label for="future_recommendations" class="form-label font-medium text-gray-800 mb-3 block">
+                    Future Recommendations
+                </label>
+                <textarea id="future_recommendations" name="future_recommendations" 
+                          class="form-textarea" rows="4" 
+                          placeholder="Provide recommendations for the learner's future learning and development...">{% if is_edit_mode and profile_user.coursereview %}{{ profile_user.coursereview.future_recommendations|default:'' }}{% endif %}</textarea>
+                <div class="form-help-text">Suggest next steps, additional learning opportunities, or areas for continued development</div>
+            </div>
+
+            <!-- Staff Information -->
+            <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+                <h5 class="font-medium text-gray-800 mb-4">Review Information</h5>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="form-group">
+                        <label for="review_completed_by" class="form-label">Completed By</label>
+                        <input type="text" id="review_completed_by" name="review_completed_by" 
+                               class="form-input" placeholder="Staff member name" 
+                               value="{% if is_edit_mode and profile_user.coursereview.review_completed_by %}{{ profile_user.coursereview.review_completed_by }}{% else %}{{ user.get_full_name|default:user.username }}{% endif %}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="review_completion_date" class="form-label">Date Completed</label>
+                        <input type="date" id="review_completion_date" name="review_completion_date" 
+                               class="form-input" 
+                               value="{% if is_edit_mode and profile_user.coursereview.review_completion_date %}{{ profile_user.coursereview.review_completion_date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}">
+                    </div>
+                    <div class="form-group">
+                        <label for="review_status" class="form-label">Review Status</label>
+                        <select id="review_status" name="review_status" class="form-select">
+                            <option value="draft" {% if is_edit_mode and profile_user.coursereview.review_status == 'draft' %}selected{% endif %}>Draft</option>
+                            <option value="pending_review" {% if is_edit_mode and profile_user.coursereview.review_status == 'pending_review' %}selected{% endif %}>Pending Review</option>
+                            <option value="completed" {% if is_edit_mode and profile_user.coursereview.review_status == 'completed' %}selected{% endif %}>Completed</option>
+                            <option value="requires_update" {% if is_edit_mode and profile_user.coursereview.review_status == 'requires_update' %}selected{% endif %}>Requires Update</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Review Notes -->
+                <div class="form-group mt-4">
+                    <label for="review_notes" class="form-label">Internal Review Notes</label>
+                    <textarea id="review_notes" name="review_notes" 
+                              class="form-textarea" rows="3" 
+                              placeholder="Any additional notes about this review for internal use...">{% if is_edit_mode and profile_user.coursereview %}{{ profile_user.coursereview.review_notes|default:'' }}{% endif %}</textarea>
+                    <div class="form-help-text">Internal notes for staff use only - not visible to learners</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Ensure tab state is preserved when making updates in this tab
+document.addEventListener('DOMContentLoaded', function() {
+    // Set tab state for form submission
+    function updateTabState() {
+        // Update global tab state explicitly for this tab
+        if (typeof currentTabState !== 'undefined') {
+            currentTabState.mainTab = 'ilp-tab';
+            currentTabState.subTab = 'course-review-tab';
+            
+            console.log('Course Review tab: Setting tab state to:', currentTabState);
+            
+            // Update hidden form fields directly
+            var activeTabField = document.getElementById('activeTabField');
+            var activeSubTabField = document.getElementById('activeSubTabField');
+            
+            if (activeTabField) activeTabField.value = currentTabState.mainTab;
+            if (activeSubTabField) activeSubTabField.value = currentTabState.subTab;
+        }
+    }
+    
+    // Update tab state when the tab becomes visible
+    var tabElement = document.getElementById('course-review-tab');
+    if (tabElement) {
+        // Create a mutation observer to detect when the tab becomes visible
+        var observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && 
+                    mutation.attributeName === 'style' &&
+                    tabElement.style.display !== 'none') {
+                    updateTabState();
+                }
+                
+                if (mutation.type === 'attributes' && 
+                    mutation.attributeName === 'class' &&
+                    tabElement.classList.contains('active')) {
+                    updateTabState();
+                }
+            });
+        });
+        
+        observer.observe(tabElement, { attributes: true });
+        
+        // Also check if it's already visible
+        if (tabElement.style.display !== 'none' || tabElement.classList.contains('active')) {
+            updateTabState();
+        }
+    }
+    
+    // Add input listeners to all form elements in this tab
+    var formElements = document.querySelectorAll('#course-review-tab input, #course-review-tab textarea, #course-review-tab select');
+    formElements.forEach(function(element) {
+        element.addEventListener('focus', updateTabState);
+        element.addEventListener('change', updateTabState);
+    });
+});
+</script> 

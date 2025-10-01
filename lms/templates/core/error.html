@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Error - {{ error_message }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-100 py-6 flex flex-col justify-center sm:py-12">
+    <div class="relative py-3 sm:max-w-xl sm:mx-auto">
+        <div class="relative px-4 py-10 bg-white shadow-lg sm:rounded-3xl sm:p-20">
+            <div class="max-w-md mx-auto">
+                <div class="divide-y divide-gray-200">
+                    <div class="py-8 text-base leading-6 space-y-4 text-gray-700 sm:text-lg sm:leading-7">
+                        <div class="flex items-center justify-center mb-8">
+                            <svg class="w-16 h-16 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <h2 class="text-2xl font-bold text-center text-gray-900 mb-4">
+                            {% if error_title %}{{ error_title }}{% else %}Oops! Something went wrong{% endif %}
+                        </h2>
+                        <p class="text-center text-gray-600">
+                            {% if error_message %}
+                                {{ error_message }}
+                            {% else %}
+                                An unexpected error occurred. Our technical team has been notified.
+                            {% endif %}
+                        </p>
+                        {% if error_code %}
+                            <p class="text-sm text-gray-500 mt-4">Error Code: {{ error_code }}</p>
+                        {% endif %}
+                        {% if request_path and user.is_authenticated and user.role and user.role in 'superadmin,globaladmin' %}
+                            <p class="text-xs text-gray-400 mt-2">Path: {{ request_path }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="pt-6 text-base leading-6 space-y-4 text-gray-700 sm:text-lg sm:leading-7">
+                        <div class="flex justify-center space-x-4">
+                            <a href="{% url 'home' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                Return Home
+                            </a>
+                            <button onclick="history.back()" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                Go Back
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

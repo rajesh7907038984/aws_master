@@ -1,0 +1,46 @@
+[Unit]
+Description=LMS Production Django Application
+After=network.target postgresql.service redis.service
+Wants=network.target
+
+[Service]
+Type=simple
+User=ec2-user
+Group=ec2-user
+WorkingDirectory=/home/ec2-user/lms
+
+# Environment configuration
+EnvironmentFile=-/home/ec2-user/lms/production.env
+Environment="LOGS_DIR=/home/ec2-user/lmslogs"
+Environment="DJANGO_SETTINGS_MODULE=LMS_Project.settings.production"
+
+# No pre-start commands to avoid startup issues
+
+# Main service
+ExecStart=/home/ec2-user/lms/venv/bin/gunicorn --config /home/ec2-user/lms/gunicorn.conf.py LMS_Project.wsgi:application
+ExecReload=/bin/kill -HUP $MAINPID
+
+# Restart policy
+Restart=always
+RestartSec=10
+StartLimitInterval=60
+StartLimitBurst=3
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ReadWritePaths=/home/ec2-user/lms
+ReadWritePaths=/home/ec2-user/lmslogs
+ReadWritePaths=/home/ec2-user/lmsstaticfiles
+
+# Performance tuning
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=lms-production
+
+[Install]
+WantedBy=multi-user.target

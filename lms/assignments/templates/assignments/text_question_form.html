@@ -1,0 +1,134 @@
+{% load static %}
+{% load i18n %}
+{% extends 'base.html' %}
+
+{% block title %}{% if is_edit %}Edit{% else %}Add{% endif %} Text Question{% endblock %}
+
+{% block content %}
+{% if is_ajax %}
+<div class="question-form-container">
+    <form method="post" action="{{ request.path }}" class="question-form" 
+          {% if question %}data-question-id="{{ question.id }}"{% else %}data-assignment-id="{{ assignment.id }}"{% endif %}>
+        {% csrf_token %}
+        
+        {% if form.non_field_errors %}
+        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative mb-4">
+            {% for error in form.non_field_errors %}
+                <p>{{ error }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <div class="space-y-2 mb-4">
+            <label for="{{ form.question_text.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                Question Text <span class="text-red-500">*</span>
+            </label>
+            {{ form.question_text }}
+            {% if form.question_text.errors %}
+            <div class="text-sm text-red-500">{{ form.question_text.errors.0 }}</div>
+            {% endif %}
+            {% if form.question_text.help_text %}
+            <p class="text-sm text-gray-500 mt-1">{{ form.question_text.help_text }}</p>
+            {% endif %}
+        </div>
+        
+        <div class="space-y-2 mb-4">
+            <label for="{{ form.order.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                Display Order
+            </label>
+            {{ form.order }}
+            {% if form.order.errors %}
+            <div class="text-sm text-red-500">{{ form.order.errors.0 }}</div>
+            {% endif %}
+            {% if form.order.help_text %}
+            <p class="text-sm text-gray-500 mt-1">{{ form.order.help_text }}</p>
+            {% endif %}
+        </div>
+        
+        <div class="flex justify-end space-x-4 pt-4">
+            <button type="button" class="cancel-btn px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                Cancel
+            </button>
+            <button type="submit" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+                {% if question %}Update{% else %}Add{% endif %} Question
+            </button>
+        </div>
+    </form>
+</div>
+{% else %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumbs -->
+    {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <!-- Form Header -->
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h1 class="text-xl font-semibold text-gray-900">
+                        {% if is_edit %}Edit{% else %}Add{% endif %} Text Question
+                    </h1>
+                    <p class="mt-1 text-sm text-gray-600">
+                        {% if is_edit %}Update{% else %}Create{% endif %} a text-based question for students to answer.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-6">
+            <form method="post" class="space-y-6">
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative" role="alert">
+                    {% for error in form.non_field_errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- Question Text Field -->
+                <div class="space-y-2">
+                    <label for="{{ form.question_text.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                        Question Text <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.question_text }}
+                    {% if form.question_text.errors %}
+                        <div class="text-red-500 text-sm mt-1">{{ form.question_text.errors.0 }}</div>
+                    {% endif %}
+                    {% if form.question_text.help_text %}
+                        <p class="text-sm text-gray-500 mt-1">{{ form.question_text.help_text }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Order Field -->
+                <div class="space-y-2">
+                    <label for="{{ form.order.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                        Display Order
+                    </label>
+                    {{ form.order }}
+                    {% if form.order.errors %}
+                        <div class="text-red-500 text-sm mt-1">{{ form.order.errors.0 }}</div>
+                    {% endif %}
+                    {% if form.order.help_text %}
+                        <p class="text-sm text-gray-500 mt-1">{{ form.order.help_text }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Form Actions -->
+                <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                    <a href="{% url 'assignments:edit_assignment' assignment.id %}" 
+                       class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                        Cancel
+                    </a>
+                    <button type="submit" 
+                            class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+                        {% if is_edit %}Update{% else %}Add{% endif %} Question
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %} 

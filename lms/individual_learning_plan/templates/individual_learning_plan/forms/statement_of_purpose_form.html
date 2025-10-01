@@ -1,0 +1,443 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+    {% if is_create %}Add{% else %}Edit{% endif %} Statement of Purpose - {{ target_user.get_full_name|default:target_user.username }}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        max-width: 900px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        padding: 30px;
+    }
+    
+    .form-group {
+        margin-bottom: 24px;
+    }
+    
+    .form-label {
+        display: block;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 8px;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 16px;
+        transition: border-color 0.2s;
+    }
+    
+    .form-control:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    
+    .form-control.textarea {
+        min-height: 120px;
+        resize: vertical;
+    }
+    
+    .btn {
+        padding: 12px 24px;
+        border-radius: 6px;
+        font-weight: 600;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        display: inline-block;
+        transition: all 0.2s;
+    }
+    
+    .btn-primary {
+        background-color: #3b82f6;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background-color: #2563eb;
+        color: white;
+    }
+    
+    .btn-secondary {
+        background-color: #6b7280;
+        color: white;
+    }
+    
+    .btn-secondary:hover {
+        background-color: #4b5563;
+        color: white;
+    }
+    
+    .form-help {
+        font-size: 14px;
+        color: #6b7280;
+        margin-top: 4px;
+    }
+    
+    .form-error {
+        color: #ef4444;
+        font-size: 14px;
+        margin-top: 4px;
+    }
+    
+    .option-tabs {
+        display: flex;
+        border-bottom: 1px solid #e5e7eb;
+        margin-bottom: 24px;
+    }
+    
+    .option-tab {
+        padding: 12px 24px;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        font-weight: 500;
+        color: #6b7280;
+        transition: all 0.2s;
+    }
+    
+    .option-tab.active {
+        color: #3b82f6;
+        border-bottom-color: #3b82f6;
+    }
+    
+    .option-tab:hover:not(.active) {
+        color: #374151;
+    }
+    
+    .option-content {
+        display: none;
+    }
+    
+    .option-content.active {
+        display: block;
+    }
+    
+    .file-upload-area {
+        border: 2px dashed #d1d5db;
+        border-radius: 8px;
+        padding: 40px 20px;
+        text-align: center;
+        transition: border-color 0.2s;
+        background: #f9fafb;
+    }
+    
+    .file-upload-area:hover {
+        border-color: #3b82f6;
+        background: #eff6ff;
+    }
+    
+    .file-upload-area.dragover {
+        border-color: #3b82f6;
+        background: #eff6ff;
+    }
+    
+    .file-info {
+        background: #f0f9ff;
+        border: 1px solid #bae6fd;
+        border-radius: 6px;
+        padding: 16px;
+        margin-top: 16px;
+    }
+    
+    .file-info h4 {
+        margin: 0 0 8px 0;
+        color: #0c4a6e;
+        font-weight: 600;
+    }
+    
+    .file-info p {
+        margin: 0;
+        color: #0369a1;
+        font-size: 14px;
+    }
+    
+    .current-file {
+        background: #ecfdf5;
+        border: 1px solid #bbf7d0;
+        border-radius: 6px;
+        padding: 12px 16px;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .current-file .file-details {
+        display: flex;
+        align-items: center;
+        color: #065f46;
+    }
+    
+    .current-file .file-actions a {
+        color: #3b82f6;
+        text-decoration: none;
+        font-size: 14px;
+        margin-left: 12px;
+    }
+    
+    .form-section {
+        margin-bottom: 32px;
+    }
+    
+    .form-section h3 {
+        font-size: 18px;
+        font-weight: 600;
+        color: #111827;
+        margin-bottom: 16px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #e5e7eb;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50">
+    <div class="p-6">
+        <!-- Breadcrumb -->
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+        <!-- Form Container -->
+        <div class="form-container">
+            <div class="mb-6">
+                <h1 class="text-2xl font-bold text-gray-900">
+                    {% if is_create %}Add{% else %}Edit{% endif %} Statement of Purpose
+                </h1>
+                <p class="text-gray-600 mt-2">
+                    Create a statement of purpose for {{ target_user.get_full_name|default:target_user.username }}. You can either upload a document or fill out the form below.
+                </p>
+            </div>
+
+            <!-- Option Tabs -->
+            <div class="option-tabs">
+                <div class="option-tab active" data-tab="form">
+                    <i class="fas fa-edit mr-2"></i>Fill Out Form
+                </div>
+                <div class="option-tab" data-tab="upload">
+                    <i class="fas fa-upload mr-2"></i>Upload Document
+                </div>
+            </div>
+
+            <!-- Form -->
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                
+                <!-- Upload Option -->
+                <div class="option-content" id="upload-content">
+                    <div class="form-group">
+                        <label for="id_sop_file" class="form-label">
+                            Upload Statement of Purpose
+                        </label>
+                        
+                        {% if form.sop_file.value %}
+                        <div class="current-file">
+                            <div class="file-details">
+                                <i class="fas fa-file-pdf mr-3 text-xl"></i>
+                                <div>
+                                    <p class="font-medium">Current File</p>
+                                    <p class="text-sm">{{ form.sop_file.value|default:"statement_of_purpose.pdf" }}</p>
+                                </div>
+                            </div>
+                            <div class="file-actions">
+                                <a href="{{ form.sop_file.value.url }}" target="_blank">
+                                    <i class="fas fa-external-link-alt mr-1"></i>View
+                                </a>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="file-upload-area" id="file-upload-area">
+                            <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
+                            <h4 class="text-lg font-medium text-gray-700 mb-2">
+                                {% if form.sop_file.value %}Replace Document{% else %}Upload Document{% endif %}
+                            </h4>
+                            <p class="text-gray-500 mb-4">
+                                Drag and drop your file here, or click to browse
+                            </p>
+                            {{ form.sop_file }}
+                        </div>
+                        
+                        {% if form.sop_file.errors %}
+                            <div class="form-error">{{ form.sop_file.errors.0 }}</div>
+                        {% endif %}
+                        
+                        <div class="file-info">
+                            <h4><i class="fas fa-info-circle mr-2"></i>File Requirements</h4>
+                            <p>Accepted formats: PDF, DOC, DOCX • Maximum size: 5MB</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Option -->
+                <div class="option-content active" id="form-content">
+                    <!-- Reason for Course -->
+                    <div class="form-section">
+                        <h3><i class="fas fa-question-circle mr-2 text-blue-600"></i>Course Motivation</h3>
+                        <div class="form-group">
+                            <label for="id_reason_for_course" class="form-label">
+                                Why are you pursuing this course?
+                            </label>
+                            {{ form.reason_for_course }}
+                            {% if form.reason_for_course.errors %}
+                                <div class="form-error">{{ form.reason_for_course.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-help">
+                                Explain your motivation and what you hope to achieve through this course.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Career Objectives -->
+                    <div class="form-section">
+                        <h3><i class="fas fa-bullseye mr-2 text-green-600"></i>Career Objectives</h3>
+                        <div class="form-group">
+                            <label for="id_career_objectives" class="form-label">
+                                What are your career objectives?
+                            </label>
+                            {{ form.career_objectives }}
+                            {% if form.career_objectives.errors %}
+                                <div class="form-error">{{ form.career_objectives.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-help">
+                                Describe your short-term and long-term career goals and how this course fits into your career plan.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Relevant Experience -->
+                    <div class="form-section">
+                        <h3><i class="fas fa-briefcase mr-2 text-purple-600"></i>Experience & Background</h3>
+                        <div class="form-group">
+                            <label for="id_relevant_experience" class="form-label">
+                                Describe any relevant past work or experience
+                            </label>
+                            {{ form.relevant_experience }}
+                            {% if form.relevant_experience.errors %}
+                                <div class="form-error">{{ form.relevant_experience.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-help">
+                                Include any work experience, education, projects, or skills that are relevant to this course.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Additional Information -->
+                    <div class="form-section">
+                        <h3><i class="fas fa-plus-circle mr-2 text-orange-600"></i>Additional Information</h3>
+                        <div class="form-group">
+                            <label for="id_additional_info" class="form-label">
+                                Any additional information you'd like to share
+                            </label>
+                            {{ form.additional_info }}
+                            {% if form.additional_info.errors %}
+                                <div class="form-error">{{ form.additional_info.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-help">
+                                Share any other information that might be relevant to your learning journey or goals.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="flex items-center justify-between pt-6 border-t border-gray-200">
+                    <a href="{% url 'users:role_based_redirect' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left mr-2"></i>Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save mr-2"></i>
+                        {% if is_create %}Save Statement of Purpose{% else %}Update Statement of Purpose{% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Tab switching
+    const tabs = document.querySelectorAll('.option-tab');
+    const contents = document.querySelectorAll('.option-content');
+    
+    tabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            const targetTab = this.dataset.tab;
+            
+            // Update active tab
+            tabs.forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Update active content
+            contents.forEach(content => {
+                content.classList.remove('active');
+                if (content.id === targetTab + '-content') {
+                    content.classList.add('active');
+                }
+            });
+        });
+    });
+    
+    // File upload handling
+    const fileInput = document.getElementById('id_sop_file');
+    const uploadArea = document.getElementById('file-upload-area');
+    
+    if (fileInput && uploadArea) {
+        // Click to upload
+        uploadArea.addEventListener('click', function(e) {
+            if (e.target !== fileInput) {
+                fileInput.click();
+            }
+        });
+        
+        // Drag and drop
+        uploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                updateFileDisplay(files[0]);
+            }
+        });
+        
+        // File input change
+        fileInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                updateFileDisplay(this.files[0]);
+            }
+        });
+        
+        function updateFileDisplay(file) {
+            const uploadText = uploadArea.querySelector('h4');
+            const uploadDesc = uploadArea.querySelector('p');
+            
+            if (uploadText && uploadDesc) {
+                uploadText.textContent = 'File Selected: ' + file.name;
+                uploadDesc.textContent = 'Size: ' + (file.size / 1024 / 1024).toFixed(2) + ' MB';
+            }
+        }
+    }
+});
+</script>
+{% endblock %} 

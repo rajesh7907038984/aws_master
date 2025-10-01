@@ -1,0 +1,347 @@
+{% load static %}
+<!-- Performance Quick Stats Component -->
+<div id="performance-quick-stats" class="performance-quick-stats">
+    <!-- Header Section -->
+    <div class="performance-header">
+        <div>
+            <h2 class="performance-title">Performance Quick Stats</h2>
+            <p class="performance-subtitle">Real-time insights into your LMS performance and user engagement</p>
+        </div>
+        <div class="performance-controls">
+            <div class="timeframe-selector">
+                <button class="timeframe-btn" data-timeframe="day">Day</button>
+                <button class="timeframe-btn active" data-timeframe="month">Month</button>
+                <button class="timeframe-btn" data-timeframe="year">Year</button>
+            </div>
+            <button class="refresh-btn" id="refresh-performance-data" title="Refresh Data">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Performance Summary -->
+    <div class="performance-summary">
+        <div class="summary-content">
+            <h3 class="summary-title">System Performance Overview</h3>
+            <p class="summary-description">Key metrics and insights from your learning management system</p>
+            <div class="summary-stats">
+                <div class="summary-stat">
+                    <div class="summary-stat-value" id="total-users-summary">-</div>
+                    <div class="summary-stat-label">Total Users</div>
+                </div>
+                <div class="summary-stat">
+                    <div class="summary-stat-value" id="active-users-summary">-</div>
+                    <div class="summary-stat-label">Active Users</div>
+                </div>
+                <div class="summary-stat">
+                    <div class="summary-stat-value" id="completion-rate-summary">-</div>
+                    <div class="summary-stat-label">Completion Rate</div>
+                </div>
+                <div class="summary-stat">
+                    <div class="summary-stat-value" id="engagement-score-summary">-</div>
+                    <div class="summary-stat-label">Engagement Score</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Charts Grid -->
+    <div class="performance-grid">
+        <!-- User Activity Chart -->
+        <div class="performance-card">
+            <div class="card-header">
+                <h3 class="card-title">User Activity</h3>
+                <div class="card-icon user-activity">
+                    <i class="fas fa-users"></i>
+                </div>
+            </div>
+            <div class="chart-container" id="user-activity-chart-container">
+                <canvas id="user-activity-chart"></canvas>
+            </div>
+            <div class="performance-metrics">
+                <div class="metric-item">
+                    <div class="metric-value" id="active-users-count">-</div>
+                    <div class="metric-label">Active Users</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="new-users-count">-</div>
+                    <div class="metric-label">New Users</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="activity-rate">-</div>
+                    <div class="metric-label">Activity Rate</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Course Performance Chart -->
+        <div class="performance-card">
+            <div class="card-header">
+                <h3 class="card-title">Course Performance</h3>
+                <div class="card-icon course-performance">
+                    <i class="fas fa-graduation-cap"></i>
+                </div>
+            </div>
+            <div class="chart-container" id="course-performance-chart-container">
+                <canvas id="course-performance-chart"></canvas>
+            </div>
+            <div class="performance-metrics">
+                <div class="metric-item">
+                    <div class="metric-value" id="total-courses-count">-</div>
+                    <div class="metric-label">Total Courses</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="completion-rate-detail">-</div>
+                    <div class="metric-label">Completion Rate</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="avg-completion-time">-</div>
+                    <div class="metric-label">Avg. Completion (days)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Learning Progress Chart -->
+        <div class="performance-card">
+            <div class="card-header">
+                <h3 class="card-title">Learning Progress</h3>
+                <div class="card-icon learning-progress">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+            </div>
+            <div class="chart-container" id="learning-progress-chart-container">
+                <canvas id="learning-progress-chart"></canvas>
+            </div>
+            <div class="performance-metrics">
+                <div class="metric-item">
+                    <div class="metric-value" id="total-enrollments">-</div>
+                    <div class="metric-label">Total Enrollments</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="completed-enrollments">-</div>
+                    <div class="metric-label">Completed</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="learning-velocity">-</div>
+                    <div class="metric-label">Learning Velocity</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quiz Performance Chart -->
+        <div class="performance-card">
+            <div class="card-header">
+                <h3 class="card-title">Quiz Performance</h3>
+                <div class="card-icon quiz-performance">
+                    <i class="fas fa-question-circle"></i>
+                </div>
+            </div>
+            <div class="chart-container" id="quiz-performance-chart-container">
+                <canvas id="quiz-performance-chart"></canvas>
+            </div>
+            <div class="performance-metrics">
+                <div class="metric-item">
+                    <div class="metric-value" id="total-quiz-attempts">-</div>
+                    <div class="metric-label">Total Attempts</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="quiz-pass-rate">-</div>
+                    <div class="metric-label">Pass Rate</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="avg-quiz-score">-</div>
+                    <div class="metric-label">Avg. Score</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Engagement Chart -->
+        <div class="performance-card">
+            <div class="card-header">
+                <h3 class="card-title">Engagement Overview</h3>
+                <div class="card-icon engagement">
+                    <i class="fas fa-heart"></i>
+                </div>
+            </div>
+            <div class="chart-container" id="engagement-chart-container">
+                <canvas id="engagement-chart"></canvas>
+            </div>
+            <div class="performance-metrics">
+                <div class="metric-item">
+                    <div class="metric-value" id="daily-active-users">-</div>
+                    <div class="metric-label">Daily Active Users</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="total-logins">-</div>
+                    <div class="metric-label">Total Logins</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="engagement-score-detail">-</div>
+                    <div class="metric-label">Engagement Score</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Metrics Chart -->
+        <div class="performance-card">
+            <div class="card-header">
+                <h3 class="card-title">System Metrics</h3>
+                <div class="card-icon system-metrics">
+                    <i class="fas fa-server"></i>
+                </div>
+            </div>
+            <div class="chart-container" id="system-metrics-chart-container">
+                <canvas id="system-metrics-chart"></canvas>
+            </div>
+            <div class="performance-metrics">
+                <div class="metric-item">
+                    <div class="metric-value" id="content-utilization">-</div>
+                    <div class="metric-label">Content Utilization</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="user-engagement-rate">-</div>
+                    <div class="metric-label">User Engagement</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="avg-enrollments-per-course">-</div>
+                    <div class="metric-label">Avg. Enrollments/Course</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="performance-loading" style="display: none;">
+        <div class="loading-spinner"></div>
+    </div>
+</div>
+
+<!-- Performance Charts JavaScript -->
+<script src="{% static 'admin_dashboard/js/performance-charts.js' %}"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Timeframe selector functionality
+    const timeframeBtns = document.querySelectorAll('.timeframe-btn');
+    const refreshBtn = document.getElementById('refresh-performance-data');
+    const loadingOverlay = document.getElementById('performance-loading');
+    
+    // Handle timeframe changes
+    timeframeBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            // Remove active class from all buttons
+            timeframeBtns.forEach(b => b.classList.remove('active'));
+            // Add active class to clicked button
+            this.classList.add('active');
+            
+            // Update charts with new timeframe
+            const timeframe = this.dataset.timeframe;
+            if (window.performanceCharts) {
+                showLoading();
+                window.performanceCharts.updateTimeframe(timeframe)
+                    .finally(() => hideLoading());
+            }
+        });
+    });
+    
+    // Handle refresh button
+    refreshBtn.addEventListener('click', function() {
+        if (window.performanceCharts) {
+            showLoading();
+            const activeTimeframe = document.querySelector('.timeframe-btn.active').dataset.timeframe;
+            window.performanceCharts.updateTimeframe(activeTimeframe)
+                .finally(() => hideLoading());
+        }
+    });
+    
+    function showLoading() {
+        loadingOverlay.style.display = 'flex';
+    }
+    
+    function hideLoading() {
+        loadingOverlay.style.display = 'none';
+    }
+    
+    // Update summary metrics when data is loaded
+    function updateSummaryMetrics(data) {
+        if (data.user_activity) {
+            document.getElementById('total-users-summary').textContent = data.user_activity.total_users || '-';
+            document.getElementById('active-users-summary').textContent = data.user_activity.active_users || '-';
+        }
+        
+        if (data.course_performance) {
+            document.getElementById('completion-rate-summary').textContent = 
+                (data.course_performance.overall_completion_rate || 0) + '%';
+        }
+        
+        if (data.engagement_metrics) {
+            document.getElementById('engagement-score-summary').textContent = 
+                (data.engagement_metrics.engagement_score || 0) + '%';
+        }
+    }
+    
+    // Update detailed metrics
+    function updateDetailedMetrics(data) {
+        // User Activity Metrics
+        if (data.user_activity) {
+            document.getElementById('active-users-count').textContent = data.user_activity.active_users || '-';
+            document.getElementById('new-users-count').textContent = data.user_activity.new_users || '-';
+            document.getElementById('activity-rate').textContent = (data.user_activity.activity_rate || 0) + '%';
+        }
+        
+        // Course Performance Metrics
+        if (data.course_performance) {
+            document.getElementById('total-courses-count').textContent = data.course_performance.total_courses || '-';
+            document.getElementById('completion-rate-detail').textContent = (data.course_performance.overall_completion_rate || 0) + '%';
+            document.getElementById('avg-completion-time').textContent = data.course_performance.avg_completion_time_days || '-';
+        }
+        
+        // Learning Progress Metrics
+        if (data.learning_progress) {
+            document.getElementById('total-enrollments').textContent = data.learning_progress.total_enrollments || '-';
+            document.getElementById('completed-enrollments').textContent = data.learning_progress.completed || '-';
+            document.getElementById('learning-velocity').textContent = data.learning_progress.learning_velocity || '-';
+        }
+        
+        // Quiz Performance Metrics
+        if (data.quiz_performance) {
+            document.getElementById('total-quiz-attempts').textContent = data.quiz_performance.total_attempts || '-';
+            document.getElementById('quiz-pass-rate').textContent = (data.quiz_performance.pass_rate || 0) + '%';
+            document.getElementById('avg-quiz-score').textContent = data.quiz_performance.avg_score || '-';
+        }
+        
+        // Engagement Metrics
+        if (data.engagement_metrics) {
+            const dauSum = data.engagement_metrics.daily_active_users ? 
+                data.engagement_metrics.daily_active_users.reduce((a, b) => a + b, 0) : 0;
+            document.getElementById('daily-active-users').textContent = dauSum || '-';
+            document.getElementById('total-logins').textContent = data.engagement_metrics.total_logins || '-';
+            document.getElementById('engagement-score-detail').textContent = (data.engagement_metrics.engagement_score || 0) + '%';
+        }
+        
+        // System Performance Metrics
+        if (data.system_performance) {
+            document.getElementById('content-utilization').textContent = (data.system_performance.content_utilization || 0) + '%';
+            document.getElementById('user-engagement-rate').textContent = (data.system_performance.user_engagement || 0) + '%';
+            document.getElementById('avg-enrollments-per-course').textContent = data.system_performance.avg_enrollments_per_course || '-';
+        }
+    }
+    
+    // Override the chart initialization to include metric updates
+    const originalInitialize = window.PerformanceCharts.prototype.initialize;
+    window.PerformanceCharts.prototype.initialize = async function() {
+        const result = await originalInitialize.call(this);
+        
+        // Load and update metrics
+        try {
+            const data = await this.loadPerformanceData();
+            updateSummaryMetrics(data);
+            updateDetailedMetrics(data);
+        } catch (error) {
+            console.error('Error updating metrics:', error);
+        }
+        
+        return result;
+    };
+});
+</script>

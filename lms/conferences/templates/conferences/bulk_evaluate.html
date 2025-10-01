@@ -1,0 +1,467 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load conference_extras %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background-color: #f5f7fa !important;
+    }
+    
+    .evaluation-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    
+    .evaluation-table th {
+        background-color: #f9fafb;
+        color: #374151;
+        font-weight: 500;
+        text-align: left;
+        padding: 0.75rem;
+        font-size: 0.875rem;
+        border-bottom: 1px solid #e5e7eb;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    .evaluation-table td {
+        padding: 0.75rem;
+        font-size: 0.875rem;
+        border-bottom: 1px solid #e5e7eb;
+        background-color: white;
+    }
+    
+    .evaluation-table tr:nth-child(odd) td {
+        background-color: #f9fafb;
+    }
+    
+    .evaluation-table tr:hover td {
+        background-color: #f3f4f6;
+    }
+    
+    .attendee-header {
+        background-color: #e0e7ff;
+        font-weight: 600;
+    }
+    
+    .criterion-points {
+        width: 80px;
+    }
+    
+    .rating-select {
+        width: 100%;
+        min-width: 150px;
+    }
+    
+    .form-input, .form-textarea, .form-select {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+    }
+    
+    .form-input:focus, .form-textarea:focus, .form-select:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    
+    .total-points {
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    .action-buttons {
+        position: sticky;
+        bottom: 0;
+        background-color: white;
+        border-top: 2px solid #e5e7eb;
+        padding: 1rem 0;
+        margin-top: 2rem;
+    }
+    
+    .rating-description {
+        font-size: 0.75rem;
+        color: #6b7280;
+        margin-top: 0.25rem;
+        padding: 0.25rem 0.5rem;
+        background-color: #f9fafb;
+        border-radius: 0.25rem;
+        border-left: 3px solid #3b82f6;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumbs -->
+    {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+    
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold text-gray-900">{{ title }}</h1>
+            <p class="text-gray-600 mt-2">{{ description }}</p>
+            
+            <div class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div class="flex items-start">
+                    <i class="fas fa-info-circle text-blue-600 mt-1 mr-3"></i>
+                    <div>
+                        <h4 class="font-semibold text-blue-900">Conference: {{ conference.title }}</h4>
+                        <p class="text-blue-800 text-sm mt-1">
+                            Date: {{ conference.date|date:"F j, Y" }} • 
+                            Time: {{ conference.start_time|time:"g:i A" }} - {{ conference.end_time|time:"g:i A" }}
+                        </p>
+                        <p class="text-blue-800 text-sm mt-1">
+                            Rubric: {{ rubric.title }} ({{ rubric.total_points }} points total)
+                        </p>
+                        <p class="text-blue-800 text-sm mt-1">
+                            Evaluating {{ attendances|length }} learner{{ attendances|length|pluralize }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        {% if attendances %}
+        <form method="post" action="{% url 'conferences:bulk_evaluate' conference.id %}">
+            {% csrf_token %}
+            
+            <div class="standard-table-container">
+                <div class="overflow-x-auto">
+                    <table class="standard-table conference-table">
+                        <thead>
+                            <tr>
+                                <th class="primary-text">Learner / Criterion</th>
+                                {% for criterion in rubric.criteria.all %}
+                                <th class="primary-text text-center">
+                                    <div class="font-medium">{{ criterion.description }}</div>
+                                    <div class="text-xs font-normal secondary-text">Max: {{ criterion.points }} pts</div>
+                                </th>
+                                {% endfor %}
+                                <th class="primary-text text-center">Total</th>
+                            </tr>
+                        </thead>
+                    <tbody>
+                        {% for attendance in attendances %}
+                        <tr class="attendee-header">
+                            <td colspan="{{ rubric.criteria.count|add:2 }}">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <span class="font-semibold">{{ attendance.user.get_full_name }}</span>
+                                        <span class="text-gray-600 text-sm ml-2">({{ attendance.user.email }})</span>
+                                    </div>
+                                    <div class="text-sm">
+                                        <span class="text-gray-600">Duration: {{ attendance.duration_minutes }} min</span>
+                                        <span class="ml-3 px-2 py-1 rounded text-xs font-medium
+                                            {% if attendance.attendance_status == 'present' %}bg-green-100 text-green-800
+                                            {% elif attendance.attendance_status == 'late' %}bg-yellow-100 text-yellow-800
+                                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                            {{ attendance.get_attendance_status_display }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        <!-- Rating Row -->
+                        <tr>
+                            <td><strong>Rating</strong></td>
+                            {% for criterion in rubric.criteria.all %}
+                            <td>
+                                <select name="rating_{{ criterion.id }}_{{ attendance.id }}" 
+                                        id="rating_{{ criterion.id }}_{{ attendance.id }}"
+                                        class="form-select rating-select" 
+                                        data-criterion-id="{{ criterion.id }}"
+                                        data-attendance-id="{{ attendance.id }}"
+                                        onchange="updatePointsFromRating({{ criterion.id }}, {{ attendance.id }}, this)">
+                                    <option value="">Select rating...</option>
+                                    {% for rating in criterion.ratings.all %}
+                                    <option value="{{ rating.id }}" 
+                                            data-points="{{ rating.points }}"
+                                            data-description="{{ rating.description|default:'' }}"
+                                            {% with existing_evaluation=evaluations_by_attendance|get_item:attendance.id %}
+                                                {% if existing_evaluation %}
+                                                    {% with evaluation=existing_evaluation|get_item:criterion.id %}
+                                                        {% if evaluation and evaluation.rating and evaluation.rating.id == rating.id %}selected{% endif %}
+                                                    {% endwith %}
+                                                {% endif %}
+                                            {% endwith %}>
+                                        {{ rating.title }} ({{ rating.points }} pts)
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <div id="rating_description_{{ criterion.id }}_{{ attendance.id }}" 
+                                     class="rating-description" style="display: none;">
+                                    <!-- Description will be populated by JavaScript -->
+                                </div>
+                            </td>
+                            {% endfor %}
+                            <td></td>
+                        </tr>
+                        <!-- Points Row -->
+                        <tr>
+                            <td><strong>Points</strong></td>
+                            {% for criterion in rubric.criteria.all %}
+                            <td class="text-center">
+                                <input type="number" 
+                                       name="points_{{ criterion.id }}_{{ attendance.id }}" 
+                                       id="points_{{ criterion.id }}_{{ attendance.id }}"
+                                       class="form-input criterion-points text-center" 
+                                       min="0" 
+                                       max="{{ criterion.points }}" 
+                                       step="0.1" 
+                                       value="{% with existing_evaluation=evaluations_by_attendance|get_item:attendance.id %}{% if existing_evaluation %}{% with evaluation=existing_evaluation|get_item:criterion.id %}{% if evaluation %}{{ evaluation.points }}{% else %}0{% endif %}{% endwith %}{% else %}0{% endif %}{% endwith %}"
+                                       data-criterion-id="{{ criterion.id }}" 
+                                       data-attendance-id="{{ attendance.id }}"
+                                       data-max-points="{{ criterion.points }}">
+                            </td>
+                            {% endfor %}
+                            <td class="text-center">
+                                <span class="total-points" data-attendance-id="{{ attendance.id }}">0</span> / {{ rubric.total_points }}
+                            </td>
+                        </tr>
+                        <!-- Comments Row -->
+                        <tr>
+                            <td><strong>Comments</strong></td>
+                            {% for criterion in rubric.criteria.all %}
+                            <td>
+                                <textarea name="comments_{{ criterion.id }}_{{ attendance.id }}" 
+                                          rows="2" 
+                                          class="form-textarea" 
+                                          placeholder="Optional feedback...">{% with existing_evaluation=evaluations_by_attendance|get_item:attendance.id %}{% if existing_evaluation %}{% with evaluation=existing_evaluation|get_item:criterion.id %}{% if evaluation %}{{ evaluation.comments }}{% endif %}{% endwith %}{% endif %}{% endwith %}</textarea>
+                            </td>
+                            {% endfor %}
+                            <td></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+            </div>
+            
+            <div class="action-buttons">
+                <div class="flex justify-between items-center">
+                    <a href="{% url 'conferences:conference_list' %}" class="text-gray-600 hover:text-gray-900">
+                        <i class="fas fa-arrow-left mr-2"></i>Back to Conferences
+                    </a>
+                    <div class="flex gap-3">
+                        <button type="button" onclick="applyToAll()" class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700">
+                            <i class="fas fa-copy mr-2"></i>Apply First Row to All
+                        </button>
+                        <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                            <i class="fas fa-save mr-2"></i>Save All Evaluations
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+        {% else %}
+        <div class="text-center py-12">
+            <i class="fas fa-users text-gray-400 text-5xl mb-4"></i>
+            <h3 class="text-lg font-medium text-gray-900">No Learners to Evaluate</h3>
+            <p class="text-gray-600 mt-2">Only learners who were present or late can be evaluated.</p>
+            <a href="{% url 'conferences:conference_list' %}" class="mt-4 inline-block text-blue-600 hover:text-blue-800">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Conferences
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// Function to update points from rating dropdown
+function updatePointsFromRating(criterionId, attendanceId, selectElement) {
+    const selectedOption = selectElement.options[selectElement.selectedIndex];
+    const points = selectedOption.getAttribute('data-points') || 0;
+    const description = selectedOption.getAttribute('data-description') || '';
+    const pointsInput = document.getElementById(`points_${criterionId}_${attendanceId}`);
+    const descriptionDiv = document.getElementById(`rating_description_${criterionId}_${attendanceId}`);
+    
+    // Update points input
+    if (pointsInput) {
+        const currentPoints = parseFloat(pointsInput.value) || 0;
+        const ratingPoints = parseFloat(points);
+        
+        // Only auto-fill if points field is empty or contains 0
+        if (currentPoints === 0 || pointsInput.value.trim() === '') {
+            pointsInput.style.transition = 'all 0.3s ease';
+            pointsInput.style.backgroundColor = '#e8eafd';
+            pointsInput.value = ratingPoints;
+            
+            setTimeout(() => {
+                pointsInput.style.backgroundColor = '';
+            }, 1000);
+        } else {
+            // If instructor has entered custom points, show a subtle indicator
+            pointsInput.style.transition = 'all 0.3s ease';
+            pointsInput.style.borderColor = '#3b82f6';
+            pointsInput.title = `Rating suggests ${ratingPoints} points, but your custom value (${currentPoints}) is preserved.`;
+            
+            setTimeout(() => {
+                pointsInput.style.borderColor = '';
+            }, 2000);
+        }
+        updateTotalPoints(attendanceId);
+    }
+    
+    // Show/hide rating description
+    if (descriptionDiv) {
+        if (selectedOption.value && description.trim()) {
+            descriptionDiv.innerHTML = description;
+            descriptionDiv.style.display = 'block';
+        } else {
+            descriptionDiv.style.display = 'none';
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Update total points when criterion points change
+    const pointInputs = document.querySelectorAll('.criterion-points');
+    pointInputs.forEach(input => {
+        input.addEventListener('input', function() {
+            const attendanceId = this.dataset.attendanceId;
+            updateTotalPoints(attendanceId);
+            
+            // Validate max points
+            const maxPoints = parseFloat(this.dataset.maxPoints);
+            const value = parseFloat(this.value) || 0;
+            if (value > maxPoints) {
+                this.value = maxPoints;
+                updateTotalPoints(attendanceId);
+            }
+        });
+    });
+    
+    function updateTotalPoints(attendanceId) {
+        const inputs = document.querySelectorAll(`input[data-attendance-id="${attendanceId}"]`);
+        let total = 0;
+        inputs.forEach(input => {
+            total += parseFloat(input.value) || 0;
+        });
+        
+        const totalElement = document.querySelector(`.total-points[data-attendance-id="${attendanceId}"]`);
+        if (totalElement) {
+            totalElement.textContent = total.toFixed(1);
+        }
+    }
+    
+    // Make updateTotalPoints globally accessible
+    window.updateTotalPoints = updateTotalPoints;
+    
+    // Initialize totals and rating descriptions
+    const attendances = new Set();
+    pointInputs.forEach(input => {
+        attendances.add(input.dataset.attendanceId);
+    });
+    attendances.forEach(attendanceId => {
+        updateTotalPoints(attendanceId);
+    });
+    
+    // Initialize rating descriptions for existing evaluations
+    const ratingSelects = document.querySelectorAll('.rating-select');
+    ratingSelects.forEach(select => {
+        if (select.value) {
+            const criterionId = select.dataset.criterionId;
+            const attendanceId = select.dataset.attendanceId;
+            updatePointsFromRating(criterionId, attendanceId, select);
+        }
+    });
+});
+
+// Apply first row values to all rows
+function applyToAll() {
+    if (!confirm('This will copy the ratings, points, and comments from the first attendee to all other attendees. Continue?')) {
+        return;
+    }
+    
+    const firstAttendance = document.querySelector('tbody tr.attendee-header');
+    if (!firstAttendance) return;
+    
+    // Get all criterion values from first attendee
+    const criterionValues = {};
+    const firstRatingRow = firstAttendance.nextElementSibling;
+    const firstPointsRow = firstRatingRow.nextElementSibling;
+    const firstCommentsRow = firstPointsRow.nextElementSibling;
+    
+    // Get ratings
+    firstRatingRow.querySelectorAll('.rating-select').forEach(select => {
+        const criterionId = select.dataset.criterionId;
+        criterionValues[criterionId] = {
+            rating: select.value,
+            points: '',
+            comments: ''
+        };
+    });
+    
+    // Get points
+    firstPointsRow.querySelectorAll('.criterion-points').forEach(input => {
+        const criterionId = input.dataset.criterionId;
+        if (criterionValues[criterionId]) {
+            criterionValues[criterionId].points = input.value;
+        }
+    });
+    
+    // Get comments
+    firstCommentsRow.querySelectorAll('textarea').forEach((textarea, index) => {
+        const match = textarea.name.match(/comments_(\d+)_/);
+        if (match) {
+            const criterionId = match[1];
+            if (criterionValues[criterionId]) {
+                criterionValues[criterionId].comments = textarea.value;
+            }
+        }
+    });
+    
+    // Apply to all other attendees
+    document.querySelectorAll('tbody tr.attendee-header').forEach((header, index) => {
+        if (index === 0) return; // Skip first attendee
+        
+        const ratingRow = header.nextElementSibling;
+        const pointsRow = ratingRow.nextElementSibling;
+        const commentsRow = pointsRow.nextElementSibling;
+        
+        // Set ratings
+        ratingRow.querySelectorAll('.rating-select').forEach(select => {
+            const criterionId = select.dataset.criterionId;
+            if (criterionValues[criterionId]) {
+                select.value = criterionValues[criterionId].rating;
+                // Trigger change event to update points
+                if (select.value) {
+                    const attendanceId = select.dataset.attendanceId;
+                    updatePointsFromRating(criterionId, attendanceId, select);
+                }
+            }
+        });
+        
+        // Set points (in case manual adjustment was made)
+        pointsRow.querySelectorAll('.criterion-points').forEach(input => {
+            const criterionId = input.dataset.criterionId;
+            if (criterionValues[criterionId] && criterionValues[criterionId].points) {
+                input.value = criterionValues[criterionId].points;
+            }
+        });
+        
+        // Set comments
+        commentsRow.querySelectorAll('textarea').forEach(textarea => {
+            const match = textarea.name.match(/comments_(\d+)_/);
+            if (match) {
+                const criterionId = match[1];
+                if (criterionValues[criterionId]) {
+                    textarea.value = criterionValues[criterionId].comments;
+                }
+            }
+        });
+        
+        // Update total
+        const attendanceId = pointsRow.querySelector('.criterion-points').dataset.attendanceId;
+        updateTotalPoints(attendanceId);
+    });
+}
+</script>
+{% endblock %} 

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title|default:"SCORM Content" }}</title>
+    <script>
+        // Enhanced SCORM tracking and progress monitoring
+        {% if registration_id %}
+        localStorage.setItem('current_scorm_registration', '{{ registration_id }}');
+        {% endif %}
+        {% if topic_id %}
+        localStorage.setItem('last_scorm_topic_id', '{{ topic_id }}');
+        localStorage.setItem('needs_progress_update', 'true');
+        {% endif %}
+        
+        // Record the time when the SCORM content was launched
+        localStorage.setItem('scorm_launch_time', Date.now().toString());
+        
+        // Enhanced tracking function
+        function trackSCORMProgress() {
+            const topicId = '{{ topic_id }}';
+            const registrationId = '{{ registration_id }}';
+            
+            if (!topicId) return;
+            
+            // Function to send progress updates
+            function sendProgressUpdate(data) {
+                fetch(`/scorm/topic/${topicId}/tracking/update/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+                    },
+                    body: JSON.stringify({
+                        ...data,
+                        registration_id: registrationId,
+                        source: 'scorm_tracking',
+                        timestamp: new Date().toISOString()
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('SCORM progress updated:', data);
+                    if (data.completed) {
+                        // Handle completion
+                        localStorage.setItem('scorm_completed', 'true');
+                        localStorage.setItem('scorm_completion_time', Date.now().toString());
+                    }
+                })
+                .catch(error => console.error('Error updating SCORM progress:', error));
+            }
+            
+            // Monitor for SCORM completion
+            function checkForCompletion() {
+                // Check if we're back from SCORM content
+                const launchTime = localStorage.getItem('scorm_launch_time');
+                const currentTime = Date.now();
+                const timeDiff = currentTime - (launchTime ? parseInt(launchTime) : 0);
+                
+                // If more than 30 seconds have passed, assume user is back
+                if (timeDiff > 30000) {
+                    const completed = localStorage.getItem('scorm_completed');
+                    if (completed === 'true') {
+                        sendProgressUpdate({
+                            status: 'completed',
+                            completion_status: 'completed',
+                            completed: true,
+                            final_update: true
+                        });
+                        
+                        // Clear tracking data
+                        localStorage.removeItem('scorm_completed');
+                        localStorage.removeItem('scorm_launch_time');
+                        localStorage.removeItem('needs_progress_update');
+                    }
+                }
+            }
+            
+            // Set up periodic checking
+            setInterval(checkForCompletion, 5000);
+            
+            // Check immediately
+            checkForCompletion();
+        }
+        
+        // Start tracking
+        trackSCORMProgress();
+        
+        // Redirect to SCORM content
+        window.location.href = "{{ launch_url }}";
+    </script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            text-align: center;
+        }
+        .spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading">
+        <div class="spinner"></div>
+        <h2>Loading SCORM Content...</h2>
+        <p>If content doesn't load automatically, <a href="{{ launch_url }}">click here</a></p>
+    </div>
+</body>
+</html> 

@@ -1,0 +1,424 @@
+{% extends 'base.html' %}
+{% load static %}
+{% csrf_token %}
+
+{% block title %}Reports Overview{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" type="text/css" href="{% static 'css/dashboard-shared.css' %}">
+<style>
+    /* Enhanced overview styling matching other sub-pages */
+    [x-cloak] { display: none !important; }
+    
+    .report-full-width {
+        background-color: #f8f9fa;
+        min-height: calc(100vh - 80px);
+        padding: 0;
+        margin: 0;
+    }
+    
+    .report-full-width-content {
+        max-width: 100%;
+        margin: 0 auto;
+        padding: 1.5rem;
+    }
+    
+    .report-breadcrumb {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+        padding: 1rem;
+    }
+    
+    .report-filters-top {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+        padding: 1rem;
+    }
+    
+    .report-nav-tabs {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+    
+    /* Consistent shadow for all main containers */
+    .bg-white.rounded-lg.shadow-sm {
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+    }
+    
+    .report-nav-tabs nav {
+        display: flex;
+    }
+    
+    .report-nav-tab {
+        flex: 1;
+        padding: 15px 20px;
+        text-decoration: none;
+        color: #6c757d;
+        font-weight: 500;
+        text-align: center;
+        transition: all 0.3s ease;
+        background: none;
+        border: none;
+        cursor: pointer;
+    }
+    
+    .report-nav-tab:hover {
+        color: #007bff;
+        background-color: #f8f9fa;
+    }
+    
+    .report-nav-tab.active {
+        color: #007bff;
+        background-color: #f8f9fa;
+    }
+    
+    .report-stat-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .report-stat-title {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+    }
+    
+    .report-stat-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+    }
+    
+    .report-stat-item:last-child {
+        border-bottom: none;
+    }
+    
+    .report-stat-label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #6c757d;
+        font-size: 0.875rem;
+    }
+    
+    .report-stat-value {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {
+        .report-full-width-content {
+            padding: 1rem;
+        }
+        
+        .report-nav-tabs nav {
+            flex-direction: column;
+        }
+        
+        .report-nav-tab {
+            border-right: none;
+        }
+        
+        .report-nav-tab:last-child {
+            /* Clean UI - no borders */
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="report-full-width" x-data="{ activeTab: 'overview', chartsLoaded: false }" x-init="setTimeout(() => chartsLoaded = true, 2000)">
+    <div class="report-full-width-content">
+        <!-- Breadcrumbs -->
+        <div class="report-breadcrumb">
+            {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+        </div>
+
+        <!-- Business Filter (Global Admin only) -->
+        {% if show_business_filter %}
+        <div class="report-filters-top">
+            {% include 'components/business_filter.html' with businesses=businesses selected_business_id=selected_business_id %}
+        </div>
+        {% endif %}
+
+        <!-- Branch Filter (Global Admin and Super Admin) -->
+        {% if show_branch_filter %}
+        <div class="report-filters-top">
+            {% include 'components/branch_filter.html' with branches=branches selected_branch_id=selected_branch_id %}
+        </div>
+        {% endif %}
+
+        <!-- Navigation Tabs -->
+        <div class="report-nav-tabs">
+            <nav>
+                <button @click="activeTab = 'overview'" 
+                        :class="{ 'active': activeTab === 'overview' }"
+                        class="report-nav-tab">
+                    <i class="fas fa-chart-pie mr-2"></i>
+                    Overview
+                </button>
+                <a href="{% url 'reports:training_matrix' %}" class="report-nav-tab">
+                    <i class="fas fa-table mr-2"></i>
+                    Training Matrix
+                </a>
+                <a href="{% url 'reports:timeline' %}" class="report-nav-tab">
+                    <i class="fas fa-clock mr-2"></i>
+                    Timeline
+                </a>
+            </nav>
+        </div>
+
+        <!-- Overview Tab Content -->
+        <div x-show="activeTab === 'overview'" x-cloak>
+            <!-- Page Header -->
+            <div class="bg-white rounded-lg shadow-sm mb-6">
+                <div class="p-6">
+                    <h1 class="text-2xl font-semibold text-gray-900 mb-2">Reports Overview</h1>
+                    <p class="text-gray-600">Comprehensive analytics and insights for your learning management system</p>
+                </div>
+            </div>
+
+            <!-- Main grid with 70-30 split -->
+            <div class="grid grid-cols-12 gap-4">
+                <!-- Left Column (70%) -->
+                <div class="col-span-12 lg:col-span-8 transition-all duration-300">
+                    <!-- Overview Stats -->
+                    <div class="bg-white rounded-lg shadow-sm p-6 mb-4">
+                        <h2 class="text-lg font-semibold text-gray-900 mb-4">
+                            <i class="fas fa-chart-bar mr-2"></i>
+                            System Overview
+                        </h2>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center py-2">
+                                <div class="flex items-center text-gray-600">
+                                    <i class="fas fa-users text-blue-500 mr-2"></i>
+                                    Active Users
+                                </div>
+                                <div class="font-semibold text-gray-900">{{ active_users }}</div>
+                            </div>
+                            <div class="flex justify-between items-center py-2">
+                                <div class="flex items-center text-gray-600">
+                                    <i class="fas fa-user-slash text-red-500 mr-2"></i>
+                                    Never Logged In
+                                </div>
+                                <div class="font-semibold text-gray-900">{{ never_logged_in }}</div>
+                            </div>
+                            <div class="flex justify-between items-center py-2">
+                                <div class="flex items-center text-gray-600">
+                                    <i class="fas fa-book text-green-500 mr-2"></i>
+                                    Assigned Courses
+                                </div>
+                                <div class="font-semibold text-gray-900">{{ assigned_courses }}</div>
+                            </div>
+                            <div class="flex justify-between items-center py-2">
+                                <div class="flex items-center text-gray-600">
+                                    <i class="fas fa-check-circle text-green-500 mr-2"></i>
+                                    Completed Courses
+                                </div>
+                                <div class="font-semibold text-gray-900">{{ completed_courses }}</div>
+                            </div>
+                            <div class="flex justify-between items-center py-2">
+                                <div class="flex items-center text-gray-600">
+                                    <i class="fas fa-clipboard-check text-purple-500 mr-2"></i>
+                                    Initial Assessments
+                                </div>
+                                <div class="font-semibold text-gray-900">{{ total_initial_assessments }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Assessment Statistics -->
+                    <div class="report-stat-card">
+                        <h2 class="report-stat-title">
+                            <i class="fas fa-clipboard-check mr-2"></i>
+                            Assessment Statistics
+                        </h2>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center py-2">
+                                <div class="flex items-center text-gray-600">
+                                    <i class="fas fa-users text-blue-500 mr-2"></i>
+                                    Users with Assessments
+                                </div>
+                                <div class="font-semibold text-gray-900">{{ users_with_assessments }}</div>
+                            </div>
+                            <div class="flex justify-between items-center py-2">
+                                <div class="flex items-center text-gray-600">
+                                    <i class="fas fa-chart-line text-green-500 mr-2"></i>
+                                    Average Score
+                                </div>
+                                <div class="font-semibold text-gray-900">{{ avg_initial_assessment_score }}%</div>
+                            </div>
+                            <div class="flex justify-between items-center py-2">
+                                <div class="flex items-center text-gray-600">
+                                    <i class="fas fa-clipboard-list text-purple-500 mr-2"></i>
+                                    Total Attempts
+                                </div>
+                                <div class="font-semibold text-gray-900">{{ total_initial_assessments }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Learning Structure -->
+                    <div class="report-stat-card">
+                        <h2 class="report-stat-title">
+                            <i class="fas fa-sitemap mr-2"></i>
+                            Learning Structure
+                        </h2>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center py-2">
+                                <div class="flex items-center text-gray-600">
+                                    <i class="fas fa-graduation-cap text-blue-500 mr-2"></i>
+                                    Courses
+                                </div>
+                                <div class="font-semibold text-gray-900">{{ total_courses }}</div>
+                            </div>
+                            <div class="flex justify-between items-center py-2">
+                                <div class="flex items-center text-gray-600">
+                                    <i class="fas fa-folder text-green-500 mr-2"></i>
+                                    Categories
+                                </div>
+                                <div class="font-semibold text-gray-900">{{ total_categories }}</div>
+                            </div>
+                            <div class="flex justify-between items-center py-2">
+                                <div class="flex items-center text-gray-600">
+                                    <i class="fas fa-code-branch text-purple-500 mr-2"></i>
+                                    Branches
+                                </div>
+                                <div class="font-semibold text-gray-900">{{ total_branches }}</div>
+                            </div>
+                            <div class="flex justify-between items-center py-2">
+                                <div class="flex items-center text-gray-600">
+                                    <i class="fas fa-users text-orange-500 mr-2"></i>
+                                    Groups
+                                </div>
+                                <div class="font-semibold text-gray-900">{{ total_groups }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Right Column (30%) -->
+                <div class="col-span-12 lg:col-span-4 transition-all duration-300">
+                    <!-- Quick Actions -->
+                    <div class="bg-white rounded-lg shadow-sm mb-6">
+                        <div class="p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                                <i class="fas fa-bolt mr-2"></i>
+                                Quick Actions
+                            </h3>
+                            <div class="space-y-3">
+                                <a href="{% url 'reports:user_reports' %}" class="block w-full bg-blue-50 text-blue-700 py-3 px-4 rounded-lg text-center hover:bg-blue-100 transition-colors shadow-sm">
+                                    <i class="fas fa-users mr-2"></i>
+                                    View User Reports
+                                </a>
+                                <a href="{% url 'reports:courses_report' %}" class="block w-full bg-green-50 text-green-700 py-3 px-4 rounded-lg text-center hover:bg-green-100 transition-colors shadow-sm">
+                                    <i class="fas fa-book mr-2"></i>
+                                    View Course Reports
+                                </a>
+                                <a href="{% url 'reports:learning_activities' %}" class="block w-full bg-purple-50 text-purple-700 py-3 px-4 rounded-lg text-center hover:bg-purple-100 transition-colors shadow-sm">
+                                    <i class="fas fa-tasks mr-2"></i>
+                                    View Learning Activities
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- System Status -->
+                    <div class="bg-white rounded-lg shadow-sm">
+                        <div class="p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                                <i class="fas fa-server mr-2"></i>
+                                System Status
+                            </h3>
+                            <div class="space-y-3">
+                                <div class="flex items-center justify-between py-2">
+                                    <span class="text-sm text-gray-600">Database</span>
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        <i class="fas fa-check-circle mr-1"></i>
+                                        Online
+                                    </span>
+                                </div>
+                                <div class="flex items-center justify-between py-2">
+                                    <span class="text-sm text-gray-600">Cache</span>
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        <i class="fas fa-check-circle mr-1"></i>
+                                        Active
+                                    </span>
+                                </div>
+                                <div class="flex items-center justify-between py-2">
+                                    <span class="text-sm text-gray-600">Last Update</span>
+                                    <span class="text-sm text-gray-500">Just now</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize charts and components
+    // console.log('Reports Overview: Initializing components...');
+    
+    // Check if global chart components are available
+    }
+    
+    if (typeof Chart !== 'undefined') {
+        // console.log('Chart.js library loaded');
+    }
+    
+    // Initialize any additional overview-specific functionality
+    initializeOverviewFeatures();
+});
+
+function initializeOverviewFeatures() {
+    // Add smooth scrolling for better UX
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+        });
+    });
+    
+    // Add loading states for better user feedback
+    const statCards = document.querySelectorAll('.report-stat-card');
+    statCards.forEach(card => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            card.style.transition = 'all 0.3s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, Math.random() * 200);
+    });
+}
+</script>
+{% endblock %} 

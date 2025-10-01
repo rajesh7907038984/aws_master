@@ -1,0 +1,374 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block title %}Edit User - {{ user.username }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .main-content {
+        background-color: #ffffff !important;
+    }
+
+    .p-6.space-y-6 {
+        background-color: white;
+    }
+
+    .form-section {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    }
+
+    .form-header {
+        border-bottom: 1px solid #E5E7EB;
+        padding: 1.5rem;
+    }
+
+    .form-content {
+        padding: 1.5rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+        display: block;
+        color: #374151;
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #D1D5DB;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        color: #111827;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: #2563EB;
+        box-shadow: 0 0 0 1px #2563EB;
+    }
+
+    .form-select {
+        width: 100%;
+        padding: 0.5rem 2.5rem 0.5rem 0.75rem;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+        background-position: right 0.5rem center;
+        background-repeat: no-repeat;
+        background-size: 1.5em 1.5em;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+    }
+
+    /* Disabled form elements styling */
+    .form-select:disabled, .form-input:disabled {
+        background-color: #F3F4F6;
+        color: #6B7280;
+        cursor: not-allowed;
+        opacity: 0.8;
+    }
+
+    .form-select:disabled {
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239CA3AF' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    }
+
+    .form-checkbox {
+        width: 1rem;
+        height: 1rem;
+        border-radius: 0.25rem;
+        border: 1px solid #D1D5DB;
+        color: #2563EB;
+    }
+
+    .form-checkbox:checked {
+        background-color: currentColor;
+        border-color: transparent;
+    }
+
+    .form-error {
+        color: #DC2626;
+        font-size: 0.75rem;
+        margin-top: 0.25rem;
+    }
+    
+    /* Success/error message styling */
+    .alert {
+        padding: 12px 16px;
+        border-radius: 6px;
+        margin-bottom: 16px;
+        font-size: 14px;
+    }
+    
+    .alert-success {
+        background-color: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+    }
+    
+    .alert-error {
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Password Reset Email functionality
+    const sendPasswordResetBtn = document.getElementById('sendPasswordResetBtn');
+    
+    if (sendPasswordResetBtn) {
+        sendPasswordResetBtn.addEventListener('click', function() {
+            sendPasswordResetEmail(this);
+        });
+    }
+});
+
+function sendPasswordResetEmail(button) {
+    // Show confirmation dialog
+    if (!confirm('Are you sure you want to send a password reset email to this user?')) {
+        return;
+    }
+    
+    // Disable button and show loading state
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
+    
+    // Make AJAX request to send forgot password email
+    fetch('{% url "users:admin_send_forgot_password" user.id %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            showMessage('Password reset email sent successfully to ' + '{{ user.email }}', 'success');
+        } else {
+            showMessage('Error: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showMessage('An error occurred while sending the password reset email. Please try again.', 'error');
+    })
+    .finally(() => {
+        // Reset button state
+        button.disabled = false;
+        button.innerHTML = '<i class="fas fa-envelope mr-2"></i>Send Password Reset Email';
+    });
+}
+
+function showMessage(message, type) {
+    // Remove any existing messages
+    const existingMessages = document.querySelectorAll('.alert');
+    existingMessages.forEach(msg => msg.remove());
+    
+    // Create new message element
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `alert alert-${type}`;
+    messageDiv.innerHTML = message;
+    
+    // Insert message at the top of the form content
+    const formContent = document.querySelector('.form-content');
+    if (formContent) {
+        formContent.insertBefore(messageDiv, formContent.firstChild);
+        
+        // Auto-remove message after 5 seconds
+        setTimeout(() => {
+            messageDiv.remove();
+        }, 5000);
+        
+        // Scroll to top to show message
+        formContent.scrollIntoView({ behavior: 'smooth' });
+    }
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white text-black min-h-screen">
+    <div class="container mx-auto px-4 py-6">
+        <!-- Breadcrumb -->
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+        <!-- Main grid with 70-30 split -->
+        <div class="grid grid-cols-12 gap-4 md:gap-6">
+            <!-- Main Content Column (70%) -->
+            <div class="col-span-12 lg:col-span-8">
+                <div class="form-section">
+                    <div class="form-header">
+                        <h1 class="text-xl font-semibold text-gray-900">Edit User - {{ user.username }}</h1>
+                    </div>
+                    <div class="form-content">
+                        {% if form.non_field_errors %}
+                        <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                            {% for error in form.non_field_errors %}
+                            <p class="text-red-600 text-sm">{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <form method="post" class="space-y-6">
+                            {% csrf_token %}
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="space-y-4">
+                                    <div class="form-group">
+                                        <label for="{{ form.username.id_for_label }}" class="form-label">Username</label>
+                                        {{ form.username }}
+                                        {% if form.username.errors %}
+                                        <div class="form-error">
+                                            {% for error in form.username.errors %}
+                                            <p>{{ error }}</p>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                        {% if form.username.help_text %}
+                                        <p class="mt-1 text-sm text-gray-500">{{ form.username.help_text }}</p>
+                                        {% endif %}
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="{{ form.email.id_for_label }}" class="form-label">Email</label>
+                                        {{ form.email }}
+                                        {% if form.email.errors %}
+                                        <div class="form-error">
+                                            {% for error in form.email.errors %}
+                                            <p>{{ error }}</p>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                        {% if form.email.help_text %}
+                                        <p class="mt-1 text-sm text-gray-500">{{ form.email.help_text }}</p>
+                                        {% endif %}
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="{{ form.first_name.id_for_label }}" class="form-label">First Name</label>
+                                        {{ form.first_name }}
+                                        {% if form.first_name.errors %}
+                                        <div class="form-error">
+                                            {% for error in form.first_name.errors %}
+                                            <p>{{ error }}</p>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="{{ form.last_name.id_for_label }}" class="form-label">Last Name</label>
+                                        {{ form.last_name }}
+                                        {% if form.last_name.errors %}
+                                        <div class="form-error">
+                                            {% for error in form.last_name.errors %}
+                                            <p>{{ error }}</p>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="space-y-4">
+                                                        <div class="form-group">
+                        <label for="{{ form.role.id_for_label }}" class="form-label">Role</label>
+                        <select name="{{ form.role.name }}" id="{{ form.role.id_for_label }}" class="form-select">
+                            {% for value, label in roles %}
+                                <option value="{{ value }}" {% if value == form.role.value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                        {% if form.role.errors %}
+                        <div class="form-error">
+                            {% for error in form.role.errors %}
+                            <p>{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                                        <div id="role-restriction-message" class="form-error" style="display: none;"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="{{ form.branch.id_for_label }}" class="form-label">Branch</label>
+                                        {{ form.branch }}
+                                        {% if form.branch.errors %}
+                                        <div class="form-error">
+                                            {% for error in form.branch.errors %}
+                                            <p>{{ error }}</p>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                        {% if form.branch.help_text %}
+                                        <p class="mt-1 text-sm text-gray-500">{{ form.branch.help_text }}</p>
+                                        {% endif %}
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="{{ form.timezone.id_for_label }}" class="form-label">Timezone</label>
+                                        {{ form.timezone }}
+                                        {% if form.timezone.errors %}
+                                        <div class="form-error">
+                                            {% for error in form.timezone.errors %}
+                                            <p>{{ error }}</p>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                        {% if form.timezone.help_text %}
+                                        <p class="mt-1 text-sm text-gray-500">{{ form.timezone.help_text }}</p>
+                                        {% endif %}
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label flex items-center space-x-2">
+                                            {{ form.is_active }}
+                                            <span>Active</span>
+                                        </label>
+                                        {% if form.is_active.errors %}
+                                        <div class="form-error">
+                                            {% for error in form.is_active.errors %}
+                                            <p>{{ error }}</p>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center mt-6">
+                                <!-- Left side - Password Reset Button -->
+                                <div class="flex space-x-2">
+                                    {% if perms.users.can_send_password_reset or request.user.role in 'globaladmin,superadmin,admin' %}
+                                    <button type="button" id="sendPasswordResetBtn" class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
+                                        <i class="fas fa-envelope mr-2"></i>Send Password Reset Email
+                                    </button>
+                                    {% endif %}
+                                </div>
+                                
+                                <!-- Right side - Form Actions -->
+                                <div class="flex space-x-4">
+                                    <a href="{% url 'users:user_list' %}" class="px-4 py-2 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
+                                        Cancel
+                                    </a>
+                                    <button type="submit" class="px-4 py-2 text-white rounded-lg transition-colors" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                                        Save Changes
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column (30%) -->
+            <div class="col-span-12 lg:col-span-4 transition-all duration-300">
+                {% include 'components/right_sidebar.html' %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

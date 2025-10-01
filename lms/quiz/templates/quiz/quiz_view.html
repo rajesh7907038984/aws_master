@@ -1,0 +1,798 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load quiz_extras %}
+{% load quiz_filters %}
+{% load gradebook_tags %}
+
+{% block title %}{{ quiz.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Attempt History Styles - Same as quiz results page */
+    .attempt-history-card {
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        overflow: hidden;
+    }
+
+    .attempt-history-card:hover {
+        border-color: #667eea;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        transform: translateY(-2px);
+    }
+
+    .attempt-badge {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .score-display {
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+
+    .view-button {
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .view-button:hover {
+        background: linear-gradient(135deg, #059669, #047857);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+        color: white;
+        text-decoration: none;
+    }
+
+    .status-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-passed {
+        background-color: #d1fae5;
+        color: #065f46;
+    }
+
+    .status-failed {
+        background-color: #fee2e2;
+        color: #991b1b;
+    }
+
+    /* Attempt History Table Styles - Consistent with LMS */
+    .attempt-history-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        background-color: white;
+        border-radius: 0.5rem;
+        overflow: hidden;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    }
+
+    .attempt-history-table th {
+        color: #374151;
+        font-weight: 500;
+        text-align: left;
+        padding: 0.75rem 1rem;
+        background-color: #F9FAFB;
+        font-size: 0.875rem;
+        border-bottom: 1px solid #E5E7EB;
+    }
+
+    .attempt-history-table td {
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+        border-bottom: 1px solid #E5E7EB;
+        text-align: left;
+        vertical-align: middle;
+    }
+
+    .attempt-history-table tr:nth-child(odd) td {
+        background-color: #F9FAFB;
+    }
+
+    .attempt-history-table tr:nth-child(even) td {
+        background-color: #FFFFFF;
+    }
+    
+    .attempt-history-table tr:hover td {
+        background-color: #F3F4F6;
+    }
+
+    .attempt-history-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .action-btn {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.375rem 0.75rem;
+        background-color: #3b82f6;
+        color: white;
+        text-decoration: none;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+
+    .action-btn:hover {
+        background-color: #2563eb;
+        color: white;
+        text-decoration: none;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Global Breadcrumbs at the top -->
+<div class="max-w-6xl mx-auto px-4 py-4">
+    {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+</div>
+   
+{% if user.role == 'learner' %}
+<div class="max-w-6xl mx-auto bg-white rounded-lg shadow-md overflow-hidden">
+        <div class="p-6">
+         
+            <h1 class="text-2xl font-bold text-gray-800 mb-4">{{ quiz.title }}</h1>
+            
+            {% if quiz.description %}
+            <div class="bg-blue-50 p-4 rounded-md mb-6">
+                <p class="text-gray-700">{{ quiz.description|safe }}</p>
+            </div>
+            {% endif %}
+            
+            <!-- Action Buttons - Moved to top -->
+            <div class="flex flex-col sm:flex-row justify-center items-center gap-4 mb-8">
+                {% if quiz.attempts_allowed != -1 and completed_attempts_count >= quiz.attempts_allowed %}
+                <button disabled class="bg-gray-400 text-white py-3 px-6 rounded-md cursor-not-allowed">
+                    Maximum attempts reached
+                </button>
+                {% else %}
+                    {% if has_resumable_attempts %}
+                        <!-- Enhanced Resume Section -->
+                        <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4 w-full max-w-md">
+                            <div class="flex items-center mb-2">
+                                <svg class="w-5 h-5 text-amber-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                                </svg>
+                                <span class="font-medium text-amber-800">Quiz In Progress</span>
+                            </div>
+                            <p class="text-sm text-amber-700 mb-3">
+                                You have an incomplete attempt started {{ recent_incomplete_attempts.first.start_time|timesince }} ago.
+                            </p>
+                            <div class="flex gap-2">
+                                <a href="{% url 'quiz:take_quiz' recent_incomplete_attempts.first.id %}" 
+                                   class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md transition-colors inline-flex items-center text-sm flex-1 justify-center">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    Resume Quiz
+                                </a>
+                                <button onclick="confirmStartNew()" 
+                                        class="bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-md transition-colors text-sm">
+                                    Start New
+                                </button>
+                            </div>
+                        </div>
+                    {% else %}
+                        <a href="{{ attempt_url }}?start=true" class="text-white py-3 px-6 rounded-md transition-colors inline-flex items-center" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                            Start Quiz
+                        </a>
+                    {% endif %}
+                {% endif %}
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div class="bg-gray-50 p-4 rounded-md">
+                    <h3 class="font-medium text-gray-700 mb-2">Quiz Details</h3>
+                    <ul class="space-y-2">
+                        <li class="flex items-center">
+                            <span class="text-gray-600 mr-2">Questions:</span>
+                            <span class="font-medium">{{ total_questions }}</span>
+                        </li>
+                        <li class="flex items-center">
+                            <span class="text-gray-600 mr-2">Time Limit:</span>
+                            <span class="font-medium">{% if quiz.time_limit %}{{ quiz.time_limit }} minutes{% else %}No time limit{% endif %}</span>
+                        </li>
+                        <li class="flex items-center">
+                            <span class="text-gray-600 mr-2">Passing Score:</span>
+                            <span class="font-medium">{{ quiz.passing_score }}%</span>
+                        </li>
+                        {% if quiz.expires_at %}
+                        <li class="flex items-center">
+                            <span class="text-gray-600 mr-2">Available Until:</span>
+                            <span class="font-medium">{{ quiz.expires_at|date:"F j, Y" }}</span>
+                        </li>
+                        {% endif %}
+                        <li class="flex items-center">
+                            <span class="text-gray-600 mr-2">Attempts Allowed:</span>
+                            <span class="font-medium">{% if quiz.attempts_allowed == -1 %}Unlimited{% else %}{{ quiz.attempts_allowed }}{% endif %}</span>
+                        </li>
+                        {% if quiz.rubric %}
+                        <li class="flex items-center">
+                            <span class="text-gray-600 mr-2">Grading Method:</span>
+                            <span class="font-medium flex items-center">
+                                <svg class="w-4 h-4 mr-1 text-blue-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"></path>
+                                    <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"></path>
+                                </svg>
+                                Rubric-Based ({{ quiz.rubric.title }})
+                            </span>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
+                
+                <div class="bg-gray-50 p-4 rounded-md">
+                    <h3 class="font-medium text-gray-700 mb-2">Your Progress</h3>
+                    <ul class="space-y-2">
+                        <li class="flex items-center">
+                            <span class="text-gray-600 mr-2">Attempts Made:</span>
+                            <span class="font-medium">{{ completed_attempts_count }}</span>
+                        </li>
+                        {% if quiz.attempts_allowed != -1 %}
+                        <li class="flex items-center">
+                            <span class="text-gray-600 mr-2">Attempts Allowed:</span>
+                            <span class="font-medium">{{ quiz.attempts_allowed }}</span>
+                        </li>
+                        <li class="flex items-center">
+                            <span class="text-gray-600 mr-2">Attempts Remaining:</span>
+                            <span class="font-medium">{{ attempts_remaining }}</span>
+                        </li>
+                        {% else %}
+                        <li class="flex items-center">
+                            <span class="text-gray-600 mr-2">Attempts Allowed:</span>
+                            <span class="font-medium">Unlimited</span>
+                        </li>
+                        {% endif %}
+                        {% if highest_score %}
+                        <li class="flex items-center">
+                            <span class="text-gray-600 mr-2">Highest Score:</span>
+                            <span class="font-medium">{{ highest_score }}%</span>
+                        </li>
+                        {% endif %}
+                        <li class="flex items-center">
+                            <span class="text-gray-600 mr-2">Status:</span>
+                            {% if has_completed %}
+                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">Completed</span>
+                            {% else %}
+                            <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">Not Completed</span>
+                            {% endif %}
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Attempt History Section - Simple Table Style -->
+            {% if attempts %}
+                <div class="mb-8">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-blue-100 rounded-full p-2 mr-3">
+                            <i class="fas fa-history text-blue-600"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-semibold text-gray-800">Your Attempt History</h2>
+                            <p class="text-sm text-gray-600">View detailed results for each of your quiz attempts</p>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="attempt-history-table">
+                            <thead>
+                                <tr>
+                                    <th>Attempt</th>
+                                    <th>Date</th>
+                                    <th>Score</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for attempt in attempts %}
+                                <tr>
+                                    <td>
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-medium">#{{ forloop.counter }}</span>
+                                            {% if forloop.first %}
+                                                <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium">
+                                                    Latest
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="text-sm text-gray-600">
+                                            <i class="far fa-calendar-alt mr-1"></i>
+                                            {{ attempt.end_time|date:"M d, Y g:i A" }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if quiz.rubric and attempt.rubric_evaluations.exists %}
+                                            {% with evaluations=attempt.rubric_evaluations.all %}
+                                            <div class="font-medium text-blue-600">
+                                                {{ evaluations|sum_rubric_points|floatformat:1 }}/{{ quiz.rubric.total_points }} pts
+                                            </div>
+                                            <div class="text-xs text-gray-500">Rubric-based</div>
+                                            {% endwith %}
+                                        {% else %}
+                                            {% if quiz.is_vak_test %}
+                                                <div class="font-medium text-blue-600">
+                                                    {{ attempt.score|floatformat:1 }}%
+                                                </div>
+                                                <div class="text-xs text-gray-500">VAK Test</div>
+                                            {% else %}
+                                                <div class="font-medium {% if attempt.score >= quiz.passing_score %}text-green-600{% else %}text-red-600{% endif %}">
+                                                    {{ attempt.score|floatformat:1 }}%
+                                                </div>
+                                                <div class="text-xs text-gray-500">Auto-calculated</div>
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if quiz.is_vak_test %}
+                                            <span class="status-badge bg-blue-100 text-blue-800">
+                                                <i class="fas fa-chart-bar mr-1"></i>
+                                                VAK Test
+                                            </span>
+                                        {% else %}
+                                            {% if quiz.rubric and attempt.rubric_evaluations.exists %}
+                                                {% with evaluations=attempt.rubric_evaluations.all %}
+                                                {% with rubric_score=evaluations|sum_rubric_points %}
+                                                {% if rubric_score >= quiz.rubric.total_points|mul:0.7 %}
+                                                    <span class="status-badge status-passed">
+                                                        <i class="fas fa-check-circle mr-1"></i>Passed
+                                                    </span>
+                                                {% else %}
+                                                    <span class="status-badge status-failed">
+                                                        <i class="fas fa-times-circle mr-1"></i>Failed
+                                                    </span>
+                                                {% endif %}
+                                                {% endwith %}
+                                                {% endwith %}
+                                            {% else %}
+                                                {% if attempt.score >= quiz.passing_score %}
+                                                    <span class="status-badge status-passed">
+                                                        <i class="fas fa-check-circle mr-1"></i>Passed
+                                                    </span>
+                                                {% else %}
+                                                    <span class="status-badge status-failed">
+                                                        <i class="fas fa-times-circle mr-1"></i>Failed
+                                                    </span>
+                                                {% endif %}
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'quiz:view_attempt' attempt.id %}" 
+                                           class="action-btn">
+                                            <i class="fas fa-eye mr-1"></i>
+                                            View Details
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% else %}
+    <!-- Title header for non-learner users -->
+    <div class="max-w-6xl mx-auto bg-white rounded-lg shadow-md overflow-hidden mb-8">
+        <div class="p-6">
+            <h1 class="text-2xl font-bold text-gray-800 mb-4">{{ quiz.title }}</h1>
+            {% if quiz.description %}
+            <div class="bg-blue-50 p-4 rounded-md">
+                <p class="text-gray-700">{{ quiz.description|safe }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+{% endif %}
+
+    {% if can_grade %}
+    <!-- Rubric Grading Section (Only for non-learner roles) -->
+    <div class="max-w-6xl mx-auto bg-white rounded-lg shadow-md overflow-hidden">
+        <div class="bg-gray-100 p-4 border-b">
+            <h2 class="text-xl font-semibold text-gray-800">Grade Submissions</h2>
+            <p class="text-sm text-gray-600">View and grade student quiz submissions</p>
+        </div>
+        
+        <div class="p-6">
+            <!-- Student attempts selection -->
+            <div class="mb-6">
+                <h3 class="font-medium text-gray-800 mb-3">Date-wise Submissions</h3>
+                
+                {% if student_attempts %}
+                
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white border border-gray-200">
+                            <thead>
+                                <tr>
+                                    <th class="px-4 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Student</th>
+                                    <th class="px-4 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Date</th>
+                                    <th class="px-4 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Type</th>
+                                    <th class="px-4 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Score</th>
+                                    <th class="px-4 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Status</th>
+                                    <th class="px-4 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for attempt in student_attempts %}
+                                
+                                {% if not quiz.rubric %}
+                                <!-- Auto-graded attempt row (only for non-rubric quizzes) -->
+                                <tr class="{% cycle 'bg-white' 'bg-gray-50' as rowcolors %}">
+                                    <td class="px-4 py-3 border-b border-gray-200">{{ attempt.user.get_full_name|default:attempt.user.username }}</td>
+                                    <td class="px-4 py-3 border-b border-gray-200">{{ attempt.end_time|date:"M d, Y H:i" }}</td>
+                                    <td class="px-4 py-3 border-b border-gray-200">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                            Auto-graded
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3 border-b border-gray-200">
+                                        <span class="font-medium {% if attempt.score >= quiz.passing_score %}text-green-600{% else %}text-red-600{% endif %}">
+                                            {{ attempt.score|floatformat:1 }}%
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3 border-b border-gray-200">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                            <svg class="mr-1.5 h-2 w-2 text-blue-400" fill="currentColor" viewBox="0 0 8 8">
+                                                <circle cx="4" cy="4" r="3" />
+                                            </svg>
+                                            Completed
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3 border-b border-gray-200">
+                                        <div class="flex space-x-2">
+                                            <a href="{% url 'quiz:view_attempt' attempt.id %}" class="text-blue-600 hover:text-blue-800">
+                                                View Details
+                                            </a>
+                                            
+                                            <!-- Details Report Button -->
+                                            <button onclick="generateQuizDetailedReport({{ quiz.id }}, {{ attempt.user.id }})" 
+                                                    class="text-purple-600 hover:text-purple-800 font-medium">
+                                                <i class="fas fa-file-alt mr-1"></i>Report
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                
+                                {% else %}
+                                <!-- Rubric-based quiz rows -->
+                                
+                                {% if attempt.rubric_evaluations.exists %}
+                                <!-- Rubric-graded row (for evaluated rubric quizzes) -->
+                                {% with evaluations=attempt.rubric_evaluations.all %}
+                                <tr class="{% cycle 'bg-white' 'bg-gray-50' as rowcolors %}">
+                                    <td class="px-4 py-3 border-b border-gray-200">{{ attempt.user.get_full_name|default:attempt.user.username }}</td>
+                                    <td class="px-4 py-3 border-b border-gray-200">{{ evaluations.0.updated_at|date:"M d, Y H:i" }}</td>
+                                    <td class="px-4 py-3 border-b border-gray-200">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                            Rubric-graded
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3 border-b border-gray-200">
+                                        <span class="font-medium text-blue-600">
+                                            {{ evaluations|sum_rubric_points|floatformat:1 }} points
+                                        </span>
+                                        <div class="text-xs text-gray-500 mt-1">
+                                            By: {{ evaluations.0.evaluated_by.get_full_name|default:evaluations.0.evaluated_by.username }}
+                                        </div>
+                                    </td>
+                                    <td class="px-4 py-3 border-b border-gray-200">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                            <svg class="mr-1.5 h-2 w-2 text-green-400" fill="currentColor" viewBox="0 0 8 8">
+                                                <circle cx="4" cy="4" r="3" />
+                                            </svg>
+                                            Graded
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3 border-b border-gray-200">
+                                        <div class="flex space-x-2">
+                                            <a href="?grade_attempt={{ attempt.id }}" class="text-blue-600 hover:text-blue-800">
+                                                Review
+                                            </a>
+                                            
+                                            <!-- Details Report Button -->
+                                            <button onclick="generateQuizDetailedReport({{ quiz.id }}, {{ attempt.user.id }})" 
+                                                    class="text-purple-600 hover:text-purple-800 font-medium">
+                                                <i class="fas fa-file-alt mr-1"></i>Report
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endwith %}
+                                {% else %}
+                                <!-- Pending Rubric row (for non-evaluated rubric quizzes) -->
+                                <tr class="{% cycle 'bg-white' 'bg-gray-50' as rowcolors %}">
+                                    <td class="px-4 py-3 border-b border-gray-200">{{ attempt.user.get_full_name|default:attempt.user.username }}</td>
+                                    <td class="px-4 py-3 border-b border-gray-200">{{ attempt.end_time|date:"M d, Y H:i" }}</td>
+                                    <td class="px-4 py-3 border-b border-gray-200">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                            Pending Rubric
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3 border-b border-gray-200">
+                                        <span class="text-gray-400">Not graded yet</span>
+                                    </td>
+                                    <td class="px-4 py-3 border-b border-gray-200">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                            <svg class="mr-1.5 h-2 w-2 text-yellow-400" fill="currentColor" viewBox="0 0 8 8">
+                                                <circle cx="4" cy="4" r="3" />
+                                            </svg>
+                                            Needs Grading
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3 border-b border-gray-200">
+                                        <a href="?grade_attempt={{ attempt.id }}" class="text-blue-600 hover:text-blue-800">
+                                            Grade Now
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                
+                {% else %}
+                <p class="text-gray-600">No student attempts found for this quiz.</p>
+                {% endif %}
+            </div>
+            
+            <!-- Rubric grading form -->
+            {% if grading_attempt and quiz.rubric %}
+            <div class="mt-8 border-t pt-6" id="rubric-grading-form">
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                    <h3 class="text-lg font-semibold text-blue-900 mb-2">
+                        <i class="fas fa-clipboard-check mr-2"></i>
+                        Grading: {{ grading_attempt.user.get_full_name|default:grading_attempt.user.username }}
+                    </h3>
+                    <div class="text-sm text-blue-700">
+                        <p><strong>Submitted:</strong> {{ grading_attempt.end_time|date:"M d, Y H:i" }}</p>
+                        <p><strong>Rubric:</strong> {{ quiz.rubric.title }}</p>
+                        <p><strong>Auto Score:</strong> {{ grading_attempt.score|floatformat:1 }}%</p>
+                    </div>
+                </div>
+                
+                <form method="post" action="{% url 'quiz:quiz_view' quiz.id %}?grade_attempt={{ grading_attempt.id }}" id="rubric-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="attempt_id" value="{{ grading_attempt.id }}">
+                    
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white border border-gray-200 mb-4">
+                            <thead>
+                                <tr>
+                                    <th class="px-4 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Criterion</th>
+                                    <th class="px-4 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Rating</th>
+                                    <th class="px-4 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Points</th>
+                                    <th class="px-4 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Comments</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for criterion in criteria %}
+                                <tr class="{% cycle 'bg-white' 'bg-gray-50' %}">
+                                    <td class="px-4 py-3 border-b border-gray-200">
+                                        <div class="font-medium">{{ criterion.description }}</div>
+                                        <div class="text-sm text-gray-600">Max points: {{ criterion.points }}</div>
+                                    </td>
+                                    <td class="px-4 py-3 border-b border-gray-200">
+                                        <select name="criterion_{{ criterion.id }}_rating" class="form-select w-full border-gray-300 rounded-md">
+                                            <option value="">Select rating</option>
+                                            {% for rating in criterion.ratings.all %}
+                                            <option value="{{ rating.id }}" 
+                                                {% if criterion.id in evaluations_dict %}
+                                                    {% if evaluations_dict|get_item:criterion.id|get_rating_id == rating.id %}selected{% endif %}
+                                                {% endif %}>
+                                                {{ rating.title }} ({{ rating.points }} points)
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td class="px-4 py-3 border-b border-gray-200">
+                                        <input 
+                                            type="number" 
+                                            name="criterion_{{ criterion.id }}_points" 
+                                            class="form-input w-full border-gray-300 rounded-md" 
+                                            min="0" 
+                                            max="{{ criterion.points }}" 
+                                            step="0.1" 
+                                            value="{% if criterion.id in evaluations_dict %}{{ evaluations_dict|get_item:criterion.id|get_item:'points' }}{% else %}0{% endif %}"
+                                        >
+                                    </td>
+                                    <td class="px-4 py-3 border-b border-gray-200">
+                                        <textarea 
+                                            name="criterion_{{ criterion.id }}_comments" 
+                                            class="form-textarea w-full border-gray-300 rounded-md" 
+                                            rows="2"
+                                            placeholder="Enter your feedback..."
+                                        >{% if criterion.id in evaluations_dict %}{{ evaluations_dict|get_item:criterion.id|get_item:'comments' }}{% endif %}</textarea>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="flex justify-between items-center">
+                        <a href="{% url 'quiz:quiz_view' quiz.id %}" class="bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-md transition-colors">
+                            Cancel
+                        </a>
+                        <button type="submit" name="submit_rubric_grade" class="bg-green-600 hover:bg-green-700 text-white py-2 px-6 rounded-md transition-colors">
+                            <i class="fas fa-save mr-2"></i>
+                            Submit Rubric Grade
+                        </button>
+                    </div>
+                </form>
+            </div>
+            {% elif grading_attempt and not quiz.rubric %}
+            <div class="mt-8 border-t pt-6">
+                <div class="bg-yellow-50 p-4 rounded-md">
+                    <p class="text-yellow-700">This quiz does not have a rubric assigned. Please assign a rubric to the quiz to enable rubric-based grading.</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Auto-scroll to grading form if it's present
+        const gradingForm = document.getElementById('rubric-grading-form');
+        if (gradingForm) {
+            // Small delay to ensure page is fully loaded
+            setTimeout(() => {
+                gradingForm.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start' 
+                });
+                
+                // Add a subtle highlight effect
+                gradingForm.style.boxShadow = '0 0 20px rgba(59, 130, 246, 0.3)';
+                setTimeout(() => {
+                    gradingForm.style.boxShadow = '';
+                }, 2000);
+            }, 500);
+        }
+        
+        // Rating dropdown auto-fill points functionality
+        const ratingSelects = document.querySelectorAll('select[name^="criterion_"][name$="_rating"]');
+        
+        ratingSelects.forEach(select => {
+            select.addEventListener('change', function() {
+                // Get the criterion ID from the select name
+                const criterionId = this.name.match(/criterion_(\d+)_rating/)[1];
+                
+                // Find the corresponding points input
+                const pointsInput = document.querySelector(`input[name="criterion_${criterionId}_points"]`);
+                
+                if (pointsInput && this.value) {
+                    // Get the selected option
+                    const selectedOption = this.options[this.selectedIndex];
+                    
+                    // Extract points from the option text - format is typically "Rating Name (X points)"
+                    const pointsMatch = selectedOption.textContent.match(/\(([0-9.]+)\s*points?\)/i);
+                    
+                    if (pointsMatch && pointsMatch[1]) {
+                        const ratingPoints = parseFloat(pointsMatch[1]);
+                        const currentPoints = parseFloat(pointsInput.value) || 0;
+                        
+                        // Only auto-fill if points field is empty or contains 0
+                        if (currentPoints === 0 || pointsInput.value.trim() === '') {
+                            pointsInput.style.transition = 'all 0.3s ease';
+                            pointsInput.style.backgroundColor = '#e8eafd';
+                            pointsInput.value = ratingPoints;
+                            
+                            // Remove highlight after a short delay
+                            setTimeout(() => {
+                                pointsInput.style.backgroundColor = '';
+                            }, 1000);
+                        } else {
+                            // If instructor has entered custom points, show a subtle indicator
+                            pointsInput.style.transition = 'all 0.3s ease';
+                            pointsInput.style.borderColor = '#3b82f6';
+                            pointsInput.title = `Rating suggests ${ratingPoints} points, but your custom value (${currentPoints}) is preserved.`;
+                            
+                            setTimeout(() => {
+                                pointsInput.style.borderColor = '';
+                            }, 2000);
+                        }
+                    }
+                }
+            });
+        });
+        
+        // Form validation
+        const gradingFormElement = document.querySelector('#rubric-grading-form form');
+        if (gradingFormElement) {
+            
+            // Log all form inputs for debugging
+            const allInputs = gradingFormElement.querySelectorAll('input, select, textarea');
+            
+            gradingFormElement.addEventListener('submit', function(e) {
+                const pointsInputs = this.querySelectorAll('input[name^="criterion_"][name$="_points"]');
+                
+                let allFilled = true;
+                
+                pointsInputs.forEach(input => {
+                    if (!input.value || input.value === '') {
+                        allFilled = false;
+                        input.style.borderColor = '#ef4444';
+                        input.style.backgroundColor = '#fef2f2';
+                    } else {
+                        input.style.borderColor = '#d1d5db';
+                        input.style.backgroundColor = '';
+                    }
+                });
+                
+                
+                if (!allFilled) {
+                    e.preventDefault();
+                    alert('Please enter points for all criteria before submitting.');
+                    return false;
+                }
+                
+                const formData = new FormData(this);
+                
+                // Don't prevent default - let the form submit naturally
+            });
+            
+            // ADD THIS - Listen for the actual form submission
+        }
+        
+        // MODIFY the submit button handler to not disable permanently
+        const submitButton = document.querySelector('button[name="submit_rubric_grade"]');
+        if (submitButton) {
+            // Remove the old click handler and replace with a better one
+            submitButton.onclick = null;
+            
+        }
+    });
+
+    // Generate quiz detailed report function
+    function generateQuizDetailedReport(quizId, studentId) {
+        // Redirect to the student-specific detailed report page
+        window.location.href = `/quiz/${quizId}/detailed-report/?student_id=${studentId}`;
+    }
+
+    // Confirm starting new attempt when user has an incomplete one
+    function confirmStartNew() {
+        if (confirm('You have an incomplete quiz attempt. Starting a new attempt will abandon your current progress. Are you sure you want to continue?')) {
+            // Force start new attempt by adding a parameter
+            window.location.href = '{{ attempt_url }}?start=true&force_new=true';
+        }
+    }
+</script>
+{% endblock %} 

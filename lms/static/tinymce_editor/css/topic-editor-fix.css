@@ -1,0 +1,63 @@
+/**
+ * Topic Editor Toolbar Position Fix
+ * This CSS ensures the TinyMCE toolbar in the topic edit page stays properly aligned
+ */
+
+/* Fix for topic description editor toolbar positioning */
+.tox.tox-tinymce {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+.tox .tox-editor-container {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+.tox .tox-editor-header {
+    width: 100% !important;
+    left: 0 !important;
+    position: static !important;
+    transform: none !important;
+}
+
+.tox .tox-toolbar-overlord {
+    width: 100% !important;
+    left: 0 !important;
+    transform: none !important;
+}
+
+.tox .tox-toolbar__primary {
+    width: 100% !important;
+    left: 0 !important;
+    transform: none !important;
+    justify-content: flex-start !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+}
+
+/* Fix positioning when scrolling */
+.tox-tinymce--toolbar-sticky-on .tox-editor-header {
+    position: sticky !important;
+    left: 0 !important;
+    width: 100% !important;
+    transform: none !important;
+}
+
+/* Add safety measures to prevent CSS transformations */
+.tox-tinymce * {
+    transform: none !important;
+}
+
+/* Fix formatting dropdown sizing */
+.tox .tox-tbtn.tox-tbtn--select {
+    width: auto !important;
+}
+
+/* Fix menubar positioning */
+.tox .tox-menubar {
+    width: 100% !important;
+    left: 0 !important;
+} 

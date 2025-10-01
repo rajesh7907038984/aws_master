@@ -1,0 +1,1 @@
+default_app_config = 'lms_rubrics.apps.LmsRubricsConfig' 

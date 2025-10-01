@@ -1,0 +1,494 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Global Business Performance Dashboard{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/charts.css' %}">
+<style>
+    .dashboard-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    }
+    
+    .metric-card {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        border-left: 5px solid #667eea;
+        transition: transform 0.3s ease;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .metric-value {
+        font-size: 3rem;
+        font-weight: bold;
+        color: #667eea;
+        margin-bottom: 10px;
+    }
+    
+    .metric-label {
+        color: #6c757d;
+        font-size: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 600;
+    }
+    
+    .chart-container {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    
+    .chart-title {
+        color: #333;
+        font-size: 1.3rem;
+        font-weight: 600;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+    }
+    
+    .chart-title i {
+        margin-right: 10px;
+        color: #667eea;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .business-selector {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .timeframe-selector {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .btn-timeframe {
+        margin: 0 5px;
+        border-radius: 20px;
+        padding: 8px 20px;
+        font-weight: 500;
+    }
+    
+    .btn-timeframe.active {
+        background: #667eea;
+        color: white;
+        border-color: #667eea;
+    }
+    
+    .business-card {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .business-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+    
+    .business-name {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 10px;
+    }
+    
+    .business-stats {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.9rem;
+        color: #666;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Dashboard Header -->
+    <div class="dashboard-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="mb-2">
+                    <i class="fas fa-chart-line me-3"></i>
+                    Global Business Performance Dashboard
+                </h1>
+                <p class="mb-0 opacity-75">Comprehensive analytics and insights across all businesses</p>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="btn-group" role="group">
+                    <button class="btn btn-light" onclick="refreshData()">
+                        <i class="fas fa-sync-alt me-1"></i> Refresh
+                    </button>
+                    <button class="btn btn-light" onclick="exportData()">
+                        <i class="fas fa-download me-1"></i> Export
+                    </button>
+                    <button class="btn btn-light" onclick="clearCache()">
+                        <i class="fas fa-trash me-1"></i> Clear Cache
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Business and Timeframe Selectors -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="business-selector">
+                <label for="businessSelect" class="form-label fw-bold">Select Business:</label>
+                <select id="businessSelect" class="form-select" onchange="changeBusiness()">
+                    <option value="">All Businesses</option>
+                    {% for business in businesses %}
+                    <option value="{{ business.id }}" {% if business.id|stringformat:"s" == selected_business_id %}selected{% endif %}>
+                        {{ business.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="timeframe-selector">
+                <label class="form-label fw-bold">Timeframe:</label>
+                <div class="d-flex">
+                    <button class="btn btn-timeframe {% if selected_timeframe == 'day' %}active{% endif %}" 
+                            onclick="changeTimeframe('day')">24 Hours</button>
+                    <button class="btn btn-timeframe {% if selected_timeframe == 'week' %}active{% endif %}" 
+                            onclick="changeTimeframe('week')">7 Days</button>
+                    <button class="btn btn-timeframe {% if selected_timeframe == 'month' %}active{% endif %}" 
+                            onclick="changeTimeframe('month')">30 Days</button>
+                    <button class="btn btn-timeframe {% if selected_timeframe == 'year' %}active{% endif %}" 
+                            onclick="changeTimeframe('year')">12 Months</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="stats-grid">
+        <div class="metric-card text-center">
+            <div class="metric-value">{{ overview_stats.total_users }}</div>
+            <div class="metric-label">Total Users</div>
+            <div class="mt-2">
+                <small class="text-muted">{{ overview_stats.active_users }} Active</small>
+            </div>
+        </div>
+        
+        <div class="metric-card text-center">
+            <div class="metric-value">{{ overview_stats.total_courses }}</div>
+            <div class="metric-label">Total Courses</div>
+            <div class="mt-2">
+                <small class="text-muted">{{ overview_stats.total_enrollments }} Enrollments</small>
+            </div>
+        </div>
+        
+        <div class="metric-card text-center">
+            <div class="metric-value">{{ overview_stats.completion_rate }}%</div>
+            <div class="metric-label">Completion Rate</div>
+            <div class="mt-2">
+                <small class="text-muted">{{ overview_stats.completed_enrollments }} Completed</small>
+            </div>
+        </div>
+        
+        <div class="metric-card text-center">
+            <div class="metric-value">{{ overview_stats.total_branches }}</div>
+            <div class="metric-label">Total Branches</div>
+            <div class="mt-2">
+                <small class="text-muted">Active Locations</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="chart-container">
+                <h5 class="chart-title">
+                    <i class="fas fa-sign-in-alt"></i>
+                    Login Activity Trends
+                </h5>
+                <canvas id="loginTrendChart" height="300"></canvas>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="chart-container">
+                <h5 class="chart-title">
+                    <i class="fas fa-graduation-cap"></i>
+                    Course Completion Trends
+                </h5>
+                <canvas id="completionTrendChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Business Comparison Chart -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="chart-container">
+                <h5 class="chart-title">
+                    <i class="fas fa-building"></i>
+                    Business Performance Comparison
+                </h5>
+                <canvas id="businessComparisonChart" height="400"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Business List -->
+    <div class="row">
+        <div class="col-12">
+            <div class="chart-container">
+                <h5 class="chart-title">
+                    <i class="fas fa-list"></i>
+                    Business Overview
+                </h5>
+                <div class="row">
+                    {% for business in business_comparison.businesses %}
+                    <div class="col-md-4 mb-3">
+                        <div class="business-card" onclick="viewBusinessDetail({{ business.business_id }})">
+                            <div class="business-name">{{ business.business_name }}</div>
+                            <div class="business-stats">
+                                <span>Users: {{ business.total_users }}</span>
+                                <span>Rate: {{ business.completion_rate }}%</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="position-fixed top-0 start-0 w-100 h-100 d-none" 
+     style="background: rgba(0,0,0,0.5); z-index: 9999;">
+    <div class="d-flex justify-content-center align-items-center h-100">
+        <div class="text-center text-white">
+            <div class="spinner-border mb-3" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <div>Updating performance data...</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'business/js/performance_charts.js' %}"></script>
+<script>
+    let loginTrendChart, completionTrendChart, businessComparisonChart;
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeCharts();
+        startRealTimeRefresh();
+    });
+    
+    function initializeCharts() {
+        // Initialize Login Trends Chart
+        const loginCtx = document.getElementById('loginTrendChart').getContext('2d');
+        const loginData = {{ chart_data.login_trend|safe }};
+        loginTrendChart = new Chart(loginCtx, loginData);
+        
+        // Initialize Completion Trends Chart
+        const completionCtx = document.getElementById('completionTrendChart').getContext('2d');
+        const completionData = {{ chart_data.completion_trend|safe }};
+        completionTrendChart = new Chart(completionCtx, completionData);
+        
+        // Initialize Business Comparison Chart
+        const comparisonCtx = document.getElementById('businessComparisonChart').getContext('2d');
+        const comparisonData = {{ chart_data.business_comparison|safe }};
+        businessComparisonChart = new Chart(comparisonCtx, comparisonData);
+    }
+    
+    function changeBusiness() {
+        const businessId = document.getElementById('businessSelect').value;
+        const timeframe = '{{ selected_timeframe }}';
+        
+        showLoading();
+        
+        const url = new URL(window.location);
+        if (businessId) {
+            url.searchParams.set('business_id', businessId);
+        } else {
+            url.searchParams.delete('business_id');
+        }
+        url.searchParams.set('timeframe', timeframe);
+        
+        window.location.href = url.toString();
+    }
+    
+    function changeTimeframe(timeframe) {
+        // Update active button
+        document.querySelectorAll('.btn-timeframe').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        event.target.classList.add('active');
+        
+        const businessId = document.getElementById('businessSelect').value;
+        
+        showLoading();
+        
+        // Update URL and reload
+        const url = new URL(window.location);
+        url.searchParams.set('timeframe', timeframe);
+        if (businessId) {
+            url.searchParams.set('business_id', businessId);
+        } else {
+            url.searchParams.delete('business_id');
+        }
+        
+        window.location.href = url.toString();
+    }
+    
+    function viewBusinessDetail(businessId) {
+        window.location.href = `/business/performance/${businessId}/`;
+    }
+    
+    function refreshData() {
+        showLoading();
+        window.location.reload();
+    }
+    
+    function exportData() {
+        const businessId = document.getElementById('businessSelect').value;
+        const timeframe = '{{ selected_timeframe }}';
+        
+        const exportUrl = new URL('{% url "business:performance_export" %}');
+        exportUrl.searchParams.set('format', 'json');
+        if (businessId) {
+            exportUrl.searchParams.set('business_id', businessId);
+        }
+        exportUrl.searchParams.set('timeframe', timeframe);
+        
+        window.open(exportUrl.toString(), '_blank');
+    }
+    
+    function clearCache() {
+        if (confirm('Are you sure you want to clear the performance data cache? This will refresh all data.')) {
+            showLoading();
+            
+            fetch('{% url "business:performance_cache_management" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: 'action=clear_all'
+            })
+            .then(response => response.json())
+            .then(data => {
+                hideLoading();
+                if (data.success) {
+                    alert('Cache cleared successfully!');
+                    window.location.reload();
+                } else {
+                    alert('Failed to clear cache');
+                }
+            })
+            .catch(error => {
+                hideLoading();
+                console.error('Error:', error);
+                alert('Failed to clear cache');
+            });
+        }
+    }
+    
+    function showLoading() {
+        document.getElementById('loadingOverlay').classList.remove('d-none');
+    }
+    
+    function hideLoading() {
+        document.getElementById('loadingOverlay').classList.add('d-none');
+    }
+    
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    function startRealTimeRefresh() {
+        // Refresh charts every 30 seconds for more live data
+        setInterval(function() {
+            refreshChartData();
+        }, {{ refresh_interval|default:30000 }});
+    }
+    
+    function refreshChartData() {
+        const businessId = document.getElementById('businessSelect').value;
+        const timeframe = '{{ selected_timeframe }}';
+        
+        // Refresh login trend chart
+        fetch(`{{ api_endpoints.login_trend }}&timeframe=${timeframe}&business_id=${businessId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && loginTrendChart) {
+                    loginTrendChart.data = data.data.data;
+                    loginTrendChart.update('none'); // Silent update
+                }
+            })
+            .catch(error => console.error('Error refreshing login trend:', error));
+        
+        // Refresh completion trend chart
+        fetch(`{{ api_endpoints.completion_trend }}&timeframe=${timeframe}&business_id=${businessId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && completionTrendChart) {
+                    completionTrendChart.data = data.data.data;
+                    completionTrendChart.update('none'); // Silent update
+                }
+            })
+            .catch(error => console.error('Error refreshing completion trend:', error));
+        
+        // Refresh business comparison chart
+        fetch(`{{ api_endpoints.business_comparison }}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && businessComparisonChart) {
+                    businessComparisonChart.data = data.data.data;
+                    businessComparisonChart.update('none'); // Silent update
+                }
+            })
+            .catch(error => console.error('Error refreshing business comparison:', error));
+    }
+</script>
+{% endblock %}

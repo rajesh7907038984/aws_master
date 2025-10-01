@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Create Access Control Role - LMS{% endblock %}
+
+{% block extra_css %}
+    <style>
+    body {
+        background-color: #ffffff !important;
+    }
+    
+    .main-content {
+        background-color: #ffffff !important;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="flex-1 p-8 overflow-x-hidden overflow-y-auto bg-white">
+    <div class="p-6 space-y-6 bg-white">
+        <!-- Breadcrumb -->
+        {% include 'components/breadcrumb.html' with items=breadcrumbs %}
+
+        <!-- Main Content -->
+        <div class="container mx-auto">
+            <!-- Main grid with 70-30 split -->
+            <div class="grid grid-cols-12 gap-4 md:gap-6">
+                <!-- Left Column (70%) -->
+                <div class="col-span-12 lg:col-span-8 transition-all duration-300">
+                    <div class="bg-white rounded-lg shadow-sm p-6">
+                        <h1 class="text-2xl font-bold text-gray-900 mb-6">Create Access Control Role</h1>
+
+                        <form method="post" class="space-y-6">
+                            {% csrf_token %}
+                            
+                            <!-- User Role Selection (Multiple Checkboxes) -->
+                            <div class="form-group">
+                                <label class="block text-sm font-medium text-gray-900 mb-2">
+                                    User Role (Select multiple)
+                                </label>
+                                <div class="mt-1 flex flex-wrap gap-4">
+                                    {% for role in available_roles %}
+                                    <div class="flex items-center">
+                                        <input type="checkbox" name="user_role[]" id="role_{{ role.value }}" 
+                                               value="{{ role.value }}" class="h-4 w-4 text-blue-600 border-gray-300 rounded">
+                                        <label for="role_{{ role.value }}" class="ml-2 text-sm text-gray-900">{{ role.name }}</label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <!-- Custom Role Permissions (hidden by default, shown when custom role is selected) -->
+                            <div id="customRoleOptions" class="space-y-4 hidden">
+                                <h3 class="text-lg font-medium text-gray-900">Custom Role Permissions</h3>
+                                
+                                <div class="form-group">
+                                    <div class="flex items-start">
+                                        <div class="flex items-center h-5">
+                                            <input type="checkbox" name="can_edit" id="can_edit" 
+                                                  class="h-4 w-4 text-blue-600 border-gray-300 rounded">
+                                        </div>
+                                        <div class="ml-3">
+                                            <label for="can_edit" class="text-sm font-medium text-gray-900">Can Edit Content</label>
+                                            <p class="text-sm text-gray-500">Allow users to edit course content</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <div class="flex items-start">
+                                        <div class="flex items-center h-5">
+                                            <input type="checkbox" name="can_manage_members" id="can_manage_members" 
+                                                  class="h-4 w-4 text-blue-600 border-gray-300 rounded">
+                                        </div>
+                                        <div class="ml-3">
+                                            <label for="can_manage_members" class="text-sm font-medium text-gray-900">Can Manage Members</label>
+                                            <p class="text-sm text-gray-500">Allow users to manage group members</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <div class="flex items-start">
+                                        <div class="flex items-center h-5">
+                                            <input type="checkbox" name="can_manage_content" id="can_manage_content" 
+                                                  class="h-4 w-4 text-blue-600 border-gray-300 rounded">
+                                        </div>
+                                        <div class="ml-3">
+                                            <label for="can_manage_content" class="text-sm font-medium text-gray-900">Can Manage Content</label>
+                                            <p class="text-sm text-gray-500">Allow users to manage course content</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Course Group Selection -->
+                            <div class="form-group">
+                                <label for="course_group" class="block text-sm font-medium text-gray-900 mb-2">
+                                    Course Group
+                                </label>
+                                <div class="mt-1">
+                                    <select name="course_group" id="course_group" 
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md" required>
+                                        <option value="">Select Course Group</option>
+                                        {% for group in course_groups %}
+                                            <option value="{{ group.id }}">{{ group.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Users Group Selection (Single) -->
+                            <div class="form-group">
+                                <label for="users_group" class="block text-sm font-medium text-gray-900 mb-2">
+                                    Users Group
+                                </label>
+                                <div class="mt-1">
+                                    <select name="users_group" id="users_group"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md" required>
+                                        <option value="">Select Users Group</option>
+                                        {% for group in user_groups %}
+                                            <option value="{{ group.id }}">{{ group.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Auto Enrollment -->
+                            <div class="form-group">
+                                <div class="flex items-start">
+                                    <div class="flex items-center h-5">
+                                        <input type="checkbox" name="auto_enroll" id="auto_enroll" 
+                                               class="h-4 w-4 text-blue-600 border-gray-300 rounded">
+                                    </div>
+                                    <div class="ml-3">
+                                        <label for="auto_enroll" class="text-sm font-medium text-gray-900">Enable Auto-Enrollment</label>
+                                        <p class="text-sm text-gray-500">Automatically enroll users in courses when assigned this role</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Form Actions -->
+                            <div class="flex justify-end pt-6 space-x-4 border-t border-gray-200">
+                                <a href="{% url 'groups:group_list' %}{% if tab %}?tab={{ tab }}{% endif %}" 
+                                   class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors">
+                                    Cancel
+                                </a>
+                                <button type="submit" 
+                                        class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                                    Create Role
+                                </button>
+                            </div>
+                            
+                            <!-- Hidden tab field to maintain tab context -->
+                            {% if tab %}
+                            <input type="hidden" name="tab" value="{{ tab }}">
+                            {% endif %}
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Right Column (30%) -->
+                <div class="col-span-12 lg:col-span-4 transition-all duration-300">
+                    {% include 'components/right_sidebar.html' %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const checkboxes = document.querySelectorAll('input[name="user_role[]"]');
+        const customRoleOptions = document.getElementById('customRoleOptions');
+        
+        // Function to check if any custom role is selected
+        function checkCustomRole() {
+            let customRoleSelected = false;
+            
+            checkboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    const value = checkbox.value;
+                    if (value === 'custom' || value.startsWith('custom_')) {
+                        customRoleSelected = true;
+                    }
+                }
+            });
+            
+            if (customRoleSelected) {
+                customRoleOptions.classList.remove('hidden');
+            } else {
+                customRoleOptions.classList.add('hidden');
+            }
+        }
+        
+        // Add event listeners to all checkboxes
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', checkCustomRole);
+        });
+
+        // Check initial state
+        checkCustomRole();
+    });
+</script>
+{% endblock %} 

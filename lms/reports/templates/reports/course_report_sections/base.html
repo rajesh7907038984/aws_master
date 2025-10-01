@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ course.title }} - {{ section_title }}{% endblock %}
+
+{% block content %}
+<div class="bg-white text-black min-h-screen">
+    <div class="container mx-auto px-4 py-6">
+        <!-- Breadcrumbs -->
+        <div class="mb-6">
+            <nav class="flex" aria-label="Breadcrumb">
+                <ol class="inline-flex items-center space-x-1 md:space-x-3">
+                    <li class="inline-flex items-center">
+                        <a href="{% url 'users:role_based_redirect' %}" class="text-gray-700 hover:text-gray-900">
+                            <i class="fas fa-home mr-2"></i>Dashboard
+                        </a>
+                    </li>
+                    <li>
+                        <div class="flex items-center">
+                            <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                            <a href="{% url 'reports:overview' %}" class="text-gray-700 hover:text-gray-900">Reports</a>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="flex items-center">
+                            <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                            <a href="{% url 'reports:courses_report' %}" class="text-gray-700 hover:text-gray-900">Courses</a>
+                        </div>
+                    </li>
+                    <li aria-current="page">
+                        <div class="flex items-center">
+                            <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                            <span class="text-gray-500">{{ course.title }}</span>
+                        </div>
+                    </li>
+                </ol>
+            </nav>
+        </div>
+
+        <!-- Course Header -->
+        <div class="mb-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
+                        <i class="fas fa-lightbulb text-blue-600 text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-semibold text-gray-900">{{ course.code|default:"SK201" }}</h1>
+                        <p class="text-gray-600">{{ course.title }}</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="window.history.back()" class="inline-flex items-center bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 transition-all">
+                        <i class="fas fa-arrow-left mr-2"></i>
+                        Back
+                    </button>
+                    <div class="dropdown relative inline-block">
+                        <button onclick="exportCourseTimeline()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">
+                            <i class="fas fa-download mr-2"></i>Export in Excel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="border-b border-gray-200 mb-6">
+            <nav class="flex -mb-px space-x-1">
+                <a href="{% url 'reports:course_report_overview' course.id %}" 
+                   class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'overview' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+                    <i class="fas fa-chart-line mr-2"></i>Overview
+                </a>
+                <a href="{% url 'reports:course_report_users' course.id %}" 
+                   class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'users' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+                    <i class="fas fa-users mr-2"></i>Users
+                </a>
+                <a href="{% url 'reports:course_report_activities' course.id %}" 
+                   class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'learning-activities' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+                    <i class="fas fa-tasks mr-2"></i>Learning Activities
+                </a>
+                <a href="{% url 'reports:course_report_matrix' course.id %}" 
+                   class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'unit-matrix' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+                    <i class="fas fa-table mr-2"></i>Unit Matrix
+                </a>
+                <a href="{% url 'reports:course_report_timeline' course.id %}" 
+                   class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'timeline' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+                    <i class="fas fa-clock mr-2"></i>Timeline
+                </a>
+            </nav>
+        </div>
+
+        <!-- Section Content -->
+        {% block section_content %}
+        {% endblock %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<script>
+function exportCourseTimeline() {
+    // Show loading indicator
+    const button = event.target.closest('button');
+    const originalContent = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Exporting...';
+    button.disabled = true;
+    
+    // Create the export URL
+    const courseId = {{ course.id }};
+    const exportUrl = `/reports/courses/${courseId}/timeline/excel/`;
+    
+    // Create a temporary link and trigger download
+    const link = document.createElement('a');
+    link.href = exportUrl;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Reset button after a delay
+    setTimeout(() => {
+        button.innerHTML = originalContent;
+        button.disabled = false;
+    }, 2000);
+}
+</script>
+{% endblock %}

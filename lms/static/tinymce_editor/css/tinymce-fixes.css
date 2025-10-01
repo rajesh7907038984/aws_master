@@ -1,0 +1,32 @@
+/* Fix for TinyMCE toolbar visibility */
+.tox-toolbar__primary {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.tox-toolbar__group {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.tox-toolbar-overlord {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Ensure toolbar buttons are visible */
+.tox .tox-tbtn {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Fix for editor menu visibility */
+.tox-menubar {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}

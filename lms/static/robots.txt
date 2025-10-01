@@ -1,0 +1,16 @@
+User-agent: *
+Disallow: /admin/
+Disallow: /api/
+Disallow: /media/private/
+Disallow: /accounts/
+Disallow: /dashboard/
+Disallow: /courses/api/
+Disallow: /reports/
+Disallow: /gradebook/
+Allow: /
+
+# Sitemap (if needed in the future)
+# Sitemap: https://your-domain.com/sitemap.xml
+
+# Crawl-delay for bots
+Crawl-delay: 1

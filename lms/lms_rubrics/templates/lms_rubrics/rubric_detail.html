@@ -1,0 +1,1125 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<style>
+    .rating-container {
+        border: 1px solid #e5e7eb;
+        border-radius: 0.375rem;
+        margin-bottom: 8px;
+        background-color: #fff;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        overflow: hidden;
+        transition: all 0.2s ease;
+        width: 100%;
+    }
+    
+    .rating-container.active {
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        border-color: #93c5fd;
+    }
+    
+    /* Range mode styling */
+    .rating-container.range-mode {
+        border-left: 3px solid #3b82f6;
+    }
+    
+    .rating-container.range-mode .rating-header {
+        background-color: #eff6ff;
+    }
+    
+    .criterion-row[data-use-range="true"] .rating-points {
+        color: #059669; /* Green color for range mode */
+    }
+    
+    .rating-header {
+        padding: 0.75rem;
+        cursor: pointer;
+        background-color: #f9fafb;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: background-color 0.2s ease;
+    }
+    
+    .rating-header:hover {
+        background-color: #f3f4f6;
+    }
+    
+    .rating-header.active {
+        background-color: #eff6ff;
+    }
+    
+    .rating-name {
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: #4b5563; 
+    }
+    
+    .rating-points {
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: #2563eb;
+        margin: 0 8px;
+    }
+
+    .rating-header-content {
+        display: flex;
+        align-items: center;
+        flex-grow: 1;
+    }
+    
+    .rating-content {
+        height: 0;
+        overflow: hidden;
+        transition: height 0.3s ease-in-out, padding 0.3s ease-in-out;
+        padding: 0;
+        /* Prevent content from shifting when closing */
+        box-sizing: border-box;
+        will-change: height, padding;
+    }
+    
+    .rating-content.open {
+        height: auto !important; /* Force auto height when open */
+        padding: 0.75rem;
+        border-top: 1px solid #e5e7eb;
+        background-color: #ffffff;
+        display: block !important; /* Ensure visibility */
+        overflow: visible !important; /* Allow content to be seen */
+        min-height: 100px; /* Minimum height to show content */
+    }
+    
+    .rating-description {
+        font-size: 0.875rem;
+        line-height: 1.5;
+        color: #4b5563;
+        visibility: visible !important; /* Ensure description is always visible when expanded */
+        display: block !important; /* Force display */
+        opacity: 1 !important; /* Ensure opacity */
+    }
+    
+    .ratings-column {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .chevron-icon {
+        transition: transform 0.3s;
+        flex-shrink: 0;
+    }
+    
+    .chevron-icon.rotated {
+        transform: rotate(180deg);
+    }
+    
+    .edit-button {
+        display: flex;
+        gap: 0.5rem;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        margin-right: 0.5rem;
+    }
+    
+    .rating-header:hover .edit-button {
+        opacity: 1;
+    }
+    
+    /* Improved mobile responsiveness */
+    @media (max-width: 640px) {
+        .grid.grid-cols-12 {
+            display: block;
+        }
+        .col-span-5, .col-span-2 {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container max-w-5xl mx-auto">
+    <!-- Breadcrumbs -->
+    {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+    
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">{{ rubric.title }}</h1>
+        <div class="flex space-x-2">
+            <a href="{% url 'lms_rubrics:edit' rubric_id=rubric.id %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
+                </svg>
+                Edit
+            </a>
+            <a href="{% url 'lms_rubrics:delete' rubric_id=rubric.id %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                </svg>
+                Delete
+            </a>
+        </div>
+    </div>
+
+    <!-- Error messages container -->
+    <div id="error-container" class="mb-4 hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+        <span class="block sm:inline" id="error-message"></span>
+        <span class="absolute top-0 bottom-0 right-0 px-4 py-3">
+            <svg class="fill-current h-6 w-6 text-red-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" onclick="document.getElementById('error-container').classList.add('hidden')">
+                <title>Close</title>
+                <path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z"/>
+            </svg>
+        </span>
+    </div>
+
+    <div class="bg-white shadow rounded-lg overflow-hidden mb-6">
+        <div class="p-4 border-b bg-gray-50">
+            <label for="title" class="block text-gray-700 text-sm font-bold mb-1">Title:</label>
+            <input type="text" id="title" name="title" disabled value="{{ rubric.title }}" class="w-full p-2 border rounded-md bg-gray-50 focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+        </div>
+        
+        <!-- Include hidden CSRF token for AJAX requests -->
+        {% csrf_token %}
+        
+        <div class="divide-y">
+            <div class="grid grid-cols-12 bg-gray-50 p-4">
+                <div class="col-span-5 font-semibold text-center">Criteria</div>
+                <div class="col-span-5 font-semibold text-center">Ratings</div>
+                <div class="col-span-2 font-semibold text-center">Pts</div>
+            </div>
+            
+            {% if rubric.criteria.exists %}
+                {% for criterion in rubric.criteria.all %}
+                <div class="grid grid-cols-12 p-4 criterion-row" data-criterion-id="{{ criterion.id }}" data-use-range="{{ criterion.use_range|lower }}">
+                    <div class="col-span-5 pr-4 flex items-start">
+                        <div class="flex-grow">
+                            <div class="font-medium text-gray-800">{{ criterion.description }}</div>
+                            <div class="mt-2">
+                                <label class="inline-flex items-center text-sm text-gray-700">
+                                    <input type="checkbox" class="form-checkbox h-4 w-4 text-blue-600 range-checkbox" {% if criterion.use_range %}checked{% endif %} data-criterion-id="{{ criterion.id }}">
+                                    <span class="ml-2">Range</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="ml-2 flex flex-col space-y-1">
+                            <button type="button" class="text-gray-500 hover:text-gray-700 criterion-edit-btn">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
+                                </svg>
+                            </button>
+                            <a href="{% url 'lms_rubrics:delete_criterion' criterion_id=criterion.id %}" class="text-gray-500 hover:text-gray-700">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                </svg>
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <div class="col-span-5">
+                        <div class="ratings-column">
+                            {% for rating in criterion.ratings.all|dictsort:"position" %}
+                            <div class="rating-container" data-criterion-id="{{ criterion.id }}" data-rating-id="{{ rating.id }}" data-points="{{ rating.points }}">
+                                <div class="rating-header">
+                                    <div class="rating-header-content">
+                                        <div class="rating-name">{{ rating.title }}</div>
+                                        <div class="rating-points">{{ rating.points }} Pts</div>
+                                    </div>
+                                    <div class="edit-button">
+                                        <a href="{% url 'lms_rubrics:edit_rating' rating_id=rating.id %}" class="text-gray-500 hover:text-blue-600">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
+                                            </svg>
+                                        </a>
+                                        <a href="{% url 'lms_rubrics:delete_rating' rating_id=rating.id %}" class="text-gray-500 hover:text-red-600">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                            </svg>
+                                        </a>
+                                    </div>
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                </div>
+                                <div class="rating-content">
+                                    <div class="rating-description">
+                                        {{ rating.description|default:"No description provided" }}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="flex justify-center mt-3">
+                            <a href="{% url 'lms_rubrics:add_rating' criterion_id=criterion.id %}" class="bg-white rounded-full w-8 h-8 flex items-center justify-center border border-blue-500 text-blue-500 hover:bg-blue-50">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                </svg>
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <div class="col-span-2 flex items-center justify-center">
+                        <div class="w-full px-2">
+                            <input type="number" name="criterion_points" value="{{ criterion.points }}" disabled class="w-full p-2 border rounded-md bg-gray-50 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-center" placeholder="pts">
+                            <div class="text-xs text-center mt-1 text-gray-600">pts</div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="p-8 text-center text-gray-500">
+                    <p>No criteria have been added to this rubric yet.</p>
+                    <a href="{% url 'lms_rubrics:add_criterion' rubric_id=rubric.id %}" class="mt-2 inline-flex items-center text-blue-600 hover:text-blue-800">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-1">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                        </svg>
+                        Add your first criterion
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="p-4 border-t flex items-center gap-2 bg-gray-50">
+            <a href="{% url 'lms_rubrics:add_criterion' rubric_id=rubric.id %}" class="inline-flex items-center text-blue-600 hover:text-blue-800">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-1">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Criterion
+            </a>
+            
+            <button type="button" id="find-outcome-btn" class="inline-flex items-center text-blue-600 hover:text-blue-800 ml-4">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-1">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                </svg>
+                Find outcome
+            </button>
+            
+            <div class="ml-auto text-gray-700">
+                Total points: <span class="font-semibold">{{ rubric.total_points }}</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mb-6">
+        <a href="{% url 'lms_rubrics:list' %}" class="inline-flex items-center text-blue-600 hover:text-blue-800">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-1">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+            </svg>
+            Back to Rubrics
+        </a>
+    </div>
+</div>
+
+{% include "lms_outcomes/partials/outcomes_finder_modal.html" %}
+{% endblock content %}
+
+{% block extra_js %}
+<script>
+    // Making the simpleToggle function globally accessible
+    let isAnimating = false;
+    
+    // Function to update rating points display based on range checkbox
+    function updateRatingPointsDisplay(criterionId, useRange) {
+        const ratingContainers = document.querySelectorAll(`.rating-container[data-criterion-id="${criterionId}"]`);
+        
+        // Create an array of ratings sorted by points (descending)
+        const ratings = Array.from(ratingContainers).map(container => {
+            return {
+                element: container,
+                points: parseFloat(container.dataset.points)
+            };
+        }).sort((a, b) => b.points - a.points);
+        
+        if (useRange) {
+            // Add range mode styling
+            ratings.forEach(rating => {
+                rating.element.classList.add('range-mode');
+            });
+            
+            // Display in range format
+            ratings.forEach((rating, index) => {
+                const pointsElement = rating.element.querySelector('.rating-points');
+                const currentPoints = rating.points;
+                
+                if (index < ratings.length - 1) {
+                    // Not the last rating - show range to next lower rating
+                    const nextLowerPoints = ratings[index + 1].points;
+                    
+                    // Make sure we have valid numeric values
+                    if (!isNaN(currentPoints) && !isNaN(nextLowerPoints)) {
+                        pointsElement.textContent = `${currentPoints} to >${nextLowerPoints} Pts`;
+                    } else {
+                        // Fallback to standard display if points are not valid
+                        pointsElement.textContent = `${currentPoints || 0} Pts`;
+                    }
+                } else {
+                    // Last rating - show range to 0
+                    // Make sure we have valid numeric value
+                    if (!isNaN(currentPoints)) {
+                        pointsElement.textContent = `${currentPoints} to >0 Pts`;
+                    } else {
+                        pointsElement.textContent = `0 Pts`;
+                    }
+                }
+            });
+        } else {
+            // Remove range mode styling
+            ratings.forEach(rating => {
+                rating.element.classList.remove('range-mode');
+            });
+            
+            // Display in standard format
+            ratings.forEach((rating, index) => {
+                const pointsElement = rating.element.querySelector('.rating-points');
+                // Make sure we have valid numeric value
+                const displayPoints = !isNaN(rating.points) ? rating.points : 0;
+                pointsElement.textContent = `${displayPoints} Pts`;
+            });
+        }
+        
+        // No need to update total points when displaying ranges - preserve saved values
+    }
+    
+    // Function to update total points calculation
+    function updateTotalPoints() {
+        let totalPoints = 0;
+        document.querySelectorAll('.criterion-row').forEach(criterionRow => {
+            // USE THE SAVED CRITERION POINTS VALUE (user's custom values)
+            const pointsInput = criterionRow.querySelector('input[name="criterion_points"]');
+            if (pointsInput && pointsInput.value) {
+                const criterionTotal = parseFloat(pointsInput.value) || 0;
+                totalPoints += criterionTotal;
+            }
+        });
+        
+        // Update the total points display
+        const totalPointsDisplay = document.querySelector('.ml-auto.text-gray-700 span');
+        if (totalPointsDisplay) {
+            totalPointsDisplay.textContent = totalPoints.toFixed(1);
+        }
+    }
+    
+    // Function to format calculation method for display
+    function formatCalculationMethod(method) {
+        const methods = {
+            'weighted_average': 'Weighted Average',
+            'decaying_average': 'Decaying Average',
+            'n_times': 'n Number of Times',
+            'most_recent': 'Most Recent Score',
+            'highest': 'Highest Score',
+            'average': 'Average',
+            'no_point': 'No Point (Met/Not Met)'
+        };
+        
+        return methods[method] || method;
+    }
+    
+    // Function to open the modal
+    function openOutcomesModal() {
+        const outcomesFinderModal = document.getElementById('outcomes-finder-modal');
+        outcomesFinderModal.classList.remove('hidden');
+        fetchOutcomes();
+    }
+    
+    // Function to close the modal
+    function closeOutcomesModal() {
+        const outcomesFinderModal = document.getElementById('outcomes-finder-modal');
+        outcomesFinderModal.classList.add('hidden');
+        // Reset selection state
+        window.selectedOutcome = null;
+        const selectOutcomeBtn = document.getElementById('select-outcome');
+        if (selectOutcomeBtn) {
+            selectOutcomeBtn.disabled = true;
+        }
+    }
+    
+    // Function to fetch outcomes from the API
+    function fetchOutcomes() {
+        const outcomeGroupsTree = document.getElementById('outcome-groups-tree');
+        
+        fetch('/outcomes/api/outcomes/')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Outcomes data:', data);
+                renderOutcomesTree(data);
+            })
+            .catch(error => {
+                console.error('Error fetching outcomes:', error);
+                if (outcomeGroupsTree) {
+                    outcomeGroupsTree.innerHTML = `<div class="text-center py-8 text-red-500">
+                        <p>Error loading outcomes: ${error.message}</p>
+                    </div>`;
+                }
+            });
+    }
+    
+    // Function to render the outcomes tree
+    function renderOutcomesTree(data) {
+        const outcomeGroupsTree = document.getElementById('outcome-groups-tree');
+        const outcomesList = document.getElementById('outcomes-list');
+        
+        if (!outcomeGroupsTree) return;
+        
+        outcomeGroupsTree.innerHTML = '';
+        
+        // Process each root group
+        if (data.grouped_outcomes && data.grouped_outcomes.length > 0) {
+            data.grouped_outcomes.forEach(group => {
+                outcomeGroupsTree.appendChild(renderOutcomeGroupItem(group));
+            });
+        } else {
+            outcomeGroupsTree.innerHTML = `<div class="text-center py-8 text-gray-500">
+                <p>No outcome groups found</p>
+            </div>`;
+        }
+        
+        // Process ungrouped outcomes
+        if (data.ungrouped_outcomes && data.ungrouped_outcomes.length > 0 && outcomesList) {
+            outcomesList.innerHTML = '<h4 class="text-sm font-medium mb-2">Ungrouped Outcomes</h4>';
+            
+            data.ungrouped_outcomes.forEach(outcome => {
+                outcomesList.appendChild(renderOutcomeItem(outcome));
+            });
+        }
+    }
+    
+    // Function to render an outcome group item
+    function renderOutcomeGroupItem(group, level = 0) {
+        const groupContainer = document.createElement('div');
+        groupContainer.className = 'mb-2';
+        
+        // Create group header
+        const groupHeader = document.createElement('div');
+        groupHeader.className = 'outcome-group-header flex items-center p-1 hover:bg-gray-50 rounded cursor-pointer text-sm';
+        
+        // Indentation based on nesting level
+        if (level > 0) {
+            groupHeader.style.paddingLeft = `${level * 12}px`;
+        }
+        
+        // Create the toggle chevron
+        const chevron = document.createElement('svg');
+        chevron.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+        chevron.setAttribute('fill', 'none');
+        chevron.setAttribute('viewBox', '0 0 24 24');
+        chevron.setAttribute('stroke-width', '1.5');
+        chevron.setAttribute('stroke', 'currentColor');
+        chevron.className = 'w-4 h-4 mr-1 transition-transform';
+        chevron.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />';
+        
+        // Group name
+        const groupName = document.createElement('span');
+        groupName.textContent = group.name;
+        
+        groupHeader.appendChild(chevron);
+        groupHeader.appendChild(groupName);
+        
+        // Create group content container
+        const groupContent = document.createElement('div');
+        groupContent.className = 'outcome-group-content hidden pl-4';
+        
+        // Add event listener to toggle group
+        groupHeader.addEventListener('click', function() {
+            groupContent.classList.toggle('hidden');
+            chevron.style.transform = groupContent.classList.contains('hidden') ? '' : 'rotate(90deg)';
+        });
+        
+        // Process children
+        if (group.children && group.children.length > 0) {
+            group.children.forEach(child => {
+                if (child.type === 'group') {
+                    groupContent.appendChild(renderOutcomeGroupItem(child, level + 1));
+                } else {
+                    groupContent.appendChild(renderOutcomeItem(child, level + 1));
+                }
+            });
+        } else {
+            groupContent.innerHTML = `<div class="text-xs text-gray-500 py-1 pl-4">No outcomes in this group</div>`;
+        }
+        
+        groupContainer.appendChild(groupHeader);
+        groupContainer.appendChild(groupContent);
+        
+        return groupContainer;
+    }
+    
+    // Function to render an outcome item
+    function renderOutcomeItem(outcome, level = 0) {
+        const outcomeItem = document.createElement('div');
+        outcomeItem.className = 'outcome-item hover:bg-gray-100 rounded p-1 cursor-pointer';
+        outcomeItem.dataset.outcomeId = outcome.id;
+        
+        // Indentation based on nesting level
+        if (level > 0) {
+            outcomeItem.style.paddingLeft = `${(level + 1) * 12}px`;
+        }
+        
+        const outcomeTitle = document.createElement('span');
+        outcomeTitle.textContent = outcome.title;
+        outcomeTitle.className = 'text-sm';
+        
+        outcomeItem.appendChild(outcomeTitle);
+        
+        // Click event to select the outcome and show details
+        outcomeItem.addEventListener('click', function() {
+            // Remove selected class from all outcome items
+            document.querySelectorAll('.outcome-item').forEach(item => {
+                item.classList.remove('bg-blue-100');
+            });
+            
+            // Add selected class to this item
+            this.classList.add('bg-blue-100');
+            
+            // Enable select button
+            const selectOutcomeBtn = document.getElementById('select-outcome');
+            if (selectOutcomeBtn) {
+                selectOutcomeBtn.disabled = false;
+            }
+            
+            // Store the selected outcome ID
+            window.selectedOutcome = outcome;
+            
+            // Show outcome details in the right panel
+            showOutcomeDetails(outcome);
+        });
+        
+        return outcomeItem;
+    }
+    
+    // Function to show outcome details in the right panel
+    function showOutcomeDetails(outcome) {
+        const outcomesList = document.getElementById('outcomes-list');
+        if (!outcomesList) return;
+        
+        // Fetch detailed information about the outcome
+        fetch(`/outcomes/api/outcome/${outcome.id}/`)
+            .then(response => response.json())
+            .then(data => {
+                // Display outcome details
+                outcomesList.innerHTML = `
+                    <div class="bg-white rounded-lg border p-4">
+                        <h4 class="text-lg font-semibold">${data.title}</h4>
+                        ${data.friendly_name ? `<p class="text-sm text-gray-600 mt-1">${data.friendly_name}</p>` : ''}
+                        
+                        <div class="mt-3">
+                            <h5 class="text-sm font-medium">Description:</h5>
+                            <p class="text-sm mt-1">${data.description || 'No description'}</p>
+                        </div>
+                        
+                        ${data.friendly_description ? `
+                        <div class="mt-3">
+                            <h5 class="text-sm font-medium">Friendly Description:</h5>
+                            <p class="text-sm mt-1">${data.friendly_description}</p>
+                        </div>` : ''}
+                        
+                        <div class="mt-4">
+                            <h5 class="text-sm font-medium">Proficiency Ratings:</h5>
+                            <div class="mt-2 grid grid-cols-5 gap-2">
+                                ${renderProficiencyRatings(data.proficiency_ratings)}
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <h5 class="text-sm font-medium">Calculation Method:</h5>
+                            <p class="text-sm mt-1">${formatCalculationMethod(data.calculation_method)}</p>
+                            <p class="text-sm mt-1">Mastery at: ${data.mastery_points} points</p>
+                        </div>
+                    </div>
+                `;
+            })
+            .catch(error => {
+                console.error('Error fetching outcome details:', error);
+                outcomesList.innerHTML = `
+                    <div class="text-center py-8 text-red-500">
+                        <p>Error loading outcome details</p>
+                    </div>
+                `;
+            });
+    }
+    
+    // Function to render proficiency ratings grid
+    function renderProficiencyRatings(ratings) {
+        if (!ratings || ratings.length === 0) {
+            return '<p class="text-sm text-gray-500">No ratings defined</p>';
+        }
+        
+        return ratings.map(rating => `
+            <div class="border rounded p-2 text-center">
+                <div class="font-medium text-sm">${rating.name}</div>
+                <div class="text-xs mt-1">${rating.points} pts</div>
+            </div>
+        `).join('');
+    }
+    
+    // Add function to handle criterion editing
+    function initializeCriterionEditing() {
+        document.querySelectorAll('.criterion-edit-btn').forEach(function(button) {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                const criterionRow = this.closest('.criterion-row');
+                const criterionId = criterionRow.dataset.criterionId;
+                const descriptionElement = criterionRow.querySelector('.flex-grow div.font-medium');
+                
+                if (descriptionElement) {
+                    const currentText = descriptionElement.textContent.trim();
+                    
+                    // Create a form for inline editing
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = `/rubrics/criterion/${criterionId}/edit/`;
+                    form.className = 'inline-criterion-edit-form';
+                    
+                    // Create textarea
+                    const textarea = document.createElement('textarea');
+                    textarea.name = 'description';
+                    textarea.value = currentText;
+                    textarea.rows = 2;
+                    textarea.className = 'w-full p-2 border rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500';
+                    textarea.required = true;
+                    
+                    // Create CSRF token input
+                    const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+                    const csrfInput = document.createElement('input');
+                    csrfInput.type = 'hidden';
+                    csrfInput.name = 'csrfmiddlewaretoken';
+                    csrfInput.value = csrfToken;
+                    
+                    // Create button container
+                    const buttonContainer = document.createElement('div');
+                    buttonContainer.className = 'flex justify-end space-x-2 mt-2';
+                    
+                    // Cancel button
+                    const cancelButton = document.createElement('button');
+                    cancelButton.type = 'button';
+                    cancelButton.className = 'px-3 py-1 text-sm bg-white border border-gray-300 rounded text-gray-700 hover:bg-gray-50';
+                    cancelButton.textContent = 'Cancel';
+                    
+                    // Save button
+                    const saveButton = document.createElement('button');
+                    saveButton.type = 'submit';
+                    saveButton.className = 'px-3 py-1 text-sm bg-blue-600 border border-transparent rounded text-white hover:bg-blue-700';
+                    saveButton.textContent = 'Save';
+                    
+                    // Add buttons to container
+                    buttonContainer.appendChild(cancelButton);
+                    buttonContainer.appendChild(saveButton);
+                    
+                    // Add elements to form
+                    form.appendChild(csrfInput);
+                    form.appendChild(textarea);
+                    form.appendChild(buttonContainer);
+                    
+                    // Replace description with form
+                    descriptionElement.parentNode.replaceChild(form, descriptionElement);
+                    
+                    // Focus on textarea
+                    textarea.focus();
+                    
+                    // Handle cancel button click
+                    cancelButton.addEventListener('click', function() {
+                        // Restore original description
+                        const newDescription = document.createElement('div');
+                        newDescription.className = 'font-medium text-gray-800';
+                        newDescription.textContent = currentText;
+                        form.parentNode.replaceChild(newDescription, form);
+                    });
+                    
+                    // Handle form submission
+                    form.addEventListener('submit', function(e) {
+                        e.preventDefault();
+                        
+                        const formData = new FormData(this);
+                        
+                        fetch(this.action, {
+                            method: 'POST',
+                            body: formData,
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest'
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                // Create new description element with updated text
+                                const newDescription = document.createElement('div');
+                                newDescription.className = 'font-medium text-gray-800';
+                                newDescription.textContent = formData.get('description');
+                                
+                                // Replace form with new description
+                                form.parentNode.replaceChild(newDescription, form);
+                            } else {
+                                // Show error
+                                showError(data.message || 'Failed to update criterion');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error updating criterion:', error);
+                            showError('An error occurred while updating the criterion');
+                        });
+                    });
+                }
+            });
+        });
+    }
+    
+    // Simple toggle function for accordion - moved outside of DOMContentLoaded to be globally accessible
+    function simpleToggle(header) {
+        // Prevent multiple clicks during animation
+        if (isAnimating) return;
+        isAnimating = true;
+        
+        const content = header.nextElementSibling;
+        const chevron = header.querySelector('.chevron-icon');
+        const container = header.closest('.rating-container');
+        
+        // Close all other open accordions in the same criterion
+        const parentCriterion = header.closest('.criterion-row');
+        if (parentCriterion) {
+            parentCriterion.querySelectorAll('.rating-content.open').forEach(openContent => {
+                if (openContent !== content) {
+                    // Only close other accordions, not the one we're toggling
+                    const openHeader = openContent.previousElementSibling;
+                    const openChevron = openHeader.querySelector('.chevron-icon');
+                    const openContainer = openContent.closest('.rating-container');
+                    
+                    openContent.classList.remove('open');
+                    openChevron.classList.remove('rotated');
+                    openHeader.classList.remove('active');
+                    openContainer.classList.remove('active');
+                    openContent.style.height = '0';
+                    openContent.style.padding = '0';
+                }
+            });
+        }
+        
+        // Toggle classes for styling
+        content.classList.toggle('open');
+        chevron.classList.toggle('rotated');
+        header.classList.toggle('active');
+        container.classList.toggle('active');
+        
+        // Set explicit height for transition
+        if (content.classList.contains('open')) {
+            // Make content visible immediately with proper styling
+            content.style.visibility = 'visible';
+            content.style.display = 'block';
+            content.style.opacity = '1';
+            content.style.padding = '0.75rem';
+            
+            // Force a reflow for proper rendering
+            content.getBoundingClientRect();
+            
+            // Set height after calculating scrollHeight
+            const contentHeight = content.scrollHeight;
+            content.style.height = contentHeight + 'px';
+            
+            // Ensure the content remains visible after animation
+            setTimeout(() => {
+                if (content.classList.contains('open')) {
+                    content.style.height = 'auto';
+                    content.style.overflow = 'visible';
+                }
+                isAnimating = false;
+            }, 350);
+        } else {
+            // Reset to zero when closing
+            content.style.height = '0';
+            content.style.padding = '0';
+            
+            // Reset animation flag after transition completes
+            setTimeout(() => {
+                isAnimating = false;
+                if (!content.classList.contains('open')) {
+                    content.style.visibility = 'hidden';
+                    content.style.display = 'none';
+                }
+            }, 350);
+        }
+    }
+    
+    // Helper function to check if an element is in the viewport
+    function isElementInViewport(el) {
+        const rect = el.getBoundingClientRect();
+        return (
+            rect.top >= 0 &&
+            rect.left >= 0 &&
+            rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+            rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+        );
+    }
+    
+    // Initialize accordion functionality as soon as possible
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize criterion editing functionality
+        initializeCriterionEditing();
+        
+        // Setup click handlers for all accordion headers
+        initializeAccordions();
+        
+        // Update total display on page load to show corrected values
+        updateTotalPoints();
+        
+        // Find outcome functionality - get the required DOM elements
+        const findOutcomeBtn = document.getElementById('find-outcome-btn');
+        const closeOutcomesModalBtn = document.getElementById('close-outcomes-modal');
+        const outcomesFinderBackdrop = document.getElementById('outcomes-finder-backdrop');
+        const cancelOutcomeSelectBtn = document.getElementById('cancel-outcome-select');
+        const selectOutcomeBtn = document.getElementById('select-outcome');
+        const outcomeSearchInput = document.getElementById('outcome-search');
+        
+        // Store the rubric ID for use in selection
+        window.selectedOutcome = null;
+        
+        // Attach event listeners to range checkboxes
+        document.querySelectorAll('.range-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const criterionId = this.dataset.criterionId;
+                const useRange = this.checked;
+                
+                // Update criterion row data attribute
+                const criterionRow = document.querySelector(`.criterion-row[data-criterion-id="${criterionId}"]`);
+                if (criterionRow) {
+                    criterionRow.dataset.useRange = useRange.toString();
+                    
+                    // Update rating points display
+                    updateRatingPointsDisplay(criterionId, useRange);
+                    
+                    // Send AJAX request to update the use_range field on the server
+                    fetch(`/rubrics/update_criterion_range/${criterionId}/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCsrfToken()
+                        },
+                        body: JSON.stringify({
+                            use_range: useRange
+                        })
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`Server responded with status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.status === 'success') {
+                            console.log('Range setting updated successfully');
+                            // Don't update total points - preserve saved database values
+                            // updateTotalPoints();
+                        } else {
+                            showError(data.message || 'Failed to update range setting');
+                            // Revert UI if server update failed
+                            checkbox.checked = !useRange;
+                            criterionRow.dataset.useRange = (!useRange).toString();
+                            updateRatingPointsDisplay(criterionId, !useRange);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error updating range setting:', error);
+                        showError('Failed to update range setting: ' + error.message);
+                        // Revert UI on error
+                        checkbox.checked = !useRange;
+                        criterionRow.dataset.useRange = (!useRange).toString();
+                        updateRatingPointsDisplay(criterionId, !useRange);
+                    });
+                }
+            });
+        });
+        
+        // Search functionality
+        if (outcomeSearchInput) {
+            outcomeSearchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                
+                // Find all outcome items and filter them
+                const outcomeItems = document.querySelectorAll('.outcome-item');
+                
+                outcomeItems.forEach(item => {
+                    const title = item.textContent.toLowerCase();
+                    
+                    if (searchTerm === '' || title.includes(searchTerm)) {
+                        item.style.display = '';
+                        
+                        // Show parent groups of matching outcomes
+                        let parent = item.parentElement;
+                        while (parent && parent.classList.contains('outcome-group-content')) {
+                            parent.classList.remove('hidden');
+                            
+                            // Update the expand/collapse icon
+                            const header = parent.previousElementSibling;
+                            if (header) {
+                                const icon = header.querySelector('svg');
+                                if (icon) {
+                                    icon.style.transform = 'rotate(90deg)';
+                                }
+                            }
+                            
+                            // Move up to the next parent
+                            parent = parent.parentElement;
+                            if (parent) {
+                                parent = parent.parentElement;
+                            }
+                        }
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            });
+        }
+        
+        // Select outcome functionality
+        if (selectOutcomeBtn) {
+            selectOutcomeBtn.addEventListener('click', function() {
+                if (window.selectedOutcome) {
+                    // Add the selected outcome as a new criterion
+                    window.location.href = `/rubrics/add_criterion/${rubric.id}/?outcome_id=${window.selectedOutcome.id}`;
+                }
+            });
+        }
+        
+        // Event listeners for the modal
+        if (findOutcomeBtn) findOutcomeBtn.addEventListener('click', openOutcomesModal);
+        if (closeOutcomesModalBtn) closeOutcomesModalBtn.addEventListener('click', closeOutcomesModal);
+        if (outcomesFinderBackdrop) outcomesFinderBackdrop.addEventListener('click', closeOutcomesModal);
+        if (cancelOutcomeSelectBtn) cancelOutcomeSelectBtn.addEventListener('click', closeOutcomesModal);
+        
+        // Make the rubric object available to JavaScript
+        const rubric = {
+            id: {{ rubric.id }}
+        };
+        
+        // Performance optimization for resizing
+        let resizeTimeout;
+        window.addEventListener('resize', function() {
+            // Debounce the resize handler
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                document.querySelectorAll('.rating-content.open').forEach(content => {
+                    content.style.height = 'auto';
+                    const contentHeight = content.scrollHeight;
+                    content.style.height = contentHeight + 'px';
+                });
+            }, 250);
+        });
+    });
+    
+    // Function to initialize all accordions
+    function initializeAccordions() {
+        // Ensure all accordion headers have chevron icons
+        document.querySelectorAll('.rating-header').forEach(header => {
+            // Check if the header already has a chevron icon
+            if (!header.querySelector('.chevron-icon')) {
+                // Create and append the missing chevron icon
+                const chevron = document.createElement('svg');
+                chevron.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+                chevron.setAttribute('class', 'chevron-icon');
+                chevron.setAttribute('width', '16');
+                chevron.setAttribute('height', '16');
+                chevron.setAttribute('viewBox', '0 0 24 24');
+                chevron.setAttribute('fill', 'none');
+                chevron.setAttribute('stroke', 'currentColor');
+                chevron.setAttribute('stroke-width', '2');
+                chevron.setAttribute('stroke-linecap', 'round');
+                chevron.setAttribute('stroke-linejoin', 'round');
+                chevron.innerHTML = '<polyline points="6 9 12 15 18 9"></polyline>';
+                header.appendChild(chevron);
+            }
+            
+            // Remove existing listeners first to prevent duplicates
+            header.removeEventListener('click', handleAccordionClick);
+            header.removeEventListener('touchend', handleAccordionTouch);
+            
+            // Add new listeners
+            header.addEventListener('click', handleAccordionClick);
+            header.addEventListener('touchend', handleAccordionTouch);
+        });
+        
+        // Initialize all accordions to be closed
+        document.querySelectorAll('.rating-content').forEach(content => {
+            content.style.height = '0';
+            content.style.padding = '0';
+        });
+        
+        // Process rating descriptions for better display
+        document.querySelectorAll('.rating-description').forEach(description => {
+            // Handle empty descriptions
+            if (!description.textContent.trim()) {
+                description.innerHTML = '<em class="text-gray-400">No description provided</em>';
+            }
+            
+            // Add proper line breaks
+            const text = description.textContent;
+            if (text) {
+                description.innerHTML = text.replace(/\n/g, '<br>');
+            }
+        });
+
+        // Update range styling for criteria with use_range enabled
+        document.querySelectorAll('.criterion-row[data-use-range="true"]').forEach(criterionRow => {
+            // Apply range styling to all rating containers in this criterion
+            const criterionId = criterionRow.dataset.criterionId;
+            criterionRow.querySelectorAll('.rating-container').forEach(container => {
+                container.classList.add('range-mode');
+            });
+        });
+
+        // Update points display and totals on initialization
+        document.querySelectorAll('.criterion-row').forEach(criterionRow => {
+            const criterionId = criterionRow.dataset.criterionId;
+            const useRange = criterionRow.dataset.useRange === 'true';
+            
+            if (useRange) {
+                updateRatingPointsDisplay(criterionId, useRange);
+            }
+        });
+        
+        // Update total points display to show correct values
+        updateTotalPoints();
+    }
+    
+    // Handler for accordion click events
+    function handleAccordionClick() {
+        simpleToggle(this);
+    }
+    
+    // Helper function to get CSRF token from cookies
+    function getCsrfToken() {
+        return document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+    }
+    
+    // Handler for accordion touch events
+    function handleAccordionTouch(e) {
+        e.preventDefault(); // Prevent default touch behavior
+        simpleToggle(this);
+    }
+    
+    // Function to show error messages
+    function showError(message) {
+        const errorContainer = document.getElementById('error-container');
+        const errorMessage = document.getElementById('error-message');
+        if (errorContainer && errorMessage) {
+            errorMessage.textContent = message;
+            errorContainer.classList.remove('hidden');
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                errorContainer.classList.add('hidden');
+            }, 5000);
+        } else {
+            console.error(message);
+        }
+    }
+    
+    // Call initialization even before DOMContentLoaded for faster setup
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeAccordions);
+    } else {
+        initializeAccordions();
+    }
+</script>
+{% endblock extra_js %} 

@@ -1,0 +1,168 @@
+{% extends 'reports/activity_report_sections/base.html' %}
+{% load static %}
+
+{% block extra_css %}
+{% endblock %}
+
+{% block section_content %}
+<!-- Key Metrics -->
+<div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
+    <h3 class="text-lg font-semibold mb-6">Overview</h3>
+    
+    <!-- Key Metrics Grid -->
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-6 mb-8">
+        <!-- Completion Rate -->
+        <div class="flex items-center">
+            <div class="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg mr-3">
+                <i class="fas fa-percentage text-blue-600"></i>
+            </div>
+            <div>
+                <div class="text-2xl font-bold text-gray-900">
+                    {% if progress_stats.total_users and progress_stats.total_users > 0 %}
+                        {% widthratio progress_stats.completed_users progress_stats.total_users 100 %}%
+                    {% else %}
+                        0%
+                    {% endif %}
+                </div>
+                <div class="text-sm text-gray-600">Completion Rate</div>
+            </div>
+        </div>
+        
+        <!-- Completed Users -->
+        <div class="flex items-center">
+            <div class="flex items-center justify-center w-10 h-10 bg-green-100 rounded-lg mr-3">
+                <i class="fas fa-check-circle text-green-600"></i>
+            </div>
+            <div>
+                <div class="text-2xl font-bold text-gray-900">{{ progress_stats.completed_users|default:0 }}</div>
+                <div class="text-sm text-gray-600">Completed Users</div>
+            </div>
+        </div>
+        
+        <!-- Average Score -->
+        <div class="flex items-center">
+            <div class="flex items-center justify-center w-10 h-10 bg-purple-100 rounded-lg mr-3">
+                <i class="fas fa-star text-purple-600"></i>
+            </div>
+            <div>
+                <div class="text-2xl font-bold text-gray-900">
+                    {% if progress_stats.average_score %}
+                        {{ progress_stats.average_score|floatformat:1 }}%
+                        {% if is_scorm %}
+                            <span class="text-xs text-blue-600 ml-1">(SCORM)</span>
+                        {% endif %}
+                    {% else %}
+                        -
+                    {% endif %}
+                </div>
+                <div class="text-sm text-gray-600">Average Score</div>
+            </div>
+        </div>
+        
+        <!-- In Progress -->
+        <div class="flex items-center">
+            <div class="flex items-center justify-center w-10 h-10 bg-yellow-100 rounded-lg mr-3">
+                <i class="fas fa-clock text-yellow-600"></i>
+            </div>
+            <div>
+                <div class="text-2xl font-bold text-gray-900">{{ progress_stats.in_progress_users|default:0 }}</div>
+                <div class="text-sm text-gray-600">In Progress</div>
+            </div>
+        </div>
+        
+        <!-- Not Started -->
+        <div class="flex items-center">
+            <div class="flex items-center justify-center w-10 h-10 bg-gray-100 rounded-lg mr-3">
+                <i class="fas fa-play-circle text-gray-600"></i>
+            </div>
+            <div>
+                <div class="text-2xl font-bold text-gray-900">{{ progress_stats.not_started_users|default:0 }}</div>
+                <div class="text-sm text-gray-600">Not Started</div>
+            </div>
+        </div>
+        
+        <!-- Total Attempts -->
+        <div class="flex items-center">
+            <div class="flex items-center justify-center w-10 h-10 bg-indigo-100 rounded-lg mr-3">
+                <i class="fas fa-redo text-indigo-600"></i>
+            </div>
+            <div>
+                <div class="text-2xl font-bold text-gray-900">{{ progress_stats.total_attempts|default:0 }}</div>
+                <div class="text-sm text-gray-600">Total Attempts</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SCORM-Specific Statistics -->
+{% if is_scorm and scorm_stats %}
+<div class="bg-blue-50 rounded-lg shadow-sm border p-6 mb-6">
+    <h3 class="text-lg font-semibold mb-6 text-blue-900">
+        <i class="fas fa-graduation-cap mr-2"></i>SCORM Analytics
+    </h3>
+    
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-white rounded-lg p-4 text-center">
+            <div class="text-2xl font-bold text-blue-600">{{ scorm_stats.total_scorm_users|default:0 }}</div>
+            <div class="text-sm text-gray-600">Total Users</div>
+        </div>
+        <div class="bg-white rounded-lg p-4 text-center">
+            <div class="text-2xl font-bold text-green-600">{{ scorm_stats.completion_status_complete|default:0 }}</div>
+            <div class="text-sm text-gray-600">Completed</div>
+        </div>
+        <div class="bg-white rounded-lg p-4 text-center">
+            <div class="text-2xl font-bold text-purple-600">{{ scorm_stats.success_status_passed|default:0 }}</div>
+            <div class="text-sm text-gray-600">Passed</div>
+        </div>
+        <div class="bg-white rounded-lg p-4 text-center">
+            <div class="text-2xl font-bold text-orange-600">{{ scorm_stats.avg_completion_percent|floatformat:1 }}%</div>
+            <div class="text-sm text-gray-600">Avg Score</div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Summary Statistics -->
+<div class="bg-white rounded-lg shadow-sm border p-6">
+    <h3 class="text-lg font-semibold mb-4">Summary Statistics</h3>
+    <div class="space-y-4">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <i class="fas fa-users text-gray-400"></i>
+                <span class="text-sm text-gray-700">Total Users</span>
+            </div>
+            <span class="font-semibold">{{ progress_stats.total_users|default:0 }}</span>
+        </div>
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <i class="fas fa-percentage text-gray-400"></i>
+                <span class="text-sm text-gray-700">Completion Rate</span>
+            </div>
+            <span class="font-semibold">
+                {% if progress_stats.total_users and progress_stats.total_users > 0 %}
+                    {% widthratio progress_stats.completed_users progress_stats.total_users 100 %}%
+                {% else %}
+                    0%
+                {% endif %}
+            </span>
+        </div>
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <i class="fas fa-star text-gray-400"></i>
+                <span class="text-sm text-gray-700">Average Score</span>
+            </div>
+            <span class="font-semibold">
+                {% if progress_stats.average_score %}
+                    {{ progress_stats.average_score|floatformat:1 }}%
+                {% else %}
+                    -
+                {% endif %}
+            </span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+{% endblock %}

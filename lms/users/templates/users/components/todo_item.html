@@ -1,0 +1,53 @@
+{% for task in todo_items %}
+<a href="{{ task.url }}" class="dashboard-activity-item" style="text-decoration: none; color: inherit; cursor: pointer;">
+    <div class="dashboard-activity-icon">
+        {% if task.type == 'assignment' %}
+            <i class="fas fa-file-alt" style="color: #f59e0b;"></i>
+        {% elif task.type == 'conference' %}
+            <i class="fas fa-video" style="color: #8b5cf6;"></i>
+        {% elif task.type == 'course' %}
+            {% if 'Start' in task.title %}
+                <i class="fas fa-play-circle" style="color: #10b981;"></i>
+            {% else %}
+                <i class="fas fa-book-open" style="color: #3b82f6;"></i>
+            {% endif %}
+        {% else %}
+            <i class="fas fa-{{ task.icon|default:'tasks' }}" style="color: #2f80ed;"></i>
+        {% endif %}
+    </div>
+    <div class="dashboard-activity-content">
+        <div class="dashboard-activity-title">
+            <span class="dashboard-link">{{ task.title }}</span>
+            {% if task.type == 'assignment' and task.assignment_points %}
+                <span class="dashboard-text-xs" style="color: #6b7280; margin-left: 0.5rem;">({{ task.assignment_points }} pts)</span>
+            {% endif %}
+        </div>
+        <div class="dashboard-activity-description">
+            {{ task.description|safe }}
+            {% if task.type == 'course' and task.course_progress %}
+                <div class="dashboard-text-xs" style="color: #10b981; margin-top: 0.25rem;">
+                    Progress: {{ task.course_progress }}%
+                </div>
+            {% endif %}
+        </div>
+        <div class="dashboard-activity-time">
+            {% if task.type == 'assignment' %}
+                <span style="color: {% if task.priority == 'high' %}#ef4444{% elif task.priority == 'medium' %}#f59e0b{% else %}#10b981{% endif %};">
+                    Due {{ task.due_date|default:"soon" }}
+                </span>
+            {% elif task.type == 'conference' %}
+                <span style="color: #8b5cf6;">{{ task.due_date|default:"Scheduled" }}</span>
+            {% elif task.due_date == "In Progress" %}
+                <span style="color: #3b82f6;">In Progress</span>
+            {% elif task.due_date == "Not Started" %}
+                <span style="color: #ef4444;">Ready to Start</span>
+            {% else %}
+                {{ task.due_date }}
+            {% endif %}
+        </div>
+    </div>
+    <div class="dashboard-activity-arrow" style="flex-shrink: 0; color: #9ca3af;">
+        <i class="fas fa-chevron-right"></i>
+    </div>
+</a>
+{% endfor %} 

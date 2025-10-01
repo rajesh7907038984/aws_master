@@ -1,0 +1,342 @@
+/**
+ * Enhanced Rich Text Editor Styles
+ * This file provides improved styling for the custom text editor in the LMS.
+ */
+
+/* Editor container */
+.custom-text-editor-container {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+/* Toolbar */
+.editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 8px;
+  background-color: #f3f4f6;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* Toolbar button groups */
+.editor-toolbar .button-group {
+  display: flex;
+  margin-right: 8px;
+  border-right: 1px solid #e5e7eb;
+  padding-right: 8px;
+}
+
+/* Toolbar buttons */
+.editor-toolbar button {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #e5e7eb;
+  background-color: white;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.editor-toolbar button:hover {
+  background-color: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.editor-toolbar button.active {
+  background-color: #e5e7eb;
+  border-color: #9ca3af;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Dropdown selectors */
+.format-dropdown,
+.font-dropdown,
+.font-size-dropdown {
+  height: 32px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 0 10px;
+  background: #ffffff;
+  font-size: 14px;
+  color: #374151;
+  cursor: pointer;
+  min-width: 120px;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 16px;
+  padding-right: 30px;
+  margin-right: 8px;
+}
+
+.format-dropdown:hover,
+.font-dropdown:hover,
+.font-size-dropdown:hover {
+  border-color: #d1d5db;
+}
+
+.format-dropdown:focus,
+.font-dropdown:focus,
+.font-size-dropdown:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+/* Enhanced color picker */
+.color-picker-popup {
+  width: 168px;
+}
+
+/* Tooltip */
+.tooltip {
+  position: relative;
+  display: inline-block;
+}
+
+.tooltip .tooltip-text {
+  visibility: hidden;
+  width: auto;
+  min-width: 100px;
+  background-color: #333;
+  color: #fff;
+  text-align: center;
+  border-radius: 4px;
+  padding: 5px 10px;
+  position: absolute;
+  z-index: 1000;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity 0.3s;
+  white-space: nowrap;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.tooltip .tooltip-text::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: #333 transparent transparent transparent;
+}
+
+.tooltip:hover .tooltip-text {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* Editor content area */
+.custom-text-editor {
+  min-height: 300px;
+  background: #ffffff;
+  color: #1f2937;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 16px;
+  outline: none;
+  overflow-y: auto;
+}
+
+.custom-text-editor:focus {
+  border-color: #3b82f6;
+}
+
+/* Stats display */
+.editor-stats {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background-color: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* Code dialog */
+.code-dialog {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.code-dialog-content {
+  background-color: white;
+  border-radius: 8px;
+  padding: 20px;
+  width: 80%;
+  max-width: 800px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.code-dialog h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #111827;
+}
+
+.code-dialog textarea {
+  height: 300px;
+  padding: 10px;
+  font-family: monospace;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  resize: vertical;
+}
+
+.dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.dialog-buttons button {
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.dialog-buttons .cancel-btn {
+  background-color: #f3f4f6;
+  border: 1px solid #d1d5db;
+  color: #374151;
+}
+
+.dialog-buttons .apply-btn {
+  background-color: #191f56;
+  border: 1px solid #2563eb;
+  color: white;
+}
+
+.dialog-buttons .cancel-btn:hover {
+  background-color: #e5e7eb;
+}
+
+.dialog-buttons .apply-btn:hover {
+  background-color: #2563eb;
+}
+
+/* Video embed container */
+.video-container {
+  position: relative;
+  margin: 10px 0;
+  display: block;
+  width: 100%;
+}
+
+.video-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 5px;
+  padding: 5px;
+  background-color: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+}
+
+.video-controls button {
+  padding: 3px 8px;
+  border: 1px solid #d1d5db;
+  background-color: white;
+  border-radius: 3px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.video-controls button:hover {
+  background-color: #f9fafb;
+  border-color: #9ca3af;
+}
+
+/* Content formats */
+.custom-text-editor h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+  color: #111827;
+}
+
+.custom-text-editor h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-top: 1.25rem;
+  margin-bottom: 0.75rem;
+  color: #111827;
+}
+
+.custom-text-editor h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  color: #111827;
+}
+
+.custom-text-editor h4 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-top: 0.75rem;
+  margin-bottom: 0.5rem;
+  color: #111827;
+}
+
+.custom-text-editor p {
+  margin-bottom: 1rem;
+}
+
+.custom-text-editor blockquote {
+  border-left: 3px solid #3b82f6;
+  padding-left: 1rem;
+  margin-left: 0;
+  margin-right: 0;
+  font-style: italic;
+  color: #4b5563;
+  background-color: rgba(59, 130, 246, 0.1);
+  padding: 0.75rem 1rem;
+  border-radius: 0.25rem;
+}
+
+.custom-text-editor pre {
+  background-color: #f3f4f6;
+  padding: 0.75rem 1rem;
+  border-radius: 0.25rem;
+  font-family: monospace;
+  overflow-x: auto;
+}
+
+.custom-text-editor ul,
+.custom-text-editor ol {
+  margin-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.custom-text-editor a {
+  color: #3b82f6;
+  text-decoration: underline;
+} 

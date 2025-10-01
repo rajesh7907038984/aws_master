@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Business Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .business-card {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+    .business-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    }
+    .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    .stat-card.branches {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    .stat-card.admins {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+    .stat-card.total {
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    }
+    .action-btn {
+        transition: all 0.2s ease;
+    }
+    .action-btn:hover {
+        transform: scale(1.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white text-black min-h-screen">
+    <div class="container mx-auto px-4 py-6">
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+        <div class="mb-6">
+            <div class="flex justify-between items-center">
+                <h1 class="text-2xl font-semibold text-gray-900">Business Management</h1>
+                {% if user_role == 'globaladmin' %}
+                <a href="{% url 'business:business_create' %}" 
+                   class="px-4 py-2 text-white rounded-md" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                    <i class="fas fa-plus mr-2"></i>Create Business
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Business List -->
+        <div class="space-y-4">
+            {% for business in businesses %}
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div class="flex justify-between items-start">
+                    <div class="flex-1">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">
+                            <a href="{% url 'business:business_detail' business.id %}" class="hover:text-blue-600">
+                                {{ business.name }}
+                            </a>
+                        </h3>
+                        {% if business.description %}
+                        <p class="text-gray-600 mb-3">{{ business.description|striptags|truncatewords:20 }}</p>
+                        {% endif %}
+                        
+                        <div class="grid grid-cols-3 gap-4 mt-4">
+                            <div class="text-center p-3 bg-blue-50 rounded-lg">
+                                <div class="text-2xl font-bold text-blue-600">{{ business.branches_count }}</div>
+                                <div class="text-sm text-blue-800">Branches</div>
+                            </div>
+                            <div class="text-center p-3 bg-green-50 rounded-lg">
+                                <div class="text-2xl font-bold text-green-600">{{ business.super_admins_count }}</div>
+                                <div class="text-sm text-green-800">Super Admins</div>
+                            </div>
+                            <div class="text-center p-3 bg-purple-50 rounded-lg">
+                                <div class="text-2xl font-bold text-purple-600">
+                                    {% with stats=business.get_business_statistics %}
+                                    {{ stats.total_users }}
+                                    {% endwith %}
+                                </div>
+                                <div class="text-sm text-purple-800">Total Users</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center space-x-2">
+                        {% if business.is_active %}
+                        <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            Active
+                        </span>
+                        {% else %}
+                        <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            Inactive
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="flex justify-between items-center pt-4 border-t border-gray-200 mt-4">
+                    <div class="text-sm text-gray-500">
+                        Created {{ business.created_at|date:"M d, Y" }}
+                    </div>
+                    <div class="flex space-x-2">
+                        <a href="{% url 'business:business_detail' business.id %}" 
+                           class="px-3 py-1.5 border border-gray-300 text-sm rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                            <i class="fas fa-eye mr-1"></i>View
+                        </a>
+                        {% if user_role == 'globaladmin' or user_role == 'superadmin' %}
+                        <a href="{% url 'business:business_edit' business.id %}" 
+                           class="px-3 py-1.5 border border-blue-300 text-sm rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100">
+                            <i class="fas fa-edit mr-1"></i>Edit
+                        </a>
+                        {% endif %}
+                        {% if user_role == 'globaladmin' %}
+                        <button type="button" 
+                                onclick="confirmDeleteBusiness({{ business.id }}, '{{ business.name|escapejs }}')"
+                                class="px-3 py-1.5 border border-red-300 text-sm rounded-md text-red-700 bg-red-50 hover:bg-red-100">
+                            <i class="fas fa-trash mr-1"></i>Delete
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="text-center py-12">
+                <i class="fas fa-building text-gray-400 text-6xl mb-4"></i>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">No businesses found</h3>
+                <p class="text-gray-500 mb-4">Get started by creating your first business.</p>
+                {% if user_role == 'globaladmin' %}
+                <a href="{% url 'business:business_create' %}" 
+                   class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                    <i class="fas fa-plus mr-2"></i>Create First Business
+                </a>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmDeleteBusiness(businessId, businessName) {
+    if (confirm(`Are you sure you want to delete the business "${businessName}"?\n\nThis action cannot be undone and will affect all associated branches, users, and data.`)) {
+        // Create a form and submit it
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/business/${businessId}/delete/`;
+        
+        // Add CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = csrfToken;
+        form.appendChild(csrfInput);
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
+{% endblock %} 

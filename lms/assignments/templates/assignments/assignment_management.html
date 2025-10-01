@@ -1,0 +1,232 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if is_new %}Create Assignment{% else %}Assignment Management - {{ course.title }}{% endif %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Modern Card Styles */
+    .management-card {
+        background: #ffffff;
+        border-radius: 1rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        transition: all 0.3s ease;
+    }
+
+    .management-card:hover {
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        transform: translateY(-2px);
+    }
+
+    /* Table Styles */
+    .assignment-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .assignment-table th {
+        background-color: #f8fafc;
+        color: #1e293b;
+        font-weight: 600;
+        text-align: left;
+        padding: 1rem;
+        border-bottom: 2px solid #e2e8f0;
+        white-space: nowrap;
+    }
+
+    .assignment-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #e2e8f0;
+        vertical-align: middle;
+    }
+
+    .assignment-table tr:hover td {
+        background-color: #f8fafc;
+    }
+
+    /* Status Badge Styles */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .status-badge.active {
+        background-color: #dcfce7;
+        color: #166534;
+    }
+
+    .status-badge.inactive {
+        background-color: #fee2e2;
+        color: #991b1b;
+    }
+
+    /* Action Button Styles */
+    .action-btn {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5rem;
+        border-radius: 0.5rem;
+        transition: all 0.2s;
+        color: #64748b;
+    }
+
+    .action-btn:hover {
+        background-color: #f1f5f9;
+        color: #0f172a;
+    }
+
+    .action-btn svg {
+        width: 1.25rem;
+        height: 1.25rem;
+    }
+
+    /* Search Box Styles */
+    .search-box {
+        position: relative;
+        max-width: 24rem;
+    }
+
+    .search-box input {
+        width: 100%;
+        padding: 0.75rem 1rem 0.75rem 2.5rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+        background-color: #ffffff;
+        font-size: 0.875rem;
+        color: #1e293b;
+        transition: all 0.2s;
+    }
+
+    .search-box input:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .search-box svg {
+        position: absolute;
+        left: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 1rem;
+        height: 1rem;
+        color: #94a3b8;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumbs -->
+    {% with breadcrumbs=breadcrumbs %}
+        {% include 'components/breadcrumb.html' %}
+    {% endwith %}
+
+    <div class="management-card">
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">Assignment Management</h1>
+                    <p class="mt-1 text-sm text-gray-600">Create and manage assignments</p>
+                </div>
+                <div class="flex gap-4">
+                    <a href="{% url 'assignments:create_assignment' %}" 
+                       class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                        <i class="fas fa-plus mr-2"></i>
+                        Create Assignment
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Assignments Table -->
+        <div class="overflow-x-auto">
+            <table class="assignment-table">
+                <thead>
+                    <tr>
+                        <th class="pl-6">Title</th>
+                        <th>Description</th>
+                        <th>Due Date</th>
+                        <th>Status</th>
+                        <th class="text-right pr-6">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for assignment in assignments %}
+                    <tr>
+                        <td class="pl-6">
+                            <div class="font-medium text-gray-900">{{ assignment.title }}</div>
+                        </td>
+                        <td>
+                            <div class="text-gray-600">{{ assignment.description|striptags|truncatewords:20 }}</div>
+                        </td>
+                        <td>
+                            {% if assignment.due_date %}
+                                {{ assignment.due_date|date:"M d, Y" }}
+                            {% else %}
+                                <span class="text-gray-400">No due date</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {% if assignment.is_active %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                                {{ assignment.is_active|yesno:"Active,Inactive" }}
+                            </span>
+                        </td>
+                        <td class="text-right pr-6">
+                            <div class="flex justify-end space-x-2">
+                                <a href="{% url 'assignments:edit_assignment' assignment.id %}" 
+                                   class="text-blue-600 hover:text-blue-800">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'assignments:delete_assignment' assignment.id %}" 
+                                   class="text-red-600 hover:text-red-800">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-8">
+                            <div class="text-gray-500">No assignments found</div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('assignmentSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', function(e) {
+                const searchTerm = e.target.value.toLowerCase();
+                const rows = document.querySelectorAll('tbody tr');
+                
+                rows.forEach(row => {
+                    const title = row.querySelector('td:first-child div:first-child').textContent.toLowerCase();
+                    const description = row.querySelector('td:first-child div:last-child').textContent.toLowerCase();
+                    const topic = row.querySelector('td:nth-child(2) span').textContent.toLowerCase();
+                    
+                    if (title.includes(searchTerm) || description.includes(searchTerm) || topic.includes(searchTerm)) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            });
+        }
+    });
+</script>
+{% endblock %} 

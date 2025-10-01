@@ -1,0 +1,62 @@
+<!-- Learning Development Plan Tab Content -->
+{% if not is_edit_mode or is_edit_mode and profile_user.role == 'learner' %}
+<div id="ilp-tab" class="tab-content">
+    <div class="space-y-6">
+        <!-- Main ILP Tabs -->
+        <div class="ilp-tabs">
+            <div class="tab-buttons ilp-main-tabs">
+                <button type="button" class="tab-button ilp-tab-button active" onclick="openILPTab(event, 'overview-tab')">
+                    Learning Journey Overview
+                </button>
+                <button type="button" class="tab-button ilp-tab-button" onclick="openILPTab(event, 'learning-profile-tab')">
+                    Learning Assessment & Planning
+                </button>
+                <!-- Hidden tabs for now -->
+                <button type="button" class="tab-button ilp-tab-button" onclick="openILPTab(event, 'induction-checklist-tab')" style="display: none;">
+                    Induction Checklist
+                </button>
+                <button type="button" class="tab-button ilp-tab-button" onclick="openILPTab(event, 'health-safety-tab')" style="display: none;">
+                    Health & Safety Questionnaire
+                </button>
+                <button type="button" class="tab-button ilp-tab-button" onclick="openILPTab(event, 'learning-needs-tab')" style="display: none;">
+                    Ongoing Learning Support
+                </button>
+                <!-- End hidden tabs -->
+                <button type="button" class="tab-button ilp-tab-button" onclick="openILPTab(event, 'learning-goal-tab')">
+                    Goals & Progress Tracking
+                </button>
+                <button type="button" class="tab-button ilp-tab-button" onclick="openILPTab(event, 'educator-notes-tab')">
+                    Educator Notes
+                </button>
+                <button type="button" class="tab-button ilp-tab-button" onclick="openILPTab(event, 'course-review-tab')">
+                    Internal Course Review
+                </button>
+            </div>
+
+            <!-- Overview Tab Content -->
+            {% include 'users/tabs/ilp/overview_tab.html' %}
+            
+            <!-- Learning Profile Tab Content -->
+            {% include 'users/tabs/ilp/learning_profile_tab.html' %}
+            
+            <!-- Induction Checklist Tab Content -->
+            {% include 'users/tabs/ilp/induction_checklist_tab.html' %}
+            
+            <!-- Health & Safety Tab Content -->
+            {% include 'users/tabs/ilp/health_safety_tab.html' %}
+            
+            <!-- Learning Needs Tab Content -->
+            {% include 'users/tabs/ilp/learning_needs_tab.html' %}
+            
+            <!-- Learning Goal Tab Content -->
+            {% include 'users/tabs/ilp/learning_goal_tab.html' %}
+            
+            <!-- Educator Notes Tab Content -->
+            {% include 'users/tabs/ilp/educator_notes_tab.html' %}
+            
+            <!-- Course Review Tab Content -->
+            {% include 'users/tabs/ilp/course_review_tab.html' %}
+        </div>
+    </div>
+</div>
+{% endif %} 

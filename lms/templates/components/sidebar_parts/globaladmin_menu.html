@@ -1,0 +1,438 @@
+<!-- Global Admin Menu Structure -->
+<!-- User Management -->
+<div class="menu-section w-full">
+    <button class="menu-item has-submenu flex items-center justify-between px-4 py-1 w-full" data-submenu="userManagementSubmenu">
+        <div class="flex items-center">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">User Management</span>
+        </div>
+        <svg class="w-4 h-4 transition-transform arrow-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+    </button>
+    <div id="userManagementSubmenu" class="submenu hidden">
+        <a href="{% url 'business:business_list' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Business</span>
+        </a>
+        <a href="{% url 'branches:branch_list' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Branch</span>
+        </a>
+        <a href="{% url 'branches:manage_admin_branches' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Admin Branch Assignments</span>
+        </a>
+        <a href="{% url 'groups:group_list' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Group</span>
+        </a>
+        <a href="{% url 'users:user_list' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Users</span>
+        </a>
+    </div>
+</div>
+
+<!-- Branch Portal -->
+<div class="menu-section w-full">
+    <button class="menu-item has-submenu flex items-center justify-between px-4 py-1 w-full" data-submenu="branchPortalSubmenu">
+        <div class="flex items-center">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Branch Portal</span>
+        </div>
+        <svg class="w-4 h-4 transition-transform arrow-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+    </button>
+    <div id="branchPortalSubmenu" class="submenu hidden">
+        <a href="{% url 'branch_portal:branch_dashboard' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <rect x="3" y="3" width="7" height="7" stroke="currentColor" stroke-width="2"/>
+                    <rect x="14" y="3" width="7" height="7" stroke="currentColor" stroke-width="2"/>
+                    <rect x="3" y="14" width="7" height="7" stroke="currentColor" stroke-width="2"/>
+                    <rect x="14" y="14" width="7" height="7" stroke="currentColor" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Dashboard</span>
+        </a>
+        {% if show_order_management_menu %}
+        <a href="{% url 'branch_portal:branch_orders' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Order Management</span>
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Courses -->
+<div class="menu-section w-full">
+    <button class="menu-item has-submenu flex items-center justify-between px-4 py-1 w-full" data-submenu="courseManagementSubmenu">
+        <div class="flex items-center">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Courses</span>
+        </div>
+        <svg class="w-4 h-4 transition-transform arrow-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+    </button>
+    <div id="courseManagementSubmenu" class="submenu hidden">
+        <a href="{% url 'courses:course_list' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Course List</span>
+        </a>
+        <a href="{% url 'categories:category_list' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Categories</span>
+        </a>
+        <a href="{% url 'groups:group_list' %}?tab=course-groups" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Course Group</span>
+        </a>
+        <a href="{% url 'gradebook:index' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Gradebook</span>
+        </a>
+        <a href="{% url 'lms_outcomes:manage' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Outcome</span>
+        </a>
+        <a href="{% url 'lms_rubrics:list' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M6 16h.01" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Rubrics</span>
+        </a>
+        <a href="{% url 'assignments:assignment_list' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Assignments</span>
+        </a>
+        <a href="{% url 'quiz:quiz_list' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Quizzes</span>
+        </a>
+        <a href="{% url 'certificates:certificates' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Certificates</span>
+        </a>
+    </div>
+</div>
+
+<!-- Communication -->
+<div class="menu-section w-full">
+    <button class="menu-item has-submenu flex items-center justify-between px-4 py-1 w-full" data-submenu="communicationManagementSubmenu">
+        <div class="flex items-center">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Communication</span>
+        </div>
+        <svg class="w-4 h-4 transition-transform arrow-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+    </button>
+    <div id="communicationManagementSubmenu" class="submenu hidden">
+        <a href="{% url 'lms_messages:messages' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Messages</span>
+        </a>
+        <a href="{% url 'discussions:discussion_list' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Discussions</span>
+        </a>
+        <a href="{% url 'conferences:conference_list' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Conferences</span>
+        </a>
+        <a href="{% url 'lms_notifications:notification_center' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Notifications</span>
+        </a>
+    </div>
+</div>
+
+<!-- Calendar -->
+<div class="menu-section w-full">
+    <a href="{% url 'calendar_app:calendar' %}" class="menu-item flex items-center px-4 py-1 w-full">
+        <div class="icon-container min-w-[20px] flex justify-center">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-width="2"/>
+            </svg>
+        </div>
+        <span class="menu-text ml-3 text-sm font-medium">Calendar</span>
+    </a>
+</div>
+
+<!-- Reports -->
+<div class="menu-section w-full">
+    <button class="menu-item has-submenu flex items-center justify-between px-4 py-1 w-full" data-submenu="reportsSubmenu">
+        <div class="flex items-center">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Reports</span>
+        </div>
+        <svg class="w-4 h-4 transition-transform arrow-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+    </button>
+    <div id="reportsSubmenu" class="submenu hidden">
+        <a href="{% url 'reports:overview' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Reports Overview</span>
+        </a>
+        <a href="{% url 'reports:user_reports' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Users</span>
+        </a>
+        <a href="{% url 'reports:group_report' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Groups</span>
+        </a>
+        <a href="{% url 'reports:branch_report' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Branches</span>
+        </a>
+        <a href="{% url 'reports:courses_report' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Courses</span>
+        </a>
+        <a href="{% url 'reports:learning_activities' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Learning Activities</span>
+        </a>
+        <a href="{% url 'reports:training_matrix' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M3 3h18v18H3zM9 9h6v6H9z" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Training Matrix</span>
+        </a>
+        <a href="{% url 'reports:timeline' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Timeline</span>
+        </a>
+        <a href="{% url 'reports:custom_reports' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Custom Report</span>
+        </a>
+    </div>
+</div>
+
+
+<!-- Media Library -->
+<div class="menu-section w-full">
+    <button class="menu-item has-submenu flex items-center justify-between px-4 py-1 w-full" data-submenu="mediaLibrarySubmenu">
+        <div class="flex items-center">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" stroke-width="2"/>
+                    <path d="M16 8v5a3 3 0 01-3 3 3 3 0 01-3-3V8m6 0V6a2 2 0 00-2-2H8a2 2 0 00-2 2v2" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Media Library</span>
+        </div>
+        <svg class="w-4 h-4 transition-transform arrow-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+    </button>
+    <div id="mediaLibrarySubmenu" class="submenu hidden">
+        <a href="{% url 'lms_media:media_library' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2 2z" stroke-width="2"/>
+                    <path d="M8 21l4-7 4 7" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Browse Files</span>
+        </a>
+        <a href="{% url 'lms_media:statistics' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Statistics</span>
+        </a>
+    </div>
+</div>
+
+<!-- Role Management -->
+<div class="menu-section w-full">
+    <button class="menu-item has-submenu flex items-center justify-between px-4 py-1 w-full" data-submenu="roleManagementSubmenu">
+        <div class="flex items-center">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Role Management</span>
+        </div>
+        <svg class="w-4 h-4 transition-transform arrow-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+    </button>
+    <div id="roleManagementSubmenu" class="submenu hidden">
+        <a href="{% url 'role_management:role_list' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">View Roles</span>
+        </a>
+        <a href="{% url 'role_management:role_create' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M12 5v14m7-7H5" stroke-width="2"/>
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Create Role</span>
+        </a>
+    </div>
+</div>
+
+
+
+<!-- Rate Limit & Security Control - Disabled (App not implemented) -->
+
+<!-- Account & Settings -->
+<div class="menu-section w-full">
+    <a href="{% url 'account_settings:settings' %}" class="menu-item flex items-center px-4 py-1 w-full">
+        <div class="flex items-center">
+            <div class="icon-container min-w-[20px] flex justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-width="2" />
+                    <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2" />
+                </svg>
+            </div>
+            <span class="menu-text ml-3 text-sm font-medium">Account & Settings</span>
+        </div>
+    </a>
+</div>
+
+<!-- End of Global Admin sidebar menu items --> 

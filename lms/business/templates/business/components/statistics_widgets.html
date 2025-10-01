@@ -1,0 +1,410 @@
+{% load static %}
+
+<!-- Statistics Widget Components -->
+<!-- Reusable components for displaying business performance statistics -->
+
+<!-- Metric Card Component -->
+<div class="metric-card" data-metric="{{ metric_name }}">
+    <div class="metric-header d-flex justify-content-between align-items-center mb-3">
+        <h6 class="metric-title mb-0">
+            <i class="{{ icon_class }} me-2"></i>
+            {{ title }}
+        </h6>
+        {% if trend_value %}
+        <span class="trend-indicator {% if trend_direction == 'up' %}trend-up{% else %}trend-down{% endif %}">
+            <i class="fas fa-arrow-{% if trend_direction == 'up' %}up{% else %}down{% endif %} me-1"></i>
+            {{ trend_value }}%
+        </span>
+        {% endif %}
+    </div>
+    <div class="metric-content">
+        <div class="metric-value">{{ value }}</div>
+        <div class="metric-label">{{ label }}</div>
+        {% if subtitle %}
+        <div class="metric-subtitle text-muted small mt-1">{{ subtitle }}</div>
+        {% endif %}
+    </div>
+    {% if progress_percentage %}
+    <div class="metric-progress mt-3">
+        <div class="progress" style="height: 6px;">
+            <div class="progress-bar" role="progressbar" 
+                 style="width: {{ progress_percentage }}%;" 
+                 aria-valuenow="{{ progress_percentage }}" 
+                 aria-valuemin="0" 
+                 aria-valuemax="100">
+            </div>
+        </div>
+        <div class="progress-text text-end small text-muted mt-1">
+            {{ progress_percentage }}% of target
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Chart Widget Component -->
+<div class="chart-widget" data-chart-type="{{ chart_type }}">
+    <div class="chart-header d-flex justify-content-between align-items-center mb-3">
+        <h6 class="chart-title mb-0">
+            <i class="{{ icon_class }} me-2"></i>
+            {{ title }}
+        </h6>
+        <div class="chart-controls">
+            <div class="btn-group btn-group-sm" role="group">
+                <button type="button" class="btn btn-outline-secondary btn-timeframe" 
+                        data-timeframe="day">24H</button>
+                <button type="button" class="btn btn-outline-secondary btn-timeframe" 
+                        data-timeframe="week">7D</button>
+                <button type="button" class="btn btn-outline-secondary btn-timeframe active" 
+                        data-timeframe="month">30D</button>
+                <button type="button" class="btn btn-outline-secondary btn-timeframe" 
+                        data-timeframe="year">1Y</button>
+            </div>
+        </div>
+    </div>
+    <div class="chart-container">
+        <canvas id="{{ chart_id }}" height="{{ height|default:'300' }}"></canvas>
+    </div>
+    {% if chart_summary %}
+    <div class="chart-summary mt-3">
+        <div class="row text-center">
+            {% for item in chart_summary %}
+            <div class="col">
+                <div class="summary-value">{{ item.value }}</div>
+                <div class="summary-label">{{ item.label }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Comparison Table Component -->
+<div class="comparison-table-widget">
+    <div class="table-header d-flex justify-content-between align-items-center mb-3">
+        <h6 class="table-title mb-0">
+            <i class="{{ icon_class }} me-2"></i>
+            {{ title }}
+        </h6>
+        {% if show_export %}
+        <button class="btn btn-sm btn-outline-primary" onclick="exportTableData('{{ table_id }}')">
+            <i class="fas fa-download me-1"></i> Export
+        </button>
+        {% endif %}
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover" id="{{ table_id }}">
+            <thead class="table-dark">
+                <tr>
+                    {% for header in headers %}
+                    <th>{{ header }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in data %}
+                <tr>
+                    {% for cell in row %}
+                    <td>{{ cell }}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if pagination %}
+    <div class="table-pagination mt-3">
+        <nav aria-label="Table pagination">
+            <ul class="pagination pagination-sm justify-content-center">
+                <li class="page-item disabled">
+                    <span class="page-link">Previous</span>
+                </li>
+                <li class="page-item active">
+                    <span class="page-link">1</span>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="#">2</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="#">Next</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Progress Ring Component -->
+<div class="progress-ring-widget text-center">
+    <div class="progress-ring position-relative d-inline-block">
+        <svg width="{{ size|default:'120' }}" height="{{ size|default:'120' }}">
+            <circle class="background" cx="{{ center_x|default:'60' }}" cy="{{ center_y|default:'60' }}" 
+                    r="{{ radius|default:'45' }}"></circle>
+            <circle class="progress" cx="{{ center_x|default:'60' }}" cy="{{ center_y|default:'60' }}" 
+                    r="{{ radius|default:'45' }}" 
+                    style="stroke-dashoffset: {{ progress_offset }};"></circle>
+        </svg>
+        <div class="progress-text">
+            <div class="progress-value">{{ value }}</div>
+            <div class="progress-label">{{ label }}</div>
+        </div>
+    </div>
+    {% if description %}
+    <div class="progress-description mt-3">
+        <p class="text-muted small">{{ description }}</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Alert Widget Component -->
+<div class="alert-widget alert alert-{{ alert_type|default:'info' }} alert-dismissible fade show" role="alert">
+    <div class="d-flex align-items-center">
+        <i class="{{ icon_class }} me-3"></i>
+        <div class="flex-grow-1">
+            <h6 class="alert-title mb-1">{{ title }}</h6>
+            <p class="alert-message mb-0">{{ message }}</p>
+        </div>
+        {% if show_close %}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        {% endif %}
+    </div>
+    {% if action_url %}
+    <div class="alert-actions mt-3">
+        <a href="{{ action_url }}" class="btn btn-sm btn-{{ alert_type|default:'info' }}">
+            {{ action_text|default:'View Details' }}
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- KPI Dashboard Component -->
+<div class="kpi-dashboard">
+    <div class="kpi-header mb-4">
+        <h5 class="kpi-title">
+            <i class="{{ icon_class }} me-2"></i>
+            {{ title }}
+        </h5>
+        {% if subtitle %}
+        <p class="kpi-subtitle text-muted">{{ subtitle }}</p>
+        {% endif %}
+    </div>
+    <div class="kpi-grid">
+        <div class="row">
+            {% for kpi in kpis %}
+            <div class="col-md-{{ kpi.width|default:'3' }}">
+                <div class="kpi-card">
+                    <div class="kpi-value">{{ kpi.value }}</div>
+                    <div class="kpi-label">{{ kpi.label }}</div>
+                    {% if kpi.trend %}
+                    <div class="kpi-trend {% if kpi.trend.direction == 'up' %}trend-up{% else %}trend-down{% endif %}">
+                        <i class="fas fa-arrow-{% if kpi.trend.direction == 'up' %}up{% else %}down{% endif %} me-1"></i>
+                        {{ kpi.trend.value }}%
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<style>
+/* Component Styles */
+.metric-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border-left: 4px solid #667eea;
+    transition: all 0.3s ease;
+}
+
+.metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+
+.metric-value {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #667eea;
+    margin-bottom: 5px;
+}
+
+.metric-label {
+    color: #6c757d;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+.metric-subtitle {
+    color: #6c757d;
+    font-size: 0.8rem;
+}
+
+.trend-indicator {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.85rem;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+.trend-up {
+    color: #28a745;
+    background: rgba(40, 167, 69, 0.1);
+}
+
+.trend-down {
+    color: #dc3545;
+    background: rgba(220, 53, 69, 0.1);
+}
+
+.chart-widget {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.chart-title {
+    color: #333;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.btn-timeframe.active {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+}
+
+.comparison-table-widget {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.table-title {
+    color: #333;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.progress-ring-widget {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.progress-ring circle {
+    fill: transparent;
+    stroke-width: 8;
+    stroke-linecap: round;
+}
+
+.progress-ring .background {
+    stroke: #e9ecef;
+}
+
+.progress-ring .progress {
+    stroke: #667eea;
+    stroke-dasharray: 283;
+    stroke-dashoffset: 283;
+    transition: stroke-dashoffset 0.5s ease;
+}
+
+.progress-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.progress-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #667eea;
+}
+
+.progress-label {
+    font-size: 0.8rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.alert-widget {
+    border-radius: 12px;
+    border: none;
+    margin-bottom: 20px;
+}
+
+.alert-title {
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.kpi-dashboard {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.kpi-title {
+    color: #333;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.kpi-subtitle {
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+}
+
+.kpi-card {
+    text-align: center;
+    padding: 15px;
+    border-radius: 8px;
+    background: #f8f9fa;
+    transition: all 0.3s ease;
+}
+
+.kpi-card:hover {
+    background: #e9ecef;
+    transform: translateY(-2px);
+}
+
+.kpi-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #667eea;
+    margin-bottom: 5px;
+}
+
+.kpi-label {
+    color: #6c757d;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+.kpi-trend {
+    font-size: 0.8rem;
+    margin-top: 5px;
+    font-weight: 600;
+}
+</style>

@@ -1,0 +1,522 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+    {% if is_create %}Add{% else %}Edit{% endif %} Learning Goal - {{ target_user.get_full_name|default:target_user.username }}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        max-width: 900px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        padding: 30px;
+    }
+    
+    .form-group {
+        margin-bottom: 24px;
+    }
+    
+    .form-label {
+        display: block;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 8px;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 16px;
+        transition: border-color 0.2s;
+    }
+    
+    .form-control:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    
+    .form-control.textarea {
+        min-height: 120px;
+        resize: vertical;
+    }
+    
+    .form-select {
+        background-image: url('data:image/svg+xml;charset=utf-8,%3Csvg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20"%3E%3Cpath stroke="%236b7280" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 8l4 4 4-4"/%3E%3C/svg%3E');
+        background-position: right 12px center;
+        background-repeat: no-repeat;
+        background-size: 16px;
+        padding-right: 40px;
+    }
+    
+    .btn {
+        padding: 12px 24px;
+        border-radius: 6px;
+        font-weight: 600;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        display: inline-block;
+        transition: all 0.2s;
+    }
+    
+    .btn-primary {
+        background-color: #3b82f6;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background-color: #2563eb;
+        color: white;
+    }
+    
+    .btn-secondary {
+        background-color: #6b7280;
+        color: white;
+    }
+    
+    .btn-secondary:hover {
+        background-color: #4b5563;
+        color: white;
+    }
+    
+    .form-help {
+        font-size: 14px;
+        color: #6b7280;
+        margin-top: 4px;
+    }
+    
+    .form-error {
+        color: #ef4444;
+        font-size: 14px;
+        margin-top: 4px;
+    }
+    
+    .form-section {
+        margin-bottom: 32px;
+        padding: 24px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        background: #f9fafb;
+    }
+    
+    .form-section h3 {
+        font-size: 18px;
+        font-weight: 600;
+        color: #111827;
+        margin-bottom: 16px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        align-items: center;
+    }
+    
+    .goal-type-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+    
+    .goal-type-card {
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 16px;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: white;
+    }
+    
+    .goal-type-card:hover {
+        border-color: #3b82f6;
+        background: #eff6ff;
+    }
+    
+    .goal-type-card.selected {
+        border-color: #3b82f6;
+        background: #eff6ff;
+    }
+    
+    .goal-type-card h4 {
+        margin: 0 0 8px 0;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+    }
+    
+    .goal-type-card p {
+        margin: 0;
+        font-size: 14px;
+        color: #6b7280;
+    }
+    
+    .teacher-section {
+        background: #f0f9ff;
+        border: 1px solid #bae6fd;
+        border-radius: 8px;
+        padding: 20px;
+        margin-top: 24px;
+    }
+    
+    .teacher-section h4 {
+        color: #0c4a6e;
+        font-weight: 600;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+    }
+    
+    .ai-section {
+        background: #faf5ff;
+        border: 1px solid #e9d5ff;
+        border-radius: 8px;
+        padding: 20px;
+        margin-top: 16px;
+    }
+    
+    .ai-section h4 {
+        color: #7c3aed;
+        font-weight: 600;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+    }
+    
+    .status-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+    }
+    
+    .status-option {
+        border: 2px solid #e5e7eb;
+        border-radius: 6px;
+        padding: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: center;
+        background: white;
+    }
+    
+    .status-option:hover {
+        border-color: #3b82f6;
+    }
+    
+    .status-option.selected {
+        border-color: #3b82f6;
+        background: #eff6ff;
+    }
+    
+    .status-option input[type="radio"] {
+        display: none;
+    }
+    
+    .date-input {
+        position: relative;
+    }
+    
+    .date-input input[type="date"] {
+        padding-right: 40px;
+    }
+    
+    .permission-note {
+        background: #fef3c7;
+        border: 1px solid #fcd34d;
+        border-radius: 6px;
+        padding: 12px;
+        margin-bottom: 20px;
+        color: #92400e;
+        font-size: 14px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50">
+    <div class="p-6">
+        <!-- Breadcrumb -->
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+        <!-- Form Container -->
+        <div class="form-container">
+            <div class="mb-6">
+                <h1 class="text-2xl font-bold text-gray-900">
+                    {% if is_create %}Add{% else %}Edit{% endif %} Learning Goal
+                </h1>
+                <p class="text-gray-600 mt-2">
+                    Set specific learning objectives and targets for {{ target_user.get_full_name|default:target_user.username }}.
+                </p>
+            </div>
+
+            {% if user_role == 'learner' %}
+            <div class="permission-note">
+                <i class="fas fa-info-circle mr-2"></i>
+                As a learner, you can create custom learning goals. Teacher input and AI suggestions will be added by your instructors.
+            </div>
+            {% endif %}
+
+            <!-- Form -->
+            <form method="post">
+                {% csrf_token %}
+                
+                <!-- Basic Goal Information -->
+                <div class="form-section">
+                    <h3><i class="fas fa-target mr-2 text-blue-600"></i>Goal Details</h3>
+                    
+                    <!-- Goal Type -->
+                    <div class="form-group">
+                        <label class="form-label">
+                            Goal Type <span class="text-red-500">*</span>
+                        </label>
+                        <div class="goal-type-grid">
+                            {% for value, label in form.goal_type.field.choices %}
+                            <div class="goal-type-card" data-value="{{ value }}">
+                                <h4>
+                                    {% if value == 'short_term' %}
+                                        <i class="fas fa-clock mr-2 text-blue-600"></i>
+                                    {% elif value == 'long_term' %}
+                                        <i class="fas fa-calendar-alt mr-2 text-green-600"></i>
+                                    {% else %}
+                                        <i class="fas fa-bullseye mr-2 text-purple-600"></i>
+                                    {% endif %}
+                                    {{ label }}
+                                </h4>
+                                <p>
+                                    {% if value == 'short_term' %}
+                                        Goals to achieve within weeks or months
+                                    {% elif value == 'long_term' %}
+                                        Goals spanning months to years
+                                    {% else %}
+                                        Personalized learning targets
+                                    {% endif %}
+                                </p>
+                                <input type="radio" name="goal_type" value="{{ value }}" 
+                                       {% if form.goal_type.value == value %}checked{% endif %}>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% if form.goal_type.errors %}
+                            <div class="form-error">{{ form.goal_type.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Title -->
+                    <div class="form-group">
+                        <label for="id_title" class="form-label">
+                            Goal Title <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.title }}
+                        {% if form.title.errors %}
+                            <div class="form-error">{{ form.title.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-help">
+                            A clear, concise title for this learning goal.
+                        </div>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="form-group">
+                        <label for="id_description" class="form-label">
+                            Description <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.description }}
+                        {% if form.description.errors %}
+                            <div class="form-error">{{ form.description.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-help">
+                            Detailed description of what you want to achieve and how you plan to measure success.
+                        </div>
+                    </div>
+
+                    <!-- Course Association -->
+                    <div class="form-group">
+                        <label for="id_course" class="form-label">
+                            Associated Course
+                        </label>
+                        {{ form.course }}
+                        {% if form.course.errors %}
+                            <div class="form-error">{{ form.course.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-help">
+                            Optionally link this goal to a specific course.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Timeline and Status -->
+                <div class="form-section">
+                    <h3><i class="fas fa-calendar-check mr-2 text-green-600"></i>Timeline & Progress</h3>
+                    
+                    <!-- Target Completion Date -->
+                    <div class="form-group">
+                        <label for="id_target_completion_date" class="form-label">
+                            Target Completion Date
+                        </label>
+                        <div class="date-input">
+                            {{ form.target_completion_date }}
+                        </div>
+                        {% if form.target_completion_date.errors %}
+                            <div class="form-error">{{ form.target_completion_date.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-help">
+                            When do you aim to complete this goal?
+                        </div>
+                    </div>
+
+                    <!-- Status -->
+                    <div class="form-group">
+                        <label class="form-label">
+                            Current Status <span class="text-red-500">*</span>
+                        </label>
+                        <div class="status-grid">
+                            {% for value, label in form.status.field.choices %}
+                            <div class="status-option" data-value="{{ value }}">
+                                <div class="font-medium">{{ label }}</div>
+                                <input type="radio" name="status" value="{{ value }}" 
+                                       {% if form.status.value == value %}checked{% endif %}>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% if form.status.errors %}
+                            <div class="form-error">{{ form.status.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Teacher and AI Input (if instructor) -->
+                {% if user_role != 'learner' %}
+                <div class="form-section">
+                    <h3><i class="fas fa-users mr-2 text-purple-600"></i>Guidance & Support</h3>
+                    
+                    <!-- Teacher Input -->
+                    <div class="teacher-section">
+                        <h4><i class="fas fa-chalkboard-teacher mr-2"></i>Teacher Input</h4>
+                        <div class="form-group">
+                            <label for="id_teacher_input" class="form-label">
+                                Teacher/Instructor Guidance
+                            </label>
+                            {{ form.teacher_input }}
+                            {% if form.teacher_input.errors %}
+                                <div class="form-error">{{ form.teacher_input.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-help">
+                                Provide guidance, suggestions, or feedback on this learning goal.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Input -->
+                    <div class="ai-section">
+                        <h4><i class="fas fa-robot mr-2"></i>AI Suggestions</h4>
+                        <div class="form-group">
+                            <label for="id_ai_input" class="form-label">
+                                AI-Generated Recommendations
+                            </label>
+                            {{ form.ai_input }}
+                            {% if form.ai_input.errors %}
+                                <div class="form-error">{{ form.ai_input.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-help">
+                                AI-generated suggestions for achieving this goal or related resources.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Form Actions -->
+                <div class="flex items-center justify-between pt-6 border-t border-gray-200">
+                    <a href="{% url 'users:role_based_redirect' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left mr-2"></i>Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save mr-2"></i>
+                        {% if is_create %}Add Learning Goal{% else %}Update Learning Goal{% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Goal type selection
+    const goalTypeCards = document.querySelectorAll('.goal-type-card');
+    const goalTypeInputs = document.querySelectorAll('input[name="goal_type"]');
+    
+    goalTypeCards.forEach(card => {
+        card.addEventListener('click', function() {
+            const value = this.dataset.value;
+            const input = this.querySelector('input[type="radio"]');
+            
+            // Clear all selections
+            goalTypeCards.forEach(c => c.classList.remove('selected'));
+            goalTypeInputs.forEach(i => i.checked = false);
+            
+            // Select this one
+            this.classList.add('selected');
+            input.checked = true;
+        });
+        
+        // Set initial state
+        const input = card.querySelector('input[type="radio"]');
+        if (input.checked) {
+            card.classList.add('selected');
+        }
+    });
+    
+    // Status selection
+    const statusOptions = document.querySelectorAll('.status-option');
+    const statusInputs = document.querySelectorAll('input[name="status"]');
+    
+    statusOptions.forEach(option => {
+        option.addEventListener('click', function() {
+            const value = this.dataset.value;
+            const input = this.querySelector('input[type="radio"]');
+            
+            // Clear all selections
+            statusOptions.forEach(o => o.classList.remove('selected'));
+            statusInputs.forEach(i => i.checked = false);
+            
+            // Select this one
+            this.classList.add('selected');
+            input.checked = true;
+        });
+        
+        // Set initial state
+        const input = option.querySelector('input[type="radio"]');
+        if (input.checked) {
+            option.classList.add('selected');
+        }
+    });
+    
+    // Auto-resize textareas
+    const textareas = document.querySelectorAll('textarea');
+    textareas.forEach(textarea => {
+        textarea.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = this.scrollHeight + 'px';
+        });
+        
+        // Initial resize
+        textarea.style.height = 'auto';
+        textarea.style.height = textarea.scrollHeight + 'px';
+    });
+    
+    // Set minimum date for target completion to today
+    const dateInput = document.getElementById('id_target_completion_date');
+    if (dateInput) {
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.setAttribute('min', today);
+    }
+});
+</script>
+{% endblock %} 

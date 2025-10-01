@@ -1,0 +1,558 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Todo List - {{ user.get_full_name }}{% endblock %}
+
+{% block extra_head %}
+<style>
+.todo-dashboard {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.todo-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 30px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+    position: relative;
+    overflow: hidden;
+}
+
+.todo-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 200px;
+    height: 200px;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="rgba(255,255,255,0.1)"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>') no-repeat center;
+    background-size: contain;
+}
+
+.todo-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    text-align: center;
+    transition: transform 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-4px);
+}
+
+.stat-number {
+    font-size: 2.5em;
+    font-weight: bold;
+    margin-bottom: 8px;
+}
+
+.stat-label {
+    color: #6b7280;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.critical { color: #dc2626; }
+.high { color: #ef4444; }
+.medium { color: #f59e0b; }
+.low { color: #10b981; }
+
+.todo-filters {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.filter-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.filter-tab {
+    padding: 8px 16px;
+    border: 2px solid #e5e7eb;
+    border-radius: 20px;
+    background: white;
+    color: #6b7280;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.filter-tab:hover {
+    border-color: #3b82f6;
+    color: #3b82f6;
+}
+
+.filter-tab.active {
+    background: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+}
+
+.todo-list-container {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.todo-list-header {
+    background: #f9fafb;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.todo-list-content {
+    max-height: 800px;
+    overflow-y: auto;
+}
+
+.load-more-container {
+    text-align: center;
+    padding: 20px;
+    border-top: 1px solid #e5e7eb;
+    background: #f9fafb;
+}
+
+.load-more-btn {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.3s ease;
+}
+
+.load-more-btn:hover {
+    background: #2563eb;
+}
+
+.load-more-btn:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+}
+
+.loading-spinner {
+    display: none;
+    text-align: center;
+    padding: 20px;
+}
+
+.role-badge {
+    background: #3b82f6;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+@media (max-width: 768px) {
+    .todo-dashboard {
+        padding: 10px;
+    }
+    
+    .todo-header {
+        padding: 20px;
+    }
+    
+    .todo-stats {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+    }
+    
+    .filter-tabs {
+        gap: 6px;
+    }
+    
+    .filter-tab {
+        padding: 6px 12px;
+        font-size: 14px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="todo-dashboard">
+    <!-- Header Section -->
+    <div class="todo-header">
+        <h1>
+            <i class="fas fa-tasks"></i>
+            My Todo List
+            <span class="role-badge">{{ user_role|title }}</span>
+        </h1>
+        <p>Stay organized and track your important tasks</p>
+        
+        <!-- Quick Stats -->
+        <div class="todo-stats" id="todo-stats">
+            <div class="stat-card">
+                <div class="stat-number" id="total-todos">{{ total_count|default:0 }}</div>
+                <div class="stat-label">Total Tasks</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number high" id="high-priority-todos">-</div>
+                <div class="stat-label">High Priority</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number medium" id="medium-priority-todos">-</div>
+                <div class="stat-label">Medium Priority</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number low" id="low-priority-todos">-</div>
+                <div class="stat-label">Low Priority</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters Section -->
+    <div class="todo-filters">
+        <div class="filter-tabs">
+            <button class="filter-tab active" data-type="all">
+                <i class="fas fa-list"></i> All Tasks
+            </button>
+            
+            {% if user_role == 'learner' %}
+                <button class="filter-tab" data-type="assignment">
+                    <i class="fas fa-file-alt"></i> Assignments
+                </button>
+                <button class="filter-tab" data-type="course">
+                    <i class="fas fa-book"></i> Courses
+                </button>
+                <button class="filter-tab" data-type="conference">
+                    <i class="fas fa-video"></i> Conferences
+                </button>
+            {% elif user_role == 'instructor' %}
+                <button class="filter-tab" data-type="grading">
+                    <i class="fas fa-check-circle"></i> Grading
+                </button>
+                <button class="filter-tab" data-type="conference">
+                    <i class="fas fa-video"></i> Conferences
+                </button>
+                <button class="filter-tab" data-type="course_management">
+                    <i class="fas fa-chalkboard-teacher"></i> Course Management
+                </button>
+            {% else %}
+                <button class="filter-tab" data-type="user_management">
+                    <i class="fas fa-users"></i> User Management
+                </button>
+                <button class="filter-tab" data-type="course_review">
+                    <i class="fas fa-eye"></i> Course Reviews
+                </button>
+                <button class="filter-tab" data-type="maintenance">
+                    <i class="fas fa-cogs"></i> System
+                </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Todo List Section -->
+    <div class="todo-list-container">
+        <div class="todo-list-header">
+            <h3>
+                <span id="current-filter-title">All Tasks</span>
+                <span id="current-count">({{ total_count }} items)</span>
+            </h3>
+            <div>
+                <button onclick="refreshTodos()" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+        </div>
+        
+        <div class="loading-spinner" id="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i> Loading tasks...
+        </div>
+        
+        <div class="todo-list-content" id="todo-list-content">
+            {% include 'users/components/enhanced_todo_item.html' %}
+        </div>
+        
+        {% if has_more %}
+        <div class="load-more-container" id="load-more-container">
+            <button class="load-more-btn" onclick="loadMoreTodos()">
+                <i class="fas fa-plus-circle"></i> Load More Tasks
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// Global variables
+let currentTodoType = 'all';
+let currentOffset = {{ current_count }};
+let totalTodos = {{ total_count }};
+let hasMore = {{ has_more|yojson }};
+let isLoading = false;
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    loadTodoStats();
+    setupFilterTabs();
+});
+
+// Load todo statistics
+function loadTodoStats() {
+    fetch('{% url "users:api_todo_counts" %}', {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Cache-Control': 'no-cache'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            updateStatsDisplay(data);
+        }
+    })
+    .catch(error => {
+        console.error('Error loading todo stats:', error);
+    });
+}
+
+// Update statistics display
+function updateStatsDisplay(data) {
+    document.getElementById('total-todos').textContent = data.total_todos;
+    document.getElementById('high-priority-todos').textContent = data.high_priority;
+    
+    // Calculate medium and low priority counts
+    let mediumCount = 0, lowCount = 0, criticalCount = 0;
+    
+    Object.values(data.counts_by_type).forEach(counts => {
+        mediumCount += counts.medium || 0;
+        lowCount += counts.low || 0;
+        criticalCount += counts.critical || 0;
+    });
+    
+    document.getElementById('medium-priority-todos').textContent = mediumCount;
+    document.getElementById('low-priority-todos').textContent = lowCount;
+    
+    // Update high priority to include critical
+    const highPriorityTotal = data.high_priority + criticalCount;
+    document.getElementById('high-priority-todos').textContent = highPriorityTotal;
+}
+
+// Setup filter tab functionality
+function setupFilterTabs() {
+    const filterTabs = document.querySelectorAll('.filter-tab');
+    
+    filterTabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            const todoType = this.getAttribute('data-type');
+            switchTodoType(todoType, this);
+        });
+    });
+}
+
+// Switch todo type filter
+function switchTodoType(todoType, activeTab) {
+    if (isLoading || currentTodoType === todoType) return;
+    
+    currentTodoType = todoType;
+    currentOffset = 0;
+    
+    // Update active tab
+    document.querySelectorAll('.filter-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    activeTab.classList.add('active');
+    
+    // Update filter title
+    const filterTitle = activeTab.textContent.trim();
+    document.getElementById('current-filter-title').textContent = filterTitle;
+    
+    // Load filtered todos
+    loadFilteredTodos();
+}
+
+// Load filtered todos
+function loadFilteredTodos() {
+    if (isLoading) return;
+    
+    isLoading = true;
+    showLoadingSpinner();
+    
+    const url = new URL('{% url "users:api_user_todos" %}', window.location.origin);
+    url.searchParams.set('limit', '10');
+    url.searchParams.set('offset', '0');
+    if (currentTodoType !== 'all') {
+        url.searchParams.set('type', currentTodoType);
+    }
+    
+    fetch(url, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Cache-Control': 'no-cache'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Replace todo list content
+            document.getElementById('todo-list-content').innerHTML = data.html;
+            
+            // Update counters
+            currentOffset = data.current_count;
+            totalTodos = data.total_count;
+            hasMore = data.has_more;
+            
+            // Update count display
+            document.getElementById('current-count').textContent = `(${data.total_count} items)`;
+            
+            // Show/hide load more button
+            const loadMoreContainer = document.getElementById('load-more-container');
+            if (loadMoreContainer) {
+                loadMoreContainer.style.display = hasMore ? 'block' : 'none';
+            }
+        } else {
+            showError('Failed to load tasks: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error loading todos:', error);
+        showError('Failed to load tasks. Please try again.');
+    })
+    .finally(() => {
+        isLoading = false;
+        hideLoadingSpinner();
+    });
+}
+
+// Load more todos (pagination)
+function loadMoreTodos() {
+    if (isLoading || !hasMore) return;
+    
+    isLoading = true;
+    const loadBtn = document.querySelector('.load-more-btn');
+    const originalText = loadBtn.innerHTML;
+    loadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+    loadBtn.disabled = true;
+    
+    const url = new URL('{% url "users:api_user_todos" %}', window.location.origin);
+    url.searchParams.set('limit', '10');
+    url.searchParams.set('offset', currentOffset.toString());
+    if (currentTodoType !== 'all') {
+        url.searchParams.set('type', currentTodoType);
+    }
+    
+    fetch(url, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Cache-Control': 'no-cache'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Append new todos to existing list
+            const todoListContent = document.getElementById('todo-list-content');
+            todoListContent.insertAdjacentHTML('beforeend', data.html);
+            
+            // Update counters
+            currentOffset = data.current_count;
+            hasMore = data.has_more;
+            
+            // Hide load more button if no more items
+            if (!hasMore) {
+                document.getElementById('load-more-container').style.display = 'none';
+            }
+        } else {
+            showError('Failed to load more tasks: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error loading more todos:', error);
+        showError('Failed to load more tasks. Please try again.');
+    })
+    .finally(() => {
+        isLoading = false;
+        loadBtn.innerHTML = originalText;
+        loadBtn.disabled = false;
+    });
+}
+
+// Refresh todos
+function refreshTodos() {
+    currentOffset = 0;
+    loadFilteredTodos();
+    loadTodoStats();
+}
+
+// Show loading spinner
+function showLoadingSpinner() {
+    document.getElementById('loading-spinner').style.display = 'block';
+}
+
+// Hide loading spinner
+function hideLoadingSpinner() {
+    document.getElementById('loading-spinner').style.display = 'none';
+}
+
+// Show error message
+function showError(message) {
+    // Simple error display - could be enhanced with toast notifications
+    alert(message);
+}
+
+// Handle infinite scroll (optional)
+function setupInfiniteScroll() {
+    const todoListContent = document.getElementById('todo-list-content');
+    
+    todoListContent.addEventListener('scroll', function() {
+        if (this.scrollTop + this.clientHeight >= this.scrollHeight - 10) {
+            if (hasMore && !isLoading) {
+                loadMoreTodos();
+            }
+        }
+    });
+}
+
+// Optional: Initialize infinite scroll
+// setupInfiniteScroll();
+</script>
+{% endblock %}

@@ -1,0 +1,788 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Course Settings - {{ course.title }}{% endblock %}
+
+{% block extra_css %}
+<link href="{% static 'core/css/course_create.css' %}" rel="stylesheet">
+<link href="{% static 'core/css/courses/course_edit.css' %}" rel="stylesheet">
+<link href="{% static 'core/css/mobile-tabs-accordion.css' %}" rel="stylesheet">
+<link href="{% static 'css/dashboard-shared.css' %}" rel="stylesheet">
+<style>
+    .tab-content {
+        display: none;
+    }
+    .tab-content.active {
+        display: block;
+    }
+    .tab-button {
+        padding: 0.75rem 1rem;
+        border-bottom: 2px solid transparent;
+        font-weight: 500;
+        cursor: pointer;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    .tab-button.active {
+        border-bottom: 2px solid #3b82f6;
+        color: #3b82f6;
+    }
+    
+    /* Mobile responsive improvements */
+    @media (max-width: 768px) {
+        .course-create-form {
+            padding: 1rem !important;
+        }
+        
+        /* Mobile tabs - horizontal scroll */
+        .tab-navigation {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        
+        .tab-navigation::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .tab-buttons-container {
+            display: flex;
+            min-width: max-content;
+            gap: 0.5rem;
+        }
+        
+        .tab-button {
+            font-size: 0.875rem;
+            padding: 0.875rem 1rem;
+            min-width: max-content;
+        }
+        
+        /* Form improvements for mobile */
+        .form-section {
+            margin: 0 -1rem;
+            padding: 1rem;
+            border-radius: 0;
+        }
+        
+        /* Improve touch targets for mobile */
+        input[type="text"],
+        input[type="number"],
+        input[type="email"],
+        input[type="password"],
+        input[type="date"],
+        input[type="file"],
+        select,
+        textarea {
+            min-height: 44px !important;
+            font-size: 16px !important; /* Prevent zoom on iOS */
+            padding: 12px 16px !important;
+        }
+        
+        /* Checkbox and radio improvements */
+        input[type="checkbox"],
+        input[type="radio"] {
+            min-width: 20px !important;
+            min-height: 20px !important;
+            margin-right: 0.75rem;
+        }
+        
+        /* File upload section mobile optimization */
+        .file-upload-section {
+            flex-direction: column !important;
+            gap: 1rem !important;
+        }
+
+        /* Fix upload button overlapping in course settings */
+        .file-upload-section .flex-grow {
+            margin-top: 0.5rem;
+        }
+
+        .file-upload-section input[type="file"] {
+            width: 100%;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Ensure proper spacing for file preview */
+        .file-preview {
+            margin-bottom: 1rem;
+            flex-shrink: 0;
+        }
+        
+        .file-preview {
+            width: 100% !important;
+            max-width: 200px !important;
+            align-self: center;
+        }
+        
+        /* Button improvements */
+        .btn,
+        button {
+            min-height: 44px !important;
+            padding: 12px 20px !important;
+            font-size: 16px !important;
+        }
+        
+        /* Container padding adjustments */
+        .container {
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+        }
+        
+        .bg-white.rounded-lg.shadow-md {
+            margin: 0 !important;
+            border-radius: 0.5rem;
+        }
+    }
+    
+    @media (max-width: 640px) {
+        .course-create-form {
+            padding: 0.75rem !important;
+        }
+        
+        .tab-button {
+            font-size: 0.8rem;
+            padding: 0.75rem 0.875rem;
+        }
+        
+        /* Stack form elements vertically on very small screens */
+        .flex.items-start.space-x-4 {
+            flex-direction: column !important;
+            gap: 1rem !important;
+        }
+        
+        .flex.items-center.space-x-4 {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 0.75rem !important;
+        }
+        
+        /* Reduce spacing on very small screens */
+        .space-y-6 > * + * {
+            margin-top: 1rem !important;
+        }
+        
+        .space-y-4 > * + * {
+            margin-top: 0.75rem !important;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .tab-button {
+            font-size: 0.75rem;
+            padding: 0.625rem 0.75rem;
+        }
+        
+        h1 {
+            font-size: 1.5rem !important;
+        }
+        
+        h2 {
+            font-size: 1.125rem !important;
+        }
+        
+        /* Extra small form adjustments */
+        .form-section {
+            padding: 0.75rem;
+        }
+        
+        /* Better button spacing on extra small screens */
+        .form-buttons {
+            flex-direction: column !important;
+            gap: 0.75rem !important;
+        }
+        
+        .form-buttons button {
+            width: 100% !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <!-- Main form container -->
+    <div class="bg-white rounded-lg shadow-md">
+        <div class="w-full course-create-form md:px-8 md:py-6 px-4 py-4">
+            <!-- Breadcrumbs -->
+            {% with breadcrumbs=breadcrumbs %}
+                {% include 'components/breadcrumb.html' %}
+            {% endwith %}
+
+            <!-- Main Content Area -->
+            <form method="POST" enctype="multipart/form-data" id="courseSettingsForm" action="{% url 'courses:course_settings' course.id %}">
+                {% csrf_token %}
+                
+                <h1 class="text-2xl font-bold mb-6">Course Settings</h1>
+                
+                <!-- Mobile-Responsive Tabs -->
+                <div class="tab-navigation border-b border-gray-200 mb-6">
+                    <div class="tab-buttons-container flex space-x-4">
+                        <div id="tab-course-info" class="tab-button active">Course Info</div>
+                        <div id="tab-course-availability" class="tab-button">Course Availability</div>
+                        <div id="tab-course-schedule" class="tab-button">Course Schedule & Access Rules</div>
+                        <div id="tab-course-completion" class="tab-button">Course Completion</div>
+                    </div>
+                </div>
+                
+                <!-- Settings Form -->
+                <div class="space-y-6">
+                    <!-- Course Info Tab -->
+                    <div id="content-course-info" class="tab-content active">
+                        <div class="border rounded-lg p-4 form-section">
+                            <h2 class="text-lg font-medium mb-4">Course Information</h2>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Course Name</label>
+                                    <input type="text" name="title" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" value="{{ course.title }}" required>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Course Code</label>
+                                    <input type="text" name="course_code" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" value="{{ course.course_code }}">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                                    <select name="category" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                        <option value="">-- Select Category --</option>
+                                        {% for category in categories %}
+                                            <option value="{{ category.id }}" {% if course.category.id == category.id %}selected{% endif %}>{{ category.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Instructor</label>
+                                    <select name="instructor" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                        <option value="">-- Select Instructor --</option>
+                                        {% for instructor in instructors %}
+                                            <option value="{{ instructor.id }}" {% if course.instructor.id == instructor.id %}selected{% endif %}>{{ instructor.get_full_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Course Image</label>
+                                    <div class="flex items-start space-x-4 file-upload-section">
+                                        {% if course.course_image %}
+                                            <div class="w-32 h-32 overflow-hidden rounded-md file-preview">
+                                                <img src="{{ course.course_image.url }}" alt="Course image" class="w-full h-full object-cover">
+                                            </div>
+                                        {% endif %}
+                                        <div class="flex-grow">
+                                            <input type="file" name="course_image" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" accept="image/*">
+                                            <p class="mt-1 text-sm text-gray-500">Recommended size: 1200x630 pixels</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Course Video</label>
+                                    <div class="flex items-start space-x-4 file-upload-section">
+                                        {% if course.course_video %}
+                                            <div class="w-32 h-32 overflow-hidden rounded-md bg-gray-100 flex items-center justify-center file-preview">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                            </div>
+                                        {% endif %}
+                                        <div class="flex-grow">
+                                            <input type="file" name="course_video" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" accept="video/*">
+                                            <p class="mt-1 text-sm text-gray-500">Upload a promotional or introductory video</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Short Description</label>
+                                    <textarea name="short_description" rows="2" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">{{ course.short_description }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Course Availability Tab -->
+                    <div id="content-course-availability" class="tab-content">
+                        <div class="border rounded-lg p-4 form-section">
+                            <h2 class="text-lg font-medium mb-4">Course Visibility</h2>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Catalog Visibility</label>
+                                    <select name="catalog_visibility" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                        <option value="visible" {% if course.catalog_visibility == 'visible' %}selected{% endif %}>Visible - Show in course catalog</option>
+                                        <option value="hidden" {% if course.catalog_visibility == 'hidden' %}selected{% endif %}>Hidden - Hide from course catalog</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Visibility Status</label>
+                                    <select name="visibility" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                        <option value="public" {% if course.visibility == 'public' %}selected{% endif %}>Public - Visible to all users</option>
+                                        <option value="private" {% if course.visibility == 'private' %}selected{% endif %}>Private - Only visible to enrolled users</option>
+                                        <option value="password" {% if course.visibility == 'password' %}selected{% endif %}>Password Protected - Requires password to access</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="border rounded-lg p-4 mt-4 form-section">
+                            <h2 class="text-lg font-medium mb-4">Enrollment Settings</h2>
+                            <div class="space-y-4">
+                                <div class="flex items-center">
+                                    <input type="checkbox" id="public_enrollment" name="public_enrollment" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" {% if course.public_enrollment %}checked{% endif %}>
+                                    <label for="public_enrollment" class="ml-2 block text-sm text-gray-700">Allow public enrollment</label>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Enrollment Capacity</label>
+                                    <input type="number" name="enrollment_capacity" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" value="{{ course.enrollment_capacity|default:'' }}" min="0">
+                                    <p class="mt-1 text-sm text-gray-500">Leave blank for unlimited enrollment</p>
+                                </div>
+                                <div class="flex items-center">
+                                    <input type="checkbox" id="require_enrollment_approval" name="require_enrollment_approval" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" {% if course.require_enrollment_approval %}checked{% endif %}>
+                                    <label for="require_enrollment_approval" class="ml-2 block text-sm text-gray-700">Require enrollment approval</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Course Schedule Tab -->
+                    <div id="content-course-schedule" class="tab-content">
+                        <div class="border rounded-lg p-4 form-section">
+                            <h2 class="text-lg font-medium mb-4">Course Schedule & Access</h2>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                                    <input type="date" name="start_date" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" value="{{ course.start_date|date:'Y-m-d' }}">
+                                    <p class="mt-1 text-sm text-gray-500">Leave blank for immediate access</p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                                    <input type="date" name="end_date" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" value="{{ course.end_date|date:'Y-m-d' }}">
+                                    <p class="mt-1 text-sm text-gray-500">Leave blank for unlimited access</p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Course Time Limit (Days)</label>
+                                    <input type="number" name="time_limit" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" value="{{ course.time_limit_days|default:0 }}" min="0">
+                                    <p class="mt-1 text-sm text-gray-500">0 means no time limit</p>
+                                </div>
+                                <div class="flex items-center">
+                                    <input type="checkbox" id="retain_access" name="retain_access" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" {% if course.retain_access_after_completion %}checked{% endif %}>
+                                    <label for="retain_access" class="ml-2 block text-sm text-gray-700">Retain access after completion</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="border rounded-lg p-4 mt-4 form-section">
+                            <h2 class="text-lg font-medium mb-4">Prerequisites</h2>
+                            <div class="space-y-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Required Courses</label>
+                                {% if all_courses %}
+                                    <div class="mb-2">
+                                        <p class="text-sm text-gray-600">Available courses: {{ all_courses.count }}</p>
+                                        <p class="text-xs text-gray-500">Select courses that learners must complete before accessing this course.</p>
+                                    </div>
+                                    <select name="prerequisites" id="prerequisites-select" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" multiple size="8">
+                                        {% for prereq_course in all_courses %}
+                                            {% if prereq_course.id != course.id %}
+                                                <option value="{{ prereq_course.id }}" {% if prereq_course in course.prerequisites.all %}selected{% endif %}>
+                                                    {{ prereq_course.title }} (ID: {{ prereq_course.id }})
+                                                    {% if prereq_course.branch %}[{{ prereq_course.branch.name }}]{% endif %}
+                                                </option>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </select>
+                                    <div class="flex justify-between items-center mt-1">
+                                        <p class="text-sm text-gray-500">Hold Ctrl/Cmd to select multiple courses</p>
+                                        <button type="button" id="clear-prerequisites" class="text-sm text-red-600 hover:text-red-800">Clear All Prerequisites</button>
+                                    </div>
+                                    
+                                    <!-- Selected prerequisites display -->
+                                    <div class="mt-3" id="selected-prerequisites">
+                                        <p class="text-sm font-medium text-gray-700 mb-1">Currently Selected:</p>
+                                        <div id="selected-list" class="text-sm text-gray-600">
+                                            {% if course.prerequisites.all %}
+                                                {% for prereq in course.prerequisites.all %}
+                                                    <span class="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded-md mr-2 mb-1">
+                                                        {{ prereq.title }}
+                                                    </span>
+                                                {% endfor %}
+                                            {% else %}
+                                                <span class="text-gray-500">No prerequisites selected</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <div class="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+                                        <p class="text-sm text-yellow-800">
+                                            <i class="fas fa-exclamation-triangle mr-2"></i>
+                                            No courses available for prerequisites. This could be because:
+                                        </p>
+                                        <ul class="mt-2 text-xs text-yellow-700 list-disc list-inside">
+                                            <li>You are not enrolled in any other courses</li>
+                                            <li>There are no other courses in your branch</li>
+                                            <li>There are no other courses in your business</li>
+                                        </ul>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Course Completion Tab -->
+                    <div id="content-course-completion" class="tab-content">
+                        <div class="border rounded-lg p-4">
+                            <h2 class="text-lg font-medium mb-4">Progression & Completion Settings</h2>
+                            <div class="space-y-4">
+                                <div class="flex items-center">
+                                    <input type="checkbox" id="sequential_progression" name="sequential_progression" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" {% if course.sequential_progression %}checked{% endif %}>
+                                    <label for="sequential_progression" class="ml-2 block text-sm text-gray-700">Require sequential progression through topics</label>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Completion Requirements</label>
+                                    <select name="completion_criteria" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                        <option value="all_content" {% if completion_criteria == 'all_content' %}selected{% endif %}>All Content - Complete all topics</option>
+                                        <option value="custom" {% if completion_criteria == 'custom' %}selected{% endif %}>Custom - Based on specific requirements</option>
+                                    </select>
+                                </div>
+                                
+                                <!-- Custom Completion Requirements Section -->
+                                <div id="custom-completion-section" style="display: none;" class="mt-4">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Select Topics for Completion Requirements</label>
+                                    <div class="border border-gray-200 rounded-md p-4 max-h-96 overflow-y-auto">
+                                        {% for section in course.sections.all %}
+                                            {% if section.topics.exists %}
+                                                <div class="mb-4">
+                                                    <h4 class="font-medium text-gray-800 mb-2">{{ section.name }}</h4>
+                                                    {% for topic in section.topics.all %}
+                                                        <div class="flex items-center justify-between mb-2 p-2 hover:bg-gray-50 rounded">
+                                                            <div class="flex items-center flex-1">
+                                                                <input type="checkbox" 
+                                                                       id="topic_{{ topic.id }}" 
+                                                                       name="completion_topics" 
+                                                                       value="{{ topic.id }}"
+                                                                       class="topic-checkbox h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                                                       data-content-type="{{ topic.content_type }}"
+                                                                       {% for req in course.completion_requirements.all %}
+                                                                           {% if req.topic.id == topic.id %}checked{% endif %}
+                                                                       {% endfor %}>
+                                                                <label for="topic_{{ topic.id }}" class="ml-2 text-sm text-gray-700">
+                                                                    {{ topic.title }}
+                                                                    <span class="text-xs text-gray-500">({{ topic.get_content_type_display }})</span>
+                                                                </label>
+                                                            </div>
+                                                            <div class="ml-4 flex items-center">
+                                                                {% if topic.content_type == 'Quiz' or topic.content_type == 'Assignment' %}
+                                                                    <label class="text-sm text-gray-600 mr-2">Required Score:</label>
+                                                                    <input type="number" 
+                                                                           name="topic_score_{{ topic.id }}" 
+                                                                           id="score_{{ topic.id }}"
+                                                                           class="topic-score w-20 px-2 py-1 border border-gray-300 rounded-md text-sm"
+                                                                           min="0" 
+                                                                           max="100" 
+                                                                           value="{% for req in course.completion_requirements.all %}{% if req.topic.id == topic.id %}{{ req.required_score }}{% endif %}{% endfor %}"
+                                                                           placeholder="0"
+                                                                           disabled>
+                                                                    <span class="ml-1 text-sm text-gray-600">%</span>
+                                                                {% else %}
+                                                                    <label class="text-sm text-gray-600 mr-2">Completion:</label>
+                                                                    <select name="topic_score_{{ topic.id }}" 
+                                                                            id="completion_{{ topic.id }}"
+                                                                            class="topic-completion w-24 px-2 py-1 border border-gray-300 rounded-md text-sm"
+                                                                            disabled>
+                                                                        <option value="100" {% for req in course.completion_requirements.all %}{% if req.topic.id == topic.id and req.required_score == 100 %}selected{% endif %}{% endfor %}>100%</option>
+                                                                        <option value="80" {% for req in course.completion_requirements.all %}{% if req.topic.id == topic.id and req.required_score == 80 %}selected{% endif %}{% endfor %}>80%</option>
+                                                                        <option value="60" {% for req in course.completion_requirements.all %}{% if req.topic.id == topic.id and req.required_score == 60 %}selected{% endif %}{% endfor %}>60%</option>
+                                                                        <option value="0" {% for req in course.completion_requirements.all %}{% if req.topic.id == topic.id and req.required_score == 0 %}selected{% endif %}{% endfor %}>View Only</option>
+                                                                    </select>
+                                                                {% endif %}
+                                                            </div>
+                                                        </div>
+                                                    {% endfor %}
+                                                </div>
+                                            {% endif %}
+                                        {% endfor %}
+                                        
+                                        <!-- Standalone topics (no section) -->
+                                        {% with standalone_topics=course.coursetopic_set.filter %}
+                                            {% for ct in standalone_topics %}
+                                                {% if not ct.topic.section %}
+                                                    <div class="flex items-center justify-between mb-2 p-2 hover:bg-gray-50 rounded">
+                                                        <div class="flex items-center flex-1">
+                                                            <input type="checkbox" 
+                                                                   id="topic_{{ ct.topic.id }}" 
+                                                                   name="completion_topics" 
+                                                                   value="{{ ct.topic.id }}"
+                                                                   class="topic-checkbox h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                                                   data-content-type="{{ ct.topic.content_type }}"
+                                                                   {% for req in course.completion_requirements.all %}
+                                                                       {% if req.topic.id == ct.topic.id %}checked{% endif %}
+                                                                   {% endfor %}>
+                                                            <label for="topic_{{ ct.topic.id }}" class="ml-2 text-sm text-gray-700">
+                                                                {{ ct.topic.title }}
+                                                                <span class="text-xs text-gray-500">({{ ct.topic.get_content_type_display }})</span>
+                                                            </label>
+                                                        </div>
+                                                        <div class="ml-4 flex items-center">
+                                                            {% if ct.topic.content_type == 'Quiz' or ct.topic.content_type == 'Assignment' %}
+                                                                <label class="text-sm text-gray-600 mr-2">Required Score:</label>
+                                                                <input type="number" 
+                                                                       name="topic_score_{{ ct.topic.id }}" 
+                                                                       id="score_{{ ct.topic.id }}"
+                                                                       class="topic-score w-20 px-2 py-1 border border-gray-300 rounded-md text-sm"
+                                                                       min="0" 
+                                                                       max="100" 
+                                                                       value="{% for req in course.completion_requirements.all %}{% if req.topic.id == ct.topic.id %}{{ req.required_score }}{% endif %}{% endfor %}"
+                                                                       placeholder="0"
+                                                                       disabled>
+                                                                <span class="ml-1 text-sm text-gray-600">%</span>
+                                                            {% else %}
+                                                                <label class="text-sm text-gray-600 mr-2">Completion:</label>
+                                                                <select name="topic_score_{{ ct.topic.id }}" 
+                                                                        id="completion_{{ ct.topic.id }}"
+                                                                        class="topic-completion w-24 px-2 py-1 border border-gray-300 rounded-md text-sm"
+                                                                        disabled>
+                                                                    <option value="100" {% for req in course.completion_requirements.all %}{% if req.topic.id == ct.topic.id and req.required_score == 100 %}selected{% elif req.topic.id == ct.topic.id and req.required_score == 0 %}{% else %}{% if req.topic.id == ct.topic.id %}{% else %}selected{% endif %}{% endif %}{% endfor %}>100%</option>
+                                                                    <option value="80" {% for req in course.completion_requirements.all %}{% if req.topic.id == ct.topic.id and req.required_score == 80 %}selected{% endif %}{% endfor %}>80%</option>
+                                                                    <option value="60" {% for req in course.completion_requirements.all %}{% if req.topic.id == ct.topic.id and req.required_score == 60 %}selected{% endif %}{% endfor %}>60%</option>
+                                                                    <option value="0" {% for req in course.completion_requirements.all %}{% if req.topic.id == ct.topic.id and req.required_score == 0 %}selected{% endif %}{% endfor %}>View Only</option>
+                                                                </select>
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% endwith %}
+                                        
+                                        {% if not course.topics.exists %}
+                                            <p class="text-sm text-gray-500 italic">No topics available in this course yet.</p>
+                                        {% endif %}
+                                    </div>
+                                    <p class="mt-2 text-xs text-gray-500">
+                                        <i class="fas fa-info-circle"></i> Select topics that must be completed for course completion. For assessment topics (quizzes/assignments), specify the minimum required score. For content topics (documents, text, videos), choose the completion requirement level.
+                                    </p>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Completion Percentage Required</label>
+                                    <input type="number" name="completion_percentage" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" value="{{ course.completion_percentage }}" min="0" max="100">
+                                    <p class="mt-1 text-sm text-gray-500">Percentage of topics that must be completed</p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Minimum Passing Score (%)</label>
+                                    <input type="number" name="passing_score" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" value="{{ course.passing_score|default:70 }}" min="0" max="100">
+                                </div>
+                            </div>
+                        </div>
+                        {% if request.user.role != 'instructor' %}
+                        <div class="border rounded-lg p-4 mt-4 form-section">
+                            <h2 class="text-lg font-medium mb-4">Certificate Settings</h2>
+                            <div class="space-y-4">
+                                <div class="flex items-center">
+                                    <input type="checkbox" id="issue_certificate" name="issue_certificate" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" {% if course.issue_certificate %}checked{% endif %}>
+                                    <label for="issue_certificate" class="ml-2 block text-sm text-gray-700">Issue certificate on completion</label>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Certificate Template</label>
+                                    <select name="certificate_template" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                        <option value="">-- Select Certificate Template --</option>
+                                        {% for template in certificate_templates %}
+                                            <option value="{{ template.id }}" {% if course.certificate_template and course.certificate_template.id == template.id %}selected{% endif %}>{{ template.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    {% if request.user.role == 'instructor' %}
+                                        {% if certificate_templates %}
+                                            <p class="mt-1 text-sm text-blue-600">
+                                                <i class="fas fa-info-circle"></i>
+                                                You can select from certificate templates created by your branch admin. To view available templates, go to the <a href="{% url 'certificates:certificates' %}" class="text-blue-600 hover:underline font-medium">Certificates</a> page.
+                                            </p>
+                                        {% else %}
+                                            <p class="mt-1 text-sm text-orange-600">
+                                                <i class="fas fa-exclamation-triangle"></i>
+                                                No certificate templates are available. Contact your branch administrator to create certificate templates for your courses.
+                                            </p>
+                                        {% endif %}
+                                    {% else %}
+                                        <p class="mt-1 text-sm text-gray-500">Select a template from certificates created at <a href="{% url 'certificates:certificates' %}" class="text-blue-600 hover:underline">Certificates</a> page</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Form actions -->
+                <div class="mt-6 flex items-center justify-end gap-x-6 form-buttons">
+                    <a href="{% url 'courses:course_edit' course.id %}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 flex items-center btn" id="cancelButton">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M9.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 1.414L7.414 9H15a1 1 0 110 2H7.414l2.293 2.293a1 1 0 010 1.414z" clip-rule="evenodd" />
+                        </svg>
+                        Cancel
+                    </a>
+                    <button type="submit" class="px-4 py-2 text-white font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 btn" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                        Save Settings
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Include mobile course settings JavaScript -->
+<script src="{% static 'core/js/mobile-course-settings.js' %}"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Tab switching functionality
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
+        
+        tabButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                // Get the target content id
+                const targetId = this.id.replace('tab-', 'content-');
+                
+                // Remove active class from all tabs and contents
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                tabContents.forEach(content => content.classList.remove('active'));
+                
+                // Add active class to clicked tab and its content
+                this.classList.add('active');
+                document.getElementById(targetId).classList.add('active');
+            });
+        });
+
+        // Handle cancel button click
+        const cancelButton = document.getElementById('cancelButton');
+        if (cancelButton) {
+            cancelButton.addEventListener('click', function(e) {
+                // No need to prevent default since we want standard link behavior
+                // Just logging for debugging
+                console.log('Cancel button clicked, returning to course edit page');
+                // The href attribute already contains the correct URL from Django template
+            });
+        }
+        
+        // Handle prerequisites selection
+        const prerequisitesSelect = document.getElementById('prerequisites-select');
+        const selectedList = document.getElementById('selected-list');
+        
+        if (prerequisitesSelect) {
+            // Update selected prerequisites display
+            function updateSelectedDisplay() {
+                const selectedOptions = Array.from(prerequisitesSelect.selectedOptions);
+                
+                if (selectedOptions.length === 0) {
+                    selectedList.innerHTML = '<span class="text-gray-500">No prerequisites selected</span>';
+                } else {
+                    const selectedHtml = selectedOptions.map(option => {
+                        return `<span class="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded-md mr-2 mb-1">
+                            ${option.text}
+                        </span>`;
+                    }).join('');
+                    selectedList.innerHTML = selectedHtml;
+                }
+                
+                // Debug log
+                console.log('Selected prerequisites:', selectedOptions.map(opt => opt.value));
+            }
+            
+            // Listen for changes in the select element
+            prerequisitesSelect.addEventListener('change', updateSelectedDisplay);
+            
+            // Log initial state
+            console.log('Prerequisites select element found:', prerequisitesSelect);
+            console.log('Total options:', prerequisitesSelect.options.length);
+            console.log('Initially selected:', Array.from(prerequisitesSelect.selectedOptions).map(opt => opt.value));
+        } else {
+            console.log('Prerequisites select element not found');
+        }
+        
+        // Debug form submission
+        const form = document.getElementById('courseSettingsForm');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                console.log('Form submitted');
+                if (prerequisitesSelect) {
+                    const selectedValues = Array.from(prerequisitesSelect.selectedOptions).map(opt => opt.value);
+                    console.log('Prerequisites being submitted:', selectedValues);
+                }
+            });
+        }
+
+        // Add clear prerequisites functionality
+        const clearPrerequisitesBtn = document.getElementById('clear-prerequisites');
+        if (clearPrerequisitesBtn && prerequisitesSelect) {
+            clearPrerequisitesBtn.addEventListener('click', function() {
+                // Deselect all options
+                Array.from(prerequisitesSelect.options).forEach(option => {
+                    option.selected = false;
+                });
+                // Update the display
+                updateSelectedDisplay();
+            });
+        }
+        
+        // Handle custom completion requirements
+        const completionCriteriaSelect = document.querySelector('[name="completion_criteria"]');
+        const customCompletionSection = document.getElementById('custom-completion-section');
+        
+        function toggleCustomCompletionSection() {
+            if (completionCriteriaSelect.value === 'custom') {
+                customCompletionSection.style.display = 'block';
+            } else {
+                customCompletionSection.style.display = 'none';
+            }
+        }
+        
+        // Show/hide custom section on page load
+        toggleCustomCompletionSection();
+        
+        // Show/hide custom section on dropdown change
+        completionCriteriaSelect.addEventListener('change', toggleCustomCompletionSection);
+        
+        // Handle topic checkbox changes
+        const topicCheckboxes = document.querySelectorAll('.topic-checkbox');
+        topicCheckboxes.forEach(checkbox => {
+            const topicId = checkbox.value;
+            const contentType = checkbox.getAttribute('data-content-type');
+            const scoreInput = document.getElementById(`score_${topicId}`);
+            const completionSelect = document.getElementById(`completion_${topicId}`);
+            
+            // Enable/disable input based on checkbox state
+            function updateInputState() {
+                if (checkbox.checked) {
+                    // For assessment topics (Quiz, Assignment)
+                    if (contentType === 'Quiz' || contentType === 'Assignment') {
+                        if (scoreInput) {
+                            scoreInput.disabled = false;
+                            // Set default score to 80 for assessments if empty
+                            if (!scoreInput.value || scoreInput.value === '0') {
+                                scoreInput.value = '80';
+                            }
+                        }
+                    } 
+                    // For content topics (Document, Text, Web, EmbedVideo, etc.)
+                    else {
+                        if (completionSelect) {
+                            completionSelect.disabled = false;
+                            // Set default to 100% for content topics if not already set
+                            if (!completionSelect.value || completionSelect.value === '0') {
+                                completionSelect.value = '100';
+                            }
+                        }
+                    }
+                } else {
+                    // Disable and clear both inputs
+                    if (scoreInput) {
+                        scoreInput.disabled = true;
+                        scoreInput.value = '';
+                    }
+                    if (completionSelect) {
+                        completionSelect.disabled = true;
+                        completionSelect.value = '100'; // Reset to default
+                    }
+                }
+            }
+            
+            // Set initial state
+            updateInputState();
+            
+            // Update on checkbox change
+            checkbox.addEventListener('change', updateInputState);
+        });
+    });
+</script>
+{% endblock %} 

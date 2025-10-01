@@ -1,0 +1,1329 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load course_filters %}
+{% load json_filters %}
+
+{% block title %}{{ topic.title }} - {{ course.title }}{% endblock %}
+
+{% block extra_head %}
+<meta name="topic-type" content="{{ topic.content_type }}">
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Accordion Style CSS from course_details.html */
+    .section {
+        margin-bottom: 16px;
+        background-color: white;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+        overflow: hidden;
+    }
+
+    .section-header {
+        padding: 12px 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        background-color: #f9fafb;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .section-header:hover {
+        background-color: #f3f4f6;
+    }
+
+    .section-name {
+        font-size: 14px;
+        font-weight: 500;
+        color: #111827;
+        margin: 0;
+    }
+
+    .section-toggle {
+        transition: transform 0.3s ease;
+    }
+
+    .section.active .section-toggle {
+        transform: rotate(180deg);
+    }
+
+    .section-topics {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease;
+        background-color: #f9fafb;
+    }
+
+    .section.active .section-topics {
+        max-height: 1000px;
+        padding: 12px;
+    }
+
+    .topic-item {
+        margin-bottom: 8px;
+        background-color: white;
+        border-radius: 6px;
+        border: 1px solid #e5e7eb;
+        padding: 12px 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        text-decoration: none;
+        cursor: pointer;
+        color: inherit;
+        transition: background-color 0.2s ease;
+        position: relative;
+    }
+
+    .topic-item:hover {
+        background-color: #f3f4f6;
+    }
+
+    .topic-name {
+        font-size: 14px;
+        color: #4b5563;
+        margin: 0;
+        flex: 1;
+    }
+    
+    /* Active topic styling */
+    .topic-item.active {
+        background-color: #eef2ff;
+        border-color: #c7d2fe;
+    }
+    
+    /* Enhanced PDF Viewer Styles */
+    #pdf-viewer-container {
+        position: relative;
+        background: #f8f9fa;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    #pdf-iframe {
+        border: none;
+        background: white;
+    }
+    
+    #pdf-fallback {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    }
+    
+    #pdf-loading {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(2px);
+    }
+    
+    /* Enhanced table styling for topic content and description - matches assignment detail */
+    .prose {
+        max-width: none !important;
+    }
+    
+    .prose table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 1em 0;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.375rem;
+        overflow: hidden;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    }
+    
+    .prose table td,
+    .prose table th {
+        border: 1px solid #e5e7eb;
+        padding: 12px 16px;
+        text-align: left;
+        vertical-align: top;
+    }
+    
+    .prose table th {
+        background-color: #f8fafc;
+        font-weight: 600;
+        color: #374151;
+        border-bottom: 2px solid #e5e7eb;
+    }
+    
+    .prose table tr:nth-child(even) {
+        background-color: #f9fafb;
+    }
+    
+    .prose table tr:hover {
+        background-color: #f3f4f6;
+    }
+    
+    .prose table tbody tr:first-child td {
+        border-top: 2px solid #e5e7eb;
+    }
+    
+    .prose h1,
+    .prose h2,
+    .prose h3,
+    .prose h4 {
+        color: #111827;
+        margin-top: 1em;
+        margin-bottom: 0.5em;
+    }
+    
+    .prose p {
+        margin-bottom: 1em;
+        line-height: 1.6;
+    }
+    
+    .prose ul,
+    .prose ol {
+        margin-left: 1.5em;
+        margin-bottom: 1em;
+        line-height: 1.6;
+    }
+    
+    .prose li {
+        margin-bottom: 0.5em;
+    }
+    
+    .prose a {
+        color: #3b82f6;
+        text-decoration: underline;
+    }
+    
+    .prose a:hover {
+        color: #1d4ed8;
+    }
+    
+    .prose blockquote {
+        border-left: 4px solid #3b82f6;
+        padding-left: 1rem;
+        margin: 1em 0;
+        color: #4b5563;
+        font-style: italic;
+        background-color: #f8fafc;
+        padding: 1rem;
+        border-radius: 0 0.375rem 0.375rem 0;
+    }
+    
+    .prose img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 0.375rem;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        margin: 1em 0;
+    }
+    
+    .prose code {
+        background-color: #f1f5f9;
+        color: #e11d48;
+        padding: 2px 6px;
+        border-radius: 0.25rem;
+        font-size: 0.875em;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    }
+    
+    .prose pre {
+        background-color: #1e293b;
+        color: #f1f5f9;
+        padding: 1rem;
+        border-radius: 0.375rem;
+        overflow-x: auto;
+        margin: 1em 0;
+    }
+    
+    .prose pre code {
+        background-color: transparent;
+        color: inherit;
+        padding: 0;
+    }
+    
+    .prose strong {
+        font-weight: 600;
+        color: #111827;
+    }
+    
+    .prose em {
+        font-style: italic;
+        color: #374151;
+    }
+
+    /* Debug info styling */
+    .debug-info {
+        margin-top: 20px;
+        padding: 10px;
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        font-size: 12px;
+    }
+    .debug-info code {
+        background-color: #edf2f7;
+        padding: 2px 4px;
+        border-radius: 3px;
+        font-family: monospace;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4" data-course-id="{{ course.id }}" data-topic-type="{{ topic.content_type|lower }}">
+    {% csrf_token %}
+    <!-- Breadcrumb - Direct inclusion before content -->
+    <div class="flex items-center text-sm text-gray-600 mb-6">
+        {% for item in breadcrumbs %}
+            {% if not forloop.first %}
+                <svg class="mx-2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                </svg>
+            {% endif %}
+            
+            {% if item.url and not forloop.last %}
+                <a href="{{ item.url }}" class="group flex items-center hover:text-blue-600 transition-colors">
+                    {% if item.icon %}
+                    <div class="w-6 md:w-8 h-6 md:h-8 rounded-full bg-[#EBF3FE] flex items-center justify-center group-hover:bg-[#dce8fc] transition-colors mr-2">
+                        <i class="fas {{ item.icon }} text-[#2F80ED] text-xs md:text-sm"></i>
+                    </div>
+                    {% endif %}
+                    <span>{{ item.label }}</span>
+                </a>
+            {% else %}
+                <span class="flex items-center text-gray-800 font-medium">
+                    {% if item.icon %}
+                    <div class="w-6 md:w-8 h-6 md:h-8 rounded-full bg-[#EBF3FE] flex items-center justify-center mr-2">
+                        <i class="fas {{ item.icon }} text-[#2F80ED] text-xs md:text-sm"></i>
+                    </div>
+                    {% endif %}
+                    <span>{{ item.label }}</span>
+                </span>
+            {% endif %}
+        {% endfor %}
+    </div>
+    
+    <div class="flex flex-col md:flex-row gap-6">
+        <!-- Left Column - Topic Content -->
+        <div class="w-full md:w-2/3 bg-white rounded-lg shadow-sm p-6">
+            <h1 class="text-2xl font-bold text-gray-800 mb-4">{{ topic.title }}</h1>
+            
+            <!-- Topic Description -->
+            {% if topic.description %}
+            <div class="prose max-w-none text-sm text-gray-600 mb-6">{{ topic.description|render_rich_content }}</div>
+            {% endif %}
+            
+            <!-- Topic Content Display -->
+            <div class="mb-6">
+                {% if topic.content_type == 'Text' and topic.text_content %}
+                    {% load json_filters %}
+                    <div class="prose max-w-none text-content" data-content-type="Text">
+                        {{ topic.text_content|render_rich_content }}
+                    </div>
+                {% elif topic.content_type == 'Video' and topic.content_file %}
+                    <div class="aspect-w-16 aspect-h-9 mb-4 video-content" data-content-type="Video">
+                        <video id="topic-video" class="w-full h-full rounded-lg" controls>
+                            <source src="{{ topic.content_file.url }}">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
+                {% elif topic.content_type == 'Audio' and topic.content_file %}
+                    <div class="mb-4 audio-content" data-content-type="Audio">
+                        <audio id="topic-audio" class="w-full" controls>
+                            <source src="{{ topic.content_file.url }}">
+                            Your browser does not support the audio tag.
+                        </audio>
+                    </div>
+                {% elif topic.content_type == 'Document' and topic.content_file %}
+                    <div class="aspect-w-16 aspect-h-9 mb-4 document-content" data-content-type="Document">
+                        {% with file_ext=topic.content_file.name|lower|slice:"-4:" %}
+                            {% if file_ext == '.pdf' %}
+                                <!-- Check if file exists before trying to display -->
+                                {% if topic.content_file.url %}
+                                <div class="w-full h-[600px] rounded overflow-hidden border border-gray-300">
+                                    <!-- Enhanced PDF Viewer with fallback options -->
+                                    <div id="pdf-viewer-container" class="w-full h-full relative">
+                                        <!-- Primary PDF viewer using PDF.js -->
+                                        <iframe id="pdf-iframe" 
+                                                src="{{ topic.content_file.url }}#toolbar=1&navpanes=1&scrollbar=1&view=FitH" 
+                                                class="w-full h-full border-0"
+                                                type="application/pdf"
+                                                onload="handlePdfLoad()"
+                                                onerror="handlePdfError()">
+                                        </iframe>
+                                        
+                                        <!-- Fallback PDF viewer -->
+                                        <div id="pdf-fallback" class="hidden w-full h-full flex flex-col items-center justify-center bg-gray-50">
+                                            <div class="text-center p-6">
+                                                <i class="fas fa-file-pdf text-6xl text-red-500 mb-4"></i>
+                                                <h3 class="text-lg font-semibold text-gray-700 mb-2">PDF Document</h3>
+                                                <p class="text-gray-600 mb-4">Your browser may not support inline PDF viewing.</p>
+                                                <div class="space-x-3">
+                                                    <a href="{{ topic.content_file.url }}" 
+                                                       target="_blank" 
+                                                       class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                                        <i class="fas fa-external-link-alt mr-2"></i>
+                                                        Open in New Tab
+                                                    </a>
+                                                    <a href="{{ topic.content_file.url }}" 
+                                                       download="{{ topic.title }}.pdf"
+                                                       class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                                                        <i class="fas fa-download mr-2"></i>
+                                                        Download PDF
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Loading indicator -->
+                                        <div id="pdf-loading" class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-90">
+                                            <div class="text-center">
+                                                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                                                <p class="text-gray-600">Loading PDF...</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- PDF Viewer JavaScript -->
+                                <script>
+                                function handlePdfLoad() {
+                                    console.log('PDF loaded successfully');
+                                    const loading = document.getElementById('pdf-loading');
+                                    if (loading) {
+                                        loading.style.display = 'none';
+                                    }
+                                }
+                                
+                                function handlePdfError() {
+                                    console.log('PDF iframe failed to load, showing fallback');
+                                    document.getElementById('pdf-iframe').style.display = 'none';
+                                    document.getElementById('pdf-fallback').classList.remove('hidden');
+                                    document.getElementById('pdf-loading').style.display = 'none';
+                                }
+                                
+                                // Check if PDF loads successfully
+                                document.addEventListener('DOMContentLoaded', function() {
+                                    const iframe = document.getElementById('pdf-iframe');
+                                    const loading = document.getElementById('pdf-loading');
+                                    const fallback = document.getElementById('pdf-fallback');
+                                    
+                                    // Set a timeout to show fallback if PDF doesn't load
+                                    const timeout = setTimeout(function() {
+                                        if (loading.style.display !== 'none') {
+                                            console.log('PDF loading timeout, showing fallback');
+                                            loading.style.display = 'none';
+                                            iframe.style.display = 'none';
+                                            fallback.classList.remove('hidden');
+                                        }
+                                    }, 5000);
+                                    
+                                    // Hide loading when iframe loads
+                                    iframe.addEventListener('load', function() {
+                                        clearTimeout(timeout);
+                                        loading.style.display = 'none';
+                                        console.log('PDF loaded successfully');
+                                    });
+                                    
+                                    // Handle iframe errors
+                                    iframe.addEventListener('error', function() {
+                                        clearTimeout(timeout);
+                                        handlePdfError();
+                                    });
+                                });
+                                </script>
+                                {% else %}
+                                    <!-- File not found - show error message -->
+                                    <div class="w-full h-[600px] rounded overflow-hidden border border-gray-300 bg-gray-50 flex items-center justify-center">
+                                        <div class="text-center p-8">
+                                            <i class="fas fa-file-pdf text-6xl text-red-400 mb-4"></i>
+                                            <h3 class="text-xl font-semibold text-gray-700 mb-2">PDF File Not Found</h3>
+                                            <p class="text-gray-600 mb-4">The PDF file for this topic appears to be missing or has been moved.</p>
+                                            <div class="space-y-2">
+                                                <p class="text-sm text-gray-500">File: {{ topic.content_file.name }}</p>
+                                                <p class="text-sm text-gray-500">Please contact your instructor or administrator to restore this content.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            {% else %}
+                                <div class="p-4 bg-gray-100 rounded-lg">
+                                    <p class="text-gray-600 mb-2">Document preview is not available.</p>
+                                    <a href="{{ topic.content_file.url }}" target="_blank" 
+                                       class="btn btn-primary">
+                                       <i class="fas fa-download mr-2"></i> Download Document
+                                    </a>
+                                </div>
+                            {% endif %}
+                        {% endwith %}
+                    </div>
+                {% elif topic.content_type == 'Web' and topic.web_url %}
+                    <div class="aspect-w-16 aspect-h-9 mb-4 web-content" style="min-height: 1100px;" data-content-type="Web">
+                        <iframe src="{{ topic.web_url }}" class="w-full h-full rounded-lg" frameborder="0" allowfullscreen style="min-height: 1100px;"></iframe>
+                    </div>
+                {% elif topic.content_type == 'EmbedVideo' and topic.embed_code %}
+                    <div class="aspect-w-16 aspect-h-9 mb-4 embedvideo-content" id="embed-video-container" data-content-type="EmbedVideo">
+                        {{ topic.embed_code|safe }}
+                    </div>
+                {% elif topic.content_type == 'SCORM' %}
+                    <div class="w-full flex flex-col items-center justify-center py-8 scorm-content" data-content-type="SCORM">
+                        {% if not can_access_interactive_content %}
+                            <!-- Warning for non-learner users -->
+                            <div class="w-full max-w-md mb-6">
+                                <div class="p-4 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded-lg">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-exclamation-triangle mr-3"></i>
+                                        <div>
+                                            <p class="font-semibold">Access Restricted</p>
+                                            <p class="text-sm mt-1">{{ access_warning }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Disabled button -->
+                            <button disabled class="btn btn-secondary text-lg px-6 py-3 cursor-not-allowed opacity-50">
+                                <i class="fas fa-lock mr-2"></i>Launch SCORM Content (Restricted)
+                            </button>
+                        {% else %}
+                            <!-- Normal access for learners -->
+                            {% if scorm_content and scorm_content.package and not scorm_content.package.cloud_id|slice:":10" == "PLACEHOLDER" %}
+                                <!-- Real SCORM content - launch button -->
+                                <div class="w-full max-w-md">
+                                    <!-- Launch Button -->
+                                    <div class="flex flex-col sm:flex-row gap-3">
+                                        <!-- Direct Launch Button (existing functionality) -->
+                                        <a href="{% url 'scorm_cloud:scorm_launch' topic.id %}" 
+                                           class="btn btn-primary text-lg px-6 py-3 flex items-center justify-center">
+                                            <i class="fas fa-play mr-2"></i>Launch SCORM Content
+                                        </a>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <!-- No SCORM content - show message -->
+                                <div class="w-full max-w-md">
+                                    <div class="p-4 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded-lg mb-4">
+                                        <div class="flex items-center">
+                                            <i class="fas fa-exclamation-triangle mr-3"></i>
+                                            <div>
+                                                <p class="font-semibold">SCORM Content Missing</p>
+                                                <p class="text-sm mt-1">No SCORM content is available for this topic. Please contact support if you believe this is an error.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button disabled class="btn btn-secondary text-lg px-6 py-3 cursor-not-allowed opacity-50">
+                                        <i class="fas fa-times mr-2"></i>Content Not Available
+                                    </button>
+                                </div>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                {% elif topic.content_type == 'Discussion' and topic.discussion %}
+                    <div class="w-full flex flex-col items-center justify-center py-8 discussion-content" data-content-type="Discussion">
+                        <div class="text-center mb-6">
+                            <h3 class="text-xl font-semibold mb-2">{{ topic.discussion.title }}</h3>
+                            <p class="text-gray-600">{{ topic.discussion.description }}</p>
+                        </div>
+                        <div class="w-full max-w-md">
+                            <a href="{% url 'courses:topic_discussion_view' topic.id %}" class="btn btn-primary text-lg px-6 py-3 w-full flex items-center justify-center" target="_blank">
+                                <i class="fas fa-comments mr-2"></i>View Discussion
+                            </a>
+                        </div>
+                    </div>
+                {% elif topic.content_type == 'Discussion' and not topic.discussion %}
+                    <div class="w-full flex flex-col items-center justify-center py-8">
+                        <div class="text-center mb-6">
+                            <div class="p-4 bg-yellow-100 text-yellow-800 rounded-lg">
+                                <p><i class="fas fa-exclamation-triangle mr-2"></i>This topic is set as a Discussion but no discussion has been linked to it.</p>
+                                {% if user.is_staff or user.is_instructor %}
+                                    <p class="mt-2">Please edit this topic to select a discussion or create a new one.</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% elif topic.content_type == 'Quiz' and topic.quiz %}
+                    <div class="w-full flex flex-col items-center justify-center py-8 quiz-content" data-content-type="Quiz">
+                        <div class="text-center mb-6">
+                            <h3 class="text-xl font-semibold mb-2">{{ topic.quiz.title }}</h3>
+                            <p class="text-gray-600">{{ topic.quiz.description|safe }}</p>
+                            {% if topic.quiz.time_limit > 0 %}
+                                <div class="mt-2">
+                                    <span class="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">Time limit: {{ topic.quiz.time_limit }} minutes</span>
+                                </div>
+                            {% endif %}
+                        </div>
+                        {% if not can_access_interactive_content %}
+                            <!-- Warning for non-learner users -->
+                            <div class="w-full max-w-md mb-6">
+                                <div class="p-4 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded-lg">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-exclamation-triangle mr-3"></i>
+                                        <div>
+                                            <p class="font-semibold">Access Restricted</p>
+                                            <p class="text-sm mt-1">{{ access_warning }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Disabled button -->
+                            <div class="w-full max-w-md">
+                                <button disabled class="btn btn-secondary text-lg px-6 py-3 w-full flex items-center justify-center cursor-not-allowed opacity-50">
+                                    <i class="fas fa-lock mr-2"></i>Start Quiz (Restricted)
+                                </button>
+                            </div>
+                        {% else %}
+                            <!-- Normal access for learners -->
+                            <div class="w-full max-w-md">
+                                <a href="{% url 'quiz:attempt_quiz' topic.quiz.id %}" class="btn btn-primary text-lg px-6 py-3 w-full flex items-center justify-center" target="_blank">
+                                    <i class="fas fa-edit mr-2"></i>Start Quiz
+                                </a>
+                                <div class="mt-3 text-sm text-gray-500 text-center">
+                                    {% if topic.quiz.attempts_allowed > 0 %}
+                                        Attempts allowed: {{ topic.quiz.attempts_allowed }}
+                                    {% else %}
+                                        Unlimited attempts allowed
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% elif topic.content_type == 'Assignment' and topic.assignment %}
+                    <div class="w-full py-8 assignment-content" data-content-type="Assignment">
+                        <div class="mb-6">
+                            <h3 class="text-xl font-semibold mb-2">{{ topic.assignment.title }}</h3>
+                            <div class="prose max-w-none text-gray-600">{{ topic.assignment.description|render_rich_content }}</div>
+                            {% if topic.assignment.due_date %}
+                                <div class="mt-2">
+                                    <span class="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">Due: {{ topic.assignment.due_date|date:"F j, Y, g:i a" }}</span>
+                                </div>
+                            {% endif %}
+                        </div>
+                        {% if not can_access_interactive_content %}
+                            <!-- Warning for non-learner users -->
+                            <div class="mb-6">
+                                <div class="p-4 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded-lg">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-exclamation-triangle mr-3"></i>
+                                        <div>
+                                            <p class="font-semibold">Access Restricted</p>
+                                            <p class="text-sm mt-1">{{ access_warning }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Disabled button -->
+                            <div class="mt-4">
+                                <button disabled class="btn btn-secondary text-lg px-6 py-3 inline-flex items-center cursor-not-allowed opacity-50">
+                                    <i class="fas fa-lock mr-2"></i>View Assignment (Restricted)
+                                </button>
+                            </div>
+                        {% else %}
+                            <!-- Normal access for learners -->
+                            <div class="mt-4">
+                                <a href="{% url 'assignments:assignment_detail' topic.assignment.id %}" class="btn btn-primary text-lg px-6 py-3 inline-flex items-center" target="_blank">
+                                    <i class="fas fa-clipboard-list mr-2"></i>View Assignment
+                                </a>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% elif topic.content_type == 'Conference' and topic.conference %}
+                    <div class="w-full flex flex-col items-center justify-center py-8 conference-content" data-content-type="Conference">
+                        <div class="text-center mb-6">
+                            <h3 class="text-xl font-semibold mb-2">{{ topic.conference.title }}</h3>
+                            <p class="text-gray-600">{{ topic.conference.description|safe }}</p>
+                            {% if topic.conference.date %}
+                                <div class="mt-2">
+                                    <span class="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                        Date: {{ topic.conference.date|date:"F j, Y" }}
+                                        {% if topic.conference.start_time %}
+                                            at {{ topic.conference.start_time|time:"g:i a" }}
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="w-full max-w-md">
+                            <a href="{% url 'conferences:join_conference' topic.conference.id %}" class="btn btn-primary text-lg px-6 py-3 w-full flex items-center justify-center" target="_blank">
+                                <i class="fas fa-video mr-2"></i>Join Conference
+                            </a>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="p-6 bg-gray-100 rounded-lg text-center">
+                        <p class="text-gray-600">No content available for this topic.</p>
+                    </div>
+                {% endif %}
+            </div>
+            
+            <!-- Topic Navigation -->
+            <div class="flex justify-between items-center mt-8 pt-6 border-t border-gray-200">
+                {% if previous_topic %}
+                <a href="{% url 'courses:topic_view' previous_topic.id %}?manual=True" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left mr-2"></i>Previous: {{ previous_topic.title|truncatechars:20 }}
+                </a>
+                {% else %}
+                <div></div>
+                {% endif %}
+                
+                {% if next_topic %}
+                <a href="{% url 'courses:topic_view' next_topic.id %}?manual=True" class="btn btn-primary">
+                    Next: {{ next_topic.title|truncatechars:20 }}<i class="fas fa-arrow-right ml-2"></i>
+                </a>
+                {% else %}
+                <a href="{% url 'courses:course_details' course.id %}" class="btn btn-primary">
+                    Back to Course<i class="fas fa-home ml-2"></i>
+                </a>
+                {% endif %}
+            </div>
+            
+            <!-- Auto Completion Message for specific topic types -->
+            {% if topic.content_type == 'Video' or topic.content_type == 'EmbedVideo' or topic.content_type == 'Audio' or topic.content_type == 'SCORM' or topic.content_type == 'Quiz' or topic.content_type == 'Assignment' or topic.content_type == 'Conference' or topic.content_type == 'Discussion' %}
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
+                <div class="flex items-center">
+                    <i class="fas fa-info-circle text-blue-500 mr-3"></i>
+                    <p class="text-blue-800 text-sm mb-0">
+                        Please click on next topic when you complete this topic. The progress will be tracked automatically.
+                    </p>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Completion Button -->
+            <!-- Show completion button only for manual completion topics -->
+            {% if topic.content_type == 'Text' or topic.content_type == 'Document' or topic.content_type == 'Web' %}
+            <div class="text-center mt-6">
+                {% if is_completed %}
+                <div class="flex justify-center space-x-4">
+                    <button id="mark-complete" class="btn btn-success" data-topic-id="{{ topic.id }}" data-completed="true">
+                        <i class="fas fa-check-circle mr-2"></i>Completed
+                    </button>
+                    <button id="mark-incomplete" class="btn btn-outline-secondary" data-topic-id="{{ topic.id }}" data-completed="true">
+                        <i class="fas fa-undo mr-2"></i>Mark as Incomplete
+                    </button>
+                </div>
+                {% else %}
+                <button id="mark-complete" class="btn btn-outline-success" data-topic-id="{{ topic.id }}" data-completed="false">
+                    <i class="far fa-check-circle mr-2"></i>Mark as Complete
+                </button>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Right Column - Course Navigation -->
+        <div class="w-full md:w-1/3 bg-white rounded-lg shadow-sm p-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Course Content</h2>
+            
+            <!-- Course Progress -->
+            {% if user.role == 'learner' %}
+            <div class="mb-6">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm font-medium text-gray-600">Your Progress</span>
+                    <span class="text-sm font-medium text-gray-800" id="progress-percentage">
+                        {% if all_progress %}
+                            {{ completed_topics_count }}/{{ total_topics_count }} ({{ completed_topics_count|multiply:100|divided_by:total_topics_count|floatformat:0 }}%)
+                        {% else %}
+                            0/0 (0%)
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div id="progress-bar" class="h-full bg-green-500 rounded-full" style="width: {% if total_topics_count > 0 %}{{ completed_topics_count|multiply:100|divided_by:total_topics_count|floatformat:0 }}{% else %}0{% endif %}%"></div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Section Navigation - Using Accordion Style -->
+            <div class="accordion">
+                <!-- Render each section with its topics -->
+                {% for section_item in section_topics %}
+                    {% if section_item.section %}
+                        <div class="section {% if section_item.topics|contains_id:topic.id %}active{% endif %}">
+                            <div class="section-header">
+                                <h3 class="section-name">{{ section_item.section.name }}</h3>
+                                <span class="section-toggle">
+                                    <i class="fas fa-chevron-down"></i>
+                                </span>
+                            </div>
+                            <div class="section-topics" {% if section_item.topics|contains_id:topic.id %}style="display: block;"{% endif %}>
+                                {% for topic_item in section_item.topics %}
+                                    <a href="{% url 'courses:topic_view' topic_item.id %}?manual=True" class="topic-item {% if topic_item.id == topic.id %}active{% endif %}" data-topic-id="{{ topic_item.id }}">
+                                        <div class="topic-info flex items-center">
+                                            <div class="mr-3">
+                                                {% with progress=topic_item|get_topic_progress:user %}
+                                                {% if progress and progress.completed %}
+                                                    <div class="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white">
+                                                        <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                                        </svg>
+                                                    </div>
+                                                {% else %}
+                                                    <div class="w-5 h-5 rounded-full border-2 border-gray-300"></div>
+                                                {% endif %}
+                                                {% endwith %}
+                                            </div>
+                                            <div class="topic-name truncate max-w-[150px] inline-block" title="{{ topic_item.title }}">{{ topic_item.title }}</div>
+                                            {% if topic_item.content_type %}
+                                            <span class="topic-type text-xs {% if topic_item.content_type in 'SCORM,Quiz,Assignment' and not can_access_interactive_content %}text-yellow-600 bg-yellow-100 px-2 py-1 rounded{% else %}text-gray-500{% endif %} ml-2">
+                                                {{ topic_item.get_content_type_display }}{% if topic_item.content_type in 'SCORM,Quiz,Assignment' and not can_access_interactive_content %} <i class="fas fa-lock text-xs"></i>{% endif %}
+                                            </span>
+                                            {% endif %}
+                                        </div>
+                                    </a>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% else %}
+                        <!-- Topics without a section -->
+                        <div class="section standalone-topics {% if topics_without_section|contains_id:topic.id %}active{% endif %}">
+                            <div class="section-header">
+                                <h3 class="section-name">Other Topics</h3>
+                                <span class="section-toggle">
+                                    <i class="fas fa-chevron-down"></i>
+                                </span>
+                            </div>
+                            <div class="section-topics" {% if topics_without_section|contains_id:topic.id %}style="display: block;"{% endif %}>
+                                {% for topic_item in topics_without_section %}
+                                    <a href="{% url 'courses:topic_view' topic_item.id %}?manual=True" class="topic-item {% if topic_item.id == topic.id %}active{% endif %}" data-topic-id="{{ topic_item.id }}">
+                                        <div class="topic-info flex items-center">
+                                            <div class="mr-3">
+                                                {% with progress=topic_item|get_topic_progress:user %}
+                                                {% if progress and progress.completed %}
+                                                    <div class="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white">
+                                                        <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                                        </svg>
+                                                    </div>
+                                                {% else %}
+                                                    <div class="w-5 h-5 rounded-full border-2 border-gray-300"></div>
+                                                {% endif %}
+                                                {% endwith %}
+                                            </div>
+                                            <div class="topic-name truncate max-w-[150px] inline-block" title="{{ topic_item.title }}">{{ topic_item.title }}</div>
+                                            {% if topic_item.content_type %}
+                                            <span class="topic-type text-xs {% if topic_item.content_type in 'SCORM,Quiz,Assignment' and not can_access_interactive_content %}text-yellow-600 bg-yellow-100 px-2 py-1 rounded{% else %}text-gray-500{% endif %} ml-2">
+                                                {{ topic_item.get_content_type_display }}{% if topic_item.content_type in 'SCORM,Quiz,Assignment' and not can_access_interactive_content %} <i class="fas fa-lock text-xs"></i>{% endif %}
+                                            </span>
+                                            {% endif %}
+                                        </div>
+                                    </a>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+    // Auto-collapse sidebar for topic view page to provide better viewing experience
+    document.addEventListener('DOMContentLoaded', function() {
+        // Only collapse on desktop (screen width >= 768px)
+        if (window.innerWidth >= 768) {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('main-content');
+            
+            if (sidebar && mainContent) {
+                // Force sidebar to collapsed state for topic view page
+                if (!sidebar.classList.contains('collapsed')) {
+                    sidebar.classList.add('collapsed');
+                    mainContent.classList.add('sidebar-collapsed');
+                    
+                    // Store the collapsed state in localStorage
+                    localStorage.setItem('sidebar_collapsed', 'true');
+                    
+                    console.log('Sidebar auto-collapsed for topic view page');
+                }
+            }
+        }
+    });
+
+    $(document).ready(function() {
+        // Accordion functionality for sections
+        $('.section-header').on('click', function() {
+            const section = $(this).parent();
+            section.toggleClass('active');
+            const content = section.find('.section-topics');
+            
+            if (section.hasClass('active')) {
+                content.slideDown(300);
+            } else {
+                content.slideUp(300);
+            }
+        });
+        
+        // Mark topic as complete
+        $('#mark-complete').on('click', function() {
+            const topicId = $(this).data('topic-id');
+            const isCompleted = $(this).data('completed');
+            
+            if (!topicId) return;
+            
+            // If already completed, don't do anything
+            if (isCompleted === true) return;
+            
+            $.ajax({
+                url: `/courses/topic/${topicId}/complete/`,
+                type: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': $('input[name="csrfmiddlewaretoken"]').val()
+                },
+                success: function(data) {
+                    // Show completion buttons layout
+                    const completionDiv = $('#mark-complete').parent();
+                    completionDiv.html(`
+                        <div class="flex justify-center space-x-4">
+                            <button id="mark-complete" class="btn btn-success" data-topic-id="${topicId}" data-completed="true">
+                                <i class="fas fa-check-circle mr-2"></i>Completed
+                            </button>
+                            <button id="mark-incomplete" class="btn btn-outline-secondary" data-topic-id="${topicId}" data-completed="true">
+                                <i class="fas fa-undo mr-2"></i>Mark as Incomplete
+                            </button>
+                        </div>
+                    `);
+                    
+                    // Re-bind event handlers for the new buttons
+                    bindCompletionHandlers();
+                    
+                    // Update progress indicator for this topic in the sidebar
+                    const topicItem = $(`.topic-item[data-topic-id="${topicId}"]`);
+                    topicItem.find('.w-5.h-5').removeClass('border-2 border-gray-300');
+                    topicItem.find('.w-5.h-5').addClass('bg-green-500 flex items-center justify-center text-white');
+                    topicItem.find('.w-5.h-5').html('<svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>');
+                    
+                                            // Update overall progress
+                        if (data.progress !== undefined && data.total !== undefined) {
+                            const percentage = data.total > 0 ? Math.round((data.progress / data.total) * 100) : 0;
+                            $('#progress-percentage').text(`${data.progress}/${data.total} (${percentage}%)`);
+                            $('#progress-bar').css('width', `${percentage}%`);
+                        }
+                    
+                    // Show success message
+                    showNotification('success', `Topic "${data.title}" has been marked as complete!`);
+                },
+                error: function() {
+                    showNotification('error', 'Error marking topic as complete. Please try again.');
+                }
+            });
+        });
+        
+        // Mark topic as incomplete
+        function handleMarkIncomplete() {
+            $('#mark-incomplete').on('click', function() {
+                const topicId = $(this).data('topic-id');
+                
+                if (!topicId) return;
+                
+                $.ajax({
+                    url: `/courses/topic/${topicId}/incomplete/`,
+                    type: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': $('input[name="csrfmiddlewaretoken"]').val()
+                    },
+                    success: function(data) {
+                        // Show single incomplete button layout
+                        const completionDiv = $('#mark-incomplete').closest('.text-center');
+                        completionDiv.html(`
+                            <button id="mark-complete" class="btn btn-outline-success" data-topic-id="${topicId}" data-completed="false">
+                                <i class="far fa-check-circle mr-2"></i>Mark as Complete
+                            </button>
+                        `);
+                        
+                        // Re-bind event handlers for the new button
+                        bindCompletionHandlers();
+                        
+                        // Update progress indicator for this topic in the sidebar
+                        const topicItem = $(`.topic-item[data-topic-id="${topicId}"]`);
+                        topicItem.find('.w-5.h-5').removeClass('bg-green-500 flex items-center justify-center text-white');
+                        topicItem.find('.w-5.h-5').addClass('border-2 border-gray-300');
+                        topicItem.find('.w-5.h-5').html('');
+                        
+                                                 // Update overall progress with server data
+                         if (data.progress !== undefined && data.total !== undefined) {
+                             const percentage = data.total > 0 ? Math.round((data.progress / data.total) * 100) : 0;
+                             $('#progress-percentage').text(`${data.progress}/${data.total} (${percentage}%)`);
+                             $('#progress-bar').css('width', `${percentage}%`);
+                         }
+                        
+                        // Show success message
+                        showNotification('info', `Topic "${data.title}" has been marked as incomplete.`);
+                    },
+                    error: function() {
+                        showNotification('error', 'Error marking topic as incomplete. Please try again.');
+                    }
+                });
+            });
+        }
+        
+        // Function to bind all completion handlers
+        function bindCompletionHandlers() {
+            // Unbind existing handlers to prevent duplicates
+            $('#mark-complete').off('click');
+            $('#mark-incomplete').off('click');
+            
+            // Re-bind handlers
+            $('#mark-complete').on('click', function() {
+                const topicId = $(this).data('topic-id');
+                const isCompleted = $(this).data('completed');
+                
+                if (!topicId) return;
+                
+                // If already completed, don't do anything
+                if (isCompleted === true) return;
+                
+                $.ajax({
+                    url: `/courses/topic/${topicId}/complete/`,
+                    type: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': $('input[name="csrfmiddlewaretoken"]').val()
+                    },
+                    success: function(data) {
+                        // Show completion buttons layout
+                        const completionDiv = $('#mark-complete').parent();
+                        completionDiv.html(`
+                            <div class="flex justify-center space-x-4">
+                                <button id="mark-complete" class="btn btn-success" data-topic-id="${topicId}" data-completed="true">
+                                    <i class="fas fa-check-circle mr-2"></i>Completed
+                                </button>
+                                <button id="mark-incomplete" class="btn btn-outline-secondary" data-topic-id="${topicId}" data-completed="true">
+                                    <i class="fas fa-undo mr-2"></i>Mark as Incomplete
+                                </button>
+                            </div>
+                        `);
+                        
+                        // Re-bind event handlers for the new buttons
+                        bindCompletionHandlers();
+                        
+                        // Update progress indicator for this topic in the sidebar
+                        const topicItem = $(`.topic-item[data-topic-id="${topicId}"]`);
+                        topicItem.find('.w-5.h-5').removeClass('border-2 border-gray-300');
+                        topicItem.find('.w-5.h-5').addClass('bg-green-500 flex items-center justify-center text-white');
+                        topicItem.find('.w-5.h-5').html('<svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>');
+                        
+                                                 // Update overall progress
+                         if (data.progress !== undefined && data.total !== undefined) {
+                             const percentage = data.total > 0 ? Math.round((data.progress / data.total) * 100) : 0;
+                             $('#progress-percentage').text(`${data.progress}/${data.total} (${percentage}%)`);
+                             $('#progress-bar').css('width', `${percentage}%`);
+                         }
+                        
+                        // Show success message
+                        showNotification('success', `Topic "${data.title}" has been marked as complete!`);
+                    },
+                    error: function() {
+                        showNotification('error', 'Error marking topic as complete. Please try again.');
+                    }
+                });
+            });
+            
+            handleMarkIncomplete();
+        }
+        
+        // Function to show notifications
+        function showNotification(type, message) {
+            // Disable notifications in development mode
+            const isDevelopment = false || 
+                                 false ||
+                                 window.location.hostname.includes('192.168.') ||
+                                 window.location.hostname.includes('.local');
+            
+            if (isDevelopment) {
+                console.log(`[DEV] Notification suppressed: ${message} (${type})`);
+                return;
+            }
+            
+            // Create notification element
+            const notification = $(`
+                <div class="fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm transition-all duration-300 ${
+                    type === 'success' ? 'bg-green-100 border border-green-400 text-green-700' :
+                    type === 'error' ? 'bg-red-100 border border-red-400 text-red-700' :
+                    'bg-blue-100 border border-blue-400 text-blue-700'
+                }">
+                    <div class="flex items-center">
+                        <i class="fas ${
+                            type === 'success' ? 'fa-check-circle' :
+                            type === 'error' ? 'fa-exclamation-circle' :
+                            'fa-info-circle'
+                        } mr-2"></i>
+                        <span>${message}</span>
+                    </div>
+                </div>
+            `);
+            
+            // Add to page
+            $('body').append(notification);
+            
+            // Auto-remove after 3 seconds
+            setTimeout(() => {
+                notification.fadeOut(300, function() {
+                    $(this).remove();
+                });
+            }, 3000);
+        }
+        
+
+        
+        // Initialize completion handlers
+        bindCompletionHandlers();
+        handleMarkIncomplete();
+        
+        
+        
+        // Auto-track video/audio content completion
+        const videoElement = document.getElementById('topic-video');
+        if (videoElement) {
+            let lastProgressUpdate = 0;
+            let progressUpdateInterval = null;
+            
+            // Function to send progress update
+            function sendVideoProgress(currentTime, duration) {
+                if (duration <= 0) return;
+                
+                const progress = Math.min(100, (currentTime / duration) * 100);
+                
+                // Only send update if progress has increased by at least 5% or it's been 30 seconds
+                const now = Date.now();
+                if (progress - lastProgressUpdate >= 5 || now - lastProgressUpdate >= 30000) {
+                    lastProgressUpdate = progress;
+                    
+                    // Send progress to backend
+                    fetch(`/courses/api/update_video_progress/{{ topic.id }}/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val(),
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify({
+                            current_time: currentTime,
+                            duration: duration,
+                            progress: progress,
+                            completed: progress >= 95
+                        })
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+                    .then(data => {
+                        if (data.success && data.completed) {
+                            console.log('Video completed automatically at ' + progress + '%');
+                            // Update UI to show completion
+                            if (typeof updateCompletionUI === 'function') {
+                                updateCompletionUI('{{ topic.id }}');
+                            }
+                            if (typeof showCompletionToast === 'function') {
+                                showCompletionToast('{{ topic.title|escapejs }}');
+                            } else {
+                                // Show simple completion message
+                                console.log('Topic completed: {{ topic.title|escapejs }}');
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error updating video progress:', error);
+                    });
+                }
+            }
+            
+            // Track progress every 5 seconds during playback
+            videoElement.addEventListener('play', function() {
+                progressUpdateInterval = setInterval(function() {
+                    sendVideoProgress(videoElement.currentTime, videoElement.duration);
+                }, 5000);
+            });
+            
+            // Clear interval when paused
+            videoElement.addEventListener('pause', function() {
+                if (progressUpdateInterval) {
+                    clearInterval(progressUpdateInterval);
+                    progressUpdateInterval = null;
+                }
+                // Send final progress update when paused
+                sendVideoProgress(videoElement.currentTime, videoElement.duration);
+            });
+            
+            // Handle video end
+            videoElement.addEventListener('ended', function() {
+                if (progressUpdateInterval) {
+                    clearInterval(progressUpdateInterval);
+                    progressUpdateInterval = null;
+                }
+                // Send 100% completion
+                sendVideoProgress(videoElement.duration, videoElement.duration);
+            });
+            
+            // Handle seeking (user jumps to different position)
+            videoElement.addEventListener('seeked', function() {
+                sendVideoProgress(videoElement.currentTime, videoElement.duration);
+            });
+        }
+        
+        const audioElement = document.getElementById('topic-audio');
+        if (audioElement) {
+            let lastAudioProgressUpdate = 0;
+            let audioProgressUpdateInterval = null;
+            
+            // Function to send audio progress update
+            function sendAudioProgress(currentTime, duration) {
+                if (duration <= 0) return;
+                
+                const progress = Math.min(100, (currentTime / duration) * 100);
+                
+                // Only send update if progress has increased by at least 5% or it's been 30 seconds
+                const now = Date.now();
+                if (progress - lastAudioProgressUpdate >= 5 || now - lastAudioProgressUpdate >= 30000) {
+                    lastAudioProgressUpdate = progress;
+                    
+                    // Send progress to backend
+                    fetch(`/courses/api/update_audio_progress/{{ topic.id }}/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val(),
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify({
+                            current_time: currentTime,
+                            duration: duration,
+                            completed: progress >= 95
+                        })
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+                    .then(data => {
+                        if (data.success && data.completed) {
+                            console.log('Audio completed automatically at ' + progress + '%');
+                            // Update UI to show completion
+                            if (typeof updateCompletionUI === 'function') {
+                                updateCompletionUI('{{ topic.id }}');
+                            }
+                            if (typeof showCompletionToast === 'function') {
+                                showCompletionToast('{{ topic.title|escapejs }}');
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error updating audio progress:', error);
+                    });
+                }
+            }
+            
+            // Track progress every 5 seconds during playback
+            audioElement.addEventListener('play', function() {
+                audioProgressUpdateInterval = setInterval(function() {
+                    sendAudioProgress(audioElement.currentTime, audioElement.duration);
+                }, 5000);
+            });
+            
+            // Clear interval when paused
+            audioElement.addEventListener('pause', function() {
+                if (audioProgressUpdateInterval) {
+                    clearInterval(audioProgressUpdateInterval);
+                    audioProgressUpdateInterval = null;
+                }
+                // Send final progress update when paused
+                sendAudioProgress(audioElement.currentTime, audioElement.duration);
+            });
+            
+            // Handle audio end
+            audioElement.addEventListener('ended', function() {
+                if (audioProgressUpdateInterval) {
+                    clearInterval(audioProgressUpdateInterval);
+                    audioProgressUpdateInterval = null;
+                }
+                // Send 100% completion
+                sendAudioProgress(audioElement.duration, audioElement.duration);
+            });
+            
+            // Handle seeking (user jumps to different position)
+            audioElement.addEventListener('seeked', function() {
+                sendAudioProgress(audioElement.currentTime, audioElement.duration);
+            });
+        }
+        
+        // EmbedVideo progress tracking
+        const embedContainer = document.getElementById('embed-video-container');
+        if (embedContainer) {
+            let embedStartTime = Date.now();
+            let embedProgressSent = false;
+            
+            // Function to send embed video completion
+            function sendEmbedVideoCompletion() {
+                if (embedProgressSent) return;
+                embedProgressSent = true;
+                
+                // Send completion to backend using the video progress endpoint
+                fetch(`/courses/api/update_video_progress/{{ topic.id }}/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val(),
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({
+                        current_time: 60, // Assume 60 seconds viewed for embed videos
+                        duration: 60,     // Assume 60 second duration
+                        progress: 100,    // Mark as 100% complete
+                        completed: true
+                    })
+                })
+                .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+                .then(data => {
+                    if (data.success && data.completed) {
+                        console.log('EmbedVideo completed automatically');
+                        // Update UI to show completion
+                        if (typeof updateCompletionUI === 'function') {
+                            updateCompletionUI('{{ topic.id }}');
+                        }
+                        if (typeof showCompletionToast === 'function') {
+                            showCompletionToast('{{ topic.title|escapejs }}');
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error updating embed video progress:', error);
+                });
+            }
+            
+            // Auto-complete embedded video after 30 seconds of page view
+            setTimeout(() => {
+                const timeViewed = (Date.now() - embedStartTime) / 1000;
+                if (timeViewed >= 25) { // User stayed on page for at least 25 seconds
+                    sendEmbedVideoCompletion();
+                }
+            }, 30000);
+            
+            // Also check for user interaction with the embed container
+            embedContainer.addEventListener('click', () => {
+                setTimeout(() => {
+                    sendEmbedVideoCompletion();
+                }, 15000); // Complete after 15 seconds of interaction
+            });
+            
+            // Listen for iframe load events (for embedded content)
+            const iframes = embedContainer.querySelectorAll('iframe');
+            iframes.forEach(iframe => {
+                iframe.addEventListener('load', () => {
+                    setTimeout(() => {
+                        sendEmbedVideoCompletion();
+                    }, 20000); // Complete after 20 seconds of iframe being loaded
+                });
+            });
+        }
+    });
+</script>
+{% endblock %}

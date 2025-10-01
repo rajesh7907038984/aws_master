@@ -1,0 +1,231 @@
+<!-- Email Configuration Section -->
+{% if is_superadmin or is_globaladmin %}
+<div class="accordion-section" data-section-id="email">
+    <div @click="toggleSection('email')" class="accordion-header">
+        <h3 class="flex items-center">
+            <i class="fas fa-envelope text-blue-600 mr-3"></i>
+            Email Configuration
+        </h3>
+        <svg :class="{'rotate-180': activeSection === 'email'}" class="w-5 h-5 transform transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+        </svg>
+    </div>
+    <div x-show="activeSection === 'email'" x-transition class="accordion-content">
+        <div class="space-y-6">
+            <div class="flex justify-between items-center">
+                <h2 class="text-xl font-bold text-gray-900">Email Configuration</h2>
+                <div class="flex items-center space-x-2">
+                    {% if global_admin_settings.smtp_is_tested %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        <i class="fas fa-check-circle mr-1"></i>
+                        Tested
+                    </span>
+                    {% else %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                        <i class="fas fa-exclamation-triangle mr-1"></i>
+                        Not Tested
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="bg-white shadow-sm rounded-lg overflow-hidden border border-gray-200 p-6">
+                <p class="text-gray-600 mb-4">Configure SMTP settings for email notifications. This will override the default email backend configuration.</p>
+                
+                <!-- SMTP Configuration Form -->
+                <form method="post" class="space-y-6">
+                    {% csrf_token %}
+                    <input type="hidden" name="form_type" value="smtp_settings">
+                    
+                    <!-- Enable SMTP -->
+                    <div class="flex items-center">
+                        <input type="checkbox" 
+                               id="smtp_enabled" 
+                               name="smtp_enabled" 
+                               {% if global_admin_settings.smtp_enabled %}checked{% endif %}
+                               class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                        <label for="smtp_enabled" class="ml-2 block text-sm font-medium text-gray-700">
+                            Enable Custom SMTP Configuration
+                        </label>
+                    </div>
+                    
+                    <div id="smtp-config" class="space-y-4" style="display: {% if global_admin_settings.smtp_enabled %}block{% else %}none{% endif %};">
+                        <!-- SMTP Host -->
+                        <div>
+                            <label for="smtp_host" class="block text-sm font-medium text-gray-700">SMTP Host</label>
+                            <input type="text" 
+                                   id="smtp_host" 
+                                   name="smtp_host" 
+                                   value="{{ global_admin_settings.smtp_host|default:'' }}"
+                                   placeholder="smtp.gmail.com or smtp.office365.com"
+                                   class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                        
+                        <!-- SMTP Port and Encryption -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label for="smtp_port" class="block text-sm font-medium text-gray-700">Port</label>
+                                <input type="number" 
+                                       id="smtp_port" 
+                                       name="smtp_port" 
+                                       value="{{ global_admin_settings.smtp_port|default:'587' }}"
+                                       class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            </div>
+                            <div class="flex items-center space-x-4">
+                                <div class="flex items-center">
+                                    <input type="checkbox" 
+                                           id="smtp_use_tls" 
+                                           name="smtp_use_tls" 
+                                           {% if global_admin_settings.smtp_use_tls %}checked{% endif %}
+                                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                                    <label for="smtp_use_tls" class="ml-2 text-sm text-gray-700">TLS</label>
+                                </div>
+                                <div class="flex items-center">
+                                    <input type="checkbox" 
+                                           id="smtp_use_ssl" 
+                                           name="smtp_use_ssl" 
+                                           {% if global_admin_settings.smtp_use_ssl %}checked{% endif %}
+                                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                                    <label for="smtp_use_ssl" class="ml-2 text-sm text-gray-700">SSL</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- SMTP Credentials -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="smtp_username" class="block text-sm font-medium text-gray-700">Username/Email</label>
+                                <input type="email" 
+                                       id="smtp_username" 
+                                       name="smtp_username" 
+                                       value="{{ global_admin_settings.smtp_username|default:'' }}"
+                                       placeholder="noreply@nexsy.io"
+                                       class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            </div>
+                            <div>
+                                <label for="smtp_password" class="block text-sm font-medium text-gray-700">Password</label>
+                                <input type="password" 
+                                       id="smtp_password" 
+                                       name="smtp_password" 
+                                       placeholder="Leave blank to keep current password"
+                                       class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            </div>
+                        </div>
+                        
+                        <!-- From Email Settings -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="smtp_from_email" class="block text-sm font-medium text-gray-700">From Email</label>
+                                <input type="email" 
+                                       id="smtp_from_email" 
+                                       name="smtp_from_email" 
+                                       value="{{ global_admin_settings.smtp_from_email|default:'' }}"
+                                       placeholder="noreply@nexsy.io"
+                                       class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            </div>
+                            <div>
+                                <label for="smtp_from_name" class="block text-sm font-medium text-gray-700">From Name</label>
+                                <input type="text" 
+                                       id="smtp_from_name" 
+                                       name="smtp_from_name" 
+                                       value="{{ global_admin_settings.smtp_from_name|default:'LMS Notifications' }}"
+                                       placeholder="LMS Notifications"
+                                       class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            </div>
+                        </div>
+                        
+                        <!-- Reply-to Email -->
+                        <div>
+                            <label for="smtp_reply_to_email" class="block text-sm font-medium text-gray-700">Reply-to Email (Optional)</label>
+                            <input type="email" 
+                                   id="smtp_reply_to_email" 
+                                   name="smtp_reply_to_email" 
+                                   value="{{ global_admin_settings.smtp_reply_to_email|default:'' }}"
+                                   placeholder="support@nexsy.io"
+                                   class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                        
+                        <!-- Test Email -->
+                        <div>
+                            <label for="test_smtp_email" class="block text-sm font-medium text-gray-700">Test Email Address</label>
+                            <div class="mt-1 flex rounded-md shadow-sm">
+                                <input type="email" 
+                                       id="test_smtp_email" 
+                                       name="test_smtp_email" 
+                                       placeholder="test@example.com"
+                                       class="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-l-md border-gray-300 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                <button type="submit" 
+                                        class="inline-flex items-center px-3 py-2 border border-l-0 border-gray-300 rounded-r-md bg-gray-50 text-gray-500 text-sm hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                                    <i class="fas fa-paper-plane mr-1"></i>
+                                    Test
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Test Results -->
+                        {% if global_admin_settings.smtp_test_error %}
+                        <div class="bg-red-50 border border-red-200 rounded-md p-4">
+                            <div class="flex">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-exclamation-circle text-red-400"></i>
+                                </div>
+                                <div class="ml-3">
+                                    <h3 class="text-sm font-medium text-red-800">Test Failed</h3>
+                                    <div class="mt-2 text-sm text-red-700">
+                                        <p>{{ global_admin_settings.smtp_test_error }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% elif global_admin_settings.smtp_is_tested %}
+                        <div class="bg-green-50 border border-green-200 rounded-md p-4">
+                            <div class="flex">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-check-circle text-green-400"></i>
+                                </div>
+                                <div class="ml-3">
+                                    <h3 class="text-sm font-medium text-green-800">Test Successful</h3>
+                                    <div class="mt-2 text-sm text-green-700">
+                                        <p>SMTP configuration tested successfully on {{ global_admin_settings.smtp_last_test_date|date:"F j, Y \a\t g:i A" }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Save Button -->
+                    <div class="flex justify-end">
+                        <button type="submit" 
+                                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            <i class="fas fa-save mr-2"></i>
+                            Save Email Configuration
+                        </button>
+                    </div>
+                </form>
+                
+                <!-- Help Information -->
+                <div class="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-info-circle text-blue-600"></i>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-blue-800">Email Configuration Help</h3>
+                            <div class="mt-2 text-sm text-blue-700">
+                                <ul class="list-disc list-inside space-y-1">
+                                    <li><strong>Gmail:</strong> smtp.gmail.com, Port 587, TLS enabled</li>
+                                    <li><strong>Outlook/Office 365:</strong> smtp.office365.com, Port 587, TLS enabled</li>
+                                    <li><strong>Yahoo:</strong> smtp.mail.yahoo.com, Port 587, TLS enabled</li>
+                                    <li>Use app-specific passwords for Gmail and Yahoo</li>
+                                    <li>Test your configuration before saving</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}

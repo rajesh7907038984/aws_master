@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Logged Out - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body text-center">
+                    <img src="{% static 'images/nexsy_logo.png' %}" alt="Nexsy LMS Logo" class="mb-4" style="max-height: 60px;">
+                    <h2>Logged Out Successfully</h2>
+                    <p class="text-muted">You have been successfully logged out of the Nexsy LMS system.</p>
+                    
+                    <div class="mt-4">
+                        <a href="{% url 'login' %}" class="btn btn-primary">Sign In Again</a>
+                        <a href="{% url 'home' %}" class="btn btn-outline-secondary">Go to Home</a>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            For security reasons, please close your browser if you're using a shared computer.
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

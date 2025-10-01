@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+{% load static %}
+{% load user_profile_tags %}
+
+{% block title %}{{ profile_user.get_full_name|default:profile_user.username }} - Profile{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'users/css/profile_styles.css' %}">
+<style>
+    .main-content {
+        background-color: #ffffff !important;
+    }
+
+    .p-6.space-y-6 {
+        background-color: white;
+    }
+
+    .profile-section {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    }
+
+    .profile-header {
+        border-bottom: 1px solid #E5E7EB;
+        padding: 1.5rem;
+    }
+
+    .profile-content {
+        padding: 1.5rem;
+    }
+
+    .info-label {
+        color: #6B7280;
+        font-size: 0.875rem;
+    }
+
+    .info-value {
+        color: #111827;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white text-black min-h-screen">
+    <div class="container mx-auto px-4 py-6">
+        <!-- Breadcrumbs -->
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+        
+        <!-- Main grid with 70-30 split -->
+        <div class="grid grid-cols-12 gap-4 md:gap-6">
+            <!-- Main Content Column (70%) -->
+            <div class="col-span-12 lg:col-span-8">
+                <div class="profile-section">
+                    <div class="profile-header">
+                        <div class="flex items-center justify-between">
+                            <h1 class="text-xl font-semibold text-gray-900">User Profile</h1>
+                            {% if can_edit %}
+                            <div class="flex gap-2 flex-wrap">
+                                <a href="{% url 'users:edit_user' profile_user.id %}" class="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">
+                                    <i class="fas fa-edit mr-2"></i>Edit Profile
+                                </a>
+                                <a href="{% url 'users:password_change' profile_user.id %}" class="px-4 py-2 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
+                                    <i class="fas fa-key mr-2"></i>Change Password
+                                </a>
+                                {% if request.user.id == profile_user.id %}
+                                <button type="button" id="send-self-password-reset-btn" class="px-4 py-2 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition-colors" onclick="sendSelfPasswordReset()">
+                                    <i class="fas fa-envelope mr-2"></i>Send Password Reset Email
+                                </button>
+                                <div id="self-password-reset-status" class="mt-2 text-sm" style="display: none;"></div>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="profile-content">
+                        <!-- User Basic Info Section -->
+                        <div class="flex flex-col md:flex-row mb-6 items-center md:items-start">
+                            <div class="mb-4 md:mb-0 md:mr-6">
+                                {% profile_avatar profile_user 'lg' %}
+                            </div>
+                            <div class="flex-grow">
+                                <h2 class="text-2xl font-bold mb-1">{{ profile_user|display_name }}</h2>
+                                <p class="text-gray-500 mb-3">{{ profile_user.email }}</p>
+                                
+                                <div class="mb-4">
+                                    <span class="bg-blue-100 text-blue-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded">
+                                        {{ profile_user.role|title }}
+                                    </span>
+                                    {% if profile_user.branch %}
+                                    <span class="bg-purple-100 text-purple-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded">
+                                        {{ profile_user.branch.name }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="text-sm text-gray-500">
+                                    Last login: {% last_login_display profile_user %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- User Stats Section -->
+                        <div class="mb-6">
+                            <h3 class="text-lg font-semibold mb-4 text-gray-900">User Statistics</h3>
+                            {% user_stats profile_user %}
+                        </div>
+                        
+                        <!-- Level Progress Section -->
+                        <div class="mb-6">
+                            <h3 class="text-lg font-semibold mb-4 text-gray-900">Level Progress</h3>
+                            {% level_progress profile_user %}
+                        </div>
+                        
+                        <!-- Badges Section -->
+                        <div class="mb-6">
+                            <h3 class="text-lg font-semibold mb-4 text-gray-900">Recent Badges</h3>
+                            {% display_user_badges profile_user 3 True %}
+                        </div>
+                        
+                        <!-- Additional User Details -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="space-y-4">
+                                <div>
+                                    <div class="info-label">Username</div>
+                                    <div class="info-value">{{ profile_user.username }}</div>
+                                </div>
+                                <div>
+                                    <div class="info-label">Full Name</div>
+                                    <div class="info-value">{{ profile_user.get_full_name|default:"Not provided" }}</div>
+                                </div>
+                                <div>
+                                    <div class="info-label">Email</div>
+                                    <div class="info-value">{{ profile_user.email|default:"Not provided" }}</div>
+                                </div>
+                            </div>
+                            <div class="space-y-4">
+                                <div>
+                                    <div class="info-label">Role</div>
+                                    <div class="info-value">{{ profile_user.role|title }}</div>
+                                </div>
+                                <div>
+                                    <div class="info-label">Branch</div>
+                                    <div class="info-value">{{ profile_user.branch|default:"Not assigned" }}</div>
+                                </div>
+                                <div>
+                                    <div class="info-label">Profile Completion</div>
+                                    <div class="info-value">
+                                        <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                            <div class="bg-blue-600 h-2.5 rounded-full" style="width: {{ profile_user|profile_completion_percentage }}%"></div>
+                                        </div>
+                                        <span class="text-xs text-gray-500">{{ profile_user|profile_completion_percentage }}% Complete</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column (30%) -->
+            <div class="col-span-12 lg:col-span-4 transition-all duration-300">
+                {% include 'components/right_sidebar.html' %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize any JS functions needed for profile components
+        if (typeof initializeCircularProgress === 'function') {
+            initializeCircularProgress();
+        }
+        
+        if (typeof initializeLevelProgress === 'function') {
+            initializeLevelProgress();
+        }
+    });
+
+    // Function to send self password reset email
+    function sendSelfPasswordReset() {
+        const button = document.getElementById('send-self-password-reset-btn');
+        const statusDiv = document.getElementById('self-password-reset-status');
+        
+        // Disable button and show loading state
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
+        
+        // Make AJAX request to send self password reset email
+        fetch('{% url "users:send_self_password_reset" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Show status message
+            statusDiv.style.display = 'block';
+            
+            if (data.success) {
+                statusDiv.innerHTML = '<div class="text-green-600"><i class="fas fa-check-circle mr-1"></i>' + data.message + '</div>';
+            } else {
+                statusDiv.innerHTML = '<div class="text-red-600"><i class="fas fa-exclamation-circle mr-1"></i>' + data.message + '</div>';
+            }
+            
+            // Re-enable button
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-envelope mr-2"></i>Send Password Reset Email';
+            
+            // Hide status message after 5 seconds
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 5000);
+        })
+        .catch(error => {
+            console.error('Error sending self password reset email:', error);
+            
+            // Show error message
+            statusDiv.style.display = 'block';
+            statusDiv.innerHTML = '<div class="text-red-600"><i class="fas fa-exclamation-circle mr-1"></i>Failed to send password reset email. Please try again.</div>';
+            
+            // Re-enable button
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-envelope mr-2"></i>Send Password Reset Email';
+            
+            // Hide status message after 5 seconds
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 5000);
+        });
+    }
+</script>
+{% endblock %} 

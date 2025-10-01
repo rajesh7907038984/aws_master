@@ -1,0 +1,113 @@
+{% load static %}
+<div class="tinymce-field-wrapper">
+    {{ field }}
+    {% if config %}
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                if (typeof tinymce !== 'undefined') {
+                    var config = {{ config|safe }};
+                    config.selector = '#{{ field_id }}';
+                    config.base_url = '{% static "tinymce_editor/tinymce/" %}';
+                    config.branding = false;
+                    config.promotion = false;
+                    
+                    // Add ES5 compatibility settings
+                    if (!config.setup) {
+                        config.setup = function(editor) {
+                            // Add error handling to prevent editor crashes
+                            editor.on('init', function(e) {
+                                try {
+                                    // Check if editor is properly initialized
+                                    if (!editor.getContainer()) {
+                                        console.warn('TinyMCE container not found, attempting recovery');
+                                        // Try to force editor into the DOM
+                                        var editorElement = document.getElementById(editor.id);
+                                        if (editorElement) {
+                                            editorElement.style.display = 'block';
+                                            editorElement.style.height = '300px';
+                                            editorElement.style.visibility = 'visible';
+                                        }
+                                    }
+                                } catch (err) {
+                                    console.error('Error in TinyMCE init:', err);
+                                }
+                            });
+                            
+                            // Handle resize errors
+                            editor.on('ResizeEditor', function(e) {
+                                try {
+                                    // Force editor size if needed
+                                    var container = editor.getContainer();
+                                    if (container) {
+                                        container.style.height = '300px';
+                                        container.style.display = 'block';
+                                        container.style.visibility = 'visible';
+                                    }
+                                } catch (err) {
+                                    console.error('Error in TinyMCE resize:', err);
+                                }
+                            });
+                        };
+                    } else {
+                        // Preserve existing setup function
+                        var originalSetup = config.setup;
+                        config.setup = function(editor) {
+                            // Call the original setup
+                            originalSetup(editor);
+                            
+                            // Add our error handling
+                            editor.on('init', function(e) {
+                                try {
+                                    // Check if editor is properly initialized
+                                    if (!editor.getContainer()) {
+                                        console.warn('TinyMCE container not found, attempting recovery');
+                                        // Try to force editor into the DOM
+                                        var editorElement = document.getElementById(editor.id);
+                                        if (editorElement) {
+                                            editorElement.style.display = 'block';
+                                            editorElement.style.height = '300px';
+                                            editorElement.style.visibility = 'visible';
+                                        }
+                                    }
+                                } catch (err) {
+                                    console.error('Error in TinyMCE init:', err);
+                                }
+                            });
+                        };
+                    }
+                    
+                    // Safely initialize editor with error handling
+                    try {
+                        tinymce.init(config);
+                    } catch (err) {
+                        console.error('Error initializing TinyMCE:', err);
+                        
+                        // Fallback to basic initialization
+                        setTimeout(function() {
+                            try {
+                                tinymce.init({
+                                    selector: '#{{ field_id }}',
+                                    height: 300,
+                                    menubar: false,
+                                    toolbar: 'bold italic | bullist numlist',
+                                    plugins: 'lists',
+                                    branding: false,
+                                    statusbar: false
+                                });
+                            } catch (fallbackErr) {
+                                console.error('Failed to initialize fallback editor:', fallbackErr);
+                                // Show plain textarea as last resort
+                                var textarea = document.getElementById('{{ field_id }}');
+                                if (textarea) {
+                                    textarea.style.display = 'block';
+                                    textarea.style.height = '300px';
+                                    textarea.style.visibility = 'visible';
+                                }
+                            }
+                        }, 500);
+                    }
+                }
+            });
+        </script>
+    {% endif %}
+</div> 

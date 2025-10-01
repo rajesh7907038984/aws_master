@@ -1,0 +1,1123 @@
+{% extends "base.html" %}
+{% load static %}
+{% load gradebook_tags %}
+
+{% block title %}Gradebook{% endblock %}
+
+{% block extra_css %}
+<style>
+  .grade-display {
+    display: inline-block;
+    min-width: 70px;
+    text-align: left;
+    padding: 4px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+  
+  .grade-excellent {
+    color: #10B981;
+  }
+  
+  .grade-good {
+    color: #3B82F6;
+  }
+  
+  .grade-average {
+    color: #F59E0B;
+  }
+  
+  .grade-poor {
+    color: #EF4444;
+  }
+  
+  .grade-none {
+    color: #6B7280;
+  }
+  
+  .excused-grade {
+    font-style: italic;
+    color: #777;
+  }
+  
+  .search-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  
+  .search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6B7280;
+    z-index: 10;
+    pointer-events: none;
+    width: 16px;
+    height: 16px;
+  }
+  
+  .search-input {
+    padding-left: 40px !important;
+    padding-right: 12px !important;
+  }
+  
+  .hidden-row {
+    display: none;
+  }
+  
+  .activity-item {
+    display: flex;
+    flex-direction: column;
+    margin: 3px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    background-color: #F3F4F6;
+    width: 180px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  }
+  
+  .activity-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+    font-size: 0.9rem;
+    color: #374151;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .activity-type {
+    font-size: 0.7rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+  }
+  
+  .activity-assignment {
+    background-color: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+  }
+  
+  .activity-assignment .activity-type {
+    color: #10B981;
+  }
+  
+  .activity-quiz {
+    background-color: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+  }
+  
+  .activity-quiz .activity-type {
+    color: #3B82F6;
+  }
+  
+  .activity-scorm {
+    background-color: rgba(139, 92, 246, 0.1);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+  }
+  
+  .activity-scorm .activity-type {
+    color: #8B5CF6;
+  }
+  
+  .activity-discussion {
+    background-color: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+  }
+  
+  .activity-discussion .activity-type {
+    color: #F59E0B;
+  }
+  
+  .activity-conference {
+    background-color: rgba(236, 72, 153, 0.1);
+    border: 1px solid rgba(236, 72, 153, 0.2);
+  }
+  
+  .activity-conference .activity-type {
+    color: #EC4899;
+  }
+
+  .activities-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  
+  .course-item {
+    cursor: pointer;
+    display: inline-block;
+    margin-right: 12px;
+    margin-bottom: 8px;
+    color: #3B82F6;
+    font-weight: 500;
+    padding: 4px 8px;
+    border-radius: 4px;
+  }
+  
+  .activities-section {
+    display: none;
+    margin-top: 12px;
+    border-top: 1px solid #EDF2F7;
+    padding-top: 12px;
+  }
+  
+  .status-submitted {
+    background-color: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+  }
+  
+  .status-resubmitted {
+    background-color: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+  }
+  
+  .status-not-submitted {
+    background-color: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+  }
+  
+  /* Course status indicators */
+  .course-status-submitted {
+    background-color: rgba(16, 185, 129, 0.2);
+  }
+  
+  .course-status-resubmitted {
+    background-color: rgba(245, 158, 11, 0.2);
+  }
+  
+  .course-status-not-submitted {
+    background-color: rgba(239, 68, 68, 0.2);
+  }
+  
+  .activity-category {
+    margin-bottom: 16px;
+  }
+  
+  .activity-category-title {
+    font-weight: 600;
+    margin-bottom: 8px;
+    font-size: 1rem;
+    color: #4B5563;
+  }
+  
+  #gradebookTable {
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #E5E7EB;
+  }
+  
+  #gradebookTable th {
+    background-color: #F9FAFB;
+    font-weight: 600;
+    padding: 12px 16px;
+    border-bottom: 1px solid #E5E7EB;
+    color: #374151;
+  }
+  
+  #gradebookTable td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #E5E7EB;
+    vertical-align: top;
+  }
+  
+  #gradebookTable tr:last-child td {
+    border-bottom: none;
+  }
+  
+  #gradebookTable tr:hover {
+    background-color: #F9FAFB;
+  }
+  
+  .filter-section {
+    background-color: #F9FAFB;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 24px;
+    border: 1px solid #E5E7EB;
+  }
+  
+  .filter-section select,
+  .filter-section input {
+    border-radius: 6px;
+    border: 1px solid #D1D5DB;
+    padding: 8px 12px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  }
+  
+  .filter-section h2 {
+    color: #4B5563;
+    margin-bottom: 8px;
+  }
+  
+  .overview-section {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 24px;
+    color: white;
+  }
+  
+  .overview-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    text-align: center;
+    color: white;
+  }
+  
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    max-width: 100%;
+  }
+  
+  /* 2-row layout for learner (6 metrics) */
+  .metrics-grid.learner-grid {
+    grid-template-rows: repeat(2, 1fr);
+  }
+  
+  /* 2-row layout for instructor/admin (7 metrics) */
+  .metrics-grid.instructor-grid {
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+  }
+  
+  .metric-card {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    border-radius: 6px;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: transform 0.2s ease;
+    text-align: center;
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  
+  .metric-card:hover {
+    transform: translateY(-1px);
+  }
+  
+  .metric-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    opacity: 0.9;
+    margin-bottom: 4px;
+    line-height: 1.2;
+  }
+  
+  .metric-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+  
+  .metric-icon {
+    font-size: 1rem;
+    margin-bottom: 6px;
+    opacity: 0.8;
+  }
+  
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    .overview-section {
+      padding: 12px;
+      margin-bottom: 16px;
+    }
+    
+    .overview-title {
+      font-size: 1.1rem;
+      margin-bottom: 12px;
+    }
+    
+    .metrics-grid {
+      grid-template-columns: repeat(2, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      gap: 8px;
+    }
+    
+    .metrics-grid.instructor-grid {
+      grid-template-columns: repeat(2, 1fr);
+      grid-template-rows: repeat(4, 1fr);
+    }
+    
+    .metric-card {
+      min-height: 70px;
+      padding: 8px;
+    }
+    
+    .metric-label {
+      font-size: 0.7rem;
+    }
+    
+    .metric-value {
+      font-size: 1.25rem;
+    }
+    
+    .metric-icon {
+      font-size: 0.9rem;
+      margin-bottom: 4px;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+{% comment %}
+PERFORMANCE OPTIMIZATION: Build lookup dictionaries once at the start
+instead of doing linear searches in nested loops
+NOTE: Using safe lookup functions that fallback to linear search if needed
+{% endcomment %}
+{% build_grade_lookup grades as grade_lookup %}
+{% build_quiz_attempt_lookup quiz_attempts as quiz_lookup %}
+{% build_scorm_lookup scorm_registrations as scorm_lookup %}
+
+<!-- Breadcrumbs -->
+{% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+<div class="container mx-auto px-4 py-8">
+  <div class="bg-white shadow rounded-lg p-6">
+    <!-- Overview Section -->
+    {% if overview_metrics %}
+    <div class="overview-section">
+      {% if user.role == 'learner' %}
+        <h2 class="overview-title">Student Overview</h2>
+        <div class="metrics-grid learner-grid">
+          <div class="metric-card">
+            <div class="metric-icon">
+              <i class="fas fa-tasks"></i>
+            </div>
+            <div class="metric-label">Total Assessments</div>
+            <div class="metric-value">{{ overview_metrics.total_assessments }}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-icon">
+              <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="metric-label">Total Submitted</div>
+            <div class="metric-value">{{ overview_metrics.total_submitted }}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-icon">
+              <i class="fas fa-trophy"></i>
+            </div>
+            <div class="metric-label">Total Passed</div>
+            <div class="metric-value">{{ overview_metrics.total_passed }}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-icon">
+              <i class="fas fa-redo"></i>
+            </div>
+            <div class="metric-label">Total Resubmission</div>
+            <div class="metric-value">{{ overview_metrics.total_resubmission }}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-icon">
+              <i class="fas fa-times-circle"></i>
+            </div>
+            <div class="metric-label">Total Not Submitted</div>
+            <div class="metric-value">{{ overview_metrics.total_not_submitted }}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-icon">
+              <i class="fas fa-clock"></i>
+            </div>
+            <div class="metric-label">Total Passed Deadline</div>
+            <div class="metric-value">{{ overview_metrics.total_passed_deadline }}</div>
+          </div>
+        </div>
+      {% else %}
+        <h2 class="overview-title">Gradebook Metrics for {{ user.role|title }}s</h2>
+        <div class="metrics-grid instructor-grid">
+          <div class="metric-card">
+            <div class="metric-icon">
+              <i class="fas fa-book"></i>
+            </div>
+            <div class="metric-label">Total Courses</div>
+            <div class="metric-value">{{ overview_metrics.total_courses }}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-icon">
+              <i class="fas fa-users"></i>
+            </div>
+            <div class="metric-label">Total Students</div>
+            <div class="metric-value">{{ overview_metrics.total_students }}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-icon">
+              <i class="fas fa-file-upload"></i>
+            </div>
+            <div class="metric-label">Total Submissions</div>
+            <div class="metric-value">{{ overview_metrics.total_submissions }}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-icon">
+              <i class="fas fa-check"></i>
+            </div>
+            <div class="metric-label">Total Passed</div>
+            <div class="metric-value">{{ overview_metrics.total_passed }}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-icon">
+              <i class="fas fa-redo"></i>
+            </div>
+            <div class="metric-label">Total Resubmission</div>
+            <div class="metric-value">{{ overview_metrics.total_resubmission }}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-icon">
+              <i class="fas fa-times"></i>
+            </div>
+            <div class="metric-label">Total Not Submitted</div>
+            <div class="metric-value">{{ overview_metrics.total_not_submitted }}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-icon">
+              <i class="fas fa-hourglass-half"></i>
+            </div>
+            <div class="metric-label">Total Pending for Marking</div>
+            <div class="metric-value">{{ overview_metrics.total_pending_marking }}</div>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+    {% endif %}
+    
+    {% if user.role != 'learner' %}
+    <div class="filter-section grid grid-cols-3 gap-4 mb-6">
+      <div>
+        <h2 class="text-lg font-medium mb-2">Search</h2>
+        <div class="search-container">
+          <svg class="search-icon h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+          </svg>
+          <input type="text" id="searchInput" placeholder="Search by student or course" class="w-full p-2 border rounded-md pr-8 search-input">
+        </div>
+      </div>
+      
+      <div>
+        <h2 class="text-lg font-medium mb-2">Course Filter</h2>
+        <select id="courseFilter" class="w-full p-2 border rounded-md">
+          <option value="all">All Courses</option>
+          {% for course in courses %}
+            <option value="{{ course.id }}">{{ course.title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      
+      <div>
+        <h2 class="text-lg font-medium mb-2">Student Filter</h2>
+        <select id="studentFilter" class="w-full p-2 border rounded-md">
+          <option value="all">All Students</option>
+          {% for student in students %}
+            <option value="{{ student.id }}">{{ student.get_full_name|default:student.username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    {% endif %}
+    
+    <div class="overflow-x-auto">
+      <table class="w-full table-auto" id="gradebookTable">
+        <thead>
+          <tr>
+            {% if user.role != 'learner' %}
+            <th class="text-left">Student&nbsp;Name</th>
+            <th class="text-left">Courses</th>
+            {% else %}
+            <th class="text-left">Course Name</th>
+            {% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for student in students %}
+            <tr class="grade-row" data-student-id="{{ student.id }}">
+              {% if user.role != 'learner' %}
+              <td>{{ student.get_full_name|default:student.username }}</td>
+              <td>
+                {% for course in courses %}
+                  {% should_hide_course student.id course.id student_courses_with_activities user.role as hide_course %}
+                  {% if not hide_course %}
+                  <div class="course-item" data-course-id="{{ course.id }}" data-student-id="{{ student.id }}">
+                    {{ course.title }}
+                    <a href="{% url 'gradebook:course_detail' course.id %}" class="ml-2 text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded transition duration-200" title="View Detailed Gradebook">
+                      <i class="fas fa-table mr-1"></i>Detailed Gradebook
+                    </a>
+                  </div>
+                  {% endif %}
+                  {% if not hide_course %}
+                  <div class="activities-section" id="activities-{{ student.id }}-{{ course.id }}">
+                    <!-- Quiz -->
+                    {% course_has_activities course 'quiz' quizzes=quizzes quiz_attempts=quiz_attempts as has_quiz_activities %}
+                    {% if has_quiz_activities %}
+                    <div class="activity-category">
+                      <div class="activity-category-title">Quiz</div>
+                      <div class="activities-container">
+                        {% for quiz in quizzes %}
+                          {% if quiz.course.id == course.id %}
+                            {% get_quiz_safe student.id quiz.id as quiz_attempt %}
+                            <div class="activity-item activity-quiz {% if quiz_attempt and quiz_attempt.score %}status-submitted{% else %}status-not-submitted{% endif %}">
+                              <div class="activity-type">Quiz</div>
+                              <div class="activity-title" title="{{ quiz.title }}">{{ quiz.title }}</div>
+                              {% comment %}
+                              Check if quiz has rubric and if there's a rubric evaluation for this attempt
+                              {% endcomment %}
+                              {% if quiz_attempt and quiz_attempt.score %}
+                                {% with final_score=quiz_attempt.score score_source='auto' %}
+                                  {% comment %}Rubric evaluation logic placeholder{% endcomment %}
+                                  {% if final_score >= quiz.passing_score %}
+                                    <span class="grade-display grade-good">{{ final_score }}/100 {% if score_source == 'rubric' %}<span style="color: purple;">(Rubric)</span>{% elif score_source == 'auto' %}<span style="color: gray;">(Auto)</span>{% endif %}</span>
+                                  {% else %}
+                                    <span class="grade-display grade-poor">{{ final_score }}/100 {% if score_source == 'rubric' %}<span style="color: purple;">(Rubric)</span>{% elif score_source == 'auto' %}<span style="color: gray;">(Auto)</span>{% endif %}</span>
+                                  {% endif %}
+                                {% endwith %}
+                              {% else %}
+                                <span class="grade-display grade-none">-/{{ quiz.total_points|default:100 }}</span>
+                              {% endif %}
+                            </div>
+                          {% endif %}
+                        {% endfor %}
+                      </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Assignment -->
+                    {% course_has_activities course 'assignment' assignments=assignments as has_assignment_activities %}
+                    {% if has_assignment_activities %}
+                    <div class="activity-category">
+                      <div class="activity-category-title">Assignment</div>
+                      <div class="activities-container">
+                        {% for assignment in assignments %}
+                          {% if assignment.course.id == course.id %}
+                            {% get_grade_safe student.id assignment.id as grade %}
+                            <div class="activity-item activity-assignment {% if grade.score %}status-submitted{% else %}status-not-submitted{% endif %}">
+                              <div class="activity-type">Assignment</div>
+                              <div class="activity-title" title="{{ assignment.title }}">{{ assignment.title }}</div>
+                              {% if grade.excused %}
+                                <span class="excused-grade">(Excused)</span>
+                              {% elif grade.score %}
+                                {% if grade.score >= assignment.max_score|mul:0.9 %}
+                                  <span class="grade-display grade-excellent">{{ grade.score }}/{{ assignment.max_score }}</span>
+                                {% elif grade.score >= assignment.max_score|mul:0.7 %}
+                                  <span class="grade-display grade-good">{{ grade.score }}/{{ assignment.max_score }}</span>
+                                {% elif grade.score >= assignment.max_score|mul:0.5 %}
+                                  <span class="grade-display grade-average">{{ grade.score }}/{{ assignment.max_score }}</span>
+                                {% else %}
+                                  <span class="grade-display grade-poor">{{ grade.score }}/{{ assignment.max_score }}</span>
+                                {% endif %}
+                              {% else %}
+                                <span class="grade-display grade-none">-/{{ assignment.max_score }}</span>
+                              {% endif %}
+                            </div>
+                          {% endif %}
+                        {% endfor %}
+                      </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- SCORM -->
+                    {% course_has_activities course 'scorm' scorm_registrations=scorm_registrations as has_scorm_activities %}
+                    {% if has_scorm_activities %}
+                    <div class="activity-category">
+                      <div class="activity-category-title">SCORM</div>
+                      <div class="activities-container">
+                        {% comment %}Show all SCORM topics in the course{% endcomment %}
+                        {% for topic in scorm_topics %}
+                          {% if topic.section.course.id == course.id %}
+                            {% get_scorm_registration_for_topic scorm_registrations student.id topic.id as registration %}
+                            <div class="activity-item activity-scorm {% if registration %}{% if registration.completion_status == 'completed' or registration.success_status == 'passed' %}status-submitted{% elif registration.completion_status == 'incomplete' %}status-resubmitted{% else %}status-not-submitted{% endif %}{% else %}status-not-submitted{% endif %}">
+                              <div class="activity-type">SCORM</div>
+                              <div class="activity-title" title="{{ topic.title }}">{{ topic.title }}</div>
+                              {% if registration %}
+                                {% if registration.score %}
+                                  {% if registration.success_status == 'passed' %}
+                                    <span class="grade-display grade-excellent">{{ registration.score|floatformat:0 }}/100</span>
+                                  {% elif registration.score >= 80 %}
+                                    <span class="grade-display grade-good">{{ registration.score|floatformat:0 }}/100</span>
+                                  {% elif registration.score >= 60 %}
+                                    <span class="grade-display grade-average">{{ registration.score|floatformat:0 }}/100</span>
+                                  {% else %}
+                                    <span class="grade-display grade-poor">{{ registration.score|floatformat:0 }}/100</span>
+                                  {% endif %}
+                                {% elif registration.completion_status == 'completed' %}
+                                  <span class="grade-display grade-good">Complete</span>
+                                {% elif registration.completion_status == 'incomplete' %}
+                                  <span class="grade-display grade-average">In Progress</span>
+                                {% else %}
+                                  <span class="grade-display grade-none">Not Started</span>
+                                {% endif %}
+                              {% else %}
+                                <span class="grade-display grade-none">Not Started</span>
+                              {% endif %}
+                            </div>
+                          {% endif %}
+                        {% endfor %}
+                      </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- ILT/Conference -->
+                    {% course_has_activities course 'conference' conferences=conferences as has_conference_activities %}
+                    {% if has_conference_activities %}
+                    <div class="activity-category">
+                      <div class="activity-category-title">ILT/Conference</div>
+                      <div class="activities-container">
+                        {% for conference in conferences %}
+                          {% if conference.course.id == course.id %}
+                            <div class="activity-item activity-conference status-not-submitted">
+                              <div class="activity-type">Conference</div>
+                              <div class="activity-title" title="{{ conference.title }}">{{ conference.title }}</div>
+                              <span class="grade-display grade-none">-</span>
+                            </div>
+                          {% endif %}
+                        {% endfor %}
+                      </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Discussions -->
+                    {% course_has_activities course 'discussion' discussions=discussions as has_discussion_activities %}
+                    {% if has_discussion_activities %}
+                    <div class="activity-category">
+                      <div class="activity-category-title">Discussions</div>
+                      <div class="activities-container">
+                        {% for discussion in discussions %}
+                          {% if discussion.course.id == course.id %}
+                            <div class="activity-item activity-discussion status-not-submitted">
+                              <div class="activity-type">Discussion</div>
+                              <div class="activity-title" title="{{ discussion.title }}">{{ discussion.title }}</div>
+                              <span class="grade-display grade-none">-</span>
+                            </div>
+                          {% endif %}
+                        {% endfor %}
+                      </div>
+                    </div>
+                    {% endif %}
+                  </div>
+                  {% endif %}
+                {% endfor %}
+              </td>
+              {% else %}
+              <td>
+                {% for course in courses %}
+                  {% should_hide_course student.id course.id student_courses_with_activities user.role as hide_course %}
+                  {% if not hide_course %}
+                  <div class="course-item" data-course-id="{{ course.id }}" data-student-id="{{ student.id }}">
+                    {{ course.title }}
+                    <a href="{% url 'gradebook:course_detail' course.id %}" class="ml-2 text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded transition duration-200" title="View Detailed Gradebook">
+                      <i class="fas fa-table mr-1"></i>Detailed Gradebook
+                    </a>
+                  </div>
+                  {% endif %}
+                  {% if not hide_course %}
+                  <div class="activities-section" id="activities-{{ student.id }}-{{ course.id }}">
+                    <!-- Quiz -->
+                    {% course_has_activities course 'quiz' quizzes=quizzes quiz_attempts=quiz_attempts as has_quiz_activities %}
+                    {% if has_quiz_activities %}
+                    <div class="activity-category">
+                      <div class="activity-category-title">Quiz</div>
+                      <div class="activities-container">
+                        {% for quiz in quizzes %}
+                          {% if quiz.course.id == course.id %}
+                            {% get_quiz_safe student.id quiz.id as quiz_attempt %}
+                            <div class="activity-item activity-quiz {% if quiz_attempt and quiz_attempt.score %}status-submitted{% else %}status-not-submitted{% endif %}">
+                              <div class="activity-type">Quiz</div>
+                              <div class="activity-title" title="{{ quiz.title }}">{{ quiz.title }}</div>
+                              {% comment %}
+                              Check if quiz has rubric and if there's a rubric evaluation for this attempt
+                              {% endcomment %}
+                              {% if quiz_attempt and quiz_attempt.score %}
+                                {% with final_score=quiz_attempt.score score_source='auto' %}
+                                  {% comment %}Rubric evaluation logic placeholder{% endcomment %}
+                                  {% if final_score >= quiz.passing_score %}
+                                    <span class="grade-display grade-good">{{ final_score }}/100 {% if score_source == 'rubric' %}<span style="color: purple;">(Rubric)</span>{% elif score_source == 'auto' %}<span style="color: gray;">(Auto)</span>{% endif %}</span>
+                                  {% else %}
+                                    <span class="grade-display grade-poor">{{ final_score }}/100 {% if score_source == 'rubric' %}<span style="color: purple;">(Rubric)</span>{% elif score_source == 'auto' %}<span style="color: gray;">(Auto)</span>{% endif %}</span>
+                                  {% endif %}
+                                {% endwith %}
+                              {% else %}
+                                <span class="grade-display grade-none">-/{{ quiz.total_points|default:100 }}</span>
+                              {% endif %}
+                            </div>
+                          {% endif %}
+                        {% endfor %}
+                      </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Assignment -->
+                    {% course_has_activities course 'assignment' assignments=assignments as has_assignment_activities %}
+                    {% if has_assignment_activities %}
+                    <div class="activity-category">
+                      <div class="activity-category-title">Assignment</div>
+                      <div class="activities-container">
+                        {% for assignment in assignments %}
+                          {% if assignment.course.id == course.id %}
+                            {% get_grade_safe student.id assignment.id as grade %}
+                            <div class="activity-item activity-assignment {% if grade.score %}status-submitted{% else %}status-not-submitted{% endif %}">
+                              <div class="activity-type">Assignment</div>
+                              <div class="activity-title" title="{{ assignment.title }}">{{ assignment.title }}</div>
+                              {% if grade.excused %}
+                                <span class="excused-grade">(Excused)</span>
+                              {% elif grade.score %}
+                                {% if grade.score >= assignment.max_score|mul:0.9 %}
+                                  <span class="grade-display grade-excellent">{{ grade.score }}/{{ assignment.max_score }}</span>
+                                {% elif grade.score >= assignment.max_score|mul:0.7 %}
+                                  <span class="grade-display grade-good">{{ grade.score }}/{{ assignment.max_score }}</span>
+                                {% elif grade.score >= assignment.max_score|mul:0.5 %}
+                                  <span class="grade-display grade-average">{{ grade.score }}/{{ assignment.max_score }}</span>
+                                {% else %}
+                                  <span class="grade-display grade-poor">{{ grade.score }}/{{ assignment.max_score }}</span>
+                                {% endif %}
+                              {% else %}
+                                <span class="grade-display grade-none">-/{{ assignment.max_score }}</span>
+                              {% endif %}
+                            </div>
+                          {% endif %}
+                        {% endfor %}
+                      </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- SCORM -->
+                    {% course_has_activities course 'scorm' scorm_registrations=scorm_registrations as has_scorm_activities %}
+                    {% if has_scorm_activities %}
+                    <div class="activity-category">
+                      <div class="activity-category-title">SCORM</div>
+                      <div class="activities-container">
+                        {% comment %}Show all SCORM topics in the course{% endcomment %}
+                        {% for topic in scorm_topics %}
+                          {% if topic.section.course.id == course.id %}
+                            {% get_scorm_registration_for_topic scorm_registrations student.id topic.id as registration %}
+                            <div class="activity-item activity-scorm {% if registration %}{% if registration.completion_status == 'completed' or registration.success_status == 'passed' %}status-submitted{% elif registration.completion_status == 'incomplete' %}status-resubmitted{% else %}status-not-submitted{% endif %}{% else %}status-not-submitted{% endif %}">
+                              <div class="activity-type">SCORM</div>
+                              <div class="activity-title" title="{{ topic.title }}">{{ topic.title }}</div>
+                              {% if registration %}
+                                {% if registration.score %}
+                                  {% if registration.success_status == 'passed' %}
+                                    <span class="grade-display grade-excellent">{{ registration.score|floatformat:0 }}/100</span>
+                                  {% elif registration.score >= 80 %}
+                                    <span class="grade-display grade-good">{{ registration.score|floatformat:0 }}/100</span>
+                                  {% elif registration.score >= 60 %}
+                                    <span class="grade-display grade-average">{{ registration.score|floatformat:0 }}/100</span>
+                                  {% else %}
+                                    <span class="grade-display grade-poor">{{ registration.score|floatformat:0 }}/100</span>
+                                  {% endif %}
+                                {% elif registration.completion_status == 'completed' %}
+                                  <span class="grade-display grade-good">Complete</span>
+                                {% elif registration.completion_status == 'incomplete' %}
+                                  <span class="grade-display grade-average">In Progress</span>
+                                {% else %}
+                                  <span class="grade-display grade-none">Not Started</span>
+                                {% endif %}
+                              {% else %}
+                                <span class="grade-display grade-none">Not Started</span>
+                              {% endif %}
+                            </div>
+                          {% endif %}
+                        {% endfor %}
+                      </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- ILT/Conference -->
+                    {% course_has_activities course 'conference' conferences=conferences as has_conference_activities %}
+                    {% if has_conference_activities %}
+                    <div class="activity-category">
+                      <div class="activity-category-title">ILT/Conference</div>
+                      <div class="activities-container">
+                        {% for conference in conferences %}
+                          {% if conference.course.id == course.id %}
+                            <div class="activity-item activity-conference status-not-submitted">
+                              <div class="activity-type">Conference</div>
+                              <div class="activity-title" title="{{ conference.title }}">{{ conference.title }}</div>
+                              <span class="grade-display grade-none">-</span>
+                            </div>
+                          {% endif %}
+                        {% endfor %}
+                      </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Discussions -->
+                    {% course_has_activities course 'discussion' discussions=discussions as has_discussion_activities %}
+                    {% if has_discussion_activities %}
+                    <div class="activity-category">
+                      <div class="activity-category-title">Discussions</div>
+                      <div class="activities-container">
+                        {% for discussion in discussions %}
+                          {% if discussion.course.id == course.id %}
+                            <div class="activity-item activity-discussion status-not-submitted">
+                              <div class="activity-type">Discussion</div>
+                              <div class="activity-title" title="{{ discussion.title }}">{{ discussion.title }}</div>
+                              <span class="grade-display grade-none">-</span>
+                            </div>
+                          {% endif %}
+                        {% endfor %}
+                      </div>
+                    </div>
+                    {% endif %}
+                  </div>
+                  {% endif %}
+                {% endfor %}
+              </td>
+              {% endif %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Toggle course activities when clicking on course name
+    const courseItems = document.querySelectorAll('.course-item');
+    
+    // Function to update course status colors based on activity status
+    function updateCourseStatusColors() {
+      courseItems.forEach(courseItem => {
+        const studentId = courseItem.getAttribute('data-student-id');
+        const courseId = courseItem.getAttribute('data-course-id');
+        const activitiesSection = document.getElementById(`activities-${studentId}-${courseId}`);
+        
+        if (activitiesSection) {
+          // Check if there are any activities in this section
+          const activityItems = activitiesSection.querySelectorAll('.activity-item');
+          
+          // Set default status (not submitted)
+          let hasSubmitted = false;
+          let hasResubmitted = false;
+          let hasNotSubmitted = true;
+          
+          // Check each activity's status
+          activityItems.forEach(activity => {
+            if (activity.classList.contains('status-submitted')) {
+              hasSubmitted = true;
+              hasNotSubmitted = false;
+            } else if (activity.classList.contains('status-resubmitted')) {
+              hasResubmitted = true;
+              hasNotSubmitted = false;
+            }
+          });
+          
+          // Apply status class to course item
+          courseItem.classList.remove('course-status-submitted', 'course-status-resubmitted', 'course-status-not-submitted');
+          
+          if (hasSubmitted && !hasResubmitted) {
+            courseItem.classList.add('course-status-submitted');
+          } else if (hasResubmitted) {
+            courseItem.classList.add('course-status-resubmitted');
+          } else if (hasNotSubmitted) {
+            courseItem.classList.add('course-status-not-submitted');
+          }
+        }
+      });
+    }
+    
+    // Call once on page load
+    updateCourseStatusColors();
+    
+    courseItems.forEach(item => {
+      item.addEventListener('click', function() {
+        const studentId = this.getAttribute('data-student-id');
+        const courseId = this.getAttribute('data-course-id');
+        const activitiesSection = document.getElementById(`activities-${studentId}-${courseId}`);
+        
+        // Close all other open sections
+        document.querySelectorAll('.activities-section').forEach(section => {
+          if (section !== activitiesSection) {
+            section.style.display = 'none';
+          }
+        });
+        
+        // Toggle this section
+        if (activitiesSection.style.display === 'block') {
+          activitiesSection.style.display = 'none';
+        } else {
+          activitiesSection.style.display = 'block';
+        }
+      });
+    });
+    
+    {% if user.role != 'learner' %}
+    const searchInput = document.getElementById('searchInput');
+    const courseFilter = document.getElementById('courseFilter');
+    const studentFilter = document.getElementById('studentFilter');
+    
+    // Search functionality
+    searchInput.addEventListener('input', function() {
+      const searchTerm = this.value.toLowerCase();
+      const rows = document.querySelectorAll('.grade-row');
+      
+      rows.forEach(row => {
+        const studentName = row.cells[0].textContent.toLowerCase();
+        const coursesText = row.cells[1].textContent.toLowerCase();
+        
+        if (studentName.includes(searchTerm) || coursesText.includes(searchTerm)) {
+          row.classList.remove('hidden-row');
+        } else {
+          row.classList.add('hidden-row');
+        }
+      });
+    });
+    
+    // Course filter functionality
+    courseFilter.addEventListener('change', function() {
+      const selectedCourseId = this.value;
+      const rows = document.querySelectorAll('.grade-row');
+      
+      if (selectedCourseId === 'all') {
+        // Show all rows
+        rows.forEach(row => {
+          if (!row.classList.contains('student-filtered')) {
+            row.classList.remove('hidden-row');
+          }
+        });
+      } else {
+        // Filter rows by course
+        rows.forEach(row => {
+          // Check course items
+          const courseItems = row.querySelectorAll('.course-item');
+          let hasMatchingCourse = false;
+          
+          courseItems.forEach(courseItem => {
+            if (courseItem.getAttribute('data-course-id') === selectedCourseId) {
+              hasMatchingCourse = true;
+            }
+          });
+          
+          if (hasMatchingCourse) {
+            if (!row.classList.contains('student-filtered')) {
+              row.classList.remove('hidden-row');
+            }
+          } else {
+            row.classList.add('hidden-row');
+          }
+        });
+      }
+    });
+    
+    // Student filter functionality
+    studentFilter.addEventListener('change', function() {
+      const selectedStudentId = this.value;
+      const rows = document.querySelectorAll('.grade-row');
+      
+      // Reset student filter class
+      rows.forEach(row => row.classList.remove('student-filtered'));
+      
+      if (selectedStudentId === 'all') {
+        // Show all rows
+        rows.forEach(row => {
+          // But respect course filter
+          if (courseFilter.value === 'all') {
+            row.classList.remove('hidden-row');
+          } else {
+            // Check course items
+            const courseItems = row.querySelectorAll('.course-item');
+            let hasMatchingCourse = false;
+            
+            courseItems.forEach(courseItem => {
+              if (courseItem.getAttribute('data-course-id') === courseFilter.value) {
+                hasMatchingCourse = true;
+              }
+            });
+            
+            if (hasMatchingCourse) {
+              row.classList.remove('hidden-row');
+            } else {
+              row.classList.add('hidden-row');
+            }
+          }
+        });
+      } else {
+        // Filter rows by student
+        rows.forEach(row => {
+          const rowStudentId = row.getAttribute('data-student-id');
+          
+          if (rowStudentId === selectedStudentId) {
+            // But respect course filter
+            if (courseFilter.value === 'all') {
+              row.classList.remove('hidden-row');
+            } else {
+              // Check course items
+              const courseItems = row.querySelectorAll('.course-item');
+              let hasMatchingCourse = false;
+              
+              courseItems.forEach(courseItem => {
+                if (courseItem.getAttribute('data-course-id') === courseFilter.value) {
+                  hasMatchingCourse = true;
+                }
+              });
+              
+              if (hasMatchingCourse) {
+                row.classList.remove('hidden-row');
+              } else {
+                row.classList.add('hidden-row');
+              }
+            }
+          } else {
+            row.classList.add('hidden-row');
+            row.classList.add('student-filtered');
+          }
+        });
+      }
+    });
+    {% else %}
+    // For learner role - add course filtering if needed
+    const courseSearchInput = document.createElement('input');
+    courseSearchInput.type = 'text';
+    courseSearchInput.placeholder = 'Search by course';
+    courseSearchInput.className = 'w-full p-2 border rounded-md mb-4';
+    
+    // Add the search input to the top of the gradebook
+    const gradebookDiv = document.querySelector('#gradebookTable').parentNode.parentNode;
+    gradebookDiv.insertBefore(courseSearchInput, gradebookDiv.querySelector('h1').nextSibling);
+    
+    // Add search functionality
+    courseSearchInput.addEventListener('input', function() {
+      const searchTerm = this.value.toLowerCase();
+      const courseItems = document.querySelectorAll('.course-item');
+      
+      courseItems.forEach(item => {
+        const courseText = item.textContent.toLowerCase();
+        
+        if (courseText.includes(searchTerm)) {
+          item.parentNode.parentNode.classList.remove('hidden-row');
+        } else {
+          // Hide if no other course in the same row matches
+          const row = item.parentNode.parentNode;
+          const otherCourses = row.querySelectorAll('.course-item');
+          let hasMatch = false;
+          
+          otherCourses.forEach(course => {
+            if (course.textContent.toLowerCase().includes(searchTerm)) {
+              hasMatch = true;
+            }
+          });
+          
+          if (!hasMatch) {
+            row.classList.add('hidden-row');
+          }
+        }
+      });
+    });
+    {% endif %}
+  });
+</script>
+{% endblock %} 

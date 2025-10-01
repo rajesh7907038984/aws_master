@@ -1,0 +1,751 @@
+{% load gradebook_tags %}
+
+<!-- Quiz Details -->
+<div class="mb-6">
+    <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold text-gray-800">{{ quiz.title }}</h3>
+        {% if attempt %}
+        <a href="{% url 'quiz:view_attempt' attempt.id %}" class="text-blue-600 hover:text-blue-800 text-sm font-medium" target="_blank">
+            <i class="fas fa-external-link-alt mr-1"></i>
+            Detailed View
+        </a>
+        {% endif %}
+    </div>
+    
+    <div class="bg-gray-50 p-4 rounded-lg mb-4">
+        <div class="grid grid-cols-2 gap-4 text-sm">
+            <div>
+                <span class="text-gray-600">Student:</span>
+                <span class="font-medium">{{ student.get_full_name }}</span>
+            </div>
+            <div>
+                <span class="text-gray-600">Total Points:</span>
+                <span class="font-medium">{{ quiz.total_points|default:"Auto" }} pts</span>
+            </div>
+            {% if attempt %}
+            <div>
+                <span class="text-gray-600">Completed:</span>
+                <span class="font-medium">{{ attempt.end_time|date:"M d, Y H:i" }}</span>
+            </div>
+            <div>
+                <span class="text-gray-600">Auto Score:</span>
+                <span class="font-medium">{{ attempt.score|floatformat:1 }}/{{ quiz.total_points|default:"?" }}</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Quiz Results Summary -->
+{% if attempt %}
+<div class="bg-white border border-gray-200 rounded-lg p-4 mb-6">
+    <h4 class="text-lg font-bold mb-4 text-gray-800">
+        <i class="fas fa-chart-bar mr-2 text-blue-500"></i>
+        Quiz Results
+    </h4>
+    
+    <div class="space-y-3">
+        <div class="bg-blue-50 p-3 rounded-lg">
+            <div class="flex justify-between items-center">
+                <span class="font-medium text-blue-900">Automatic Score:</span>
+                <span class="text-xl font-bold text-blue-800">{{ attempt.score|floatformat:1 }}%</span>
+            </div>
+            {% if attempt.manual_grade %}
+            <div class="flex justify-between items-center mt-2">
+                <span class="font-medium text-green-900">Manual Override:</span>
+                <span class="text-xl font-bold text-green-800">{{ attempt.manual_grade|floatformat:1 }}%</span>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="grid grid-cols-3 gap-3 text-center">
+            <div class="bg-green-50 p-2 rounded">
+                <div class="text-sm text-green-600">Duration</div>
+                <div class="font-bold text-green-800">{{ attempt.duration|default:"--" }}</div>
+            </div>
+            <div class="bg-purple-50 p-2 rounded">
+                <div class="text-sm text-purple-600">Attempt</div>
+                <div class="font-bold text-purple-800">#{{ attempt.attempt_number|default:"1" }}</div>
+            </div>
+            <div class="bg-orange-50 p-2 rounded">
+                <div class="text-sm text-orange-600">Status</div>
+                <div class="font-bold text-orange-800">
+                    {% if quiz.is_vak_test %}
+                        VAK Test
+                    {% else %}
+                        {% if attempt.score >= quiz.passing_score|default:70 %}
+                            Passed
+                        {% else %}
+                            Failed
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Manual Grade Override -->
+<div class="bg-white border border-gray-200 rounded-lg p-4 mb-6">
+    <h4 class="text-lg font-bold mb-4 text-gray-800">
+        <i class="fas fa-edit mr-2 text-green-500"></i>
+        Manual Grade Override
+    </h4>
+    
+    <form method="POST" action="{% url 'gradebook:ajax_save_grade' %}" class="space-y-4">
+        {% csrf_token %}
+        <input type="hidden" name="activity_type" value="quiz">
+        <input type="hidden" name="activity_id" value="{{ quiz.id }}">
+        <input type="hidden" name="student_id" value="{{ student.id }}">
+        <input type="hidden" name="attempt_id" value="{{ attempt.id }}">
+        
+        <div class="bg-yellow-50 p-3 rounded-lg mb-4">
+            <div class="flex items-start">
+                <i class="fas fa-info-circle mt-0.5 mr-2 text-yellow-600"></i>
+                <div class="text-sm text-yellow-800">
+                    <p class="font-medium">Manual Grade Override</p>
+                    <p>Use this to override the automatic quiz score. Leave blank to use the automatic score.</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Manual Grade Input -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Override Score (%)
+            </label>
+            <input type="number" 
+                   name="grade" 
+                   value="{% if attempt.manual_grade %}{{ attempt.manual_grade }}{% endif %}"
+                   min="0" 
+                   max="100" 
+                   step="0.1"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                   placeholder="Enter percentage (0-100)">
+        </div>
+        
+        <!-- Submit Button -->
+        <button type="submit" class="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition">
+            <i class="fas fa-save mr-2"></i>
+            Save Manual Grade
+        </button>
+    </form>
+</div>
+{% endif %}
+
+<!-- Rubric Evaluation -->
+{% if rubric_data %}
+<div class="bg-white border border-gray-200 rounded-lg p-4 mb-6">
+    <h4 class="text-lg font-bold mb-4 text-gray-800">
+        <i class="fas fa-clipboard-list mr-2 text-purple-500"></i>
+        Rubric Evaluation
+    </h4>
+    
+    <div class="space-y-4">
+        <div class="bg-purple-50 p-3 rounded-lg">
+            <h5 class="font-medium text-purple-900">{{ rubric_data.rubric.title }}</h5>
+            <p class="text-sm text-purple-700">{{ rubric_data.rubric.total_points }} points possible</p>
+        </div>
+        
+        {% for criterion in rubric_data.criteria %}
+        <div class="border border-gray-200 rounded-lg p-3">
+            <div class="flex justify-between items-start mb-2">
+                <h6 class="font-medium text-gray-800">{{ criterion.description }}</h6>
+                <span class="text-sm text-gray-600">{{ criterion.points }} pts</span>
+            </div>
+            
+            {% with evaluation=rubric_data.evaluations|get_item:criterion.id %}
+            <div class="space-y-2">
+                <!-- Rating Selection -->
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Rating</label>
+                    <select class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                            data-criterion="{{ criterion.id }}"
+                            data-rating-select>
+                        <option value="">Select a rating...</option>
+                        {% for rating in criterion.ratings.all %}
+                        <option value="{{ rating.id }}" 
+                                data-points="{{ rating.points }}"
+                                {% if evaluation and evaluation.rating_id == rating.id %}selected{% endif %}>
+                            {{ rating.title }} ({{ rating.points }} pts) - {{ rating.description }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Points and Comments -->
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Points</label>
+                        <input type="number" 
+                               class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                               min="0" 
+                               max="{{ criterion.points }}"
+                               value="{% if evaluation %}{{ evaluation.points }}{% endif %}"
+                               placeholder="Points"
+                               data-criterion="{{ criterion.id }}"
+                               data-points-input>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Comments</label>
+                        <input type="text" 
+                               class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                               value="{% if evaluation %}{{ evaluation.comments }}{% endif %}"
+                               placeholder="Comments"
+                               data-criterion="{{ criterion.id }}"
+                               data-comments-input>
+                    </div>
+                </div>
+            </div>
+            {% endwith %}
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Save Rubric Evaluation Form -->
+    <form class="mt-4" id="rubricEvaluationForm" method="POST" action="{% url 'gradebook:ajax_save_grade' %}">
+        {% csrf_token %}
+        <input type="hidden" name="activity_type" value="quiz">
+        <input type="hidden" name="activity_id" value="{{ quiz.id }}">
+        <input type="hidden" name="student_id" value="{{ student.id }}">
+        {% if attempt %}
+        <input type="hidden" name="attempt_id" value="{{ attempt.id }}">
+        {% endif %}
+        
+                 <button type="button" 
+                 onclick="saveQuizRubricEvaluation(); console.log('Button clicked!')" 
+                 data-quiz-id="{{ quiz.id }}"
+                 data-student-id="{{ student.id }}"
+                 {% if attempt %}data-attempt-id="{{ attempt.id }}"{% endif %}
+                 class="w-full bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
+                 id="saveRubricBtn">
+            <i class="fas fa-save mr-2"></i>
+            Save Rubric Evaluation
+        </button>
+        
+
+    </form>
+</div>
+
+<!-- Overall Feedback Section -->
+{% if rubric_data %}
+<div class="bg-white border border-gray-200 rounded-lg p-4 mb-6">
+    <h4 class="text-lg font-bold mb-4 text-gray-800">
+        <i class="fas fa-comment-alt mr-2 text-blue-500"></i>
+        Overall Feedback
+    </h4>
+    
+    <!-- Show existing feedback if any -->
+    {% if overall_feedback %}
+    <div class="mb-4">
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <h5 class="font-medium text-blue-900 mb-2">
+                <i class="fas fa-history mr-2"></i>
+                Previous Feedback
+            </h5>
+            
+            {% if overall_feedback.feedback %}
+            <div class="mb-3">
+                <div class="flex items-center mb-1">
+                    <i class="fas fa-keyboard text-blue-600 mr-2 text-sm"></i>
+                    <span class="font-medium text-blue-800 text-sm">Written Feedback</span>
+                </div>
+                <div class="prose prose-sm max-w-none text-gray-700 bg-white p-3 rounded border">
+                    {{ overall_feedback.feedback|safe }}
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if overall_feedback.audio_feedback %}
+            <div class="mb-3">
+                <div class="flex items-center mb-1">
+                    <i class="fas fa-microphone text-green-600 mr-2 text-sm"></i>
+                    <span class="font-medium text-green-800 text-sm">Audio Feedback</span>
+                </div>
+                <div class="bg-green-50 p-2 rounded border">
+                    <audio controls class="w-full h-8" controlsList="nodownload">
+                        <source src="{{ overall_feedback.audio_feedback.url }}" type="audio/mpeg">
+                        <source src="{{ overall_feedback.audio_feedback.url }}" type="audio/wav">
+                        <source src="{{ overall_feedback.audio_feedback.url }}" type="audio/mp4">
+                        Your browser does not support the audio element.
+                    </audio>
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if overall_feedback.video_feedback %}
+            <div class="mb-3">
+                <div class="flex items-center mb-1">
+                    <i class="fas fa-video text-purple-600 mr-2 text-sm"></i>
+                    <span class="font-medium text-purple-800 text-sm">Video Feedback</span>
+                </div>
+                <div class="bg-purple-50 p-2 rounded border">
+                    <video controls class="w-full max-w-sm rounded" controlsList="nodownload">
+                        <source src="{{ overall_feedback.video_feedback.url }}" type="video/mp4">
+                        <source src="{{ overall_feedback.video_feedback.url }}" type="video/mov">
+                        <source src="{{ overall_feedback.video_feedback.url }}" type="video/avi">
+                        Your browser does not support the video element.
+                    </video>
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="text-xs text-gray-500 mt-2">
+                <i class="fas fa-clock mr-1"></i>
+                {{ overall_feedback.created_at|date:"M d, Y g:i A" }}
+                {% if overall_feedback.created_by %}
+                by {{ overall_feedback.created_by.get_full_name }}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Feedback Type Tabs -->
+    <div class="mb-4">
+        <div class="border-b border-gray-200">
+            <nav class="-mb-px flex space-x-8" aria-label="Feedback Types">
+                <button type="button" 
+                        class="feedback-tab-btn py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap border-blue-500 text-blue-600 active"
+                        data-tab="text"
+                        data-active-class="border-blue-500 text-blue-600"
+                        data-inactive-class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                    <i class="fas fa-keyboard mr-2"></i>Text Feedback
+                </button>
+                <button type="button" 
+                        class="feedback-tab-btn py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                        data-tab="audio"
+                        data-active-class="border-green-500 text-green-600"
+                        data-inactive-class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                    <i class="fas fa-microphone mr-2"></i>Audio Feedback
+                </button>
+                <button type="button" 
+                        class="feedback-tab-btn py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                        data-tab="video"
+                        data-active-class="border-purple-500 text-purple-600"
+                        data-inactive-class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                    <i class="fas fa-video mr-2"></i>Video Feedback
+                </button>
+            </nav>
+        </div>
+    </div>
+    
+    <!-- Feedback Content Form -->
+    <form method="POST" action="{% url 'gradebook:ajax_save_grade' %}" class="space-y-4" id="overallFeedbackForm" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="activity_type" value="quiz">
+        <input type="hidden" name="activity_id" value="{{ quiz.id }}">
+        <input type="hidden" name="student_id" value="{{ student.id }}">
+        <input type="hidden" name="feedback_type" value="overall">
+        {% if attempt %}
+        <input type="hidden" name="attempt_id" value="{{ attempt.id }}">
+        {% endif %}
+        
+        <!-- Tab Content -->
+        <div class="feedback-tab-content-container">
+            <!-- Text Feedback Tab -->
+            <div id="text-feedback-tab" class="feedback-tab-content active">
+                <div class="space-y-4">
+                    {{ feedback_form.feedback }}
+                </div>
+            </div>
+            
+            <!-- Audio Feedback Tab -->
+            <div id="audio-feedback-tab" class="feedback-tab-content hidden">
+                <div class="space-y-4">
+                    {% if overall_feedback and overall_feedback.audio_feedback %}
+                    <div class="bg-green-50 p-4 rounded-lg">
+                        <h6 class="text-sm font-medium text-green-900 mb-2">Current Audio Feedback</h6>
+                        <audio controls class="w-full max-w-md">
+                            <source src="{{ overall_feedback.audio_feedback.url }}" type="audio/mpeg">
+                            <source src="{{ overall_feedback.audio_feedback.url }}" type="audio/wav">
+                            <source src="{{ overall_feedback.audio_feedback.url }}" type="audio/mp4">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="border-dashed border-2 border-gray-300 rounded-lg p-6 text-center">
+                        <i class="fas fa-microphone text-3xl text-gray-400 mb-4"></i>
+                        <h6 class="text-sm font-medium text-gray-700 mb-2">Upload Audio Feedback</h6>
+                        <p class="text-sm text-gray-500 mb-4">Select an audio file to upload</p>
+                        {{ feedback_form.audio_feedback }}
+                        <p class="text-xs text-gray-500 mt-1">Supported formats: MP3, WAV, M4A, AAC, OGG (Max: 50MB)</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Video Feedback Tab -->
+            <div id="video-feedback-tab" class="feedback-tab-content hidden">
+                <div class="space-y-4">
+                    {% if overall_feedback and overall_feedback.video_feedback %}
+                    <div class="bg-purple-50 p-4 rounded-lg">
+                        <h6 class="text-sm font-medium text-purple-900 mb-2">Current Video Feedback</h6>
+                        <video controls class="w-full max-w-md">
+                            <source src="{{ overall_feedback.video_feedback.url }}" type="video/mp4">
+                            <source src="{{ overall_feedback.video_feedback.url }}" type="video/mov">
+                            <source src="{{ overall_feedback.video_feedback.url }}" type="video/avi">
+                            Your browser does not support the video element.
+                        </video>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="border-dashed border-2 border-gray-300 rounded-lg p-6 text-center">
+                        <i class="fas fa-video text-3xl text-gray-400 mb-4"></i>
+                        <h6 class="text-sm font-medium text-gray-700 mb-2">Upload Video Feedback</h6>
+                        <p class="text-sm text-gray-500 mb-4">Select a video file to upload</p>
+                        {{ feedback_form.video_feedback }}
+                        <p class="text-xs text-gray-500 mt-1">Supported formats: MP4, MOV, AVI, WMV, MKV (Max: 100MB)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Submit Button -->
+        <div class="flex justify-end space-x-3">
+            <button type="submit" class="text-white px-4 py-2 rounded-md font-medium" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                <i class="fas fa-save mr-2"></i>Save Overall Feedback
+            </button>
+        </div>
+    </form>
+</div>
+{% endif %}
+{% endif %}
+
+<!-- Quiz Attempt Details -->
+{% if attempt %}
+<div class="bg-white border border-gray-200 rounded-lg p-4 mb-6">
+    <h4 class="text-lg font-bold mb-4 text-gray-800">
+        <i class="fas fa-list-alt mr-2 text-blue-500"></i>
+        Attempt Details
+    </h4>
+    
+    <div class="space-y-3">
+        <div class="bg-gray-50 p-3 rounded-lg">
+            <div class="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                    <span class="text-gray-600">Start Time:</span>
+                    <span class="font-medium">{{ attempt.start_time|date:"M d, Y H:i" }}</span>
+                </div>
+                <div>
+                    <span class="text-gray-600">End Time:</span>
+                    <span class="font-medium">{{ attempt.end_time|date:"M d, Y H:i" }}</span>
+                </div>
+                <div>
+                    <span class="text-gray-600">IP Address:</span>
+                    <span class="font-medium">{{ attempt.ip_address|default:"Not recorded" }}</span>
+                </div>
+                <div>
+                    <span class="text-gray-600">Browser:</span>
+                    <span class="font-medium">{{ attempt.user_agent|default:"Not recorded"|truncatechars:20 }}</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Question Overview -->
+        <div class="bg-blue-50 p-3 rounded-lg">
+            <h6 class="text-sm font-medium text-blue-900 mb-2">Question Performance</h6>
+            <div class="text-sm text-blue-800">
+                <p>Total Questions: {{ attempt.quiz.questions.count|default:"N/A" }}</p>
+                <p>Correct Answers: <span class="font-medium">{{ attempt.correct_answers_count|default:"Calculating..." }}</span></p>
+                <p>Accuracy: <span class="font-medium">{{ attempt.accuracy_percentage|default:"Calculating..." }}%</span></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Actions -->
+<div class="bg-white border border-gray-200 rounded-lg p-4">
+    <h4 class="text-lg font-bold mb-4 text-gray-800">
+        <i class="fas fa-tools mr-2 text-gray-500"></i>
+        Actions
+    </h4>
+    
+    <div class="space-y-2">
+        {% if attempt %}
+        <a href="{% url 'quiz:view_attempt' attempt.id %}" 
+           class="block w-full text-center text-white px-4 py-2 rounded-md transition" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+            <i class="fas fa-eye mr-2"></i>
+            View Full Results
+        </a>
+        {% endif %}
+        
+        <a href="{% url 'quiz:quiz_detail' quiz.id %}" 
+           class="block w-full text-center bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition">
+            <i class="fas fa-quiz mr-2"></i>
+            View Quiz
+        </a>
+        
+        {% if not attempt %}
+        <div class="text-center text-gray-500 py-4">
+            <i class="fas fa-info-circle mr-2"></i>
+            Student hasn't attempted this quiz yet
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Quiz grading sidebar JavaScript initializing...');
+    
+    // Rubric Rating Selection Handling
+    function initializeRubricRatingHandlers() {
+        console.log('🚀 Initializing rubric rating handlers...');
+        
+        // Handle rating selection changes
+        document.querySelectorAll('[data-rating-select]').forEach(select => {
+            select.addEventListener('change', function() {
+                const criterionId = this.dataset.criterion;
+                const selectedOption = this.options[this.selectedIndex];
+                
+                if (selectedOption && selectedOption.value) {
+                    const points = selectedOption.dataset.points;
+                    const pointsInput = document.querySelector(`[data-criterion="${criterionId}"][data-points-input]`);
+                    
+                    if (pointsInput && points) {
+                        const currentPoints = parseFloat(pointsInput.value) || 0;
+                        const ratingPoints = parseFloat(points);
+                        
+                        // Only auto-fill if points field is empty or contains 0
+                        if (currentPoints === 0 || pointsInput.value.trim() === '') {
+                            pointsInput.style.transition = 'all 0.3s ease';
+                            pointsInput.style.backgroundColor = '#e8eafd';
+                            pointsInput.value = ratingPoints;
+                            
+                            setTimeout(() => {
+                                pointsInput.style.backgroundColor = '';
+                            }, 1000);
+                            console.log(`✅ Auto-populated points for criterion ${criterionId}: ${points}`);
+                        } else {
+                            // If instructor has entered custom points, show a subtle indicator
+                            pointsInput.style.transition = 'all 0.3s ease';
+                            pointsInput.style.borderColor = '#3b82f6';
+                            pointsInput.title = `Rating suggests ${ratingPoints} points, but your custom value (${currentPoints}) is preserved.`;
+                            
+                            setTimeout(() => {
+                                pointsInput.style.borderColor = '';
+                            }, 2000);
+                            console.log(`✅ Custom points preserved for criterion ${criterionId}: ${currentPoints} (rating suggests ${points})`);
+                        }
+                    }
+                } else {
+                    // Clear points if no rating selected
+                    const pointsInput = document.querySelector(`[data-criterion="${criterionId}"][data-points-input]`);
+                    if (pointsInput) {
+                        pointsInput.value = '';
+                    }
+                }
+            });
+        });
+        
+        // Handle points input changes to update rating selection
+        document.querySelectorAll('[data-points-input]').forEach(input => {
+            input.addEventListener('input', function() {
+                const criterionId = this.dataset.criterion;
+                const points = parseFloat(this.value);
+                const ratingSelect = document.querySelector(`[data-criterion="${criterionId}"][data-rating-select]`);
+                
+                if (ratingSelect && !isNaN(points)) {
+                    // Find the best matching rating based on points
+                    let bestMatch = null;
+                    let bestDiff = Infinity;
+                    
+                    for (let i = 0; i < ratingSelect.options.length; i++) {
+                        const option = ratingSelect.options[i];
+                        if (option.value && option.dataset.points) {
+                            const ratingPoints = parseFloat(option.dataset.points);
+                            const diff = Math.abs(ratingPoints - points);
+                            
+                            if (diff < bestDiff) {
+                                bestDiff = diff;
+                                bestMatch = option;
+                            }
+                        }
+                    }
+                    
+                    if (bestMatch && bestDiff < 0.1) { // Close enough match
+                        ratingSelect.value = bestMatch.value;
+                        console.log(`✅ Auto-selected rating for criterion ${criterionId}`);
+                    } else {
+                        ratingSelect.value = ''; // Clear selection if no close match
+                    }
+                }
+            });
+        });
+        
+        console.log('✅ Rubric rating handlers initialized');
+    }
+    
+    // Initialize rating handlers
+    initializeRubricRatingHandlers();
+    
+    // Also initialize after any dynamic content loads
+    setTimeout(() => {
+        initializeRubricRatingHandlers();
+    }, 500);
+    
+    // Make it globally available for other scripts
+    window.initializeRubricRatingHandlers = initializeRubricRatingHandlers;
+    
+    // Collect rubric data
+    function collectRubricData() {
+        const rubricData = {};
+        
+        // Get all criteria data
+        document.querySelectorAll('[data-rating-select]').forEach(select => {
+            const criterionId = select.dataset.criterion;
+            const ratingId = select.value;
+            const pointsInput = document.querySelector(`[data-criterion="${criterionId}"][data-points-input]`);
+            const commentsInput = document.querySelector(`[data-criterion="${criterionId}"][data-comments-input]`);
+            
+            // Only include criteria that have been evaluated (have points or rating selected)
+            const points = pointsInput ? parseFloat(pointsInput.value) : null;
+            const comments = commentsInput ? commentsInput.value.trim() : '';
+            
+            if (!isNaN(points) || ratingId || comments) {
+                rubricData[criterionId] = {
+                    points: isNaN(points) ? 0 : points,
+                    comments: comments,
+                    rating_id: ratingId || null
+                };
+            }
+        });
+        
+        console.log('📊 Collected quiz rubric data:', rubricData);
+        return rubricData;
+    }
+    
+    // Save quiz rubric evaluation
+    function saveQuizRubricEvaluation() {
+        console.log('🚀 Starting quiz rubric evaluation save...');
+        
+        const rubricData = collectRubricData();
+        
+        if (Object.keys(rubricData).length === 0) {
+            alert('Please select ratings or enter points for at least one criterion.');
+            return;
+        }
+        
+        // Find the save button and get data from it
+        const saveBtn = document.querySelector('button[onclick="saveQuizRubricEvaluation()"]');
+        if (!saveBtn) {
+            console.error('❌ Save button not found');
+            alert('Error: Save button not found');
+            return;
+        }
+        
+        // Get data from button attributes
+        const quizId = saveBtn.dataset.quizId;
+        const studentId = saveBtn.dataset.studentId;
+        const attemptId = saveBtn.dataset.attemptId;
+        
+        console.log('📝 Quiz data:', { quizId, studentId, attemptId });
+        
+        // Get CSRF token from the rubric evaluation form
+        const rubricForm = document.getElementById('rubricEvaluationForm');
+        const csrfToken = rubricForm ? rubricForm.querySelector('[name=csrfmiddlewaretoken]')?.value : null;
+        
+        if (!csrfToken) {
+            console.error('❌ CSRF token not found');
+            alert('CSRF token not found. Please refresh the page.');
+            return;
+        }
+        
+        if (!quizId || !studentId) {
+            console.error('❌ Missing required data:', { quizId, studentId, attemptId });
+            alert('Missing required data. Please refresh the page.');
+            return;
+        }
+        
+        // Prepare form data
+        const formData = new FormData();
+        formData.append('csrfmiddlewaretoken', csrfToken);
+        formData.append('activity_type', 'quiz');
+        formData.append('activity_id', quizId);
+        formData.append('student_id', studentId);
+        if (attemptId) {
+            formData.append('attempt_id', attemptId);
+        }
+        formData.append('rubric_data', JSON.stringify(rubricData));
+        
+        // Show loading state
+        const originalText = saveBtn.textContent;
+        saveBtn.textContent = 'Saving...';
+        saveBtn.disabled = true;
+        
+        console.log('📤 Sending rubric evaluation data...');
+        
+        // Submit the data
+        fetch('{% url "gradebook:ajax_save_grade" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': csrfToken
+            }
+        })
+        .then(response => {
+            console.log('📥 Response received:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.log('📊 Response data:', data);
+            if (data.success) {
+                alert('Rubric evaluation saved successfully!');
+                // Reload parent page
+                setTimeout(() => {
+                    if (window.parent && window.parent.location) {
+                        window.parent.location.reload();
+                    } else {
+                        location.reload();
+                    }
+                }, 1500);
+            } else {
+                console.error('❌ Server error:', data.error);
+                alert(data.error || 'Error saving rubric evaluation');
+            }
+        })
+        .catch(error => {
+            console.error('❌ Quiz rubric evaluation save error:', error);
+            alert('Error saving rubric evaluation: ' + error.message);
+        })
+        .finally(() => {
+            saveBtn.textContent = originalText;
+            saveBtn.disabled = false;
+        });
+    }
+    
+    // Make the function globally available
+    window.saveQuizRubricEvaluation = saveQuizRubricEvaluation;
+    
+
+    
+    // Alternative event listener for the save button (backup)
+    function attachSaveButtonListener() {
+        const saveBtn = document.getElementById('saveRubricBtn');
+        if (saveBtn) {
+            console.log('🔗 Attaching event listener to save button');
+            saveBtn.addEventListener('click', function(e) {
+                console.log('🖱️ Save button clicked via event listener');
+                if (typeof window.saveQuizRubricEvaluation === 'function') {
+                    window.saveQuizRubricEvaluation();
+                } else {
+                    console.error('❌ saveQuizRubricEvaluation function not found');
+                    alert('Function not found. Please refresh the page.');
+                }
+            });
+        } else {
+            console.warn('⚠️ Save button not found for event listener');
+        }
+    }
+    
+    // Attach the listener
+    attachSaveButtonListener();
+    
+    // Also try after a delay in case the button loads later
+    setTimeout(attachSaveButtonListener, 1000);
+    
+    console.log('✅ Quiz grading sidebar JavaScript initialized');
+});
+</script> 

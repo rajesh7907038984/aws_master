@@ -1,0 +1,210 @@
+/* Course Edit Page Styles */
+.course-edit-container {
+    @apply max-w-6xl mx-auto px-4 py-8;
+}
+
+.course-form-section {
+    @apply bg-gray-800 rounded-lg shadow-lg p-6 mb-8;
+}
+
+.form-group {
+    @apply mb-6;
+}
+
+.form-label {
+    @apply block text-sm font-medium text-gray-300 mb-2;
+}
+
+.form-input {
+    @apply mt-1 block w-full rounded-md border-gray-600 bg-gray-700 text-gray-100 shadow-sm;
+    @apply focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50;
+    @apply placeholder-gray-400;
+    @apply transition-colors duration-200;
+}
+
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group input[type="email"],
+.form-group input[type="password"],
+.form-group textarea,
+.form-group select {
+    @apply mt-1 block w-full rounded-md;
+    @apply border border-gray-600;
+    @apply bg-gray-700 text-gray-100;
+    @apply shadow-sm;
+    @apply focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50;
+    @apply placeholder-gray-400;
+    @apply transition-colors duration-200;
+}
+
+.form-group select option {
+    @apply bg-gray-700 text-gray-100;
+}
+
+/* Improve visibility of disabled fields */
+.form-group input:disabled,
+.form-group select:disabled,
+.form-group textarea:disabled {
+    @apply bg-gray-800 text-gray-400 cursor-not-allowed;
+    @apply border-gray-700;
+}
+
+/* Add visual feedback for invalid fields */
+.form-group input:invalid,
+.form-group select:invalid,
+.form-group textarea:invalid {
+    @apply border-red-500;
+}
+
+/* Improve contrast for placeholder text */
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+    @apply text-gray-400;
+}
+
+/* Add focus outline for better visibility */
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    @apply outline-none;
+    @apply border-blue-500;
+    @apply ring-2 ring-blue-500 ring-opacity-50;
+}
+
+.form-help-text {
+    @apply mt-2 text-sm text-gray-400;
+}
+
+.form-error {
+    @apply mt-2 text-red-500 text-sm;
+}
+
+/* Topic List Styles */
+.topic-list {
+    @apply space-y-4;
+}
+
+.topic-item {
+    @apply bg-gray-700 rounded-lg p-4 flex items-center gap-4;
+}
+
+.topic-drag-handle {
+    @apply cursor-move text-gray-400 hover:text-gray-300;
+}
+
+.topic-content {
+    @apply flex-grow;
+}
+
+.topic-actions {
+    @apply flex items-center gap-2;
+}
+
+/* Content Type Fields */
+.content-fields {
+    @apply mt-4 space-y-4;
+}
+
+.content-field {
+    @apply p-4 bg-gray-700 rounded-lg;
+}
+
+/* File Upload Styles */
+.file-upload-container {
+    @apply mt-2 space-y-4;
+}
+
+.file-preview {
+    @apply mt-4 max-w-xs rounded-lg overflow-hidden shadow-lg;
+    @apply border border-gray-600;
+}
+
+.current-image-info {
+    @apply flex items-center;
+}
+
+/* Add styles for the clear button */
+.current-image-info button {
+    @apply px-2 py-1 rounded-md transition-colors duration-200;
+    @apply hover:bg-red-500/10;
+}
+
+/* Rich Text Editor */
+.ck-editor {
+    @apply mt-2;
+}
+
+.ck-editor__editable {
+    @apply min-h-[200px] bg-gray-700 text-gray-300 !important;
+}
+
+/* Quiz and Assignment Selection */
+.selection-list {
+    @apply mt-2 bg-gray-700 rounded-lg p-2 max-h-60 overflow-y-auto;
+}
+
+.selection-item {
+    @apply flex items-center p-2 hover:bg-gray-600 rounded;
+}
+
+/* Action Buttons */
+.action-button {
+    @apply px-4 py-2 rounded transition-colors;
+}
+
+.primary-button {
+    @apply bg-blue-500 text-white hover:bg-blue-600;
+}
+
+.secondary-button {
+    @apply border border-gray-600 text-gray-300 hover:bg-gray-700;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .course-edit-container {
+        @apply px-2;
+    }
+    
+    .topic-item {
+        @apply flex-col items-start;
+    }
+    
+    .topic-actions {
+        @apply w-full justify-end mt-4;
+    }
+}
+
+/* Modal Styles */
+.modal {
+    @apply fixed inset-0 bg-black bg-opacity-50 z-50 hidden;
+}
+
+.modal.active {
+    @apply flex items-center justify-center;
+}
+
+.modal-content {
+    @apply bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto relative p-6;
+}
+
+.modal-header {
+    @apply flex justify-between items-center mb-6;
+}
+
+.modal-close {
+    @apply absolute top-4 right-4 text-gray-400 hover:text-gray-300 text-2xl cursor-pointer;
+}
+
+.modal-body {
+    @apply space-y-6;
+}
+
+.modal-footer {
+    @apply flex justify-end space-x-4 mt-6;
+}
+
+/* Prevent body scroll when modal is open */
+body.modal-open {
+    @apply overflow-hidden;
+} 

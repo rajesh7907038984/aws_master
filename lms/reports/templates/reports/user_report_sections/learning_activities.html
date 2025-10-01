@@ -1,0 +1,89 @@
+{% extends 'reports/user_report_sections/base.html' %}
+{% load static %}
+
+{% block section_content %}
+<!-- Stats Summary -->
+<div class="bg-gray-100 p-6 rounded-lg mb-6">
+    <div class="grid grid-cols-5 gap-4 text-center">
+        <div>
+            <div class="text-2xl font-bold">{{ total_activities|default:"0" }}</div>
+            <div class="text-sm text-gray-600">Total activities</div>
+        </div>
+        <div>
+            <div class="text-2xl font-bold">{{ completed_activities|default:"0" }}</div>
+            <div class="text-sm text-gray-600">Completed</div>
+        </div>
+        <div>
+            <div class="text-2xl font-bold">{{ activities_in_progress|default:"0" }}</div>
+            <div class="text-sm text-gray-600">In progress</div>
+        </div>
+        <div>
+            <div class="text-2xl font-bold">{{ activities_not_started|default:"0" }}</div>
+            <div class="text-sm text-gray-600">Not started</div>
+        </div>
+        <div>
+            <div class="text-2xl font-bold">{{ avg_activity_score|default:"0" }}%</div>
+            <div class="text-sm text-gray-600">Average score</div>
+        </div>
+    </div>
+</div>
+
+<!-- Learning Activities Table -->
+<div class="bg-white rounded-lg shadow-sm overflow-hidden">
+    <table class="min-w-full">
+        <thead>
+            <tr class="bg-gray-50 border-b">
+                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Activity Name</th>
+                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Course</th>
+                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">
+                    Status
+                    <i class="fas fa-chevron-down ml-1 text-xs"></i>
+                </th>
+                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Score</th>
+                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Completion Date</th>
+                <th class="py-3 px-4 text-center text-sm font-medium text-gray-700"></th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Loop through actual activity data -->
+            {% for progress in topic_progress %}
+            <tr class="border-b hover:bg-gray-50">
+                <td class="py-3 px-4">{{ progress.topic.title }}</td>
+                <td class="py-3 px-4">{{ progress.course_title|default:"N/A" }}</td>
+                <td class="py-3 px-4">
+                    <div class="flex flex-col">
+                        {% if progress.completed %}
+                            <span class="text-sm mb-1">100%</span>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-green-500 h-2 rounded-full" style="width: 100%"></div>
+                            </div>
+                        {% elif progress.get_progress_percentage > 0 %}
+                            <span class="text-sm mb-1">{{ progress.get_progress_percentage }}%</span>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-blue-500 h-2 rounded-full" style="width: {{ progress.get_progress_percentage }}%"></div>
+                            </div>
+                        {% else %}
+                            <span class="text-sm mb-1">0%</span>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-gray-400 h-2 rounded-full" style="width: 0%"></div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </td>
+                <td class="py-3 px-4">{{ progress.last_score|default:"-" }}</td>
+                <td class="py-3 px-4">{% if progress.completed %}{{ progress.completed_at|date:"d/m/Y" }}{% else %}-{% endif %}</td>
+                <td class="py-3 px-4 text-center">
+                    <a href="{% url 'reports:activity_report_overview' progress.topic.id %}" class="text-gray-500 hover:text-gray-700 inline-block p-2">
+                        <i class="fas fa-ellipsis-h"></i>
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr class="border-b">
+                <td colspan="6" class="py-4 px-4 text-center text-gray-500">No learning activities data available</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

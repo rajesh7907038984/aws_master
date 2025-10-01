@@ -1,0 +1,267 @@
+<!-- Learning Profile Tab Content -->
+<div id="learning-profile-tab" class="ilp-tab-content" style="display: none;">
+    <div class="space-y-6">
+        <!-- Learning Profile Nested Tabs -->
+        <div class="learning-profile-tabs">
+            <div class="tab-buttons learning-profile-main-tabs">
+                <button type="button" class="tab-button learning-profile-tab-button active" onclick="openLearningProfileTab(event, 'assessment-data-tab')">
+                    Assessment Data
+                </button>
+                <button type="button" class="tab-button learning-profile-tab-button" onclick="openLearningProfileTab(event, 'learning-preferences-tab')">
+                    Learning Preferences (VAK)
+                </button>
+                <button type="button" class="tab-button learning-profile-tab-button" onclick="openLearningProfileTab(event, 'send-accommodations-tab')">
+                    SEND
+                </button>
+                <button type="button" class="tab-button learning-profile-tab-button" onclick="openLearningProfileTab(event, 'statement-purpose-tab')">
+                    Learning Motivation & Goals
+                </button>
+                <button type="button" class="tab-button learning-profile-tab-button" onclick="openLearningProfileTab(event, 'strengths-weaknesses-tab')">
+                    Skills & Competency Analysis
+                </button>
+            </div>
+
+            <!-- Include Assessment Data Sub-Tab -->
+            {% include 'users/tabs/ilp/learning_profile/assessment_data_tab.html' %}
+
+            <!-- Include Learning Preferences Sub-Tab -->
+            {% include 'users/tabs/ilp/learning_profile/learning_preferences_tab.html' %}
+
+            <!-- Include SEND Accommodations Sub-Tab -->
+            {% include 'users/tabs/ilp/learning_profile/send_accommodations_tab.html' %}
+
+            <!-- Include Statement of Purpose Sub-Tab -->
+            {% include 'users/tabs/ilp/learning_profile/statement_purpose_tab.html' %}
+
+            <!-- Include Strengths & Weaknesses Sub-Tab -->
+            {% include 'users/tabs/ilp/learning_profile/strengths_weaknesses_tab.html' %}
+        </div>
+    </div>
+</div>
+
+<script>
+// SEND accommodation type change handler
+document.addEventListener('DOMContentLoaded', function() {
+    const accommodationTypeSelect = document.getElementById('send_accommodation_type');
+    const otherContainer = document.querySelector('.send-accommodation-other-container');
+    
+    if (accommodationTypeSelect && otherContainer) {
+        accommodationTypeSelect.addEventListener('change', function() {
+            if (this.value === 'other') {
+                otherContainer.style.display = 'block';
+            } else {
+                otherContainer.style.display = 'none';
+            }
+        });
+    }
+});
+
+// Strengths & Weaknesses Functions
+
+function editStrengthWeakness(questionId) {
+    // Make the description editable inline
+    const questionElement = document.querySelector(`[data-question-id="${questionId}"]`);
+    if (!questionElement) {
+        // Find by question ID in any way possible
+        const allQuestions = document.querySelectorAll('[id*="question_"]');
+        for (let q of allQuestions) {
+            if (q.innerHTML.includes(`question.id == ${questionId}`) || 
+                q.querySelector(`[onclick*="${questionId}"]`)) {
+                questionElement = q;
+                break;
+            }
+        }
+    }
+    
+    if (questionElement) {
+        const descriptionP = questionElement.querySelector('p.text-sm.text-gray-800');
+        if (descriptionP) {
+            const currentText = descriptionP.textContent.trim();
+            
+            // Create textarea for editing
+            const textarea = document.createElement('textarea');
+            textarea.value = currentText;
+            textarea.className = 'w-full p-2 border border-gray-300 rounded text-sm';
+            textarea.rows = 3;
+            
+            // Create save/cancel buttons
+            const buttonContainer = document.createElement('div');
+            buttonContainer.className = 'flex space-x-2 mt-2';
+            
+            const saveBtn = document.createElement('button');
+            saveBtn.textContent = 'Save';
+            saveBtn.className = 'px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700';
+            
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = 'Cancel';
+            cancelBtn.className = 'px-3 py-1 bg-gray-600 text-white rounded text-sm hover:bg-gray-700';
+            
+            buttonContainer.appendChild(saveBtn);
+            buttonContainer.appendChild(cancelBtn);
+            
+            // Replace description with textarea
+            const originalContent = descriptionP.innerHTML;
+            descriptionP.innerHTML = '';
+            descriptionP.appendChild(textarea);
+            descriptionP.appendChild(buttonContainer);
+            
+            // Save function
+            saveBtn.addEventListener('click', function() {
+                const newDescription = textarea.value.trim();
+                if (!newDescription) {
+                    alert('Description cannot be empty.');
+                    return;
+                }
+                
+                const formData = new FormData();
+                formData.append('action', 'edit_strength_weakness');
+                formData.append('question_id', questionId);
+                formData.append('description', newDescription);
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+        if (csrfToken) formData.append('csrfmiddlewaretoken', csrfToken);
+                
+                fetch(window.location.href, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+                .then(data => {
+                    if (data.success) {
+                        window.location.reload();
+                    } else {
+                        alert(data.message || 'Error updating strength/weakness');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error updating strength/weakness. Please try again.');
+                });
+            });
+            
+            // Cancel function
+            cancelBtn.addEventListener('click', function() {
+                descriptionP.innerHTML = originalContent;
+            });
+            
+            // Focus on textarea
+            textarea.focus();
+        }
+    }
+}
+
+function deleteStrengthWeakness(questionId) {
+    if (confirm('Are you sure you want to delete this strength/weakness item? This action cannot be undone.')) {
+        const formData = new FormData();
+        formData.append('action', 'delete_strength_weakness');
+        formData.append('question_id', questionId);
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+        if (csrfToken) formData.append('csrfmiddlewaretoken', csrfToken);
+        
+        fetch(window.location.href, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert(data.message || 'Error deleting strength/weakness');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error deleting strength/weakness. Please try again.');
+        });
+    }
+}
+
+function toggleInstructorConfirmation(questionId) {
+    const formData = new FormData();
+    formData.append('action', 'toggle_instructor_confirmation');
+    formData.append('question_id', questionId);
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+        if (csrfToken) formData.append('csrfmiddlewaretoken', csrfToken);
+    
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert(data.message || 'Error updating confirmation status');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error updating confirmation status. Please try again.');
+    });
+}
+
+function addStrengthWeakness(type) {
+    const description = prompt(`Enter ${type === 'strength' ? 'strength' : 'area for development'} description:`);
+    if (!description || !description.trim()) {
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('action', 'add_strength_weakness');
+    formData.append('type', type);
+    formData.append('description', description.trim());
+    formData.append('user_id', '{{ profile_user.id }}');
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+        if (csrfToken) formData.append('csrfmiddlewaretoken', csrfToken);
+    
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert(data.message || 'Error adding strength/weakness');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error adding strength/weakness. Please try again.');
+    });
+}
+</script> 

@@ -1,0 +1,188 @@
+{% extends 'reports/activity_report_sections/base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<style>
+    .scorm-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 2rem;
+        margin-bottom: 2rem;
+    }
+    .scorm-card {
+        background: white;
+        padding: 2rem;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+    }
+    .scorm-title {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #111827;
+        margin-bottom: 1.5rem;
+    }
+    .scorm-metric {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #f3f4f6;
+    }
+    .scorm-metric:last-child {
+        border-bottom: none;
+    }
+    .scorm-label {
+        color: #6b7280;
+        font-size: 0.875rem;
+    }
+    .scorm-value {
+        font-weight: 600;
+        color: #111827;
+    }
+</style>
+{% endblock %}
+
+{% block section_content %}
+{% if is_scorm %}
+<div class="scorm-stats-grid">
+    <div class="scorm-card">
+        <h3 class="scorm-title">SCORM Analytics</h3>
+        {% if scorm_stats %}
+        <div class="space-y-3">
+            <div class="scorm-metric">
+                <span class="scorm-label">Total SCORM Users:</span>
+                <span class="scorm-value">{{ scorm_stats.total_scorm_users|default:0 }}</span>
+            </div>
+            <div class="scorm-metric">
+                <span class="scorm-label">Completion Status 'Complete':</span>
+                <span class="scorm-value">{{ scorm_stats.completion_status_complete|default:0 }}</span>
+            </div>
+            <div class="scorm-metric">
+                <span class="scorm-label">Success Status 'Passed':</span>
+                <span class="scorm-value">{{ scorm_stats.success_status_passed|default:0 }}</span>
+            </div>
+            <div class="scorm-metric">
+                <span class="scorm-label">Average Completion:</span>
+                <span class="scorm-value">
+                    {% if scorm_stats.avg_completion_percent %}
+                        {{ scorm_stats.avg_completion_percent|floatformat:1 }}%
+                    {% else %}
+                        -
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+        {% else %}
+        <p class="text-gray-500 text-center py-8">No SCORM analytics data available</p>
+        {% endif %}
+    </div>
+    
+    <div class="scorm-card">
+        <h3 class="scorm-title">SCORM Progress Distribution</h3>
+        <div class="space-y-4">
+            {% if scorm_stats %}
+            <div class="flex items-center justify-between">
+                <span class="text-sm text-gray-600">Complete:</span>
+                <div class="flex items-center">
+                    <div class="w-24 bg-gray-200 rounded-full h-2 mr-2">
+                        <div class="bg-green-500 h-2 rounded-full" style="width: {% if scorm_stats.total_scorm_users %}{% widthratio scorm_stats.completion_status_complete scorm_stats.total_scorm_users 100 %}{% else %}0{% endif %}%"></div>
+                    </div>
+                    <span class="text-sm font-medium">{{ scorm_stats.completion_status_complete|default:0 }}</span>
+                </div>
+            </div>
+            <div class="flex items-center justify-between">
+                <span class="text-sm text-gray-600">Passed:</span>
+                <div class="flex items-center">
+                    <div class="w-24 bg-gray-200 rounded-full h-2 mr-2">
+                        <div class="bg-blue-500 h-2 rounded-full" style="width: {% if scorm_stats.total_scorm_users %}{% widthratio scorm_stats.success_status_passed scorm_stats.total_scorm_users 100 %}{% else %}0{% endif %}%"></div>
+                    </div>
+                    <span class="text-sm font-medium">{{ scorm_stats.success_status_passed|default:0 }}</span>
+                </div>
+            </div>
+            {% else %}
+            <p class="text-gray-500 text-center py-4">No progress data available</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Detailed SCORM User Data -->
+{% if user_progress %}
+<div class="scorm-card">
+    <h3 class="scorm-title">Detailed SCORM Progress</h3>
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead>
+                <tr class="bg-gray-50 border-b">
+                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-500">User</th>
+                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-500">Completion Status</th>
+                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-500">Success Status</th>
+                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-500">Progress %</th>
+                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-500">Score</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for progress in user_progress %}
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="px-4 py-3">
+                        {{ progress.user.get_full_name|default:progress.user.username }}
+                    </td>
+                    <td class="px-4 py-3">
+                        {% if progress.progress_data.completion_status %}
+                            <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full
+                                {% if progress.progress_data.completion_status == 'completed' %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ progress.progress_data.completion_status|title }}
+                            </span>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3">
+                        {% if progress.progress_data.success_status %}
+                            <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full
+                                {% if progress.progress_data.success_status == 'passed' %}bg-blue-100 text-blue-800{% else %}bg-red-100 text-red-800{% endif %}">
+                                {{ progress.progress_data.success_status|title }}
+                            </span>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3">
+                        {% if progress.progress_data.completion_percent %}
+                            {{ progress.progress_data.completion_percent }}%
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3">
+                        {% if progress.last_score %}
+                            {{ progress.last_score|floatformat:1 }}%
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% else %}
+<!-- Non-SCORM Activity Analysis -->
+<div class="scorm-card">
+    <h3 class="scorm-title">Activity Analysis</h3>
+    <div class="text-center py-12">
+        <div class="text-gray-400 mb-4">
+            <i class="fas fa-chart-bar text-6xl"></i>
+        </div>
+        <h4 class="text-xl font-medium text-gray-900 mb-2">Analysis Not Available</h4>
+        <p class="text-gray-500">
+            Advanced analytics are only available for SCORM activities. 
+            This {{ activity.get_content_type_display|default:"activity" }} uses basic progress tracking.
+        </p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

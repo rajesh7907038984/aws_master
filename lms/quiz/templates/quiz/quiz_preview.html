@@ -1,0 +1,338 @@
+{% extends 'base.html' %}
+{% load assessment_filters %}
+
+{% block title %}Preview: {{ quiz.title }}{% endblock %}
+
+{% block content %}
+<div class="bg-white text-black min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Breadcrumbs -->
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+            <!-- Header -->
+            <div class="px-6 py-4 border-b border-gray-200">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="text-xl font-semibold text-gray-900">Preview: {{ quiz.title }}</h1>
+                        <p class="mt-1 text-sm text-gray-500">{{ quiz.description|safe }}</p>
+                    </div>
+                    <div class="flex space-x-4">
+                        <a href="{% url 'quiz:edit_quiz' quiz.id %}" 
+                           class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-yellow-500 hover:bg-yellow-600">
+                            <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                            </svg>
+                            Edit Quiz
+                        </a>
+                        <a href="{% url 'quiz:quiz_list' %}" 
+                           class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                            Back to Quiz List
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quiz Info -->
+            <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                <div class="flex flex-wrap gap-4 text-sm">
+                    <div class="flex items-center">
+                                            {% if not quiz.is_vak_test %}
+                        <span class="font-medium text-gray-700">Passing Score:</span>
+                        <span class="ml-2 text-gray-600">{{ quiz.passing_score }}%</span>
+                    {% else %}
+                        <span class="font-medium text-gray-700">Type:</span>
+                        <span class="ml-2 text-gray-600">VAK Test</span>
+                    {% endif %}
+                    </div>
+                    <div class="flex items-center">
+                        <span class="font-medium text-gray-700">Attempts Allowed:</span>
+                        <span class="ml-2 text-gray-600">{% if quiz.attempts_allowed == -1 %}Unlimited{% else %}{{ quiz.attempts_allowed }}{% endif %}</span>
+                    </div>
+                    {% if quiz.time_limit %}
+                    <div class="flex items-center">
+                        <span class="font-medium text-gray-700">Time Limit:</span>
+                        <span class="ml-2 text-gray-600">{{ quiz.time_limit }} minutes</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Quiz Summary -->
+            <div class="px-6 py-4 bg-blue-50 border-b border-blue-200">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-6">
+                        <div class="flex items-center">
+                            <svg class="w-5 h-5 text-blue-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="text-sm font-medium text-blue-800">Total Questions: {{ questions|length }}</span>
+                        </div>
+                        <div class="flex items-center">
+                            <svg class="w-5 h-5 text-green-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="text-sm font-medium text-green-800">Correct Answers Shown</span>
+                        </div>
+                    </div>
+                    <div class="text-sm text-blue-600 font-medium">
+                        Preview Mode - All correct answers are highlighted
+                    </div>
+                </div>
+            </div>
+
+            <!-- Questions Preview -->
+            <div class="p-6 space-y-6">
+                {% for question in questions %}
+                    <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                        <!-- Question Header -->
+                        <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+                            <h3 class="text-lg font-medium text-gray-900">Question {{ forloop.counter }}</h3>
+                            <span class="text-sm text-gray-500">Points: {{ question.points }}</span>
+                        </div>
+                        
+                        <!-- Question Content -->
+                        <div class="p-4">
+                            <p class="text-gray-800 mb-4">{{ question.question_text|safe }}</p>
+                            <div class="text-sm text-gray-500 mb-4">Type: {{ question.get_question_type_display }}</div>
+                            
+                            {% if question.question_type == 'multiple_choice' or question.question_type == 'multiple_select' %}
+                                <div class="text-gray-700">
+                                    <p class="mb-2 font-medium text-gray-800">Instructor Added Answer Options:</p>
+                                    {% for answer in question.answers.all %}
+                                        <div class="bg-green-50 border-2 border-green-200 p-3 rounded-lg mb-2">
+                                            <div class="flex items-center">
+                                                <svg class="w-5 h-5 text-green-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                                </svg>
+                                                <span class="text-gray-800 font-medium">{{ answer.answer_text|safe }}</span>
+                                                {% if answer.is_correct %}
+                                                    <span class="text-green-600 text-sm ml-2 font-medium">(Correct Answer)</span>
+                                                {% else %}
+                                                    <span class="text-gray-500 text-sm ml-2 font-medium">(Incorrect Answer)</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    {% empty %}
+                                        <div class="bg-yellow-50 border-2 border-yellow-200 p-3 rounded-lg mb-2">
+                                            <div class="flex items-center">
+                                                <svg class="w-5 h-5 text-yellow-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                                                </svg>
+                                                <span class="text-yellow-800 font-medium">No answer options have been added to this question yet.</span>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% elif question.question_type == 'true_false' %}
+                                <div class="space-y-2">
+                                    {% for answer in question.answers.all %}
+                                        <div class="flex items-center space-x-3 p-3 rounded-lg {% if answer.is_correct %}bg-green-50 border-2 border-green-200{% else %}bg-gray-50 border border-gray-200{% endif %}">
+                                            <input type="radio" disabled
+                                                   class="h-4 w-4 text-green-600 border-gray-300"
+                                                   {% if answer.is_correct %}checked{% endif %}>
+                                            <label class="text-gray-700 flex-1">{{ answer.answer_text|safe }}</label>
+                                            {% if answer.is_correct %}
+                                                <div class="flex items-center text-green-600 text-sm font-medium">
+                                                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                                    </svg>
+                                                    Correct Answer
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% elif question.question_type == 'fill_blank' %}
+                                <div class="text-gray-700">
+                                    <p class="mb-2 font-medium text-gray-800">Correct Answer:</p>
+                                    {% for answer in question.answers.all %}
+                                        <div class="bg-green-50 border-2 border-green-200 p-3 rounded-lg mb-2">
+                                            <div class="flex items-center">
+                                                <svg class="w-5 h-5 text-green-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                                </svg>
+                                                <span class="text-gray-800 font-medium">{{ answer.answer_text|safe }}</span>
+                                                <span class="text-green-600 text-sm ml-2 font-medium">(Correct Answer)</span>
+                                            </div>
+                                        </div>
+                                    {% empty %}
+                                        <div class="bg-yellow-50 border-2 border-yellow-200 p-3 rounded-lg mb-2">
+                                            <div class="flex items-center">
+                                                <svg class="w-5 h-5 text-yellow-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                                                </svg>
+                                                <span class="text-yellow-800 font-medium">No correct answer has been added to this question yet.</span>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% elif question.question_type == 'multi_blank' %}
+                                <div class="text-gray-700">
+                                    <p class="mb-2 font-medium text-gray-800">Correct Answers:</p>
+                                    {% for answer in question.answers.all %}
+                                        <div class="bg-green-50 border-2 border-green-200 p-3 rounded-lg mb-2">
+                                            <div class="flex items-center">
+                                                <svg class="w-5 h-5 text-green-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                                </svg>
+                                                <span class="text-gray-800 font-medium">{{ answer.answer_text|safe }}</span>
+                                                <span class="text-green-600 text-sm ml-2 font-medium">(Correct Answer)</span>
+                                            </div>
+                                        </div>
+                                    {% empty %}
+                                        <div class="bg-yellow-50 border-2 border-yellow-200 p-3 rounded-lg mb-2">
+                                            <div class="flex items-center">
+                                                <svg class="w-5 h-5 text-yellow-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                                                </svg>
+                                                <span class="text-yellow-800 font-medium">No correct answers have been added to this question yet.</span>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% elif question.question_type == 'matching' %}
+                                <div class="text-gray-700 mb-4">
+                                    <div class="flex items-center mb-3">
+                                        <svg class="w-5 h-5 text-blue-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
+                                        </svg>
+                                        <span class="font-medium text-gray-800">Matching Pairs (Dropdown Selection):</span>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div class="text-gray-700 font-medium text-center bg-blue-50 p-2 rounded">Left Items</div>
+                                        <div class="text-gray-700 font-medium text-center bg-green-50 p-2 rounded">Right Items</div>
+                                        {% for pair in question.matching_pairs.all %}
+                                            <div class="bg-blue-50 border-2 border-blue-200 p-3 rounded-lg text-center">{{ pair.left_item|safe }}</div>
+                                            <div class="bg-green-50 border-2 border-green-200 p-3 rounded-lg text-center">{{ pair.right_item|safe }}</div>
+                                        {% empty %}
+                                            {% for answer in question.answers.all %}
+                                                {% with pair=answer.answer_text|split:"|" %}
+                                                    <div class="bg-blue-50 border-2 border-blue-200 p-3 rounded-lg text-center">{{ pair.0|safe }}</div>
+                                                    <div class="bg-green-50 border-2 border-green-200 p-3 rounded-lg text-center">{{ pair.1|safe }}</div>
+                                                {% endwith %}
+                                            {% endfor %}
+                                        {% endfor %}
+                                    </div>
+                                </div>
+
+                            {% elif question.question_type == 'drag_drop_matching' %}
+                                <div class="text-gray-700 mb-4">
+                                    <div class="flex items-center mb-3">
+                                        <svg class="w-5 h-5 text-purple-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                            <path d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"></path>
+                                        </svg>
+                                        <span class="font-medium text-gray-800">Drag & Drop Matching Pairs:</span>
+                                    </div>
+                                    <div class="bg-gray-50 border-2 border-gray-200 rounded-lg p-4">
+                                        <div class="grid grid-cols-2 gap-6">
+                                            <!-- Left Column - Draggable Items -->
+                                            <div>
+                                                <h4 class="text-sm font-semibold text-blue-700 mb-3 flex items-center">
+                                                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path d="M7 2a1 1 0 000 2h6a1 1 0 100-2H7zM4 6a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 10a1 1 0 011-1h14a1 1 0 110 2H3a1 1 0 01-1-1z"></path>
+                                                    </svg>
+                                                    Drag Items
+                                                </h4>
+                                                <div class="space-y-2">
+                                                    {% for pair in question.matching_pairs.all %}
+                                                        <div class="bg-blue-100 border-2 border-blue-300 p-3 rounded-lg shadow-sm min-h-[60px] flex items-center">
+                                                            <span class="text-gray-800 font-medium">{{ pair.left_item|safe }}</span>
+                                                        </div>
+                                                    {% empty %}
+                                                        {% for answer in question.answers.all %}
+                                                            {% with pair=answer.answer_text|split:"|" %}
+                                                                <div class="bg-blue-100 border-2 border-blue-300 p-3 rounded-lg shadow-sm min-h-[60px] flex items-center">
+                                                                    <span class="text-gray-800 font-medium">{{ pair.0|safe }}</span>
+                                                                </div>
+                                                            {% endwith %}
+                                                        {% endfor %}
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Right Column - Drop Zones -->
+                                            <div>
+                                                <h4 class="text-sm font-semibold text-green-700 mb-3 flex items-center">
+                                                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                                    </svg>
+                                                    Drop Targets
+                                                </h4>
+                                                <div class="space-y-2">
+                                                    {% for pair in question.matching_pairs.all %}
+                                                        <div class="bg-green-100 border-2 border-green-300 p-3 rounded-lg shadow-sm min-h-[60px] flex items-center">
+                                                            <span class="text-gray-800 font-medium">{{ pair.right_item|safe }}</span>
+                                                        </div>
+                                                    {% empty %}
+                                                        {% for answer in question.answers.all %}
+                                                            {% with pair=answer.answer_text|split:"|" %}
+                                                                <div class="bg-green-100 border-2 border-green-300 p-3 rounded-lg shadow-sm min-h-[60px] flex items-center">
+                                                                    <span class="text-gray-800 font-medium">{{ pair.1|safe }}</span>
+                                                                </div>
+                                                            {% endwith %}
+                                                        {% endfor %}
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Instructions -->
+                                        <div class="mt-4 p-3 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
+                                            <div class="flex items-center">
+                                                <svg class="w-5 h-5 text-yellow-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                                                </svg>
+                                                <span class="text-sm text-yellow-800">
+                                                    <strong>Instructions:</strong> Students will drag items from the left column to match them with the correct targets in the right column.
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            {% elif question.question_type == 'short_answer' %}
+                                <div class="text-gray-700">
+                                    <p class="mb-2 font-medium text-gray-800">Accepted Answers:</p>
+                                    {% for answer in question.answers.all %}
+                                        <div class="bg-green-50 border-2 border-green-200 p-3 rounded-lg mb-2">
+                                            <div class="flex items-center">
+                                                <svg class="w-5 h-5 text-green-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                                </svg>
+                                                <span class="text-gray-800 font-medium">{{ answer.answer_text|safe }}</span>
+                                                <span class="text-green-600 text-sm ml-2 font-medium">(Correct Answer)</span>
+                                            </div>
+                                        </div>
+                                    {% empty %}
+                                        <div class="bg-yellow-50 border-2 border-yellow-200 p-3 rounded-lg mb-2">
+                                            <div class="flex items-center">
+                                                <svg class="w-5 h-5 text-yellow-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                                                </svg>
+                                                <span class="text-yellow-800 font-medium">No predefined answers - Manual grading required</span>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="text-gray-700">
+                                    <p class="mb-2 font-medium">Unknown question type</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% empty %}
+                    <div class="bg-white border border-gray-200 rounded-lg p-6 text-center">
+                        <p class="text-gray-500">No questions have been added to this quiz yet.</p>
+                        <a href="{% url 'quiz:edit_quiz' quiz.id %}" 
+                           class="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                            Add Questions
+                        </a>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

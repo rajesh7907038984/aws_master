@@ -1,0 +1,474 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load course_filters %}
+
+{% block title %}Manage Courses - Super Admin Dashboard{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" type="text/css" href="{% static 'css/dashboard-shared.css' %}">
+<style>
+    .course-management-container {
+        background-color: #ffffff;
+        min-height: 100vh;
+    }
+    .course-card {
+        background: #ffffff;
+        border: 1px solid rgba(226, 232, 240, 0.6);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        transition: all 0.3s ease;
+    }
+    .course-card:hover {
+        box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        transform: translateY(-1px);
+    }
+    .course-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+        flex-wrap: wrap;
+    }
+    .course-actions a, .course-actions button {
+        padding: 8px 16px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-size: 14px;
+        transition: all 0.3s ease;
+    }
+    .btn-primary {
+        background-color: #3b82f6;
+        color: white;
+        border: none;
+    }
+    .btn-primary:hover {
+        background-color: #2563eb;
+    }
+    .btn-secondary {
+        background-color: #6b7280;
+        color: white;
+        border: none;
+    }
+    .btn-secondary:hover {
+        background-color: #4b5563;
+    }
+    .btn-danger {
+        background-color: #ef4444;
+        color: white;
+        border: none;
+    }
+    .btn-danger:hover {
+        background-color: #dc2626;
+    }
+    .btn-success {
+        background-color: #10b981;
+        color: white;
+        border: none;
+    }
+    .btn-success:hover {
+        background-color: #059669;
+    }
+    .btn-warning {
+        background-color: #f59e0b;
+        color: white;
+        border: none;
+    }
+    .btn-warning:hover {
+        background-color: #d97706;
+    }
+    .course-status {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+        text-transform: uppercase;
+    }
+    .course-status.published {
+        background-color: #d1fae5;
+        color: #065f46;
+    }
+    .course-status.draft {
+        background-color: #fef3c7;
+        color: #92400e;
+    }
+    .course-status.active {
+        background-color: #dbeafe;
+        color: #1e40af;
+    }
+    .course-status.inactive {
+        background-color: #fee2e2;
+        color: #991b1b;
+    }
+    .branch-indicator {
+        background-color: #dbeafe;
+        color: #1e40af;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 500;
+    }
+    .superadmin-controls {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 30px;
+    }
+    .filters-section {
+        background-color: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    .form-control {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 14px;
+    }
+    .form-control:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="course-management-container">
+    <div class="container mx-auto px-4 py-6">
+        <!-- Breadcrumbs -->
+        {% if breadcrumbs %}
+            {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+        {% endif %}
+
+        <!-- Page Header -->
+        <div class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">Super Admin Course Management</h1>
+                <p class="text-gray-600 mt-2">Manage courses across all branches and businesses</p>
+            </div>
+            <div class="flex gap-3">
+                <a href="{% url 'courses:course_list' %}" class="btn-secondary">
+                    <i class="fas fa-list mr-2"></i>
+                    Course List
+                </a>
+                <a href="{% url 'dashboard_superadmin' %}" class="btn-secondary">
+                    <i class="fas fa-arrow-left mr-2"></i>
+                    Back to Dashboard
+                </a>
+            </div>
+        </div>
+
+        <!-- Super Admin Controls -->
+        <div class="superadmin-controls">
+            <h3 class="text-xl font-semibold mb-4">
+                <i class="fas fa-crown mr-2"></i>
+                Super Admin Controls
+            </h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <a href="{% url 'courses:course_manage' %}" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-4 py-3 rounded-lg transition-all text-center">
+                    <i class="fas fa-plus text-2xl mb-2 block"></i>
+                    <span class="text-sm font-medium">Create Course</span>
+                </a>
+                <a href="{% url 'users:user_list' %}" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-4 py-3 rounded-lg transition-all text-center">
+                    <i class="fas fa-users text-2xl mb-2 block"></i>
+                    <span class="text-sm font-medium">Manage Users</span>
+                </a>
+                <a href="{% url 'branches:branch_list' %}" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-4 py-3 rounded-lg transition-all text-center">
+                    <i class="fas fa-building text-2xl mb-2 block"></i>
+                    <span class="text-sm font-medium">Manage Branches</span>
+                </a>
+                <a href="{% url 'reports:overview' %}" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-4 py-3 rounded-lg transition-all text-center">
+                    <i class="fas fa-chart-bar text-2xl mb-2 block"></i>
+                    <span class="text-sm font-medium">System Reports</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Course Statistics -->
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+            <div class="bg-white border border-gray-200 rounded-lg p-4">
+                <div class="flex items-center">
+                    <div class="p-2 bg-blue-100 rounded-lg">
+                        <i class="fas fa-book text-blue-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Total Courses</p>
+                        <p class="text-2xl font-bold text-gray-900">{{ courses.count }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-lg p-4">
+                <div class="flex items-center">
+                    <div class="p-2 bg-green-100 rounded-lg">
+                        <i class="fas fa-check-circle text-green-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Active Courses</p>
+                        <p class="text-2xl font-bold text-gray-900">{{ courses|length }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-lg p-4">
+                <div class="flex items-center">
+                    <div class="p-2 bg-purple-100 rounded-lg">
+                        <i class="fas fa-building text-purple-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Total Branches</p>
+                        <p class="text-2xl font-bold text-gray-900">{{ branches.count }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-lg p-4">
+                <div class="flex items-center">
+                    <div class="p-2 bg-yellow-100 rounded-lg">
+                        <i class="fas fa-users text-yellow-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Instructors</p>
+                        <p class="text-2xl font-bold text-gray-900">{{ instructors.count|default:"N/A" }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-lg p-4">
+                <div class="flex items-center">
+                    <div class="p-2 bg-indigo-100 rounded-lg">
+                        <i class="fas fa-graduation-cap text-indigo-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Total Learners</p>
+                        <p class="text-2xl font-bold text-gray-900">{{ total_learners|default:"N/A" }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters Section -->
+        <div class="filters-section">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                <i class="fas fa-filter mr-2"></i>
+                Filter & Search
+            </h3>
+            <form method="get" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label for="q" class="block text-sm font-medium text-gray-700 mb-2">Search</label>
+                    <input type="text" id="q" name="q" value="{{ search_query }}" placeholder="Search courses..." class="form-control">
+                </div>
+                <div>
+                    <label for="branch" class="block text-sm font-medium text-gray-700 mb-2">Branch</label>
+                    <select id="branch" name="branch" class="form-control">
+                        <option value="">All Branches</option>
+                        {% for branch in branches %}
+                            <option value="{{ branch.id }}" {% if branch.id|stringformat:"s" == selected_branch %}selected{% endif %}>
+                                {{ branch.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label for="status" class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                    <select id="status" name="status" class="form-control">
+                        <option value="">All Statuses</option>
+                        <option value="active" {% if selected_status == 'active' %}selected{% endif %}>Active</option>
+                        <option value="inactive" {% if selected_status == 'inactive' %}selected{% endif %}>Inactive</option>
+                    </select>
+                </div>
+                <div class="flex items-end">
+                    <button type="submit" class="btn-primary w-full">
+                        <i class="fas fa-search mr-2"></i>
+                        Apply Filters
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Course List -->
+        <div class="mb-8">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-semibold text-gray-900">
+                    <i class="fas fa-book mr-2"></i>
+                    System Courses 
+                    {% if search_query or selected_branch or selected_status %}
+                        ({{ courses.count }} filtered)
+                    {% else %}
+                        ({{ courses.count }} total)
+                    {% endif %}
+                </h2>
+                <div class="flex gap-2">
+                    <a href="{% url 'courses:course_manage' %}" class="btn-success">
+                        <i class="fas fa-plus mr-2"></i>
+                        New Course
+                    </a>
+                    <a href="?export=csv" class="btn-secondary">
+                        <i class="fas fa-download mr-2"></i>
+                        Export CSV
+                    </a>
+                </div>
+            </div>
+
+            {% if courses %}
+                <div class="space-y-4">
+                    {% for course in courses %}
+                        <div class="course-card">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1">
+                                    <div class="flex items-center mb-2">
+                                        <h3 class="text-lg font-semibold text-gray-900 mr-3">
+                                            {{ course.title }}
+                                        </h3>
+                                        <span class="course-status {% if course.is_active %}active{% else %}inactive{% endif %}">
+                                            {% if course.is_active %}Active{% else %}Inactive{% endif %}
+                                        </span>
+                                        {% if course.branch %}
+                                            <span class="branch-indicator ml-2">{{ course.branch.name }}</span>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    {% if course.description %}
+                                        <p class="text-gray-600 mb-3 line-clamp-2">
+                                            {{ course.description|truncatewords:30|striptags }}
+                                        </p>
+                                    {% endif %}
+
+                                    <div class="text-sm text-gray-500 grid grid-cols-2 gap-4">
+                                        <div>
+                                            <span class="block">
+                                                <i class="fas fa-user mr-1"></i>
+                                                Instructor: {{ course.instructor.get_full_name|default:course.instructor.username }}
+                                            </span>
+                                            <span class="block">
+                                                <i class="fas fa-calendar mr-1"></i>
+                                                Created: {{ course.created_at|date:"M d, Y" }}
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <span class="block">
+                                                <i class="fas fa-users mr-1"></i>
+                                                {{ course.enrolled_users.count }} enrolled
+                                            </span>
+                                            {% if course.category %}
+                                                <span class="block">
+                                                    <i class="fas fa-tag mr-1"></i>
+                                                    {{ course.category.name }}
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {% if course.course_image %}
+                                    <div class="ml-6 flex-shrink-0">
+                                        <img src="{{ course.course_image.url }}" 
+                                             alt="{{ course.title }}" 
+                                             class="w-20 h-20 object-cover rounded-lg">
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="course-actions">
+                                <a href="{% url 'courses:course_details' course.id %}" class="btn-primary">
+                                    <i class="fas fa-eye mr-1"></i>
+                                    View
+                                </a>
+                                <a href="{% url 'courses:course_edit' course.id %}" class="btn-secondary">
+                                    <i class="fas fa-edit mr-1"></i>
+                                    Edit
+                                </a>
+                                <a href="{% url 'courses:course_users' course.id %}" class="btn-secondary">
+                                    <i class="fas fa-users mr-1"></i>
+                                    Users
+                                </a>
+                                <a href="{% url 'courses:course_settings' course.id %}" class="btn-secondary">
+                                    <i class="fas fa-cog mr-1"></i>
+                                    Settings
+                                </a>
+                                <a href="{% url 'gradebook:course_detail' course.id %}" class="btn-secondary">
+                                    <i class="fas fa-table mr-1"></i>
+                                    Gradebook
+                                </a>
+                                <a href="{% url 'reports:course_detail' course.id %}" class="btn-warning">
+                                    <i class="fas fa-chart-line mr-1"></i>
+                                    Reports
+                                </a>
+                                <button class="btn-danger" onclick="confirmDeleteCourse({{ course.id }}, '{{ course.title|escapejs }}')">
+                                    <i class="fas fa-trash mr-1"></i>
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-12">
+                    <i class="fas fa-book-open text-6xl text-gray-300 mb-4"></i>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">
+                        {% if search_query or selected_branch or selected_status %}
+                            No courses match your filters
+                        {% else %}
+                            No courses found
+                        {% endif %}
+                    </h3>
+                    <p class="text-gray-500 mb-4">
+                        {% if search_query or selected_branch or selected_status %}
+                            Try adjusting your search criteria or clear the filters.
+                        {% else %}
+                            Create your first course to get started.
+                        {% endif %}
+                    </p>
+                    {% if search_query or selected_branch or selected_status %}
+                        <a href="{% url 'courses:superadmin_courses' %}" class="btn-secondary mr-3">
+                            <i class="fas fa-times mr-2"></i>
+                            Clear Filters
+                        </a>
+                    {% endif %}
+                    <a href="{% url 'courses:course_manage' %}" class="btn-success">
+                        <i class="fas fa-plus mr-2"></i>
+                        Create First Course
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-submit filter form on select change
+    document.querySelectorAll('#branch, #status').forEach(select => {
+        select.addEventListener('change', function() {
+            this.form.submit();
+        });
+    });
+});
+
+function confirmDeleteCourse(courseId, courseTitle) {
+    if (confirm(`Are you sure you want to delete the course "${courseTitle}"?\n\nThis action cannot be undone and will remove all course content, enrollments, and progress data.`)) {
+        // Create and submit delete form
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/courses/${courseId}/delete/`;
+        
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (csrfToken) {
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrfmiddlewaretoken';
+            csrfInput.value = csrfToken.value;
+            form.appendChild(csrfInput);
+        }
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
+{% endblock %}
+

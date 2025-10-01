@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Add Member - LMS{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background-color: #ffffff !important;
+    }
+    
+    .main-content {
+        background-color: #ffffff !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex-1 p-8 overflow-x-hidden overflow-y-auto bg-white">
+    <div class="p-6 space-y-6 bg-white">
+        <!-- Breadcrumb -->
+        {% include 'components/breadcrumb.html' with items=breadcrumbs %}
+
+        <!-- Main Content -->
+        <div class="container mx-auto">
+            <!-- Main grid with 70-30 split -->
+            <div class="grid grid-cols-12 gap-4 md:gap-6">
+                <!-- Left Column (70%) -->
+                <div class="col-span-12 lg:col-span-8 transition-all duration-300">
+                    <div class="bg-white rounded-lg shadow-sm p-6">
+                        <h1 class="text-2xl font-bold text-gray-900 mb-6">Add Member</h1>
+                        
+                        <form method="post" class="space-y-6">
+                            {% csrf_token %}
+                            {% if tab %}
+                            <input type="hidden" name="tab" value="{{ tab }}">
+                            {% endif %}
+                            
+                            {% if form %}
+                                <!-- User Selection for Edit -->
+                                <div class="form-group">
+                                    <label for="{{ form.user.id_for_label }}" class="block text-sm font-medium text-gray-900 mb-2">
+                                        User
+                                    </label>
+                                    <div class="mt-1">
+                                        {{ form.user }}
+                                        {% if form.user.errors %}
+                                        <div class="mt-1 text-red-600 text-sm">
+                                            {{ form.user.errors }}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <!-- Role Selection for Edit -->
+                                <div class="form-group">
+                                    <label for="{{ form.role.id_for_label }}" class="block text-sm font-medium text-gray-900 mb-2">
+                                        Role
+                                    </label>
+                                    <div class="mt-1">
+                                        {{ form.role }}
+                                        {% if form.role.errors %}
+                                        <div class="mt-1 text-red-600 text-sm">
+                                            {{ form.role.errors }}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% else %}
+                                <!-- User Selection for Add -->
+                                <div class="form-group">
+                                    <label for="users" class="block text-sm font-medium text-gray-900 mb-2">
+                                        Select Users
+                                    </label>
+                                    <div class="mt-1">
+                                        <select name="users[]" id="users" multiple class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                            {% for user in available_users %}
+                                                <option value="{{ user.id }}">{{ user.get_full_name|default:user.username }} ({{ user.email }})</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <!-- Hidden role input with empty value -->
+                                <input type="hidden" name="role" value="">
+                            {% endif %}
+
+                            <!-- Form Actions -->
+                            <div class="flex justify-end pt-6 space-x-4 border-t border-gray-200">
+                                <a href="{% url 'groups:group_list' %}{% if tab %}?tab={{ tab }}{% endif %}" 
+                                   class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors">
+                                    Cancel
+                                </a>
+                                <button type="submit" 
+                                        class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                                    {% if form %}Update{% else %}Add{% endif %} Member
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Right Column (30%) -->
+                <div class="col-span-12 lg:col-span-4 transition-all duration-300">
+                    {% include 'components/right_sidebar.html' %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

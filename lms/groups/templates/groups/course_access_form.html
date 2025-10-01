@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Course Access - LMS{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background-color: #ffffff !important;
+    }
+    
+    .main-content {
+        background-color: #ffffff !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex-1 p-8 overflow-x-hidden overflow-y-auto bg-white">
+    <div class="p-6 space-y-6 bg-white">
+        <!-- Breadcrumb -->
+        {% include 'components/breadcrumb.html' with items=breadcrumbs %}
+
+        <!-- Main Content -->
+        <div class="container mx-auto">
+            <!-- Main grid with 70-30 split -->
+            <div class="grid grid-cols-12 gap-4 md:gap-6">
+                <!-- Left Column (70%) -->
+                <div class="col-span-12 lg:col-span-8 transition-all duration-300">
+                    <div class="bg-white rounded-lg shadow-sm p-6">
+                        <h1 class="text-2xl font-bold text-gray-900 mb-6">Course Access</h1>
+                        
+                        <form method="post" class="space-y-6">
+                            {% csrf_token %}
+                            
+                            <!-- Course Selection -->
+                            <div class="form-group">
+                                <label for="{{ form.course.id_for_label }}" class="block text-sm font-medium text-gray-900 mb-2">
+                                    Course
+                                </label>
+                                <div class="mt-1">
+                                    {{ form.course }}
+                                    {% if form.course.errors %}
+                                    <div class="mt-1 text-red-600 text-sm">
+                                        {{ form.course.errors }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Access Level -->
+                            <div class="form-group">
+                                <label for="{{ form.access_level.id_for_label }}" class="block text-sm font-medium text-gray-900 mb-2">
+                                    Access Level
+                                </label>
+                                <div class="mt-1">
+                                    {{ form.access_level }}
+                                    {% if form.access_level.errors %}
+                                    <div class="mt-1 text-red-600 text-sm">
+                                        {{ form.access_level.errors }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Form Actions -->
+                            <div class="flex justify-end pt-6 space-x-4 border-t border-gray-200">
+                                <a href="{% if tab %}{% url 'groups:group_list' %}?tab={{ tab }}{% else %}{% url 'groups:group_detail' group.id %}{% endif %}" 
+                                   class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors">
+                                    Cancel
+                                </a>
+                                <button type="submit" 
+                                        class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                                    Save Changes
+                                </button>
+                            </div>
+                            
+                            <!-- Hidden tab field to maintain tab context -->
+                            {% if tab %}
+                            <input type="hidden" name="tab" value="{{ tab }}">
+                            {% endif %}
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Right Column (30%) -->
+                <div class="col-span-12 lg:col-span-4 transition-all duration-300">
+                    {% include 'components/right_sidebar.html' %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

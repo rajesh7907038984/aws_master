@@ -1,0 +1,88 @@
+<!-- Application Documents Tab Content -->
+{% if not is_edit_mode or is_edit_mode and profile_user.role == 'learner' %}
+<div id="additional-tab" class="tab-content">
+    <div class="mb-6">
+        <h3 class="text-lg font-semibold">Application Documents</h3>
+        <p class="text-sm text-gray-600 mt-1">Document upload for application materials</p>
+    </div>
+    
+    <div class="grid grid-cols-1 gap-6">
+        <div class="form-group">
+            <label for="{{ form.statement_of_purpose_file.id_for_label }}" class="form-label">Original Application Statement</label>
+            {{ form.statement_of_purpose_file }}
+            {% if form.statement_of_purpose_file.errors %}
+            <div class="error-message">{{ form.statement_of_purpose_file.errors.0 }}</div>
+            {% endif %}
+            <div class="form-help-text">{{ form.statement_of_purpose_file.help_text }}</div>
+        </div>
+        
+        <div class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div class="flex items-start">
+                <i class="fas fa-info-circle text-blue-600 mr-2 mt-1"></i>
+                <p class="text-sm text-blue-700">For ongoing learning planning and goal setting, see Learning Development Plan</p>
+            </div>
+        </div>
+
+        <!-- Hidden fields that are no longer shown but may still be needed for form validation -->
+        <div style="display: none;">
+            {{ form.reason_for_pursuing_course }}
+            {{ form.career_objectives }}
+            {{ form.relevant_past_work }}
+        </div>
+    </div>
+</div>
+
+<script>
+// Ensure tab state is preserved when making updates in this tab
+document.addEventListener('DOMContentLoaded', function() {
+    // Set tab state for form submission
+    function updateTabState() {
+        // Update global tab state explicitly for this tab
+        if (typeof currentTabState !== 'undefined') {
+            currentTabState.mainTab = 'additional-tab';
+            
+            console.log('Additional tab: Setting tab state to:', currentTabState);
+            
+            // Update hidden form fields directly
+            var activeTabField = document.getElementById('activeTabField');
+            if (activeTabField) activeTabField.value = currentTabState.mainTab;
+        }
+    }
+    
+    // Update tab state when the tab becomes visible
+    var tabElement = document.getElementById('additional-tab');
+    if (tabElement) {
+        // Create a mutation observer to detect when the tab becomes visible
+        var observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && 
+                    mutation.attributeName === 'style' &&
+                    tabElement.style.display !== 'none') {
+                    updateTabState();
+                }
+                
+                if (mutation.type === 'attributes' && 
+                    mutation.attributeName === 'class' &&
+                    tabElement.classList.contains('active')) {
+                    updateTabState();
+                }
+            });
+        });
+        
+        observer.observe(tabElement, { attributes: true });
+        
+        // Also check if it's already visible
+        if (tabElement.style.display !== 'none' || tabElement.classList.contains('active')) {
+            updateTabState();
+        }
+    }
+    
+    // Add input listeners to all form elements in this tab
+    var formElements = document.querySelectorAll('#additional-tab input, #additional-tab textarea, #additional-tab select');
+    formElements.forEach(function(element) {
+        element.addEventListener('focus', updateTabState);
+        element.addEventListener('change', updateTabState);
+    });
+});
+</script>
+{% endif %} 

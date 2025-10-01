@@ -1,0 +1,314 @@
+{% extends 'admin/base_site.html' %}
+{% load static %}
+
+{% block title %}AI Token Management Dashboard{% endblock %}
+
+{% block extrahead %}
+<style>
+    .token-card {
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 15px;
+        margin-bottom: 15px;
+        background: white;
+    }
+    
+    .token-stats {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 20px;
+    }
+    
+    .stat-box {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 5px;
+        padding: 15px;
+        text-align: center;
+        flex: 1;
+        margin-right: 10px;
+    }
+    
+    .stat-box:last-child {
+        margin-right: 0;
+    }
+    
+    .stat-value {
+        font-size: 24px;
+        font-weight: bold;
+        color: #007cba;
+    }
+    
+    .stat-label {
+        color: #666;
+        font-size: 12px;
+        text-transform: uppercase;
+    }
+    
+    .usage-bar {
+        height: 8px;
+        background-color: #e9ecef;
+        border-radius: 4px;
+        overflow: hidden;
+        margin: 5px 0;
+    }
+    
+    .usage-bar-fill {
+        height: 100%;
+        transition: width 0.3s ease;
+    }
+    
+    .usage-normal { background-color: #28a745; }
+    .usage-warning { background-color: #ffc107; }
+    .usage-danger { background-color: #dc3545; }
+    .usage-unlimited { background-color: #6c757d; }
+    
+    .status-badge {
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: bold;
+        text-transform: uppercase;
+    }
+    
+    .status-normal { background-color: #d4edda; color: #155724; }
+    .status-warning { background-color: #fff3cd; color: #856404; }
+    .status-exceeded { background-color: #f8d7da; color: #721c24; }
+    .status-unlimited { background-color: #d1ecf1; color: #0c5460; }
+    
+    .filter-section {
+        background: #f8f9fa;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 5px;
+    }
+    
+    .bulk-actions {
+        background: #e9ecef;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 5px;
+        border: 1px solid #dee2e6;
+    }
+    
+    .table-responsive {
+        margin-top: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Home</a> &rsaquo;
+    <strong>AI Token Management</strong>
+</div>
+{% endblock %}
+
+{% block content %}
+<h1>AI Token Management Dashboard</h1>
+
+<!-- Overall Statistics -->
+<div class="token-stats">
+    <div class="stat-box">
+        <div class="stat-value">{{ total_branches }}</div>
+        <div class="stat-label">Total Branches</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-value">{{ unlimited_branches }}</div>
+        <div class="stat-label">Unlimited</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-value">{{ limited_branches }}</div>
+        <div class="stat-label">With Limits</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-value">{{ total_current_usage|floatformat:0 }}</div>
+        <div class="stat-label">Total Tokens Used</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-value">{{ overall_usage_percentage }}%</div>
+        <div class="stat-label">Overall Usage</div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="filter-section">
+    <h3>Filters</h3>
+    <form method="get" class="form-inline">
+        <div class="form-group" style="margin-right: 15px;">
+            <label for="search" style="margin-right: 5px;">Search:</label>
+            <input type="text" id="search" name="search" value="{{ search_query }}" placeholder="Branch or business name..." class="form-control">
+        </div>
+        <div class="form-group" style="margin-right: 15px;">
+            <label for="business" style="margin-right: 5px;">Business:</label>
+            <select id="business" name="business" class="form-control">
+                <option value="">All Businesses</option>
+                {% for business in businesses %}
+                <option value="{{ business.business__id }}" {% if business_filter == business.business__id|stringformat:"s" %}selected{% endif %}>
+                    {{ business.business__name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Filter</button>
+        <a href="{% url 'tinymce_editor:ai_token_dashboard' %}" class="btn btn-secondary" style="margin-left: 10px;">Clear</a>
+    </form>
+</div>
+
+<!-- Bulk Actions -->
+<div class="bulk-actions">
+    <h3>Bulk Actions</h3>
+    <form method="post" action="{% url 'tinymce_editor:bulk_update_tokens' %}" id="bulkForm">
+        {% csrf_token %}
+        <div class="form-group" style="margin-bottom: 10px;">
+            <label>Select Action:</label>
+            <select name="action" id="bulkAction" class="form-control" style="width: auto; display: inline-block; margin-left: 10px;">
+                <option value="">Choose action...</option>
+                <option value="set_unlimited">Set to Unlimited</option>
+                <option value="set_limit">Set Custom Limit</option>
+            </select>
+            <input type="number" name="new_limit" id="newLimit" placeholder="Token limit" class="form-control" style="width: 150px; display: inline-block; margin-left: 10px;" min="1">
+            <button type="submit" class="btn btn-warning" style="margin-left: 10px;" onclick="return confirmBulkAction()">Apply to Selected</button>
+        </div>
+    </form>
+</div>
+
+<!-- Branch List -->
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th><input type="checkbox" id="selectAll"></th>
+                <th>Branch</th>
+                <th>Business</th>
+                <th>Users</th>
+                <th>Monthly Limit</th>
+                <th>Current Usage</th>
+                <th>Usage %</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for branch_info in page_obj %}
+            <tr>
+                <td><input type="checkbox" name="selected_branches" value="{{ branch_info.branch.id }}" form="bulkForm"></td>
+                <td><strong>{{ branch_info.branch.name }}</strong></td>
+                <td>{{ branch_info.branch.business.name|default:"No Business" }}</td>
+                <td>{{ branch_info.user_count }}</td>
+                <td>
+                    {% if branch_info.token_limits.is_unlimited %}
+                        <span class="status-badge status-unlimited">Unlimited</span>
+                    {% else %}
+                        {{ branch_info.token_limits.monthly_token_limit|floatformat:0 }}
+                    {% endif %}
+                </td>
+                <td>{{ branch_info.current_usage|floatformat:0 }}</td>
+                <td>
+                    {% if not branch_info.token_limits.is_unlimited %}
+                        <div class="usage-bar">
+                            {% if branch_info.status == 'exceeded' %}
+                                <div class="usage-bar-fill usage-danger" style="width: 100%;"></div>
+                            {% elif branch_info.status == 'warning' %}
+                                <div class="usage-bar-fill usage-warning" style="width: {{ branch_info.usage_percentage }}%;"></div>
+                            {% else %}
+                                <div class="usage-bar-fill usage-normal" style="width: {{ branch_info.usage_percentage }}%;"></div>
+                            {% endif %}
+                        </div>
+                        <small>{{ branch_info.usage_percentage|floatformat:1 }}%</small>
+                    {% else %}
+                        <span class="status-badge status-unlimited">∞</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if branch_info.status == 'unlimited' %}
+                        <span class="status-badge status-unlimited">Unlimited</span>
+                    {% elif branch_info.status == 'exceeded' %}
+                        <span class="status-badge status-exceeded">Exceeded</span>
+                    {% elif branch_info.status == 'warning' %}
+                        <span class="status-badge status-warning">High Usage</span>
+                    {% else %}
+                        <span class="status-badge status-normal">Normal</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{% url 'tinymce_editor:manage_branch_tokens' branch_info.branch.id %}" class="btn btn-sm btn-primary">Manage</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="9">No branches found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Pagination -->
+{% if page_obj.has_other_pages %}
+<nav aria-label="Page navigation">
+    <ul class="pagination">
+        {% if page_obj.has_previous %}
+            <li class="page-item"><a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if business_filter %}&business={{ business_filter }}{% endif %}">&laquo; First</a></li>
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if business_filter %}&business={{ business_filter }}{% endif %}">&lsaquo; Previous</a></li>
+        {% endif %}
+        
+        <li class="page-item active"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+        
+        {% if page_obj.has_next %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if business_filter %}&business={{ business_filter }}{% endif %}">Next &rsaquo;</a></li>
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if business_filter %}&business={{ business_filter }}{% endif %}">Last &raquo;</a></li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+<script>
+document.getElementById('selectAll').addEventListener('change', function() {
+    const checkboxes = document.querySelectorAll('input[name="selected_branches"]');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = this.checked;
+    });
+});
+
+document.getElementById('bulkAction').addEventListener('change', function() {
+    const newLimitInput = document.getElementById('newLimit');
+    if (this.value === 'set_limit') {
+        newLimitInput.style.display = 'inline-block';
+        newLimitInput.required = true;
+    } else {
+        newLimitInput.style.display = 'none';
+        newLimitInput.required = false;
+    }
+});
+
+function confirmBulkAction() {
+    const selectedBranches = document.querySelectorAll('input[name="selected_branches"]:checked');
+    const action = document.getElementById('bulkAction').value;
+    
+    if (selectedBranches.length === 0) {
+        alert('Please select at least one branch.');
+        return false;
+    }
+    
+    if (!action) {
+        alert('Please select an action.');
+        return false;
+    }
+    
+    let message = `Are you sure you want to ${action.replace('_', ' ')} for ${selectedBranches.length} branch(es)?`;
+    
+    if (action === 'set_limit') {
+        const limit = document.getElementById('newLimit').value;
+        if (!limit) {
+            alert('Please enter a token limit.');
+            return false;
+        }
+        message = `Are you sure you want to set the token limit to ${limit} for ${selectedBranches.length} branch(es)?`;
+    }
+    
+    return confirm(message);
+}
+</script>
+
+{% endblock %}

@@ -1,0 +1,139 @@
+{% extends 'reports/course_report_sections/base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<style>
+    .unit-matrix-table {
+        min-width: 800px;
+    }
+    .unit-matrix-table .sticky-column {
+        position: sticky;
+        left: 0;
+        background: white;
+        z-index: 10;
+    }
+    .unit-matrix-table .sticky-header {
+        position: sticky;
+        left: 0;
+        background: #f9fafb;
+        z-index: 10;
+    }
+</style>
+{% endblock %}
+
+{% block section_content %}
+<div class="bg-white rounded-lg shadow-sm border">
+    {% if matrix_data and topics %}
+        <!-- Unit Matrix Table -->
+        <div class="overflow-x-auto">
+            <table class="w-full unit-matrix-table">
+                <thead>
+                    <tr class="bg-gray-50 border-b">
+                        <th class="px-6 py-3 text-left text-sm font-medium text-gray-500 sticky-header">
+                            Learner <i class="fas fa-sort ml-1"></i>
+                        </th>
+                        {% for topic in topics %}
+                        <th class="px-3 py-3 text-center text-sm font-medium text-gray-500 min-w-[120px]">
+                            <div class="truncate" title="{{ topic.title }}">{{ topic.title }}</div>
+                            <div class="text-xs text-gray-400 mt-1">{{ topic.get_content_type_display|default:"Unit" }}</div>
+                        </th>
+                        {% endfor %}
+                        <th class="px-6 py-3 text-center text-sm font-medium text-gray-500">Overall</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in matrix_data %}
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="px-6 py-4 font-medium text-gray-900 sticky-column">
+                            <div class="flex items-center">
+                                <div class="mr-3">
+                                    {% if row.learner.status == 'Completed' %}
+                                    <div class="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white">
+                                        <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                        </svg>
+                                    </div>
+                                    {% elif row.learner.status == 'In Progress' %}
+                                    <div class="w-5 h-5 rounded-full bg-yellow-500 flex items-center justify-center text-white">
+                                        <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                    </div>
+                                    {% else %}
+                                    <div class="w-5 h-5 rounded-full border-2 border-gray-300"></div>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <div class="font-medium">{{ row.learner.get_full_name|default:row.learner.username }}</div>
+                                    <div class="text-sm text-gray-500">{{ row.learner.role|title }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        {% for topic_progress in row.topics_progress %}
+                        <td class="px-3 py-4 text-center">
+                            <div class="flex flex-col items-center">
+                                {% if topic_progress.status == 'completed' %}
+                                    <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white mb-1">
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                        </svg>
+                                    </div>
+                                    {% if topic_progress.score %}
+                                    <div class="text-xs text-gray-600">{{ topic_progress.score|floatformat:0 }}%</div>
+                                    {% endif %}
+                                {% elif topic_progress.status == 'in_progress' %}
+                                    <div class="w-8 h-8 rounded-full bg-yellow-500 flex items-center justify-center text-white mb-1">
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                    </div>
+                                    {% if topic_progress.score %}
+                                    <div class="text-xs text-gray-600">{{ topic_progress.score|floatformat:0 }}%</div>
+                                    {% endif %}
+                                {% else %}
+                                    <div class="w-8 h-8 rounded-full border-2 border-gray-300 mb-1"></div>
+                                    <div class="text-xs text-gray-400">-</div>
+                                {% endif %}
+                            </div>
+                        </td>
+                        {% endfor %}
+                        <td class="px-6 py-4 text-center">
+                            <div class="flex flex-col items-center">
+                                <span class="text-sm font-medium text-gray-900">{{ row.learner.progress_percentage|default:0 }}%</span>
+                                <div class="w-16 bg-gray-200 rounded-full h-2 mt-1">
+                                    <div class="bg-blue-600 h-2 rounded-full" style="width: {{ row.learner.progress_percentage|default:0 }}%"></div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="{{ topics|length|add:2 }}" class="px-6 py-8 text-center text-gray-500">
+                            No learners enrolled in this course
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <!-- Empty state when no data available -->
+        <div class="p-6">
+            <div class="flex items-center justify-center h-64">
+                <div class="text-center">
+                    <div class="flex items-center justify-center mb-4">
+                        <div class="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
+                            <i class="fas fa-clipboard-check text-blue-600 text-2xl"></i>
+                        </div>
+                        <div class="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-file-alt text-gray-400 text-2xl"></i>
+                        </div>
+                    </div>
+                    <h4 class="text-xl font-medium text-gray-900 mb-2">No training data available</h4>
+                    <p class="text-gray-500">Training progress will appear upon unit creation and users' learning progress</p>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

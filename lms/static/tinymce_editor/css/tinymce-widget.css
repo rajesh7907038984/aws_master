@@ -1,0 +1,268 @@
+/**
+ * TinyMCE Widget CSS for Django Integration
+ * Provides styling for TinyMCE editors in Django forms
+ * Updated: Fixed text content editor height issue - v2
+ */
+
+/* Base TinyMCE Editor Styling */
+.tinymce-editor {
+    min-height: 300px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    transition: border-color 0.3s ease;
+}
+
+/* Specific height for text content field */
+#text_content.tinymce-editor {
+    min-height: 450px !important;
+    height: 450px !important;
+}
+
+/* Fixed editor class for consistent height */
+.tinymce-fixed-editor {
+    min-height: 300px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    transition: border-color 0.3s ease;
+}
+
+.tinymce-editor:focus {
+    border-color: #007cba;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0, 124, 186, 0.2);
+}
+
+/* TinyMCE Container Styling */
+.tox.tox-tinymce {
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Ensure TinyMCE container respects height settings */
+.tox.tox-tinymce .tox-edit-area {
+    min-height: inherit;
+}
+
+/* Specific height for text content TinyMCE instance */
+#text_content + .tox.tox-tinymce {
+    min-height: 450px !important;
+    height: auto !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* When text content field is active */
+#text-content.active #text_content + .tox.tox-tinymce {
+    min-height: 450px !important;
+    height: auto !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Fixed editor TinyMCE instance */
+.tinymce-fixed-editor + .tox.tox-tinymce {
+    min-height: 300px;
+}
+
+/* Toolbar Styling */
+.tox .tox-toolbar {
+    border-bottom: 1px solid #e0e0e0;
+    background: #f8f9fa;
+}
+
+.tox .tox-toolbar__group {
+    border-right: 1px solid #e0e0e0;
+}
+
+/* Editor Content Area */
+.tox .tox-edit-area {
+    border: none;
+}
+
+.tox .tox-edit-area__iframe {
+    background: #fff;
+    min-height: inherit;
+}
+
+/* Ensure iframe respects height settings */
+#text_content + .tox.tox-tinymce .tox-edit-area__iframe {
+    min-height: 400px;
+}
+
+.tinymce-fixed-editor + .tox.tox-tinymce .tox-edit-area__iframe {
+    min-height: 250px;
+}
+
+/* Status Bar */
+.tox .tox-statusbar {
+    border-top: 1px solid #e0e0e0;
+    background: #f8f9fa;
+    font-size: 12px;
+    color: #666;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 16px;
+}
+
+/* Hide the help text and its container */
+.tox-statusbar__help,
+.tox-statusbar__help-text {
+    display: none !important;
+}
+
+/* Custom Footer Styles */
+.tox-statusbar__custom-footer {
+    display: flex;
+    margin-left: auto;
+    align-items: center;
+    height: 100%;
+    padding: 8px 0;
+}
+
+.tox-statusbar__wordcount, 
+.tox-statusbar__charcount {
+    font-size: 12px;
+    color: #555;
+    margin-left: 10px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background-color: #f0f0f0;
+}
+
+/* Dark mode support removed */
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .tox .tox-toolbar {
+        flex-wrap: wrap;
+    }
+    
+    .tox .tox-toolbar__group {
+        margin-bottom: 4px;
+    }
+    
+    .tinymce-editor {
+        min-height: 250px;
+    }
+    
+    /* Adjust text content height on mobile */
+    #text_content.tinymce-editor {
+        min-height: 350px;
+    }
+    
+    #text_content + .tox.tox-tinymce {
+        min-height: 350px;
+    }
+}
+
+@media (max-width: 480px) {
+    .tox .tox-toolbar__group {
+        border-right: none;
+        margin-right: 4px;
+    }
+    
+    .tinymce-editor {
+        min-height: 200px;
+    }
+}
+
+/* Django Admin Integration */
+.form-row .tinymce-editor {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.aligned .tinymce-editor {
+    margin-left: 0;
+}
+
+/* Loading State */
+.tinymce-loading {
+    opacity: 0.6;
+    pointer-events: none;
+    position: relative;
+}
+
+.tinymce-loading::after {
+    content: "Loading editor...";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(255, 255, 255, 0.9);
+    padding: 10px 20px;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    font-size: 14px;
+    color: #666;
+    z-index: 1000;
+}
+
+/* Error State */
+.tinymce-error {
+    border-color: #dc3545;
+}
+
+.tinymce-error:focus {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.2);
+}
+
+/* Custom Themes */
+.tinymce-theme-minimal .tox .tox-toolbar {
+    background: #fff;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+/* Dark theme styles removed */
+
+/* Widget Variants */
+.tinymce-widget-simple {
+    min-height: 200px;
+}
+
+.tinymce-widget-advanced {
+    min-height: 400px;
+}
+
+.tinymce-widget-fullscreen {
+    min-height: 500px;
+}
+
+/* Inline Editor Styling */
+.tinymce-inline {
+    border: 2px dashed transparent;
+    padding: 10px;
+    min-height: 100px;
+    transition: border-color 0.3s ease;
+}
+
+.tinymce-inline:hover,
+.tinymce-inline:focus {
+    border-color: #007cba;
+    background: rgba(0, 124, 186, 0.05);
+}
+
+/* Accessibility Improvements */
+.tox .tox-toolbar button:focus,
+.tox .tox-toolbar .tox-split-button:focus {
+    outline: 2px solid #007cba;
+    outline-offset: 2px;
+}
+
+/* Print Styles */
+@media print {
+    .tox.tox-tinymce {
+        display: none;
+    }
+    
+    .tinymce-editor {
+        display: block;
+        border: 1px solid #000;
+        background: #fff;
+        color: #000;
+    }
+} 

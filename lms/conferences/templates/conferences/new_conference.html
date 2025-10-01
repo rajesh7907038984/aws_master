@@ -1,0 +1,898 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load tinymce_tags %}
+
+{% block title %}New Conference{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Form styles */
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+
+
+    .form-label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #374151;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #D1D5DB;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        color: #374151;
+        transition: all 0.2s;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: #3B82F6;
+        box-shadow: 0 0 0 1px #3B82F6;
+    }
+
+    .form-select {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #D1D5DB;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        color: #374151;
+        background-color: white;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .form-select:focus {
+        outline: none;
+        border-color: #3B82F6;
+        box-shadow: 0 0 0 1px #3B82F6;
+    }
+
+    .form-textarea {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #D1D5DB;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        color: #374151;
+        min-height: 100px;
+        transition: all 0.2s;
+    }
+
+    .form-textarea:focus {
+        outline: none;
+        border-color: #3B82F6;
+        box-shadow: 0 0 0 1px #3B82F6;
+    }
+
+    .form-error {
+        color: #DC2626;
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+    }
+
+    /* Standardized Button Styles */
+    .btn-primary,
+    .btn-standard {
+        background-color: #050c50 !important;
+        color: white !important;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        display: inline-flex;
+        align-items: center;
+        text-decoration: none;
+        cursor: pointer;
+        font-size: 0.875rem;
+    }
+    
+    .btn-primary:hover,
+    .btn-standard:hover {
+        background-color: #040a42 !important;
+        color: white !important;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .btn-primary:focus,
+    .btn-standard:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(5, 12, 80, 0.2);
+    }
+    
+    .btn-primary:disabled,
+    .btn-standard:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .btn-secondary {
+        background-color: #6b7280 !important;
+        color: white !important;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        display: inline-flex;
+        align-items: center;
+        text-decoration: none;
+        cursor: pointer;
+        font-size: 0.875rem;
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+        background-color: #4b5563 !important;
+        color: white !important;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-secondary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .btn-success {
+        background-color: #050c50 !important;
+        color: white !important;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        display: inline-flex;
+        align-items: center;
+        text-decoration: none;
+        cursor: pointer;
+        font-size: 0.875rem;
+    }
+
+    .btn-success:hover:not(:disabled) {
+        background-color: #040a42 !important;
+        color: white !important;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-success:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    /* Ensure all form inputs have 100% width */
+    .conference-form input[type="text"],
+    .conference-form input[type="password"],
+    .conference-form input[type="email"],
+    .conference-form input[type="url"],
+    .conference-form input[type="tel"],
+    .conference-form input[type="number"],
+    .conference-form input[type="date"],
+    .conference-form input[type="time"],
+    .conference-form input[type="datetime-local"],
+    .conference-form select,
+    .conference-form textarea {
+        width: 100% !important;
+        box-sizing: border-box;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #D1D5DB;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        color: #374151;
+        transition: all 0.2s;
+    }
+
+    .conference-form input:focus,
+    .conference-form select:focus,
+    .conference-form textarea:focus {
+        outline: none;
+        border-color: #3B82F6;
+        box-shadow: 0 0 0 1px #3B82F6;
+    }
+
+    /* Ensure TinyMCE editor has proper width */
+    .conference-form .tox-tinymce {
+        width: 100% !important;
+    }
+    
+    /* Integration selection styles */
+    .integration-option {
+        border: 1px solid #E5E7EB;
+        border-radius: 0.375rem;
+        padding: 1rem;
+        margin-bottom: 0.5rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .integration-option:hover {
+        border-color: #D1D5DB;
+        background-color: #F9FAFB;
+    }
+    
+    .integration-option.selected {
+        border-color: #3B82F6;
+        background-color: #EFF6FF;
+    }
+    
+    .integration-option-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+    
+    .integration-logo {
+        width: 24px;
+        height: 24px;
+        margin-right: 0.5rem;
+    }
+    
+    .integration-title {
+        font-weight: 500;
+        font-size: 0.875rem;
+        color: #374151;
+    }
+    
+    .integration-description {
+        font-size: 0.75rem;
+        color: #6B7280;
+    }
+
+    /* Toast notification styles */
+    .toast-container {
+        position: fixed;
+        top: 1rem;
+        right: 1rem;
+        z-index: 1000;
+    }
+
+    .toast {
+        background: white;
+        border-radius: 0.5rem;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        padding: 1rem;
+        margin-bottom: 0.5rem;
+        border-left: 4px solid #3B82F6;
+        transition: all 0.3s ease;
+        transform: translateX(100%);
+        opacity: 0;
+    }
+
+    .toast.show {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    .toast.success {
+        border-left-color: #10B981;
+    }
+
+    .toast.error {
+        border-left-color: #EF4444;
+    }
+
+    /* Animation for button highlighting */
+    @keyframes pulse {
+        0% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+        }
+        50% {
+            transform: scale(1.05);
+            box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+        }
+        100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+        }
+    }
+
+    /* Improved form field styles */
+    .form-group.has-error .form-input,
+    .form-group.has-error .form-select {
+        border-color: #EF4444;
+        box-shadow: 0 0 0 1px #EF4444;
+    }
+
+    .form-group.has-success .form-input,
+    .form-group.has-success .form-select {
+        border-color: #10B981;
+        box-shadow: 0 0 0 1px #10B981;
+    }
+
+    /* Loading spinner */
+    .spinner {
+        display: inline-block;
+        width: 1rem;
+        height: 1rem;
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid #3B82F6;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumbs -->
+    {% with breadcrumbs=breadcrumbs %}
+        {% include 'components/breadcrumb.html' %}
+    {% endwith %}
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h1 class="text-xl font-semibold text-gray-900">{{ title }}</h1>
+            <p class="mt-1 text-sm text-gray-600">{{ description }}</p>
+        </div>
+
+        <div class="px-6 py-4">
+            <div class="grid grid-cols-1 gap-4">
+                <form method="post" class="conference-form p-6 bg-white rounded-lg shadow">
+                    {% csrf_token %}
+                    
+                    <!-- Form-wide errors -->
+                    {% if form.non_field_errors %}
+                    <div class="form-group">
+                        <div class="bg-red-50 border border-red-200 rounded-md p-4">
+                            <div class="flex">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-exclamation-triangle text-red-400"></i>
+                                </div>
+                                <div class="ml-3">
+                                    <h4 class="text-sm font-medium text-red-800">Form Errors</h4>
+                                    <div class="mt-1 text-sm text-red-700">
+                                        {% for error in form.non_field_errors %}
+                                        <p>{{ error }}</p>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Individual field errors -->
+                    {% if form.errors %}
+                    <div class="form-group">
+                        <div class="bg-red-50 border border-red-200 rounded-md p-4">
+                            <div class="flex">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-exclamation-triangle text-red-400"></i>
+                                </div>
+                                <div class="ml-3">
+                                    <h4 class="text-sm font-medium text-red-800">Please correct the following errors:</h4>
+                                    <div class="mt-1 text-sm text-red-700">
+                                        {% for field, errors in form.errors.items %}
+                                        <p><strong>{{ field|title }}:</strong> {{ errors|join:", " }}</p>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="grid grid-cols-1 gap-6">
+                        <!-- Title -->
+                        <div class="form-group">
+                            <label for="id_title" class="form-label">Title</label>
+                            {{ form.title }}
+                            {% if form.title.errors %}
+                            <p class="text-red-500 text-xs mt-1">{{ form.title.errors }}</p>
+                            {% endif %}
+                            <p class="mt-1 text-xs text-gray-500">The title of your conference.</p>
+                        </div>
+                        
+                        <!-- Description -->
+                        <div class="form-group">
+                            <label for="id_description" class="form-label">Description</label>
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                            <p class="text-red-500 text-xs mt-1">{{ form.description.errors }}</p>
+                            {% endif %}
+                            <p class="mt-1 text-xs text-gray-500">Describe the purpose of this conference.</p>
+                        </div>
+                        
+
+                        
+                        <!-- Date and Time Section -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="form-group">
+                                <label for="id_date" class="form-label">Date</label>
+                                <input type="date" name="date" id="id_date" class="form-input" value="{{ form.date.value|date:'Y-m-d' }}" required>
+                                {% if form.date.errors %}
+                                <p class="text-red-500 text-xs mt-1">{{ form.date.errors }}</p>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="id_timezone" class="form-label">Time Zone</label>
+                                {{ form.timezone }}
+                                {% if form.timezone.errors %}
+                                <p class="text-red-500 text-xs mt-1">{{ form.timezone.errors }}</p>
+                                {% endif %}
+                                <p class="mt-1 text-xs text-gray-500">Select the timezone for this conference.</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Time Section -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="form-group">
+                                <label for="id_start_time" class="form-label">Start Time</label>
+                                <input type="time" name="start_time" id="id_start_time" class="form-input" value="{{ form.start_time.value|time:'H:i' }}" required>
+                                {% if form.start_time.errors %}
+                                <p class="text-red-500 text-xs mt-1">{{ form.start_time.errors }}</p>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="id_end_time" class="form-label">End Time</label>
+                                <input type="time" name="end_time" id="id_end_time" class="form-input" value="{{ form.end_time.value|time:'H:i' }}" required>
+                                {% if form.end_time.errors %}
+                                <p class="text-red-500 text-xs mt-1">{{ form.end_time.errors }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Platform Selection -->
+                        {% if zoom_integrations or teams_integrations %}
+                        <div class="form-group">
+                            <label for="integration_selection" class="form-label">Select Meeting Platform (Optional)</label>
+                            <select id="integration_selection" class="form-select">
+                                <option value="">-- Select a platform --</option>
+                                
+                                <!-- Zoom Integrations -->
+                                {% if zoom_integrations %}
+                                <optgroup label="Zoom">
+                                    {% for integration in zoom_integrations %}
+                                    <option value="zoom:{{ integration.id }}">{{ integration.name }}</option>
+                                    {% endfor %}
+                                </optgroup>
+                                {% endif %}
+                                
+                                <!-- Teams Integrations -->
+                                {% if teams_integrations %}
+                                <optgroup label="Microsoft Teams">
+                                    {% for integration in teams_integrations %}
+                                    <option value="teams:{{ integration.id }}">{{ integration.name }}</option>
+                                    {% endfor %}
+                                </optgroup>
+                                {% endif %}
+                            </select>
+                            {% if request.user.role == 'instructor' %}
+                            <p class="mt-1 text-xs text-gray-500">Select the platform integration to use for this meeting. These integrations are configured by your branch admin. You can also create a conference without a platform integration.</p>
+                            {% else %}
+                            <p class="mt-1 text-xs text-gray-500">Select the platform integration to use for this meeting. These integrations are configured in your <a href="{% url 'account_settings:settings' %}?tab=integrations" class="text-blue-600 hover:underline">Account Settings</a>.</p>
+                            {% endif %}
+                            
+                            <!-- Create Meeting Button -->
+                            <div class="mt-3">
+                                <button type="button" id="create_meeting_btn" class="btn-secondary">
+                                    <i class="fas fa-video mr-2"></i> Create Meeting
+                                </button>
+                                <span id="meeting_status" class="ml-2 text-sm text-gray-500"></span>
+                            </div>
+                        </div>
+                        {% else %}
+                        <!-- No platform integrations available -->
+                        <div class="form-group">
+                            <div class="bg-blue-50 border border-blue-200 rounded-md p-4">
+                                <div class="flex">
+                                    <div class="flex-shrink-0">
+                                        <i class="fas fa-info-circle text-blue-400"></i>
+                                    </div>
+                                    <div class="ml-3">
+                                        <h4 class="text-sm font-medium text-blue-800">No Platform Integrations Available</h4>
+                                        <div class="mt-1 text-sm text-blue-700">
+                                            {% if request.user.role == 'instructor' %}
+                                            <p>No Zoom or Teams integrations have been configured for your branch. Contact your branch admin to set up platform integrations.</p>
+                                            {% else %}
+                                            <p>No platform integrations are configured.</p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Meeting Details Section (Hidden - details handled automatically) -->
+                        <div class="form-group hidden">
+                            <!-- Meeting Platform (hidden) -->
+                            <div class="form-group hidden">
+                                <label for="id_meeting_platform" class="form-label">Meeting Platform</label>
+                                {{ form.meeting_platform }}
+                            </div>
+                            
+                            <!-- Platform integration details (hidden by default, shown when meeting is created) -->
+                            {% if zoom_integrations or teams_integrations %}
+                            <div id="meeting_details_section" class="hidden mb-4">
+                                <div class="bg-green-50 border border-green-200 rounded-md p-4">
+                                    <div class="flex">
+                                        <div class="flex-shrink-0">
+                                            <i class="fas fa-check-circle text-green-400"></i>
+                                        </div>
+                                        <div class="ml-3">
+                                            <h4 class="text-sm font-medium text-green-800">Meeting Created Successfully</h4>
+                                            <div class="mt-1 text-sm text-green-700">
+                                                <p>Meeting details have been automatically populated. You can now create your conference.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            <!-- Hidden fields to store meeting data -->
+                            <div class="hidden">
+                                {{ form.meeting_link }}
+                                {{ form.meeting_password }}
+                                {{ form.meeting_id }}
+                                {{ form.host_url }}
+                            </div>
+                        </div>
+                        
+                        <!-- Rubric -->
+                        <div class="form-group">
+                            <label for="id_rubric" class="form-label">Rubric</label>
+                            {{ form.rubric }}
+                            {% if form.rubric.errors %}
+                            <p class="text-red-500 text-xs mt-1">{{ form.rubric.errors }}</p>
+                            {% endif %}
+                            <p class="mt-1 text-xs text-gray-500">Optional rubric for evaluating participation.</p>
+                        </div>
+                        
+                        <!-- Visibility Section (Hidden - always set to public) -->
+                        {{ form.visibility }}
+                        
+                        <!-- Status Section -->
+                        <div class="form-group">
+                            <label for="id_status" class="form-label">Status</label>
+                            {{ form.status }}
+                            {% if form.status.errors %}
+                            <p class="text-red-500 text-xs mt-1">{{ form.status.errors }}</p>
+                            {% endif %}
+                            <p class="mt-1 text-xs text-gray-500">Conference publication status (draft, published).</p>
+                        </div>
+                        
+                        <!-- Submit Button -->
+                        <div class="form-group">
+                            <button type="submit" class="btn-primary">Create Conference</button>
+                            <a href="{% url 'conferences:conference_list' %}" class="btn-secondary ml-2">Cancel</a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Form handling for conference creation
+        const form = document.querySelector('form');
+        const integrationSelect = document.getElementById('integration_selection');
+        const meetingDetailsSection = document.getElementById('meeting_details_section');
+        const meetingPlatformInput = document.getElementById('id_meeting_platform');
+        const createMeetingBtn = document.getElementById('create_meeting_btn');
+        const meetingStatusSpan = document.getElementById('meeting_status');
+        
+        // Show/hide meeting details based on platform selection (only if integration elements exist)
+        if (integrationSelect && createMeetingBtn && meetingStatusSpan && meetingPlatformInput) {
+            integrationSelect.addEventListener('change', function() {
+                const selectedValue = integrationSelect.value;
+                
+                if (selectedValue) {
+                    createMeetingBtn.disabled = false;
+                    createMeetingBtn.className = 'btn-secondary';
+                    createMeetingBtn.innerHTML = '<i class="fas fa-video mr-2"></i> Create Meeting';
+                    meetingStatusSpan.textContent = 'Select a platform and click "Create Meeting" to generate meeting details.';
+                    meetingStatusSpan.className = 'ml-2 text-sm text-blue-600';
+                    
+                    // Set the platform in the hidden input
+                    if (selectedValue.startsWith('zoom:')) {
+                        meetingPlatformInput.value = 'zoom';
+                    } else if (selectedValue.startsWith('teams:')) {
+                        meetingPlatformInput.value = 'teams';
+                    }
+                    
+                    // Hide meeting details initially for platform integrations
+                    // They'll be shown after creating the meeting
+                    if (meetingDetailsSection) {
+                        meetingDetailsSection.classList.add('hidden');
+                    }
+                } else {
+                    // No selection
+                    createMeetingBtn.disabled = true;
+                    createMeetingBtn.className = 'btn-secondary';
+                    createMeetingBtn.innerHTML = '<i class="fas fa-video mr-2"></i> Create Meeting';
+                    if (meetingDetailsSection) {
+                        meetingDetailsSection.classList.add('hidden');
+                    }
+                    meetingPlatformInput.value = '';
+                    meetingStatusSpan.textContent = '';
+                    meetingStatusSpan.className = 'ml-2 text-sm text-gray-500';
+                }
+            });
+        }
+        
+        // Initialize button state on page load (only if integration elements exist)
+        if (integrationSelect && createMeetingBtn && meetingStatusSpan) {
+            if (integrationSelect.value) {
+                // If there's already a value selected, enable the button
+                createMeetingBtn.disabled = false;
+                createMeetingBtn.className = 'btn-secondary';
+                meetingStatusSpan.textContent = 'Click "Create Meeting" to generate meeting details.';
+                meetingStatusSpan.className = 'ml-2 text-sm text-blue-600';
+            } else {
+                // No selection, disable button
+                createMeetingBtn.disabled = true;
+                createMeetingBtn.className = 'btn-secondary';
+                meetingStatusSpan.textContent = 'Please select a meeting platform first.';
+                meetingStatusSpan.className = 'ml-2 text-sm text-gray-500';
+            }
+        } else {
+            // No integration elements exist, that's fine - user can create conference without platform integration
+            console.log('No platform integration elements found - proceeding without platform integration');
+        }
+
+        // Validate form before submission
+        form.addEventListener('submit', function(e) {
+            // Validate date and time
+            const startTime = document.getElementById('id_start_time').value;
+            const endTime = document.getElementById('id_end_time').value;
+            
+            if (startTime && endTime && startTime >= endTime) {
+                e.preventDefault();
+                showToast('End time must be after start time. Please check your time settings.', 'error');
+                return;
+            }
+            
+            // Only validate platform integration if user has selected a platform
+            if (integrationSelect && meetingPlatformInput) {
+                const selectedIntegration = integrationSelect.value;
+                const meetingPlatform = meetingPlatformInput.value;
+                
+                // If user selected a platform integration, ensure they've created a meeting
+                if (selectedIntegration && meetingPlatform) {
+                    const meetingLink = document.getElementById('id_meeting_link').value;
+                    if (!meetingLink) {
+                        e.preventDefault();
+                        showToast('Please create a meeting first by clicking the "Create Meeting" button.', 'error');
+                        
+                        // Highlight the create meeting button
+                        if (createMeetingBtn) {
+                            createMeetingBtn.style.animation = 'pulse 2s infinite';
+                            setTimeout(() => {
+                                createMeetingBtn.style.animation = '';
+                            }, 4000);
+                        }
+                        
+                        return;
+                    }
+                }
+            }
+            
+            // Note: No platform integration validation is needed when integrations are not available
+            // Users can create conferences without platform integrations
+            
+            // Show success message when form is being submitted
+            showToast('Creating conference...', 'info');
+        });
+
+        // Set up event listener for create meeting button (only if integration elements exist)
+        if (createMeetingBtn && integrationSelect) {
+            createMeetingBtn.addEventListener('click', function() {
+                const selectedValue = integrationSelect.value;
+                
+                if (!selectedValue) {
+                    showToast('Please select a platform integration first.', 'error');
+                    return;
+                }
+                
+                createMeeting();
+            });
+        }
+    });
+
+    // Create meeting via API
+    function createMeeting() {
+        // Get selected integration
+        const integrationSelect = document.getElementById('integration_selection');
+        const meetingDetailsSection = document.getElementById('meeting_details_section');
+        const selectedValue = integrationSelect.value;
+        const meetingStatusSpan = document.getElementById('meeting_status');
+        
+        if (!selectedValue) {
+            alert('Please select a platform integration.');
+            return;
+        }
+        
+        // Parse the platform and integration ID
+        const [platform, integrationId] = selectedValue.split(':');
+        
+        // Get meeting details
+        const title = document.getElementById('id_title').value;
+        const description = document.getElementById('id_description').value;
+        const date = document.getElementById('id_date').value;
+        const startTime = document.getElementById('id_start_time').value;
+        const endTime = document.getElementById('id_end_time').value;
+        
+        if (!title || !date || !startTime || !endTime) {
+            alert('Please fill in all required meeting details (title, date, start and end time).');
+            return;
+        }
+        
+        // Show loading indicator
+        const button = document.getElementById('create_meeting_btn');
+        const originalText = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '<span class="spinner mr-2"></span> Creating...';
+        button.className = 'btn-secondary';
+        meetingStatusSpan.textContent = 'Creating meeting...';
+        
+        // Update hidden input with the platform
+        document.getElementById('id_meeting_platform').value = platform;
+        
+        // Combine date and time fields to create ISO datetime strings
+        const startDateTime = new Date(`${date}T${startTime}`).toISOString();
+        const endDateTime = new Date(`${date}T${endTime}`).toISOString();
+        
+        // Make API request
+        fetch('{% url "conferences:create_meeting_api" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                platform: platform,
+                integration_id: integrationId,
+                title: title,
+                description: description,
+                start_datetime: startDateTime,
+                end_datetime: endDateTime
+            })
+        })
+        .then(response => {
+            // First check if response is ok before parsing JSON
+            if (!response.ok) {
+                // Get status code for better error handling
+                const status = response.status;
+                
+                // Try to parse error JSON first
+                return response.json().then(errorData => {
+                    // Throw error with the API message if available
+                    throw new Error(errorData.error || `Server error (${status})`);
+                }).catch(jsonError => {
+                    // If JSON parsing fails, use status text
+                    throw new Error(`Server error (${status}): ${response.statusText}`);
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // Set the meeting data in the hidden inputs
+                document.getElementById('id_meeting_link').value = data.meeting_link || '';
+                document.getElementById('id_meeting_password').value = data.password || '';
+                document.getElementById('id_meeting_id').value = data.meeting_id || '';
+                document.getElementById('id_host_url').value = data.host_url || '';
+                
+                // Meeting details are stored but not displayed to user
+                
+                // Show success message
+                meetingStatusSpan.textContent = 'Meeting created successfully!';
+                meetingStatusSpan.className = 'ml-2 text-sm text-green-600';
+                
+                // Update the button
+                button.innerHTML = '<i class="fas fa-check mr-2"></i> Meeting Created';
+                button.disabled = true; // Disable to prevent duplicate creation
+                button.className = 'btn-success';
+                
+                // Show toast notification
+                showToast('Meeting created successfully! You can now create the conference.', 'success');
+            } else {
+                throw new Error(data.error || 'Failed to create meeting');
+            }
+        })
+        .catch(error => {
+            console.error('Error creating meeting:', error);
+            meetingStatusSpan.textContent = `Error: ${error.message}`;
+            meetingStatusSpan.className = 'ml-2 text-sm text-red-600';
+            button.disabled = false;
+            button.innerHTML = originalText;
+            button.className = 'btn-secondary';
+            
+            // Show toast notification for error
+            showToast(`Failed to create meeting: ${error.message}`, 'error');
+        });
+    }
+    
+    // Helper function to show toast notifications
+    function showToast(message, type = 'info') {
+        // Check if toast container exists, create if not
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.className = 'toast-container';
+            document.body.appendChild(toastContainer);
+        }
+        
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        
+        // Set content with appropriate icon
+        let icon = '';
+        if (type === 'success') {
+            icon = '<i class="fas fa-check-circle text-green-500 mr-2"></i>';
+        } else if (type === 'error') {
+            icon = '<i class="fas fa-exclamation-circle text-red-500 mr-2"></i>';
+        } else {
+            icon = '<i class="fas fa-info-circle text-blue-500 mr-2"></i>';
+        }
+        
+        toast.innerHTML = `
+            <div class="flex items-center">
+                ${icon}
+                <div class="flex-1">
+                    <p class="text-sm font-medium text-gray-900">${message}</p>
+                </div>
+                <button onclick="this.parentElement.parentElement.remove()" class="ml-2 text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        
+        // Add to container
+        toastContainer.appendChild(toast);
+        
+        // Show the toast with animation
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 10);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.parentElement.removeChild(toast);
+                }
+            }, 300);
+        }, 5000);
+    }
+</script>
+
+<!-- Initialize TinyMCE for description field -->
+{% tinymce_js %}
+{% tinymce_init %}
+{% endblock %}
+
+
+ 

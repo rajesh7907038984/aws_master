@@ -1,0 +1,105 @@
+/*
+ * Topic Module CSS
+ * Styles for topic creation, display, and management
+ */
+
+/* Topic list styling */
+.topic-item {
+  background-color: white;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  transition: box-shadow 0.2s ease, transform 0.1s ease;
+}
+
+.topic-item:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.topic-item.dragging {
+  opacity: 0.8;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  transform: scale(1.02);
+  z-index: 10;
+}
+
+.topic-drag-handle {
+  cursor: grab;
+  color: #9ca3af;
+}
+
+.topic-drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Status indicators */
+.status-published {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.status-draft {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.status-archived {
+  background-color: #f3f4f6;
+  color: #4b5563;
+}
+
+/* Content type icons */
+.content-type-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+}
+
+.content-type-text {
+  background-color: #e0f2fe;
+  color: #0369a1;
+}
+
+.content-type-video {
+  background-color: #fef2f2;
+  color: #b91c1c;
+}
+
+.content-type-audio {
+  background-color: #eef2ff;
+  color: #4f46e5;
+}
+
+.content-type-document {
+  background-color: #f0fdf4;
+  color: #15803d;
+}
+
+.content-type-quiz {
+  background-color: #fff7ed;
+  color: #c2410c;
+}
+
+.content-type-assignment {
+  background-color: #fdf2f8;
+  color: #be185d;
+}
+
+.content-type-scorm {
+  background-color: #f8fafc;
+  color: #475569;
+}
+
+.content-type-conference {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+}
+
+.content-type-discussion {
+  background-color: #f5f3ff;
+  color: #6d28d9;
+} 

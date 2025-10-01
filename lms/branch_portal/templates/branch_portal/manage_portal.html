@@ -1,0 +1,1879 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Manage Branch Portal{% endblock %}
+
+{% block extra_css %}
+<style>
+    .color-preview {
+        width: 32px;
+        height: 32px;
+        border-radius: 4px;
+        margin-right: 8px;
+        border: 1px solid #e5e7eb;
+    }
+    
+    .preview-section {
+        background-color: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 16px;
+    }
+    
+    .preview-header {
+        background-color: {{ portal.primary_color }};
+        color: white;
+        padding: 20px;
+        border-radius: 8px 8px 0 0;
+        font-family: {{ portal.font_family }};
+    }
+    
+    .preview-content {
+        background-color: white;
+        padding: 16px;
+        border-radius: 0 0 8px 8px;
+        border: 1px solid #e5e7eb;
+        border-top: none;
+    }
+    
+    .preview-button {
+        background-color: {{ portal.secondary_color }};
+        color: white;
+        padding: 8px 16px;
+        border-radius: 4px;
+        display: inline-block;
+        font-family: {{ portal.font_family }};
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex-1 overflow-x-hidden overflow-y-auto bg-white">
+    <div class="p-6 space-y-6 bg-white">
+        <!-- Breadcrumb -->
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+        <!-- Main Content -->
+        <div class="container mx-auto">
+            <!-- Page Title -->
+            <div class="mb-6 flex justify-between items-center">
+                <h1 class="text-2xl sm:text-3xl font-bold text-gray-800">Manage Branch Portal</h1>
+                
+                <!-- View Portal Button -->
+                {% if portal.slug %}
+                <a href="{% url 'branch_portal:portal_landing' slug=portal.slug %}" target="_blank" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    <i class="fas fa-external-link-alt mr-2"></i> View Live Portal
+                </a>
+                {% endif %}
+            </div>
+
+            <!-- Portal Management Tabs -->
+            <div class="bg-white shadow-sm rounded-lg overflow-hidden border border-gray-200">
+                <!-- Tab Navigation -->
+                <div class="border-b border-gray-200">
+                    <nav class="-mb-px flex space-x-8 px-6 pt-4" aria-label="Tabs">
+                        <a href="#branding" class="portal-tab border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm active">
+                            <i class="fas fa-palette mr-2"></i>Branding
+                        </a>
+                        <a href="#main-content" class="portal-tab border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+                            <i class="fas fa-file-alt mr-2"></i>Main Content
+                        </a>
+                        <a href="#feature-grid" class="portal-tab border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+                            <i class="fas fa-th-large mr-2"></i>Feature Grid
+                        </a>
+                        <a href="#pre-footer" class="portal-tab border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+                            <i class="fas fa-link mr-2"></i>Pre-Footer
+                        </a>
+                    </nav>
+                </div>
+                
+                <div class="p-6">
+                    <!-- Branding Tab Content -->
+                    <div id="branding-content" class="tab-content active">
+                    <form action="{% url 'branch_portal:update_portal' %}" method="POST" enctype="multipart/form-data" class="space-y-6">
+                        {% csrf_token %}
+                        
+                        <!-- Branch Management Info for Superadmins and Global Admins -->
+                        <div class="mb-6 bg-blue-50 p-4 rounded-lg">
+                            <div class="flex items-center">
+                                <i class="fas fa-info-circle text-blue-500 mr-3 text-lg"></i>
+                                <h3 class="text-md font-medium text-blue-700">
+                                    {% if request.user.role == 'superadmin' %}Business-Scoped Portal Management{% else %}Global Portal Management{% endif %}
+                                </h3>
+                            </div>
+                            <p class="mt-1 text-sm text-blue-600 mb-3">
+                                You're managing the portal for: <strong>{{ portal.branch.name }}</strong>
+                                {% if portal.branch.business %}
+                                    <br>Business: <strong>{{ portal.branch.business.name }}</strong>
+                                {% endif %}
+                                {% if request.user.role == 'superadmin' %}
+                                    <br><small class="text-blue-500">Note: You can only manage portals for branches within your assigned businesses.</small>
+                                {% endif %}
+                            </p>
+                            
+                            <input type="hidden" name="branch_id" value="{{ portal.branch.id }}">
+                            
+                            <div class="mt-2">
+                                <a href="{% url 'branch_portal:branch_dashboard' %}" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                                    <i class="fas fa-exchange-alt mr-1"></i> Switch to a different branch
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <!-- Branding Settings Content -->
+                        <div class="space-y-6">
+                            <h2 class="text-lg font-medium text-gray-900">Branding Settings</h2>
+                            
+                            <!-- Business Name -->
+                            <div>
+                                <label for="business_name" class="block text-sm font-medium text-gray-700">Business Name</label>
+                                <input type="text" name="business_name" id="business_name" value="{{ portal.business_name }}" required class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                                <p class="mt-1 text-sm text-gray-500">This will be displayed as the title of your landing page.</p>
+                            </div>
+                            
+                            <!-- URL Slug -->
+                            <div>
+                                <label for="slug" class="block text-sm font-medium text-gray-700">URL Slug</label>
+                                <div class="mt-1 flex rounded-md shadow-sm">
+                                    <span class="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm">
+                                        {{ request.get_host }}/branch-portal/
+                                    </span>
+                                    <input type="text" name="slug" id="slug" value="{{ portal.slug }}" required class="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-md border border-gray-300 sm:text-sm">
+                                </div>
+                                <p class="mt-1 text-sm text-gray-500">The URL where your landing page will be accessible.</p>
+                            </div>
+                            
+                            <!-- Logo -->
+                            <div>
+                                <label for="logo" class="block text-sm font-medium text-gray-700">Business Logo</label>
+                                <div class="mt-1 flex items-center">
+                                    <div class="flex-shrink-0 h-16 w-16 bg-gray-100 rounded-md overflow-hidden">
+                                        {% if portal.logo %}
+                                            <img src="{{ portal.logo.url }}" alt="Current logo" class="h-16 w-16 object-contain">
+                                        {% else %}
+                                            <div class="h-16 w-16 flex items-center justify-center text-gray-400">
+                                                <i class="fas fa-building text-2xl"></i>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="ml-5">
+                                        <input type="file" name="logo" id="logo" class="sr-only" accept="image/*">
+                                        <label for="logo" class="cursor-pointer py-2 px-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                                            Change
+                                        </label>
+                                        <p class="mt-1 text-xs text-gray-500">PNG, JPG, GIF up to 2MB</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Banner Image -->
+                            <div>
+                                <label for="banner_image" class="block text-sm font-medium text-gray-700">Banner Image</label>
+                                <div class="mt-1 flex items-center">
+                                    <div class="flex-shrink-0 h-24 w-full bg-gray-100 rounded-md overflow-hidden">
+                                        {% if portal.banner_image %}
+                                            <img src="{{ portal.banner_image.url }}" alt="Current banner" class="h-24 w-full object-cover">
+                                        {% else %}
+                                            <div class="h-24 w-full flex items-center justify-center text-gray-400">
+                                                <i class="fas fa-image text-2xl"></i>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="mt-2">
+                                    <input type="file" name="banner_image" id="banner_image" class="sr-only" accept="image/*">
+                                    <label for="banner_image" class="cursor-pointer py-2 px-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                                        Change Banner
+                                    </label>
+                                    <p class="mt-1 text-xs text-gray-500">Recommended size: 1200 x 400 pixels</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Banner Text -->
+                            <div>
+                                <label for="banner_text" class="block text-sm font-medium text-gray-700">Banner Text</label>
+                                <input type="text" name="banner_text" id="banner_text" value="{{ portal.banner_text }}" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                                <p class="mt-1 text-xs text-gray-500">Text to display over the banner image</p>
+                            </div>
+                            
+                            <!-- Color Theme -->
+                            <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
+                                <div>
+                                    <label for="primary_color" class="block text-sm font-medium text-gray-700">Primary Color</label>
+                                    <div class="mt-1 flex items-center">
+                                        <div class="color-preview" id="primary_color_preview" style="background-color: {{ portal.primary_color }};"></div>
+                                        <input type="color" id="primary_color_picker" value="{{ portal.primary_color }}" class="hidden">
+                                        <input type="text" name="primary_color" id="primary_color" value="{{ portal.primary_color }}" class="shadow-sm sm:text-sm border-gray-300 rounded-md">
+                                    </div>
+                                    <p class="mt-1 text-xs text-gray-500">Used for headers and main elements</p>
+                                </div>
+                                
+                                <div>
+                                    <label for="secondary_color" class="block text-sm font-medium text-gray-700">Secondary Color</label>
+                                    <div class="mt-1 flex items-center">
+                                        <div class="color-preview" id="secondary_color_preview" style="background-color: {{ portal.secondary_color }};"></div>
+                                        <input type="color" id="secondary_color_picker" value="{{ portal.secondary_color }}" class="hidden">
+                                        <input type="text" name="secondary_color" id="secondary_color" value="{{ portal.secondary_color }}" class="shadow-sm sm:text-sm border-gray-300 rounded-md">
+                                    </div>
+                                    <p class="mt-1 text-xs text-gray-500">Used for buttons and accents</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Font Family -->
+                            <div>
+                                <label for="font_family" class="block text-sm font-medium text-gray-700">Font Family</label>
+                                <select name="font_family" id="font_family" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                                    <option value="Inter, sans-serif" {% if portal.font_family == 'Inter, sans-serif' %}selected{% endif %}>Inter (Sans-serif)</option>
+                                    <option value="Roboto, sans-serif" {% if portal.font_family == 'Roboto, sans-serif' %}selected{% endif %}>Roboto (Sans-serif)</option>
+                                    <option value="Merriweather, serif" {% if portal.font_family == 'Merriweather, serif' %}selected{% endif %}>Merriweather (Serif)</option>
+                                    <option value="Poppins, sans-serif" {% if portal.font_family == 'Poppins, sans-serif' %}selected{% endif %}>Poppins (Sans-serif)</option>
+                                    <option value="Playfair Display, serif" {% if portal.font_family == 'Playfair Display, serif' %}selected{% endif %}>Playfair Display (Serif)</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Submit Button -->
+                        <div class="flex justify-end">
+                            <button type="submit" class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                Save Changes
+                            </button>
+                        </div>
+                    </form>
+                    </div>
+
+                    <!-- Main Content Tab -->
+                    <div id="main-content-content" class="tab-content">
+                        <div class="space-y-6">
+                            <div class="flex justify-between items-center">
+                                <h2 class="text-lg font-medium text-gray-900">Main Content Sections</h2>
+                                <button onclick="openMainContentModal()" 
+                                   class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                                    <i class="fas fa-plus mr-2"></i>Add Section
+                                </button>
+                            </div>
+                            
+                            <div class="bg-yellow-50 p-4 rounded-lg">
+                                <div class="flex">
+                                    <i class="fas fa-info-circle text-yellow-400 mr-3 mt-1"></i>
+                                    <div>
+                                        <h3 class="text-sm font-medium text-yellow-800">About Main Content Sections</h3>
+                                        <p class="mt-1 text-sm text-yellow-700">
+                                            Main content sections appear after the hero banner with a 2-row layout. Each section has title, description on one side and image/video on the other. Sections alternate left-right layout automatically.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div id="main-content-list" class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                                <table class="min-w-full divide-y divide-gray-300">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Media</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="main-content-table-body" class="bg-white divide-y divide-gray-200">
+                                        <!-- Content will be loaded via AJAX -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Feature Grid Tab -->
+                    <div id="feature-grid-content" class="tab-content">
+                        <div class="space-y-6">
+                            <div class="flex justify-between items-center">
+                                <h2 class="text-lg font-medium text-gray-900">Feature Grid Sections</h2>
+                                <button onclick="openFeatureGridModal()" 
+                                   class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                                    <i class="fas fa-plus mr-2"></i>Add Feature Grid
+                                </button>
+                            </div>
+                            
+                            <div class="bg-blue-50 p-4 rounded-lg">
+                                <div class="flex">
+                                    <i class="fas fa-info-circle text-blue-400 mr-3 mt-1"></i>
+                                    <div>
+                                        <h3 class="text-sm font-medium text-blue-800">About Feature Grid Sections</h3>
+                                        <p class="mt-1 text-sm text-blue-700">
+                                            Feature grids display up to 3 features per row. Each feature has an image, title, description, and optional custom link button. You can add multiple feature grid sections.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div id="feature-grid-list" class="space-y-4">
+                                <!-- Content will be loaded via AJAX -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pre-Footer Tab -->
+                    <div id="pre-footer-content" class="tab-content">
+                        <div class="space-y-6">
+                            <div class="flex justify-between items-center">
+                                <h2 class="text-lg font-medium text-gray-900">Pre-Footer Section</h2>
+                                <div class="space-x-2">
+                                    <button onclick="openPreFooterModal()" 
+                                       class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                                        <i class="fas fa-edit mr-2"></i>Configure Pre-Footer
+                                    </button>
+                                    <button id="addMenuLinkButton" onclick="openMenuLinkModal()" 
+                                       class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                        <i class="fas fa-link mr-2"></i>Add Menu Link
+                                    </button>
+                                    <button id="addSocialIconButton" onclick="openSocialIconModal()" 
+                                       class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                        <i class="fas fa-share-alt mr-2"></i>Add Social Icon
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-green-50 p-4 rounded-lg">
+                                <div class="flex">
+                                    <i class="fas fa-info-circle text-green-400 mr-3 mt-1"></i>
+                                    <div>
+                                        <h3 class="text-sm font-medium text-green-800">About Pre-Footer Section</h3>
+                                        <p class="mt-1 text-sm text-green-700">
+                                            The pre-footer has 3 columns: Logo + Description (auto-loads website logo), Custom Menu Links, and Social Media Icons. Only one pre-footer section per portal.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div id="pre-footer-display" class="bg-white p-6 rounded-lg border border-gray-200">
+                                <!-- Content will be loaded via AJAX -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Modal Forms -->
+
+<!-- Main Content Modal -->
+<div id="mainContentModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <div class="flex justify-between items-center pb-3">
+                <h3 class="text-lg font-bold text-gray-900" id="mainContentModalTitle">Add Main Content Section</h3>
+                <button onclick="closeMainContentModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <form id="mainContentForm" enctype="multipart/form-data" class="space-y-4">
+                <input type="hidden" id="main_content_section_id" name="section_id">
+                <input type="hidden" name="portal_id" value="{{ portal.id }}">
+                <input type="hidden" id="selected_media_type" name="selected_media_type" value="none">
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Title</label>
+                    <input type="text" id="main_content_title" name="title" required 
+                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Description</label>
+                    <textarea id="main_content_description" name="description" rows="4" required
+                              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Order</label>
+                        <input type="number" id="main_content_order" name="order" min="0" value="0"
+                               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    
+                    <div>
+                        <label class="flex items-center">
+                            <input type="checkbox" id="main_content_is_active" name="is_active" checked 
+                                   class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                            <span class="ml-2 text-sm text-gray-700">Active</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Media Type Selection -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-3">Media Type (Choose One)</label>
+                    <div class="space-y-3">
+                        <label class="flex items-center">
+                            <input type="radio" name="media_type" value="none" id="media_type_none" checked 
+                                   class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                            <span class="ml-2 text-sm text-gray-700">No Media</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="media_type" value="image" id="media_type_image" 
+                                   class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                            <span class="ml-2 text-sm text-gray-700">Image</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="media_type" value="video_file" id="media_type_video_file" 
+                                   class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                            <span class="ml-2 text-sm text-gray-700">Video File Upload</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="media_type" value="video_url" id="media_type_video_url" 
+                                   class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                            <span class="ml-2 text-sm text-gray-700">External Video URL</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Image Upload Section -->
+                <div id="image_section" class="hidden">
+                    <label class="block text-sm font-medium text-gray-700">Upload Image</label>
+                    <div id="current_image_display" class="mb-2 hidden">
+                        <div class="flex items-center space-x-3 p-3 bg-gray-50 rounded-md">
+                            <img id="current_image_preview" src="" alt="Current image" class="h-16 w-16 object-cover rounded">
+                            <div>
+                                <p class="text-sm font-medium text-gray-900">Current Image</p>
+                                <p class="text-xs text-gray-500">Choose a new file to replace</p>
+                            </div>
+                        </div>
+                    </div>
+                    <input type="file" id="main_content_image" name="image" accept="image/*"
+                           class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                    <p class="mt-1 text-xs text-gray-500">Recommended: JPG, PNG. Max size: 2MB</p>
+                </div>
+                
+                <!-- Video File Upload Section -->
+                <div id="video_file_section" class="hidden">
+                    <label class="block text-sm font-medium text-gray-700">Upload Video File</label>
+                    <div id="current_video_display" class="mb-2 hidden">
+                        <div class="flex items-center space-x-3 p-3 bg-gray-50 rounded-md">
+                            <div class="h-16 w-16 bg-gray-200 rounded flex items-center justify-center">
+                                <i class="fas fa-video text-gray-500 text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm font-medium text-gray-900">Current Video File</p>
+                                <p class="text-xs text-gray-500">Choose a new file to replace</p>
+                                <a id="current_video_link" href="" target="_blank" class="text-xs text-indigo-600 hover:text-indigo-900">View current video</a>
+                            </div>
+                        </div>
+                    </div>
+                    <input type="file" id="main_content_video" name="video" accept="video/*"
+                           class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                    <p class="mt-1 text-xs text-gray-500">Supported: MP4, AVI, MOV, WMV. Max size: 50MB</p>
+                </div>
+                
+                <!-- Video URL Section -->
+                <div id="video_url_section" class="hidden">
+                    <label class="block text-sm font-medium text-gray-700">External Video URL</label>
+                    <input type="url" id="main_content_video_url" name="video_url" placeholder="https://youtube.com/watch?v=... or https://vimeo.com/..."
+                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    <p class="mt-1 text-xs text-gray-500">Supported: YouTube, Vimeo, and other video platforms</p>
+                </div>
+                
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" onclick="closeMainContentModal()" 
+                            class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                            class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                        Save Section
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Feature Grid Modal -->
+<div id="featureGridModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <div class="flex justify-between items-center pb-3">
+                <h3 class="text-lg font-bold text-gray-900" id="featureGridModalTitle">Add Feature Grid Section</h3>
+                <button onclick="closeFeatureGridModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <form id="featureGridForm" class="space-y-4">
+                <input type="hidden" id="feature_grid_section_id" name="section_id">
+                <input type="hidden" name="portal_id" value="{{ portal.id }}">
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Section Title (Optional)</label>
+                    <input type="text" id="feature_grid_section_title" name="section_title"
+                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Section Description (Optional)</label>
+                    <textarea id="feature_grid_section_description" name="section_description" rows="3"
+                              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Order</label>
+                        <input type="number" id="feature_grid_order" name="order" min="0" value="0"
+                               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    
+                    <div>
+                        <label class="flex items-center">
+                            <input type="checkbox" id="feature_grid_is_active" name="is_active" checked 
+                                   class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                            <span class="ml-2 text-sm text-gray-700">Active</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" onclick="closeFeatureGridModal()" 
+                            class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                            class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                        Save Grid Section
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Feature Grid Item Modal -->
+<div id="featureGridItemModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <div class="flex justify-between items-center pb-3">
+                <h3 class="text-lg font-bold text-gray-900" id="featureGridItemModalTitle">Add Feature Item</h3>
+                <button onclick="closeFeatureGridItemModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <form id="featureGridItemForm" enctype="multipart/form-data" class="space-y-4">
+                <input type="hidden" id="feature_grid_item_id" name="item_id">
+                <input type="hidden" id="feature_grid_item_section_id" name="section_id">
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Title</label>
+                    <input type="text" id="feature_grid_item_title" name="title" required 
+                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Description</label>
+                    <textarea id="feature_grid_item_description" name="description" rows="3" required
+                              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Image</label>
+                    <div id="current_feature_item_image_display" class="mb-2 hidden">
+                        <div class="flex items-center space-x-3 p-3 bg-gray-50 rounded-md">
+                            <img id="current_feature_item_image_preview" src="" alt="Current image" class="h-16 w-16 object-cover rounded">
+                            <div>
+                                <p class="text-sm font-medium text-gray-900">Current Image</p>
+                                <p class="text-xs text-gray-500">Choose a new file to replace</p>
+                            </div>
+                        </div>
+                    </div>
+                    <input type="file" id="feature_grid_item_image" name="image" accept="image/*"
+                           class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                    <p class="mt-1 text-xs text-gray-500">Recommended: JPG, PNG. Max size: 2MB</p>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Link URL (Optional)</label>
+                        <input type="url" id="feature_grid_item_link_url" name="link_url"
+                               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Link Text</label>
+                        <input type="text" id="feature_grid_item_link_text" name="link_text" value="Learn More"
+                               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Order</label>
+                        <input type="number" id="feature_grid_item_order" name="order" min="0" value="0"
+                               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    
+                    <div>
+                        <label class="flex items-center">
+                            <input type="checkbox" id="feature_grid_item_is_active" name="is_active" checked 
+                                   class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                            <span class="ml-2 text-sm text-gray-700">Active</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" onclick="closeFeatureGridItemModal()" 
+                            class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                            class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                        Save Feature Item
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Pre-Footer Modal -->
+<div id="preFooterModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <div class="flex justify-between items-center pb-3">
+                <h3 class="text-lg font-bold text-gray-900">Configure Pre-Footer</h3>
+                <button onclick="closePreFooterModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <form id="preFooterForm" class="space-y-4">
+                <input type="hidden" name="portal_id" value="{{ portal.id }}">
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Description</label>
+                    <textarea id="pre_footer_description" name="description" rows="4"
+                              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                              placeholder="Short description to display with the logo in the pre-footer (optional)"></textarea>
+                </div>
+                
+                <div>
+                    <label class="flex items-center">
+                        <input type="checkbox" id="pre_footer_is_active" name="is_active" checked 
+                               class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        <span class="ml-2 text-sm text-gray-700">Active</span>
+                    </label>
+                </div>
+                
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" onclick="closePreFooterModal()" 
+                            class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                            class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                        Save Pre-Footer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Menu Link Modal -->
+<div id="menuLinkModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-1/2 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <div class="flex justify-between items-center pb-3">
+                <h3 class="text-lg font-bold text-gray-900" id="menuLinkModalTitle">Add Menu Link</h3>
+                <button onclick="closeMenuLinkModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <form id="menuLinkForm" class="space-y-4">
+                <input type="hidden" id="menu_link_pre_footer_id" name="pre_footer_id">
+                <input type="hidden" id="menu_link_id" name="link_id">
+                <input type="hidden" id="menu_link_action" name="action" value="create">
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Link Title</label>
+                    <input type="text" id="menu_link_title" name="title" required 
+                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Link URL</label>
+                    <input type="url" id="menu_link_url" name="url" required 
+                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Order</label>
+                        <input type="number" id="menu_link_order" name="order" min="0" value="0"
+                               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    
+                    <div>
+                        <label class="flex items-center">
+                            <input type="checkbox" id="menu_link_is_active" name="is_active" checked 
+                                   class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                            <span class="ml-2 text-sm text-gray-700">Active</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" onclick="closeMenuLinkModal()" 
+                            class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                            class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                        Save Link
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Social Icon Modal -->
+<div id="socialIconModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-1/2 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <div class="flex justify-between items-center pb-3">
+                <h3 class="text-lg font-bold text-gray-900" id="socialIconModalTitle">Add Social Icon</h3>
+                <button onclick="closeSocialIconModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <form id="socialIconForm" enctype="multipart/form-data" class="space-y-4">
+                <input type="hidden" id="social_icon_pre_footer_id" name="pre_footer_id">
+                <input type="hidden" id="social_icon_id" name="icon_id">
+                <input type="hidden" id="social_icon_action" name="action" value="create">
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Platform Name</label>
+                    <input type="text" id="social_icon_platform_name" name="platform_name" required 
+                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                           placeholder="e.g., Facebook, Twitter, Instagram">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Profile URL</label>
+                    <input type="url" id="social_icon_url" name="url" required 
+                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Icon Image</label>
+                    <input type="file" id="social_icon_file" name="icon" accept="image/*"
+                           class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Order</label>
+                        <input type="number" id="social_icon_order" name="order" min="0" value="0"
+                               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    
+                    <div>
+                        <label class="flex items-center">
+                            <input type="checkbox" id="social_icon_is_active" name="is_active" checked 
+                                   class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                            <span class="ml-2 text-sm text-gray-700">Active</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" onclick="closeSocialIconModal()" 
+                            class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                            class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                        Save Social Icon
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<style>
+    .tab-content {
+        display: none;
+    }
+    .tab-content.active {
+        display: block;
+    }
+    .portal-tab.active {
+        border-color: #3b82f6;
+        color: #3b82f6;
+    }
+</style>
+
+<script>
+    const portalId = {{ portal.id }};
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    
+    // Tab functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        // Tab switching
+        const tabs = document.querySelectorAll('.portal-tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+        
+        tabs.forEach(tab => {
+            tab.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // Remove active class from all tabs and contents
+                tabs.forEach(t => t.classList.remove('active'));
+                tabContents.forEach(tc => tc.classList.remove('active'));
+                
+                // Add active class to clicked tab
+                this.classList.add('active');
+                
+                // Show corresponding content
+                const targetId = this.getAttribute('href').substring(1) + '-content';
+                const targetContent = document.getElementById(targetId);
+                if (targetContent) {
+                    targetContent.classList.add('active');
+                    
+                    // Load content based on tab
+                    if (targetId === 'main-content-content') {
+                        loadMainContentSections();
+                    } else if (targetId === 'feature-grid-content') {
+                        loadFeatureGridSections();
+                    } else if (targetId === 'pre-footer-content') {
+                        loadPreFooterSection();
+                    }
+                }
+            });
+        });
+        
+        // Media type radio button handlers
+        const mediaTypeRadios = document.querySelectorAll('input[name="media_type"]');
+        mediaTypeRadios.forEach(radio => {
+            radio.addEventListener('change', function() {
+                handleMediaTypeChange(this.value);
+            });
+        });
+        
+        // Load initial content for active tab
+        loadMainContentSections();
+    });
+
+    // Update slug based on business name
+    document.getElementById('business_name').addEventListener('input', function() {
+        // Only update slug if it hasn't been manually edited
+        const slugInput = document.getElementById('slug');
+        const businessName = this.value;
+        
+        // Create slug: lowercase, replace spaces with hyphens, remove special chars
+        const slug = businessName.toLowerCase()
+            .replace(/\s+/g, '-')
+            .replace(/[^\w\-]+/g, '');
+            
+        slugInput.value = slug;
+    });
+    
+    // Color picker functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        // Primary color
+        const primaryColorPreview = document.getElementById('primary_color_preview');
+        const primaryColorPicker = document.getElementById('primary_color_picker');
+        const primaryColorInput = document.getElementById('primary_color');
+        
+        primaryColorPreview.addEventListener('click', function() {
+            primaryColorPicker.click();
+        });
+        
+        primaryColorPicker.addEventListener('input', function() {
+            const color = this.value;
+            primaryColorPreview.style.backgroundColor = color;
+            primaryColorInput.value = color;
+        });
+        
+        primaryColorInput.addEventListener('input', function() {
+            const color = this.value;
+            primaryColorPreview.style.backgroundColor = color;
+            primaryColorPicker.value = color;
+        });
+        
+        // Secondary color
+        const secondaryColorPreview = document.getElementById('secondary_color_preview');
+        const secondaryColorPicker = document.getElementById('secondary_color_picker');
+        const secondaryColorInput = document.getElementById('secondary_color');
+        
+        secondaryColorPreview.addEventListener('click', function() {
+            secondaryColorPicker.click();
+        });
+        
+        secondaryColorPicker.addEventListener('input', function() {
+            const color = this.value;
+            secondaryColorPreview.style.backgroundColor = color;
+            secondaryColorInput.value = color;
+        });
+        
+        secondaryColorInput.addEventListener('input', function() {
+            const color = this.value;
+            secondaryColorPreview.style.backgroundColor = color;
+            secondaryColorPicker.value = color;
+        });
+    });
+
+    // AJAX utility function
+    function makeAjaxRequest(url, method, data, successCallback, errorCallback) {
+        fetch(url, {
+            method: method,
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: data
+        })
+        .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+        .then(data => {
+            if (data.success) {
+                successCallback(data);
+            } else {
+                errorCallback(data.message || 'An error occurred');
+            }
+        })
+        .catch(error => {
+            errorCallback('Network error: ' + error.message);
+        });
+    }
+
+    // Show success/error messages
+    function showMessage(message, type = 'success') {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `fixed top-4 right-4 z-50 px-4 py-2 rounded-md text-white ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
+        messageDiv.textContent = message;
+        document.body.appendChild(messageDiv);
+        
+        setTimeout(() => {
+            messageDiv.remove();
+        }, 3000);
+    }
+
+    // Handle media type selection
+    function handleMediaTypeChange(mediaType) {
+        // Hide all media sections
+        document.getElementById('image_section').classList.add('hidden');
+        document.getElementById('video_file_section').classList.add('hidden');
+        document.getElementById('video_url_section').classList.add('hidden');
+        
+        // Update hidden field with selected media type
+        document.getElementById('selected_media_type').value = mediaType;
+        
+        // Show the selected media section
+        switch(mediaType) {
+            case 'image':
+                document.getElementById('image_section').classList.remove('hidden');
+                break;
+            case 'video_file':
+                document.getElementById('video_file_section').classList.remove('hidden');
+                break;
+            case 'video_url':
+                document.getElementById('video_url_section').classList.remove('hidden');
+                break;
+            case 'none':
+            default:
+                // All sections remain hidden
+                break;
+        }
+    }
+
+    // Determine current media type from section data
+    function getCurrentMediaType(section) {
+        if (section.image_url) {
+            return 'image';
+        } else if (section.video_file_url) {
+            return 'video_file';
+        } else if (section.video_url) {
+            return 'video_url';
+        } else {
+            return 'none';
+        }
+    }
+
+    // Main Content Functions
+    function loadMainContentSections() {
+        const url = `{% url 'branch_portal:ajax_manage_main_content' %}?portal_id=${portalId}`;
+        
+        makeAjaxRequest(url, 'GET', null,
+            function(data) {
+                displayMainContentSections(data.sections);
+            },
+            function(error) {
+                console.error('Error loading main content sections:', error);
+            }
+        );
+    }
+
+    function displayMainContentSections(sections) {
+        const tbody = document.getElementById('main-content-table-body');
+        tbody.innerHTML = '';
+        
+        if (sections.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">
+                        No main content sections created yet. 
+                        <button onclick="openMainContentModal()" class="text-indigo-600 hover:text-indigo-900">Add one now</button>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        sections.forEach(section => {
+            // Determine media type with priority: Image > Video File > Video URL > None
+            let mediaType = 'None';
+            let mediaIcon = '<i class="fas fa-ban text-gray-400"></i>';
+            
+            if (section.has_image) {
+                mediaType = 'Image';
+                mediaIcon = '<i class="fas fa-image text-blue-500"></i>';
+            } else if (section.has_video) {
+                mediaType = 'Video File';
+                mediaIcon = '<i class="fas fa-video text-green-500"></i>';
+            } else if (section.has_video_url) {
+                mediaType = 'External Video';
+                mediaIcon = '<i class="fas fa-external-link-alt text-purple-500"></i>';
+            }
+            
+            const statusBadge = section.is_active ? 
+                '<span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Active</span>' :
+                '<span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">Inactive</span>';
+            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${section.title}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${section.order}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <div class="flex items-center space-x-2">
+                        ${mediaIcon}
+                        <span>${mediaType}</span>
+                    </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">${statusBadge}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <button onclick="editMainContentSection(${section.id})" class="text-indigo-600 hover:text-indigo-900 mr-3">Edit</button>
+                    <button onclick="deleteMainContentSection(${section.id})" class="text-red-600 hover:text-red-900">Delete</button>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
+    function openMainContentModal(sectionId = null) {
+        const modal = document.getElementById('mainContentModal');
+        const modalTitle = document.getElementById('mainContentModalTitle');
+        const form = document.getElementById('mainContentForm');
+        
+        // Reset form
+        form.reset();
+        document.getElementById('main_content_section_id').value = '';
+        
+        // Hide current file displays by default
+        document.getElementById('current_image_display').classList.add('hidden');
+        document.getElementById('current_video_display').classList.add('hidden');
+        
+        if (sectionId) {
+            modalTitle.textContent = 'Edit Main Content Section';
+            // Load section data for editing
+            loadMainContentSectionForEdit(sectionId);
+        } else {
+            modalTitle.textContent = 'Add Main Content Section';
+            // Reset to "No Media" for new sections
+            document.getElementById('media_type_none').checked = true;
+            document.getElementById('selected_media_type').value = 'none';
+            handleMediaTypeChange('none');
+        }
+        
+        modal.classList.remove('hidden');
+    }
+
+    function closeMainContentModal() {
+        document.getElementById('mainContentModal').classList.add('hidden');
+    }
+
+    function loadMainContentSectionForEdit(sectionId) {
+        // Find the section data from the already loaded sections
+        const url = `{% url 'branch_portal:ajax_manage_main_content' %}?portal_id=${portalId}`;
+        
+        makeAjaxRequest(url, 'GET', null,
+            function(data) {
+                const section = data.sections.find(s => s.id == sectionId);
+                if (section) {
+                    // Populate basic fields
+                    document.getElementById('main_content_section_id').value = section.id;
+                    document.getElementById('main_content_title').value = section.title;
+                    document.getElementById('main_content_description').value = section.description;
+                    document.getElementById('main_content_order').value = section.order;
+                    document.getElementById('main_content_is_active').checked = section.is_active;
+                    document.getElementById('main_content_video_url').value = section.video_url || '';
+                    
+                    // Determine and set media type
+                    const currentMediaType = getCurrentMediaType(section);
+                    
+                    // Set the appropriate radio button
+                    document.getElementById(`media_type_${currentMediaType}`).checked = true;
+                    
+                    // Set the hidden field
+                    document.getElementById('selected_media_type').value = currentMediaType;
+                    
+                    // Show the appropriate media section
+                    handleMediaTypeChange(currentMediaType);
+                    
+                    // Handle current image display
+                    const currentImageDisplay = document.getElementById('current_image_display');
+                    const currentImagePreview = document.getElementById('current_image_preview');
+                    if (section.image_url) {
+                        currentImagePreview.src = section.image_url;
+                        currentImageDisplay.classList.remove('hidden');
+                    } else {
+                        currentImageDisplay.classList.add('hidden');
+                    }
+                    
+                    // Handle current video file display
+                    const currentVideoDisplay = document.getElementById('current_video_display');
+                    const currentVideoLink = document.getElementById('current_video_link');
+                    if (section.video_file_url) {
+                        currentVideoLink.href = section.video_file_url;
+                        currentVideoDisplay.classList.remove('hidden');
+                    } else {
+                        currentVideoDisplay.classList.add('hidden');
+                    }
+                }
+            },
+            function(error) {
+                showMessage('Error loading section data: ' + error, 'error');
+            }
+        );
+    }
+
+    function editMainContentSection(sectionId) {
+        openMainContentModal(sectionId);
+    }
+
+    function deleteMainContentSection(sectionId) {
+        if (!confirm('Are you sure you want to delete this main content section?')) {
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('section_id', sectionId);
+        
+        makeAjaxRequest('{% url "branch_portal:ajax_delete_main_content" %}', 'POST', formData,
+            function(data) {
+                showMessage(data.message);
+                loadMainContentSections();
+            },
+            function(error) {
+                showMessage(error, 'error');
+            }
+        );
+    }
+
+    // Main Content Form Submit
+    document.getElementById('mainContentForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Validate that title and description are provided
+        const title = document.getElementById('main_content_title').value.trim();
+        const description = document.getElementById('main_content_description').value.trim();
+        
+        if (!title || !description) {
+            showMessage('Title and description are required', 'error');
+            return;
+        }
+        
+        // Get selected media type
+        const selectedMediaType = document.querySelector('input[name="media_type"]:checked').value;
+        
+        // Validate media type selection
+        if (selectedMediaType === 'image') {
+            const hasNewImage = document.getElementById('main_content_image').files.length > 0;
+            const hasExistingImage = !document.getElementById('current_image_display').classList.contains('hidden');
+            if (!hasNewImage && !hasExistingImage) {
+                showMessage('Please select an image file or choose a different media type', 'error');
+                return;
+            }
+        } else if (selectedMediaType === 'video_file') {
+            const hasNewVideo = document.getElementById('main_content_video').files.length > 0;
+            const hasExistingVideo = !document.getElementById('current_video_display').classList.contains('hidden');
+            if (!hasNewVideo && !hasExistingVideo) {
+                showMessage('Please select a video file or choose a different media type', 'error');
+                return;
+            }
+        } else if (selectedMediaType === 'video_url') {
+            const videoUrl = document.getElementById('main_content_video_url').value.trim();
+            if (!videoUrl) {
+                showMessage('Please provide a video URL or select a different media type', 'error');
+                return;
+            }
+        }
+        
+        const formData = new FormData(this);
+        
+        makeAjaxRequest('{% url "branch_portal:ajax_manage_main_content" %}', 'POST', formData,
+            function(data) {
+                showMessage(data.message);
+                closeMainContentModal();
+                loadMainContentSections();
+            },
+            function(error) {
+                showMessage(error, 'error');
+            }
+        );
+    });
+
+    // Feature Grid Functions
+    function loadFeatureGridSections() {
+        const url = `{% url 'branch_portal:ajax_manage_feature_grid' %}?portal_id=${portalId}`;
+        
+        makeAjaxRequest(url, 'GET', null,
+            function(data) {
+                displayFeatureGridSections(data.sections);
+            },
+            function(error) {
+                console.error('Error loading feature grid sections:', error);
+            }
+        );
+    }
+
+    function displayFeatureGridSections(sections) {
+        const container = document.getElementById('feature-grid-list');
+        container.innerHTML = '';
+        
+        if (sections.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-8">
+                    <p class="text-sm text-gray-500">
+                        No feature grid sections created yet. 
+                        <button onclick="openFeatureGridModal()" class="text-indigo-600 hover:text-indigo-900">Add one now</button>
+                    </p>
+                </div>
+            `;
+            return;
+        }
+        
+        sections.forEach(section => {
+            const sectionDiv = document.createElement('div');
+            sectionDiv.className = 'bg-white p-4 rounded-lg border border-gray-200';
+            
+            let itemsHtml = '';
+            if (section.items.length === 0) {
+                itemsHtml = '<div class="col-span-3 text-center text-sm text-gray-500">No items in this grid yet.</div>';
+            } else {
+                itemsHtml = section.items.map(item => `
+                    <div class="border border-gray-200 rounded p-3 ${item.is_active ? '' : 'opacity-50 bg-gray-50'}">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <h4 class="font-medium">${item.title}</h4>
+                                ${item.is_active ? '' : '<span class="text-xs text-gray-500 italic">Inactive</span>'}
+                            </div>
+                            <div class="flex space-x-1">
+                                <button onclick="editFeatureGridItem(${section.id}, ${item.id})" class="text-xs text-indigo-600 hover:text-indigo-900">Edit</button>
+                                <button onclick="deleteFeatureGridItem(${item.id})" class="text-xs text-red-600 hover:text-red-900">Delete</button>
+                            </div>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-1">${item.description ? item.description.substring(0, 50) + (item.description.length > 50 ? '...' : '') : 'No description'}</p>
+                        ${item.link_url ? `<p class="text-xs text-blue-600 mt-2">Links to: ${item.link_text}</p>` : ''}
+                    </div>
+                `).join('');
+            }
+            
+            sectionDiv.innerHTML = `
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <h3 class="text-lg font-medium">
+                            ${section.section_title || `Feature Grid #${section.id}`}
+                        </h3>
+                        <p class="text-sm text-gray-500">Order: ${section.order} | 
+                            ${section.is_active ? 'Active' : 'Inactive'}
+                        </p>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="editFeatureGridSection(${section.id})" class="text-indigo-600 hover:text-indigo-900 text-sm">Edit</button>
+                        <button onclick="addFeatureGridItem(${section.id})" class="text-green-600 hover:text-green-900 text-sm">Add Item</button>
+                        <button onclick="deleteFeatureGridSection(${section.id})" class="text-red-600 hover:text-red-900 text-sm">Delete</button>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    ${itemsHtml}
+                </div>
+            `;
+            
+            container.appendChild(sectionDiv);
+        });
+    }
+
+    function openFeatureGridModal(sectionId = null) {
+        const modal = document.getElementById('featureGridModal');
+        const modalTitle = document.getElementById('featureGridModalTitle');
+        const form = document.getElementById('featureGridForm');
+        
+        // Reset form
+        form.reset();
+        document.getElementById('feature_grid_section_id').value = '';
+        
+        if (sectionId) {
+            modalTitle.textContent = 'Edit Feature Grid Section';
+            document.getElementById('feature_grid_section_id').value = sectionId;
+        } else {
+            modalTitle.textContent = 'Add Feature Grid Section';
+        }
+        
+        modal.classList.remove('hidden');
+    }
+
+    function closeFeatureGridModal() {
+        document.getElementById('featureGridModal').classList.add('hidden');
+    }
+
+    function editFeatureGridSection(sectionId) {
+        openFeatureGridModal(sectionId);
+        loadFeatureGridSectionForEdit(sectionId);
+    }
+
+    function loadFeatureGridSectionForEdit(sectionId) {
+        const url = `{% url 'branch_portal:ajax_manage_feature_grid' %}?portal_id=${portalId}`;
+        
+        makeAjaxRequest(url, 'GET', null,
+            function(data) {
+                const section = data.sections.find(s => s.id == sectionId);
+                if (section) {
+                    document.getElementById('feature_grid_section_id').value = section.id;
+                    document.getElementById('feature_grid_section_title').value = section.section_title || '';
+                    document.getElementById('feature_grid_section_description').value = section.section_description || '';
+                    document.getElementById('feature_grid_order').value = section.order;
+                    document.getElementById('feature_grid_is_active').checked = section.is_active;
+                }
+            },
+            function(error) {
+                showMessage('Error loading section data: ' + error, 'error');
+            }
+        );
+    }
+
+    function deleteFeatureGridSection(sectionId) {
+        if (!confirm('Are you sure you want to delete this feature grid section and all its items?')) {
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('section_id', sectionId);
+        
+        makeAjaxRequest('{% url "branch_portal:ajax_delete_feature_grid" %}', 'POST', formData,
+            function(data) {
+                showMessage(data.message);
+                loadFeatureGridSections();
+            },
+            function(error) {
+                showMessage(error, 'error');
+            }
+        );
+    }
+
+    // Feature Grid Form Submit
+    document.getElementById('featureGridForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        
+        makeAjaxRequest('{% url "branch_portal:ajax_manage_feature_grid" %}', 'POST', formData,
+            function(data) {
+                showMessage(data.message);
+                closeFeatureGridModal();
+                loadFeatureGridSections();
+            },
+            function(error) {
+                showMessage(error, 'error');
+            }
+        );
+    });
+
+    // Feature Grid Item Functions
+    function addFeatureGridItem(sectionId) {
+        openFeatureGridItemModal(sectionId);
+    }
+
+    function editFeatureGridItem(sectionId, itemId) {
+        openFeatureGridItemModal(sectionId, itemId);
+        loadFeatureGridItemForEdit(sectionId, itemId);
+    }
+
+    function loadFeatureGridItemForEdit(sectionId, itemId) {
+        const url = `{% url 'branch_portal:ajax_manage_feature_grid' %}?portal_id=${portalId}`;
+        
+        makeAjaxRequest(url, 'GET', null,
+            function(data) {
+                const section = data.sections.find(s => s.id == sectionId);
+                if (section) {
+                    const item = section.items.find(i => i.id == itemId);
+                    if (item) {
+                        // Populate basic fields
+                        document.getElementById('feature_grid_item_id').value = item.id;
+                        document.getElementById('feature_grid_item_section_id').value = sectionId;
+                        document.getElementById('feature_grid_item_title').value = item.title;
+                        document.getElementById('feature_grid_item_description').value = item.description;
+                        document.getElementById('feature_grid_item_order').value = item.order;
+                        document.getElementById('feature_grid_item_is_active').checked = item.is_active;
+                        document.getElementById('feature_grid_item_link_url').value = item.link_url || '';
+                        document.getElementById('feature_grid_item_link_text').value = item.link_text || 'Learn More';
+                        
+                        // Handle current image display
+                        const currentImageDisplay = document.getElementById('current_feature_item_image_display');
+                        const currentImagePreview = document.getElementById('current_feature_item_image_preview');
+                        if (item.image_url) {
+                            currentImagePreview.src = item.image_url;
+                            currentImageDisplay.classList.remove('hidden');
+                        } else {
+                            currentImageDisplay.classList.add('hidden');
+                        }
+                    }
+                }
+            },
+            function(error) {
+                showMessage('Error loading item data: ' + error, 'error');
+            }
+        );
+    }
+
+    function openFeatureGridItemModal(sectionId, itemId = null) {
+        const modal = document.getElementById('featureGridItemModal');
+        const modalTitle = document.getElementById('featureGridItemModalTitle');
+        const form = document.getElementById('featureGridItemForm');
+        
+        // Reset form
+        form.reset();
+        document.getElementById('feature_grid_item_id').value = '';
+        document.getElementById('feature_grid_item_section_id').value = sectionId;
+        
+        // Hide current image display by default
+        document.getElementById('current_feature_item_image_display').classList.add('hidden');
+        
+        if (itemId) {
+            modalTitle.textContent = 'Edit Feature Item';
+            document.getElementById('feature_grid_item_id').value = itemId;
+        } else {
+            modalTitle.textContent = 'Add Feature Item';
+        }
+        
+        modal.classList.remove('hidden');
+    }
+
+    function closeFeatureGridItemModal() {
+        document.getElementById('featureGridItemModal').classList.add('hidden');
+    }
+
+    function deleteFeatureGridItem(itemId) {
+        if (!confirm('Are you sure you want to delete this feature item?')) {
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('item_id', itemId);
+        
+        makeAjaxRequest('{% url "branch_portal:ajax_delete_feature_grid_item" %}', 'POST', formData,
+            function(data) {
+                showMessage(data.message);
+                loadFeatureGridSections();
+            },
+            function(error) {
+                showMessage(error, 'error');
+            }
+        );
+    }
+
+    // Feature Grid Item Form Submit
+    document.getElementById('featureGridItemForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        
+        makeAjaxRequest('{% url "branch_portal:ajax_manage_feature_grid_item" %}', 'POST', formData,
+            function(data) {
+                showMessage(data.message);
+                closeFeatureGridItemModal();
+                loadFeatureGridSections();
+            },
+            function(error) {
+                showMessage(error, 'error');
+            }
+        );
+    });
+
+    // Pre-Footer Functions
+    function loadPreFooterSection() {
+        const url = `{% url 'branch_portal:ajax_manage_pre_footer' %}?portal_id=${portalId}`;
+        
+        makeAjaxRequest(url, 'GET', null,
+            function(data) {
+                displayPreFooterSection(data.pre_footer);
+            },
+            function(error) {
+                console.error('Error loading pre-footer section:', error);
+            }
+        );
+    }
+
+    function displayPreFooterSection(preFooter) {
+        const container = document.getElementById('pre-footer-display');
+        
+        // Update button onclick handlers to include pre-footer ID
+        const addMenuLinkButton = document.getElementById('addMenuLinkButton');
+        const addSocialIconButton = document.getElementById('addSocialIconButton');
+        
+        if (!preFooter) {
+            container.innerHTML = `
+                <div class="text-center py-8">
+                    <p class="text-sm text-gray-500">
+                        No pre-footer section created yet. 
+                        <button onclick="openPreFooterModal()" class="text-indigo-600 hover:text-indigo-900">Create one now</button>
+                    </p>
+                </div>
+            `;
+            
+            // Disable add buttons when no pre-footer exists
+            if (addMenuLinkButton) {
+                addMenuLinkButton.disabled = true;
+                addMenuLinkButton.className = addMenuLinkButton.className.replace('hover:bg-gray-50', 'opacity-50 cursor-not-allowed');
+            }
+            if (addSocialIconButton) {
+                addSocialIconButton.disabled = true;
+                addSocialIconButton.className = addSocialIconButton.className.replace('hover:bg-gray-50', 'opacity-50 cursor-not-allowed');
+            }
+            
+            return;
+        }
+        
+        // Enable add buttons and update their onclick handlers
+        if (addMenuLinkButton) {
+            addMenuLinkButton.disabled = false;
+            addMenuLinkButton.className = addMenuLinkButton.className.replace('opacity-50 cursor-not-allowed', 'hover:bg-gray-50');
+            addMenuLinkButton.onclick = () => openMenuLinkModal(preFooter.id);
+        }
+        if (addSocialIconButton) {
+            addSocialIconButton.disabled = false;
+            addSocialIconButton.className = addSocialIconButton.className.replace('opacity-50 cursor-not-allowed', 'hover:bg-gray-50');
+            addSocialIconButton.onclick = () => openSocialIconModal(preFooter.id);
+        }
+        
+        const menuLinksHtml = preFooter.menu_links.length ? 
+            preFooter.menu_links.map(link => `
+                <div class="text-sm mb-1 flex justify-between items-center ${link.is_active ? '' : 'opacity-50'}">
+                    <div>
+                        <span class="font-medium">${link.title}</span>
+                        ${link.is_active ? '' : '<span class="text-xs text-gray-500 italic ml-1">(Inactive)</span>'}
+                        <br><span class="text-gray-600 text-xs">${link.url ? link.url.substring(0, 40) + (link.url.length > 40 ? '...' : '') : 'No URL'}</span>
+                    </div>
+                    <div class="flex space-x-1">
+                        <button onclick="editMenuLink(${preFooter.id}, ${link.id})" class="text-xs text-indigo-600 hover:text-indigo-900">Edit</button>
+                        <button onclick="deleteMenuLink(${preFooter.id}, ${link.id})" class="text-xs text-red-600 hover:text-red-900">Delete</button>
+                    </div>
+                </div>
+            `).join('') :
+            '<p class="text-sm text-gray-500">No menu links added yet.</p>';
+        
+        const socialIconsHtml = preFooter.social_icons.length ?
+            preFooter.social_icons.map(icon => `
+                <div class="text-sm mb-1 flex justify-between items-center ${icon.is_active ? '' : 'opacity-50'}">
+                    <div>
+                        <span class="font-medium">${icon.platform_name}</span>
+                        ${icon.is_active ? '' : '<span class="text-xs text-gray-500 italic ml-1">(Inactive)</span>'}
+                    </div>
+                    <div class="flex space-x-1">
+                        <button onclick="editSocialIcon(${preFooter.id}, ${icon.id})" class="text-xs text-indigo-600 hover:text-indigo-900">Edit</button>
+                        <button onclick="deleteSocialIcon(${preFooter.id}, ${icon.id})" class="text-xs text-red-600 hover:text-red-900">Delete</button>
+                    </div>
+                </div>
+            `).join('') :
+            '<p class="text-sm text-gray-500">No social icons added yet.</p>';
+        
+        container.innerHTML = `
+            <div class="flex justify-between items-start mb-4">
+                <h3 class="text-lg font-medium">Pre-Footer Configuration</h3>
+                <button onclick="openPreFooterModal()" class="text-indigo-600 hover:text-indigo-900">Edit</button>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Column 1: Logo & Description -->
+                <div>
+                    <h4 class="font-medium mb-2">Logo & Description</h4>
+                    <div class="bg-gray-50 p-3 rounded">
+                        <p class="text-sm text-gray-600">${preFooter.description ? preFooter.description.substring(0, 100) + (preFooter.description.length > 100 ? '...' : '') : 'No description provided'}</p>
+                        <p class="text-xs text-gray-500 mt-2">Status: 
+                            ${preFooter.is_active ? 'Active' : 'Inactive'}
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- Column 2: Menu Links -->
+                <div>
+                    <h4 class="font-medium mb-2">Menu Links (${preFooter.menu_links.length})</h4>
+                    <div class="bg-gray-50 p-3 rounded max-h-32 overflow-y-auto">
+                        ${menuLinksHtml}
+                    </div>
+                </div>
+                
+                <!-- Column 3: Social Icons -->
+                <div>
+                    <h4 class="font-medium mb-2">Social Icons (${preFooter.social_icons.length})</h4>
+                    <div class="bg-gray-50 p-3 rounded">
+                        ${socialIconsHtml}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function openPreFooterModal() {
+        const modal = document.getElementById('preFooterModal');
+        const form = document.getElementById('preFooterForm');
+        
+        form.reset();
+        modal.classList.remove('hidden');
+        
+        // Load existing pre-footer data if it exists
+        const url = `{% url 'branch_portal:ajax_manage_pre_footer' %}?portal_id=${portalId}`;
+        
+        makeAjaxRequest(url, 'GET', null,
+            function(data) {
+                if (data.pre_footer) {
+                    document.getElementById('pre_footer_description').value = data.pre_footer.description || '';
+                    document.getElementById('pre_footer_is_active').checked = data.pre_footer.is_active;
+                }
+            },
+            function(error) {
+                console.error('Error loading pre-footer data:', error);
+            }
+        );
+    }
+
+    function closePreFooterModal() {
+        document.getElementById('preFooterModal').classList.add('hidden');
+    }
+
+    // Pre-Footer Form Submit
+    document.getElementById('preFooterForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        
+        makeAjaxRequest('{% url "branch_portal:ajax_manage_pre_footer" %}', 'POST', formData,
+            function(data) {
+                showMessage(data.message);
+                closePreFooterModal();
+                loadPreFooterSection();
+            },
+            function(error) {
+                showMessage(error, 'error');
+            }
+        );
+    });
+
+    // Menu Link Functions
+    function openMenuLinkModal(preFooterId = null, linkId = null) {
+        const modal = document.getElementById('menuLinkModal');
+        const modalTitle = document.getElementById('menuLinkModalTitle');
+        const form = document.getElementById('menuLinkForm');
+        
+        form.reset();
+        document.getElementById('menu_link_id').value = '';
+        document.getElementById('menu_link_action').value = linkId ? 'update' : 'create';
+        
+        if (preFooterId) {
+            document.getElementById('menu_link_pre_footer_id').value = preFooterId;
+        }
+        
+        if (linkId) {
+            modalTitle.textContent = 'Edit Menu Link';
+            document.getElementById('menu_link_id').value = linkId;
+        } else {
+            modalTitle.textContent = 'Add Menu Link';
+        }
+        
+        modal.classList.remove('hidden');
+    }
+
+    function closeMenuLinkModal() {
+        document.getElementById('menuLinkModal').classList.add('hidden');
+    }
+
+    function editMenuLink(preFooterId, linkId) {
+        openMenuLinkModal(preFooterId, linkId);
+        loadMenuLinkForEdit(preFooterId, linkId);
+    }
+
+    function loadMenuLinkForEdit(preFooterId, linkId) {
+        const url = `{% url 'branch_portal:ajax_manage_pre_footer' %}?portal_id=${portalId}`;
+        
+        makeAjaxRequest(url, 'GET', null,
+            function(data) {
+                if (data.pre_footer && data.pre_footer.menu_links) {
+                    const link = data.pre_footer.menu_links.find(l => l.id == linkId);
+                    if (link) {
+                        document.getElementById('menu_link_title').value = link.title;
+                        document.getElementById('menu_link_url').value = link.url;
+                        document.getElementById('menu_link_order').value = link.order;
+                        document.getElementById('menu_link_is_active').checked = link.is_active;
+                    }
+                }
+            },
+            function(error) {
+                showMessage('Error loading menu link data: ' + error, 'error');
+            }
+        );
+    }
+
+    function deleteMenuLink(preFooterId, linkId) {
+        if (!confirm('Are you sure you want to delete this menu link?')) {
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('pre_footer_id', preFooterId);
+        formData.append('link_id', linkId);
+        formData.append('action', 'delete');
+        
+        makeAjaxRequest('{% url "branch_portal:ajax_manage_menu_link" %}', 'POST', formData,
+            function(data) {
+                showMessage(data.message);
+                loadPreFooterSection();
+            },
+            function(error) {
+                showMessage(error, 'error');
+            }
+        );
+    }
+
+    // Menu Link Form Submit
+    document.getElementById('menuLinkForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        
+        makeAjaxRequest('{% url "branch_portal:ajax_manage_menu_link" %}', 'POST', formData,
+            function(data) {
+                showMessage(data.message);
+                closeMenuLinkModal();
+                loadPreFooterSection();
+            },
+            function(error) {
+                showMessage(error, 'error');
+            }
+        );
+    });
+
+    // Social Icon Functions
+    function openSocialIconModal(preFooterId = null, iconId = null) {
+        const modal = document.getElementById('socialIconModal');
+        const modalTitle = document.getElementById('socialIconModalTitle');
+        const form = document.getElementById('socialIconForm');
+        
+        form.reset();
+        document.getElementById('social_icon_id').value = '';
+        document.getElementById('social_icon_action').value = iconId ? 'update' : 'create';
+        
+        if (preFooterId) {
+            document.getElementById('social_icon_pre_footer_id').value = preFooterId;
+        }
+        
+        if (iconId) {
+            modalTitle.textContent = 'Edit Social Icon';
+            document.getElementById('social_icon_id').value = iconId;
+        } else {
+            modalTitle.textContent = 'Add Social Icon';
+        }
+        
+        modal.classList.remove('hidden');
+    }
+
+    function closeSocialIconModal() {
+        document.getElementById('socialIconModal').classList.add('hidden');
+    }
+
+    function editSocialIcon(preFooterId, iconId) {
+        openSocialIconModal(preFooterId, iconId);
+        loadSocialIconForEdit(preFooterId, iconId);
+    }
+
+    function loadSocialIconForEdit(preFooterId, iconId) {
+        const url = `{% url 'branch_portal:ajax_manage_pre_footer' %}?portal_id=${portalId}`;
+        
+        makeAjaxRequest(url, 'GET', null,
+            function(data) {
+                if (data.pre_footer && data.pre_footer.social_icons) {
+                    const icon = data.pre_footer.social_icons.find(i => i.id == iconId);
+                    if (icon) {
+                        document.getElementById('social_icon_platform_name').value = icon.platform_name;
+                        document.getElementById('social_icon_url').value = icon.url;
+                        document.getElementById('social_icon_order').value = icon.order;
+                        document.getElementById('social_icon_is_active').checked = icon.is_active;
+                    }
+                }
+            },
+            function(error) {
+                showMessage('Error loading social icon data: ' + error, 'error');
+            }
+        );
+    }
+
+    function deleteSocialIcon(preFooterId, iconId) {
+        if (!confirm('Are you sure you want to delete this social icon?')) {
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('pre_footer_id', preFooterId);
+        formData.append('icon_id', iconId);
+        formData.append('action', 'delete');
+        
+        makeAjaxRequest('{% url "branch_portal:ajax_manage_social_icon" %}', 'POST', formData,
+            function(data) {
+                showMessage(data.message);
+                loadPreFooterSection();
+            },
+            function(error) {
+                showMessage(error, 'error');
+            }
+        );
+    }
+
+    // Social Icon Form Submit
+    document.getElementById('socialIconForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        
+        makeAjaxRequest('{% url "branch_portal:ajax_manage_social_icon" %}', 'POST', formData,
+            function(data) {
+                showMessage(data.message);
+                closeSocialIconModal();
+                loadPreFooterSection();
+            },
+            function(error) {
+                showMessage(error, 'error');
+            }
+        );
+    });
+</script>
+{% endblock %} 

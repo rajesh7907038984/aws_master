@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load conference_tags %}
+
+{% block title %}{{ conference.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background-color: #f5f7fa !important;
+    }
+    
+    .conference-card {
+        background-color: white;
+        border-radius: 12px;
+        box-shadow: 0px 0px 20px -8px rgba(0,0,0,0.15);
+        padding: 2rem;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 1rem 0;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .info-row:last-child {
+        border-bottom: none;
+    }
+    
+    .info-label {
+        color: #6b7280;
+        font-weight: 500;
+    }
+    
+    .info-value {
+        color: #1f2937;
+        font-weight: 600;
+    }
+    
+    .status-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+    
+    .status-upcoming {
+        background-color: #fef3c7;
+        color: #d97706;
+    }
+    
+    .status-live {
+        background-color: #dcfce7;
+        color: #16a34a;
+    }
+    
+    .status-ended {
+        background-color: #f3f4f6;
+        color: #6b7280;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Breadcrumb Navigation -->
+<div class="container mx-auto px-4 py-4">
+    {% with breadcrumbs=breadcrumbs %}
+        {% include 'components/breadcrumb.html' %}
+    {% endwith %}
+</div>
+
+<div class="container mx-auto px-4">
+    <div class="conference-card">
+        <h1 class="h2 mb-4">{{ conference.title }}</h1>
+        
+        {% if conference.description %}
+        <div class="mb-4">
+            <h5>Description</h5>
+            <div class="text-muted">{{ conference.description|decode_html }}</div>
+        </div>
+        {% endif %}
+        
+        <div class="conference-details">
+            {% if conference.course %}
+            <div class="info-row">
+                <span class="info-label">Course:</span>
+                <span class="info-value">{{ conference.course.title }}</span>
+            </div>
+            {% endif %}
+            
+            <div class="info-row">
+                <span class="info-label">Created by:</span>
+                <span class="info-value">{{ conference.created_by.get_full_name|default:conference.created_by.username }}</span>
+            </div>
+            
+            {% if conference.scheduled_time %}
+            <div class="info-row">
+                <span class="info-label">Scheduled Time:</span>
+                <span class="info-value">{{ conference.scheduled_time|date:"M d, Y - g:i A" }}</span>
+            </div>
+            {% endif %}
+            
+            <div class="info-row">
+                <span class="info-label">Status:</span>
+                <span class="info-value">
+                    {% if conference.is_live %}
+                        <span class="status-badge status-live">Live</span>
+                    {% elif conference.scheduled_time and conference.scheduled_time > now %}
+                        <span class="status-badge status-upcoming">Upcoming</span>
+                    {% else %}
+                        <span class="status-badge status-ended">Ended</span>
+                    {% endif %}
+                </span>
+            </div>
+            
+            {% if conference.duration %}
+            <div class="info-row">
+                <span class="info-label">Duration:</span>
+                <span class="info-value">{{ conference.duration }} minutes</span>
+            </div>
+            {% endif %}
+            
+            {% if conference.platform %}
+            <div class="info-row">
+                <span class="info-label">Platform:</span>
+                <span class="info-value">{{ conference.platform|title }}</span>
+            </div>
+            {% endif %}
+            
+            <div class="info-row">
+                <span class="info-label">Created:</span>
+                <span class="info-value">{{ conference.created_at|date:"M d, Y - g:i A" }}</span>
+            </div>
+        </div>
+        
+        <div class="mt-4">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                <strong>Access Information:</strong> Your current role does not have specific permissions for this conference. Contact your administrator if you need access.
+            </div>
+        </div>
+        
+        <div class="mt-4">
+            <a href="{% url 'conferences:conference_list' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Conferences
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %} 

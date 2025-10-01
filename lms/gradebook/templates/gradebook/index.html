@@ -1,0 +1,856 @@
+{% extends "base.html" %}
+{% load static %}
+{% load gradebook_tags %}
+
+{% block title %}Gradebook{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Accordion styles */
+    .accordion {
+        border: 1px solid #E5E7EB;
+        border-radius: 0.5rem;
+        overflow: hidden;
+        background: white;
+    }
+
+    .accordion-item {
+        border-bottom: 1px solid #E5E7EB;
+    }
+
+    .accordion-item:last-child {
+        border-bottom: none;
+    }
+
+    .accordion-header {
+        background: #F9FAFB;
+        padding: 1rem 1.5rem;
+        transition: background-color 0.2s;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border: none;
+        width: 100%;
+    }
+
+    .accordion-header-button {
+        background: none;
+        border: none;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex: 1;
+        cursor: pointer;
+        text-align: left;
+        padding: 0;
+    }
+
+    .accordion-header:hover {
+        background: #F3F4F6;
+    }
+
+    .accordion-header.active {
+        background: #EFF6FF;
+        border-bottom: 1px solid #DBEAFE;
+    }
+
+    .course-actions {
+        margin-left: 1rem;
+        flex-shrink: 0;
+    }
+
+    .accordion-content {
+        display: none;
+        background: white;
+    }
+
+    .accordion-content.active {
+        display: block;
+    }
+
+    .course-header-info {
+        flex: 1;
+    }
+
+    .course-name {
+        color: #111827;
+        font-weight: 600;
+        font-size: 1rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .course-code {
+        color: #6B7280;
+        font-size: 0.875rem;
+    }
+
+    .course-stats {
+        color: #6B7280;
+        font-size: 0.875rem;
+        margin-right: 1rem;
+    }
+
+    .accordion-toggle {
+        color: #6B7280;
+        font-size: 1.25rem;
+        transition: transform 0.2s;
+    }
+
+    .accordion-toggle.rotated {
+        transform: rotate(180deg);
+    }
+
+    /* Activity table styles within accordion */
+    .activities-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .activities-table th {
+        color: #374151;
+        font-weight: 500;
+        text-align: left;
+        padding: 0.75rem 1rem;
+        background-color: #F9FAFB;
+        font-size: 0.875rem;
+        border-bottom: 1px solid #E5E7EB;
+    }
+
+    .activities-table td {
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+        border-bottom: 1px solid #F3F4F6;
+        text-align: left;
+    }
+
+    .activities-table tr:hover {
+        background-color: #F9FAFB;
+    }
+
+    /* Activity type badges */
+    .activity-type-badge {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.375rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .activity-type-assignment {
+        background-color: #EFF6FF;
+        color: #1D4ED8;
+    }
+
+    .activity-type-quiz {
+        background-color: #F0FDF4;
+        color: #16A34A;
+    }
+
+    .activity-type-assessment {
+        background-color: #E0F2FE;
+        color: #0369A1;
+    }
+
+    .activity-type-discussion {
+        background-color: #FEF3C7;
+        color: #D97706;
+    }
+
+    .activity-type-conference {
+        background-color: #F3E8FF;
+        color: #7C3AED;
+    }
+
+    .activity-type-scorm {
+        background-color: #FEE2E2;
+        color: #DC2626;
+    }
+
+    /* Status badge styles */
+    .status-badge {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.375rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
+    }
+
+    .status-not-started {
+        background-color: #fee2e2;
+        color: #dc2626;
+    }
+
+    .status-in-progress {
+        background-color: #fef3c7;
+        color: #d97706;
+    }
+
+    .status-submitted,
+    .status-completed {
+        background-color: #dcfce7;
+        color: #16a34a;
+    }
+
+    .status-graded {
+        background-color: #dbeafe;
+        color: #2563eb;
+    }
+
+    .status-overdue {
+        background-color: #fecaca;
+        color: #dc2626;
+    }
+
+    .status-returned {
+        background-color: #fef3c7;
+        color: #d97706;
+    }
+
+    .status-missing {
+        background-color: #fecaca;
+        color: #dc2626;
+    }
+
+    .status-absent {
+        background-color: #fee2e2;
+        color: #dc2626;
+    }
+
+    .status-registered {
+        background-color: #e0e7ff;
+        color: #3730a3;
+    }
+
+    .status-attended {
+        background-color: #dcfce7;
+        color: #16a34a;
+    }
+
+    .status-participated {
+        background-color: #e0e7ff;
+        color: #4338ca;
+    }
+
+    .activity-title {
+        color: #111827;
+        font-weight: 500;
+        font-size: 0.875rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .activity-score {
+        color: #6B7280;
+        font-size: 0.75rem;
+    }
+
+    /* Action button styles */
+    .action-btn {
+        padding: 0.375rem 0.75rem;
+        border-radius: 0.375rem;
+        transition: all 0.2s;
+        color: #6B7280;
+        text-decoration: none;
+        font-size: 0.75rem;
+        font-weight: 500;
+        border: 1px solid #D1D5DB;
+        background: white;
+        margin-right: 0.5rem;
+    }
+    
+    .action-btn:hover {
+        background-color: #F3F4F6;
+        color: #374151;
+        border-color: #9CA3AF;
+    }
+
+    .action-btn-primary {
+        background-color: #3B82F6;
+        color: white;
+        border-color: #3B82F6;
+    }
+
+    .action-btn-primary:hover {
+        background-color: #2563EB;
+        border-color: #2563EB;
+        color: white;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #6B7280;
+    }
+
+    .empty-state-icon {
+        font-size: 3rem;
+        color: #D1D5DB;
+        margin-bottom: 16px;
+    }
+
+    .page-header {
+        margin-bottom: 24px;
+    }
+
+    .page-title {
+        font-size: 1.875rem;
+        font-weight: 700;
+        color: #111827;
+        margin-bottom: 8px;
+    }
+
+    .page-description {
+        color: #6B7280;
+        font-size: 1rem;
+    }
+
+    /* Filter section */
+    .filter-section {
+        margin-bottom: 24px;
+        padding: 16px;
+        background-color: #F9FAFB;
+        border-radius: 0.5rem;
+        border: 1px solid #E5E7EB;
+    }
+
+    .filter-form {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .search-container {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .search-input-container {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .search-input {
+        padding: 0.5rem 2.5rem 0.5rem 0.75rem;
+        border-radius: 0.375rem;
+        border: 1px solid #D1D5DB;
+        background-color: white;
+        color: #374151;
+        font-size: 0.875rem;
+        min-width: 300px;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: #3B82F6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .clear-search-btn {
+        position: absolute;
+        right: 8px;
+        background: none;
+        border: none;
+        color: #6B7280;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 2px;
+        transition: color 0.2s;
+    }
+
+    .clear-search-btn:hover {
+        color: #374151;
+    }
+
+    .filter-dropdowns {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    @media (max-width: 768px) {
+        .filter-form {
+            gap: 12px;
+        }
+        
+        .search-container,
+        .filter-dropdowns {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        .search-input {
+            min-width: 250px;
+            width: 100%;
+        }
+    }
+
+    .filter-label {
+        font-weight: 500;
+        color: #374151;
+        font-size: 0.875rem;
+    }
+
+    .filter-select {
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.375rem;
+        border: 1px solid #D1D5DB;
+        background-color: white;
+        color: #374151;
+        font-size: 0.875rem;
+        min-width: 200px;
+    }
+
+    .filter-select:focus {
+        outline: none;
+        border-color: #3B82F6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .filter-btn {
+        padding: 0.5rem 1rem;
+        background-color: #3B82F6;
+        color: white;
+        border: none;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    .filter-btn:hover {
+        background-color: #2563EB;
+    }
+
+    .activity-count {
+        color: #6B7280;
+        font-size: 0.875rem;
+        margin-left: auto;
+    }
+
+    /* Expand/Collapse All buttons */
+    .accordion-controls {
+        margin-bottom: 1rem;
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .control-btn {
+        padding: 0.5rem 1rem;
+        background-color: #F3F4F6;
+        color: #374151;
+        border: 1px solid #D1D5DB;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .control-btn:hover {
+        background-color: #E5E7EB;
+        border-color: #9CA3AF;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Breadcrumbs -->
+{% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+<div class="container mx-auto px-4 py-8">
+  <div class="bg-white shadow rounded-lg p-6">
+    <!-- Page Header -->
+    <div class="page-header">
+      <h1 class="page-title">
+        <i class="fas fa-graduation-cap mr-3"></i>
+        Gradebook - Activities
+      </h1>
+      <p class="page-description">
+        View and filter activities from your courses with gradebook access
+      </p>
+    </div>
+
+    <!-- Search and Filter Section -->
+    <div class="filter-section">
+      <form method="GET" class="filter-form">
+        <!-- Search Input -->
+        <div class="search-container">
+          <label for="search" class="filter-label">
+            <i class="fas fa-search mr-2"></i>
+            Search Activities:
+          </label>
+          <div class="search-input-container">
+            <input type="text" 
+                   name="search" 
+                   id="search" 
+                   class="search-input" 
+                   placeholder="Search by activity title or course name..."
+                   value="{{ search_query }}"
+                   onkeyup="if(event.key === 'Enter') this.form.submit()">
+            {% if search_query %}
+              <button type="button" class="clear-search-btn" onclick="clearSearch()" title="Clear search">
+                <i class="fas fa-times"></i>
+              </button>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Filter Dropdowns -->
+        <div class="filter-dropdowns">
+          <label for="activity_type" class="filter-label">
+            <i class="fas fa-filter mr-2"></i>
+            Filter by Activity Type:
+          </label>
+          <select name="activity_type" id="activity_type" class="filter-select" onchange="this.form.submit()">
+            {% for value, label in activity_types %}
+              <option value="{{ value }}" {% if value == current_filter %}selected{% endif %}>
+                {{ label }}
+              </option>
+            {% endfor %}
+          </select>
+          
+          <label for="course" class="filter-label ml-4">
+            <i class="fas fa-graduation-cap mr-2"></i>
+            Filter by Course:
+          </label>
+          <select name="course" id="course" class="filter-select" onchange="this.form.submit()">
+            {% for value, label in course_choices %}
+              <option value="{{ value }}" {% if value == current_course_filter %}selected{% endif %}>
+                {{ label }}
+              </option>
+            {% endfor %}
+          </select>
+          
+          <label for="status" class="filter-label ml-4">
+            <i class="fas fa-tasks mr-2"></i>
+            Filter by Status:
+          </label>
+          <select name="status" id="status" class="filter-select" onchange="this.form.submit()">
+            {% for value, label in status_choices %}
+              <option value="{{ value }}" {% if value == current_status_filter %}selected{% endif %}>
+                {{ label }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        
+        <noscript>
+          <button type="submit" class="filter-btn">Apply Filters</button>
+        </noscript>
+        <div class="activity-count">
+          {{ activities|length }} activit{{ activities|length|pluralize:"y,ies" }} found
+        </div>
+      </form>
+    </div>
+
+    {% if grouped_activities %}
+    <!-- Accordion Controls -->
+    <div class="accordion-controls">
+      <button class="control-btn" onclick="expandAllAccordions()">
+        <i class="fas fa-expand-arrows-alt mr-2"></i>Expand All
+      </button>
+      <button class="control-btn" onclick="collapseAllAccordions()">
+        <i class="fas fa-compress-arrows-alt mr-2"></i>Collapse All
+      </button>
+    </div>
+
+    <!-- Course Activities Accordion -->
+    <div class="accordion" id="courseAccordion">
+      {% for course_group in grouped_activities %}
+        <div class="accordion-item">
+          <!-- Course Header (Accordion Toggle) -->
+          <div class="accordion-header" data-course-id="{{ course_group.course.id }}">
+            <button class="accordion-header-button" onclick="toggleAccordion(this.parentElement)">
+              <div class="course-header-info">
+                <div class="course-name">{{ course_group.course.title }}</div>
+                {% if course_group.course.course_code %}
+                  <div class="course-code">{{ course_group.course.course_code }}</div>
+                {% endif %}
+              </div>
+              <div class="course-stats">
+                {{ course_group.activities|length }} activit{{ course_group.activities|length|pluralize:"y,ies" }}
+              </div>
+              <i class="fas fa-chevron-down accordion-toggle"></i>
+            </button>
+            <!-- Course Gradebook Button -->
+            <div class="course-actions">
+              <a href="{% url 'gradebook:course_detail' course_group.course.id %}" 
+                 class="action-btn action-btn-primary" 
+                 title="View gradebook for {{ course_group.course.title }}">
+                <i class="fas fa-table mr-1"></i>Gradebook
+              </a>
+            </div>
+          </div>
+
+          <!-- Course Activities Content -->
+          <div class="accordion-content" id="content-{{ course_group.course.id }}">
+            <table class="activities-table">
+              <thead>
+                <tr>
+                  <th>Activity Type</th>
+                  <th>Activity Title</th>
+                  <th>Max Score</th>
+                  <th>Created</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for activity in course_group.activities %}
+                <tr>
+                  <td>
+                    {% if activity.type == 'assignment' %}
+                      <span class="activity-type-badge activity-type-assignment">
+                        <i class="fas fa-file-alt mr-1"></i>Assignment
+                      </span>
+                    {% elif activity.type == 'quiz' %}
+                      <span class="activity-type-badge activity-type-quiz">
+                        <i class="fas fa-question-circle mr-1"></i>Quiz
+                      </span>
+                    {% elif activity.type == 'initial_assessment' %}
+                      <span class="activity-type-badge activity-type-assessment">
+                        <i class="fas fa-clipboard-check mr-1"></i>Initial Assessment
+                      </span>
+                    {% elif activity.type == 'discussion' %}
+                      <span class="activity-type-badge activity-type-discussion">
+                        <i class="fas fa-comments mr-1"></i>Discussion
+                      </span>
+                    {% elif activity.type == 'conference' %}
+                      <span class="activity-type-badge activity-type-conference">
+                        <i class="fas fa-video mr-1"></i>Conference
+                      </span>
+                    {% elif activity.type == 'scorm_topic' %}
+                      <span class="activity-type-badge activity-type-scorm">
+                        <i class="fas fa-play-circle mr-1"></i>SCORM
+                      </span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <div class="activity-title">{{ activity.title }}</div>
+                    {% if activity.max_score > 0 %}
+                      <div class="activity-score">{{ activity.max_score }} points</div>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if activity.max_score > 0 %}
+                      {{ activity.max_score }} pts
+                    {% else %}
+                      <span class="text-gray-400">-</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <div class="text-sm text-gray-600">
+                      {{ activity.created_at|date:"M d, Y" }}
+                    </div>
+                    <div class="text-xs text-gray-400">
+                      {{ activity.created_at|time:"H:i" }}
+                    </div>
+                  </td>
+                                     <td>
+                     <!-- Activity-specific view buttons only -->
+                     {% if activity.type == 'assignment' %}
+                       <a href="{% url 'assignments:assignment_detail' activity.object.id %}" 
+                          class="action-btn" 
+                          title="View assignment details">
+                         <i class="fas fa-eye mr-1"></i>View
+                       </a>
+                     {% elif activity.type == 'quiz' %}
+                       <a href="{% url 'quiz:quiz_detail' activity.object.id %}" 
+                          class="action-btn" 
+                          title="View quiz details">
+                         <i class="fas fa-eye mr-1"></i>View
+                       </a>
+                     {% elif activity.type == 'initial_assessment' %}
+                       <a href="{% url 'quiz:quiz_detail' activity.object.id %}" 
+                          class="action-btn" 
+                          title="View initial assessment">
+                         <i class="fas fa-clipboard-check mr-1"></i>View Assessment
+                       </a>
+                     {% elif activity.type == 'discussion' %}
+                       <a href="{% url 'discussions:discussion_detail' activity.object.id %}" 
+                          class="action-btn" 
+                          title="View discussion">
+                         <i class="fas fa-comments mr-1"></i>Join
+                       </a>
+                     {% elif activity.type == 'conference' %}
+                       <a href="{% url 'conferences:join_conference' activity.object.id %}" 
+                          class="action-btn" 
+                          title="Join conference">
+                         <i class="fas fa-video mr-1"></i>Join
+                       </a>
+                     {% elif activity.type == 'scorm_topic' %}
+                       <a href="{% url 'courses:topic_view' activity.object.id %}" 
+                          class="action-btn" 
+                          title="View SCORM content">
+                         <i class="fas fa-play mr-1"></i>Launch
+                       </a>
+                     {% endif %}
+                   </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <!-- Empty State -->
+    <div class="accordion">
+      <div class="empty-state">
+        <div class="flex flex-col items-center justify-center">
+          <div class="w-16 h-16 mb-4 text-gray-300">
+            <i class="fas fa-filter text-4xl"></i>
+          </div>
+          <h3 class="text-lg font-medium text-gray-900 mb-2">
+            {% if search_query %}
+              No Activities Found for "{{ search_query }}"
+            {% elif current_filter == 'all' and current_course_filter == 'all' and current_status_filter == 'all' %}
+              No Activities Found
+            {% elif current_status_filter != 'all' %}
+              No Activities Found with Status "{{ current_status_filter|title }}"
+            {% elif current_filter != 'all' and current_course_filter == 'all' %}
+              No {{ current_filter|title }} Activities Found
+            {% elif current_filter == 'all' and current_course_filter != 'all' %}
+              No Activities Found for Selected Course
+            {% else %}
+              No {{ current_filter|title }} Activities Found for Selected Course
+            {% endif %}
+          </h3>
+          <p class="text-sm text-gray-500">
+            {% if search_query %}
+              Try adjusting your search terms or clear the search to see all activities.
+            {% elif current_filter == 'all' and current_course_filter == 'all' %}
+              {% if user.role == 'learner' %}
+                You have no activities in your enrolled courses, or activities are not linked to courses.
+              {% elif user.role == 'instructor' %}
+                You have no activities in your assigned courses, or activities are not linked to courses.
+              {% else %}
+                No activities found in the system that are linked to courses.
+              {% endif %}
+            {% else %}
+              Try selecting different filters or check if activities are properly linked to courses.
+            {% endif %}
+          </p>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if activities %}
+    <!-- Summary Information -->
+    <div class="mt-4 text-sm text-gray-600">
+      <p>
+        <i class="fas fa-info-circle mr-2"></i>
+        Showing {{ activities|length }} activit{{ activities|length|pluralize:"y,ies" }} 
+        {% if search_query %}
+          matching "{{ search_query }}"
+        {% endif %}
+        {% if current_filter != 'all' %}
+          of type "{{ current_filter|title }}" 
+        {% endif %}
+        {% if current_course_filter != 'all' %}
+          {% for course in all_courses %}
+            {% if course.id|stringformat:"s" == current_course_filter %}
+              from course "{{ course.title }}"
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {% if current_status_filter != 'all' %}
+          with status "{{ current_status_filter|title }}"
+        {% endif %}
+        that are linked to courses you have access to.
+      </p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+function clearSearch() {
+    // Clear the search input
+    document.getElementById('search').value = '';
+    // Submit the form to refresh with cleared search
+    document.querySelector('.filter-form').submit();
+}
+
+// Accordion functionality
+function toggleAccordion(header) {
+    const courseId = header.dataset.courseId;
+    const content = document.getElementById('content-' + courseId);
+    const toggle = header.querySelector('.accordion-toggle');
+    
+    // Toggle the content
+    content.classList.toggle('active');
+    header.classList.toggle('active');
+    toggle.classList.toggle('rotated');
+    
+    // Store accordion state in localStorage
+    const accordionStates = JSON.parse(localStorage.getItem('gradebook-accordion-states') || '{}');
+    accordionStates[courseId] = content.classList.contains('active');
+    localStorage.setItem('gradebook-accordion-states', JSON.stringify(accordionStates));
+}
+
+function expandAllAccordions() {
+    const headers = document.querySelectorAll('.accordion-header');
+    const accordionStates = {};
+    
+    headers.forEach(header => {
+        const courseId = header.dataset.courseId;
+        const content = document.getElementById('content-' + courseId);
+        const toggle = header.querySelector('.accordion-toggle');
+        
+        content.classList.add('active');
+        header.classList.add('active');
+        toggle.classList.add('rotated');
+        
+        accordionStates[courseId] = true;
+    });
+    
+    localStorage.setItem('gradebook-accordion-states', JSON.stringify(accordionStates));
+}
+
+function collapseAllAccordions() {
+    const headers = document.querySelectorAll('.accordion-header');
+    const accordionStates = {};
+    
+    headers.forEach(header => {
+        const courseId = header.dataset.courseId;
+        const content = document.getElementById('content-' + courseId);
+        const toggle = header.querySelector('.accordion-toggle');
+        
+        content.classList.remove('active');
+        header.classList.remove('active');
+        toggle.classList.remove('rotated');
+        
+        accordionStates[courseId] = false;
+    });
+    
+    localStorage.setItem('gradebook-accordion-states', JSON.stringify(accordionStates));
+}
+
+// Restore accordion states on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const accordionStates = JSON.parse(localStorage.getItem('gradebook-accordion-states') || '{}');
+    
+    Object.keys(accordionStates).forEach(courseId => {
+        const header = document.querySelector(`[data-course-id="${courseId}"]`);
+        const content = document.getElementById('content-' + courseId);
+        const toggle = header?.querySelector('.accordion-toggle');
+        
+        if (header && content && toggle && accordionStates[courseId]) {
+            content.classList.add('active');
+            header.classList.add('active');
+            toggle.classList.add('rotated');
+        }
+    });
+});
+</script>
+{% endblock %} 

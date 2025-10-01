@@ -1,0 +1,249 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Welcome Back - {{ conference.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background-color: #f5f7fa !important;
+    }
+    
+    .return-card {
+        background-color: white;
+        border-radius: 12px;
+        box-shadow: 0px 0px 20px -8px rgba(0,0,0,0.15);
+        padding: 2rem;
+        max-width: 700px;
+        margin: 0 auto;
+        text-align: center;
+    }
+    
+    .welcome-icon {
+        width: 80px;
+        height: 80px;
+        background-color: #D1FAE5;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem;
+        animation: pulse 2s infinite;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin-top: 2rem;
+        flex-wrap: wrap;
+    }
+    
+    .btn-primary {
+        background-color: #050c50 !important;
+        color: white !important;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        text-decoration: none;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        border: none;
+        font-size: 1.1rem;
+    }
+    
+    .btn-primary:hover {
+        background-color: #040a42 !important;
+        color: white !important;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .btn-secondary {
+        background-color: #6b7280 !important;
+        color: white !important;
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 0.5rem;
+        text-decoration: none;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+    
+    .btn-secondary:hover {
+        background-color: #4b5563 !important;
+        color: white !important;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .instructions-box {
+        background-color: #f8fafc;
+        border-left: 4px solid #0ea5e9;
+        padding: 1rem;
+        margin: 1.5rem 0;
+        border-radius: 0.5rem;
+        text-align: left;
+    }
+    
+    .instructions-box h3 {
+        color: #0ea5e9;
+        margin-bottom: 0.5rem;
+        font-size: 1.1rem;
+    }
+    
+    .instructions-box p {
+        color: #64748b;
+        margin-bottom: 0.5rem;
+    }
+    
+    .quick-actions {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-top: 1.5rem;
+    }
+    
+    .quick-action-card {
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        text-align: center;
+        transition: all 0.2s ease;
+    }
+    
+    .quick-action-card:hover {
+        background-color: #f1f5f9;
+        border-color: #cbd5e1;
+    }
+    
+    .quick-action-card h4 {
+        color: #1e293b;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+    
+    .quick-action-card p {
+        color: #64748b;
+        font-size: 0.8rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+    
+    .auto-redirect-info {
+        background-color: #fef3c7;
+        border: 1px solid #f59e0b;
+        color: #92400e;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin-top: 1.5rem;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="return-card">
+        <div class="welcome-icon">
+            <svg class="w-10 h-10 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+            </svg>
+        </div>
+        
+        <h1 class="text-3xl font-bold text-gray-900 mb-4">Welcome Back!</h1>
+        
+        <p class="text-gray-600 mb-2">You have successfully returned from the meeting:</p>
+        <h2 class="text-xl font-semibold text-gray-800 mb-6">{{ conference.title }}</h2>
+        
+        <p class="text-gray-500 mb-6">
+            Thank you for participating in the conference. Your attendance has been recorded and you're now back in the LMS.
+        </p>
+        
+        <div class="instructions-box">
+            <h3>How to Return to Conference After Leaving Zoom:</h3>
+            <p>1. <strong>Leave the Zoom meeting</strong> by clicking the "Leave Meeting" button in Zoom</p>
+            <p>2. <strong>Return to your LMS tab</strong> in your browser or open: <code>{{ request.build_absolute_uri }}</code></p>
+            <p>3. <strong>Click "Return to Conference View"</strong> button that appears on the conference page</p>
+            <p>4. <strong>Or use this direct link</strong> if you've closed the browser tab</p>
+            <p>5. <strong>Alternative:</strong> Use the enhanced redirect handler: <a href="{% url 'conferences:conference_redirect_handler' conference_id=conference.id %}" class="text-blue-600 hover:text-blue-800">Enhanced Return Handler</a></p>
+        </div>
+        
+        <div class="action-buttons">
+            <a href="{% url 'conferences:conference_detail' conference_id=conference.id %}" class="btn-primary">
+                <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                View Conference Details
+            </a>
+            
+            <a href="{% url 'conferences:conference_list' %}" class="btn-secondary">
+                <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                </svg>
+                All Conferences
+            </a>
+        </div>
+        
+        <div class="quick-actions">
+            <div class="quick-action-card">
+                <h4>📋 Conference Summary</h4>
+                <p>View meeting recordings, chat history, and shared files</p>
+            </div>
+            <div class="quick-action-card">
+                <h4>👥 Other Conferences</h4>
+                <p>Browse and join other available conferences</p>
+            </div>
+            <div class="quick-action-card">
+                <h4>📊 My Dashboard</h4>
+                <p>Check your courses and assignments</p>
+            </div>
+        </div>
+        
+        <div class="auto-redirect-info">
+            <strong>💡 Tip:</strong> Bookmark this page or keep your LMS tab open while in Zoom meetings for easy return access.
+        </div>
+        
+        {% if conference.meeting_status == 'started' %}
+        <div class="mt-6 p-4 bg-blue-50 rounded-lg">
+            <p class="text-sm text-blue-700">
+                <svg class="inline-block w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                </svg>
+                The meeting is still in progress. You can rejoin at any time if needed.
+            </p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// Auto-redirect to conference detail page after showing welcome message
+setTimeout(function() {
+    if (confirm('Would you like to return to the conference details page now?')) {
+        window.location.href = "{% url 'conferences:conference_detail' conference_id=conference.id %}";
+    }
+}, 3000);
+
+// Clear any stored meeting data since user has returned
+localStorage.removeItem('lms_meeting_join_{{ conference.id }}');
+
+// Add keyboard shortcut for quick return
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' || e.key === ' ') {
+        window.location.href = "{% url 'conferences:conference_detail' conference_id=conference.id %}";
+    }
+});
+</script>
+{% endblock %} 

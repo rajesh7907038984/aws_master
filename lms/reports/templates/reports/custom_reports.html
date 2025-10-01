@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Custom Reports{% endblock %}
+
+{% block content %}
+<div class="bg-white text-black min-h-screen">
+    <div class="container mx-auto px-4 py-6">
+        <!-- Breadcrumbs -->
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+        <!-- Main grid with 70-30 split -->
+        <div class="grid grid-cols-12 gap-4 md:gap-6">
+            <!-- Left Column (70%) -->
+            <div class="col-span-12 lg:col-span-8 transition-all duration-300">
+                <div class="bg-white rounded-lg shadow-sm">
+                    <div class="p-6">
+                        <div class="flex justify-between items-center mb-6">
+                            <h1 class="text-2xl font-semibold text-gray-900">Custom Reports</h1>
+                            <a href="{% url 'reports:new_report' %}" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                <i class="fas fa-plus mr-2"></i>
+                                Add report
+                            </a>
+                        </div>
+
+                        <!-- Search and Filter -->
+                        <div class="flex items-center gap-4 mb-6">
+                            <div class="flex-1 relative">
+                                <input type="text" class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="Search reports...">
+                                <div class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                                    <i class="fas fa-search"></i>
+                                </div>
+                            </div>
+                            <!-- Filter button removed as requested -->
+                        </div>
+
+                        <!-- Reports Table -->
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead>
+                                    <tr class="bg-gray-50">
+                                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-500">Report</th>
+                                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-500">Created on</th>
+                                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-500">Next run</th>
+                                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-500">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    {% for report in reports %}
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-4 py-3">
+                                            <div class="flex items-center">
+                                                <div class="w-8 h-8 rounded-lg bg-gray-200 flex items-center justify-center mr-3">
+                                                    <i class="fas fa-file-alt text-gray-500"></i>
+                                                </div>
+                                                <span class="font-medium text-gray-900">{{ report.title }}</span>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3 text-gray-600">{{ report.created_at|date:"d/m/Y, H:i" }}</td>
+                                        <td class="px-4 py-3 text-gray-600">{{ report.next_run|default:"-" }}</td>
+                                        <td class="px-4 py-3">
+                                            <div class="flex items-center gap-2">
+                                                <a href="{% url 'reports:report_detail' report.id %}" class="action-btn view-btn" title="View Report">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                {% if report.created_by == request.user %}
+                                                <button class="action-btn delete-btn" onclick="confirmDelete({{ report.id }}, '{{ report.title|escapejs }}')" title="Delete Report">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="4" class="px-4 py-8 text-center text-gray-500">
+                                            No custom reports found. Create your first report!
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        {% if page_obj.has_other_pages %}
+                        <div class="flex items-center justify-between mt-6">
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm text-gray-700">Show</span>
+                                <form method="GET" id="perPageForm" class="inline">
+                                    {% if search_query %}
+                                    <input type="hidden" name="search" value="{{ search_query }}">
+                                    {% endif %}
+                                    <select name="per_page" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                            onchange="document.getElementById('perPageForm').submit();">
+                                        <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
+                                        <option value="25" {% if per_page == 25 %}selected{% endif %}>25</option>
+                                        <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+                                    </select>
+                                </form>
+                                <span class="text-sm text-gray-700">per page</span>
+                            </div>
+                            
+                            <div class="flex items-center gap-2">
+                                {% if page_obj.has_previous %}
+                                <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}"
+                                   class="px-3 py-1 border rounded-md text-gray-600 hover:bg-gray-50">
+                                    Previous
+                                </a>
+                                {% else %}
+                                <span class="px-3 py-1 border rounded-md text-gray-400 bg-gray-100">
+                                    Previous
+                                </span>
+                                {% endif %}
+                                
+                                <span class="px-3 py-1 text-sm text-gray-600">
+                                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                                </span>
+                                
+                                {% if page_obj.has_next %}
+                                <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}"
+                                   class="px-3 py-1 border rounded-md text-gray-600 hover:bg-gray-50">
+                                    Next
+                                </a>
+                                {% else %}
+                                <span class="px-3 py-1 border rounded-md text-gray-400 bg-gray-100">
+                                    Next
+                                </span>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="text-sm text-gray-500">
+                                Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} reports
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column (30%) -->
+            <div class="col-span-12 lg:col-span-4 transition-all duration-300">
+                {% include 'components/right_sidebar.html' %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .action-btn {
+        @apply inline-flex items-center justify-center w-8 h-8 text-sm rounded-full transition-colors;
+    }
+    
+    .view-btn {
+        @apply bg-blue-50 text-blue-600 hover:bg-blue-100;
+    }
+    
+    .delete-btn {
+        @apply bg-red-50 text-red-600 hover:bg-red-100;
+    }
+</style>
+
+<script>
+function confirmDelete(reportId, reportTitle) {
+    // Create a more user-friendly confirmation dialog
+    const confirmed = confirm(
+        `Are you sure you want to delete the report "${reportTitle}"?\n\n` +
+        'This action cannot be undone and will permanently remove the report and all its data.'
+    );
+    
+    if (confirmed) {
+        // Redirect to delete URL
+        window.location.href = `/reports/${reportId}/delete/`;
+    }
+}
+</script>
+{% endblock %} 

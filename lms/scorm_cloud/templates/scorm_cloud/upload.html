@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Upload SCORM Content" %}{% if course %} - {{ course.title }}{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    {% if course %}
+    <nav class="mb-8">
+        <a href="{% url 'courses:course_details' course.id %}" class="text-blue-500 hover:text-blue-600">
+            ← Back to Course
+        </a>
+    </nav>
+    {% endif %}
+
+    <div class="max-w-2xl mx-auto">
+        <div class="bg-gray-800 rounded-lg shadow-lg p-6">
+            <h1 class="text-2xl font-bold text-white mb-6">{% trans "Upload SCORM Content" %}</h1>
+
+            {% if form.errors %}
+            <div class="mb-6 bg-red-500 bg-opacity-10 border border-red-500 rounded p-4">
+                <h3 class="text-red-500 font-semibold mb-2">{% trans "Please correct the following errors:" %}</h3>
+                <ul class="list-disc list-inside text-red-400">
+                    {% for field in form %}
+                        {% for error in field.errors %}
+                            <li>{{ field.label }}: {{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                    {% for error in form.non_field_errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <form method="post" enctype="multipart/form-data" class="space-y-4"{% if course %}onsubmit="console.log('Form submitting with course_id:', '{{ course.id|escapejs }}')"{% endif %}>
+                {% csrf_token %}
+                {% if course %}<input type="hidden" name="course_id" value="{{ course.id }}">{% endif %}
+                <div class="form-group">
+                    <label for="{{ form.title.id_for_label }}" class="block text-sm font-medium text-gray-300 mb-2">
+                        {% trans "Title" %} <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.title }}
+                    {% if form.title.help_text %}
+                        <p class="text-sm text-gray-400 mt-1">{{ form.title.help_text }}</p>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-300 mb-2">
+                        {% trans "Description" %}
+                    </label>
+                    {{ form.description }}
+                    {% if form.description.help_text %}
+                        <p class="text-sm text-gray-400 mt-1">{{ form.description.help_text }}</p>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.file.id_for_label }}" class="block text-sm font-medium text-gray-300 mb-2">
+                        {% trans "SCORM Package" %} <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.file }}
+                    <p class="text-sm text-gray-400 mt-1">
+                        {% trans "Upload a SCORM package in ZIP format (maximum size: 2GB)." %}
+                    </p>
+                </div>
+
+                <div class="flex justify-end mt-6">
+                    <button type="submit" 
+                            class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
+                        {% trans "Upload SCORM Package" %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

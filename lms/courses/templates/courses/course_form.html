@@ -1,0 +1,298 @@
+{% extends 'base.html' %}
+{% load course_filters %}
+{% load static %}
+
+{% block title %}{{ action }} Course{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Navigation -->
+    <nav class="mb-8">
+        {% if course %}
+            <a href="{% url 'courses:course_details' course.id %}" class="text-blue-500 hover:text-blue-600">
+                ← Back to Course
+            </a>
+        {% else %}
+            <a href="{% url 'courses:course_list' %}" class="text-blue-500 hover:text-blue-600">
+                ← Back to Courses
+            </a>
+        {% endif %}
+    </nav>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Course Form Card -->
+        <div class="lg:col-span-2">
+            <div class="bg-gray-800 rounded-lg shadow-lg p-6">
+                <h1 class="text-2xl font-bold text-white mb-6">{{ action }} Course</h1>
+
+                <form method="post" enctype="multipart/form-data" class="space-y-4">
+                    {% csrf_token %}
+
+                    {% for field in form %}
+                        <div class="form-group">
+                            <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-300 mb-2">
+                                {{ field.label }}
+                                {% if field.field.required %}
+                                    <span class="text-red-500 ml-1">*</span>
+                                {% endif %}
+                            </label>
+                            <div class="mt-1">
+                                {% if field.field.widget.input_type == 'file' %}
+                                    <input type="file"
+                                           name="{{ field.html_name }}"
+                                           id="{{ field.auto_id }}"
+                                           class="block w-full text-sm text-gray-300
+                                                  file:mr-4 file:py-2 file:px-4
+                                                  file:rounded file:border-0
+                                                  file:text-sm file:font-semibold
+                                                  file:bg-blue-500 file:text-white
+                                                  hover:file:bg-blue-600">
+                                {% elif field.field.widget.input_type == 'checkbox' %}
+                                    <div class="flex items-center">
+                                        {{ field }}
+                                        <span class="ml-2 text-sm text-gray-300">{{ field.label }}</span>
+                                    </div>
+                                {% elif field.name == 'branch' and field.field.disabled %}
+                                    <div class="block w-full px-4 py-2 bg-gray-700 text-gray-400 rounded border border-gray-600">
+                                        {{ field.value }}
+                                        <input type="hidden" name="{{ field.html_name }}" value="{{ field.value.id }}">
+                                    </div>
+                                {% elif field.name == 'category' %}
+                                    <div class="flex items-center gap-2">
+                                        <select name="category" id="category" class="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                                            <option value="">Select Category</option>
+                                            {% for category in form.category.field.queryset %}
+                                                <option value="{{ category.id }}" {% if form.category.value == category.id %}selected{% endif %}>
+                                                    {{ category.name }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                        <button type="button" onclick="showCategoryModal()" class="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                {% else %}
+                                    {{ field }}
+                                {% endif %}
+                            </div>
+
+                            {% if field.help_text %}
+                                <p class="mt-2 text-sm text-gray-400">{{ field.help_text }}</p>
+                            {% endif %}
+
+                            {% if field.errors %}
+                                <div class="mt-2 text-red-500 text-sm">{{ field.errors }}</div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+
+                    <!-- Form Actions -->
+                    <div class="flex justify-end mt-6 space-x-4">
+                        {% if course %}
+                            <a href="{% url 'courses:course_details' course.id %}"
+                               class="px-4 py-2 border border-gray-600 text-gray-300 rounded hover:bg-gray-700 transition-colors">
+                                Cancel
+                            </a>
+                        {% else %}
+                            <a href="{% url 'courses:course_list' %}"
+                               class="px-4 py-2 border border-gray-600 text-gray-300 rounded hover:bg-gray-700 transition-colors">
+                                Cancel
+                            </a>
+                        {% endif %}
+
+                        <button type="submit"
+                                class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
+                            {% if action == 'Create' %}Create Course{% else %}Save Changes{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Topics Section -->
+        {% if course %}
+        <div class="lg:col-span-1">
+            <div class="bg-gray-800 rounded-lg shadow-lg p-6 sticky top-4">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-white">Topic... Section</h2>
+                    <a href="{% url 'courses:topic_create' course.id %}"
+                       class="action-button primary-button">
+                        Add Topic
+                    </a>
+                </div>
+
+                {% if topics %}
+                <div class="space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+                    {% for topic in topics %}
+                    <div class="bg-gray-700 p-4 rounded-lg">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-lg font-semibold text-white">{{ topic.title }}</h3>
+                            <div class="space-x-2">
+                                <a href="{% url 'courses:topic_edit' topic.id %}"
+                                   class="action-button secondary-button">
+                                    Edit
+                                </a>
+                            </div>
+                        </div>
+                        {% if topic.description %}
+                        <p class="text-gray-300 mt-2">{{ topic.description }}</p>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-gray-400">No topics added yet.</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Category Creation Modal -->
+<div id="category-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+    <div class="relative mx-auto p-6 border border-gray-600 w-full max-w-md shadow-2xl rounded-lg bg-gray-800">
+        <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-3">
+            <h3 class="text-lg font-semibold text-white">Create New Category</h3>
+            <button type="button" class="text-gray-400 hover:text-white transition focus:outline-none" onclick="hideCategoryModal()">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        
+        <form id="categoryForm" class="space-y-4" method="POST" action="{% url 'categories:ajax_category_create' %}">
+            {% csrf_token %}
+            <input type="hidden" name="is_ajax" value="1">
+            
+            <div>
+                <label for="category-name" class="block text-sm font-medium text-gray-300 mb-1">Category Name</label>
+                <input type="text" id="category-name" name="name" required 
+                    class="w-full px-3 py-2 text-sm rounded-md border border-gray-600 bg-gray-700 text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    placeholder="Enter category name">
+            </div>
+            
+            <div>
+                <label for="category-slug" class="block text-sm font-medium text-gray-300 mb-1">Slug (Optional)</label>
+                <input type="text" id="category-slug" name="slug"
+                    class="w-full px-3 py-2 text-sm rounded-md border border-gray-600 bg-gray-700 text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    placeholder="Auto-generated from name">
+                <p class="mt-1 text-sm text-gray-500">Leave blank to auto-generate from name</p>
+            </div>
+            
+            <div>
+                <label for="category-description" class="block text-sm font-medium text-gray-300 mb-1">Description (Optional)</label>
+                <textarea id="category-description" name="description" rows="3"
+                    class="w-full px-3 py-2 text-sm rounded-md border border-gray-600 bg-gray-700 text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    placeholder="Enter category description"></textarea>
+            </div>
+            
+            <div class="flex justify-end space-x-3 pt-4 border-t border-gray-700">
+                <button type="button" class="btn-cancel px-4 py-2 text-sm font-medium text-gray-300 bg-gray-600 border border-gray-500 rounded-md shadow-sm hover:bg-gray-500 focus:outline-none" onclick="hideCategoryModal()">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md shadow-sm hover:bg-green-700 focus:outline-none">
+                    <span class="submit-text">Create Category</span>
+                    <span class="spinner hidden ml-2">
+                        <i class="fas fa-spinner fa-spin"></i>
+                    </span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .form-group input[type="text"],
+    .form-group input[type="number"],
+    .form-group textarea,
+    .form-group select {
+        @apply block w-full rounded border border-gray-600 px-3 py-2;
+        background-color: var(--input-bg, #374151);
+        color: var(--form-text, #f1f5f9);
+    }
+
+    /* Mobile optimizations for file uploads */
+    @media (max-width: 768px) {
+        .form-group input[type="file"] {
+            margin-bottom: 1rem;
+            padding: 12px;
+            font-size: 16px;
+            min-height: 44px;
+        }
+        
+        .form-group input[type="file"]::-webkit-file-upload-button {
+            padding: 8px 16px;
+            margin-right: 16px;
+            border-radius: 6px;
+            font-size: 16px;
+            min-height: 44px;
+        }
+        
+        /* Better spacing for mobile */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        /* Make form buttons full width on mobile */
+        .flex.justify-end.space-x-4 {
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        
+        .flex.justify-end.space-x-4 > * {
+            width: 100%;
+            text-align: center;
+        }
+    }
+
+    .form-group input[type="text"]:focus,
+    .form-group input[type="number"]:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+        @apply outline-none border-blue-500;
+    }
+
+    .form-group select option {
+        @apply bg-gray-700 text-white;
+    }
+
+    .form-group input[type="checkbox"] {
+        @apply h-4 w-4 rounded border-gray-600 bg-gray-700 text-blue-500 focus:ring-blue-500;
+    }
+
+    /* Topic list styling */
+    .topic-list {
+        @apply space-y-4;
+    }
+
+    .topic-item {
+        @apply bg-gray-700 rounded-lg p-4;
+    }
+
+    .topic-header {
+        @apply flex justify-between items-center;
+    }
+
+    .topic-title {
+        @apply text-lg font-semibold text-white;
+    }
+
+    .topic-type {
+        @apply text-sm text-gray-300;
+    }
+
+    .topic-actions {
+        @apply flex space-x-2;
+    }
+
+    .topic-edit-btn {
+        @apply px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors;
+    }
+
+</style>
+
+<!-- Enhanced Category JavaScript -->
+<script src="{% static 'categories/js/enhanced_category.js' %}"></script>
+
+{% endblock %}

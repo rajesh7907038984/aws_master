@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+    {% if is_create %}Add{% else %}Edit{% endif %} SEND Accommodation - {{ target_user.get_full_name|default:target_user.username }}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        max-width: 800px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        padding: 30px;
+    }
+    
+    .form-group {
+        margin-bottom: 24px;
+    }
+    
+    .form-label {
+        display: block;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 8px;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 16px;
+        transition: border-color 0.2s;
+    }
+    
+    .form-control:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    
+    .form-select {
+        background-image: url('data:image/svg+xml;charset=utf-8,%3Csvg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20"%3E%3Cpath stroke="%236b7280" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 8l4 4 4-4"/%3E%3C/svg%3E');
+        background-position: right 12px center;
+        background-repeat: no-repeat;
+        background-size: 16px;
+        padding-right: 40px;
+    }
+    
+    .btn {
+        padding: 12px 24px;
+        border-radius: 6px;
+        font-weight: 600;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        display: inline-block;
+        transition: all 0.2s;
+    }
+    
+    .btn-primary {
+        background-color: #3b82f6;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background-color: #2563eb;
+        color: white;
+    }
+    
+    .btn-secondary {
+        background-color: #6b7280;
+        color: white;
+    }
+    
+    .btn-secondary:hover {
+        background-color: #4b5563;
+        color: white;
+    }
+    
+    .form-help {
+        font-size: 14px;
+        color: #6b7280;
+        margin-top: 4px;
+    }
+    
+    .form-error {
+        color: #ef4444;
+        font-size: 14px;
+        margin-top: 4px;
+    }
+    
+    .form-check-input {
+        width: 18px;
+        height: 18px;
+        margin-right: 8px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50">
+    <div class="p-6">
+        <!-- Breadcrumb -->
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+        <!-- Form Container -->
+        <div class="form-container">
+            <div class="mb-6">
+                <h1 class="text-2xl font-bold text-gray-900">
+                    {% if is_create %}Add{% else %}Edit{% endif %} SEND Accommodation
+                </h1>
+                <p class="text-gray-600 mt-2">
+                    Configure special educational needs and disabilities accommodations for {{ target_user.get_full_name|default:target_user.username }}.
+                </p>
+            </div>
+
+            <!-- Form -->
+            <form method="post">
+                {% csrf_token %}
+                
+                <!-- Accommodation Type -->
+                <div class="form-group">
+                    <label for="id_accommodation_type" class="form-label">
+                        Accommodation Type <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.accommodation_type }}
+                    {% if form.accommodation_type.errors %}
+                        <div class="form-error">{{ form.accommodation_type.errors.0 }}</div>
+                    {% endif %}
+                    <div class="form-help">
+                        Select the type of accommodation needed.
+                    </div>
+                </div>
+
+                <!-- Other Accommodation Type -->
+                <div class="form-group accommodation-type-other-container" style="display: none;">
+                    <label for="id_accommodation_type_other" class="form-label">
+                        Other Accommodation Type <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.accommodation_type_other }}
+                    {% if form.accommodation_type_other.errors %}
+                        <div class="form-error">{{ form.accommodation_type_other.errors.0 }}</div>
+                    {% endif %}
+                    <div class="form-help">
+                        Please specify the type of accommodation needed.
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <div class="form-group">
+                    <label for="id_description" class="form-label">
+                        Description <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.description }}
+                    {% if form.description.errors %}
+                        <div class="form-error">{{ form.description.errors.0 }}</div>
+                    {% endif %}
+                    <div class="form-help">
+                        Provide a detailed description of the accommodation needed and how it should be implemented.
+                    </div>
+                </div>
+
+                <!-- Is Active -->
+                <div class="form-group">
+                    <div class="flex items-center">
+                        {{ form.is_active }}
+                        <label for="id_is_active" class="form-label mb-0">
+                            Active Accommodation
+                        </label>
+                    </div>
+                    {% if form.is_active.errors %}
+                        <div class="form-error">{{ form.is_active.errors.0 }}</div>
+                    {% endif %}
+                    <div class="form-help">
+                        Check this box if the accommodation is currently active and should be applied.
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="flex items-center justify-between pt-6 border-t border-gray-200">
+                    <a href="{% url 'users:role_based_redirect' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left mr-2"></i>Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save mr-2"></i>
+                        {% if is_create %}Add Accommodation{% else %}Update Accommodation{% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Setup accommodation type "Other" field toggle
+    const accommodationTypeSelect = document.getElementById('id_accommodation_type');
+    const accommodationTypeOtherContainer = document.querySelector('.accommodation-type-other-container');
+    
+    if (accommodationTypeSelect && accommodationTypeOtherContainer) {
+        // Set initial state
+        if (accommodationTypeSelect.value === 'other') {
+            accommodationTypeOtherContainer.style.display = 'block';
+        } else {
+            accommodationTypeOtherContainer.style.display = 'none';
+        }
+        
+        // Add change event
+        accommodationTypeSelect.addEventListener('change', function() {
+            if (this.value === 'other') {
+                accommodationTypeOtherContainer.style.display = 'block';
+            } else {
+                accommodationTypeOtherContainer.style.display = 'none';
+            }
+        });
+    }
+});
+</script>
+{% endblock %} 

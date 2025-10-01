@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+
+{% block title %}Preview: {{ quiz.title }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumbs -->
+    {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <!-- Quiz Header -->
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-xl font-semibold text-gray-900">{{ quiz.title }}</h1>
+                    <p class="mt-1 text-sm text-gray-500">{{ quiz.description|safe }}</p>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="text-sm text-gray-500">
+                        <span class="font-medium">Time Limit:</span> 
+                        {% if quiz.time_limit %}{{ quiz.time_limit }} minutes{% else %}No limit{% endif %}
+                    </div>
+                    <div class="text-sm text-gray-500">
+                        <span class="font-medium">Passing Score:</span> 
+                        {{ quiz.passing_score }}%
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quiz Content -->
+        <div class="p-6 space-y-8">
+            {% if questions %}
+                {% for question in questions %}
+                <div class="bg-gray-50 rounded-lg p-6 question-container">
+                    <div class="flex justify-between items-start mb-4">
+                        <h3 class="text-lg font-medium text-gray-900">Question {{ forloop.counter }}</h3>
+                        <span class="text-sm text-gray-500">{{ question.points }} points</span>
+                    </div>
+                    
+                    <p class="text-gray-700 mb-4">{{ question.question_text|safe }}</p>
+                    
+                    {% if question.question_type == 'multiple_choice' %}
+                        <div class="space-y-3">
+                            {% for answer in question.answers.all %}
+                            <div class="flex items-center">
+                                <input type="radio" 
+                                       name="question_{{ question.id }}" 
+                                       id="answer_{{ answer.id }}"
+                                       class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                       disabled>
+                                <label for="answer_{{ answer.id }}" 
+                                       class="ml-3 block text-sm font-medium text-gray-700 {% if answer.is_correct %}text-green-600{% endif %}">
+                                    {{ answer.answer_text|safe }}
+                                    {% if answer.is_correct %}
+                                    <span class="ml-2 text-xs text-green-600">(Correct Answer)</span>
+                                    {% endif %}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% elif question.question_type == 'true_false' %}
+                        <div class="space-y-3">
+                            {% for answer in question.answers.all %}
+                            <div class="flex items-center">
+                                <input type="radio" 
+                                       name="question_{{ question.id }}" 
+                                       id="answer_{{ answer.id }}"
+                                       class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                       disabled>
+                                <label for="answer_{{ answer.id }}" 
+                                       class="ml-3 block text-sm font-medium text-gray-700 {% if answer.is_correct %}text-green-600{% endif %}">
+                                    {{ answer.answer_text|safe }}
+                                    {% if answer.is_correct %}
+                                    <span class="ml-2 text-xs text-green-600">(Correct Answer)</span>
+                                    {% endif %}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="text-center py-8">
+                    <div class="text-gray-500">No questions have been added to this quiz yet.</div>
+                    <a href="{% url 'quiz:edit_quiz' quiz.id %}" 
+                       class="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+                        Add Questions
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Footer -->
+        <div class="px-6 py-4 border-t border-gray-200">
+            <div class="flex justify-between items-center">
+                <a href="{% url 'quiz:quiz_list' %}" 
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                    Back to Quiz List
+                </a>
+                <a href="{% url 'quiz:edit_quiz' quiz.id %}" 
+                   class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+                    Edit Quiz
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

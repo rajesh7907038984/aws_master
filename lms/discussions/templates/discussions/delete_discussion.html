@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load discussion_extras %}
+
+{% block title %}Delete Discussion{% endblock %}
+
+{% block content %}
+<div class="min-h-screen">
+    <div class="container mx-auto px-4 py-6">
+        <!-- Main grid with 70-30 split -->
+        <div class="grid grid-cols-12 gap-4 md:gap-6">
+            <!-- Main Content Column (70%) -->
+            <div class="col-span-12 lg:col-span-8 transition-all duration-300">
+                <!-- Breadcrumbs -->
+                {% with breadcrumbs=breadcrumbs %}
+                    {% include 'components/breadcrumb.html' %}
+                {% endwith %}
+
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h1 class="text-2xl font-bold text-gray-800 mb-6">Delete Discussion</h1>
+                    
+                    <div class="mb-6">
+                        <div class="p-4 bg-red-50 text-red-800 rounded-lg">
+                            <p>Are you sure you want to delete the discussion "<strong>{{ discussion.title }}</strong>"?</p>
+                            <p class="mt-2">This action cannot be undone and will delete all associated comments.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <h2 class="text-lg font-medium text-gray-700 mb-3">Discussion Details</h2>
+                        
+                        <div class="border border-gray-200 rounded-lg p-4">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-2">{{ discussion.title }}</h3>
+                            <div class="text-sm text-gray-500 mb-4">
+                                Created by {{ discussion.created_by.get_full_name }} on {{ discussion.created_at|date:"d/m/Y" }}
+                            </div>
+                            <div class="text-sm text-gray-700 line-clamp-3">
+                                {{ discussion.content|decode_html|striptags|linebreaks }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <form method="post" action="{% url 'discussions:delete_discussion' discussion_id=discussion.id %}">
+                        {% csrf_token %}
+                        <div class="flex justify-end space-x-3">
+                            <a href="{% url 'discussions:discussion_detail' discussion_id=discussion.id %}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
+                                Cancel
+                            </a>
+                            <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
+                                Delete Discussion
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Right Column (30%) -->
+            <div class="col-span-12 lg:col-span-4 transition-all duration-300">
+                {% include 'components/right_sidebar.html' %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

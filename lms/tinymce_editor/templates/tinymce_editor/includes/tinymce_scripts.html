@@ -1,0 +1,86 @@
+{% load static %}
+
+<!-- TinyMCE Base CSS -->
+<link rel="stylesheet" href="{% static 'tinymce_editor/css/tinymce-fixes.css' %}">
+<link rel="stylesheet" href="{% static 'tinymce_editor/css/force-toolbar.css' %}">
+
+<!-- TinyMCE Core Script -->
+<script src="{% static 'tinymce_editor/tinymce/tinymce.min.js' %}"></script>
+
+<!-- TinyMCE Widget Script -->
+<script src="{% static 'tinymce_editor/js/tinymce-widget.js' %}"></script>
+
+<!-- TinyMCE Toolbar Fixer -->
+<script src="{% static 'tinymce_editor/js/toolbar-fixer.js' %}"></script>
+
+<!-- Inline styling to force toolbar visibility -->
+<style>
+    /* Force TinyMCE Toolbar Display - Inline Styles */
+    .tox-editor-container {
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    .tox-editor-header {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        position: static !important;
+        z-index: 10 !important;
+    }
+
+    .tox-toolbar-overlord {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+
+    .tox-toolbar__primary {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        flex-wrap: wrap !important;
+    }
+
+    .tox-toolbar__group {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+
+    .tox .tox-tbtn {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+
+    /* Hide overflow button */
+    .tox .tox-tbtn[aria-label="More..."],
+    .tox .tox-tbtn[data-mce-name="overflow-button"] {
+        display: none !important;
+    }
+</style>
+
+<!-- Script to force toolbar visibility after page load -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Force toolbar visibility after a delay
+        setTimeout(function() {
+            document.querySelectorAll('.tox-toolbar__primary, .tox-toolbar__group, .tox-tbtn, .tox-editor-header, .tox-toolbar-overlord').forEach(function(el) {
+                el.style.display = el.classList.contains('tox-toolbar__group') || el.classList.contains('tox-tbtn') ? 'flex' : 'block';
+                el.style.visibility = 'visible';
+                el.style.opacity = '1';
+            });
+            
+            // Hide overflow buttons
+            document.querySelectorAll('.tox-tbtn[aria-label="More..."], .tox-tbtn[data-mce-name="overflow-button"]').forEach(function(el) {
+                el.style.display = 'none';
+            });
+            
+            // Trigger resize
+            if (typeof tinymce !== 'undefined' && tinymce.activeEditor) {
+                tinymce.activeEditor.fire('ResizeEditor');
+            }
+        }, 500);
+    });
+</script> 

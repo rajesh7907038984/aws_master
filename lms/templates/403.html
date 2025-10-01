@@ -1,0 +1,193 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Access Denied (403) - Nexsy LMS</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{% static 'core/img/favicon-16x16.png' %}">
+    
+    <!-- TailwindCSS for consistent styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS for animations -->
+    <style>
+        .lock-animation {
+            animation: lockShake 1s ease-in-out infinite alternate;
+        }
+        
+        @keyframes lockShake {
+            0% { transform: rotate(-5deg); }
+            100% { transform: rotate(5deg); }
+        }
+        
+        .pulse-orange {
+            animation: pulse-orange 2s infinite;
+        }
+        
+        @keyframes pulse-orange {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        /* Primary color scheme matching the LMS */
+        .bg-primary-600 { background-color: #4f46e5; }
+        .bg-primary-700 { background-color: #4338ca; }
+        .hover\:bg-primary-700:hover { background-color: #4338ca; }
+        .text-primary-600 { color: #4f46e5; }
+        .text-orange-500 { color: #f97316; }
+        .text-orange-600 { color: #ea580c; }
+        .bg-orange-100 { background-color: #fed7aa; }
+        .bg-orange-600 { background-color: #ea580c; }
+        .bg-orange-700 { background-color: #c2410c; }
+        .hover\:bg-orange-700:hover { background-color: #c2410c; }
+    </style>
+</head>
+<body class="h-full bg-gradient-to-br from-orange-50 via-white to-orange-100">
+<div class="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-100 py-6 flex flex-col justify-center items-center px-4">
+    <!-- Main 403 Container -->
+    <div class="max-w-4xl mx-auto text-center">
+        <!-- 403 Number Display -->
+        <div class="mb-8">
+            <div class="lock-animation">
+                <h1 class="text-9xl md:text-[12rem] font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-orange-700 leading-none">
+                    403
+                </h1>
+            </div>
+        </div>
+        
+        <!-- Error Message Card -->
+        <div class="bg-white rounded-3xl shadow-2xl p-8 md:p-12 mb-8 border border-gray-100">
+            <div class="flex items-center justify-center mb-6">
+                <div class="pulse-orange">
+                    <svg class="w-20 h-20 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" 
+                              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
+                        </path>
+                    </svg>
+                </div>
+            </div>
+            
+            <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                Access Denied
+            </h2>
+            
+            <p class="text-lg text-gray-600 mb-2 leading-relaxed">
+                You don't have permission to access this resource.
+            </p>
+            
+            <p class="text-base text-gray-500 mb-8">
+                This might be because you need to log in or your account doesn't have the required privileges.
+            </p>
+            
+            <!-- Action Buttons -->
+            <div class="flex flex-col sm:flex-row justify-center items-center gap-4 mb-8">
+                {% if not user.is_authenticated %}
+                                 <a href="/login/" 
+                    class="inline-flex items-center px-6 py-3 bg-primary-600 text-white font-semibold rounded-xl shadow-lg hover:bg-primary-700 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                     <i class="fas fa-sign-in-alt mr-2"></i>
+                     Sign In
+                 </a>
+                {% endif %}
+                
+                <a href="{% url 'home' %}" 
+                   class="inline-flex items-center px-6 py-3 bg-orange-600 text-white font-semibold rounded-xl shadow-lg hover:bg-orange-700 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                    <i class="fas fa-home mr-2"></i>
+                    Return to Dashboard
+                </a>
+                
+                <button onclick="history.back()" 
+                        class="inline-flex items-center px-6 py-3 bg-gray-100 text-gray-700 font-semibold rounded-xl shadow-md hover:bg-gray-200 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
+                    <i class="fas fa-arrow-left mr-2"></i>
+                    Go Back
+                </button>
+            </div>
+        </div>
+        
+        <!-- Permission Information Cards -->
+        <div class="grid md:grid-cols-2 gap-6 mb-8">
+            <!-- Current Access Level -->
+            <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                <div class="text-center">
+                    <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-user text-blue-600 text-xl"></i>
+                    </div>
+                    <h3 class="font-bold text-gray-900 mb-2">Your Access Level</h3>
+                    {% if user.is_authenticated %}
+                        <p class="text-sm text-gray-600 mb-2">Logged in as: <strong>{{ user.get_full_name|default:user.username }}</strong></p>
+                        {% if user.role %}
+                            <p class="text-sm text-blue-600 font-medium">Role: {{ user.role.name|title }}</p>
+                        {% else %}
+                            <p class="text-sm text-gray-500">No role assigned</p>
+                        {% endif %}
+                    {% else %}
+                        <p class="text-sm text-gray-600">Not logged in</p>
+                        <p class="text-sm text-orange-600 font-medium">Guest access</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Required Access -->
+            <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                <div class="text-center">
+                    <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-lock text-orange-600 text-xl"></i>
+                    </div>
+                    <h3 class="font-bold text-gray-900 mb-2">Required Access</h3>
+                    <p class="text-sm text-gray-600 mb-2">This resource requires</p>
+                    <p class="text-sm text-orange-600 font-medium">Higher privileges</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Help Section -->
+        <div class="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
+            <h3 class="text-xl font-bold text-gray-900 mb-4">
+                Need help with access?
+            </h3>
+            <p class="text-gray-600 mb-6">
+                Contact your administrator or support team for assistance with permissions
+            </p>
+            <div class="flex flex-col sm:flex-row justify-center gap-4">
+                <a href="mailto:support@nexsy.io" 
+                   class="inline-flex items-center px-6 py-3 bg-primary-600 text-white font-semibold rounded-xl shadow-lg hover:bg-primary-700 transition-all duration-300">
+                    <i class="fas fa-envelope mr-2"></i>
+                    Contact Support
+                </a>
+                                 {% if user.is_authenticated and user.role and user.role.name in 'learner,instructor' %}
+                 <a href="/messages/" 
+                    class="inline-flex items-center px-6 py-3 bg-gray-100 text-gray-700 font-semibold rounded-xl shadow-md hover:bg-gray-200 transition-all duration-300">
+                     <i class="fas fa-comments mr-2"></i>
+                     Message Admin
+                 </a>
+                 {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Background decoration -->
+<div class="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+    <div class="absolute -top-40 -right-40 w-80 h-80 bg-orange-200 rounded-full opacity-20 blur-3xl"></div>
+    <div class="absolute -bottom-40 -left-40 w-80 h-80 bg-yellow-200 rounded-full opacity-20 blur-3xl"></div>
+</div>
+
+<!-- JavaScript for error handling and analytics -->
+<script>
+    // Log the 403 event for analytics
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof gtag !== 'undefined') {
+            gtag('event', 'access_denied', {
+                'page_location': window.location.href,
+                'error_type': '403'
+            });
+        }
+    });
+</script>
+</body>
+</html> 

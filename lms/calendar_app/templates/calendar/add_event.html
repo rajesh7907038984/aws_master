@@ -1,0 +1,270 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+    
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex justify-between items-center">
+                <h1 class="text-2xl font-semibold text-gray-900">Add New Event</h1>
+                <a href="{% url 'calendar_app:calendar' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                    <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                    Back to Calendar
+                </a>
+            </div>
+        </div>
+
+        <!-- Form -->
+        <div class="p-6">
+            <form method="post" id="addEventForm">
+                {% csrf_token %}
+                
+                <!-- Basic Information Section -->
+                <div class="mb-8">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Basic Information</h3>
+                    
+                    <!-- Event Title -->
+                    <div class="mb-6">
+                        <label for="title" class="block text-sm font-medium text-gray-700 mb-2">Event Title *</label>
+                        <input type="text" name="title" id="title" required 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                               placeholder="Enter event title">
+                    </div>
+
+                    <!-- Description -->
+                    <div class="mb-6">
+                        <label for="description" class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                        <textarea name="description" id="description" rows="4" 
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                  placeholder="Enter event description (optional)" maxlength="1500"></textarea>
+                    </div>
+                </div>
+
+                <!-- Date & Time Section -->
+                <div class="mb-8">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Date & Time</h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- Start Date -->
+                        <div>
+                            <label for="start_date" class="block text-sm font-medium text-gray-700 mb-2">Start Date *</label>
+                            <input type="date" name="start_date" id="start_date" required 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+
+                        <!-- Start Time -->
+                        <div>
+                            <label for="start_time" class="block text-sm font-medium text-gray-700 mb-2">Start Time *</label>
+                            <input type="time" name="start_time" id="start_time" required 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+
+                        <!-- Duration -->
+                        <div>
+                            <label for="duration" class="block text-sm font-medium text-gray-700 mb-2">Duration</label>
+                            <div class="flex items-center space-x-3">
+                                <input type="number" name="duration" id="duration" min="15" max="1440" value="60" 
+                                       class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <select name="duration_unit" id="duration_unit" 
+                                        class="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="minutes">Minutes</option>
+                                    <option value="hours" selected>Hours</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- All Day Event -->
+                    <div class="mt-4">
+                        <label class="flex items-center">
+                            <input type="checkbox" name="is_all_day" id="is_all_day" 
+                                   class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            <span class="ml-2 text-sm text-gray-700">All-day event</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Event Settings Section -->
+                <div class="mb-8">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Event Settings</h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Color -->
+                        <div>
+                            <label for="color" class="block text-sm font-medium text-gray-700 mb-2">Event Color</label>
+                            <div class="flex items-center space-x-3">
+                                <input type="color" name="color" id="color" value="#1B68B3" 
+                                       class="h-10 w-16 border border-gray-300 rounded-md cursor-pointer">
+                                <input type="text" id="color_text" value="#1B68B3" readonly 
+                                       class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 text-gray-700">
+                            </div>
+                        </div>
+
+                        <!-- Notification -->
+                        <div>
+                            <label for="notification" class="block text-sm font-medium text-gray-700 mb-2">Notification</label>
+                            <select name="notification" id="notification" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <option value="none">No notification</option>
+                                <option value="15min">15 minutes before</option>
+                                <option value="30min">30 minutes before</option>
+                                <option value="1hour">1 hour before</option>
+                                <option value="2hours">2 hours before</option>
+                                <option value="1day">1 day before</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Tags -->
+                    <div class="mt-6">
+                        <label for="tags" class="block text-sm font-medium text-gray-700 mb-2">Tags</label>
+                        <input type="text" name="tags" id="tags" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                               placeholder="Enter tags separated by commas (e.g., meeting, work, important)">
+                    </div>
+
+                    <!-- Recurring Event -->
+                    <div class="mt-4">
+                        <label class="flex items-center">
+                            <input type="checkbox" name="is_recurring" id="is_recurring" 
+                                   class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            <span class="ml-2 text-sm text-gray-700">This is a recurring event</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+                    <a href="{% url 'calendar_app:calendar' %}" 
+                       class="px-6 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Cancel
+                    </a>
+                    <button type="submit" 
+                            class="px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Create Event
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Color picker synchronization
+    const colorPicker = document.getElementById('color');
+    const colorText = document.getElementById('color_text');
+
+    colorPicker.addEventListener('input', function(e) {
+        colorText.value = e.target.value.toUpperCase();
+    });
+
+    // All-day event handler
+    const allDayCheckbox = document.getElementById('is_all_day');
+    const startTimeInput = document.getElementById('start_time');
+    const durationInput = document.getElementById('duration');
+    const durationUnit = document.getElementById('duration_unit');
+
+    allDayCheckbox.addEventListener('change', function() {
+        if (this.checked) {
+            startTimeInput.disabled = true;
+            durationInput.disabled = true;
+            durationUnit.disabled = true;
+            startTimeInput.style.backgroundColor = '#f9fafb';
+            durationInput.style.backgroundColor = '#f9fafb';
+            durationUnit.style.backgroundColor = '#f9fafb';
+        } else {
+            startTimeInput.disabled = false;
+            durationInput.disabled = false;
+            durationUnit.disabled = false;
+            startTimeInput.style.backgroundColor = '';
+            durationInput.style.backgroundColor = '';
+            durationUnit.style.backgroundColor = '';
+        }
+    });
+
+    // Set default values
+    const today = new Date();
+    const urlParams = new URLSearchParams(window.location.search);
+    const dateParam = urlParams.get('date');
+    
+    if (dateParam) {
+        document.getElementById('start_date').value = dateParam;
+    } else {
+        document.getElementById('start_date').value = today.toISOString().split('T')[0];
+    }
+    document.getElementById('start_time').value = '09:00';
+
+    // Form submission
+    document.getElementById('addEventForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const isAllDay = formData.get('is_all_day') === 'on';
+        
+        // Prepare event data
+        const eventData = {
+            title: formData.get('title'),
+            description: formData.get('description') || '',
+            is_all_day: isAllDay,
+            color: formData.get('color'),
+            is_recurring: formData.get('is_recurring') === 'on',
+            notification: formData.get('notification'),
+            tags: formData.get('tags') || '',
+        };
+
+        // Handle date/time
+        const startDate = formData.get('start_date');
+        const startTime = isAllDay ? '00:00' : formData.get('start_time');
+        const duration = parseInt(formData.get('duration'));
+        const durationUnit = formData.get('duration_unit');
+        
+        // Create start datetime
+        const startDateTime = new Date(startDate + 'T' + startTime);
+        eventData.start = startDateTime.toISOString();
+        
+        // Calculate end datetime
+        const endDateTime = new Date(startDateTime);
+        if (isAllDay) {
+            endDateTime.setDate(endDateTime.getDate() + 1);
+        } else {
+            const durationInMinutes = durationUnit === 'hours' ? duration * 60 : duration;
+            endDateTime.setMinutes(endDateTime.getMinutes() + durationInMinutes);
+        }
+        eventData.end = endDateTime.toISOString();
+
+        // Submit to API
+        fetch("{% url 'calendar_app:create_event' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': formData.get('csrfmiddlewaretoken'),
+            },
+            body: JSON.stringify(eventData)
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(text => {
+                    throw new Error(text || 'Failed to create event');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Show success message and redirect
+            alert('Event created successfully!');
+            window.location.href = "{% url 'calendar_app:calendar' %}";
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error creating event: ' + error.message);
+        });
+    });
+});
+</script>
+{% endblock %} 

@@ -1,0 +1,329 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_head %}
+<meta name="page-context" content="course-creation">
+{% endblock %}
+
+{% block extra_css %}
+<link href="{% static 'core/css/course_create.css' %}" rel="stylesheet">
+<link href="{% static 'core/css/courses/course_edit.css' %}" rel="stylesheet">
+<style>
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-label {
+        display: block;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        color: #374151;
+    }
+    
+    .form-input, .form-select {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+    
+    .form-input:focus, .form-select:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    
+    .error-message {
+        color: #dc2626;
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+    }
+    
+    .help-text {
+        color: #6b7280;
+        font-size: 0.8rem;
+        margin-top: 0.25rem;
+    }
+    
+    .required-field::after {
+        content: '*';
+        color: #dc2626;
+        margin-left: 0.25rem;
+    }
+    
+    .readonly-field {
+        background-color: #f9fafb;
+        border-color: #e5e7eb;
+        color: #6b7280;
+    }
+    
+    .card {
+        background: white;
+        border-radius: 0.5rem;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        overflow: hidden;
+    }
+    
+    .card-header {
+        background-color: #f9fafb;
+        border-bottom: 1px solid #e5e7eb;
+        padding: 1rem 1.5rem;
+    }
+    
+    .card-body {
+        padding: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="bg-white rounded-lg shadow-md">
+        <div class="w-full px-8 py-6">
+            <!-- Breadcrumbs -->
+            {% with breadcrumbs=breadcrumbs %}
+                {% include 'components/breadcrumb.html' %}
+            {% endwith %}
+
+            <div class="flex items-center justify-between mb-6">
+                <h1 class="text-2xl font-bold text-gray-900">{{ page_title }}</h1>
+                <div class="flex gap-2">
+                    <a href="{% url 'courses:course_users' course.id %}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200">
+                        <i class="fas fa-arrow-left mr-2"></i>Back to Users
+                    </a>
+                </div>
+            </div>
+
+            <!-- Form -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="text-lg font-semibold text-gray-800">
+                        <i class="fas fa-user-plus mr-2"></i>Create New User
+                    </h2>
+                    <p class="text-sm text-gray-600 mt-1">
+                        Create a new user account and automatically enroll them in "{{ course.title }}"
+                    </p>
+                </div>
+                <div class="card-body">
+                    <form method="post" class="space-y-6">
+                        {% csrf_token %}
+                        
+                        <!-- Display non-field errors -->
+                        {% if form.non_field_errors %}
+                            <div class="bg-red-50 border border-red-200 rounded-md p-4">
+                                {% for error in form.non_field_errors %}
+                                    <p class="text-red-600 text-sm">{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Username -->
+                            <div class="form-group">
+                                <label for="{{ form.username.id_for_label }}" class="form-label required-field">
+                                    Username
+                                </label>
+                                {{ form.username }}
+                                {% if form.username.errors %}
+                                    {% for error in form.username.errors %}
+                                        <p class="error-message">{{ error }}</p>
+                                    {% endfor %}
+                                {% endif %}
+                                {% if form.username.help_text %}
+                                    <p class="help-text">{{ form.username.help_text }}</p>
+                                {% endif %}
+                            </div>
+
+                            <!-- Email -->
+                            <div class="form-group">
+                                <label for="{{ form.email.id_for_label }}" class="form-label required-field">
+                                    Email Address
+                                </label>
+                                {{ form.email }}
+                                {% if form.email.errors %}
+                                    {% for error in form.email.errors %}
+                                        <p class="error-message">{{ error }}</p>
+                                    {% endfor %}
+                                {% endif %}
+                                {% if form.email.help_text %}
+                                    <p class="help-text">{{ form.email.help_text }}</p>
+                                {% endif %}
+                            </div>
+
+                            <!-- First Name -->
+                            <div class="form-group">
+                                <label for="{{ form.first_name.id_for_label }}" class="form-label">
+                                    First Name
+                                </label>
+                                {{ form.first_name }}
+                                {% if form.first_name.errors %}
+                                    {% for error in form.first_name.errors %}
+                                        <p class="error-message">{{ error }}</p>
+                                    {% endfor %}
+                                {% endif %}
+                                {% if form.first_name.help_text %}
+                                    <p class="help-text">{{ form.first_name.help_text }}</p>
+                                {% endif %}
+                            </div>
+
+                            <!-- Last Name -->
+                            <div class="form-group">
+                                <label for="{{ form.last_name.id_for_label }}" class="form-label">
+                                    Last Name
+                                </label>
+                                {{ form.last_name }}
+                                {% if form.last_name.errors %}
+                                    {% for error in form.last_name.errors %}
+                                        <p class="error-message">{{ error }}</p>
+                                    {% endfor %}
+                                {% endif %}
+                                {% if form.last_name.help_text %}
+                                    <p class="help-text">{{ form.last_name.help_text }}</p>
+                                {% endif %}
+                            </div>
+
+                            <!-- Role -->
+                            <div class="form-group">
+                                <label for="{{ form.role.id_for_label }}" class="form-label required-field">
+                                    Role
+                                </label>
+                                {{ form.role }}
+                                {% if form.role.errors %}
+                                    {% for error in form.role.errors %}
+                                        <p class="error-message">{{ error }}</p>
+                                    {% endfor %}
+                                {% endif %}
+                                {% if form.role.help_text %}
+                                    <p class="help-text">{{ form.role.help_text }}</p>
+                                {% endif %}
+                            </div>
+
+                            <!-- Branch -->
+                            <div class="form-group">
+                                <label for="{{ form.branch.id_for_label }}" class="form-label required-field">
+                                    Branch
+                                </label>
+                                {{ form.branch }}
+                                {% if form.branch.errors %}
+                                    {% for error in form.branch.errors %}
+                                        <p class="error-message">{{ error }}</p>
+                                    {% endfor %}
+                                {% endif %}
+                                {% if form.branch.help_text %}
+                                    <p class="help-text">{{ form.branch.help_text }}</p>
+                                {% endif %}
+                            </div>
+
+                            <!-- Timezone -->
+                            <div class="form-group">
+                                <label for="{{ form.timezone.id_for_label }}" class="form-label required-field">
+                                    Timezone
+                                </label>
+                                {{ form.timezone }}
+                                {% if form.timezone.errors %}
+                                    {% for error in form.timezone.errors %}
+                                        <p class="error-message">{{ error }}</p>
+                                    {% endfor %}
+                                {% endif %}
+                                {% if form.timezone.help_text %}
+                                    <p class="help-text">{{ form.timezone.help_text }}</p>
+                                {% endif %}
+                            </div>
+
+                            <!-- Courses -->
+                            <div class="form-group">
+                                <label for="{{ form.courses.id_for_label }}" class="form-label">
+                                    Courses to Enroll In
+                                </label>
+                                {{ form.courses }}
+                                {% if form.courses.errors %}
+                                    {% for error in form.courses.errors %}
+                                        <p class="error-message">{{ error }}</p>
+                                    {% endfor %}
+                                {% endif %}
+                                <p class="help-text">
+                                    <i class="fas fa-info-circle mr-1"></i>
+                                    This user will be automatically enrolled in "{{ course.title }}"
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Password Fields -->
+                        <div class="border-t border-gray-200 pt-6 mt-6">
+                            <h3 class="text-lg font-medium text-gray-900 mb-4">
+                                <i class="fas fa-key mr-2"></i>Password Settings
+                            </h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <!-- Password -->
+                                <div class="form-group">
+                                    <label for="{{ form.password1.id_for_label }}" class="form-label required-field">
+                                        Password
+                                    </label>
+                                    {{ form.password1 }}
+                                    {% if form.password1.errors %}
+                                        {% for error in form.password1.errors %}
+                                            <p class="error-message">{{ error }}</p>
+                                        {% endfor %}
+                                    {% endif %}
+                                    {% if form.password1.help_text %}
+                                        <p class="help-text">{{ form.password1.help_text }}</p>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Confirm Password -->
+                                <div class="form-group">
+                                    <label for="{{ form.password2.id_for_label }}" class="form-label required-field">
+                                        Confirm Password
+                                    </label>
+                                    {{ form.password2 }}
+                                    {% if form.password2.errors %}
+                                        {% for error in form.password2.errors %}
+                                            <p class="error-message">{{ error }}</p>
+                                        {% endfor %}
+                                    {% endif %}
+                                    {% if form.password2.help_text %}
+                                        <p class="help-text">{{ form.password2.help_text }}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="border-t border-gray-200 pt-6 mt-6">
+                            <div class="flex justify-end space-x-3">
+                                <a href="{% url 'courses:course_users' course.id %}" 
+                                   class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors">
+                                    Cancel
+                                </a>
+                                <button type="submit" 
+                                        class="px-4 py-2 bg-[#1c2261] text-white rounded-md hover:bg-[#282e7f] transition-colors">
+                                    <i class="fas fa-user-plus mr-2"></i>
+                                    Create User & Enroll
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Disable the courses field since it's pre-selected
+    document.addEventListener('DOMContentLoaded', function() {
+        const coursesSelect = document.querySelector('#id_courses');
+        if (coursesSelect) {
+            coursesSelect.disabled = true;
+            coursesSelect.style.backgroundColor = '#f9fafb';
+            coursesSelect.style.color = '#6b7280';
+        }
+    });
+</script>
+{% endblock %}

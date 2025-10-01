@@ -1,0 +1,919 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load conference_tags %}
+
+{% block title %}{{ conference.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background-color: #f5f7fa !important;
+    }
+    
+    .conference-card {
+        background-color: white;
+        border-radius: 12px;
+        box-shadow: 0px 0px 20px -8px rgba(0,0,0,0.15);
+        padding: 2rem;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 1rem 0;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .info-row:last-child {
+        border-bottom: none;
+    }
+    
+    .info-label {
+        color: #6b7280;
+        font-weight: 500;
+    }
+    
+    .info-value {
+        color: #1f2937;
+        font-weight: 600;
+    }
+    
+    .join-button {
+        background-color: #3b82f6;
+        color: white;
+        padding: 0.75rem 2rem;
+        border-radius: 8px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        transition: background-color 0.2s;
+        margin-top: 2rem;
+        cursor: pointer;
+        border: none;
+    }
+    
+    .join-button:hover {
+        background-color: #2563eb;
+    }
+    
+    .join-button:disabled {
+        background-color: #9ca3af;
+        cursor: not-allowed;
+    }
+    
+    .join-button svg {
+        margin-right: 0.5rem;
+    }
+    
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+    
+    .status-badge.scheduled {
+        background-color: #FEF3C7;
+        color: #92400E;
+    }
+    
+    .status-badge.started {
+        background-color: #D1FAE5;
+        color: #065F46;
+    }
+    
+    .status-badge.ended {
+        background-color: #E5E7EB;
+        color: #374151;
+    }
+    
+    .description-section {
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e5e7eb;
+    }
+    
+    .joined-info {
+        background-color: #EBF8FF;
+        border: 1px solid #90CDF4;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-top: 1rem;
+        color: #1E40AF;
+    }
+    
+    .auth-required {
+        background-color: #FEF3C7;
+        border: 1px solid #F59E0B;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-top: 1rem;
+        color: #92400E;
+    }
+    
+    .loading-spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        margin-right: 8px;
+        border: 2px solid #ffffff;
+        border-radius: 50%;
+        border-top-color: transparent;
+        animation: spin 0.8s linear infinite;
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    
+    .error-message {
+        background-color: #FEE2E2;
+        border: 1px solid #F87171;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-top: 1rem;
+        color: #991B1B;
+        display: none;
+    }
+    
+    .success-message {
+        background-color: #D1FAE5;
+        border: 1px solid #34D399;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-top: 1rem;
+        color: #065F46;
+        display: none;
+    }
+
+    /* Rubric Grades Section */
+    .rubric-grades-section {
+        margin-top: 1.5rem;
+        padding: 1rem;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .rubric-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+    }
+
+    .rubric-header h3 {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #1f2937;
+        margin: 0;
+    }
+
+    .total-score {
+        font-weight: 600;
+        color: #1f2937;
+    }
+
+    .rubric-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    .rubric-table th {
+        text-align: left;
+        padding: 0.5rem;
+        background-color: #f9fafb;
+        border: 1px solid #e5e7eb;
+        font-weight: 600;
+        color: #1f2937;
+    }
+
+    .rubric-table td {
+        padding: 0.5rem;
+        border: 1px solid #e5e7eb;
+        color: #6b7280;
+        line-height: 1.3;
+    }
+
+    .rubric-table tbody tr:nth-child(even) {
+        background-color: #f9fafb;
+    }
+
+    .rubric-footer {
+        margin-top: 0.5rem;
+        color: #6b7280;
+        font-size: 0.75rem;
+    }
+
+    /* Standardized Button Styles */
+    .btn-standard {
+        background-color: #050c50 !important;
+        color: white !important;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        display: inline-flex;
+        align-items: center;
+        text-decoration: none;
+        cursor: pointer;
+    }
+    
+    .btn-standard:hover {
+        background-color: #040a42 !important;
+        color: white !important;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .btn-standard:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(5, 12, 80, 0.2);
+    }
+    
+    .btn-standard:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
+    .btn-standard svg {
+        margin-right: 0.5rem;
+    }
+    
+    .btn-standard.btn-small {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+    }
+    
+    .btn-standard.btn-large {
+        padding: 0.75rem 1.5rem;
+        font-size: 1rem;
+    }
+    
+    .btn-standard.btn-secondary {
+        background-color: #6b7280 !important;
+        color: white !important;
+    }
+    
+    .btn-standard.btn-secondary:hover {
+        background-color: #4b5563 !important;
+        color: white !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumbs -->
+    {% with breadcrumbs=breadcrumbs %}
+        {% include 'components/breadcrumb.html' %}
+    {% endwith %}
+
+    <!-- Return welcome container -->
+    <div id="return-welcome-container" style="display: none;"></div>
+    
+    <div class="conference-card">
+        <!-- Conference Title -->
+        <div class="text-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-900 mb-2">{{ conference.title }}</h1>
+            <span class="status-badge {{ conference.meeting_status }}">
+                {{ conference.get_meeting_status_display }}
+            </span>
+        </div>
+
+        <!-- Conference Details -->
+        <div class="info-row">
+            <span class="info-label">Date</span>
+            <span class="info-value">{{ conference.date|date:"l, d F Y" }}</span>
+        </div>
+
+        <div class="info-row">
+            <span class="info-label">Time</span>
+            <span class="info-value">
+                {{ conference.start_time|time:"H:i" }} - {{ conference.end_time|time:"H:i" }}
+                {% if conference.timezone %}
+                <span class="text-sm text-gray-500">({{ conference.timezone }})</span>
+                {% endif %}
+            </span>
+        </div>
+
+        <div class="info-row">
+            <span class="info-label">Platform</span>
+            <span class="info-value">{{ conference.get_meeting_platform_display }}</span>
+        </div>
+
+        {% if conference.course %}
+        <div class="info-row">
+            <span class="info-label">Course</span>
+            <span class="info-value">{{ conference.course.title }}</span>
+        </div>
+        {% endif %}
+
+        <div class="info-row">
+            <span class="info-label">Host</span>
+            <span class="info-value">{{ conference.created_by.get_full_name }}</span>
+        </div>
+
+        <!-- Description -->
+        {% if conference.description %}
+        <div class="description-section">
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Description</h3>
+            <div class="text-gray-700">{{ conference.description|decode_html }}</div>
+        </div>
+        {% endif %}
+
+        <!-- Rubric Grades Section -->
+        {% if learner_rubric_data %}
+        <div class="rubric-grades-section">
+            <div class="rubric-header">
+                <h3>Your Rubric Evaluation</h3>
+                <div class="total-score">{{ learner_rubric_data.total_score|floatformat:1 }}/{{ learner_rubric_data.max_score }} ({% widthratio learner_rubric_data.total_score learner_rubric_data.max_score 100 as percentage %}{{ percentage }}%)</div>
+            </div>
+            
+            <table class="rubric-table">
+                <thead>
+                    <tr>
+                        <th>Criteria</th>
+                        <th>Score</th>
+                        <th>Rating</th>
+                        <th>Comments</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for evaluation in learner_rubric_data.evaluations %}
+                    <tr>
+                        <td>{{ evaluation.criterion.description }}</td>
+                        <td>{{ evaluation.points|floatformat:1 }}/{{ evaluation.criterion.points }}</td>
+                        <td>{% if evaluation.rating %}{{ evaluation.rating.title }}{% else %}-{% endif %}</td>
+                        <td>{% if evaluation.comments %}{{ evaluation.comments }}{% else %}-{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <div class="rubric-footer">
+                <small>Evaluated by {{ learner_rubric_data.evaluated_by.get_full_name }} on {{ learner_rubric_data.evaluation_date|date:"M d, Y" }}</small>
+            </div>
+            
+            <!-- Overall Feedback Section -->
+            {% if learner_rubric_data.overall_feedback %}
+            <div class="overall-feedback-section mt-6">
+                <h4 class="font-semibold text-gray-800 mb-3">
+                    <i class="fas fa-comment-alt mr-2 text-blue-500"></i>
+                    Overall Feedback
+                </h4>
+                
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    {% if learner_rubric_data.overall_feedback.feedback %}
+                    <div class="mb-3">
+                        <div class="flex items-center mb-2">
+                            <i class="fas fa-keyboard text-blue-600 mr-2 text-sm"></i>
+                            <span class="font-medium text-blue-800 text-sm">Written Feedback</span>
+                        </div>
+                        <div class="prose prose-sm max-w-none text-gray-700 bg-white p-3 rounded border">
+                            {{ learner_rubric_data.overall_feedback.feedback|decode_html }}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if learner_rubric_data.overall_feedback.audio_feedback %}
+                    <div class="mb-3">
+                        <div class="flex items-center mb-2">
+                            <i class="fas fa-microphone text-green-600 mr-2 text-sm"></i>
+                            <span class="font-medium text-green-800 text-sm">Audio Feedback</span>
+                        </div>
+                        <div class="bg-green-50 p-2 rounded border">
+                            <audio controls class="w-full h-8" controlsList="nodownload">
+                                <source src="{{ learner_rubric_data.overall_feedback.audio_feedback.url }}" type="audio/mpeg">
+                                <source src="{{ learner_rubric_data.overall_feedback.audio_feedback.url }}" type="audio/wav">
+                                <source src="{{ learner_rubric_data.overall_feedback.audio_feedback.url }}" type="audio/mp4">
+                                Your browser does not support the audio element.
+                            </audio>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if learner_rubric_data.overall_feedback.video_feedback %}
+                    <div class="mb-3">
+                        <div class="flex items-center mb-2">
+                            <i class="fas fa-video text-purple-600 mr-2 text-sm"></i>
+                            <span class="font-medium text-purple-800 text-sm">Video Feedback</span>
+                        </div>
+                        <div class="bg-purple-50 p-2 rounded border">
+                            <video controls class="w-full max-w-sm rounded" controlsList="nodownload">
+                                <source src="{{ learner_rubric_data.overall_feedback.video_feedback.url }}" type="video/mp4">
+                                <source src="{{ learner_rubric_data.overall_feedback.video_feedback.url }}" type="video/mov">
+                                <source src="{{ learner_rubric_data.overall_feedback.video_feedback.url }}" type="video/avi">
+                                Your browser does not support the video element.
+                            </video>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="text-xs text-gray-500 mt-3">
+                        <i class="fas fa-clock mr-1"></i>
+                        Feedback provided on {{ learner_rubric_data.overall_feedback.created_at|date:"M d, Y g:i A" }}
+                        {% if learner_rubric_data.overall_feedback.created_by %}
+                        by {{ learner_rubric_data.overall_feedback.created_by.get_full_name }}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+
+
+        <!-- Authentication Required Notice -->
+        <div class="auth-required">
+            <svg class="inline-block w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 012 2 1 1 0 102 0 4 4 0 00-4-4z" clip-rule="evenodd"/>
+            </svg>
+            <strong>Authentication Required:</strong> Only registered users can join this conference. Guest participation is not allowed.
+        </div>
+
+
+
+        <!-- Join Button / Status -->
+        <div class="text-center mt-6">
+            {% if conference.meeting_status == 'scheduled' or conference.meeting_status == 'started' %}
+                {% if has_joined %}
+                <div class="joined-info">
+                    <svg class="inline-block w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                    </svg>
+                    You have already clicked to join this conference.
+                    <br>
+                    <small class="text-blue-600">If you left the meeting, you can rejoin or return to view conference details.</small>
+                </div>
+                {% endif %}
+                
+                <button id="joinButton" class="btn-standard btn-large" onclick="autoRegisterAndJoin()">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                    </svg>
+                    <span id="joinButtonText">{% if has_joined %}Rejoin Conference{% else %}Join Conference{% endif %}</span>
+                </button>
+
+
+
+                <!-- Messages -->
+                <div id="errorMessage" class="error-message"></div>
+                <div id="successMessage" class="success-message"></div>
+                
+            {% elif conference.meeting_status == 'ended' %}
+                <div class="text-gray-600">
+                    <svg class="inline-block w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/>
+                    </svg>
+                    This conference has ended.
+                </div>
+                {% if participant %}
+                <div class="mt-4 text-sm text-gray-600">
+                    You attended this conference for {{ participant.total_duration_minutes }} minutes.
+                </div>
+                {% endif %}
+            {% elif conference.meeting_status == 'cancelled' %}
+                <div class="text-red-600">
+                    <svg class="inline-block w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                    </svg>
+                    This conference has been cancelled.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+
+</div>
+
+<script>
+// Get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function autoRegisterAndJoin() {
+    const button = document.getElementById('joinButton');
+    const buttonText = document.getElementById('joinButtonText');
+    const errorMessage = document.getElementById('errorMessage');
+    const successMessage = document.getElementById('successMessage');
+    
+    // Disable button and show loading
+    button.disabled = true;
+    buttonText.innerHTML = '<span class="loading-spinner"></span>Processing...';
+    
+    // Hide any previous messages
+    errorMessage.style.display = 'none';
+    successMessage.style.display = 'none';
+    
+    // Get CSRF token - try multiple methods for reliability
+    let csrfToken = null;
+    
+    // Method 1: Meta tag
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    if (csrfMeta) {
+        csrfToken = csrfMeta.getAttribute('content');
+    }
+    
+    // Method 2: Cookie method
+    if (!csrfToken) {
+        const csrfCookie = document.cookie.split(';').find(c => c.trim().startsWith('csrftoken='));
+        if (csrfCookie) {
+            csrfToken = csrfCookie.split('=')[1];
+        }
+    }
+    
+    // Method 3: Form input
+    if (!csrfToken) {
+        const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+        if (csrfInput) {
+            csrfToken = csrfInput.value;
+        }
+    }
+    
+    if (!csrfToken) {
+        console.error('CSRF token not found! Conference join may fail.');
+        return;
+    }
+    
+    // Make AJAX request to auto-register and get join link
+    fetch("{% url 'conferences:auto_register_and_join' conference_id=conference.id %}", {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken,
+            'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            successMessage.textContent = data.message;
+            successMessage.style.display = 'block';
+            
+            // Update button text
+            buttonText.textContent = 'Redirecting to meeting...';
+            
+            // Store meeting join info in localStorage for return detection
+            localStorage.setItem('lms_meeting_join_' + {{ conference.id }}, JSON.stringify({
+                joined_at: new Date().toISOString(),
+                conference_id: {{ conference.id }},
+                conference_title: "{{ conference.title|escapejs }}",
+                return_url: "{% url 'conferences:return_from_meeting' conference_id=conference.id %}",
+                redirect_url: "{% url 'conferences:conference_redirect_handler' conference_id=conference.id %}",
+                dashboard_url: "{% url 'dashboard_learner' %}",
+                conference_detail_url: "{% url 'conferences:conference_detail' conference_id=conference.id %}"
+            }));
+            
+            // Open the meeting in a new tab after a short delay
+            setTimeout(() => {
+                const newTab = window.open(data.join_url, '_blank');
+                
+                // Check if popup was blocked
+                if (newTab === null || typeof(newTab) === 'undefined') {
+                    // Popup blocked - provide fallback
+                    buttonText.textContent = 'Click to Join Meeting';
+                    button.onclick = function() {
+                        window.open(data.join_url, '_blank');
+                    };
+                    button.disabled = false;
+                    
+                    // Show popup blocked message
+                    errorMessage.innerHTML = 'Popup blocked! Please <strong>click the button above</strong> to open the meeting, or <a href="' + data.join_url + '" target="_blank">click here to join directly</a>.';
+                    errorMessage.style.display = 'block';
+                } else {
+                    // Successfully opened in new tab
+                    buttonText.textContent = 'Meeting opened in new tab!';
+                    
+                    // Show success message with manual link option
+                    successMessage.innerHTML = 'Meeting link opened in new tab! If it didn\'t open properly, <a href="' + data.join_url + '" target="_blank">click here to join directly</a>.';
+                    successMessage.style.display = 'block';
+                    
+                    // Reset button after 5 seconds
+                    setTimeout(() => {
+                        button.disabled = false;
+                        buttonText.textContent = 'Join Conference';
+                        button.onclick = autoRegisterAndJoin; // Restore original function
+                    }, 5000);
+                }
+            }, 1500);
+        } else {
+            // Handle specific error cases
+            if (data.redirect_url) {
+                // Authentication required - redirect to login
+                window.location.href = data.redirect_url;
+                return;
+            }
+            
+            // Show error message
+            errorMessage.textContent = data.error || 'Failed to join conference. Please try again.';
+            errorMessage.style.display = 'block';
+            
+            // Re-enable button
+            button.disabled = false;
+            buttonText.textContent = 'Join Conference';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        errorMessage.textContent = 'An error occurred. Please try again.';
+        errorMessage.style.display = 'block';
+        
+        // Re-enable button
+        button.disabled = false;
+        buttonText.textContent = 'Join Conference';
+    });
+}
+
+// Check if user has returned from a meeting
+function checkReturnFromMeeting() {
+    const meetingData = localStorage.getItem('lms_meeting_join_' + {{ conference.id }});
+    if (meetingData) {
+        try {
+            const data = JSON.parse(meetingData);
+            const joinedAt = new Date(data.joined_at);
+            const now = new Date();
+            const timeInMeeting = (now - joinedAt) / 1000 / 60; // minutes
+            
+            // If it's been more than 2 minutes since joining, assume they might have returned
+            if (timeInMeeting > 2) {
+                showReturnWelcomeMessage();
+                // Clear the stored data
+                localStorage.removeItem('lms_meeting_join_' + {{ conference.id }});
+            }
+        } catch (error) {
+            console.error('Error parsing meeting data:', error);
+            localStorage.removeItem('lms_meeting_join_' + {{ conference.id }});
+        }
+    }
+}
+
+// Enhanced return detection with visibility API
+function detectReturnFromMeeting() {
+    const meetingData = localStorage.getItem('lms_meeting_join_' + {{ conference.id }});
+    if (meetingData) {
+        try {
+            const data = JSON.parse(meetingData);
+            const joinedAt = new Date(data.joined_at);
+            const now = new Date();
+            const timeInMeeting = (now - joinedAt) / 1000 / 60; // minutes
+            
+            // If it's been more than 1 minute since joining, show enhanced return message
+            if (timeInMeeting > 1) {
+                showEnhancedReturnMessage();
+                // Clear the stored data
+                localStorage.removeItem('lms_meeting_join_' + {{ conference.id }});
+            }
+        } catch (error) {
+            console.error('Error parsing meeting data:', error);
+            localStorage.removeItem('lms_meeting_join_' + {{ conference.id }});
+        }
+    }
+}
+
+// Show enhanced return message with more guidance
+function showEnhancedReturnMessage() {
+    const existingMessage = document.getElementById('enhanced-return-message');
+    if (existingMessage) {
+        existingMessage.remove();
+    }
+    
+    const enhancedDiv = document.createElement('div');
+    enhancedDiv.id = 'enhanced-return-message';
+    enhancedDiv.className = 'bg-green-50 border border-green-200 rounded-lg p-4 mb-4';
+    enhancedDiv.innerHTML = `
+        <div class="flex items-start">
+            <svg class="w-6 h-6 text-green-600 mr-3 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+            </svg>
+            <div class="flex-1">
+                <h4 class="font-semibold text-green-800 mb-2">🎉 Welcome back from the meeting!</h4>
+                <p class="text-sm text-green-700 mb-3">
+                    We detected that you've returned from the Zoom meeting. Your participation has been tracked.
+                </p>
+                <div class="flex space-x-2">
+                    <button onclick="window.location.href='{% url 'conferences:return_from_meeting' conference_id=conference.id %}'" 
+                            class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">
+                        Mark as Returned
+                    </button>
+                    <button onclick="this.parentElement.parentElement.parentElement.parentElement.remove()" 
+                            class="bg-gray-300 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-400">
+                        Dismiss
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Insert after the conference card
+    const conferenceCard = document.querySelector('.conference-card');
+    if (conferenceCard) {
+        conferenceCard.parentNode.insertBefore(enhancedDiv, conferenceCard.nextSibling);
+    }
+    
+    // Auto-remove after 30 seconds
+    setTimeout(() => {
+        if (document.getElementById('enhanced-return-message')) {
+            document.getElementById('enhanced-return-message').remove();
+        }
+    }, 30000);
+}
+
+// Listen for page visibility changes (user returning to tab)
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) {
+        setTimeout(detectReturnFromMeeting, 1000);
+    }
+});
+
+// Listen for window focus (user returning to window)
+window.addEventListener('focus', function() {
+    setTimeout(detectReturnFromMeeting, 1000);
+});
+
+function showReturnWelcomeMessage() {
+    // Show a welcome back message
+    const welcomeDiv = document.createElement('div');
+    welcomeDiv.className = 'success-message';
+    welcomeDiv.style.display = 'block';
+    welcomeDiv.innerHTML = `
+        <div class="flex items-center">
+            <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+            </svg>
+            <strong>Welcome back!</strong> You have returned from the meeting.
+        </div>
+    `;
+    
+    // Insert after the conference card
+    const conferenceCard = document.querySelector('.conference-card');
+    conferenceCard.parentNode.insertBefore(welcomeDiv, conferenceCard.nextSibling);
+    
+    // Remove the message after 5 seconds
+    setTimeout(() => {
+        welcomeDiv.remove();
+    }, 5000);
+}
+
+// Enhanced return detection with multiple fallback options
+function checkReturnFromMeetingEnhanced() {
+    const meetingData = localStorage.getItem('lms_meeting_join_' + {{ conference.id }});
+    if (meetingData) {
+        try {
+            const data = JSON.parse(meetingData);
+            const joinedAt = new Date(data.joined_at);
+            const now = new Date();
+            const timeInMeeting = (now - joinedAt) / 1000 / 60; // minutes
+            
+            // If it's been more than 2 minutes since joining, assume they might have returned
+            if (timeInMeeting > 2) {
+                showEnhancedReturnWelcomeMessage(data);
+            }
+        } catch (e) {
+            console.error('Error parsing meeting data:', e);
+            // Show fallback return message even if data parsing fails
+            showFallbackReturnMessage();
+        }
+    }
+}
+
+// Enhanced return welcome message with multiple options
+function showEnhancedReturnWelcomeMessage(data) {
+    const returnContainer = document.getElementById('return-welcome-container');
+    if (returnContainer) {
+        returnContainer.innerHTML = `
+            <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                <div class="flex items-start">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h4 class="font-semibold text-green-800 mb-2">🎉 Welcome back from the meeting!</h4>
+                        <p class="text-sm text-green-700 mb-3">
+                            We detected that you've returned from the "${data.conference_title}" meeting. Your participation has been tracked.
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            <button onclick="handleReturnToConference('${data.conference_detail_url}')" 
+                                    class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">
+                                View Conference Details
+                            </button>
+                            <button onclick="handleReturnToDashboard('${data.dashboard_url}')" 
+                                    class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">
+                                Go to Dashboard
+                            </button>
+                            <button onclick="handleReturnRedirect('${data.redirect_url}')" 
+                                    class="bg-purple-600 text-white px-3 py-1 rounded text-sm hover:bg-purple-700">
+                                Mark as Returned
+                            </button>
+                            <button onclick="this.parentElement.parentElement.parentElement.parentElement.remove()" 
+                                    class="bg-gray-300 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-400">
+                                Dismiss
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        returnContainer.style.display = 'block';
+    }
+}
+
+// Fallback return message when data parsing fails
+function showFallbackReturnMessage() {
+    const returnContainer = document.getElementById('return-welcome-container');
+    if (returnContainer) {
+        returnContainer.innerHTML = `
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <div class="flex items-start">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h4 class="font-semibold text-blue-800 mb-2">Welcome back!</h4>
+                        <p class="text-sm text-blue-700 mb-3">
+                            If you've just returned from a meeting, please use the options below to continue.
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            <button onclick="window.location.href='{% url 'conferences:conference_detail' conference_id=conference.id %}'" 
+                                    class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">
+                                View Conference
+                            </button>
+                            <button onclick="window.location.href='{% url 'dashboard_learner' %}'" 
+                                    class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">
+                                Go to Dashboard
+                            </button>
+                            <button onclick="this.parentElement.parentElement.remove()" 
+                                    class="bg-gray-300 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-400">
+                                Dismiss
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        returnContainer.style.display = 'block';
+    }
+}
+
+// Handle return actions
+function handleReturnToConference(url) {
+    // Clear meeting data and redirect
+    localStorage.removeItem('lms_meeting_join_{{ conference.id }}');
+    window.location.href = url;
+}
+
+function handleReturnToDashboard(url) {
+    // Clear meeting data and redirect
+    localStorage.removeItem('lms_meeting_join_{{ conference.id }}');
+    window.location.href = url;
+}
+
+function handleReturnRedirect(url) {
+    // Clear meeting data and redirect to enhanced handler
+    localStorage.removeItem('lms_meeting_join_{{ conference.id }}');
+    window.location.href = url;
+}
+
+// Check for return from meeting on page load
+document.addEventListener('DOMContentLoaded', function() {
+    checkReturnFromMeeting();
+    detectReturnFromMeeting();
+    checkReturnFromMeetingEnhanced();
+});
+</script>
+
+<!-- Include the return help modal -->
+{% include 'conferences/return_help_modal.html' %}
+
+{% endblock %} 

@@ -1,0 +1,356 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if group %}Edit{% else %}Create{% endif %} Group - LMS{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background-color: #ffffff !important;
+    }
+    
+    .main-content {
+        background-color: #ffffff !important;
+    }
+
+    /* Form field focus styles */
+    .form-group input:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex-1 overflow-x-hidden overflow-y-auto bg-white">
+    <div class="p-6 space-y-6 bg-white">
+        <!-- Breadcrumb -->
+        {% include 'components/breadcrumb.html' with items=breadcrumbs %}
+
+        <!-- Main Content -->
+        <div class="container mx-auto">
+            <!-- Main grid with 70-30 split -->
+            <div class="grid grid-cols-12 gap-4 md:gap-6">
+                <!-- Left Column (70%) -->
+                <div class="col-span-12 lg:col-span-8 transition-all duration-300">
+                    <div class="max-w-4xl mx-auto">
+                        <div class="bg-white rounded-lg shadow-sm p-6">
+                            <h1 class="text-2xl font-bold text-gray-900 mb-6">{{ title }}</h1>
+
+                            {% if form.non_field_errors %}
+                            <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+                                {% for error in form.non_field_errors %}
+                                <p class="text-red-600">{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+
+                            <form method="post" class="space-y-6">
+                                {% csrf_token %}
+
+                                <!-- Group Name -->
+                                <div class="form-group">
+                                    <label for="{{ form.name.id_for_label }}" class="block text-sm font-medium text-gray-900 mb-2">
+                                        Group Name
+                                    </label>
+                                    <div class="mt-1">
+                                        {{ form.name }}
+                                        {% if form.name.errors %}
+                                        <div class="mt-1 text-red-600 text-sm">
+                                            {% for error in form.name.errors %}
+                                            <p>{{ error }}</p>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    <p class="mt-1 text-sm text-gray-500">Choose a descriptive name that reflects the group's purpose.</p>
+                                </div>
+
+                                <!-- Description -->
+                                <div class="form-group">
+                                    <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-900 mb-2">
+                                        Description
+                                    </label>
+                                    <div class="mt-1">
+                                        {{ form.description }}
+                                        {% if form.description.errors %}
+                                        <div class="mt-1 text-red-600 text-sm">
+                                            {% for error in form.description.errors %}
+                                            <p>{{ error }}</p>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    <p class="mt-1 text-sm text-gray-500">Provide a clear description of the group's purpose and responsibilities.</p>
+                                </div>
+
+                                {% if group_type == 'user' %}
+                                <!-- User Selection -->
+                                <div class="form-group">
+                                    <label for="users" class="block text-sm font-medium text-gray-900 mb-2">
+                                        Add Users
+                                    </label>
+                                    <div class="mb-3">
+                                        <p class="text-sm font-medium text-gray-700 mb-2">Selected Users:</p>
+                                        <div class="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200" id="selectedUsersPreview">
+                                            <p class="text-sm text-gray-500">No users selected yet</p>
+                                        </div>
+                                    </div>
+                                    <select name="users[]" id="users" multiple class="w-full">
+                                        {% for user in available_users %}
+                                            <option value="{{ user.id }}">
+                                                {{ user.get_full_name|default:user.username }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                    <p class="mt-3 text-sm text-gray-500">
+                                        Select multiple users to add to the group. You can search by name or username.
+                                    </p>
+                                </div>
+                                {% endif %}
+
+                                <!-- Active Status -->
+                                <div class="form-group mt-8">
+                                    <div class="flex items-center">
+                                        <input type="checkbox" name="is_active" id="is_active" 
+                                               class="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                               checked>
+                                        <label for="is_active" class="ml-2 text-sm text-gray-900">
+                                            Active
+                                        </label>
+                                    </div>
+                                    <p class="mt-1 text-sm text-gray-500">
+                                        Inactive groups will not be accessible to members
+                                    </p>
+                                </div>
+
+                                <!-- Branch Selection (for superusers) or Branch Info (for admins) -->
+                                {% if form.branch %}
+                                <div class="form-group">
+                                    <label for="{{ form.branch.id_for_label }}" class="block text-sm font-medium text-gray-900 mb-2">
+                                        Branch
+                                    </label>
+                                    <div class="mt-1 relative">
+                                        {{ form.branch }}
+                                        {% if form.branch.field.widget.attrs.disabled %}
+                                            <input type="hidden" name="branch" value="{{ form.initial.branch }}">
+                                        {% endif %}
+                                        {% if form.branch.help_text %}
+                                        <p class="mt-1 text-sm text-gray-500">
+                                            {{ form.branch.help_text }}
+                                        </p>
+                                        {% endif %}
+                                        {% if form.branch.errors %}
+                                        <div class="mt-1 text-red-600 text-sm">
+                                            {% for error in form.branch.errors %}
+                                            <p>{{ error }}</p>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% elif user.role == 'admin' or user.role == 'instructor' %}
+                                <div class="form-group">
+                                    <label class="block text-sm font-medium text-gray-900 mb-2">
+                                        Branch
+                                    </label>
+                                    <div class="mt-1">
+                                        <div class="px-3 py-2 bg-gray-50 text-gray-900 rounded border border-gray-300">
+                                            {{ user.branch.name }}
+                                        </div>
+                                        <input type="hidden" name="branch" value="{{ user.branch.id }}">
+                                    </div>
+                                </div>
+                                {% endif %}
+
+                                <!-- Form Actions -->
+                                <div class="flex justify-end pt-6 space-x-4 border-t border-gray-200">
+                                    <a href="{% url 'groups:group_list' %}?tab=user-groups"
+                                       class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors">
+                                        Cancel
+                                    </a>
+                                    <button type="submit"
+                                            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                                        Create {{ group_type|title }} Group
+                                    </button>
+                                </div>
+
+                                <!-- Hidden tab field to maintain tab context -->
+                                <input type="hidden" name="tab" value="user-groups">
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column (30%) -->
+                <div class="col-span-12 lg:col-span-4 transition-all duration-300">
+                    {% include 'components/right_sidebar.html' %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Select2 for better multiple select -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    // Initialize Select2 for user selection
+    {% if group_type == 'user' %}
+    $('#users').select2({
+        placeholder: 'Search and select users to add...',
+        allowClear: true,
+        width: '100%',
+        theme: 'classic',
+        dropdownParent: $('#main-content'),
+        templateResult: formatUser,
+        templateSelection: formatUserSelection
+    }).on('select2:select select2:unselect', function(e) {
+        updateSelectedUsersPreview();
+    });
+
+    // Function to format user options in dropdown
+    function formatUser(user) {
+        if (!user.id) return user.text;
+        return $('<div class="user-option">' + user.text + '</div>');
+    }
+
+    // Function to format selected users
+    function formatUserSelection(user) {
+        if (!user.id) return user.text;
+        return $('<div class="selected-user-preview">' + user.text + '</div>');
+    }
+
+    // Function to update selected users preview
+    function updateSelectedUsersPreview() {
+        var selectedUsers = $('#users').select2('data');
+        var previewContainer = $('#selectedUsersPreview');
+        
+        if (selectedUsers.length === 0) {
+            previewContainer.html('<p class="text-sm text-gray-500">No users selected yet</p>');
+        } else {
+            previewContainer.empty();
+            selectedUsers.forEach(function(user) {
+                previewContainer.append(
+                    '<div class="inline-flex items-center bg-white border border-blue-200 text-blue-700 rounded-md px-3 py-1.5 text-sm shadow-sm">' +
+                        '<span class="mr-1">' + user.text + '</span>' +
+                    '</div>'
+                );
+            });
+        }
+    }
+    {% endif %}
+
+    // Style adjustments for Select2
+    $('.select2-container--classic').css({
+        'width': '100%',
+        'font-size': '0.875rem'
+    });
+
+    $('.select2-search__field').css({
+        'padding': '8px',
+        'border-radius': '0.375rem'
+    });
+});
+</script>
+
+<style>
+    /* Form field focus styles */
+    .form-group input:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    }
+
+    /* Update Select2 styling */
+    .select2-container--default .select2-selection--multiple {
+        border: 1px solid #e5e7eb !important;
+        border-radius: 0.375rem !important;
+        min-height: 42px !important;
+        padding: 0.25rem !important;
+        background-color: #ffffff !important;
+    }
+
+    .select2-container--default .select2-selection--multiple .select2-selection__choice {
+        background-color: #EBF3FE !important;
+        border: 1px solid #2563eb !important;
+        color: #1e40af !important;
+        border-radius: 0.25rem !important;
+        padding: 4px 10px !important;
+        margin: 4px !important;
+        font-weight: 500 !important;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+    }
+
+    .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+        color: #2563eb !important;
+        margin-right: 5px !important;
+        font-weight: bold !important;
+    }
+
+    .select2-container--default.select2-container--focus .select2-selection--multiple {
+        border-color: #3b82f6 !important;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+    }
+
+    .select2-dropdown {
+        border-color: #e5e7eb !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+        background-color: #ffffff !important;
+    }
+
+    .select2-container--default .select2-results__option {
+        color: #111827 !important;
+        padding: 8px 12px !important;
+        font-weight: normal !important;
+    }
+
+    .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        background-color: #EBF3FE !important;
+        color: #2563eb !important;
+    }
+
+    .select2-container--default .select2-search--inline .select2-search__field {
+        color: #111827 !important;
+        font-weight: normal !important;
+    }
+
+    .select2-container--default .select2-selection--single {
+        height: 42px !important;
+        border: 1px solid #e5e7eb !important;
+        border-radius: 0.375rem !important;
+        background-color: #ffffff !important;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 42px !important;
+        color: #111827 !important;
+        padding-left: 12px !important;
+    }
+
+    /* Selected user display */
+    .selected-user-preview {
+        display: inline-flex;
+        align-items: center;
+        background-color: #EBF3FE;
+        color: #1e40af;
+        padding: 2px 8px;
+        border-radius: 0.25rem;
+        margin: 4px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .user-option {
+        color: #111827;
+        padding: 8px 12px;
+        font-size: 0.875rem;
+    }
+</style>
+{% endblock %}

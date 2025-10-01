@@ -1,0 +1,99 @@
+{% extends 'reports/course_report_sections/base.html' %}
+{% load static %}
+
+{% block section_content %}
+<div class="bg-white rounded-lg shadow-sm border">
+    <div class="p-6 border-b">
+        <h3 class="text-lg font-semibold">Events</h3>
+    </div>
+    <div class="p-6">
+        {% if course_events %}
+            {% for event in course_events %}
+            <div class="flex items-start mb-6">
+                <div class="flex-shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center mr-4">
+                    <i class="fas fa-times text-red-600 text-sm"></i>
+                </div>
+                <div class="flex-1">
+                    <div class="text-sm text-gray-500 mb-1">{{ event.date|date:"d/m/Y" }}</div>
+                    <div class="text-gray-900">{{ event.description }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <!-- Sample timeline events matching your screenshots -->
+            <div class="flex items-start mb-6">
+                <div class="flex-shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center mr-4">
+                    <i class="fas fa-times text-red-600 text-sm"></i>
+                </div>
+                <div class="flex-1">
+                    <div class="text-sm text-gray-500 mb-1">01/03/2024</div>
+                    <div class="text-gray-900"><strong>Rishabh K.</strong> did not pass the <strong>Interim Assessment 1</strong> (score: 70%)</div>
+                </div>
+            </div>
+            <div class="flex items-start mb-6">
+                <div class="flex-shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center mr-4">
+                    <i class="fas fa-times text-red-600 text-sm"></i>
+                </div>
+                <div class="flex-1">
+                    <div class="text-sm text-gray-500 mb-1">01/03/2024</div>
+                    <div class="text-gray-900"><strong>Rishabh K.</strong> did not pass the <strong>Interim Assessment 1</strong> (score: 70%)</div>
+                </div>
+            </div>
+            <div class="flex items-start mb-6">
+                <div class="flex-shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center mr-4">
+                    <i class="fas fa-times text-red-600 text-sm"></i>
+                </div>
+                <div class="flex-1">
+                    <div class="text-sm text-gray-500 mb-1">01/03/2024</div>
+                    <div class="text-gray-900"><strong>Rishabh K.</strong> did not pass the <strong>Interim Assessment 1</strong> (score: 60%)</div>
+                </div>
+            </div>
+            <div class="flex items-start mb-6">
+                <div class="flex-shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center mr-4">
+                    <i class="fas fa-times text-red-600 text-sm"></i>
+                </div>
+                <div class="flex-1">
+                    <div class="text-sm text-gray-500 mb-1">01/03/2024</div>
+                    <div class="text-gray-900"><strong>Rishabh K.</strong> did not pass the <strong>Interim Assessment 1</strong> (score: 60%)</div>
+                </div>
+            </div>
+            <div class="flex items-start mb-6">
+                <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-4">
+                    <i class="fas fa-sync text-blue-600 text-sm"></i>
+                </div>
+                <div class="flex-1">
+                    <div class="text-sm text-gray-500 mb-1">24/01/2024</div>
+                    <div class="text-gray-900"><strong>You</strong> updated the course <strong>.NET & C# (SK201)</strong></div>
+                </div>
+            </div>
+            <div class="flex items-start mb-6">
+                <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-4">
+                    <i class="fas fa-sync text-blue-600 text-sm"></i>
+                </div>
+                <div class="flex-1">
+                    <div class="text-sm text-gray-500 mb-1">24/01/2024</div>
+                    <div class="text-gray-900"><strong>You</strong> updated the course <strong>.NET & C# (SK201)</strong></div>
+                </div>
+            </div>
+            <div class="flex items-start mb-6">
+                <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-4">
+                    <i class="fas fa-sync text-blue-600 text-sm"></i>
+                </div>
+                <div class="flex-1">
+                    <div class="text-sm text-gray-500 mb-1">24/01/2024</div>
+                    <div class="text-gray-900"><strong>HR S.</strong> updated the course <strong>.NET & C# (SK201)</strong> (unit: <strong>Assessment 2</strong>)</div>
+                </div>
+            </div>
+            <div class="flex items-start mb-6">
+                <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-4">
+                    <i class="fas fa-sync text-blue-600 text-sm"></i>
+                </div>
+                <div class="flex-1">
+                    <div class="text-sm text-gray-500 mb-1">15/08/2023</div>
+                    <div class="text-gray-900"><strong>George R.</strong> updated the course <strong>.NET & C# (SK201)</strong></div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,51 @@
+/* Styles for the AI Writer plugin */
+
+/* Button styling to match TinyMCE default buttons */
+.tox .tox-tbtn[data-mce-name="aiwriter"] {
+    margin: 2px;
+}
+
+/* Only add the blue background when hovered or active */
+.tox .tox-tbtn[data-mce-name="aiwriter"]:hover,
+.tox .tox-tbtn[data-mce-name="aiwriter"]:active,
+.tox .tox-tbtn[data-mce-name="aiwriter"].tox-tbtn--enabled {
+    background-color: #dee0e2;
+    color: #222f3e;
+}
+
+/* Ensure the AI Writer button appears in toolbar2 */
+.tox .tox-toolbar-overlord div:nth-child(2) .tox-toolbar__group .tox-tbtn[data-mce-name="aiwriter"],
+.tox .tox-toolbar__overflow .tox-tbtn[data-mce-name="aiwriter"] {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Dialog styling */
+.tox .tox-dialog__body-content .tox-form__group--stretched {
+    max-width: 100%;
+}
+
+.tox .tox-dialog__body-content textarea {
+    min-height: 150px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+    font-size: 14px;
+    padding: 8px;
+}
+
+/* Loading state */
+.tox .tox-dialog__busy-spinner {
+    align-items: center;
+    justify-content: center;
+}
+
+/* Make text content of the button visible */
+.tox .tox-tbtn[data-mce-name="aiwriter"] .tox-tbtn__select-label {
+    color: inherit;
+}
+
+/* Custom AI icon specific styling */
+.tox .tox-tbtn[data-mce-name="aiwriter"] svg text {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+    font-weight: bold;
+} 

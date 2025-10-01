@@ -1,0 +1,493 @@
+<!-- Assessment Data Sub-Tab -->
+<div id="assessment-data-tab" class="learning-profile-tab-content active" style="display: block;">
+    <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+        <div class="flex items-center justify-between mb-3">
+            <h4 class="text-lg font-semibold text-gray-900 mb-4">Assessment Data</h4>
+            {% if user.role in 'globaladmin,superadmin,admin,instructor' %}
+            <button type="button" onclick="showAddQuizModal('initial_assessment')" 
+                    class="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">
+                <i class="fas fa-plus mr-1"></i>
+                Add Assessment
+            </button>
+            {% endif %}
+        </div>
+        
+        <!-- Initial Assessment Quiz Results Section -->
+        {% if initial_assessment_data %}
+        <div class="space-y-4 mb-8">
+            <h5 class="text-lg font-semibold text-gray-900 mb-4">
+                <i class="fas fa-chart-line mr-2 text-blue-600"></i>
+                Initial Assessment Results
+            </h5>
+            {% for assessment in initial_assessment_data %}
+            <div class="border rounded-lg p-4 bg-gradient-to-r from-blue-50 to-green-50 shadow-sm">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <h6 class="font-medium text-gray-900 mb-1">{{ assessment.quiz.title }}</h6>
+                        {% if assessment.quiz.description %}
+                        <p class="text-sm text-gray-600">{{ assessment.quiz.description|striptags }}</p>
+                        {% endif %}
+                    </div>
+                    <span class="text-xs px-3 py-1 bg-blue-100 text-blue-800 rounded-full">
+                        <i class="fas fa-clipboard-check mr-1"></i>
+                        Initial Assessment
+                    </span>
+                </div>
+                
+                <!-- Score Display -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div class="bg-white rounded-lg p-4 text-center border border-green-200">
+                        <div class="text-green-600 text-2xl font-bold mb-2">{{ assessment.latest_score|floatformat:1 }}%</div>
+                        <p class="text-sm text-green-700 font-medium">Latest Score</p>
+                    </div>
+                    <div class="bg-white rounded-lg p-4 text-center border border-purple-200">
+                        <div class="text-purple-600 text-lg font-bold mb-2">
+                            {{ assessment.latest_attempt.end_time|date:"M d, Y" }}
+                        </div>
+                        <p class="text-sm text-purple-700 font-medium">Completed</p>
+                    </div>
+                    <div class="bg-white rounded-lg p-4 text-center border border-gray-200">
+                        <div class="text-gray-600 text-lg font-bold mb-2">{{ assessment.attempt_count }}</div>
+                        <p class="text-sm text-gray-700 font-medium">Attempt{{ assessment.attempt_count|pluralize }}</p>
+                    </div>
+                </div>
+                
+                <!-- Assessment Classification if available -->
+                {% load assessment_filters %}
+                {% with classification_data=assessment.latest_attempt|get_assessment_classification %}
+                {% if classification_data %}
+                <div class="mt-4 p-4 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg">
+                    <h6 class="font-medium text-gray-800 mb-3">
+                        <i class="fas fa-chart-line mr-2"></i>
+                        Assessment Classification
+                    </h6>
+                    
+                    <!-- Classification Result -->
+                    <div class="mb-4 text-center">
+                        <div class="text-2xl font-bold mb-2 
+                            {% if classification_data.classification == 'Level 2' %}text-green-600
+                            {% elif classification_data.classification == 'Level 1' %}text-yellow-600
+                            {% else %}text-red-600{% endif %}">
+                            {{ classification_data.classification }}
+                        </div>
+                        <p class="text-sm text-gray-600">Assessment Level Classification</p>
+                    </div>
+                    
+                    <!-- Level Breakdown -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+                        <div class="bg-white rounded-lg p-3 text-center border border-gray-200">
+                            <div class="text-green-600 text-lg font-bold mb-1">{{ classification_data.L2_Percentage|floatformat:1 }}%</div>
+                            <p class="text-xs text-gray-600">Level 2</p>
+                            {% if classification_data.thresholds %}
+                            <p class="text-xs text-gray-500">≥{{ classification_data.thresholds.level2_threshold }}%</p>
+                            {% endif %}
+                        </div>
+                        <div class="bg-white rounded-lg p-3 text-center border border-gray-200">
+                            <div class="text-yellow-600 text-lg font-bold mb-1">{{ classification_data.L1_Percentage|floatformat:1 }}%</div>
+                            <p class="text-xs text-gray-600">Level 1</p>
+                            {% if classification_data.thresholds %}
+                            <p class="text-xs text-gray-500">≥{{ classification_data.thresholds.level1_threshold }}%</p>
+                            {% endif %}
+                        </div>
+                        <div class="bg-white rounded-lg p-3 text-center border border-gray-200">
+                            <div class="text-red-600 text-lg font-bold mb-1">{{ classification_data.Below_Level1_Percentage|floatformat:1 }}%</div>
+                            <p class="text-xs text-gray-600">Below Level 1</p>
+                            {% if classification_data.thresholds %}
+                            <p class="text-xs text-gray-500">≥{{ classification_data.thresholds.below_level1_threshold }}%</p>
+                            {% endif %}
+                        </div>
+                        <div class="bg-white rounded-lg p-3 text-center border border-gray-200">
+                            <div class="text-blue-600 text-lg font-bold mb-1">{{ classification_data.Total_Percentage|floatformat:1 }}%</div>
+                            <p class="text-xs text-gray-600">Total</p>
+                            {% if classification_data.thresholds %}
+                            <p class="text-xs text-gray-500">≥{{ classification_data.thresholds.total_threshold }}%</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Classification Explanation -->
+                    {% if classification_data.thresholds %}
+                    <div class="text-sm text-gray-600 bg-white p-3 rounded-md border border-gray-200">
+                        <p class="font-medium mb-2">Classification Criteria:</p>
+                        <ul class="space-y-1 text-xs">
+                            <li><strong>Level 2:</strong> L2 ≥ {{ classification_data.thresholds.level2_threshold }}%, Total ≥ {{ classification_data.thresholds.total_threshold }}%, L1 ≥ {{ classification_data.thresholds.level1_threshold }}%</li>
+                            <li><strong>Level 1:</strong> L1 ≥ {{ classification_data.thresholds.level1_threshold }}%, L2 &lt; {{ classification_data.thresholds.level2_threshold }}%, Below L1 ≥ {{ classification_data.thresholds.below_level1_threshold }}%</li>
+                            <li><strong>Below Level 1:</strong> L1 &lt; {{ classification_data.thresholds.level1_threshold }}% OR Below L1 &lt; {{ classification_data.thresholds.below_level1_threshold }}%</li>
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+                {% endwith %}
+                
+                <!-- Quiz metadata -->
+                <div class="mt-3 flex justify-between items-center text-sm text-gray-500">
+                    <span>
+                        <i class="fas fa-clock mr-1"></i>
+                        Completed: {{ assessment.latest_attempt.end_time|date:"M d, Y g:i A" }}
+                    </span>
+                                                {% if assessment.quiz.is_vak_test %}
+                                <!-- VAK Test doesn't show pass/fail -->
+                                <span class="text-blue-600">
+                                    <i class="fas fa-chart-bar mr-1"></i>
+                                    VAK Test Completed
+                                </span>
+                            {% elif assessment.quiz.passing_score %}
+                                <span class="{% if assessment.latest_score >= assessment.quiz.passing_score %}text-green-600{% else %}text-red-600{% endif %}">
+                                    <i class="fas fa-{% if assessment.latest_score >= assessment.quiz.passing_score %}check-circle{% else %}times-circle{% endif %} mr-1"></i>
+                                    {% if assessment.latest_score >= assessment.quiz.passing_score %}Passed{% else %}Not Passed{% endif %} ({{ assessment.quiz.passing_score }}% required)
+                                </span>
+                            {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <!-- Assignment Information Section -->
+        <div class="space-y-4">
+            {% for assignment in initial_assessment_assignments %}
+            <div class="border rounded-lg p-4 bg-gray-50">
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <h6 class="font-medium text-gray-900">{{ assignment.quiz.title }}</h6>
+                        <p class="text-sm text-gray-600">{{ assignment.quiz.description|truncatewords:20 }}</p>
+                    </div>
+                    {% if user.role in 'globaladmin,superadmin,admin,instructor' %}
+                    <button type="button" onclick="removeQuizAssignment({{ assignment.id }})" 
+                            class="text-red-600 hover:text-red-800 text-sm">
+                        <i class="fas fa-times"></i>
+                    </button>
+                    {% endif %}
+                </div>
+                
+                <div class="flex justify-between items-center text-sm text-gray-500">
+                    <span>
+                        <i class="fas fa-user mr-1"></i>
+                        Assigned by: {{ assignment.assigned_by.get_full_name|default:assignment.assigned_by.username }}
+                    </span>
+                    <span>
+                        <i class="fas fa-calendar mr-1"></i>
+                        {{ assignment.assigned_at|date:"M d, Y" }}
+                    </span>
+                </div>
+            </div>
+            {% empty %}
+            <div class="text-center py-4">
+                <div class="text-gray-400 mb-2">
+                    <i class="fas fa-clipboard-check text-2xl"></i>
+                </div>
+                <p class="text-gray-600">No initial assessment assignments found.</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Manual Assessment Entries Section -->
+        <div class="mt-8 pt-6 border-t border-gray-200">
+            <div class="flex items-center justify-between mb-4">
+                <h5 class="text-lg font-semibold text-gray-900">Manual Assessment Entries</h5>
+                {% if user.role in 'globaladmin,superadmin,admin,instructor' %}
+                <button type="button" onclick="addManualAssessmentRow()" 
+                        class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm">
+                    <i class="fas fa-plus mr-1"></i>
+                    Add Assessment
+                </button>
+                {% endif %}
+            </div>
+            
+            <!-- Manual Assessment Table -->
+            <div class="overflow-x-auto">
+                <table class="w-full border border-gray-200 rounded-lg">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score (%)</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assessment Date</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
+                            {% if user.role in 'globaladmin,superadmin,admin,instructor' %}
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody id="manualAssessmentTableBody" class="bg-white divide-y divide-gray-200">
+                        {% for entry in manual_assessment_entries %}
+                        <tr id="assessment-row-{{ entry.id }}">
+                            <td class="px-4 py-4 whitespace-nowrap">
+                                {% if user.role in 'globaladmin,superadmin,admin,instructor' %}
+                                <input type="text" 
+                                       name="manual_assessment_{{ entry.id }}_subject" 
+                                       value="{{ entry.subject }}" 
+                                       class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                       placeholder="Subject name">
+                                {% else %}
+                                <span class="text-sm text-gray-900">{{ entry.subject }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-4 whitespace-nowrap">
+                                {% if user.role in 'globaladmin,superadmin,admin,instructor' %}
+                                <input type="number" 
+                                       name="manual_assessment_{{ entry.id }}_score" 
+                                       value="{{ entry.score }}" 
+                                       min="0" max="100" step="0.01"
+                                       class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                       placeholder="0-100">
+                                {% else %}
+                                <span class="text-sm font-medium text-blue-600">{{ entry.score }}%</span>
+                                {% endif %}
+                            </td>
+                                                        <td class="px-4 py-4 whitespace-nowrap">
+                                {% if user.role in 'globaladmin,superadmin,admin,instructor' %}
+                                <input type="date" 
+                                       name="manual_assessment_{{ entry.id }}_assessment_date"
+                                       value="{{ entry.assessment_date|date:'Y-m-d' }}"
+                                       class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                {% else %}
+                                <span class="text-sm text-gray-500">
+                                    {% if entry.assessment_date %}{{ entry.assessment_date|date:"M d, Y" }}{% else %}-{% endif %}
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-4">
+                                {% if user.role in 'globaladmin,superadmin,admin,instructor' %}
+                                <textarea name="manual_assessment_{{ entry.id }}_notes" 
+                                          rows="2"
+                                          class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                          placeholder="Optional notes">{{ entry.notes }}</textarea>
+                                {% else %}
+                                <span class="text-sm text-gray-500">{{ entry.notes|default:"-" }}</span>
+                                {% endif %}
+                            </td>
+                            {% if user.role in 'globaladmin,superadmin,admin,instructor' %}
+                            <td class="px-4 py-4 whitespace-nowrap text-center">
+                                <button type="button" 
+                                        onclick="removeManualAssessmentRow({{ entry.id }}, '{{ entry.subject }}')"
+                                        class="text-red-600 hover:text-red-800 text-sm">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% empty %}
+                        <tr id="no-assessments-row">
+                            <td colspan="{% if user.role in 'globaladmin,superadmin,admin,instructor' %}5{% else %}4{% endif %}" class="px-4 py-8 text-center text-gray-500">
+                                <div class="text-gray-400 mb-2">
+                                    <i class="fas fa-clipboard-check text-2xl"></i>
+                                </div>
+                                <p>No manual assessment entries found.</p>
+                                {% if user.role in 'globaladmin,superadmin,admin,instructor' %}
+                                <p class="text-sm mt-2">Click "Add Assessment" to add manual assessment entries.</p>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        
+                        <!-- Template row for new assessments (hidden) -->
+                        <tr id="new-assessment-row-template" style="display: none;">
+                            <td class="px-4 py-4 whitespace-nowrap">
+                                <input type="text" 
+                                       name="new_manual_assessment_template_subject" 
+                                       class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                       placeholder="Subject name" disabled>
+                            </td>
+                            <td class="px-4 py-4 whitespace-nowrap">
+                                <input type="number" 
+                                       name="new_manual_assessment_template_score" 
+                                       min="0" max="100" step="0.01"
+                                       class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                       placeholder="0-100" disabled>
+                            </td>
+                            <td class="px-4 py-4 whitespace-nowrap">
+                                <input type="date" 
+                                       name="new_manual_assessment_template_assessment_date"
+                                       class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" disabled>
+                            </td>
+                            <td class="px-4 py-4">
+                                <textarea name="new_manual_assessment_template_notes" 
+                                          rows="2"
+                                          class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                          placeholder="Optional notes" disabled></textarea>
+                            </td>
+                            {% if user.role in 'globaladmin,superadmin,admin,instructor' %}
+                            <td class="px-4 py-4 whitespace-nowrap text-center">
+                                <button type="button" 
+                                        onclick="removeNewAssessmentRow(this)"
+                                        class="text-red-600 hover:text-red-800 text-sm">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                            {% endif %}
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            {% if manual_assessment_entries %}
+            <div class="mt-4 text-sm text-gray-600">
+                <p><strong>Note:</strong> Changes will be saved when you submit the form.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+// Counter for new assessment rows
+let newAssessmentRowCounter = 1;
+
+// Ensure tab state is preserved when making updates in this tab
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Assessment Data tab: JavaScript loaded');
+    
+    // Set tab state for form submission
+    function updateTabState() {
+        // Update global tab state explicitly for this tab
+        if (typeof currentTabState !== 'undefined') {
+            currentTabState.mainTab = 'ilp-tab';
+            currentTabState.subTab = 'learning-profile-tab';
+            currentTabState.nestedTab = 'assessment-data-tab';
+            
+            console.log('Assessment Data tab: Setting tab state to:', currentTabState);
+            
+            // Update hidden form fields directly
+            var activeTabField = document.getElementById('activeTabField');
+            var activeSubTabField = document.getElementById('activeSubTabField');
+            var activeNestedTabField = document.getElementById('activeNestedTabField');
+            
+            if (activeTabField) activeTabField.value = currentTabState.mainTab;
+            if (activeSubTabField) activeSubTabField.value = currentTabState.subTab;
+            if (activeNestedTabField) activeNestedTabField.value = currentTabState.nestedTab;
+        }
+    }
+    
+    // Update tab state when the tab becomes visible
+    var tabElement = document.getElementById('assessment-data-tab');
+    if (tabElement) {
+        // Create a mutation observer to detect when the tab becomes visible
+        var observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && 
+                    mutation.attributeName === 'style' &&
+                    tabElement.style.display !== 'none') {
+                    updateTabState();
+                }
+                
+                if (mutation.type === 'attributes' && 
+                    mutation.attributeName === 'class' &&
+                    tabElement.classList.contains('active')) {
+                    updateTabState();
+                }
+            });
+        });
+        
+        observer.observe(tabElement, { attributes: true });
+        
+        // Also check if it's already visible
+        if (tabElement.style.display !== 'none' || tabElement.classList.contains('active')) {
+            updateTabState();
+        }
+    }
+    
+    // Add input listeners to all form elements in this tab
+    var formElements = document.querySelectorAll('#assessment-data-tab input, #assessment-data-tab textarea, #assessment-data-tab select');
+    formElements.forEach(function(element) {
+        element.addEventListener('focus', updateTabState);
+        element.addEventListener('change', updateTabState);
+    });
+});
+
+// Manual Assessment Table Management Functions
+function addManualAssessmentRow() {
+    console.log('Adding new manual assessment row');
+    
+    const tableBody = document.getElementById('manualAssessmentTableBody');
+    const template = document.getElementById('new-assessment-row-template');
+    const noAssessmentsRow = document.getElementById('no-assessments-row');
+    
+    // Hide the "no assessments" row if it exists
+    if (noAssessmentsRow) {
+        noAssessmentsRow.style.display = 'none';
+    }
+    
+    // Clone the template row
+    const newRow = template.cloneNode(true);
+    newRow.id = 'new-assessment-row-' + newAssessmentRowCounter;
+    newRow.style.display = 'table-row';
+    
+    // Replace template placeholder with actual counter in all name attributes and enable inputs
+    const inputs = newRow.querySelectorAll('input, textarea');
+    inputs.forEach(input => {
+        if (input.name) {
+            input.name = input.name.replace('template', newAssessmentRowCounter);
+        }
+        // Enable the input (remove disabled attribute)
+        input.disabled = false;
+        // Add required attribute to subject and score fields
+        if (input.name.endsWith('_subject') || input.name.endsWith('_score')) {
+            input.required = true;
+        }
+    });
+    
+    // Add the new row to the table body
+    tableBody.appendChild(newRow);
+    
+    // Focus on the subject input
+    const subjectInput = newRow.querySelector('input[name$="_subject"]');
+    if (subjectInput) {
+        subjectInput.focus();
+    }
+    
+    // Increment counter for next row
+    newAssessmentRowCounter++;
+}
+
+function removeNewAssessmentRow(button) {
+    console.log('Removing new assessment row');
+    
+    const row = button.closest('tr');
+    if (row) {
+        row.remove();
+    }
+    
+    // Show "no assessments" row if table is empty
+    const tableBody = document.getElementById('manualAssessmentTableBody');
+    const dataRows = tableBody.querySelectorAll('tr:not(#no-assessments-row):not(#new-assessment-row-template)');
+    const noAssessmentsRow = document.getElementById('no-assessments-row');
+    
+    if (dataRows.length === 0 && noAssessmentsRow) {
+        noAssessmentsRow.style.display = 'table-row';
+    }
+}
+
+function removeManualAssessmentRow(entryId, subject) {
+    console.log('Removing manual assessment row with ID:', entryId, 'Subject:', subject);
+    
+    if (!confirm(`Are you sure you want to delete the manual assessment for "${subject}"?`)) {
+        return;
+    }
+    
+    // Add the entry ID to delete list by creating a hidden input
+    const form = document.getElementById('userForm');
+    if (form) {
+        const deleteInput = document.createElement('input');
+        deleteInput.type = 'hidden';
+        deleteInput.name = 'delete_manual_assessment_ids';
+        deleteInput.value = entryId;
+        form.appendChild(deleteInput);
+    }
+    
+    // Remove the row from the table
+    const row = document.getElementById('assessment-row-' + entryId);
+    if (row) {
+        row.remove();
+    }
+    
+    // Show "no assessments" row if table is empty
+    const tableBody = document.getElementById('manualAssessmentTableBody');
+    const dataRows = tableBody.querySelectorAll('tr:not(#no-assessments-row):not(#new-assessment-row-template)');
+    const noAssessmentsRow = document.getElementById('no-assessments-row');
+    
+    if (dataRows.length === 0 && noAssessmentsRow) {
+        noAssessmentsRow.style.display = 'table-row';
+    }
+}
+</script> 

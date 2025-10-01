@@ -1,0 +1,18 @@
+{% load static %}
+<div class="tinymce-field-wrapper">
+    {{ field }}
+    {% if config %}
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                if (typeof tinymce !== 'undefined') {
+                    var config = {{ config|safe }};
+                    config.selector = '#{{ field_id }}';
+                    config.base_url = '{% static "tinymce_editor/tinymce/" %}';
+                    config.branding = false;
+                    config.promotion = false;
+                    tinymce.init(config);
+                }
+            });
+        </script>
+    {% endif %}
+</div> 

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Nexsy LMS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900">
+    <div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-md w-full">
+            <!-- Logo/Header -->
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-white">Create Your Account</h1>
+                <p class="mt-2 text-gray-400">Join Nexsy LMS to start your learning journey</p>
+            </div>
+
+            <!-- Registration Form -->
+            <div class="bg-gradient-to-br from-gray-800 to-gray-700 rounded-lg shadow-lg p-8 border border-gray-700">
+                <form method="post" class="space-y-6">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                    <div class="bg-red-900/50 border border-red-700 text-red-200 px-4 py-3 rounded">
+                        {{ form.non_field_errors }}
+                    </div>
+                    {% endif %}
+
+                    {% for field in form %}
+                    <div class="space-y-2">
+                        <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-300">
+                            {{ field.label }}
+                        </label>
+                        <div class="mt-1">
+                            {{ field.errors }}
+                            <div class="relative">
+                                {{ field }}
+                                {% if field.help_text %}
+                                <p class="mt-1 text-sm text-gray-400">{{ field.help_text }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    <div class="flex items-center justify-between mt-6 pt-6 border-t border-gray-700">
+                        <div class="text-sm">
+                            <a href="{% url 'login' %}" class="text-blue-400 hover:text-blue-300">
+                                Already have an account? Login
+                            </a>
+                        </div>
+                        <button type="submit" 
+                                class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 transition-colors">
+                            Create Account
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        /* Form field styling */
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        select {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background-color: #374151;  /* bg-gray-700 */
+            border: 1px solid #4B5563;  /* border-gray-600 */
+            border-radius: 0.5rem;
+            color: white;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        input[type="text"]:focus,
+        input[type="email"]:focus,
+        input[type="password"]:focus,
+        select:focus {
+            border-color: #3B82F6;  /* border-blue-500 */
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);  /* blue-500 with opacity */
+        }
+
+        /* Select styling */
+        select {
+            appearance: none;
+            padding-right: 2.5rem;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.75rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+        }
+
+        select option {
+            background-color: #374151;  /* bg-gray-700 */
+            color: white;
+            padding: 0.5rem;
+        }
+
+        /* Error message styling */
+        .errorlist {
+            list-style-type: none;
+            padding: 0;
+            margin: 0.25rem 0;
+            color: #F87171;  /* text-red-400 */
+            font-size: 0.875rem;
+        }
+
+        /* Help text styling */
+        .helptext {
+            color: #9CA3AF;  /* text-gray-400 */
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+            display: block;
+        }
+
+        /* Password validation list styling */
+        ul.errorlist {
+            margin-bottom: 0.5rem;
+        }
+
+        ul.errorlist li {
+            margin-bottom: 0.25rem;
+        }
+    </style>
+</body>
+</html> 

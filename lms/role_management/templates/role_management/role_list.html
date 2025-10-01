@@ -1,0 +1,529 @@
+{% extends "base.html" %}
+{% load static %}
+{% load role_tags %}
+
+{% block title %}Role Management - LMS{% endblock %}
+
+{% block extra_css %}
+<style>
+ /* Hide view icon */
+i.fas.fa-eye {
+    display: none;
+}
+    /* Search box styles */
+    .search-box {
+        background-color: #F9FAFB;
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        transition: all 0.2s;
+    }
+    
+    .search-box:focus-within {
+        background-color: #fff;
+        border-color: #2563EB;
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+    }
+    
+    .search-box input {
+        background: transparent;
+        border: none;
+        outline: none;
+        width: 100%;
+        min-width: 200px;
+        max-width: 300px;
+        font-size: 0.875rem;
+        color: #374151;
+    }
+    
+    @media (max-width: 640px) {
+        .search-box input {
+            max-width: 200px;
+        }
+    }
+    
+    .search-box input::placeholder {
+        color: #9CA3AF;
+    }
+    
+    .search-icon {
+        color: #6B7280;
+    }
+
+    /* Table styles */
+    .role-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    
+    .role-table th {
+        background-color: #F9FAFB;
+        padding: 0.75rem 1rem;
+        text-align: left;
+        font-weight: 500;
+        color: #374151;
+        border-bottom: 1px solid #E5E7EB;
+        font-size: 0.875rem;
+    }
+    
+    .role-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #E5E7EB;
+        font-size: 0.875rem;
+    }
+    
+    .role-table tr:hover {
+        background-color: #F9FAFB;
+    }
+
+    /* Action button styles */
+    .action-btn {
+        padding: 0.375rem;
+        border-radius: 0.375rem;
+        transition: all 0.2s;
+        color: #6B7280;
+    }
+    
+    .action-btn:hover {
+        background-color: #F3F4F6;
+        color: #374151;
+    }
+
+    /* Role name styles */
+    .role-name {
+        color: #111827;
+        font-weight: 500;
+        font-size: 0.875rem;
+    }
+
+    .role-date {
+        color: #6B7280;
+        font-size: 0.875rem;
+    }
+
+    /* Pagination styles */
+    .pagination-select {
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        padding: 0.5rem;
+        background-color: #fff;
+        outline: none;
+        cursor: pointer;
+        height: 40px;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 0.5rem center;
+        background-size: 1em;
+        padding-right: 2.5rem;
+    }
+    
+    .page-btn {
+        min-width: 40px;
+        height: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        background-color: #fff;
+        transition: all 0.2s;
+        color: #374151;
+        font-size: 0.875rem;
+        cursor: pointer;
+    }
+    
+    .page-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .page-nav {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .page-info {
+        color: #6B7280;
+        font-size: 0.875rem;
+    }
+
+    /* Capability badge styles */
+    .capability-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        margin-right: 0.25rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .capability-badge.view {
+        background-color: #D1FAE5;
+        color: #065F46;
+    }
+
+    .capability-badge.manage {
+        background-color: #E0E7FF;
+        color: #3730A3;
+    }
+
+    .capability-badge.grade {
+        background-color: #FEF3C7;
+        color: #92400E;
+    }
+
+    /* Mobile responsive styles */
+    .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    @media (max-width: 768px) {
+        .role-table {
+            min-width: 600px;
+        }
+        
+        .role-table th,
+        .role-table td {
+            padding: 0.75rem 0.5rem;
+            font-size: 0.8rem;
+        }
+        
+        .capability-badge {
+            font-size: 0.7rem;
+            padding: 0.2rem 0.5rem;
+            margin-right: 0.2rem;
+            margin-bottom: 0.2rem;
+        }
+        
+        .action-btn {
+            padding: 0.25rem;
+        }
+        
+        .action-btn i {
+            font-size: 0.8rem;
+        }
+    }
+    
+    @media (max-width: 640px) {
+        .role-table {
+            min-width: 550px;
+        }
+        
+        .role-table th:nth-child(2),
+        .role-table td:nth-child(2) {
+            max-width: 200px;
+        }
+        
+        .capability-badges-container {
+            max-height: 60px;
+            overflow-y: auto;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white text-black min-h-screen">
+    <div class="container mx-auto px-4 py-6">
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+        <div class="grid grid-cols-12 gap-4 md:gap-6">
+            <!-- Left Column (70%) -->
+            <div class="col-span-12 lg:col-span-8 transition-all duration-300">
+                <!-- Header section -->
+                <div class="mb-6">
+                    <div class="flex justify-between items-center">
+                        <h1 class="text-2xl font-semibold text-gray-900">Role Management</h1>
+                        {% if request.user.is_superuser or request.user.role in 'globaladmin,superadmin' %}
+                        <a href="{% url 'role_management:role_create' %}" 
+                           class="px-4 py-2 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                            <i class="fas fa-plus mr-2"></i>
+                            Create Role
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Search and Filter Section -->
+                <div class="mb-6">
+                    <div class="flex items-center justify-between">
+                        <form id="searchForm" method="GET" class="m-0 w-full max-w-md">
+                            <div class="search-box flex items-center px-3 py-1.5">
+                                <div class="search-icon mr-2 flex-shrink-0">
+                                    <i class="fas fa-search"></i>
+                                </div>
+                                <input type="text" 
+                                       placeholder="Search roles..." 
+                                       name="q" 
+                                       value="{{ request.GET.q|default:'' }}"
+                                       autocomplete="off"
+                                       id="searchInput">
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Roles table -->
+                <div class="bg-white rounded-lg overflow-hidden shadow-sm border border-gray-200">
+                    <div class="table-container">
+                        <table class="role-table">
+                        <thead>
+                            <tr>
+                                <th>Role</th>
+                                <th>Capabilities</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for role in roles %}
+                            <tr>
+                                <td class="role-name">
+                                    {% if role.name == 'custom' %}
+                                        {{ role.custom_name }}
+                                    {% else %}
+                                        {{ role.get_name_display }}
+                                    {% endif %}
+                                    {% if is_admin_user and role.name in 'instructor,learner' %}
+                                    <span class="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">Reference Only</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="flex flex-wrap capability-badges-container">
+                                        {% if role.capability_list %}
+                                            {% for capability in role.capability_list %}
+                                                {% if 'view' in capability %}
+                                                <span class="capability-badge view">{{ capability|format_capability }}</span>
+                                                {% elif 'manage' in capability %}
+                                                <span class="capability-badge manage">{{ capability|format_capability }}</span>
+                                                {% elif 'grade' in capability %}
+                                                <span class="capability-badge grade">{{ capability|format_capability }}</span>
+                                                {% else %}
+                                                <span class="capability-badge manage">{{ capability|format_capability }}</span>
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% else %}
+                                            <span class="text-gray-400 text-sm italic">No capabilities assigned</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="role-date">{{ role.created_at|date:"d/m/Y" }}</td>
+                                <td>
+                                    <div class="flex justify-start space-x-2">
+                                        <a href="{% url 'role_management:role_detail' role.id %}" class="action-btn" title="View">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        {% if role.can_edit %}
+                                            <a href="{% url 'role_management:role_edit' role.id %}" class="action-btn" title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                        {% endif %}
+                                        {% if role.can_delete %}
+                                            <button class="action-btn" title="Delete" 
+                                                    onclick="confirmDelete('{{ role.id }}', '{{ role.name|default:role.custom_name }}')">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        {% endif %}
+                                        {% if request.user.role == 'admin' and not role.can_edit and not role.can_delete %}
+                                            <span class="action-btn text-gray-400" title="Reference Only - Cannot Edit">
+                                                <i class="fas fa-lock"></i>
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center py-8">
+                                    <div class="flex flex-col items-center justify-center">
+                                        <div class="w-16 h-16 mb-4 text-gray-300">
+                                            <i class="fas fa-user-shield text-4xl"></i>
+                                        </div>
+                                        <h3 class="text-lg font-medium text-gray-900 mb-2">No Roles Found</h3>
+                                        <p class="text-sm text-gray-500">There are no roles matching your criteria.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Pagination -->
+                {% if page_obj.paginator.num_pages > 1 %}
+                <div class="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4">
+                    <div class="flex flex-1 justify-between sm:hidden">
+                        {% if page_obj.has_previous %}
+                        <a href="?page={{ page_obj.previous_page_number }}" class="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Previous</a>
+                        {% endif %}
+                        {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}" class="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Next</a>
+                        {% endif %}
+                    </div>
+                    <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                        <div>
+                            <p class="text-sm text-gray-700">
+                                Showing
+                                <span class="font-medium">{{ page_obj.start_index }}</span>
+                                to
+                                <span class="font-medium">{{ page_obj.end_index }}</span>
+                                of
+                                <span class="font-medium">{{ page_obj.paginator.count }}</span>
+                                results
+                            </p>
+                        </div>
+                        <div>
+                            <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                                {% if page_obj.has_previous %}
+                                <a href="?page={{ page_obj.previous_page_number }}" class="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">
+                                    <span class="sr-only">Previous</span>
+                                    <i class="fas fa-chevron-left h-5 w-5"></i>
+                                </a>
+                                {% endif %}
+                                
+                                {% for i in page_obj.paginator.page_range %}
+                                    {% if page_obj.number == i %}
+                                    <span class="relative z-10 inline-flex items-center bg-indigo-600 px-4 py-2 text-sm font-semibold text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">{{ i }}</span>
+                                    {% else %}
+                                    <a href="?page={{ i }}" class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">{{ i }}</a>
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {% if page_obj.has_next %}
+                                <a href="?page={{ page_obj.next_page_number }}" class="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">
+                                    <span class="sr-only">Next</span>
+                                    <i class="fas fa-chevron-right h-5 w-5"></i>
+                                </a>
+                                {% endif %}
+                            </nav>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Right Column (30%) -->
+            <div class="col-span-12 lg:col-span-4 transition-all duration-300">
+                {% include 'components/right_sidebar.html' %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+    <div class="bg-white rounded-lg p-6 max-w-md w-full">
+        <h3 class="text-lg font-medium text-gray-900 mb-4">Confirm Delete</h3>
+        <p class="text-sm text-gray-500 mb-6">Are you sure you want to delete <span id="deleteRoleName" class="font-medium"></span>? This action cannot be undone.</p>
+        <div class="flex justify-end gap-4">
+            <button onclick="closeDeleteModal()" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200">
+                Cancel
+            </button>
+            <form id="deleteForm" method="POST">
+                {% csrf_token %}
+                <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+                    Delete
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function confirmDelete(roleId, roleName) {
+        const deleteRoleName = document.getElementById('deleteRoleName');
+        const deleteForm = document.getElementById('deleteForm');
+        const deleteModal = document.getElementById('deleteModal');
+        
+        if (deleteRoleName) {
+            deleteRoleName.textContent = roleName;
+        }
+        if (deleteForm) {
+            deleteForm.action = `/role-management/role/${roleId}/delete/`;
+        }
+        if (deleteModal) {
+            deleteModal.classList.remove('hidden');
+        }
+    }
+    
+    function closeDeleteModal() {
+        const deleteModal = document.getElementById('deleteModal');
+        if (deleteModal) {
+            deleteModal.classList.add('hidden');
+        }
+    }
+    
+    // Add null check for deleteModal before adding event listener
+    const deleteModal = document.getElementById('deleteModal');
+    if (deleteModal) {
+        deleteModal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeDeleteModal();
+            }
+        });
+    }
+
+    // Auto-search functionality
+    let searchTimeout;
+    const searchInput = document.getElementById('searchInput');
+    const searchForm = document.getElementById('searchForm');
+    const perPageSelect = document.getElementById('perPageSelect');
+    const pageSelect = document.getElementById('pageSelect');
+
+    // Add null check for searchInput before adding event listener
+    if (searchInput) {
+        searchInput.addEventListener('input', function(e) {
+            clearTimeout(searchTimeout);
+            
+            // Show loading state
+            const searchIcon = searchInput.previousElementSibling.querySelector('i');
+            if (searchIcon) {
+                searchIcon.classList.remove('fa-search');
+                searchIcon.classList.add('fa-spinner', 'fa-spin');
+            }
+            
+            searchTimeout = setTimeout(() => {
+                if (searchForm) {
+                    searchForm.submit();
+                }
+            }, 500);
+        });
+    }
+
+    // Handle per page change - only if element exists
+    if (perPageSelect) {
+        perPageSelect.addEventListener('change', function() {
+            window.location.href = updateQueryStringParameter(window.location.href, 'per_page', this.value);
+        });
+    }
+
+    // Handle page change - only if element exists
+    if (pageSelect) {
+        pageSelect.addEventListener('change', function() {
+            window.location.href = updateQueryStringParameter(window.location.href, 'page', this.value);
+        });
+    }
+
+    // Helper function to update URL parameters
+    function updateQueryStringParameter(uri, key, value) {
+        var re = new RegExp("([?&])" + key + "=.*?(&|$)", "i");
+        var separator = uri.indexOf('?') !== -1 ? "&" : "?";
+        if (uri.match(re)) {
+            return uri.replace(re, '$1' + key + "=" + value + '$2');
+        }
+        else {
+            return uri + separator + key + "=" + value;
+        }
+    }
+</script>
+{% endblock %} 

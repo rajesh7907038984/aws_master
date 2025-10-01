@@ -1,0 +1,450 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load branch_extras %}
+
+{% block title %}Manage Branches{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-8">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">Branch Management</h1>
+                <p class="text-gray-600 mt-2">Create and manage branches within your businesses</p>
+            </div>
+            <div class="text-sm text-gray-500">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    {{ branches.count }} Total Branches
+                </span>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 ml-2">
+                    {{ businesses.count }} Businesses
+                </span>
+                {% if request.user.role == 'superadmin' %}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 ml-2">
+                    Role: {{ request.user.role|title }}
+                </span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Create Branch Form -->
+        {% if businesses.count > 0 %}
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-900">Create New Branch</h2>
+                <p class="text-sm text-gray-600 mt-1">Add a new branch to an existing business</p>
+            </div>
+        {% else %}
+        <div class="bg-yellow-50 rounded-lg border border-yellow-200 mb-8">
+            <div class="px-6 py-4">
+                <div class="flex items-center">
+                    <svg class="w-5 h-5 text-yellow-600 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.728-.833-2.498 0L4.316 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                    <div>
+                        <h2 class="text-lg font-semibold text-yellow-800">No Business Assignments</h2>
+                        <p class="text-sm text-yellow-700 mt-1">You need to be assigned to a business before you can create branches. Please contact a Global Admin.</p>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+        
+        {% if businesses.count > 0 %}
+            <form method="POST" action="{% url 'branches:create_branch' %}" class="px-6 py-4">
+                {% csrf_token %}
+                {% if request.user.role == 'superadmin' %}
+                    <!-- Super admin - hide business selection and auto-assign -->
+                    {% for business in businesses %}
+                        {% if forloop.first %}
+                            <input type="hidden" name="business_id" value="{{ business.id }}">
+                        {% endif %}
+                    {% endfor %}
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="branch_name" class="block text-sm font-medium text-gray-700 mb-2">Branch Name</label>
+                            <input type="text" id="branch_name" name="branch_name" required
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                   placeholder="Enter branch name...">
+                        </div>
+                        
+                        <div>
+                            <label for="description" class="block text-sm font-medium text-gray-700 mb-2">Description (Optional)</label>
+                            <input type="text" id="description" name="description"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                   placeholder="Branch description...">
+                        </div>
+                    </div>
+                    
+                    <!-- Show which business will be used -->
+                    <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                        <div class="flex items-center">
+                            <svg class="w-5 h-5 text-blue-600 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <div>
+                                <p class="text-sm text-blue-800 font-medium">
+                                    Branch will be created in: 
+                                    {% for business in businesses %}
+                                        {% if forloop.first %}{{ business.name }}{% endif %}
+                                    {% endfor %}
+                                </p>
+                                <p class="text-xs text-blue-600 mt-1">This is automatically assigned based on your business access</p>
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <!-- Global admin - show business selection -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label for="branch_name" class="block text-sm font-medium text-gray-700 mb-2">Branch Name</label>
+                            <input type="text" id="branch_name" name="branch_name" required
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                   placeholder="Enter branch name...">
+                        </div>
+                        
+                        <div>
+                            <label for="business_id" class="block text-sm font-medium text-gray-700 mb-2">Business</label>
+                            <select id="business_id" name="business_id" required
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">Select a business...</option>
+                                {% for business in businesses %}
+                                <option value="{{ business.id }}">{{ business.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label for="description" class="block text-sm font-medium text-gray-700 mb-2">Description (Optional)</label>
+                            <input type="text" id="description" name="description"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                   placeholder="Branch description...">
+                        </div>
+                    </div>
+                {% endif %}
+                
+                <div class="mt-4 flex justify-end">
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors">
+                        <svg class="w-4 h-4 inline-block mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        Create Branch
+                    </button>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+
+        <!-- Branches Table -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-900">Existing Branches</h2>
+                <p class="text-sm text-gray-600 mt-1">Manage your existing branches</p>
+            </div>
+            
+            <div class="overflow-x-auto">
+                {% if branches %}
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Business</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Users</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Features</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for branch in branches %}
+                        {% with stats=branch_stats|lookup:branch.id %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0">
+                                        <div class="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                                            <svg class="w-4 h-4 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h2M7 16h6M7 8h6m-6 4h6" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <div class="ml-3">
+                                        <div class="text-sm font-medium text-gray-900">{{ branch.name }}</div>
+                                        {% if branch.description %}
+                                        <div class="text-sm text-gray-500">{{ branch.description }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                {% if branch.business %}
+                                <div class="text-sm text-gray-900">{{ branch.business.name }}</div>
+                                {% else %}
+                                <span class="text-gray-400">No business</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-900">
+                                    <div class="flex space-x-4">
+                                        <span class="text-blue-600 font-medium">{{ stats.total_users }} Total</span>
+                                    </div>
+                                    <div class="text-xs text-gray-500 mt-1">
+                                        {{ stats.admins }} Admin, {{ stats.instructors }} Instructor, {{ stats.learners }} Learner
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex space-x-2">
+                                    {% if branch.sharepoint_integration_enabled %}
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">SharePoint</span>
+                                    {% endif %}
+                                    {% if branch.order_management_enabled %}
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">Orders</span>
+                                    {% endif %}
+                                    {% if not branch.sharepoint_integration_enabled and not branch.order_management_enabled %}
+                                    <span class="text-gray-400 text-xs">None</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ branch.created_at|date:"M j, Y" }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <div class="flex space-x-2">
+                                    <!-- Edit Button -->
+                                    <button onclick="editBranch({{ branch.id }}, '{{ branch.name }}', '{{ branch.description|default:'' }}', {{ branch.sharepoint_integration_enabled|yesno:'true,false' }}, {{ branch.order_management_enabled|yesno:'true,false' }}, {{ branch.scorm_integration_enabled|yesno:'true,false' }})"
+                                            class="text-indigo-600 hover:text-indigo-900 transition-colors">
+                                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                        </svg>
+                                    </button>
+                                    
+                                    <!-- Delete Button -->
+                                    {% if stats.total_users == 0 %}
+                                    <form method="POST" action="{% url 'branches:delete_branch' branch.id %}" class="inline"
+                                          onsubmit="return deleteBranch({{ branch.id }}, '{{ branch.name|escapejs }}', {{ stats.total_users }});">
+                                        {% csrf_token %}
+                                        <button type="submit" class="text-red-600 hover:text-red-900 transition-colors"
+                                                title="Delete branch">
+                                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    </form>
+                                    {% else %}
+                                    <button onclick="deleteBranch({{ branch.id }}, '{{ branch.name|escapejs }}', {{ stats.total_users }})"
+                                            class="text-gray-400 cursor-not-allowed" 
+                                            title="Cannot delete branch with {{ stats.total_users }} active users">
+                                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                        </svg>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endwith %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="text-center py-12">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h2M7 16h6M7 8h6m-6 4h6" />
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">No branches yet</h3>
+                    <p class="mt-1 text-sm text-gray-500">Start by creating your first branch above.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Branch Modal -->
+<div id="editBranchModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden" style="z-index: 50;">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Edit Branch</h3>
+            
+            <form id="editBranchForm" method="POST">
+                {% csrf_token %}
+                <div class="mb-4">
+                    <label for="edit_branch_name" class="block text-sm font-medium text-gray-700 mb-2">Branch Name</label>
+                    <input type="text" id="edit_branch_name" name="branch_name" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                
+                <div class="mb-4">
+                    <label for="edit_description" class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                    <textarea id="edit_description" name="description" rows="3"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="flex items-center">
+                        <input type="checkbox" id="edit_sharepoint_integration" name="sharepoint_integration_enabled"
+                               class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                        <span class="ml-2 text-sm text-gray-700">Enable SharePoint Integration</span>
+                    </label>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="flex items-center">
+                        <input type="checkbox" id="edit_order_management" name="order_management_enabled"
+                               class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                        <span class="ml-2 text-sm text-gray-700">Enable Order Management</span>
+                    </label>
+                </div>
+                
+                <div class="mb-6">
+                    <label class="flex items-center">
+                        <input type="checkbox" id="edit_scorm_integration" name="scorm_integration_enabled"
+                               class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                        <span class="ml-2 text-sm text-gray-700">Enable SCORM Integration</span>
+                    </label>
+                </div>
+                
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="closeEditModal()" 
+                            class="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                            class="px-4 py-2 text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        Update Branch
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Custom template filter to lookup dictionary values
+document.addEventListener('DOMContentLoaded', function() {
+    // Add lookup functionality for template
+    if (!String.prototype.lookup) {
+        Object.defineProperty(Object.prototype, 'lookup', {
+            value: function(key) {
+                return this[key];
+            },
+            enumerable: false
+        });
+    }
+    
+    // Add form submission handler for better error handling
+    const editForm = document.getElementById('editBranchForm');
+    if (editForm) {
+        editForm.addEventListener('submit', function(e) {
+            const submitButton = this.querySelector('button[type="submit"]');
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<svg class="w-4 h-4 inline-block mr-2 animate-spin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path fill="currentColor" d="M4 12a8 8 0 0116 0h-3a5 5 0 00-10 0H4z"></path></svg>Updating...';
+            }
+        });
+    }
+});
+
+function editBranch(branchId, name, description, sharepoint, orderManagement, scormIntegration) {
+    // Validate branch ID
+    if (!branchId || branchId <= 0) {
+        showNotification('Error: Invalid branch ID', 'error');
+        return;
+    }
+    
+    // Populate form fields
+    document.getElementById('edit_branch_name').value = name || '';
+    document.getElementById('edit_description').value = description || '';
+    document.getElementById('edit_sharepoint_integration').checked = sharepoint === true || sharepoint === 'true';
+    document.getElementById('edit_order_management').checked = orderManagement === true || orderManagement === 'true';
+    document.getElementById('edit_scorm_integration').checked = scormIntegration === true || scormIntegration === 'true';
+    
+    // Update form action using correct URL
+    document.getElementById('editBranchForm').action = `/branches/${branchId}/edit/`;
+    
+    // Reset submit button state
+    const submitButton = document.getElementById('editBranchForm').querySelector('button[type="submit"]');
+    if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.innerHTML = 'Update Branch';
+    }
+    
+    // Show modal
+    document.getElementById('editBranchModal').classList.remove('hidden');
+    
+    // Focus on branch name field for better UX
+    document.getElementById('edit_branch_name').focus();
+}
+
+function closeEditModal() {
+    document.getElementById('editBranchModal').classList.add('hidden');
+    
+    // Reset submit button state when closing
+    const submitButton = document.getElementById('editBranchForm').querySelector('button[type="submit"]');
+    if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.innerHTML = 'Update Branch';
+    }
+}
+
+// Show notification function
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 p-4 rounded-md shadow-lg z-50 ${
+        type === 'error' ? 'bg-red-50 border border-red-200 text-red-800' :
+        type === 'success' ? 'bg-green-50 border border-green-200 text-green-800' :
+        'bg-blue-50 border border-blue-200 text-blue-800'
+    }`;
+    notification.innerHTML = `
+        <div class="flex items-center">
+            <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                ${type === 'error' ? '<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>' :
+                type === 'success' ? '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>' :
+                '<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>'}
+            </svg>
+            <span>${message}</span>
+            <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-current opacity-70 hover:opacity-100">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                </svg>
+            </button>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
+// Enhanced delete branch function with confirmation
+function deleteBranch(branchId, branchName, userCount) {
+    if (userCount > 0) {
+        showNotification(`Cannot delete branch "${branchName}" because it has ${userCount} active users. Please reassign users first.`, 'error');
+        return false;
+    }
+    
+    return confirm(`Are you sure you want to delete the branch "${branchName}"?\n\nThis action cannot be undone and will permanently remove all branch data.`);
+}
+
+// Close modal when clicking outside
+document.getElementById('editBranchModal').addEventListener('click', function(event) {
+    if (event.target === this) {
+        closeEditModal();
+    }
+});
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeEditModal();
+    }
+});
+</script>
+
+{% endblock %}

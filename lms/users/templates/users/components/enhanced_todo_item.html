@@ -1,0 +1,363 @@
+{% load static %}
+
+<!-- Enhanced Todo Item Component with Role-based Display -->
+{% for todo in todo_items %}
+<div class="todo-item" data-todo-id="{{ todo.id }}" data-priority="{{ todo.priority }}" data-type="{{ todo.type }}">
+    <a href="{{ todo.url }}" class="todo-link">
+        <div class="todo-container">
+            <!-- Priority Indicator -->
+            <div class="todo-priority-bar priority-{{ todo.priority }}"></div>
+            
+            <!-- Icon Section -->
+            <div class="todo-icon">
+                <div class="icon-wrapper priority-{{ todo.priority }}">
+                    {% if todo.priority == 'critical' %}
+                        <i class="fas fa-exclamation-triangle"></i>
+                    {% else %}
+                        <i class="fas fa-{{ todo.icon|default:'tasks' }}"></i>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Content Section -->
+            <div class="todo-content">
+                <!-- Title with Priority Badge -->
+                <div class="todo-header">
+                    <h4 class="todo-title">
+                        {% if todo.priority == 'critical' %}
+                            <span class="priority-badge critical">URGENT</span>
+                        {% endif %}
+                        {{ todo.title }}
+                    </h4>
+                    
+                    <!-- Metadata based on todo type -->
+                    <div class="todo-metadata">
+                        {% if todo.metadata.assignment_points and todo.type == 'assignment' %}
+                            <span class="points-badge">{{ todo.metadata.assignment_points }} pts</span>
+                        {% endif %}
+                        
+                        {% if todo.metadata.days_overdue and todo.metadata.days_overdue > 0 %}
+                            <span class="overdue-badge">{{ todo.metadata.days_overdue }} days overdue</span>
+                        {% endif %}
+                        
+                        {% if todo.metadata.progress and todo.type == 'course' %}
+                            <span class="progress-badge">{{ todo.metadata.progress }}% complete</span>
+                        {% endif %}
+                        
+                        {% if todo.metadata.enrollment_count and todo.type == 'course_management' %}
+                            <span class="students-badge">{{ todo.metadata.enrollment_count }} students</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Description -->
+                <p class="todo-description">{{ todo.description|safe }}</p>
+                
+                <!-- Due Date and Status -->
+                <div class="todo-footer">
+                    <div class="todo-due-date priority-{{ todo.priority }}">
+                        <i class="fas fa-clock"></i>
+                        <span>{{ todo.due_date }}</span>
+                    </div>
+                    
+                    <!-- Type-specific info -->
+                    {% if todo.type == 'assignment' and user.role == 'learner' %}
+                        <div class="todo-action-hint">
+                            <i class="fas fa-upload"></i>
+                            <span>Submit Assignment</span>
+                        </div>
+                    {% elif todo.type == 'grading' and user.role in 'instructor,admin,superadmin' %}
+                        <div class="todo-action-hint">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Grade Submission</span>
+                        </div>
+                    {% elif todo.type == 'conference' %}
+                        <div class="todo-action-hint">
+                            <i class="fas fa-video"></i>
+                            <span>{% if user.role == 'learner' %}Join{% else %}Host{% endif %} Meeting</span>
+                        </div>
+                    {% elif todo.type == 'course' %}
+                        <div class="todo-action-hint">
+                            <i class="fas fa-play"></i>
+                            <span>Continue Learning</span>
+                        </div>
+                    {% elif todo.type == 'user_management' %}
+                        <div class="todo-action-hint">
+                            <i class="fas fa-user-check"></i>
+                            <span>Review & Approve</span>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Arrow/Chevron -->
+            <div class="todo-arrow">
+                <i class="fas fa-chevron-right"></i>
+            </div>
+        </div>
+    </a>
+</div>
+{% empty %}
+<div class="no-todos">
+    <div class="no-todos-icon">
+        <i class="fas fa-check-circle"></i>
+    </div>
+    <h3>All caught up!</h3>
+    <p>You have no pending tasks at the moment.</p>
+    {% if user.role == 'learner' %}
+        <a href="{% url 'courses:course_list' %}" class="btn btn-primary">
+            <i class="fas fa-book"></i> Explore Courses
+        </a>
+    {% elif user.role == 'instructor' %}
+        <a href="{% url 'courses:course_list' %}" class="btn btn-primary">
+            <i class="fas fa-chalkboard-teacher"></i> Manage Courses
+        </a>
+    {% else %}
+        <a href="{% url 'users:users_admin_dashboard' %}" class="btn btn-primary">
+            <i class="fas fa-tachometer-alt"></i> Admin Dashboard
+        </a>
+    {% endif %}
+</div>
+{% endfor %}
+
+<!-- Enhanced Todo Styles -->
+<style>
+.todo-item {
+    margin-bottom: 12px;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.todo-item:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transform: translateY(-2px);
+}
+
+.todo-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.todo-container {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    position: relative;
+}
+
+/* Priority Bar */
+.todo-priority-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+}
+
+.priority-critical { background-color: #dc2626; }
+.priority-high { background-color: #ef4444; }
+.priority-medium { background-color: #f59e0b; }
+.priority-low { background-color: #10b981; }
+
+/* Icon Section */
+.todo-icon {
+    margin-right: 12px;
+    margin-left: 6px;
+}
+
+.icon-wrapper {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: white;
+}
+
+.icon-wrapper.priority-critical {
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+    animation: pulse 2s infinite;
+}
+
+.icon-wrapper.priority-high {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.icon-wrapper.priority-medium {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.icon-wrapper.priority-low {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* Content Section */
+.todo-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.todo-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 6px;
+}
+
+.todo-title {
+    font-size: 13px;
+    font-weight: 600;
+    margin: 0;
+    color: #1f2937;
+    line-height: 1.3;
+}
+
+.todo-metadata {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.priority-badge {
+    background: #dc2626;
+    color: white;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.points-badge, .progress-badge, .students-badge {
+    background: #3b82f6;
+    color: white;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-size: 9px;
+    font-weight: 500;
+}
+
+.overdue-badge {
+    background: #dc2626;
+    color: white;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-size: 9px;
+    font-weight: 600;
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0.6; }
+}
+
+.todo-description {
+    color: #6b7280;
+    font-size: 12px;
+    margin: 0 0 8px 0;
+    line-height: 1.3;
+}
+
+.todo-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 10px;
+}
+
+.todo-due-date {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-weight: 500;
+}
+
+.todo-due-date.priority-critical { color: #dc2626; }
+.todo-due-date.priority-high { color: #ef4444; }
+.todo-due-date.priority-medium { color: #f59e0b; }
+.todo-due-date.priority-low { color: #10b981; }
+
+.todo-action-hint {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    color: #9ca3af;
+    font-style: italic;
+}
+
+/* Arrow */
+.todo-arrow {
+    margin-left: 12px;
+    color: #d1d5db;
+    transition: transform 0.3s ease;
+}
+
+.todo-item:hover .todo-arrow {
+    transform: translateX(4px);
+    color: #9ca3af;
+}
+
+/* No Todos State */
+.no-todos {
+    text-align: center;
+    padding: 48px 24px;
+    color: #6b7280;
+}
+
+.no-todos-icon {
+    font-size: 48px;
+    color: #10b981;
+    margin-bottom: 16px;
+}
+
+.no-todos h3 {
+    color: #1f2937;
+    margin-bottom: 8px;
+}
+
+.no-todos p {
+    margin-bottom: 24px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .todo-container {
+        padding: 10px;
+    }
+    
+    .todo-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+    
+    .todo-metadata {
+        width: 100%;
+    }
+    
+    .todo-footer {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+    
+    .icon-wrapper {
+        width: 28px;
+        height: 28px;
+        font-size: 12px;
+    }
+}
+</style>

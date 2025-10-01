@@ -1,0 +1,752 @@
+{% extends "base.html" %}
+{% load static %}
+{% load quiz_filters %}
+
+{% block title %}Quiz Timeline Report - {{ student.get_full_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .timeline-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+    
+    .timeline-header {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .timeline-section {
+        background: white;
+        border-radius: 0.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+    
+    .timeline-title {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+        padding: 1.25rem 1.5rem;
+        font-size: 1.25rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .timeline-icon {
+        width: 2.5rem;
+        height: 2.5rem;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .timeline-content {
+        padding: 1.5rem;
+    }
+    
+    .timeline-event {
+        position: relative;
+        padding-left: 3rem;
+        padding-bottom: 2rem;
+        border-left: 2px solid #e5e7eb;
+        margin-left: 1.25rem;
+    }
+    
+    .timeline-event:last-child {
+        border-left: none;
+        padding-bottom: 0;
+    }
+    
+    .timeline-event::before {
+        content: '';
+        position: absolute;
+        left: -0.5rem;
+        top: 0.25rem;
+        width: 1rem;
+        height: 1rem;
+        background: #3b82f6;
+        border-radius: 50%;
+        border: 3px solid white;
+        box-shadow: 0 0 0 2px #e5e7eb;
+    }
+    
+    .timeline-event.attempt_start::before {
+        background: #06b6d4;
+    }
+    
+    .timeline-event.attempt_complete::before {
+        background: #10b981;
+    }
+    
+    .timeline-event.question_answer::before {
+        background: #f59e0b;
+    }
+    
+    .timeline-event.grade_override::before {
+        background: #ef4444;
+    }
+    
+    .timeline-event.rubric_evaluation::before {
+        background: #8b5cf6;
+    }
+    
+    .timeline-event.activity_update::before {
+        background: #6b7280;
+    }
+    
+    .event-card {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-top: 0.5rem;
+    }
+    
+    .event-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 0.5rem;
+    }
+    
+    .event-title {
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    .event-time {
+        color: #6b7280;
+        font-size: 0.875rem;
+        white-space: nowrap;
+    }
+    
+    .event-description {
+        color: #4b5563;
+        margin-bottom: 0.5rem;
+    }
+    
+    .event-data {
+        background: #f3f4f6;
+        border-radius: 0.375rem;
+        padding: 0.75rem;
+        font-size: 0.875rem;
+        color: #374151;
+    }
+    
+    .event-data dt {
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    .event-data dd {
+        margin-left: 1rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .print-btn {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .print-btn:hover {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        transform: translateY(-1px);
+    }
+    
+    .summary-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        text-align: center;
+    }
+    
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1f2937;
+    }
+    
+    .stat-label {
+        color: #6b7280;
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+    }
+    
+    .rubric-section {
+        margin-bottom: 2rem;
+    }
+    
+    .rubric-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+    }
+    
+    .rubric-table th,
+    .rubric-table td {
+        border: 1px solid #e5e7eb;
+        padding: 0.75rem;
+        text-align: left;
+        vertical-align: top;
+    }
+    
+    .rubric-table th {
+        background: #f9fafb;
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    .points-cell {
+        text-align: center;
+        font-weight: 600;
+    }
+    
+    .points-earned {
+        color: #059669;
+    }
+    
+    .points-total {
+        color: #6b7280;
+    }
+    
+    .question-card {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .question-header {
+        display: flex;
+        justify-content: between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+    
+    .question-number {
+        font-weight: 600;
+        color: #3b82f6;
+    }
+    
+    .question-score {
+        font-weight: 600;
+    }
+    
+    .correct-answer {
+        color: #059669;
+    }
+    
+    .incorrect-answer {
+        color: #dc2626;
+    }
+    
+    .attempt-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+    
+    .attempt-completed {
+        background: #d1fae5;
+        color: #065f46;
+    }
+    
+    .attempt-incomplete {
+        background: #fef3c7;
+        color: #92400e;
+    }
+    
+    .no-print {
+        display: block;
+    }
+    
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+        
+        .timeline-container {
+            max-width: none;
+            padding: 0;
+        }
+        
+        .timeline-section {
+            box-shadow: none;
+            border: 1px solid #e5e7eb;
+            page-break-inside: avoid;
+        }
+        
+        .timeline-event {
+            page-break-inside: avoid;
+        }
+        
+        .event-card {
+            page-break-inside: avoid;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-scroll to specific events if hash is present
+    document.addEventListener('DOMContentLoaded', function() {
+        if (window.location.hash) {
+            const targetElement = document.querySelector(window.location.hash);
+            if (targetElement) {
+                targetElement.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
+                // Add highlight effect
+                targetElement.style.backgroundColor = '#fef3c7';
+                setTimeout(() => {
+                    targetElement.style.backgroundColor = '';
+                }, 3000);
+            }
+        }
+    });
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="timeline-container">
+    <!-- Breadcrumbs -->
+    <div class="mb-6 no-print">
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+    </div>
+    
+    <!-- Header Information -->
+    <div class="timeline-header">
+        <div class="flex justify-between items-start mb-4">
+            <h1 class="text-2xl font-bold text-gray-900">Quiz Timeline Report</h1>
+            <button onclick="window.print()" class="print-btn">
+                <i class="fas fa-print mr-2"></i>Generate Report
+            </button>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <h2 class="text-lg font-semibold text-gray-800 mb-2">Quiz Information</h2>
+                <div class="space-y-1 text-sm">
+                    <p><strong>Title:</strong> {{ quiz.title }}</p>
+                    <p><strong>Created:</strong> {{ quiz.created_at|date:"M d, Y g:i A" }}</p>
+                    <p><strong>Time Limit:</strong> 
+                        {% if quiz.time_limit %}
+                            {{ quiz.time_limit }} minutes
+                        {% else %}
+                            No limit
+                        {% endif %}
+                    </p>
+                    <p><strong>Passing Score:</strong> {{ quiz.passing_score }}%</p>
+                    <p><strong>Total Questions:</strong> {{ quiz.total_questions }}</p>
+                    <p><strong>Total Points:</strong> {{ quiz.total_points }}</p>
+                </div>
+            </div>
+            
+            <div>
+                <h2 class="text-lg font-semibold text-gray-800 mb-2">Student Information</h2>
+                <div class="space-y-1 text-sm">
+                    <p><strong>Name:</strong> {{ student.get_full_name }}</p>
+                    <p><strong>Email:</strong> {{ student.email }}</p>
+                    <p><strong>Role:</strong> {{ student.get_role_display }}</p>
+                    {% if student.branch %}
+                        <p><strong>Branch:</strong> {{ student.branch.name }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Current Score Section -->
+    {% if latest_attempt %}
+    <div class="timeline-section">
+        <div class="timeline-title">
+            <div class="timeline-icon">
+                <i class="fas fa-trophy"></i>
+            </div>
+            Current Performance
+        </div>
+        
+        <div class="timeline-content">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h4 class="font-semibold text-gray-800 mb-3">Latest Attempt Results</h4>
+                    <div class="space-y-2 text-sm">
+                        <p><strong>Score:</strong> {{ latest_attempt.score|floatformat:1 }} / {{ quiz.total_points }}</p>
+                        <p><strong>Percentage:</strong> {{ latest_attempt.score|div:quiz.total_points|mul:100|floatformat:1 }}%</p>
+                        <p><strong>Status:</strong> 
+                            {% if latest_attempt.passed %}
+                                <span class="text-green-600 font-semibold">Passed</span>
+                            {% else %}
+                                <span class="text-red-600 font-semibold">Failed</span>
+                            {% endif %}
+                        </p>
+                        <p><strong>Completed:</strong> {{ latest_attempt.end_time|date:"M d, Y g:i A" }}</p>
+                        {% if grade_override %}
+                            <p><strong>Override Score:</strong> {{ grade_override.override_score|floatformat:1 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div>
+                    <h4 class="font-semibold text-gray-800 mb-3">Question Performance</h4>
+                    <div class="space-y-2 text-sm">
+                        <p><strong>Correct:</strong> {{ quiz_stats.questions_correct }} / {{ quiz_stats.questions_total }}</p>
+                        <p><strong>Accuracy:</strong> 
+                            {% if quiz_stats.questions_total > 0 %}
+                                {{ quiz_stats.questions_correct|div:quiz_stats.questions_total|mul:100|floatformat:1 }}%
+                            {% else %}
+                                0%
+                            {% endif %}
+                        </p>
+                        <p><strong>Duration:</strong> {{ latest_attempt.duration_formatted }}</p>
+                        <p><strong>Active Time:</strong> {{ latest_attempt.active_time_formatted }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Rubric Evaluation Section -->
+    {% if quiz.rubric and rubric_evaluations %}
+    <div class="timeline-section">
+        <div class="timeline-title">
+            <div class="timeline-icon">
+                <i class="fas fa-clipboard-check"></i>
+            </div>
+            Rubric Evaluation Results
+        </div>
+        
+        <div class="timeline-content">
+            <div class="rubric-section">
+                <h3 class="text-lg font-semibold text-gray-800 mb-3">{{ quiz.rubric.title }}</h3>
+                
+                <table class="rubric-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 30%">Criterion</th>
+                            <th style="width: 15%">Points</th>
+                            <th style="width: 20%">Rating</th>
+                            <th style="width: 35%">Comments</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for evaluation in rubric_evaluations %}
+                        <tr>
+                            <td>
+                                <strong>{{ evaluation.criterion.description }}</strong>
+                                {% if evaluation.criterion.rubric_description %}
+                                    <br><small class="text-gray-600">{{ evaluation.criterion.rubric_description }}</small>
+                                {% endif %}
+                            </td>
+                            <td class="points-cell">
+                                <span class="points-earned">{{ evaluation.points|floatformat:1 }}</span>
+                                <span class="points-total">/ {{ evaluation.criterion.points|floatformat:1 }}</span>
+                            </td>
+                            <td>
+                                {% if evaluation.rating %}
+                                    <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">
+                                        {{ evaluation.rating.title }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-gray-500">No rating</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if evaluation.comments %}
+                                    {{ evaluation.comments|linebreaks }}
+                                {% else %}
+                                    <span class="text-gray-500">No comments</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        <tr class="bg-gray-50">
+                            <td><strong>Total Score</strong></td>
+                            <td class="points-cell">
+                                <span class="points-earned text-lg">{{ rubric_total_score|floatformat:1 }}</span>
+                                <span class="points-total text-lg">/ {{ quiz.rubric.total_points|floatformat:1 }}</span>
+                            </td>
+                            <td colspan="2">
+                                <strong>{{ rubric_total_score|floatformat:1 }}/{{ quiz.rubric.total_points|floatformat:1 }} 
+                                ({{ rubric_total_score|div:quiz.rubric.total_points|mul:100|floatformat:1 }}%)</strong>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Attempts History -->
+    {% if attempts %}
+    <div class="timeline-section">
+        <div class="timeline-title">
+            <div class="timeline-icon">
+                <i class="fas fa-history"></i>
+            </div>
+            Attempts History
+        </div>
+        
+        <div class="timeline-content">
+            <div class="space-y-4">
+                {% for attempt in attempts %}
+                <div class="event-card">
+                    <div class="event-header">
+                        <div class="event-title">
+                            Attempt #{{ forloop.counter }}
+                            <span class="attempt-badge {% if attempt.is_completed %}attempt-completed{% else %}attempt-incomplete{% endif %}">
+                                {% if attempt.is_completed %}Completed{% else %}Incomplete{% endif %}
+                            </span>
+                        </div>
+                        <div class="event-time">{{ attempt.start_time|date:"M d, Y g:i A" }}</div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                        <div>
+                            <p><strong>Score:</strong> {{ attempt.score|floatformat:1 }} / {{ quiz.total_points }}</p>
+                            <p><strong>Status:</strong> 
+                                {% if attempt.is_completed %}
+                                    {% if attempt.passed %}
+                                        <span class="text-green-600">Passed</span>
+                                    {% else %}
+                                        <span class="text-red-600">Failed</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-yellow-600">Incomplete</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div>
+                            {% if attempt.end_time %}
+                                <p><strong>Duration:</strong> {{ attempt.duration_formatted }}</p>
+                                <p><strong>Active Time:</strong> {{ attempt.active_time_formatted }}</p>
+                                <p><strong>Completed:</strong> {{ attempt.end_time|date:"M d, Y g:i A" }}</p>
+                            {% else %}
+                                <p><strong>Duration:</strong> In progress</p>
+                                <p><strong>Active Time:</strong> {{ attempt.active_time_formatted }}</p>
+                                <p><strong>Last Activity:</strong> {{ attempt.last_activity|date:"M d, Y g:i A" }}</p>
+                            {% endif %}
+                        </div>
+                        <div>
+                            {% if attempt.ip_address %}
+                                <p><strong>IP:</strong> {{ attempt.ip_address }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Timeline Events -->
+    <div class="timeline-section">
+        <div class="timeline-title">
+            <div class="timeline-icon">
+                <i class="fas fa-clock"></i>
+            </div>
+            Detailed Timeline
+        </div>
+        
+        <div class="timeline-content">
+            {% if timeline_events %}
+                {% for event in timeline_events %}
+                <div class="timeline-event {{ event.type }}" id="event-{{ forloop.counter }}">
+                    <div class="event-card">
+                        <div class="event-header">
+                            <div class="event-title">{{ event.title }}</div>
+                            <div class="event-time">{{ event.timestamp|date:"M d, Y g:i A" }}</div>
+                        </div>
+                        
+                        <div class="event-description">{{ event.description }}</div>
+                        
+                        {% if event.data %}
+                        <div class="event-data">
+                            <dl>
+                                {% for key, value in event.data.items %}
+                                    {% if value and key != 'attempt_id' and key != 'question_id' %}
+                                    <dt>{{ key|title|replace:"_, " }}:</dt>
+                                    <dd>
+                                        {% if key == 'question_text' %}
+                                            <div class="bg-white p-2 rounded border max-h-20 overflow-y-auto">{{ value }}</div>
+                                        {% elif key == 'selected_answer' or key == 'text_answer' %}
+                                            <div class="bg-white p-2 rounded border">{{ value }}</div>
+                                        {% elif key == 'is_correct' %}
+                                            {% if value %}
+                                                <span class="text-green-600 font-semibold">Correct</span>
+                                            {% else %}
+                                                <span class="text-red-600 font-semibold">Incorrect</span>
+                                            {% endif %}
+                                        {% elif key == 'passed' %}
+                                            {% if value %}
+                                                <span class="text-green-600 font-semibold">Passed</span>
+                                            {% else %}
+                                                <span class="text-red-600 font-semibold">Failed</span>
+                                            {% endif %}
+                                        {% elif key == 'duration_minutes' %}
+                                            {{ value|floatformat:1 }} minutes
+                                        {% elif key == 'percentage' %}
+                                            {{ value|floatformat:1 }}%
+                                        {% elif key == 'points_earned' or key == 'points_possible' or key == 'points' or key == 'max_points' %}
+                                            {{ value|floatformat:1 }}
+                                        {% elif key == 'score' or key == 'max_score' or key == 'original_score' or key == 'override_score' %}
+                                            {{ value|floatformat:1 }}
+                                        {% elif key == 'is_completed' %}
+                                            {% if value %}Yes{% else %}No{% endif %}
+                                        {% elif key == 'matching_answers' %}
+                                            {% if value %}
+                                                <pre class="bg-gray-100 p-2 rounded text-xs">{{ value|pprint }}</pre>
+                                            {% else %}
+                                                No matching answers
+                                            {% endif %}
+                                        {% elif key == 'comments' %}
+                                            <div class="bg-white p-2 rounded border">{{ value|linebreaks }}</div>
+                                        {% elif key == 'override_reason' %}
+                                            <div class="bg-white p-2 rounded border">{{ value|linebreaks }}</div>
+                                        {% else %}
+                                            {{ value }}
+                                        {% endif %}
+                                    </dd>
+                                    {% endif %}
+                                {% endfor %}
+                            </dl>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="text-center py-8">
+                    <p class="text-gray-500">No timeline events found for this student.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Question Analysis -->
+    {% if user_answers %}
+    <div class="timeline-section">
+        <div class="timeline-title">
+            <div class="timeline-icon">
+                <i class="fas fa-list-alt"></i>
+            </div>
+            Question-by-Question Analysis
+        </div>
+        
+        <div class="timeline-content">
+            <div class="space-y-4">
+                {% for answer in user_answers %}
+                <div class="question-card">
+                    <div class="question-header">
+                        <div class="question-number">Question {{ answer.question.order }}</div>
+                        <div class="question-score {% if answer.is_correct %}correct-answer{% else %}incorrect-answer{% endif %}">
+                            {{ answer.points_earned|floatformat:1 }} / {{ answer.question.points }} pts
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <p class="font-medium">{{ answer.question.question_text }}</p>
+                        <p class="text-sm text-gray-600">Type: {{ answer.question.get_question_type_display }}</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <p><strong>Student Answer:</strong></p>
+                            {% if answer.answer %}
+                                <div class="bg-gray-50 p-2 rounded">{{ answer.answer.answer_text }}</div>
+                            {% elif answer.text_answer %}
+                                <div class="bg-gray-50 p-2 rounded">{{ answer.text_answer }}</div>
+                            {% elif answer.matching_answers %}
+                                <div class="bg-gray-50 p-2 rounded">
+                                    <pre class="text-xs">{{ answer.matching_answers|pprint }}</pre>
+                                </div>
+                            {% else %}
+                                <div class="bg-gray-50 p-2 rounded text-gray-500">No answer provided</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div>
+                            <p><strong>Correct Answer(s):</strong></p>
+                            <div class="bg-green-50 p-2 rounded">
+                                {% for correct_answer in answer.question.answers.all %}
+                                    {% if correct_answer.is_correct %}
+                                        <div>{{ correct_answer.answer_text }}</div>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Grade Override Information -->
+    {% if grade_override %}
+    <div class="timeline-section">
+        <div class="timeline-title">
+            <div class="timeline-icon">
+                <i class="fas fa-edit"></i>
+            </div>
+            Grade Override Information
+        </div>
+        
+        <div class="timeline-content">
+            <div class="event-card">
+                <div class="event-header">
+                    <div class="event-title">Grade Override by {{ grade_override.override_by.get_full_name }}</div>
+                    <div class="event-time">{{ grade_override.created_at|date:"M d, Y g:i A" }}</div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <p><strong>Original Score:</strong> {{ grade_override.original_score|floatformat:1 }}</p>
+                        <p><strong>Override Score:</strong> {{ grade_override.override_score|floatformat:1 }}</p>
+                    </div>
+                    <div>
+                        <p><strong>Reason:</strong></p>
+                        <div class="bg-gray-50 p-2 rounded">{{ grade_override.override_reason|linebreaks }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %} 

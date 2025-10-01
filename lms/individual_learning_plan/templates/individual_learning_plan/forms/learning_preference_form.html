@@ -1,0 +1,311 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+    {% if is_create %}Add{% else %}Edit{% endif %} Learning Preference - {{ target_user.get_full_name|default:target_user.username }}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        max-width: 800px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        padding: 30px;
+    }
+    
+    .form-group {
+        margin-bottom: 24px;
+    }
+    
+    .form-label {
+        display: block;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 8px;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 16px;
+        transition: border-color 0.2s;
+    }
+    
+    .form-control:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    
+    .form-select {
+        background-image: url('data:image/svg+xml;charset=utf-8,%3Csvg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20"%3E%3Cpath stroke="%236b7280" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 8l4 4 4-4"/%3E%3C/svg%3E');
+        background-position: right 12px center;
+        background-repeat: no-repeat;
+        background-size: 16px;
+        padding-right: 40px;
+    }
+    
+    .btn {
+        padding: 12px 24px;
+        border-radius: 6px;
+        font-weight: 600;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        display: inline-block;
+        transition: all 0.2s;
+    }
+    
+    .btn-primary {
+        background-color: #3b82f6;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background-color: #2563eb;
+        color: white;
+    }
+    
+    .btn-secondary {
+        background-color: #6b7280;
+        color: white;
+    }
+    
+    .btn-secondary:hover {
+        background-color: #4b5563;
+        color: white;
+    }
+    
+    .form-help {
+        font-size: 14px;
+        color: #6b7280;
+        margin-top: 4px;
+    }
+    
+    .form-error {
+        color: #ef4444;
+        font-size: 14px;
+        margin-top: 4px;
+    }
+    
+    /* Star Rating System */
+    .star-rating {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin: 8px 0;
+    }
+    
+    .star-rating input[type="radio"] {
+        display: none;
+    }
+    
+    .star-rating label {
+        cursor: pointer;
+        font-size: 24px;
+        color: #d1d5db;
+        transition: color 0.2s;
+        margin: 0;
+    }
+    
+    .star-rating label:hover,
+    .star-rating label:hover ~ label,
+    .star-rating input[type="radio"]:checked ~ label {
+        color: #fbbf24;
+    }
+    
+    .star-rating input[type="radio"]:checked + label,
+    .star-rating input[type="radio"]:checked + label ~ label {
+        color: #fbbf24;
+    }
+    
+    .rating-description {
+        margin-left: 16px;
+        font-size: 14px;
+        color: #6b7280;
+        font-weight: 500;
+    }
+    
+    .preference-info {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 16px;
+        margin-bottom: 20px;
+    }
+    
+    .preference-info h3 {
+        margin: 0 0 8px 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: #1e293b;
+    }
+    
+    .preference-info p {
+        margin: 0;
+        font-size: 14px;
+        color: #64748b;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50">
+    <div class="p-6">
+        <!-- Breadcrumb -->
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+        <!-- Form Container -->
+        <div class="form-container">
+            <div class="mb-6">
+                <h1 class="text-2xl font-bold text-gray-900">
+                    {% if is_create %}Add{% else %}Edit{% endif %} Learning Preference
+                </h1>
+                <p class="text-gray-600 mt-2">
+                    Set learning preferences and styles for {{ target_user.get_full_name|default:target_user.username }}.
+                </p>
+            </div>
+
+            <!-- Preference Information -->
+            <div class="preference-info">
+                <h3><i class="fas fa-info-circle mr-2 text-blue-600"></i>Learning Preference Rating</h3>
+                <p>Rate each learning style from 1 to 5 stars, where 5 stars indicates the highest preference for that learning method.</p>
+            </div>
+
+            <!-- Form -->
+            <form method="post">
+                {% csrf_token %}
+                
+                <!-- Preference Type -->
+                <div class="form-group">
+                    <label for="id_preference_type" class="form-label">
+                        Learning Style <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.preference_type }}
+                    {% if form.preference_type.errors %}
+                        <div class="form-error">{{ form.preference_type.errors.0 }}</div>
+                    {% endif %}
+                    <div class="form-help">
+                        Select the type of learning style to rate.
+                    </div>
+                </div>
+
+                <!-- Preference Level (Star Rating) -->
+                <div class="form-group">
+                    <label class="form-label">
+                        Preference Level <span class="text-red-500">*</span>
+                    </label>
+                    <div class="star-rating">
+                        {% for value in "54321" %}
+                            <input type="radio" 
+                                   id="star{{ value }}" 
+                                   name="preference_level" 
+                                   value="{{ value }}"
+                                   {% if form.preference_level.value == value %}checked{% endif %}>
+                            <label for="star{{ value }}">★</label>
+                        {% endfor %}
+                        <span class="rating-description" id="rating-description">
+                            {% if form.preference_level.value %}
+                                {% if form.preference_level.value == "5" %}Highest Preference
+                                {% elif form.preference_level.value == "4" %}High Preference
+                                {% elif form.preference_level.value == "3" %}Moderate Preference
+                                {% elif form.preference_level.value == "2" %}Low Preference
+                                {% elif form.preference_level.value == "1" %}Lowest Preference
+                                {% endif %}
+                            {% else %}
+                                Select a rating
+                            {% endif %}
+                        </span>
+                    </div>
+                    {% if form.preference_level.errors %}
+                        <div class="form-error">{{ form.preference_level.errors.0 }}</div>
+                    {% endif %}
+                    <div class="form-help">
+                        Rate your preference for this learning style (1 = lowest, 5 = highest).
+                    </div>
+                </div>
+
+                <!-- Notes -->
+                <div class="form-group">
+                    <label for="id_notes" class="form-label">
+                        Additional Notes
+                    </label>
+                    {{ form.notes }}
+                    {% if form.notes.errors %}
+                        <div class="form-error">{{ form.notes.errors.0 }}</div>
+                    {% endif %}
+                    <div class="form-help">
+                        Optional notes about this learning preference or specific requirements.
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="flex items-center justify-between pt-6 border-t border-gray-200">
+                    <a href="{% url 'users:role_based_redirect' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left mr-2"></i>Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save mr-2"></i>
+                        {% if is_create %}Add Preference{% else %}Update Preference{% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ratingInputs = document.querySelectorAll('input[name="preference_level"]');
+    const ratingDescription = document.getElementById('rating-description');
+    
+    const descriptions = {
+        '5': 'Highest Preference',
+        '4': 'High Preference', 
+        '3': 'Moderate Preference',
+        '2': 'Low Preference',
+        '1': 'Lowest Preference'
+    };
+    
+    ratingInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            ratingDescription.textContent = descriptions[this.value] || 'Select a rating';
+        });
+    });
+    
+    // Handle star hover effects
+    const starLabels = document.querySelectorAll('.star-rating label');
+    starLabels.forEach((label, index) => {
+        label.addEventListener('mouseenter', function() {
+            // Highlight stars up to this one
+            starLabels.forEach((star, starIndex) => {
+                if (starIndex >= index) {
+                    star.style.color = '#fbbf24';
+                } else {
+                    star.style.color = '#d1d5db';
+                }
+            });
+        });
+    });
+    
+    // Reset hover effect when leaving star rating area
+    const starRating = document.querySelector('.star-rating');
+    starRating.addEventListener('mouseleave', function() {
+        // Reset to checked state
+        const checkedInput = document.querySelector('input[name="preference_level"]:checked');
+        starLabels.forEach((star, index) => {
+            if (checkedInput && index >= (5 - parseInt(checkedInput.value))) {
+                star.style.color = '#fbbf24';
+            } else {
+                star.style.color = '#d1d5db';
+            }
+        });
+    });
+});
+</script>
+{% endblock %} 

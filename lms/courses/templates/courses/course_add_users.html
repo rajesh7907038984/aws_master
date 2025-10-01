@@ -1,0 +1,772 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load course_tags %}
+
+{% block title %}Add Users - {{ course.title }}{% endblock %}
+
+{% block extra_css %}
+<link href="{% static 'core/css/course_create.css' %}" rel="stylesheet">
+<link href="{% static 'core/css/courses/course_edit.css' %}" rel="stylesheet">
+<style>
+    /* Custom styles for the user table */
+    .user-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    
+    .user-table th, .user-table td {
+        padding: 12px 16px;
+        text-align: left;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .user-table th {
+        background-color: #f9fafb;
+        font-weight: 500;
+        color: #374151;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    .user-table tr:hover {
+        background-color: #f3f4f6;
+    }
+    
+    /* Search section */
+    .search-container {
+        position: relative;
+        width: 100%;
+        max-width: 600px;
+        display: flex;
+        align-items: center;
+    }
+    
+    .search-icon {
+        position: absolute;
+        left: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #6b7280;
+        z-index: 1;
+    }
+    
+    .search-input {
+        flex-grow: 1;
+        padding: 0.5rem 1rem 0.5rem 2.5rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.375rem;
+        outline: none;
+    }
+    
+    .add-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.375rem 0.75rem;
+        border-radius: 0.375rem;
+        font-weight: 500;
+        background-color: #1c2261;
+        color: white;
+        transition: all 0.2s;
+    }
+    
+    .add-btn:hover {
+        background-color: #282e7f;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    {% csrf_token %}
+    <!-- Main container -->
+    <div class="bg-white rounded-lg shadow-md">
+        <div class="w-full px-8 py-6">
+            <!-- Breadcrumbs -->
+            {% with breadcrumbs=breadcrumbs %}
+                {% include 'components/breadcrumb.html' %}
+            {% endwith %}
+
+            <div class="flex items-center justify-between mb-6">
+                <h1 class="text-2xl font-bold text-gray-900">Add Users to {{ course.title }}</h1>
+                <div class="flex gap-2">
+                    <a href="{% url 'courses:course_edit' course.id %}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200">
+                        Back to Course
+                    </a>
+                    <a href="{% url 'courses:course_users' course.id %}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200">
+                        Back to Users
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Search and Filter section -->
+            <div class="mb-6">
+                <form action="{% url 'courses:course_add_users' course.id %}" method="GET" class="space-y-4">
+                    <!-- Filters for super admin -->
+                    {% if is_superuser %}
+                    <div class="flex gap-4 items-end">
+                        <div class="flex-1">
+                            <label for="businessFilter" class="block text-sm font-medium text-gray-700 mb-1">Filter by Business</label>
+                            <select name="business" id="businessFilter" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">All Businesses</option>
+                                {% for business in businesses %}
+                                    <option value="{{ business.id }}" {% if business_filter == business.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ business.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="flex-1">
+                            <label for="branchFilter" class="block text-sm font-medium text-gray-700 mb-1">Filter by Branch</label>
+                            <select name="branch" id="branchFilter" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">All Branches</option>
+                                {% for branch in branches %}
+                                    <option value="{{ branch.id }}" {% if branch_filter == branch.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ branch.business.name }} - {{ branch.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="flex-shrink-0">
+                            <button type="submit" class="px-4 py-2 text-white rounded-md" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">Filter</button>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Search section -->
+                    <div class="search-container">
+                        <span class="search-icon">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                        </span>
+                        <input type="text" name="q" id="userSearch" placeholder="Search users..." class="search-input" value="{{ search_query }}">
+                        {% if request.GET.per_page %}
+                        <input type="hidden" name="per_page" value="{{ request.GET.per_page }}">
+                        {% endif %}
+                        <!-- Pass current filter values -->
+                        {% if business_filter %}
+                        <input type="hidden" name="business" value="{{ business_filter }}">
+                        {% endif %}
+                        {% if branch_filter %}
+                        <input type="hidden" name="branch" value="{{ branch_filter }}">
+                        {% endif %}
+                        <button type="submit" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 ml-2">Search</button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Users table -->
+            <div id="usersTableContainer" class="bg-white rounded-lg overflow-hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="flex items-center">
+                        <input type="checkbox" id="selectAllUsers" class="mr-2">
+                        <label for="selectAllUsers" class="text-sm text-gray-700">Select All</label>
+                    </div>
+                    <button id="bulkAddBtn" class="px-4 py-2 bg-[#1c2261] text-white rounded-md hover:bg-[#282e7f] disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        <svg class="w-5 h-5 mr-1 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                        </svg>
+                        <span class="button-text">Add Selected Users</span>
+                    </button>
+                </div>
+                <table class="user-table">
+                    <thead>
+                        <tr>
+                            <th class="w-10">
+                            </th>
+                            <th>User</th>
+                            <th>{% if request.user.is_superuser or request.user.role == 'admin' %}Business / Branch{% else %}Branch{% endif %}</th>
+                            <th>Role</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in available_users %}
+                        <tr data-user-id="{{ user.id }}">
+                            <td>
+                                <input type="checkbox" class="user-checkbox" value="{{ user.id }}">
+                            </td>
+                            <td class="user-name">
+                                <div class="flex items-center">
+                                    <div class="w-8 h-8 mr-3 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                                        {% if user.profile_image %}
+                                            <img src="{{ user.profile_image.url }}" alt="{{ user.get_full_name }}" class="w-full h-full object-cover">
+                                        {% else %}
+                                            <span class="text-gray-500 font-medium">{{ user.get_full_name|default:user.username|first|upper }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <div class="font-medium text-gray-900">{{ user.get_full_name|default:user.username }}</div>
+                                        <div class="text-sm text-gray-500">{{ user.email }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                {% if request.user.is_superuser or request.user.role == 'admin' %}
+                                    {% if user.branch %}
+                                        <div class="text-sm">
+                                            {% if user.branch.business %}
+                                                <div class="font-medium text-gray-900">{{ user.branch.business.name }}</div>
+                                                <div class="text-gray-500">{{ user.branch.name }}</div>
+                                            {% else %}
+                                                <div class="font-medium text-gray-900">{{ user.branch.name }}</div>
+                                                <div class="text-xs text-red-500">No business assigned</div>
+                                            {% endif %}
+                                        </div>
+                                    {% else %}
+                                        <span class="text-gray-400">No branch assigned</span>
+                                    {% endif %}
+                                {% else %}
+                                    <!-- For instructors, show limited information -->
+                                    <span class="text-gray-500">Same Branch</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if user.role %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                        {% if user.role == 'admin' %}bg-purple-100 text-purple-800
+                                        {% elif user.role == 'instructor' %}bg-blue-100 text-blue-800
+                                        {% elif user.role == 'learner' %}bg-green-100 text-green-800
+                                        {% elif user.role == 'superadmin' %}bg-red-100 text-red-800
+                                        {% else %}bg-gray-100 text-gray-800
+                                        {% endif %}">
+                                        {{ user.get_role_display|default:user.role|title }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-gray-400">No role</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <button 
+                                    class="add-btn single-add-btn"
+                                    data-user-id="{{ user.id }}"
+                                    data-course-id="{{ course.id }}"
+                                    data-user-name="{{ user.get_full_name|default:user.username|escapejs }}"
+                                    onclick="enrollUser({{ user.id }}, {{ course.id }}, '{{ user.get_full_name|default:user.username|escapejs }}')">
+                                    <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                    </svg>
+                                    Add
+                                </button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-8">
+                                <div class="flex flex-col items-center justify-center">
+                                    <div class="w-16 h-16 mb-4 text-gray-300">
+                                        <svg class="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                                        </svg>
+                                    </div>
+                                    <h3 class="text-lg font-medium text-gray-900 mb-2">No Available Users</h3>
+                                    <p class="text-sm text-gray-500">All users are already enrolled in this course.</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if paginator.num_pages > 1 %}
+            <div class="flex justify-between items-center mt-6">
+                <div class="flex items-center gap-2">
+                    <select id="per-page-select" class="pagination-select text-sm text-gray-600 w-20 border border-gray-300 rounded-md px-2 py-1">
+                        <option value="10" {% if paginator.per_page == 10 %}selected{% endif %}>10</option>
+                        <option value="25" {% if paginator.per_page == 25 %}selected{% endif %}>25</option>
+                        <option value="50" {% if paginator.per_page == 50 %}selected{% endif %}>50</option>
+                        <option value="100" {% if paginator.per_page == 100 %}selected{% endif %}>100</option>
+                    </select>
+                    <span class="text-sm text-gray-500">per page</span>
+                </div>
+                
+                <div class="flex items-center gap-2">
+                    <a href="{% if available_users.has_previous %}{% url 'courses:course_add_users' course.id %}?page={{ available_users.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if business_filter %}&business={{ business_filter }}{% endif %}{% if branch_filter %}&branch={{ branch_filter }}{% endif %}{% else %}#{% endif %}" class="page-btn w-8 h-8 flex items-center justify-center border border-gray-300 rounded-md {% if not available_users.has_previous %}opacity-50 cursor-not-allowed{% endif %}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                        </svg>
+                    </a>
+                    
+                    <div class="flex items-center gap-2">
+                        <select id="page-select" class="pagination-select text-sm text-gray-600 w-16 border border-gray-300 rounded-md px-2 py-1" onchange="goToPage(this.value)">
+                            {% for i in paginator.page_range %}
+                                <option value="{{ i }}" {% if available_users.number == i %}selected{% endif %}>{{ i }}</option>
+                            {% endfor %}
+                        </select>
+                        <span class="text-sm text-gray-500">of {{ paginator.num_pages }}</span>
+                    </div>
+                    
+                    <a href="{% if available_users.has_next %}{% url 'courses:course_add_users' course.id %}?page={{ available_users.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if business_filter %}&business={{ business_filter }}{% endif %}{% if branch_filter %}&branch={{ branch_filter }}{% endif %}{% else %}#{% endif %}" class="page-btn w-8 h-8 flex items-center justify-center border border-gray-300 rounded-md {% if not available_users.has_next %}opacity-50 cursor-not-allowed{% endif %}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+<script src="{% static 'core/js/utils/notifications.js' %}"></script>
+<script>
+    // Function to handle navigation to a specific page
+    function goToPage(page) {
+        let url = new URL(window.location.href);
+        url.searchParams.set('page', page);
+        // Preserve existing filter parameters
+        if (url.searchParams.get('q')) {
+            url.searchParams.set('q', url.searchParams.get('q'));
+        }
+        if (url.searchParams.get('business')) {
+            url.searchParams.set('business', url.searchParams.get('business'));
+        }
+        if (url.searchParams.get('branch')) {
+            url.searchParams.set('branch', url.searchParams.get('branch'));
+        }
+        window.location.href = url.toString();
+    }
+    
+    // Function to handle per-page change
+    document.addEventListener('DOMContentLoaded', function() {
+        const perPageSelect = document.getElementById('per-page-select');
+        if (perPageSelect) {
+            perPageSelect.addEventListener('change', function() {
+                let url = new URL(window.location.href);
+                url.searchParams.set('per_page', this.value);
+                // Reset to page 1 when changing items per page
+                url.searchParams.set('page', 1);
+                // Preserve existing filter parameters
+                if (url.searchParams.get('q')) {
+                    url.searchParams.set('q', url.searchParams.get('q'));
+                }
+                if (url.searchParams.get('business')) {
+                    url.searchParams.set('business', url.searchParams.get('business'));
+                }
+                if (url.searchParams.get('branch')) {
+                    url.searchParams.set('branch', url.searchParams.get('branch'));
+                }
+                window.location.href = url.toString();
+            });
+        }
+    });
+
+    // Simple notification function that doesn't trigger the text content error
+    function createSimpleNotification(message, type) {
+        // Only proceed if document.body exists
+        if (!document.body) return;
+        
+        // Create notification element
+        try {
+            // Remove any existing notifications first
+            const existingNotifications = document.querySelectorAll('.simple-notification');
+            for (let i = 0; i < existingNotifications.length; i++) {
+                document.body.removeChild(existingNotifications[i]);
+            }
+            
+            // Create the notification
+            const notification = document.createElement('div');
+            notification.className = 'simple-notification fixed z-50 top-4 right-4 p-4 rounded-lg shadow-lg text-white';
+            
+            // Add color based on type
+            if (type === 'success') {
+                notification.style.backgroundColor = '#10B981'; // green
+            } else if (type === 'error') {
+                notification.style.backgroundColor = '#EF4444'; // red
+            } else {
+                notification.style.backgroundColor = '#191f56'; // navy blue
+            }
+            
+            // Use innerHTML instead of textContent
+            notification.innerHTML = message || '';
+            
+            // Add to document
+            document.body.appendChild(notification);
+            
+            // Remove after 3 seconds
+            setTimeout(function() {
+                if (notification.parentNode) {
+                    document.body.removeChild(notification);
+                }
+            }, 3000);
+        } catch (err) {
+            // Notification error suppressed
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Test if enrollUser function is accessible
+        console.log('enrollUser function available:', typeof enrollUser);
+        
+        // Client-side filtering for already loaded users
+        const searchInput = document.getElementById('userSearch');
+        let typingTimer;
+        const typingInterval = 300; // ms
+        
+        // Only do client-side filtering on keyup for quick searches without reloading
+        searchInput.addEventListener('keyup', function(e) {
+            clearTimeout(typingTimer);
+            
+            // Don't trigger on Enter key as that should submit the form
+            if (e.key === 'Enter') return;
+            
+            typingTimer = setTimeout(function() {
+                const searchTerm = searchInput.value.toLowerCase();
+                const rows = document.querySelectorAll('.user-table tbody tr');
+                
+                rows.forEach(row => {
+                    if (row.querySelector('.user-name')) {
+                        const userName = row.querySelector('.user-name').textContent.toLowerCase();
+                        if (userName.includes(searchTerm)) {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    }
+                });
+                
+                // Update select all checkbox state after filtering
+                updateSelectAllState();
+            }, typingInterval);
+        });
+        
+        // Function to update select all checkbox state
+        function updateSelectAllState() {
+            const totalVisibleCheckboxes = document.querySelectorAll('.user-checkbox:not([style*="display: none"])').length;
+            const checkedVisibleCheckboxes = document.querySelectorAll('.user-checkbox:not([style*="display: none"]):checked').length;
+            const selectAllCheckbox = document.getElementById('selectAllUsers');
+            if (selectAllCheckbox) {
+                selectAllCheckbox.checked = (totalVisibleCheckboxes > 0 && totalVisibleCheckboxes === checkedVisibleCheckboxes);
+            }
+            updateBulkAddButton();
+        }
+    });
+
+    // Function to handle enrolling a user
+    function enrollUser(userId, courseId, userName) {
+        console.log('enrollUser called with:', {userId, courseId, userName});
+        
+        // Validate parameters
+        if (!userId || !courseId) {
+            console.error('Missing required parameters:', {userId, courseId, userName});
+            createSimpleNotification('Error: Missing user or course information', 'error');
+            return;
+        }
+        
+        // Temporarily disable form change warnings during AJAX operations
+        if (typeof window.disableFormChangeWarnings === 'function') {
+            window.disableFormChangeWarnings();
+        }
+        
+        // Get CSRF token - try multiple methods
+        let csrftoken = null;
+        
+        // Method 1: Try to get from hidden input
+        const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (csrfInput) {
+            csrftoken = csrfInput.value;
+        }
+        
+        // Method 2: Try to get from cookie if not found
+        if (!csrftoken) {
+            const getCookie = function(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            };
+            csrftoken = getCookie('csrftoken');
+        }
+        
+        // If still no token, show error and return
+        if (!csrftoken) {
+            createSimpleNotification('CSRF token not found. Please refresh the page and try again.', 'error');
+            return;
+        }
+        
+        // Send AJAX request to enroll the user
+        console.log('Enrolling user:', userId, 'in course:', courseId, 'with token:', csrftoken ? 'found' : 'missing');
+        
+        fetch(`/courses/${courseId}/enroll/${userId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/json'
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            console.log('Response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`Server responded with status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Enrollment response:', data);
+            if (data.success) {
+                // Show simple success message with reduced verbosity
+                createSimpleNotification(`Added ${userName}`, 'success');
+                
+                // Remove the enrolled user from the list
+                const userRow = document.querySelector(`tr[data-user-id="${userId}"]`);
+                if (userRow) {
+                    userRow.remove();
+                } else {
+                    // Fallback: reload the page to reflect changes
+                    window.location.reload();
+                }
+            } else {
+                // User enrollment was not successful - only show error for actual failures
+                console.log('Enrollment failed:', data.message);
+                if (data.message && !data.message.includes('already enrolled')) {
+                    createSimpleNotification(data.message || 'Enrollment failed', 'error');
+                }
+                
+                // Try to remove the user anyway if there's a row for them
+                const userRow = document.querySelector(`tr[data-user-id="${userId}"]`);
+                if (userRow) {
+                    userRow.remove();
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Enrollment error:', error);
+            console.error('Error details:', {
+                userId: userId,
+                courseId: courseId,
+                userName: userName,
+                error: error.message,
+                stack: error.stack
+            });
+            createSimpleNotification('Error enrolling user. Please try again.', 'error');
+        })
+        .finally(() => {
+            // Re-enable form change warnings
+            if (typeof window.enableFormChangeWarnings === 'function') {
+                window.enableFormChangeWarnings();
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        
+        // Handle select all checkbox - Direct DOM manipulation 
+        const selectAllUsers = document.getElementById('selectAllUsers');
+        if (selectAllUsers) {
+            selectAllUsers.addEventListener('change', function() {
+                const isChecked = this.checked;
+                
+                // Get all visible checkboxes and check/uncheck them
+                const checkboxes = document.querySelectorAll('.user-checkbox:not([style*="display: none"])');
+                
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = isChecked;
+                });
+                
+                // Update the bulk add button
+                updateBulkAddButton();
+            });
+        }
+        
+        // Handle individual checkbox changes using vanilla JS
+        document.querySelectorAll('.user-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                
+                // Count checkboxes
+                const allVisible = document.querySelectorAll('.user-checkbox:not([style*="display: none"])');
+                const allCheckedVisible = document.querySelectorAll('.user-checkbox:not([style*="display: none"]):checked');
+                
+                // Update select all checkbox state
+                document.getElementById('selectAllUsers').checked = 
+                    (allVisible.length > 0 && allVisible.length === allCheckedVisible.length);
+                
+                // Update bulk add button
+                updateBulkAddButton();
+            });
+        });
+        
+        // Update bulk add button state
+        function updateBulkAddButton() {
+            // Use vanilla JS for more reliable results
+            const selectedCheckboxes = document.querySelectorAll('.user-checkbox:checked');
+            const selectedCount = selectedCheckboxes.length;
+            const bulkAddBtn = document.getElementById('bulkAddBtn');
+            const buttonTextSpan = bulkAddBtn.querySelector('.button-text');
+            
+            bulkAddBtn.disabled = selectedCount === 0;
+            if (selectedCount > 0) {
+                buttonTextSpan.textContent = `Add Selected Users (${selectedCount})`;
+            } else {
+                buttonTextSpan.textContent = 'Add Selected Users';
+            }
+        }
+
+        // Set initial button state on page load
+        updateBulkAddButton();
+        
+        // Add click event listeners to single add buttons as fallback
+        document.querySelectorAll('.single-add-btn').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                const userId = this.getAttribute('data-user-id');
+                const courseId = this.getAttribute('data-course-id');
+                const userName = this.getAttribute('data-user-name');
+                
+                console.log('Button click fallback triggered:', {userId, courseId, userName});
+                if (userId && courseId) {
+                    enrollUser(parseInt(userId), parseInt(courseId), userName);
+                } else {
+                    console.error('Missing data attributes on button:', this);
+                }
+            });
+        });
+
+        // Handle bulk add button click with vanilla JS
+        const bulkAddBtn = document.getElementById('bulkAddBtn');
+        if (bulkAddBtn) {
+            bulkAddBtn.addEventListener('click', function() {
+            // Temporarily disable form change warnings during bulk operations
+            if (typeof window.disableFormChangeWarnings === 'function') {
+                window.disableFormChangeWarnings();
+            }
+
+            // Get all selected user IDs using vanilla JS
+            const selectedCheckboxes = document.querySelectorAll('.user-checkbox:checked');
+            const selectedUserIds = Array.from(selectedCheckboxes).map(checkbox => checkbox.value);
+
+            if (selectedUserIds.length === 0) return;
+
+            // Get CSRF token - try multiple methods
+            let csrftoken = null;
+            
+            // Method 1: Try to get from hidden input
+            const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (csrfInput) {
+                csrftoken = csrfInput.value;
+            }
+            
+            // Method 2: Try to get from cookie if not found
+            if (!csrftoken) {
+                const getCookie = function(name) {
+                    let cookieValue = null;
+                    if (document.cookie && document.cookie !== '') {
+                        const cookies = document.cookie.split(';');
+                        for (let i = 0; i < cookies.length; i++) {
+                            const cookie = cookies[i].trim();
+                            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                                break;
+                            }
+                        }
+                    }
+                    return cookieValue;
+                };
+                csrftoken = getCookie('csrftoken');
+            }
+            
+            // If still no token, show error and return
+            if (!csrftoken) {
+                createSimpleNotification('CSRF token not found. Please refresh the page and try again.', 'error');
+                return;
+            }
+            
+            // Show loading state
+            const bulkAddBtn = this;
+            const originalContent = bulkAddBtn.innerHTML;
+            bulkAddBtn.disabled = true;
+            bulkAddBtn.innerHTML = `
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Adding Users...
+            `;
+
+            // Send bulk enrollment request
+            fetch(`/courses/{{ course.id }}/bulk-enroll/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ user_ids: selectedUserIds }),
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Server responded with status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Remove enrolled users from the list without showing toast notification
+                    selectedUserIds.forEach(userId => {
+                        const userRow = document.querySelector(`tr[data-user-id="${userId}"]`);
+                        if (userRow) {
+                            userRow.remove();
+                        }
+                    });
+                    
+                    // Reset select all checkbox
+                    const selectAllCheckbox = document.getElementById('selectAllUsers');
+                    if (selectAllCheckbox) {
+                        selectAllCheckbox.checked = false;
+                    }
+                    
+                    // Create a simple success message instead of using showToast
+                    createSimpleNotification(`Added ${selectedUserIds.length} users`, 'success');
+                    
+                    // Update UI elements
+                    if (typeof updateBulkAddButton === 'function') {
+                        updateBulkAddButton();
+                    }
+                } else {
+                    // Enrollment was not successful
+                    
+                    // Update UI elements
+                    if (typeof updateBulkAddButton === 'function') {
+                        updateBulkAddButton();
+                    }
+                }
+            })
+            .catch(error => {
+                // Don't show any error notification
+            })
+            .finally(() => {
+                // Re-enable form change warnings
+                if (typeof window.enableFormChangeWarnings === 'function') {
+                    window.enableFormChangeWarnings();
+                }
+                
+                // Restore button state
+                if (bulkAddBtn) {
+                    bulkAddBtn.disabled = false;
+                    bulkAddBtn.innerHTML = originalContent;
+                    if (typeof updateBulkAddButton === 'function') {
+                        updateBulkAddButton();
+                    }
+                }
+            });
+            });
+        }
+    });
+</script>
+{% endblock %} 

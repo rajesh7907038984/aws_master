@@ -1,0 +1,196 @@
+<!-- Global Unit Success Chart Component -->
+<div class="chart-container" data-chart-template="unit-success" style="
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    padding: 24px;
+    margin: 16px 0;
+    min-height: 500px;
+">
+    <div class="chart-title" style="margin-bottom: 24px;">
+        <h3 style="color: #1f2937; font-size: 1.5rem; font-weight: 700; margin: 0 0 8px 0; letter-spacing: -0.025em;">Unit Success Rate</h3>
+        <p style="color: #6b7280; font-size: 0.875rem; margin: 0;">Performance overview across all units</p>
+    </div>
+    
+    <div class="chart-canvas-wrapper" style="position: relative; height: 400px; width: 100%;">
+        <canvas id="unit-success-chart" width="600" height="400"></canvas>
+    </div>
+    
+    <!-- Enhanced Legend with 2-column, 2-line layout -->
+    <div class="chart-legend-enhanced" style="
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-top: 20px;
+        padding: 16px;
+        background: #f8fafc;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+    ">
+        <div class="legend-item" style="
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            background: #ffffff;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        ">
+            <div class="legend-color" style="
+                width: 12px;
+                height: 12px;
+                border-radius: 3px;
+                background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+                margin-right: 10px;
+                box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+            "></div>
+            <div class="legend-text">
+                <div style="font-weight: 600; color: #1f2937; font-size: 0.875rem;">Unit 1</div>
+                <div style="color: #6b7280; font-size: 0.75rem;">85% Success</div>
+            </div>
+        </div>
+        
+        <div class="legend-item" style="
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            background: #ffffff;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        ">
+            <div class="legend-color" style="
+                width: 12px;
+                height: 12px;
+                border-radius: 3px;
+                background: linear-gradient(135deg, #10b981, #059669);
+                margin-right: 10px;
+                box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+            "></div>
+            <div class="legend-text">
+                <div style="font-weight: 600; color: #1f2937; font-size: 0.875rem;">Unit 2</div>
+                <div style="color: #6b7280; font-size: 0.75rem;">92% Success</div>
+            </div>
+        </div>
+        
+        <div class="legend-item" style="
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            background: #ffffff;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        ">
+            <div class="legend-color" style="
+                width: 12px;
+                height: 12px;
+                border-radius: 3px;
+                background: linear-gradient(135deg, #f59e0b, #d97706);
+                margin-right: 10px;
+                box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
+            "></div>
+            <div class="legend-text">
+                <div style="font-weight: 600; color: #1f2937; font-size: 0.875rem;">Unit 3</div>
+                <div style="color: #6b7280; font-size: 0.75rem;">78% Success</div>
+            </div>
+        </div>
+        
+        <div class="legend-item" style="
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            background: #ffffff;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        ">
+            <div class="legend-color" style="
+                width: 12px;
+                height: 12px;
+                border-radius: 3px;
+                background: linear-gradient(135deg, #ef4444, #dc2626);
+                margin-right: 10px;
+                box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+            "></div>
+            <div class="legend-text">
+                <div style="font-weight: 600; color: #1f2937; font-size: 0.875rem;">Unit 4</div>
+                <div style="color: #6b7280; font-size: 0.75rem;">88% Success</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Status/Error Display -->
+    <div id="unit-success-status" class="hidden text-center text-sm text-gray-500 mt-4">
+        <div class="animate-pulse">Loading chart...</div>
+    </div>
+</div>
+
+<script>
+// Initialize the global unit success chart when this component is loaded
+(function() {
+    console.log('Template-specific unit success chart initialization starting...');
+    
+    function initializeChart() {
+        // Check if Chart.js is available
+        if (typeof Chart === 'undefined') {
+            console.log('Chart.js not ready, retrying in 100ms...');
+            setTimeout(initializeChart, 100);
+            return;
+        }
+        
+        // Check if GlobalUnitSuccessChart is available
+        if (typeof GlobalUnitSuccessChart === 'undefined') {
+            console.log('GlobalUnitSuccessChart not ready, retrying in 100ms...');
+            setTimeout(initializeChart, 100);
+            return;
+        }
+        
+        // Check if canvas exists
+        const canvas = document.getElementById('unit-success-chart');
+        if (!canvas) {
+            console.log('Unit success chart canvas not found, retrying in 100ms...');
+            setTimeout(initializeChart, 100);
+            return;
+        }
+        
+        // Destroy existing chart if present
+        if (window.globalUnitSuccessChart && window.globalUnitSuccessChart.chart) {
+            console.log('Destroying existing unit success chart...');
+            window.globalUnitSuccessChart.destroy();
+            window.globalUnitSuccessChart = null;
+        }
+        
+        console.log('Initializing unit success chart...');
+        
+        // Get data from template context with safe defaults
+        const passedCount = parseInt('{{ passed_count|default:0 }}') || 0;
+        const notPassedCount = parseInt('{{ not_passed_count|default:0 }}') || 0;
+        const totalAttempts = parseInt('{{ total_attempts|default:0 }}') || 0;
+        
+        console.log('Chart data:', { passedCount, notPassedCount, totalAttempts });
+        
+        // Initialize the chart using the object method
+        if (typeof GlobalUnitSuccessChart.initialize === 'function') {
+            window.globalUnitSuccessChart = GlobalUnitSuccessChart.initialize({
+                canvasId: 'unit-success-chart',
+                passedCount: passedCount,
+                notPassedCount: notPassedCount,
+                totalAttempts: totalAttempts
+            });
+        } else {
+            console.error('GlobalUnitSuccessChart.initialize method not found');
+        }
+    }
+    
+    // Start initialization with a small delay to avoid conflicts
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(initializeChart, 100);
+        });
+    } else {
+        // DOM already loaded
+        setTimeout(initializeChart, 100);
+    }
+})();
+</script>

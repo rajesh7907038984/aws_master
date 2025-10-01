@@ -1,0 +1,38 @@
+.true-false-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.true-false-options .option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    border: 1px solid #E5E7EB;
+    border-radius: 0.375rem;
+    transition: all 0.2s ease-in-out;
+}
+
+.true-false-options .option:hover {
+    background-color: #F3F4F6;
+    border-color: #D1D5DB;
+}
+
+.true-false-options .option input[type="radio"] {
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+}
+
+.true-false-options .option label {
+    margin: 0;
+    font-size: 0.875rem;
+    color: #374151;
+    cursor: pointer;
+}
+
+.true-false-options .option input[type="radio"]:checked + label {
+    font-weight: 500;
+    color: #2563EB;
+} 

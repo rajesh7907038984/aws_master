@@ -1,0 +1,100 @@
+/* Force TinyMCE Toolbar Display */
+.tox-editor-container {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important; /* Ensure container takes full width */
+    max-width: 100% !important; /* Prevent overflow */
+}
+
+.tox-editor-header {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: static !important;
+    z-index: 10 !important;
+    width: 100% !important; /* Ensure header takes full width */
+    left: 0 !important; /* Force left alignment */
+}
+
+.tox-toolbar-overlord {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    width: 100% !important; /* Ensure full width */
+    left: 0 !important; /* Force left alignment */
+}
+
+.tox-toolbar__primary {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    flex-wrap: wrap !important;
+    background-color: #f3f3f3 !important;
+    border-bottom: 1px solid #ccc !important;
+    padding: 4px !important;
+    width: 100% !important; /* Ensure full width */
+    left: 0 !important; /* Force left alignment */
+    justify-content: flex-start !important; /* Align items to the left */
+    transform: none !important; /* Prevent any transformations */
+}
+
+.tox-toolbar__group {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    padding: 0 4px !important;
+    margin: 0 2px !important;
+    border-right: 1px solid #ccc !important;
+    position: relative !important; /* Ensure position is respected */
+    left: 0 !important; /* Force left alignment */
+}
+
+.tox-toolbar__group:last-child {
+    border-right: none !important;
+}
+
+.tox .tox-tbtn {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    margin: 2px !important;
+}
+
+/* Fix for formats dropdown */
+.tox .tox-tbtn--select {
+    width: auto !important;
+    min-width: 100px !important;
+}
+
+/* Fix menubar visibility */
+.tox-menubar {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    padding: 4px !important;
+    width: 100% !important; /* Ensure full width */
+    left: 0 !important; /* Force left alignment */
+}
+
+/* Fix for overflow button - hide it */
+.tox .tox-tbtn[aria-label="More..."],
+.tox .tox-tbtn[data-mce-name="overflow-button"] {
+    display: none !important;
+}
+
+/* Prevent toolbar from shifting right */
+.tox .tox-sidebar-wrap {
+    margin-left: 0 !important;
+}
+
+/* Fix for table toolbar alignment */
+.tox-pop__dialog .tox-toolbar {
+    left: 0 !important;
+    transform: none !important;
+}
+
+/* Fix for fullscreen mode */
+.tox.tox-tinymce.tox-fullscreen .tox-toolbar__primary {
+    width: 100% !important;
+    left: 0 !important;
+}

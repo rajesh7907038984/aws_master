@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ portal.business_name }} - LMS Learning Platform</title>
+    {% load static %}
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto:wght@400;500;700&family=Merriweather:wght@400;700&family=Poppins:wght@400;500;600;700&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'branch_portal/css/landing_page.css' %}">
+    
+    <!-- Custom Theme CSS from Portal Settings -->
+    <style>
+        :root {
+            --primary-color: {{ portal.primary_color }};
+            --secondary-color: {{ portal.secondary_color }};
+        }
+        
+        body {
+            font-family: {{ portal.font_family }};
+        }
+        
+        .btn-primary {
+            background-color: {{ portal.primary_color }};
+            border-color: {{ portal.primary_color }};
+        }
+        
+        .btn-primary:hover {
+            background-color: {{ portal.secondary_color }};
+            border-color: {{ portal.secondary_color }};
+        }
+        
+        .btn-outline-primary {
+            color: {{ portal.primary_color }};
+            border-color: {{ portal.primary_color }};
+        }
+        
+        .btn-outline-primary:hover {
+            background-color: {{ portal.primary_color }};
+            border-color: {{ portal.primary_color }};
+        }
+        
+        .navbar-light .navbar-nav .nav-link:hover,
+        .navbar-light .navbar-nav .nav-link.active {
+            color: {{ portal.primary_color }};
+        }
+        
+        .section-subtitle {
+            color: {{ portal.primary_color }};
+        }
+        
+        .category-icon {
+            color: {{ portal.primary_color }};
+        }
+        
+        .category-link {
+            color: {{ portal.primary_color }};
+        }
+        
+        .category-link:hover {
+            color: {{ portal.secondary_color }};
+        }
+        
+        .banner-overlay {
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .testimonial-author h5 {
+            color: {{ portal.primary_color }};
+        }
+        
+        .course-rating {
+            color: {{ portal.secondary_color }};
+        }
+        
+        .footer {
+            background-color: {{ portal.primary_color }};
+        }
+        
+        .social-links a:hover {
+            background-color: {{ portal.secondary_color }};
+        }
+        
+        .footer-links ul li a:hover {
+            color: {{ portal.secondary_color }};
+        }
+        
+        .contact-item i {
+            color: {{ portal.secondary_color }};
+        }
+        
+        /* Course card specific styles */
+        .course-card:hover {
+            border-color: {{ portal.primary_color }};
+        }
+        
+        .course-price {
+            color: {{ portal.primary_color }};
+            font-weight: bold;
+        }
+        
+        .course-meta i {
+            color: {{ portal.secondary_color }};
+        }
+        
+        .course-title:hover {
+            color: {{ portal.primary_color }};
+        }
+        
+        /* Play button overlay styles */
+        .course-image {
+            position: relative;
+        }
+        
+        .play-button-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 3;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .play-button-overlay:hover {
+            background-color: {{ portal.primary_color }};
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+        
+        .play-button-overlay:hover .play-icon {
+            color: white;
+        }
+        
+        .play-icon {
+            font-size: 24px;
+            color: {{ portal.primary_color }};
+            margin-left: 3px;
+            transition: color 0.3s ease;
+        }
+        
+        /* Section backgrounds */
+        .bg-light {
+            background-color: #f8f9fa !important;
+        }
+        
+
+        
+        /* Navigation and UI elements */
+        .header {
+            border-bottom: 2px solid {{ portal.primary_color }};
+        }
+        
+        .navbar-brand {
+            color: {{ portal.primary_color }} !important;
+            font-weight: bold;
+        }
+        
+        /* Form elements */
+        .form-select:focus, .form-control:focus {
+            border-color: {{ portal.primary_color }};
+            box-shadow: 0 0 0 0.25rem rgba({{ portal.primary_color|slice:"1:" }}, 0.25);
+        }
+        
+        /* Hero section */
+        .hero-section .btn-primary {
+            background-color: {{ portal.secondary_color }};
+            border-color: {{ portal.secondary_color }};
+        }
+        
+        .hero-section .btn-primary:hover {
+            background-color: {{ portal.primary_color }};
+            border-color: {{ portal.primary_color }};
+        }
+        
+        /* Apply font family to headings specifically */
+        h1, h2, h3, h4, h5, h6 {
+            font-family: {{ portal.font_family }};
+        }
+    </style>
+</head>
+<body>
+    <!-- Header Section -->
+    <header class="header">
+        <div class="container">
+            <nav class="navbar navbar-expand-lg navbar-light">
+                <div class="container-fluid">
+                    <a class="navbar-brand" href="#">
+                        {% if portal.logo %}
+                        <img src="{{ portal.logo.url }}" alt="{{ portal.business_name }}" class="logo">
+                        {% else %}
+                        <!-- Show only branch name without default logo -->
+                        <span class="fw-bold" style="font-size: 1.5rem; color: {{ portal.primary_color }};">{{ portal.business_name }}</span>
+                        {% endif %}
+                    </a>
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                    <div class="collapse navbar-collapse" id="navbarNav">
+                        <ul class="navbar-nav ms-auto">
+                            <li class="nav-item">
+                                <a class="nav-link active" href="#">Home</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#courses">Courses</a>
+                            </li>
+                        </ul>
+                        <div class="ms-3 d-flex">
+                            {% if request.user.is_authenticated %}
+                                <a href="{% url 'users:role_based_redirect' %}" class="btn btn-outline-primary me-2">Dashboard</a>
+                                {% if show_cart %}
+                                <a href="{% url 'branch_portal:view_cart' %}" class="btn btn-primary">
+                                    <i class="fas fa-shopping-cart"></i> Cart
+                                </a>
+                                {% endif %}
+                            {% else %}
+                                <a href="{% url 'login' %}?branch={{ portal.slug }}" class="btn btn-outline-primary me-2">Login</a>
+                                <a href="{% url 'users:register' %}?branch={{ portal.slug }}" class="btn btn-primary">Register</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="container-fluid p-0">
+            <div class="hero-banner position-relative">
+                {% if portal.banner_image %}
+                <img src="{{ portal.banner_image.url }}" alt="{{ portal.business_name }}" class="img-fluid w-100" style="height: 500px; object-fit: cover;">
+                {% else %}
+                <img src="{% static 'branch_portal/img/hero-image.jpg' %}" alt="Learning" class="img-fluid w-100" style="height: 500px; object-fit: cover;">
+                {% endif %}
+                
+                <div class="banner-overlay position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center" style="background-color: rgba(0,0,0,0.5);">
+                    <div class="container">
+                        <div class="row">
+                            <div class="col-lg-6">
+                                <div class="banner-content text-white">
+                                    <h1 class="display-4 fw-bold mb-3">{{ portal.business_name }}</h1>
+                                    {% if portal.banner_text %}
+                                    <p class="lead mb-4">{{ portal.banner_text }}</p>
+                                    {% endif %}
+                                    <a href="#courses" class="btn btn-primary btn-lg px-4 py-2">Get Started</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Content Sections -->
+    {% if main_content_sections %}
+        {% for section in main_content_sections %}
+        <section class="main-content-section py-5 {% cycle 'bg-white' 'bg-light' %}">
+            <div class="container">
+                <div class="row align-items-center">
+                    <!-- Content Row - alternating layout -->
+                    {% if forloop.counter0|divisibleby:2 %}
+                        <!-- Left side: Title & Description -->
+                        <div class="col-lg-6">
+                            <div class="content-text">
+                                <h2 class="display-5 fw-bold mb-3">{{ section.title }}</h2>
+                                <p class="lead mb-4">{{ section.description|safe }}</p>
+                            </div>
+                        </div>
+                        <!-- Right side: Image/Video -->
+                        <div class="col-lg-6">
+                            <div class="content-media">
+                                {% if section.video %}
+                                    <video controls class="img-fluid rounded" style="width: 100%; max-height: 400px;">
+                                        <source src="{{ section.video.url }}" type="video/mp4">
+                                        Your browser does not support the video tag.
+                                    </video>
+                                {% elif section.video_url %}
+                                    <div class="embed-responsive embed-responsive-16by9">
+                                        <iframe class="embed-responsive-item rounded" src="{{ section.video_url }}" allowfullscreen></iframe>
+                                    </div>
+                                {% elif section.image %}
+                                    <img src="{{ section.image.url }}" alt="{{ section.title }}" class="img-fluid rounded">
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% else %}
+                        <!-- Right side: Image/Video -->
+                        <div class="col-lg-6">
+                            <div class="content-media">
+                                {% if section.video %}
+                                    <video controls class="img-fluid rounded" style="width: 100%; max-height: 400px;">
+                                        <source src="{{ section.video.url }}" type="video/mp4">
+                                        Your browser does not support the video tag.
+                                    </video>
+                                {% elif section.video_url %}
+                                    <div class="embed-responsive embed-responsive-16by9">
+                                        <iframe class="embed-responsive-item rounded" src="{{ section.video_url }}" allowfullscreen></iframe>
+                                    </div>
+                                {% elif section.image %}
+                                    <img src="{{ section.image.url }}" alt="{{ section.title }}" class="img-fluid rounded">
+                                {% endif %}
+                            </div>
+                        </div>
+                        <!-- Left side: Title & Description -->
+                        <div class="col-lg-6">
+                            <div class="content-text">
+                                <h2 class="display-5 fw-bold mb-3">{{ section.title }}</h2>
+                                <p class="lead mb-4">{{ section.description|safe }}</p>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Feature Grid Sections -->
+    {% if feature_grid_sections %}
+        {% for grid_section in feature_grid_sections %}
+        <section class="feature-grid-section py-5 {% cycle 'bg-light' 'bg-white' %}">
+            <div class="container">
+                {% if grid_section.section_title %}
+                    <div class="text-center mb-5">
+                        <h2 class="display-5 fw-bold">{{ grid_section.section_title }}</h2>
+                        {% if grid_section.section_description %}
+                            <p class="lead">{{ grid_section.section_description }}</p>
+                        {% endif %}
+                    </div>
+                {% endif %}
+                
+                <div class="row g-4">
+                    {% for item in grid_section.items.all %}
+                        {% if item.is_active %}
+                        <div class="col-lg-4 col-md-6">
+                            <div class="feature-card h-100 text-center p-4 bg-white rounded shadow-sm">
+                                {% if item.image %}
+                                    <div class="feature-image mb-3">
+                                        <img src="{{ item.image.url }}" alt="{{ item.title }}" class="img-fluid rounded" style="max-height: 200px; width: 100%; object-fit: cover;">
+                                    </div>
+                                {% endif %}
+                                <h4 class="fw-bold mb-3">{{ item.title }}</h4>
+                                <p class="text-muted mb-4">{{ item.description }}</p>
+                                {% if item.link_url %}
+                                    <a href="{{ item.link_url }}" class="btn btn-outline-primary">{{ item.link_text }}</a>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Popular Courses Section -->
+    <section class="courses-section py-5 bg-light" id="courses">
+        <div class="container">
+            <div class="section-header text-center mb-5">
+            </div>
+            
+            <!-- Course Filters -->
+            <div class="course-filters mb-4">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="category-filter" class="form-label">Category</label>
+                            <select id="category-filter" class="form-select">
+                                <option value="">All Categories</option>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}">{{ category.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="instructor-filter" class="form-label">Instructor</label>
+                            <select id="instructor-filter" class="form-select">
+                                <option value="">All Instructors</option>
+                                {% for instructor in instructors %}
+                                <option value="{{ instructor.id }}">{{ instructor.get_full_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    {% if show_pricing %}
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="price-filter" class="form-label">Price Range</label>
+                            <select id="price-filter" class="form-select">
+                                <option value="">Any Price</option>
+                                <option value="free">Free</option>
+                                <option value="paid">Paid</option>
+                                <option value="low">Under $50</option>
+                                <option value="medium">$50 - $100</option>
+                                <option value="high">Over $100</option>
+                            </select>
+                        </div>
+                    </div>
+                    {% endif %}
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button id="apply-filters" class="btn btn-primary w-100">Apply Filters</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row g-4">
+                {% if courses %}
+                    {% for course in courses %}
+                    <div class="col-sm-6 col-md-6 col-lg-4 col-xl-3 mb-4">
+                        <div class="course-card h-100" 
+                            data-category="{% if course.category %}{{ course.category.id }}{% endif %}"
+                            data-instructor="{% if course.instructor %}{{ course.instructor.id }}{% endif %}"
+                            data-price="{% if course.discount_percentage > 0 %}{{ course.discounted_price }}{% else %}{{ course.price }}{% endif %}">
+                            <div class="course-image">
+                                {% if course.course_image %}
+                                <img src="{{ course.course_image.url }}" alt="{{ course.title }}" class="img-fluid">
+                                {% else %}
+                                <img src="{% static 'branch_portal/img/course1.jpg' %}" alt="{{ course.title }}" class="img-fluid">
+                                {% endif %}
+                                <!-- Play Button Overlay -->
+                                {% if show_cart %}
+                                <div class="play-button-overlay">
+                                    <i class="fas fa-play play-icon"></i>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="course-content">
+                                <div class="course-meta">
+                                    {% with topic_count=course.topics.count %}
+                                    <span><i class="fas fa-book"></i> {{ topic_count }} Lesson{{ topic_count|pluralize }}</span>
+                                    {% endwith %}
+                                    <span><i class="fas fa-tag"></i> {% if course.category %}{{ course.category.name }}{% else %}Uncategorized{% endif %}</span>
+                                    {% if course.instructor %}
+                                    <span><i class="fas fa-user"></i> {{ course.instructor.get_full_name }}</span>
+                                    {% endif %}
+                                </div>
+                                <h4 class="course-title">{{ course.title }}</h4>
+                                {% if course.short_description %}
+                                <p class="course-description">{{ course.short_description|truncatechars:100 }}</p>
+                                {% endif %}
+                                <div class="course-stats">
+                                    <div class="course-enrollment">
+                                        <i class="fas fa-users"></i>
+                                        <span>{{ course.enrolled_users.count }} student{{ course.enrolled_users.count|pluralize }}</span>
+                                    </div>
+                                    {% if course.rating %}
+                                    <div class="course-rating">
+                                        <i class="fas fa-star"></i>
+                                        <span>{{ course.rating|floatformat:1 }}</span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="course-footer">
+                                    {% if show_pricing %}
+                                    <div class="course-price">
+                                        {% if course.price and course.price > 0 %}
+                                            {% if course.discount_percentage > 0 %}
+                                                ${{ course.discounted_price }}
+                                                <small class="text-decoration-line-through text-muted">${{ course.price }}</small>
+                                            {% else %}
+                                                ${{ course.price }}
+                                            {% endif %}
+                                        {% else %}
+                                            Free
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                    {% if request.user.is_authenticated %}
+                                        {% if show_cart %}
+                                        <a href="{% url 'branch_portal:add_to_cart' course.id %}" class="btn btn-outline-primary">Enroll</a>
+                                        {% endif %}
+                                    {% else %}
+                                    <a href="{% url 'users:register' %}?branch={{ portal.slug }}" class="btn btn-outline-primary">Register to Enroll</a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="col-12 text-center">
+                        <p>No courses available for this branch yet.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    <!-- Pre-Footer Section -->
+    {% if pre_footer and pre_footer.is_active %}
+    <section class="pre-footer-section py-5 bg-dark text-white">
+        <div class="container">
+            <div class="row">
+                <!-- Column 1: Logo and Description -->
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="pre-footer-logo">
+                        {% if portal.logo %}
+                            <img src="{{ portal.logo.url }}" alt="{{ portal.business_name }}" class="mb-3" style="max-height: 60px;">
+                        {% else %}
+                            <!-- Show only branch name without default logo -->
+                            <h4 class="text-white fw-bold mb-3">{{ portal.business_name }}</h4>
+                        {% endif %}
+                        <p class="text-light">{{ pre_footer.description }}</p>
+                    </div>
+                </div>
+                
+                <!-- Column 2: Custom Menu Links -->
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <h5 class="fw-bold mb-3">Quick Links</h5>
+                    {% if pre_footer_menu_links %}
+                        <ul class="list-unstyled">
+                            {% for link in pre_footer_menu_links %}
+                                <li class="mb-2">
+                                    <a href="{{ link.url }}" class="text-light text-decoration-none">
+                                        <i class="fas fa-chevron-right me-2"></i>{{ link.title }}
+                                    </a>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-light">No custom links available.</p>
+                    {% endif %}
+                </div>
+                
+                <!-- Column 3: Social Media Icons -->
+                <div class="col-lg-4 col-md-12 mb-4">
+                    <h5 class="fw-bold mb-3">Follow Us</h5>
+                    {% if pre_footer_social_icons %}
+                        <div class="social-media-icons">
+                            {% for icon in pre_footer_social_icons %}
+                                <a href="{{ icon.url }}" target="_blank" class="me-3 d-inline-block mb-2">
+                                    {% if icon.icon %}
+                                        <img src="{{ icon.icon.url }}" alt="{{ icon.platform_name }}" 
+                                             style="width: 32px; height: 32px; filter: brightness(0) invert(1);">
+                                    {% else %}
+                                        <!-- Fallback to text or default icon if no image is uploaded -->
+                                        <span class="text-light border rounded p-2" style="width: 32px; height: 32px; display: inline-block; text-align: center; line-height: 16px; font-size: 12px;">
+                                            {{ icon.platform_name|slice:":2"|upper }}
+                                        </span>
+                                    {% endif %}
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <!-- Default social media links -->
+                        <div class="social-media-icons">
+                            {% if portal.facebook_url %}
+                                <a href="{{ portal.facebook_url }}" target="_blank" class="text-light me-3">
+                                    <i class="fab fa-facebook-f fa-2x"></i>
+                                </a>
+                            {% endif %}
+                            {% if portal.twitter_url %}
+                                <a href="{{ portal.twitter_url }}" target="_blank" class="text-light me-3">
+                                    <i class="fab fa-twitter fa-2x"></i>
+                                </a>
+                            {% endif %}
+                            {% if portal.instagram_url %}
+                                <a href="{{ portal.instagram_url }}" target="_blank" class="text-light me-3">
+                                    <i class="fab fa-instagram fa-2x"></i>
+                                </a>
+                            {% endif %}
+                            {% if portal.linkedin_url %}
+                                <a href="{{ portal.linkedin_url }}" target="_blank" class="text-light me-3">
+                                    <i class="fab fa-linkedin-in fa-2x"></i>
+                                </a>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- Footer -->
+    <footer class="footer py-5">
+        <div class="container">
+            <div class="footer-bottom mt-4 pt-4 border-top">
+                <div class="row">
+                    <div class="col-md-12 text-center">
+                        <p>&copy; 2023 - 2025 | All rights reserved</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JavaScript for Course Filtering -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const categoryFilter = document.getElementById('category-filter');
+            const instructorFilter = document.getElementById('instructor-filter');
+            const priceFilter = document.getElementById('price-filter');
+            const applyFiltersBtn = document.getElementById('apply-filters');
+            
+            // Debug output - log all courses and their prices
+            console.log("Available courses:");
+            document.querySelectorAll('.course-card').forEach(card => {
+                console.log(`Course: ${card.querySelector('.course-title').textContent.trim()}, Price: ${card.dataset.price}`);
+            });
+            
+            applyFiltersBtn.addEventListener('click', function() {
+                const selectedCategory = categoryFilter.value;
+                const selectedInstructor = instructorFilter.value;
+                const selectedPrice = priceFilter.value;
+                
+                console.log(`Filtering - Category: ${selectedCategory}, Instructor: ${selectedInstructor}, Price: ${selectedPrice}`);
+                
+                const courseCards = document.querySelectorAll('.course-card');
+                
+                courseCards.forEach(card => {
+                    let showCard = true;
+                    const cardContainer = card.closest('.col-md-6');
+                    const courseTitle = card.querySelector('.course-title').textContent.trim();
+                    const price = parseFloat(card.dataset.price || 0);
+                    
+                    // Category filtering
+                    if (selectedCategory && card.dataset.category !== selectedCategory) {
+                        showCard = false;
+                    }
+                    
+                    // Instructor filtering
+                    if (selectedInstructor && card.dataset.instructor !== selectedInstructor) {
+                        showCard = false;
+                    }
+                    
+                    // Price filtering
+                    if (selectedPrice) {
+                        if (selectedPrice === 'free' && price > 0) {
+                            showCard = false;
+                        } else if (selectedPrice === 'paid' && price <= 0) {
+                            showCard = false;
+                        } else if (selectedPrice === 'low' && (price <= 0 || price >= 50)) {
+                            showCard = false;
+                        } else if (selectedPrice === 'medium' && (price < 50 || price > 100)) {
+                            showCard = false;
+                        } else if (selectedPrice === 'high' && price <= 100) {
+                            showCard = false;
+                        }
+                    }
+                    
+                    console.log(`Course: ${courseTitle}, Price: ${price}, Show: ${showCard}`);
+                    
+                    // Show or hide card
+                    cardContainer.style.display = showCard ? 'block' : 'none';
+                });
+            });
+        });
+    </script>
+</body>
+</html> 

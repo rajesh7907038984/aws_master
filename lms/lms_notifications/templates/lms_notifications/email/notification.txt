@@ -1,0 +1,23 @@
+{{ site_name }} - {{ notification.notification_type.display_name }}
+
+{{ notification.title }}
+Priority: {{ notification.get_priority_display }}
+
+{{ notification.message|striptags }}
+
+{% if notification.action_url %}
+{{ notification.action_text|default:"View Details" }}: {{ action_url }}
+{% endif %}
+
+---
+Details:
+Sent: {{ notification.created_at|date:"F j, Y \a\t g:i A" }}
+{% if notification.sender %}From: {{ notification.sender.get_full_name|default:notification.sender.username }}{% else %}From: System{% endif %}
+{% if notification.related_course %}Course: {{ notification.related_course.title }}{% endif %}
+{% if notification.expires_at %}Expires: {{ notification.expires_at|date:"F j, Y \a\t g:i A" }}{% endif %}
+
+---
+This notification was sent to {{ user.email }} as part of your {{ site_name }} account.
+To manage your notification preferences, visit your account settings.
+
+© {{ "now"|date:"Y" }} {{ site_name }}. All rights reserved. 
