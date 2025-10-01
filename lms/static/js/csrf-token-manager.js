@@ -3,6 +3,8 @@
  * Provides consistent CSRF token handling across all AJAX requests
  */
 
+// Prevent duplicate class declaration
+if (typeof CSRFTokenManager === 'undefined') {
 class CSRFTokenManager {
     constructor() {
         this.token = null;
@@ -227,3 +229,5 @@ window.csrfXHR = function() {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = CSRFTokenManager;
 }
+
+} // End of CSRFTokenManager class declaration check

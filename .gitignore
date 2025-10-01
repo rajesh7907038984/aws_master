@@ -68,3 +68,15 @@ lms/.env.backup
 
 # Cache
 .cache/
+
+# Cursor editor
+.cursor/
+.cursor-server/
+
+# SSH and personal files
+.ssh/
+.bash_history
+.gitconfig
+
+# Documentation (if you don't want to commit)
+*.md

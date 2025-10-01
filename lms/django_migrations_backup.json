@@ -1,0 +1,2210 @@
+[
+  {
+    "id": 1,
+    "app": "branches",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:31:33.997313+00:00"
+  },
+  {
+    "id": 2,
+    "app": "contenttypes",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:31:35.060306+00:00"
+  },
+  {
+    "id": 3,
+    "app": "contenttypes",
+    "name": "0002_remove_content_type_name",
+    "applied": "2025-09-17 19:31:36.333573+00:00"
+  },
+  {
+    "id": 4,
+    "app": "auth",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:31:40.024967+00:00"
+  },
+  {
+    "id": 5,
+    "app": "auth",
+    "name": "0002_alter_permission_name_max_length",
+    "applied": "2025-09-17 19:31:40.874969+00:00"
+  },
+  {
+    "id": 6,
+    "app": "auth",
+    "name": "0003_alter_user_email_max_length",
+    "applied": "2025-09-17 19:31:41.734622+00:00"
+  },
+  {
+    "id": 7,
+    "app": "auth",
+    "name": "0004_alter_user_username_opts",
+    "applied": "2025-09-17 19:31:42.596326+00:00"
+  },
+  {
+    "id": 8,
+    "app": "auth",
+    "name": "0005_alter_user_last_login_null",
+    "applied": "2025-09-17 19:31:43.452220+00:00"
+  },
+  {
+    "id": 9,
+    "app": "auth",
+    "name": "0006_require_contenttypes_0002",
+    "applied": "2025-09-17 19:31:44.298449+00:00"
+  },
+  {
+    "id": 10,
+    "app": "auth",
+    "name": "0007_alter_validators_add_error_messages",
+    "applied": "2025-09-17 19:31:45.147667+00:00"
+  },
+  {
+    "id": 11,
+    "app": "auth",
+    "name": "0008_alter_user_username_max_length",
+    "applied": "2025-09-17 19:31:46.006615+00:00"
+  },
+  {
+    "id": 12,
+    "app": "auth",
+    "name": "0009_alter_user_last_name_max_length",
+    "applied": "2025-09-17 19:31:46.858288+00:00"
+  },
+  {
+    "id": 13,
+    "app": "auth",
+    "name": "0010_alter_group_name_max_length",
+    "applied": "2025-09-17 19:31:47.941414+00:00"
+  },
+  {
+    "id": 14,
+    "app": "auth",
+    "name": "0011_update_proxy_permissions",
+    "applied": "2025-09-17 19:31:48.799145+00:00"
+  },
+  {
+    "id": 15,
+    "app": "auth",
+    "name": "0012_alter_user_first_name_max_length",
+    "applied": "2025-09-17 19:31:49.646392+00:00"
+  },
+  {
+    "id": 16,
+    "app": "users",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:31:54.684439+00:00"
+  },
+  {
+    "id": 17,
+    "app": "business",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:31:57.722158+00:00"
+  },
+  {
+    "id": 18,
+    "app": "branches",
+    "name": "0002_branchuserlimits",
+    "applied": "2025-09-17 19:31:59.038656+00:00"
+  },
+  {
+    "id": 19,
+    "app": "branches",
+    "name": "0003_branchuserlimits_total_limit",
+    "applied": "2025-09-17 19:32:00.233980+00:00"
+  },
+  {
+    "id": 20,
+    "app": "branches",
+    "name": "0004_alter_branch_options_branch_business",
+    "applied": "2025-09-17 19:32:01.776372+00:00"
+  },
+  {
+    "id": 21,
+    "app": "branches",
+    "name": "0005_alter_branchuserlimits_options_and_more",
+    "applied": "2025-09-17 19:32:03.741856+00:00"
+  },
+  {
+    "id": 22,
+    "app": "branches",
+    "name": "0006_branch_sharepoint_integration_enabled",
+    "applied": "2025-09-17 19:32:04.799131+00:00"
+  },
+  {
+    "id": 23,
+    "app": "branches",
+    "name": "0007_branch_order_management_enabled",
+    "applied": "2025-09-17 19:32:06.083117+00:00"
+  },
+  {
+    "id": 24,
+    "app": "branches",
+    "name": "0008_adminbranchassignment",
+    "applied": "2025-09-17 19:32:09.550642+00:00"
+  },
+  {
+    "id": 25,
+    "app": "branches",
+    "name": "0009_add_scorm_integration",
+    "applied": "2025-09-17 19:32:10.620789+00:00"
+  },
+  {
+    "id": 26,
+    "app": "account_settings",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:32:14.310109+00:00"
+  },
+  {
+    "id": 27,
+    "app": "account_settings",
+    "name": "0019_ensure_portalsettings_timezone_column",
+    "applied": "2025-09-17 19:32:15.179270+00:00"
+  },
+  {
+    "id": 28,
+    "app": "account_settings",
+    "name": "0021_remove_globaladminsettings_system_description_and_more",
+    "applied": "2025-09-17 19:32:16.250243+00:00"
+  },
+  {
+    "id": 29,
+    "app": "role_management",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:32:20.904677+00:00"
+  },
+  {
+    "id": 30,
+    "app": "role_management",
+    "name": "0002_roleauditlog_role_created_by_role_is_active_and_more",
+    "applied": "2025-09-17 19:32:28.982524+00:00"
+  },
+  {
+    "id": 31,
+    "app": "role_management",
+    "name": "0003_remove_role_unique_non_custom_roles_alter_role_name_and_more",
+    "applied": "2025-09-17 19:32:30.196451+00:00"
+  },
+  {
+    "id": 32,
+    "app": "account_settings",
+    "name": "0001_auto_20250519_1425",
+    "applied": "2025-09-17 19:32:33.130654+00:00"
+  },
+  {
+    "id": 33,
+    "app": "account_settings",
+    "name": "0002_auto_20250519_1430",
+    "applied": "2025-09-17 19:32:34.218104+00:00"
+  },
+  {
+    "id": 34,
+    "app": "account_settings",
+    "name": "0003_remove_google_meet_bigbluebutton",
+    "applied": "2025-09-17 19:32:38.942812+00:00"
+  },
+  {
+    "id": 35,
+    "app": "account_settings",
+    "name": "0004_rename_client_id_zoomintegration_api_key_and_more",
+    "applied": "2025-09-17 19:32:39.810320+00:00"
+  },
+  {
+    "id": 36,
+    "app": "account_settings",
+    "name": "0005_stripeintegration_paypalintegration",
+    "applied": "2025-09-17 19:32:43.085787+00:00"
+  },
+  {
+    "id": 37,
+    "app": "account_settings",
+    "name": "0006_portalsettings",
+    "applied": "2025-09-17 19:32:44.431528+00:00"
+  },
+  {
+    "id": 38,
+    "app": "account_settings",
+    "name": "0007_propelintegration",
+    "applied": "2025-09-17 19:32:46.426342+00:00"
+  },
+  {
+    "id": 39,
+    "app": "account_settings",
+    "name": "0008_delete_propelintegration",
+    "applied": "2025-09-17 19:32:47.277445+00:00"
+  },
+  {
+    "id": 40,
+    "app": "account_settings",
+    "name": "0009_importjob_exportjob_databackup",
+    "applied": "2025-09-17 19:32:50.343393+00:00"
+  },
+  {
+    "id": 41,
+    "app": "account_settings",
+    "name": "0010_globaladminsettings_aicontrolsettings_and_more",
+    "applied": "2025-09-17 19:32:55.029197+00:00"
+  },
+  {
+    "id": 42,
+    "app": "account_settings",
+    "name": "0011_enable_google_oauth_by_default",
+    "applied": "2025-09-17 19:32:56.039102+00:00"
+  },
+  {
+    "id": 43,
+    "app": "account_settings",
+    "name": "0012_add_master_smtp_configuration",
+    "applied": "2025-09-17 19:33:01.205299+00:00"
+  },
+  {
+    "id": 44,
+    "app": "account_settings",
+    "name": "0013_auto_20250715_1057",
+    "applied": "2025-09-17 19:33:05.571377+00:00"
+  },
+  {
+    "id": 45,
+    "app": "account_settings",
+    "name": "0014_add_sharepoint_integration_fields",
+    "applied": "2025-09-17 19:33:12.095660+00:00"
+  },
+  {
+    "id": 46,
+    "app": "account_settings",
+    "name": "0022_merge_20250825_1317",
+    "applied": "2025-09-17 19:33:12.738614+00:00"
+  },
+  {
+    "id": 47,
+    "app": "account_settings",
+    "name": "0015_add_microsoft_oauth_fields",
+    "applied": "2025-09-17 19:33:14.987291+00:00"
+  },
+  {
+    "id": 48,
+    "app": "account_settings",
+    "name": "0016_remove_maintenance_fields",
+    "applied": "2025-09-17 19:33:16.337558+00:00"
+  },
+  {
+    "id": 49,
+    "app": "account_settings",
+    "name": "0003_zoomintegration_account_id",
+    "applied": "2025-09-17 19:33:17.841127+00:00"
+  },
+  {
+    "id": 50,
+    "app": "account_settings",
+    "name": "0003_merge_20250519_0459",
+    "applied": "2025-09-17 19:33:18.726565+00:00"
+  },
+  {
+    "id": 51,
+    "app": "account_settings",
+    "name": "0004_merge_20250519_0544",
+    "applied": "2025-09-17 19:33:19.571563+00:00"
+  },
+  {
+    "id": 52,
+    "app": "account_settings",
+    "name": "0023_merge_20250825_1423",
+    "applied": "2025-09-17 19:33:20.421208+00:00"
+  },
+  {
+    "id": 53,
+    "app": "account_settings",
+    "name": "0024_remove_globaladminsettings_system_description_and_more",
+    "applied": "2025-09-17 19:33:22.213241+00:00"
+  },
+  {
+    "id": 54,
+    "app": "account_settings",
+    "name": "0005_add_account_id_column",
+    "applied": "2025-09-17 19:33:23.095171+00:00"
+  },
+  {
+    "id": 55,
+    "app": "account_settings",
+    "name": "0006_remove_zoom_integration",
+    "applied": "2025-09-17 19:33:23.976470+00:00"
+  },
+  {
+    "id": 56,
+    "app": "account_settings",
+    "name": "0008_merge_20250519_0614",
+    "applied": "2025-09-17 19:33:24.825269+00:00"
+  },
+  {
+    "id": 57,
+    "app": "account_settings",
+    "name": "0009_add_zoom_integration",
+    "applied": "2025-09-17 19:33:25.895439+00:00"
+  },
+  {
+    "id": 58,
+    "app": "account_settings",
+    "name": "0025_merge_20250826_1045",
+    "applied": "2025-09-17 19:33:26.737935+00:00"
+  },
+  {
+    "id": 59,
+    "app": "account_settings",
+    "name": "0027_postgresql_compatibility_bulk_fix",
+    "applied": "2025-09-17 19:33:34.409742+00:00"
+  },
+  {
+    "id": 60,
+    "app": "account_settings",
+    "name": "0028_add_scorm_cloud_settings",
+    "applied": "2025-09-17 19:33:40.382067+00:00"
+  },
+  {
+    "id": 61,
+    "app": "account_settings",
+    "name": "0029_globaladminsettings_scorm_cloud_app_id_and_more",
+    "applied": "2025-09-17 19:34:21.448934+00:00"
+  },
+  {
+    "id": 62,
+    "app": "account_settings",
+    "name": "0030_globaladminsettings_scorm_cloud_pens_key",
+    "applied": "2025-09-17 19:34:52.639421+00:00"
+  },
+  {
+    "id": 63,
+    "app": "account_settings",
+    "name": "0031_ipwhitelistentry",
+    "applied": "2025-09-17 19:34:54.606267+00:00"
+  },
+  {
+    "id": 64,
+    "app": "account_settings",
+    "name": "0031_ensure_scorm_cloud_fields_complete",
+    "applied": "2025-09-17 19:35:55.472633+00:00"
+  },
+  {
+    "id": 65,
+    "app": "account_settings",
+    "name": "0032_merge_20250830_0350",
+    "applied": "2025-09-17 19:35:55.903447+00:00"
+  },
+  {
+    "id": 66,
+    "app": "account_settings",
+    "name": "0033_auto_20250906_0549",
+    "applied": "2025-09-17 19:35:56.339413+00:00"
+  },
+  {
+    "id": 67,
+    "app": "account_settings",
+    "name": "0034_add_anthropic_ai_settings",
+    "applied": "2025-09-17 19:35:56.767751+00:00"
+  },
+  {
+    "id": 73,
+    "app": "admin",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:36:30.637141+00:00"
+  },
+  {
+    "id": 74,
+    "app": "admin",
+    "name": "0002_logentry_remove_auto_add",
+    "applied": "2025-09-17 19:36:31.313564+00:00"
+  },
+  {
+    "id": 75,
+    "app": "admin",
+    "name": "0003_logentry_add_action_flag_choices",
+    "applied": "2025-09-17 19:36:32.194040+00:00"
+  },
+  {
+    "id": 76,
+    "app": "admin_dashboard",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:36:34.651659+00:00"
+  },
+  {
+    "id": 77,
+    "app": "admin_dashboard",
+    "name": "0002_remove_testexecution_executed_by_delete_testcase_and_more",
+    "applied": "2025-09-17 19:36:36.625144+00:00"
+  },
+  {
+    "id": 78,
+    "app": "courses",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:36:39.251152+00:00"
+  },
+  {
+    "id": 79,
+    "app": "discussions",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:36:47.188053+00:00"
+  },
+  {
+    "id": 80,
+    "app": "groups",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:36:54.914595+00:00"
+  },
+  {
+    "id": 81,
+    "app": "conferences",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:36:56.900732+00:00"
+  },
+  {
+    "id": 82,
+    "app": "categories",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:36:58.202691+00:00"
+  },
+  {
+    "id": 83,
+    "app": "courses",
+    "name": "0002_initial",
+    "applied": "2025-09-17 19:37:09.025580+00:00"
+  },
+  {
+    "id": 84,
+    "app": "quiz",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:37:18.515800+00:00"
+  },
+  {
+    "id": 85,
+    "app": "courses",
+    "name": "0003_discussion_comment_attachment",
+    "applied": "2025-09-17 19:37:25.619773+00:00"
+  },
+  {
+    "id": 86,
+    "app": "courses",
+    "name": "0004_change_description_to_richtext",
+    "applied": "2025-09-17 19:37:26.316873+00:00"
+  },
+  {
+    "id": 87,
+    "app": "courses",
+    "name": "0005_alter_course_course_outcomes_and_more",
+    "applied": "2025-09-17 19:37:27.428951+00:00"
+  },
+  {
+    "id": 88,
+    "app": "courses",
+    "name": "0006_replace_richtext_with_quill",
+    "applied": "2025-09-17 19:37:28.729303+00:00"
+  },
+  {
+    "id": 89,
+    "app": "courses",
+    "name": "0007_alter_course_description_alter_topic_text_content",
+    "applied": "2025-09-17 19:37:30.097617+00:00"
+  },
+  {
+    "id": 90,
+    "app": "assignments",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:37:36.381345+00:00"
+  },
+  {
+    "id": 91,
+    "app": "courses",
+    "name": "0008_topic_assignment_topic_quiz",
+    "applied": "2025-09-17 19:37:38.197973+00:00"
+  },
+  {
+    "id": 92,
+    "app": "courses",
+    "name": "0009_add_missing_quiz_fields",
+    "applied": "2025-09-17 19:37:39.059995+00:00"
+  },
+  {
+    "id": 93,
+    "app": "courses",
+    "name": "0010_add_missing_related_fields",
+    "applied": "2025-09-17 19:37:40.160004+00:00"
+  },
+  {
+    "id": 94,
+    "app": "courses",
+    "name": "0011_add_endless_access_column",
+    "applied": "2025-09-17 19:37:41.235337+00:00"
+  },
+  {
+    "id": 95,
+    "app": "courses",
+    "name": "0012_course_issue_certificate",
+    "applied": "2025-09-17 19:37:42.681672+00:00"
+  },
+  {
+    "id": 96,
+    "app": "courses",
+    "name": "0013_course_short_description",
+    "applied": "2025-09-17 19:37:43.802948+00:00"
+  },
+  {
+    "id": 97,
+    "app": "courses",
+    "name": "0014_alter_course_certificate_type",
+    "applied": "2025-09-17 19:37:44.727225+00:00"
+  },
+  {
+    "id": 98,
+    "app": "certificates",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:37:48.993719+00:00"
+  },
+  {
+    "id": 99,
+    "app": "courses",
+    "name": "0015_course_certificate_template_and_more",
+    "applied": "2025-09-17 19:37:50.392752+00:00"
+  },
+  {
+    "id": 100,
+    "app": "courses",
+    "name": "0016_course_accessible_by_roles",
+    "applied": "2025-09-17 19:37:52.971235+00:00"
+  },
+  {
+    "id": 101,
+    "app": "courses",
+    "name": "0017_add_manual_progress_field",
+    "applied": "2025-09-17 19:37:54.169929+00:00"
+  },
+  {
+    "id": 102,
+    "app": "courses",
+    "name": "0018_add_video_progress_method",
+    "applied": "2025-09-17 19:37:55.292951+00:00"
+  },
+  {
+    "id": 103,
+    "app": "courses",
+    "name": "0019_initialize_topic_progress_data",
+    "applied": "2025-09-17 19:37:56.426839+00:00"
+  },
+  {
+    "id": 104,
+    "app": "courses",
+    "name": "0020_alter_topic_status",
+    "applied": "2025-09-17 19:37:57.587963+00:00"
+  },
+  {
+    "id": 105,
+    "app": "courses",
+    "name": "0021_alter_course_course_outcomes_and_more",
+    "applied": "2025-09-17 19:37:58.590061+00:00"
+  },
+  {
+    "id": 106,
+    "app": "courses",
+    "name": "0022_course_coupon_code_course_discount_percentage_and_more",
+    "applied": "2025-09-17 19:38:00.738677+00:00"
+  },
+  {
+    "id": 107,
+    "app": "courses",
+    "name": "0023_change_description_to_textfield",
+    "applied": "2025-09-17 19:38:02.167155+00:00"
+  },
+  {
+    "id": 108,
+    "app": "courses",
+    "name": "0024_alter_course_course_outcomes_and_more",
+    "applied": "2025-09-17 19:38:03.147293+00:00"
+  },
+  {
+    "id": 109,
+    "app": "courses",
+    "name": "0025_migrate_quill_to_tinymce",
+    "applied": "2025-09-17 19:38:05.014348+00:00"
+  },
+  {
+    "id": 110,
+    "app": "courses",
+    "name": "0026_alter_section_name",
+    "applied": "2025-09-17 19:38:05.899698+00:00"
+  },
+  {
+    "id": 111,
+    "app": "lms_rubrics",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:38:09.672888+00:00"
+  },
+  {
+    "id": 112,
+    "app": "assignments",
+    "name": "0002_assignment_rubric_assignment_system_already_added",
+    "applied": "2025-09-17 19:38:11.721281+00:00"
+  },
+  {
+    "id": 113,
+    "app": "assignments",
+    "name": "0003_remove_assignment_system_already_added_and_more",
+    "applied": "2025-09-17 19:38:12.650208+00:00"
+  },
+  {
+    "id": 114,
+    "app": "assignments",
+    "name": "0004_alter_assignment_description_and_more",
+    "applied": "2025-09-17 19:38:13.548475+00:00"
+  },
+  {
+    "id": 115,
+    "app": "assignments",
+    "name": "0005_textquestion_alter_assignmentfeedback_is_private_and_more",
+    "applied": "2025-09-17 19:38:17.090655+00:00"
+  },
+  {
+    "id": 116,
+    "app": "assignments",
+    "name": "0006_alter_assignment_attachment_assignmentattachment",
+    "applied": "2025-09-17 19:38:18.662486+00:00"
+  },
+  {
+    "id": 117,
+    "app": "assignments",
+    "name": "0007_supportingdocquestion",
+    "applied": "2025-09-17 19:38:20.734364+00:00"
+  },
+  {
+    "id": 118,
+    "app": "assignments",
+    "name": "0008_alter_assignment_description_and_more",
+    "applied": "2025-09-17 19:38:21.424257+00:00"
+  },
+  {
+    "id": 119,
+    "app": "assignments",
+    "name": "0009_alter_supportingdocquestion_answer_studentanswer",
+    "applied": "2025-09-17 19:38:23.884635+00:00"
+  },
+  {
+    "id": 120,
+    "app": "assignments",
+    "name": "0010_textquestion_question_html",
+    "applied": "2025-09-17 19:38:24.761387+00:00"
+  },
+  {
+    "id": 121,
+    "app": "assignments",
+    "name": "0011_textsubmissionfield_textsubmissionanswer_and_more",
+    "applied": "2025-09-17 19:38:28.185388+00:00"
+  },
+  {
+    "id": 122,
+    "app": "assignments",
+    "name": "0012_textsubmissionfield_content",
+    "applied": "2025-09-17 19:38:29.055281+00:00"
+  },
+  {
+    "id": 123,
+    "app": "assignments",
+    "name": "0013_assignmentattachment_user",
+    "applied": "2025-09-17 19:38:30.672914+00:00"
+  },
+  {
+    "id": 124,
+    "app": "assignments",
+    "name": "0015_update_allowed_file_types",
+    "applied": "2025-09-17 19:38:31.562928+00:00"
+  },
+  {
+    "id": 125,
+    "app": "assignments",
+    "name": "0016_alter_assignment_allowed_file_types_and_more",
+    "applied": "2025-09-17 19:38:34.283404+00:00"
+  },
+  {
+    "id": 126,
+    "app": "assignments",
+    "name": "0017_assignment_user",
+    "applied": "2025-09-17 19:38:35.627458+00:00"
+  },
+  {
+    "id": 127,
+    "app": "assignments",
+    "name": "0018_assignmentcourse_assignment_courses",
+    "applied": "2025-09-17 19:38:38.181675+00:00"
+  },
+  {
+    "id": 128,
+    "app": "assignments",
+    "name": "0019_assignment_show_course_selection",
+    "applied": "2025-09-17 19:38:39.291110+00:00"
+  },
+  {
+    "id": 129,
+    "app": "assignments",
+    "name": "0020_assignment_topics",
+    "applied": "2025-09-17 19:38:40.209189+00:00"
+  },
+  {
+    "id": 130,
+    "app": "assignments",
+    "name": "0021_assignmentreportconfirmation",
+    "applied": "2025-09-17 19:38:42.670573+00:00"
+  },
+  {
+    "id": 131,
+    "app": "assignments",
+    "name": "0022_add_multimedia_feedback",
+    "applied": "2025-09-17 19:38:43.872194+00:00"
+  },
+  {
+    "id": 132,
+    "app": "assignments",
+    "name": "0023_assignmentcomment",
+    "applied": "2025-09-17 19:38:47.670752+00:00"
+  },
+  {
+    "id": 133,
+    "app": "assignments",
+    "name": "0024_textquestionfeedback",
+    "applied": "2025-09-17 19:38:49.708676+00:00"
+  },
+  {
+    "id": 134,
+    "app": "assignments",
+    "name": "0025_add_not_graded_status",
+    "applied": "2025-09-17 19:38:50.472248+00:00"
+  },
+  {
+    "id": 135,
+    "app": "assignments",
+    "name": "0026_add_grade_submission_permission",
+    "applied": "2025-09-17 19:38:51.367741+00:00"
+  },
+  {
+    "id": 136,
+    "app": "assignments",
+    "name": "0027_update_default_status_to_not_graded",
+    "applied": "2025-09-17 19:38:52.299621+00:00"
+  },
+  {
+    "id": 137,
+    "app": "assignments",
+    "name": "0028_remove_show_course_selection",
+    "applied": "2025-09-17 19:38:53.423695+00:00"
+  },
+  {
+    "id": 138,
+    "app": "assignments",
+    "name": "0029_textsubmissionfieldfeedback",
+    "applied": "2025-09-17 19:38:55.726278+00:00"
+  },
+  {
+    "id": 139,
+    "app": "assignments",
+    "name": "0030_assignmentinteractionlog_assignmentsessionlog_and_more",
+    "applied": "2025-09-17 19:39:01.150219+00:00"
+  },
+  {
+    "id": 140,
+    "app": "assignments",
+    "name": "0031_textquestionansweriteration_and_more",
+    "applied": "2025-09-17 19:39:10.988794+00:00"
+  },
+  {
+    "id": 141,
+    "app": "assignments",
+    "name": "0032_filesubmissioniteration_and_more",
+    "applied": "2025-09-17 19:39:14.705582+00:00"
+  },
+  {
+    "id": 142,
+    "app": "assignments",
+    "name": "0033_alter_filesubmissioniteration_content_type_and_more",
+    "applied": "2025-09-17 19:39:16.024713+00:00"
+  },
+  {
+    "id": 143,
+    "app": "assignments",
+    "name": "0034_assignmentsubmission_admin_approval_date_and_more",
+    "applied": "2025-09-17 19:39:18.405408+00:00"
+  },
+  {
+    "id": 144,
+    "app": "assignments",
+    "name": "0035_admin_approval_history",
+    "applied": "2025-09-17 19:39:24.512980+00:00"
+  },
+  {
+    "id": 145,
+    "app": "assignments",
+    "name": "0036_update_feedback_labels",
+    "applied": "2025-09-17 19:39:25.254850+00:00"
+  },
+  {
+    "id": 146,
+    "app": "assignments",
+    "name": "0037_ensure_show_course_selection_removed",
+    "applied": "2025-09-17 19:39:26.413253+00:00"
+  },
+  {
+    "id": 147,
+    "app": "assignments",
+    "name": "0038_alter_assignment_attachment",
+    "applied": "2025-09-17 19:39:27.326903+00:00"
+  },
+  {
+    "id": 148,
+    "app": "branch_portal",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:39:34.238998+00:00"
+  },
+  {
+    "id": 149,
+    "app": "branch_portal",
+    "name": "0002_branchportal_banner_text",
+    "applied": "2025-09-17 19:39:35.123959+00:00"
+  },
+  {
+    "id": 150,
+    "app": "branch_portal",
+    "name": "0003_prefootersection_socialmediaicon_maincontentsection_and_more",
+    "applied": "2025-09-17 19:39:40.319997+00:00"
+  },
+  {
+    "id": 151,
+    "app": "branch_portal",
+    "name": "0004_alter_prefootersection_description",
+    "applied": "2025-09-17 19:39:41.188970+00:00"
+  },
+  {
+    "id": 152,
+    "app": "branch_portal",
+    "name": "0005_alter_socialmediaicon_icon",
+    "applied": "2025-09-17 19:39:42.277062+00:00"
+  },
+  {
+    "id": 153,
+    "app": "business",
+    "name": "0002_businesslimits",
+    "applied": "2025-09-17 19:39:44.284789+00:00"
+  },
+  {
+    "id": 154,
+    "app": "business",
+    "name": "0003_alter_business_options",
+    "applied": "2025-09-17 19:39:44.935531+00:00"
+  },
+  {
+    "id": 155,
+    "app": "calendar_app",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:39:47.212048+00:00"
+  },
+  {
+    "id": 156,
+    "app": "calendar_app",
+    "name": "0002_calendarevent_is_recurring_and_more",
+    "applied": "2025-09-17 19:39:50.853399+00:00"
+  },
+  {
+    "id": 157,
+    "app": "calendar_app",
+    "name": "0003_auto_20250407_0509",
+    "applied": "2025-09-17 19:39:51.540969+00:00"
+  },
+  {
+    "id": 158,
+    "app": "calendar_app",
+    "name": "0004_alter_calendarevent_end_date_and_more",
+    "applied": "2025-09-17 19:39:52.494380+00:00"
+  },
+  {
+    "id": 159,
+    "app": "categories",
+    "name": "0002_add_branch_field",
+    "applied": "2025-09-17 19:39:54.066975+00:00"
+  },
+  {
+    "id": 160,
+    "app": "categories",
+    "name": "0003_alter_coursecategory_options",
+    "applied": "2025-09-17 19:39:54.730112+00:00"
+  },
+  {
+    "id": 161,
+    "app": "conferences",
+    "name": "0022_ensure_conferenceparticipant_table",
+    "applied": "2025-09-17 19:39:55.877280+00:00"
+  },
+  {
+    "id": 162,
+    "app": "lms_rubrics",
+    "name": "0002_alter_rubriccriterion_description_and_more",
+    "applied": "2025-09-17 19:39:56.763678+00:00"
+  },
+  {
+    "id": 163,
+    "app": "lms_rubrics",
+    "name": "0003_rubricrating_title",
+    "applied": "2025-09-17 19:39:58.061048+00:00"
+  },
+  {
+    "id": 164,
+    "app": "lms_rubrics",
+    "name": "0004_add_rubric_evaluation",
+    "applied": "2025-09-17 19:40:01.541032+00:00"
+  },
+  {
+    "id": 165,
+    "app": "discussions",
+    "name": "0002_discussion_rubric",
+    "applied": "2025-09-17 19:40:02.898221+00:00"
+  },
+  {
+    "id": 166,
+    "app": "lms_rubrics",
+    "name": "0002_rubricevaluation_discussion",
+    "applied": "2025-09-17 19:40:04.393926+00:00"
+  },
+  {
+    "id": 167,
+    "app": "lms_rubrics",
+    "name": "0003_alter_rubricevaluation_unique_together",
+    "applied": "2025-09-17 19:40:05.311271+00:00"
+  },
+  {
+    "id": 168,
+    "app": "lms_rubrics",
+    "name": "0005_merge_20250522_1405",
+    "applied": "2025-09-17 19:40:06.170424+00:00"
+  },
+  {
+    "id": 169,
+    "app": "lms_rubrics",
+    "name": "0004_rubricevaluation_student",
+    "applied": "2025-09-17 19:40:08.702150+00:00"
+  },
+  {
+    "id": 170,
+    "app": "lms_rubrics",
+    "name": "0006_merge_20250522_1413",
+    "applied": "2025-09-17 19:40:09.373004+00:00"
+  },
+  {
+    "id": 171,
+    "app": "conferences",
+    "name": "0002_rename_name_conference_title_and_more",
+    "applied": "2025-09-17 19:40:13.909182+00:00"
+  },
+  {
+    "id": 172,
+    "app": "conferences",
+    "name": "0003_conference_meeting_platform",
+    "applied": "2025-09-17 19:40:15.032714+00:00"
+  },
+  {
+    "id": 173,
+    "app": "conferences",
+    "name": "0004_conference_rubric",
+    "applied": "2025-09-17 19:40:16.611680+00:00"
+  },
+  {
+    "id": 174,
+    "app": "conferences",
+    "name": "0005_auto_20250524_1343",
+    "applied": "2025-09-17 19:40:17.258760+00:00"
+  },
+  {
+    "id": 175,
+    "app": "conferences",
+    "name": "0006_conferenceattendance_conferencechat_conferencefile_and_more",
+    "applied": "2025-09-17 19:40:33.233291+00:00"
+  },
+  {
+    "id": 176,
+    "app": "conferences",
+    "name": "0007_auto_20250525_0850",
+    "applied": "2025-09-17 19:40:35.978584+00:00"
+  },
+  {
+    "id": 177,
+    "app": "conferences",
+    "name": "0008_rename_conferences_guestparticipant_conference_participation_idx_conferences_confere_faea54_idx_and_",
+    "applied": "2025-09-17 19:40:38.054267+00:00"
+  },
+  {
+    "id": 178,
+    "app": "conferences",
+    "name": "0009_conference_join_experience",
+    "applied": "2025-09-17 19:40:39.402525+00:00"
+  },
+  {
+    "id": 179,
+    "app": "conferences",
+    "name": "0010_remove_guest_access",
+    "applied": "2025-09-17 19:40:40.326192+00:00"
+  },
+  {
+    "id": 180,
+    "app": "conferences",
+    "name": "0011_conference_auto_recording_enabled_at_and_more",
+    "applied": "2025-09-17 19:40:42.243544+00:00"
+  },
+  {
+    "id": 181,
+    "app": "conferences",
+    "name": "0012_branchzoomaccess",
+    "applied": "2025-09-17 19:40:45.216754+00:00"
+  },
+  {
+    "id": 182,
+    "app": "conferences",
+    "name": "0013_alter_conference_default_join_type",
+    "applied": "2025-09-17 19:40:45.912513+00:00"
+  },
+  {
+    "id": 183,
+    "app": "conferences",
+    "name": "0014_add_conference_rubric_evaluation",
+    "applied": "2025-09-17 19:40:51.021848+00:00"
+  },
+  {
+    "id": 184,
+    "app": "conferences",
+    "name": "0015_update_conference_status_choices",
+    "applied": "2025-09-17 19:40:51.726836+00:00"
+  },
+  {
+    "id": 185,
+    "app": "conferences",
+    "name": "0016_add_click_to_track_models",
+    "applied": "2025-09-17 19:40:58.494112+00:00"
+  },
+  {
+    "id": 186,
+    "app": "conferences",
+    "name": "0017_alter_conference_meeting_platform",
+    "applied": "2025-09-17 19:40:59.198179+00:00"
+  },
+  {
+    "id": 187,
+    "app": "conferences",
+    "name": "0018_add_join_method_tracking",
+    "applied": "2025-09-17 19:41:00.642295+00:00"
+  },
+  {
+    "id": 188,
+    "app": "conferences",
+    "name": "0019_conference_allowed_join_methods",
+    "applied": "2025-09-17 19:41:01.996610+00:00"
+  },
+  {
+    "id": 189,
+    "app": "conferences",
+    "name": "0020_remove_browser_direct_join",
+    "applied": "2025-09-17 19:41:03.846026+00:00"
+  },
+  {
+    "id": 190,
+    "app": "conferences",
+    "name": "0021_conference_timezone",
+    "applied": "2025-09-17 19:41:05.218472+00:00"
+  },
+  {
+    "id": 191,
+    "app": "conferences",
+    "name": "0023_merge_20250825_1423",
+    "applied": "2025-09-17 19:41:06.083419+00:00"
+  },
+  {
+    "id": 192,
+    "app": "conferences",
+    "name": "0024_alter_conferenceparticipant_join_method",
+    "applied": "2025-09-17 19:41:07.105043+00:00"
+  },
+  {
+    "id": 193,
+    "app": "core",
+    "name": "0001_remove_tech_support_tables",
+    "applied": "2025-09-17 19:41:09.108739+00:00"
+  },
+  {
+    "id": 194,
+    "app": "core",
+    "name": "0003_fix_all_foreign_key_constraints",
+    "applied": "2025-09-17 19:41:13.731852+00:00"
+  },
+  {
+    "id": 195,
+    "app": "core",
+    "name": "0004_create_storage_limit_models",
+    "applied": "2025-09-17 19:41:19.031260+00:00"
+  },
+  {
+    "id": 196,
+    "app": "courses",
+    "name": "0027_alter_topic_assignment",
+    "applied": "2025-09-17 19:41:19.753756+00:00"
+  },
+  {
+    "id": 197,
+    "app": "courses",
+    "name": "0028_topic_instructions",
+    "applied": "2025-09-17 19:41:21.093516+00:00"
+  },
+  {
+    "id": 198,
+    "app": "courses",
+    "name": "0029_add_enrollment_source_tracking",
+    "applied": "2025-09-17 19:41:23.161773+00:00"
+  },
+  {
+    "id": 199,
+    "app": "courses",
+    "name": "0030_coursecompletionrequirement",
+    "applied": "2025-09-17 19:41:25.605072+00:00"
+  },
+  {
+    "id": 200,
+    "app": "courses",
+    "name": "0031_add_topic_learner_restrictions",
+    "applied": "2025-09-17 19:41:28.324598+00:00"
+  },
+  {
+    "id": 201,
+    "app": "courses",
+    "name": "0032_add_dashboard_performance_indexes",
+    "applied": "2025-09-17 19:41:33.510238+00:00"
+  },
+  {
+    "id": 202,
+    "app": "discussions",
+    "name": "0002_auto_20250331_1329",
+    "applied": "2025-09-17 19:41:34.372553+00:00"
+  },
+  {
+    "id": 203,
+    "app": "discussions",
+    "name": "0003_merge_0002_auto_20250331_1329_0002_discussion_rubric",
+    "applied": "2025-09-17 19:41:35.235237+00:00"
+  },
+  {
+    "id": 204,
+    "app": "discussions",
+    "name": "0004_discussion_instructions",
+    "applied": "2025-09-17 19:41:36.699528+00:00"
+  },
+  {
+    "id": 205,
+    "app": "discussions",
+    "name": "0005_add_audio_attachment_type",
+    "applied": "2025-09-17 19:41:37.623965+00:00"
+  },
+  {
+    "id": 206,
+    "app": "gradebook",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:41:40.081656+00:00"
+  },
+  {
+    "id": 207,
+    "app": "gradebook",
+    "name": "0002_auto_20250517_0441",
+    "applied": "2025-09-17 19:41:43.337404+00:00"
+  },
+  {
+    "id": 208,
+    "app": "gradebook",
+    "name": "0003_grade_submission_alter_grade_assignment",
+    "applied": "2025-09-17 19:41:45.869336+00:00"
+  },
+  {
+    "id": 209,
+    "app": "gradebook",
+    "name": "0004_optimize_gradebook_indexes",
+    "applied": "2025-09-17 19:41:48.562369+00:00"
+  },
+  {
+    "id": 210,
+    "app": "gradebook",
+    "name": "0005_remove_grade_grade_student_assignment_idx_and_more",
+    "applied": "2025-09-17 19:41:52.233701+00:00"
+  },
+  {
+    "id": 211,
+    "app": "groups",
+    "name": "0002_coursegroup",
+    "applied": "2025-09-17 19:41:55.107324+00:00"
+  },
+  {
+    "id": 212,
+    "app": "groups",
+    "name": "0003_groupmembership_allow_cross_branch",
+    "applied": "2025-09-17 19:41:56.238792+00:00"
+  },
+  {
+    "id": 213,
+    "app": "groups",
+    "name": "0004_remove_groupmembership_allow_cross_branch_and_more",
+    "applied": "2025-09-17 19:41:57.920555+00:00"
+  },
+  {
+    "id": 214,
+    "app": "groups",
+    "name": "0005_groupmemberrole_can_create_topics",
+    "applied": "2025-09-17 19:41:59.228967+00:00"
+  },
+  {
+    "id": 215,
+    "app": "groups",
+    "name": "0006_alter_branchgroup_options_and_more",
+    "applied": "2025-09-17 19:42:00.401555+00:00"
+  },
+  {
+    "id": 216,
+    "app": "individual_learning_plan",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:42:11.948428+00:00"
+  },
+  {
+    "id": 217,
+    "app": "individual_learning_plan",
+    "name": "0002_inductionchecklist_inductiondocument_and_more",
+    "applied": "2025-09-17 19:42:16.440630+00:00"
+  },
+  {
+    "id": 218,
+    "app": "individual_learning_plan",
+    "name": "0003_alter_inductiondocumentreadreceipt_options_and_more",
+    "applied": "2025-09-17 19:42:21.168089+00:00"
+  },
+  {
+    "id": 219,
+    "app": "individual_learning_plan",
+    "name": "0004_add_health_safety_confirmations",
+    "applied": "2025-09-17 19:42:28.293544+00:00"
+  },
+  {
+    "id": 220,
+    "app": "individual_learning_plan",
+    "name": "0005_alter_educatornote_is_private_learningneeds",
+    "applied": "2025-09-17 19:42:30.829090+00:00"
+  },
+  {
+    "id": 221,
+    "app": "individual_learning_plan",
+    "name": "0006_alter_learningneeds_communication_skills_and_more",
+    "applied": "2025-09-17 19:42:34.511337+00:00"
+  },
+  {
+    "id": 222,
+    "app": "individual_learning_plan",
+    "name": "0007_add_accommodation_type_other",
+    "applied": "2025-09-17 19:42:35.444600+00:00"
+  },
+  {
+    "id": 223,
+    "app": "individual_learning_plan",
+    "name": "0008_add_enhanced_induction_checklist",
+    "applied": "2025-09-17 19:42:40.687863+00:00"
+  },
+  {
+    "id": 224,
+    "app": "individual_learning_plan",
+    "name": "0009_add_student_comment_to_induction_question",
+    "applied": "2025-09-17 19:42:41.703222+00:00"
+  },
+  {
+    "id": 225,
+    "app": "individual_learning_plan",
+    "name": "0010_add_dynamic_sections_questions",
+    "applied": "2025-09-17 19:42:54.450767+00:00"
+  },
+  {
+    "id": 226,
+    "app": "individual_learning_plan",
+    "name": "0011_remove_source_field_from_strengths_weaknesses",
+    "applied": "2025-09-17 19:42:55.392618+00:00"
+  },
+  {
+    "id": 227,
+    "app": "individual_learning_plan",
+    "name": "0012_learninggoal_instructor_reply_and_more",
+    "applied": "2025-09-17 19:42:57.121178+00:00"
+  },
+  {
+    "id": 228,
+    "app": "individual_learning_plan",
+    "name": "0013_inductionchecklistquestion_instructor_reply",
+    "applied": "2025-09-17 19:42:58.448644+00:00"
+  },
+  {
+    "id": 229,
+    "app": "individual_learning_plan",
+    "name": "0014_add_instructor_reply_to_health_safety",
+    "applied": "2025-09-17 19:42:59.609395+00:00"
+  },
+  {
+    "id": 230,
+    "app": "individual_learning_plan",
+    "name": "0015_strengthweaknessfeedback",
+    "applied": "2025-09-17 19:43:01.887717+00:00"
+  },
+  {
+    "id": 231,
+    "app": "individual_learning_plan",
+    "name": "0016_add_simple_strengths_weaknesses",
+    "applied": "2025-09-17 19:43:05.633366+00:00"
+  },
+  {
+    "id": 232,
+    "app": "individual_learning_plan",
+    "name": "0017_add_question_to_induction_documents",
+    "applied": "2025-09-17 19:43:07.075846+00:00"
+  },
+  {
+    "id": 233,
+    "app": "individual_learning_plan",
+    "name": "0018_add_instructor_reply_to_learning_needs_question",
+    "applied": "2025-09-17 19:43:08.023446+00:00"
+  },
+  {
+    "id": 234,
+    "app": "individual_learning_plan",
+    "name": "0019_add_custom_target_name_to_learning_goal",
+    "applied": "2025-09-17 19:43:09.191004+00:00"
+  },
+  {
+    "id": 235,
+    "app": "lms_gamification",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:43:15.901697+00:00"
+  },
+  {
+    "id": 236,
+    "app": "lms_media",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:43:21.303729+00:00"
+  },
+  {
+    "id": 237,
+    "app": "lms_messages",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:43:25.987415+00:00"
+  },
+  {
+    "id": 238,
+    "app": "lms_messages",
+    "name": "0002_alter_message_content",
+    "applied": "2025-09-17 19:43:26.777856+00:00"
+  },
+  {
+    "id": 239,
+    "app": "lms_messages",
+    "name": "0003_alter_message_content",
+    "applied": "2025-09-17 19:43:27.755424+00:00"
+  },
+  {
+    "id": 240,
+    "app": "lms_messages",
+    "name": "0004_messagereadstatus_message_branch_and_more",
+    "applied": "2025-09-17 19:43:34.767301+00:00"
+  },
+  {
+    "id": 241,
+    "app": "lms_messages",
+    "name": "0005_migrate_quill_to_tinymce",
+    "applied": "2025-09-17 19:43:35.503579+00:00"
+  },
+  {
+    "id": 242,
+    "app": "lms_messages",
+    "name": "0006_message_parent_message",
+    "applied": "2025-09-17 19:43:37.251322+00:00"
+  },
+  {
+    "id": 243,
+    "app": "lms_notifications",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:43:58.364085+00:00"
+  },
+  {
+    "id": 244,
+    "app": "lms_notifications",
+    "name": "0002_branchsmtpconfiguration",
+    "applied": "2025-09-17 19:43:59.783459+00:00"
+  },
+  {
+    "id": 245,
+    "app": "lms_notifications",
+    "name": "0003_remove_branch_smtp_configuration",
+    "applied": "2025-09-17 19:44:00.658942+00:00"
+  },
+  {
+    "id": 246,
+    "app": "lms_notifications",
+    "name": "0004_remove_quiet_hours",
+    "applied": "2025-09-17 19:44:02.630808+00:00"
+  },
+  {
+    "id": 247,
+    "app": "lms_notifications",
+    "name": "0005_alter_notificationtype_options",
+    "applied": "2025-09-17 19:44:03.511428+00:00"
+  },
+  {
+    "id": 248,
+    "app": "quiz",
+    "name": "0002_alter_quiz_max_concurrent_attempts",
+    "applied": "2025-09-17 19:44:04.579574+00:00"
+  },
+  {
+    "id": 249,
+    "app": "quiz",
+    "name": "0003_quiztag_quizgradeoverride",
+    "applied": "2025-09-17 19:44:07.097218+00:00"
+  },
+  {
+    "id": 250,
+    "app": "quiz",
+    "name": "0004_quiz_rubric",
+    "applied": "2025-09-17 19:44:08.506907+00:00"
+  },
+  {
+    "id": 251,
+    "app": "quiz",
+    "name": "0005_auto_20250522_1257",
+    "applied": "2025-09-17 19:44:11.660178+00:00"
+  },
+  {
+    "id": 252,
+    "app": "quiz",
+    "name": "0006_alter_quizrubricevaluation_id",
+    "applied": "2025-09-17 19:44:13.079092+00:00"
+  },
+  {
+    "id": 253,
+    "app": "quiz",
+    "name": "0007_quiz_instructions",
+    "applied": "2025-09-17 19:44:14.460299+00:00"
+  },
+  {
+    "id": 254,
+    "app": "quiz",
+    "name": "0008_add_quiz_types",
+    "applied": "2025-09-17 19:44:16.415611+00:00"
+  },
+  {
+    "id": 255,
+    "app": "quiz",
+    "name": "0009_update_quiz_type_help_text",
+    "applied": "2025-09-17 19:44:17.657258+00:00"
+  },
+  {
+    "id": 256,
+    "app": "quiz",
+    "name": "0010_add_drag_drop_matching_question_type",
+    "applied": "2025-09-17 19:44:18.545165+00:00"
+  },
+  {
+    "id": 257,
+    "app": "quiz",
+    "name": "0011_remove_essay_question_type",
+    "applied": "2025-09-17 19:44:19.431634+00:00"
+  },
+  {
+    "id": 258,
+    "app": "quiz",
+    "name": "0012_add_learning_style_to_question",
+    "applied": "2025-09-17 19:44:20.536841+00:00"
+  },
+  {
+    "id": 259,
+    "app": "quiz",
+    "name": "0013_add_percentage_config_fields",
+    "applied": "2025-09-17 19:44:22.943511+00:00"
+  },
+  {
+    "id": 260,
+    "app": "quiz",
+    "name": "0014_add_assessment_level_field",
+    "applied": "2025-09-17 19:44:24.047276+00:00"
+  },
+  {
+    "id": 261,
+    "app": "quiz",
+    "name": "0015_update_assessment_level_choices",
+    "applied": "2025-09-17 19:44:24.935355+00:00"
+  },
+  {
+    "id": 262,
+    "app": "quiz",
+    "name": "0016_add_total_threshold_field",
+    "applied": "2025-09-17 19:44:26.569463+00:00"
+  },
+  {
+    "id": 263,
+    "app": "quiz",
+    "name": "0017_answer_learning_style",
+    "applied": "2025-09-17 19:44:27.661859+00:00"
+  },
+  {
+    "id": 264,
+    "app": "quiz",
+    "name": "0018_remove_question_learning_style",
+    "applied": "2025-09-17 19:44:28.760612+00:00"
+  },
+  {
+    "id": 265,
+    "app": "lms_rubrics",
+    "name": "0011_add_branch_field",
+    "applied": "2025-09-17 19:44:30.383381+00:00"
+  },
+  {
+    "id": 266,
+    "app": "lms_rubrics",
+    "name": "0012_add_rubric_evaluation_history",
+    "applied": "2025-09-17 19:44:34.626124+00:00"
+  },
+  {
+    "id": 267,
+    "app": "lms_rubrics",
+    "name": "0013_populate_rubric_history",
+    "applied": "2025-09-17 19:44:35.808056+00:00"
+  },
+  {
+    "id": 268,
+    "app": "lms_rubrics",
+    "name": "0016_rubricoverallfeedback",
+    "applied": "2025-09-17 19:44:41.886758+00:00"
+  },
+  {
+    "id": 269,
+    "app": "lms_rubrics",
+    "name": "0017_alter_rubricoverallfeedback_unique_together_and_more",
+    "applied": "2025-09-17 19:44:44.013560+00:00"
+  },
+  {
+    "id": 270,
+    "app": "lms_outcomes",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:44:47.576288+00:00"
+  },
+  {
+    "id": 271,
+    "app": "lms_outcomes",
+    "name": "0002_outcome_calculation_method_and_more",
+    "applied": "2025-09-17 19:44:50.879481+00:00"
+  },
+  {
+    "id": 272,
+    "app": "lms_outcomes",
+    "name": "0003_outcome_times_to_achieve_and_more",
+    "applied": "2025-09-17 19:44:52.429940+00:00"
+  },
+  {
+    "id": 273,
+    "app": "lms_outcomes",
+    "name": "0004_outcomealignment",
+    "applied": "2025-09-17 19:44:54.940597+00:00"
+  },
+  {
+    "id": 274,
+    "app": "lms_outcomes",
+    "name": "0005_alter_outcome_calculation_method",
+    "applied": "2025-09-17 19:44:55.638381+00:00"
+  },
+  {
+    "id": 275,
+    "app": "lms_outcomes",
+    "name": "0007_add_branch_fields",
+    "applied": "2025-09-17 19:44:58.096619+00:00"
+  },
+  {
+    "id": 276,
+    "app": "lms_outcomes",
+    "name": "0008_add_created_by_to_outcome_group",
+    "applied": "2025-09-17 19:44:59.589194+00:00"
+  },
+  {
+    "id": 277,
+    "app": "lms_outcomes",
+    "name": "0009_alter_outcome_group",
+    "applied": "2025-09-17 19:45:01.576760+00:00"
+  },
+  {
+    "id": 278,
+    "app": "lms_outcomes",
+    "name": "0010_add_created_by_to_outcome",
+    "applied": "2025-09-17 19:45:03.204914+00:00"
+  },
+  {
+    "id": 279,
+    "app": "lms_outcomes",
+    "name": "0011_rubriccriterionoutcome_outcomeevaluation",
+    "applied": "2025-09-17 19:45:07.945965+00:00"
+  },
+  {
+    "id": 280,
+    "app": "lms_outcomes",
+    "name": "0012_remove_outcome_ordering",
+    "applied": "2025-09-17 19:45:08.695815+00:00"
+  },
+  {
+    "id": 281,
+    "app": "lms_outcomes",
+    "name": "0013_update_outcome_ordering_to_id",
+    "applied": "2025-09-17 19:45:10.288844+00:00"
+  },
+  {
+    "id": 282,
+    "app": "lms_outcomes",
+    "name": "0014_alter_outcomegroup_options",
+    "applied": "2025-09-17 19:45:11.462133+00:00"
+  },
+  {
+    "id": 283,
+    "app": "lms_outcomes",
+    "name": "0015_alter_outcome_title",
+    "applied": "2025-09-17 19:45:12.845567+00:00"
+  },
+  {
+    "id": 284,
+    "app": "quiz",
+    "name": "0019_alter_quiz_passing_score",
+    "applied": "2025-09-17 19:45:14.227331+00:00"
+  },
+  {
+    "id": 285,
+    "app": "quiz",
+    "name": "0020_alter_quiz_passing_score",
+    "applied": "2025-09-17 19:45:15.390416+00:00"
+  },
+  {
+    "id": 286,
+    "app": "quiz",
+    "name": "0021_alter_quiztag_options",
+    "applied": "2025-09-17 19:45:16.266340+00:00"
+  },
+  {
+    "id": 287,
+    "app": "quiz",
+    "name": "0022_add_active_time_tracking",
+    "applied": "2025-09-17 19:45:18.783457+00:00"
+  },
+  {
+    "id": 288,
+    "app": "reports",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:45:26.399301+00:00"
+  },
+  {
+    "id": 289,
+    "app": "reports",
+    "name": "0002_alter_report_description",
+    "applied": "2025-09-17 19:45:27.141115+00:00"
+  },
+  {
+    "id": 290,
+    "app": "reports",
+    "name": "0003_alter_report_description",
+    "applied": "2025-09-17 19:45:28.100726+00:00"
+  },
+  {
+    "id": 291,
+    "app": "reports",
+    "name": "0004_alter_report_description",
+    "applied": "2025-09-17 19:45:29.093154+00:00"
+  },
+  {
+    "id": 292,
+    "app": "reports",
+    "name": "0005_migrate_quill_to_tinymce",
+    "applied": "2025-09-17 19:45:30.122918+00:00"
+  },
+  {
+    "id": 293,
+    "app": "reports",
+    "name": "0006_report_output_fields_report_rules_and_more",
+    "applied": "2025-09-17 19:45:32.773308+00:00"
+  },
+  {
+    "id": 294,
+    "app": "role_management",
+    "name": "0004_alter_role_options",
+    "applied": "2025-09-17 19:45:33.955738+00:00"
+  },
+  {
+    "id": 295,
+    "app": "scorm_cloud",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:45:40.129522+00:00"
+  },
+  {
+    "id": 296,
+    "app": "scorm_cloud",
+    "name": "0002_scormpackage_launch_mode_scormpackage_use_frameset",
+    "applied": "2025-09-17 19:45:41.673503+00:00"
+  },
+  {
+    "id": 297,
+    "app": "scorm_cloud",
+    "name": "0003_add_unique_constraint_to_scormcloudcontent",
+    "applied": "2025-09-17 19:45:42.796954+00:00"
+  },
+  {
+    "id": 298,
+    "app": "scorm_cloud",
+    "name": "0004_scormregistration_progress_data_and_more",
+    "applied": "2025-09-17 19:45:44.207563+00:00"
+  },
+  {
+    "id": 299,
+    "app": "sessions",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:45:45.953015+00:00"
+  },
+  {
+    "id": 300,
+    "app": "sharepoint_integration",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:45:48.793721+00:00"
+  },
+  {
+    "id": 301,
+    "app": "sites",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:45:49.670943+00:00"
+  },
+  {
+    "id": 302,
+    "app": "sites",
+    "name": "0002_alter_domain_unique",
+    "applied": "2025-09-17 19:45:51.004513+00:00"
+  },
+  {
+    "id": 303,
+    "app": "tinymce_editor",
+    "name": "0001_initial",
+    "applied": "2025-09-17 19:45:54.826209+00:00"
+  },
+  {
+    "id": 304,
+    "app": "users",
+    "name": "0002_add_custom_user_fields",
+    "applied": "2025-09-17 19:46:04.954589+00:00"
+  },
+  {
+    "id": 305,
+    "app": "users",
+    "name": "0003_auto_20250523_0857",
+    "applied": "2025-09-17 19:46:18.169073+00:00"
+  },
+  {
+    "id": 306,
+    "app": "users",
+    "name": "0010_assessment_score_fields",
+    "applied": "2025-09-17 19:46:21.682758+00:00"
+  },
+  {
+    "id": 307,
+    "app": "users",
+    "name": "0011_customuser_achievements_and_awards_and_more",
+    "applied": "2025-09-17 19:46:23.169317+00:00"
+  },
+  {
+    "id": 308,
+    "app": "users",
+    "name": "0012_customuser_sexual_orientation_and_more",
+    "applied": "2025-09-17 19:46:24.983780+00:00"
+  },
+  {
+    "id": 309,
+    "app": "users",
+    "name": "0013_add_other_fields",
+    "applied": "2025-09-17 19:46:27.083415+00:00"
+  },
+  {
+    "id": 310,
+    "app": "users",
+    "name": "0014_userquestionnaire",
+    "applied": "2025-09-17 19:46:29.373290+00:00"
+  },
+  {
+    "id": 311,
+    "app": "users",
+    "name": "0015_userquizassignment",
+    "applied": "2025-09-17 19:46:32.096923+00:00"
+  },
+  {
+    "id": 312,
+    "app": "users",
+    "name": "0016_customuser_education_data",
+    "applied": "2025-09-17 19:46:33.061944+00:00"
+  },
+  {
+    "id": 313,
+    "app": "users",
+    "name": "0017_add_employment_data_field",
+    "applied": "2025-09-17 19:46:34.845205+00:00"
+  },
+  {
+    "id": 314,
+    "app": "users",
+    "name": "0018_alter_customuser_role",
+    "applied": "2025-09-17 19:46:35.844969+00:00"
+  },
+  {
+    "id": 315,
+    "app": "users",
+    "name": "0019_alter_customuser_branch",
+    "applied": "2025-09-17 19:46:36.831927+00:00"
+  },
+  {
+    "id": 316,
+    "app": "users",
+    "name": "0020_passwordresettoken_emailverificationtoken",
+    "applied": "2025-09-17 19:46:40.363702+00:00"
+  },
+  {
+    "id": 317,
+    "app": "users",
+    "name": "0021_add_dashboard_performance_indexes",
+    "applied": "2025-09-17 19:46:43.397624+00:00"
+  },
+  {
+    "id": 318,
+    "app": "users",
+    "name": "0022_add_manual_vak_scores",
+    "applied": "2025-09-17 19:46:45.468989+00:00"
+  },
+  {
+    "id": 319,
+    "app": "users",
+    "name": "0023_remove_notes_from_manual_vak",
+    "applied": "2025-09-17 19:46:46.434320+00:00"
+  },
+  {
+    "id": 320,
+    "app": "users",
+    "name": "0024_manualassessmententry",
+    "applied": "2025-09-17 19:46:48.943018+00:00"
+  },
+  {
+    "id": 321,
+    "app": "users",
+    "name": "0025_twofactorauth_otptoken",
+    "applied": "2025-09-17 19:46:51.152088+00:00"
+  },
+  {
+    "id": 322,
+    "app": "users",
+    "name": "0026_twofactorauth_oauth_enabled_and_more",
+    "applied": "2025-09-17 19:46:52.636418+00:00"
+  },
+  {
+    "id": 323,
+    "app": "users",
+    "name": "0027_twofactorauth_backup_tokens_and_more",
+    "applied": "2025-09-17 19:46:54.864773+00:00"
+  },
+  {
+    "id": 324,
+    "app": "users",
+    "name": "0028_add_profile_image",
+    "applied": "2025-09-17 19:46:56.040125+00:00"
+  },
+  {
+    "id": 325,
+    "app": "users",
+    "name": "0029_usersession",
+    "applied": "2025-09-17 19:46:58.830850+00:00"
+  },
+  {
+    "id": 326,
+    "app": "users",
+    "name": "0030_delete_usersession",
+    "applied": "2025-09-17 19:46:59.701642+00:00"
+  },
+  {
+    "id": 327,
+    "app": "users",
+    "name": "0031_usertimezone",
+    "applied": "2025-09-19 08:27:04.179296+00:00"
+  },
+  {
+    "id": 328,
+    "app": "account_settings",
+    "name": "0035_add_scorm_integration",
+    "applied": "2025-09-20 04:35:00.516842+00:00"
+  },
+  {
+    "id": 329,
+    "app": "account_settings",
+    "name": "0036_alter_globaladminsettings_scorm_cloud_enabled",
+    "applied": "2025-09-20 04:35:01.261253+00:00"
+  },
+  {
+    "id": 330,
+    "app": "account_settings",
+    "name": "0037_scormintegration_pens_key",
+    "applied": "2025-09-20 04:35:02.394116+00:00"
+  },
+  {
+    "id": 331,
+    "app": "account_settings",
+    "name": "0038_remove_global_scorm_cloud_fields",
+    "applied": "2025-09-20 04:35:07.027759+00:00"
+  },
+  {
+    "id": 332,
+    "app": "account_settings",
+    "name": "0039_update_anthropic_model_default",
+    "applied": "2025-09-20 04:35:07.945862+00:00"
+  },
+  {
+    "id": 333,
+    "app": "users",
+    "name": "0032_alter_usertimezone_table",
+    "applied": "2025-09-20 06:05:10.186584+00:00"
+  },
+  {
+    "id": 334,
+    "app": "account_settings",
+    "name": "0040_remove_globaladminsettings_scorm_cloud_pens_key_and_more",
+    "applied": "2025-09-21 10:02:12.842556+00:00"
+  },
+  {
+    "id": 335,
+    "app": "account_settings",
+    "name": "0041_remove_globaladminsettings_scorm_cloud_pens_key_and_more",
+    "applied": "2025-09-21 10:05:09.861375+00:00"
+  },
+  {
+    "id": 336,
+    "app": "users",
+    "name": "0033_add_timezone_detected_at",
+    "applied": "2025-09-21 10:05:10.028392+00:00"
+  },
+  {
+    "id": 337,
+    "app": "account_settings",
+    "name": "0042_remove_globaladminsettings_scorm_cloud_pens_key_and_more",
+    "applied": "2025-09-22 18:29:55.805716+00:00"
+  },
+  {
+    "id": 338,
+    "app": "account_settings",
+    "name": "0043_fix_zoomintegration_account_id_conflict",
+    "applied": "2025-09-22 19:18:33.640343+00:00"
+  },
+  {
+    "id": 339,
+    "app": "account_settings",
+    "name": "0044_safe_remove_scorm_cloud_pens_key",
+    "applied": "2025-09-22 19:18:33.659320+00:00"
+  },
+  {
+    "id": 340,
+    "app": "users",
+    "name": "0001_initial",
+    "applied": "2024-01-01 00:00:00+00:00"
+  },
+  {
+    "id": 341,
+    "app": "assignments",
+    "name": "0001_initial",
+    "applied": "2024-01-01 00:00:00+00:00"
+  },
+  {
+    "id": 342,
+    "app": "discussions",
+    "name": "0001_initial",
+    "applied": "2024-01-01 00:00:00+00:00"
+  },
+  {
+    "id": 343,
+    "app": "discussions",
+    "name": "0002_initial",
+    "applied": "2024-01-01 00:00:00+00:00"
+  },
+  {
+    "id": 344,
+    "app": "branches",
+    "name": "0001_initial",
+    "applied": "2024-01-01 00:00:00+00:00"
+  },
+  {
+    "id": 345,
+    "app": "branches",
+    "name": "0002_initial",
+    "applied": "2024-01-01 00:00:00+00:00"
+  },
+  {
+    "id": 346,
+    "app": "quiz",
+    "name": "0001_initial",
+    "applied": "2024-01-01 00:00:00+00:00"
+  },
+  {
+    "id": 347,
+    "app": "quiz",
+    "name": "0002_initial",
+    "applied": "2024-01-01 00:00:00+00:00"
+  },
+  {
+    "id": 348,
+    "app": "conferences",
+    "name": "0001_initial",
+    "applied": "2024-01-01 00:00:00+00:00"
+  },
+  {
+    "id": 349,
+    "app": "conferences",
+    "name": "0002_initial",
+    "applied": "2024-01-01 00:00:00+00:00"
+  },
+  {
+    "id": 350,
+    "app": "account_settings",
+    "name": "0002_initial",
+    "applied": "2025-10-01 11:02:27.483238+00:00"
+  },
+  {
+    "id": 351,
+    "app": "account_settings",
+    "name": "0003_initial",
+    "applied": "2025-10-01 11:02:27.483238+00:00"
+  },
+  {
+    "id": 352,
+    "app": "assignments",
+    "name": "0002_initial",
+    "applied": "2025-10-01 11:02:27.483238+00:00"
+  },
+  {
+    "id": 353,
+    "app": "assignments",
+    "name": "0003_initial",
+    "applied": "2025-10-01 11:02:27.483238+00:00"
+  },
+  {
+    "id": 354,
+    "app": "branch_portal",
+    "name": "0002_initial",
+    "applied": "2025-10-01 11:02:27.483238+00:00"
+  },
+  {
+    "id": 355,
+    "app": "branch_portal",
+    "name": "0003_initial",
+    "applied": "2025-10-01 11:02:27.483238+00:00"
+  },
+  {
+    "id": 356,
+    "app": "business",
+    "name": "0002_initial",
+    "applied": "2025-10-01 11:02:27.483238+00:00"
+  },
+  {
+    "id": 357,
+    "app": "calendar_app",
+    "name": "0002_initial",
+    "applied": "2025-10-01 11:02:27.483238+00:00"
+  },
+  {
+    "id": 358,
+    "app": "certificates",
+    "name": "0002_initial",
+    "applied": "2025-10-01 11:02:27.483238+00:00"
+  },
+  {
+    "id": 359,
+    "app": "conferences",
+    "name": "0003_initial",
+    "applied": "2025-10-01 11:02:27.483238+00:00"
+  },
+  {
+    "id": 360,
+    "app": "core",
+    "name": "0001_initial",
+    "applied": "2025-10-01 11:02:27.483238+00:00"
+  },
+  {
+    "id": 361,
+    "app": "core",
+    "name": "0002_initial",
+    "applied": "2025-10-01 11:02:27.483238+00:00"
+  },
+  {
+    "id": 362,
+    "app": "gradebook",
+    "name": "0002_initial",
+    "applied": "2025-10-01 11:02:27.483238+00:00"
+  },
+  {
+    "id": 363,
+    "app": "groups",
+    "name": "0002_initial",
+    "applied": "2025-10-01 11:02:27.483238+00:00"
+  },
+  {
+    "id": 364,
+    "app": "individual_learning_plan",
+    "name": "0002_initial",
+    "applied": "2025-10-01 11:02:27.483238+00:00"
+  },
+  {
+    "id": 365,
+    "app": "lms_media",
+    "name": "0002_initial",
+    "applied": "2025-10-01 11:02:27.483238+00:00"
+  },
+  {
+    "id": 366,
+    "app": "lms_messages",
+    "name": "0002_initial",
+    "applied": "2025-10-01 11:02:27.483238+00:00"
+  },
+  {
+    "id": 367,
+    "app": "lms_notifications",
+    "name": "0002_initial",
+    "applied": "2025-10-01 11:02:27.483238+00:00"
+  },
+  {
+    "id": 368,
+    "app": "lms_outcomes",
+    "name": "0002_initial",
+    "applied": "2025-10-01 11:02:27.483238+00:00"
+  },
+  {
+    "id": 369,
+    "app": "lms_outcomes",
+    "name": "0003_initial",
+    "applied": "2025-10-01 11:02:27.483238+00:00"
+  },
+  {
+    "id": 370,
+    "app": "role_management",
+    "name": "0002_initial",
+    "applied": "2025-10-01 11:02:27.483238+00:00"
+  },
+  {
+    "id": 371,
+    "app": "scorm_cloud",
+    "name": "0002_initial",
+    "applied": "2025-10-01 11:02:27.483238+00:00"
+  },
+  {
+    "id": 372,
+    "app": "sharepoint_integration",
+    "name": "0002_initial",
+    "applied": "2025-10-01 11:02:27.483238+00:00"
+  },
+  {
+    "id": 373,
+    "app": "tinymce_editor",
+    "name": "0002_initial",
+    "applied": "2025-10-01 11:02:27.483238+00:00"
+  }
+]

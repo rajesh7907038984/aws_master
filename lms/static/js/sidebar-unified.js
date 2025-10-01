@@ -961,6 +961,7 @@
         toggle: toggleSidebar,
         toggleSubmenu: toggleSubmenu,
         hideTooltip: hideHoverTooltip,
+        setupSubmenuToggles: setupSubmenuToggles,
         isCollapsed: () => state.isCollapsed,
         isMobile: () => state.isMobile,
         isInitialized: () => state.isInitialized

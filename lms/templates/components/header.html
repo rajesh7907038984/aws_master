@@ -22,7 +22,7 @@
             <form class="flex w-full shadow-sm rounded-xl overflow-hidden bg-gray-50 ring-1 ring-gray-200 focus-within:ring-2 focus-within:ring-primary-500 transition-all" method="GET" action="{% url 'users:search' %}">
                 <!-- Category Selector -->
                 <div class="relative">
-                    <select name="category" class="h-10 pl-4 pr-8 text-sm bg-transparent border-0 rounded-l-xl text-gray-600 focus:outline-none focus:ring-0 cursor-pointer appearance-none">
+                    <select name="category" class="h-10 pl-4 pr-8 text-sm bg-transparent border-0 rounded-l-xl text-gray-600 focus:outline-none focus:ring-0 cursor-pointer appearance-none border-r border-gray-300">
                         <option value="all" selected>Select Option</option>
                         <option value="courses">Courses</option>
                         {% if user.role in 'globaladmin,superadmin,admin,instructor' %}
@@ -41,7 +41,7 @@
                 
                 <!-- Search Input -->
                 <div class="relative flex-1 flex items-center">
-                    <div class="absolute left-3">
+                    <div class="absolute left-3 z-10">
                         <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
                         </svg>
@@ -49,7 +49,7 @@
                     <input type="text" 
                            name="q"
                            placeholder="Search anything..." 
-                           class="w-full h-10 pl-10 pr-4 bg-transparent border-0 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-0 rounded-r-xl">
+                           class="w-full h-10 pl-12 pr-4 bg-transparent border-0 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-0 rounded-r-xl">
                 </div>
             </form>
         </div>
@@ -88,11 +88,17 @@
             </a>
 
             <!-- Profile Picture with Dropdown -->
-            <div class="flex items-center relative flex-shrink-0" x-data="{ isOpen: false, branchMenuOpen: false }">
+            <div class="flex items-center relative flex-shrink-0" 
+                 x-data="{ isOpen: false, branchMenuOpen: false }" 
+                 @click.away="isOpen = false; branchMenuOpen = false"
+                 x-init="console.log('Profile dropdown initialized')">
                 <button 
-                    @click="isOpen = !isOpen; branchMenuOpen = false" 
-                    @click.away="isOpen = false; branchMenuOpen = false"
+                    @click.stop="isOpen = !isOpen; branchMenuOpen = false; console.log('Profile clicked, isOpen:', isOpen)" 
+                    @touchend.prevent="isOpen = !isOpen; branchMenuOpen = false; console.log('Profile touched, isOpen:', isOpen)"
                     class="relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all overflow-hidden flex-shrink-0"
+                    style="z-index: 60; -webkit-tap-highlight-color: transparent;"
+                    aria-label="Profile menu"
+                    :aria-expanded="isOpen"
                 >
                     {% if user.profile_image %}
                     <img src="{{ user.profile_image.url }}" alt="{{ user.username }}" class="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full object-cover">
@@ -110,8 +116,10 @@
                     x-transition:leave="transition ease-in duration-75"
                     x-transition:leave-start="transform opacity-100 scale-100"
                     x-transition:leave-end="transform opacity-0 scale-95"
+                    @click.away="isOpen = false"
                     class="absolute right-0 top-12 w-48 py-2 bg-white rounded-xl shadow-lg ring-1 ring-gray-200"
-                    style="display: none;"
+                    style="z-index: 70; display: none;"
+                    :style="isOpen ? 'display: block; z-index: 70;' : 'display: none; z-index: 70;'"
                 >
                     {% if user.is_authenticated %}
                     <a href="{% url 'users:user_profile' user.id %}" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
@@ -131,7 +139,7 @@
                     <!-- Branch Switcher for Admin Users -->
                     {% if user.role == 'admin' and user_branch_access.can_switch_branches %}
                     <div class="border-t border-gray-100 my-1"></div>
-                    <div class="px-4 py-2" @click="$event.stopPropagation()">
+                    <div class="px-4 py-2" @click.stop>
                         <div class="flex items-center text-xs text-gray-500 mb-2">
                             <svg class="w-3 h-3 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h2M7 16h6M7 8h6m-6 4h6" />
@@ -145,14 +153,16 @@
                         <!-- Branch Switcher Dropdown -->
                         <div class="relative">
                             <button 
-                                @click="branchMenuOpen = !branchMenuOpen; $event.stopPropagation()" 
+                                @click.stop="branchMenuOpen = !branchMenuOpen" 
+                                @touchend.stop.prevent="branchMenuOpen = !branchMenuOpen"
                                 class="flex items-center w-full px-3 py-2 text-sm text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+                                type="button"
                             >
                                 <svg class="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                                 </svg>
                                 Switch Branch
-                                <svg class="w-4 h-4 ml-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" :class="{'rotate-180': branchMenuOpen}">
+                                <svg class="w-4 h-4 ml-auto transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" :class="{'rotate-180': branchMenuOpen}">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                                 </svg>
                             </button>
@@ -160,7 +170,7 @@
                             <!-- Branch Options -->
                             <div 
                                 x-show="branchMenuOpen"
-                                @click="$event.stopPropagation()"
+                                @click.stop
                                 x-transition:enter="transition ease-out duration-100"
                                 x-transition:enter-start="transform opacity-0 scale-95"
                                 x-transition:enter-end="transform opacity-100 scale-100"
@@ -169,6 +179,7 @@
                                 x-transition:leave-end="transform opacity-0 scale-95"
                                 class="absolute left-0 top-full mt-2 w-64 bg-white rounded-lg shadow-lg ring-1 ring-gray-200 z-50"
                                 style="display: none;"
+                                :style="branchMenuOpen ? 'display: block;' : 'display: none;'"
                                 id="branch-switcher-menu"
                             >
                                 <div class="py-2" id="branch-options">
@@ -217,7 +228,7 @@
         <form class="flex w-full shadow-sm rounded-xl overflow-hidden bg-gray-50 ring-1 ring-gray-200 focus-within:ring-2 focus-within:ring-primary-500 transition-all" method="GET" action="{% url 'users:search' %}">
             <!-- Category Selector -->
             <div class="relative flex-shrink-0">
-                <select name="category" class="h-9 sm:h-10 pl-2 sm:pl-3 pr-5 sm:pr-6 text-xs sm:text-sm bg-transparent border-0 rounded-l-xl text-gray-600 focus:outline-none focus:ring-0 cursor-pointer appearance-none">
+                <select name="category" class="h-9 sm:h-10 pl-2 sm:pl-3 pr-5 sm:pr-6 text-xs sm:text-sm bg-transparent border-0 rounded-l-xl text-gray-600 focus:outline-none focus:ring-0 cursor-pointer appearance-none border-r border-gray-300">
                     <option value="all" selected>All</option>
                     <option value="courses">Courses</option>
                     {% if user.role in 'globaladmin,superadmin,admin,instructor' %}
@@ -236,7 +247,7 @@
             
             <!-- Search Input -->
             <div class="relative flex-1 flex items-center min-w-0">
-                <div class="absolute left-2 sm:left-3">
+                <div class="absolute left-2 sm:left-3 z-10">
                     <svg class="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
                     </svg>
@@ -244,7 +255,7 @@
                 <input type="text" 
                        name="q"
                        placeholder="Search..." 
-                       class="w-full h-9 sm:h-10 pl-7 sm:pl-10 pr-2 sm:pr-4 bg-transparent border-0 text-xs sm:text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-0 rounded-r-xl">
+                       class="w-full h-9 sm:h-10 pl-8 sm:pl-12 pr-2 sm:pr-4 bg-transparent border-0 text-xs sm:text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-0 rounded-r-xl">
             </div>
         </form>
     </div>
@@ -275,6 +286,11 @@
 
 
 <style>
+    /* Alpine.js cloak - hide elements before Alpine.js initializes */
+    [x-cloak] {
+        display: none !important;
+    }
+    
     header {
         box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
     }
@@ -870,6 +886,50 @@
             transform: translateY(0);
             opacity: 1;
         }
+        
+        /* Mobile search form improvements */
+        #mobile-search-container form {
+            border-radius: 0.75rem;
+            overflow: hidden;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+        }
+        
+        /* Fix mobile search input styling */
+        #mobile-search-container input[type="text"] {
+            padding-left: 2rem !important;
+            padding-right: 0.5rem !important;
+        }
+        
+        /* Fix mobile search select styling */
+        #mobile-search-container select {
+            border-right: 1px solid #d1d5db !important;
+            padding-right: 1.5rem !important;
+        }
+        
+        /* Ensure mobile search icon is properly positioned */
+        #mobile-search-container .absolute.left-2,
+        #mobile-search-container .absolute.left-3 {
+            z-index: 10 !important;
+            pointer-events: none !important;
+        }
+        
+        /* Fix mobile search placeholder text positioning */
+        #mobile-search-container input::placeholder {
+            color: #9ca3af !important;
+            opacity: 1 !important;
+        }
+        
+        /* Ensure mobile search form elements are properly aligned */
+        #mobile-search-container .flex {
+            align-items: stretch !important;
+        }
+        
+        /* Fix mobile search container height consistency */
+        #mobile-search-container .h-9,
+        #mobile-search-container .h-10 {
+            min-height: 2.25rem !important;
+        }
     }
     
     /* Hide mobile search toggle on desktop */
@@ -880,6 +940,72 @@
         
         #mobile-search-container {
             display: none !important;
+        }
+    }
+    
+    /* Mobile profile dropdown fixes */
+    @media (max-width: 768px) {
+        /* Ensure profile dropdown container has proper stacking */
+        .flex.items-center.relative[x-data] {
+            z-index: 60 !important;
+            position: relative !important;
+        }
+        
+        /* Ensure profile button is touch-friendly */
+        .flex.items-center.relative[x-data] button {
+            touch-action: manipulation !important;
+            -webkit-tap-highlight-color: transparent !important;
+            cursor: pointer !important;
+        }
+        
+        /* Ensure profile dropdown menu is visible and properly positioned on mobile */
+        .flex.items-center.relative[x-data] > div[x-show] {
+            z-index: 70 !important;
+            position: absolute !important;
+            top: 3rem !important;
+            right: 0 !important;
+            min-width: 12rem !important;
+            width: max-content !important;
+            max-width: calc(100vw - 2rem) !important;
+        }
+        
+        /* Prevent mobile menu from interfering with profile dropdown */
+        #mobile-menu {
+            z-index: 40 !important;
+        }
+        
+        /* Fix for touch devices - improve button feedback */
+        .flex.items-center.relative[x-data] button:active {
+            background-color: #f3f4f6 !important;
+        }
+        
+        /* Ensure dropdown menu items are touch-friendly on mobile */
+        .flex.items-center.relative[x-data] a,
+        .flex.items-center.relative[x-data] button[type="submit"] {
+            min-height: 44px !important;
+            touch-action: manipulation !important;
+            -webkit-tap-highlight-color: transparent !important;
+        }
+        
+        /* Better visual feedback for touch on menu items */
+        .flex.items-center.relative[x-data] a:active,
+        .flex.items-center.relative[x-data] button[type="submit"]:active {
+            background-color: #e5e7eb !important;
+        }
+        
+        /* Ensure dropdown stays within viewport on small screens */
+        .flex.items-center.relative[x-data] > div[x-show] {
+            max-height: calc(100vh - 5rem) !important;
+            overflow-y: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+        }
+    }
+    
+    /* Extra small screens - adjust dropdown positioning */
+    @media (max-width: 480px) {
+        .flex.items-center.relative[x-data] > div[x-show] {
+            right: -0.5rem !important;
+            max-width: calc(100vw - 1rem) !important;
         }
     }
 </style>
@@ -1818,5 +1944,71 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Skipping notification polling - first visit or unauthenticated user');
         }
     }
+    
+    // Check if Alpine.js is loaded
+    console.log('Checking Alpine.js availability:', typeof Alpine !== 'undefined' ? 'Available' : 'NOT AVAILABLE');
+    
+    // Wait for Alpine.js to be available
+    function waitForAlpine() {
+        if (typeof Alpine !== 'undefined') {
+            console.log('✅ Alpine.js is loaded and available');
+            
+            // Enhanced Alpine.js initialization for mobile devices
+            document.addEventListener('alpine:init', () => {
+                console.log('✅ Alpine.js alpine:init event fired');
+            });
+            
+            // Ensure Alpine.js properly handles touch events on mobile
+            if (window.innerWidth <= 768) {
+                console.log('📱 Mobile device detected - setting up touch support');
+                
+                // Wait for Alpine to be fully loaded
+                document.addEventListener('alpine:initialized', () => {
+                    console.log('✅ Alpine.js alpine:initialized event fired');
+                    const profileContainer = document.querySelector('[x-data*="isOpen"]');
+                    if (profileContainer) {
+                        console.log('✅ Profile dropdown container found');
+                        
+                        // Check if Alpine is bound
+                        if (profileContainer.__x) {
+                            console.log('✅ Alpine.js is bound to profile container');
+                        } else {
+                            console.error('❌ Alpine.js is NOT bound to profile container');
+                        }
+                        
+                        // Add additional touch event support for better mobile compatibility
+                        const profileButton = profileContainer.querySelector('button');
+                        if (profileButton) {
+                            // Prevent double-tap zoom on the profile button
+                            profileButton.style.touchAction = 'manipulation';
+                            console.log('✅ Profile button touch events configured');
+                        }
+                    } else {
+                        console.error('❌ Profile dropdown container NOT found');
+                    }
+                });
+            }
+        } else {
+            console.warn('⏳ Alpine.js not yet loaded, waiting...');
+            setTimeout(waitForAlpine, 100);
+        }
+    }
+    
+    // Start waiting for Alpine
+    waitForAlpine();
+    
+    // Handle window resize to adjust for orientation changes
+    let resizeTimer;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function() {
+            if (window.innerWidth <= 768) {
+                const profileButton = document.querySelector('[x-data*="isOpen"] button');
+                if (profileButton) {
+                    profileButton.style.touchAction = 'manipulation';
+                }
+            }
+        }, 250);
+    });
 });
 </script> 

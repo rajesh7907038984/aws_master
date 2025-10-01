@@ -7,7 +7,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('branches', '0002_initial'),
+        ('branches', '0001_initial'),
         ('lms_rubrics', '0006_merge_20250522_1413'),
     ]
 

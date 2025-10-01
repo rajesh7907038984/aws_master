@@ -50,15 +50,32 @@
             // Optional: sync with server
             const syncEndpoint = '/api/sync-device-time/';
             if (window.fetch && typeof window.CSRFHandler !== 'undefined') {
+                // Create payload with correct field names expected by server
+                const serverPayload = {
+                    client_time: timeInfo.localTime,
+                    timezone: timeInfo.timezoneName
+                };
+                
                 fetch(syncEndpoint, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRFToken': window.CSRFHandler.getToken()
                     },
-                    body: JSON.stringify(timeInfo)
+                    body: JSON.stringify(serverPayload)
+                }).then(response => {
+                    if (!response.ok) {
+                        console.warn('Device time sync failed:', response.status, response.statusText);
+                        return response.json().then(data => {
+                            console.warn('Server error details:', data);
+                        });
+                    }
+                    return response.json();
+                }).then(data => {
+                    if (data && data.success) {
+                        console.debug('Device time synced successfully');
+                    }
                 }).catch(e => {
-                    // Silently fail - this is optional functionality
                     console.debug('Device time sync failed (optional):', e);
                 });
             }

@@ -16,7 +16,7 @@
     <script src="{% static 'core/js/version-manager.js' %}"></script>
     
     <!-- CSRF Token Manager - centralized token management -->
-    <script src="{% static 'js/csrf-token-manager.js' %}"></script>
+    <script src="{% static 'js/csrf-token-manager.js' %}?v=1.1"></script>
     
     <!-- Enhanced Fetch with CSRF handling - wraps all fetch calls -->
     <script src="{% static 'js/csrf-enhanced-fetch.js' %}"></script>
@@ -56,7 +56,7 @@
     {% tinymce_browser_compat %}
     
     <!-- Responsive Tables CSS -->
-    <link rel="stylesheet" href="{% static 'core/css/responsive-tables.css' %}">
+    <link rel="stylesheet" href="{% static 'css/responsive-tables.css' %}">
     
     <!-- Responsive Tables JavaScript -->
     <script src="{% static 'core/js/responsive-tables.js' %}" defer></script>
@@ -181,8 +181,7 @@
     {% csrf_token %}
     <meta name="csrf-token" content="{{ csrf_token }}">
     
-    <!-- CSRF Token Manager -->
-    <script src="{% static 'js/csrf-token-manager.js' %}"></script>
+    <!-- CSRF Token Manager - already loaded above -->
     
     <!-- User Authentication Status for JavaScript -->
     <script>
@@ -232,6 +231,13 @@
     
     <!-- Tailwind and Alpine.js -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Suppress Tailwind production warning
+        if (typeof tailwind !== 'undefined') {
+            tailwind.config = tailwind.config || {};
+            tailwind.config.silent = true;
+        }
+    </script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     
     <!-- Font Awesome -->
@@ -1068,7 +1074,7 @@
     </script>
     
     <!-- Unified Sidebar JavaScript -->
-    <script src="{% static 'js/sidebar-unified.js' %}?v=5.2"></script>
+    <script src="{% static 'js/sidebar-unified.js' %}?v=1.2"></script>
     
     <!-- Sidebar Debug Fix Script -->
     

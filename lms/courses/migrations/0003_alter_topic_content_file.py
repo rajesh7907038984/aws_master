@@ -14,6 +14,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='topic',
             name='content_file',
-            field=models.FileField(blank=True, help_text='Upload file for Video, Audio, Document, or SCORM content', max_length=255, null=True, storage=courses.models.get_scorm_storage, upload_to=courses.models.content_file_path),
+            field=models.FileField(blank=True, help_text='Upload file for Video, Audio, Document, or SCORM content', max_length=255, null=True, upload_to=courses.models.content_file_path),
         ),
     ]

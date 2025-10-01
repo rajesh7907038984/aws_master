@@ -9,8 +9,8 @@ class Migration(migrations.Migration):
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
         ("assignments", "0001_initial"),
-        ("quiz", "0002_initial"),
-        ("conferences", "0002_initial"),
+        ("quiz", "0001_initial"),
+        ("conferences", "0001_initial"),
         ("discussions", "0001_initial"),
         ("lms_rubrics", "0016_rubricoverallfeedback"),
     ]

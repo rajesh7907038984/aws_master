@@ -11,7 +11,6 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ("lms_rubrics", "0001_initial"),
     ]
 
     operations = [

@@ -4,7 +4,7 @@ import pytz
 
 class IntegrationCredential(models.Model):
     """Base model for storing integration credentials"""
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
     name = models.CharField(max_length=255, help_text="Name for this integration configuration")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -18,7 +18,7 @@ class IntegrationCredential(models.Model):
 class PortalSettings(models.Model):
     """Model for storing portal settings"""
     branch = models.OneToOneField('branches.Branch', on_delete=models.CASCADE, related_name='portal_settings', 
-                                help_text="The branch these portal settings belong to")
+                                null=True, blank=True, help_text="The branch these portal settings belong to")
     timezone = models.CharField(max_length=50, default='UTC', 
                               help_text="Default timezone for the portal")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -303,7 +303,7 @@ class ExportJob(models.Model):
         ('failed', 'Failed'),
     ]
     
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='export_jobs')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='export_jobs', null=True, blank=True)
     export_type = models.CharField(max_length=20, choices=EXPORT_TYPE_CHOICES)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     file_path = models.CharField(max_length=500, null=True, blank=True)
@@ -340,7 +340,7 @@ class ImportJob(models.Model):
         ('partial', 'Partially Completed'),
     ]
     
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='import_jobs')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='import_jobs', null=True, blank=True)
     import_type = models.CharField(max_length=20, choices=IMPORT_TYPE_CHOICES)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     file_path = models.CharField(max_length=500)

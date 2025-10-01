@@ -10,7 +10,9 @@ class Report(models.Model):
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='created_reports'
+        related_name='created_reports',
+        null=True,
+        blank=True
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -85,7 +87,7 @@ class Event(models.Model):
         ('CUSTOM', 'Custom Event'),
     ]
 
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
     course = models.ForeignKey('courses.Course', on_delete=models.CASCADE, null=True, blank=True)
     type = models.CharField(max_length=50, choices=EVENT_TYPES)
     description = models.TextField(blank=True)
@@ -112,7 +114,9 @@ class ReportTemplate(models.Model):
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='created_report_templates'
+        related_name='created_report_templates',
+        null=True,
+        blank=True
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

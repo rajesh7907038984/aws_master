@@ -150,7 +150,8 @@ print("📁 Using local static files storage for production (better performance)
 # ==============================================
 
 # SSL Configuration - ALB handles SSL termination
-SECURE_SSL_REDIRECT = False  # Disabled for now to fix 503 error
+# Enable SSL redirect since ALB terminates SSL and forwards to HTTP backend
+SECURE_SSL_REDIRECT = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True

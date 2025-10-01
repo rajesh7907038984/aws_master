@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ("conferences", "0002_initial"),
+        ("conferences", "0001_initial"),
         ("discussions", "0001_initial"),
         ("assignments", "0001_initial"),
         ("lms_rubrics", "0013_populate_rubric_history"),
