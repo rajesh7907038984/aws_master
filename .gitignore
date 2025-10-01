@@ -33,6 +33,8 @@ staticfiles/
 venv/
 env/
 ENV/
+lms/venv/
+**/venv/
 
 # IDE
 .vscode/
@@ -61,6 +63,8 @@ scorm_temp/
 .env
 .env.local
 .env.production
+.env.backup
+lms/.env.backup
 
 # Cache
 .cache/
