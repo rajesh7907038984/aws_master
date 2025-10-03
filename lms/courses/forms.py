@@ -1,8 +1,8 @@
 from django import forms
 from django.contrib.auth import get_user_model
 from django.utils.translation import gettext_lazy as _
-from .models import Course, Topic, CourseCategory, Section, SCORMPackage
-from scorm_cloud.models import SCORMCloudContent
+from .models import Course, Topic, CourseCategory, Section
+# SCORM imports removed - functionality no longer supported
 from core.utils.forms import BaseModelFormWithTinyMCE
 from tinymce_editor.widgets import TinyMCEWidget
 import logging
@@ -22,7 +22,7 @@ from bs4 import BeautifulSoup
 import zipfile
 from django.conf import settings
 from django.core.files.uploadedfile import InMemoryUploadedFile
-from core.utils.file_validators import validate_scorm_upload  # Keep only SCORM validation
+# SCORM validation removed - functionality no longer supported
 from typing import Any, Dict, List, Optional, Union, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -1136,9 +1136,7 @@ class TopicForm(BaseModelFormWithTinyMCE):
             return cleaned_data
             
         # Standardize content type to match the model choices
-        # Fix case-sensitivity issues with content types, especially SCORM
-        if content_type.upper() == 'SCORM':
-            content_type_upper = 'SCORM'  # Always use uppercase for SCORM
+        # Fix case-sensitivity issues with content types
         else:
             # Don't use capitalize() as it lowercases everything after first char
             # Just use the original content_type as it should match model choices
@@ -1177,7 +1175,7 @@ class TopicForm(BaseModelFormWithTinyMCE):
                 continue
             elif content_type_lower == 'discussion' and field == 'discussion':
                 continue
-            elif content_type_lower in ['video', 'audio', 'document', 'scorm'] and field == 'content_file':
+            elif content_type_lower in ['video', 'audio', 'document'] and field == 'content_file':
                 continue
                 
             if field in cleaned_data:
@@ -1209,22 +1207,7 @@ class TopicForm(BaseModelFormWithTinyMCE):
                 if content_file:
                     # Basic file validation is handled by the form field
                     pass
-        elif content_type_lower == 'scorm':
-            # SCORM validation - support both file upload and direct upload to cloud
-            if self.instance and self.instance.pk and self.instance.content_file:
-                # SCORM file already exists - prevent replacement
-                if 'content_file' in self.files:
-                    self.add_error('content_file', 'SCORM packages cannot be replaced once uploaded. Please create a new topic if you need to upload a different SCORM package.')
-            # For new SCORM topics, content_file is optional (direct upload to cloud is supported)
-            elif 'content_file' in self.files:
-                # If a file is provided, validate it
-                content_file = self.files.get('content_file')
-                ext = os.path.splitext(content_file.name)[1].lower()
-                if ext != '.zip':
-                    self.add_error('content_file', 'Only ZIP files are allowed for SCORM packages.')
-                else:
-                    # SCORM file validation
-                    pass
+        # SCORM validation removed - functionality no longer supported
             # If no file is provided, that's OK - direct upload to cloud is supported
         elif content_type_lower == 'quiz':
             if not cleaned_data.get('quiz'):
@@ -1283,7 +1266,7 @@ class TopicForm(BaseModelFormWithTinyMCE):
             instance.web_url = self.cleaned_data.get('web_url')
         elif content_type_lower == 'embedvideo':
             instance.embed_code = self.cleaned_data.get('embed_code')
-        elif content_type_lower in ['video', 'audio', 'document', 'scorm']:
+        elif content_type_lower in ['video', 'audio', 'document']:
             if 'content_file' in self.files:
                 instance.content_file = self.files['content_file']
         elif content_type_lower == 'quiz':
@@ -1327,110 +1310,11 @@ class TopicForm(BaseModelFormWithTinyMCE):
             # Get the content type to determine appropriate validation
             content_type = self.cleaned_data.get('content_type', '').lower()
             
-            try:
-                # Use content-type specific validation to avoid false positives
-                if content_type == 'scorm':
-                    validate_scorm_upload(content_file)
-                # Note: Other file types are now validated by secure_filename_validator in their respective clean methods
-            except ValidationError as e:
-                raise forms.ValidationError(str(e))
+            # SCORM validation removed - functionality no longer supported
+            # Note: Other file types are now validated by secure_filename_validator in their respective clean methods
+            pass
         return content_file
 
-class SCORMUploadForm(forms.ModelForm):
-    """Form for handling SCORM package uploads"""
-    
-    file = forms.FileField(
-        widget=forms.FileInput(attrs={
-            'accept': '.zip',
-            'class': 'form-control',
-            'data-validate': 'scorm',
-            'data-max-size': str(600 * 1024 * 1024),  # 600MB
-            'data-categories': 'scorm'
-        }),
-        help_text=_('Upload SCORM package (ZIP file only, max 600MB)'),
-        required=True,
-        validators=[validate_scorm_upload]
-    )
-    
-    title = forms.CharField(
-        max_length=255,
-        required=True,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': _('Enter title for SCORM package')
-        })
-    )
-    
-    description = forms.CharField(
-        required=False,
-        widget=forms.Textarea(attrs={
-            'class': 'form-control',
-            'rows': 4,
-            'placeholder': _('Enter description (optional)')
-        })
-    )
-
-    class Meta:
-        model = SCORMCloudContent
-        fields = ['title', 'description', 'content_type', 'content_id']
-
-    def __init__(self, *args, **kwargs):
-        self.course = kwargs.pop('course', None)
-        self.user = kwargs.pop('user', None)
-        super().__init__(*args, **kwargs)
-        # Hide content_type and content_id fields as they will be set programmatically
-        self.fields['content_type'].widget = forms.HiddenInput()
-        self.fields['content_id'].widget = forms.HiddenInput()
-        # Set default values
-        self.fields['content_type'].initial = 'topic'
-        if self.course:
-            self.fields['content_id'].initial = str(self.course.id)
-
-    def clean_file(self):
-        """Validate uploaded file using global validation system"""
-        file = self.cleaned_data.get('file')
-        if not file:
-            raise forms.ValidationError(_('No file was submitted.'))
-        
-        # Use the global file validation system
-        try:
-            validate_scorm_upload(file)
-        except ValidationError as e:
-            raise forms.ValidationError(str(e))
-        
-        return file
-
-    def clean_title(self):
-        """Validate title"""
-        title = self.cleaned_data.get('title')
-        if not title:
-            raise forms.ValidationError(_('Title is required.'))
-        if len(title) < 3:
-            raise forms.ValidationError(_('Title must be at least 3 characters long.'))
-        return title
-
-    def clean(self):
-        """Additional validation"""
-        cleaned_data = super().clean()
-        
-        # Verify course access permissions if course context is provided
-        if self.course and self.user and not self.user.is_superuser:
-            has_permission = (
-                (self.user.role == 'admin' and self.course.branch == self.user.branch) or
-                (self.user.role == 'instructor' and self.course.instructor == self.user) or
-                self.course.accessible_groups.filter(
-                    memberships__user=self.user,
-                    memberships__is_active=True,
-                    course_access__can_modify=True
-                ).exists()
-            )
-            
-            if not has_permission:
-                raise forms.ValidationError(
-                    _("You don't have permission to upload SCORM content to this course.")
-                )
-
-        return cleaned_data
 
 class TopicAdminForm(forms.ModelForm):
     course = forms.ModelChoiceField(

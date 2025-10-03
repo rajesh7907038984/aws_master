@@ -91,10 +91,7 @@ urlpatterns = [
     path('api/sections/<int:section_id>/simple-delete/', views_simple.simple_section_delete, name='simple_section_delete'),
     path('api/sections/<int:section_id>/rename/', views.update_section_name, name='update_section_name'),
     
-    # SCORM integration
-    path('scorm/', include('scorm_cloud.urls')),
-    path('admin/progress/<int:progress_id>/sync-scorm/', views.sync_scorm_progress_admin, name='sync_scorm_progress_admin'),
-    
+   
     # Category management - use categories app instead
     
     # Course progress and completion

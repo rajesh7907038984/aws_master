@@ -45,7 +45,7 @@ from core.decorators.error_handling import comprehensive_error_handler, api_erro
 from core.utils.query_optimization import QueryOptimizer
 
 # Third-party imports
-from scorm_cloud.utils.api import SCORMCloudError
+# SCORM imports removed - functionality no longer supported
 from role_management.utils import require_capability, require_any_capability, PermissionManager
 
 # Local imports
@@ -59,7 +59,7 @@ from .models import (
     Comment,
     Attachment
 )
-from .forms import CourseForm, TopicForm, SCORMUploadForm
+from .forms import CourseForm, TopicForm
 from categories.models import CourseCategory
 from categories.context_processors import get_user_accessible_categories
 from quiz.models import Quiz
@@ -67,7 +67,7 @@ from assignments.models import Assignment
 from conferences.models import Conference
 from discussions.models import Discussion as DiscussionModel, Comment as DiscussionComment
 from users.models import CustomUser, Branch
-from scorm_cloud.models import SCORMPackage, SCORMCloudContent, SCORMRegistration
+# SCORM models removed - functionality no longer supported
 from role_management.models import RoleCapability, UserRole
 from groups.models import CourseGroup, BranchGroup
 from certificates.models import CertificateTemplate
@@ -7070,6 +7070,7 @@ def claude_ai_proxy(request):
 @login_required
 def topic_create(request, course_id):
     """Handle topic creation for a course"""
+    from django.urls import reverse  # Ensure reverse is available in local scope
     # Log request information for debugging
     logger.info(f"Topic create view accessed - URL: {request.path}, Course ID: {course_id}, Query params: {request.GET}")
     

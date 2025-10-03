@@ -10,12 +10,9 @@ from django.apps import apps
 from users.models import CustomUser, Branch
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-# SCORM imports removed - functionality no longer supported
-# from scorm_cloud.utils.api import get_scorm_client
-# from scorm_cloud.models import SCORMPackage, SCORMCloudContent, SCORMDestination
+# # SCORM integration removed # SCORM removed
 from core.utils.fields import TinyMCEField
 from django.core.files.storage import default_storage
-# Local file storage configuration
 from categories.models import CourseCategory
 
 import uuid
@@ -34,13 +31,11 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# SCORM model getters removed - functionality no longer supported
+
 
 def content_file_path(instance: Any, filename: str) -> str:
     """Generate file path for course content with safe filename handling for S3 storage"""
-    # Local file storage configuration
-    if isinstance(instance, Topic) and instance.content_type == 'SCORM':
-        return f"scorm_cloud/{instance.pk}_{filename}"
+    # Content files go through default storage (S3)
     
     # Get the base filename and extension
     name, ext = os.path.splitext(filename)
@@ -1233,8 +1228,6 @@ class Course(models.Model):
                     logger.info(f"Successfully deleted {report_count} reports")
             except Exception as e:
                 logger.error(f"Error deleting report data: {str(e)}")
-            
-            # 8. SCORM content deletion removed - no longer supported
 
             # 9. DELETE ALL TOPICS (EXCLUSIVELY LINKED TO THIS COURSE)
             try:
@@ -1407,7 +1400,6 @@ class Section(models.Model):
 class Topic(models.Model):
     """Model for course topics with various content types"""
     TOPIC_TYPE_CHOICES = [
-        # ('SCORM', 'SCORM'),  # SCORM support removed
         ('Video', 'Video'),
         ('Document', 'Document'),
         ('Text', 'Text'),
@@ -1501,6 +1493,7 @@ class Topic(models.Model):
         help_text="Associated assignment for Assignment type topics"
     )
     
+    
     # Learner restriction fields
     restrict_to_learners = models.BooleanField(
         default=False, 
@@ -1522,8 +1515,6 @@ class Topic(models.Model):
     def clean(self):
         """Validate topic data"""
         super().clean()
-        # SCORM file validation handled at form level
-        # Model validation runs too early before files are assigned to the instance
         
         # Validate dates
         if self.start_date and self.end_date and self.start_date > self.end_date:
@@ -1778,7 +1769,7 @@ class Topic(models.Model):
             except Exception as e:
                 logger.error(f"Error deleting report data: {str(e)}")
             
-            # 7. SCORM content deletion removed - no longer supported
+#             # 7. SCORM content deletion removed - no longer supported # SCORM removed
             
             # 8. DELETE CONTENT FILES
             if self.content_file:
@@ -1837,12 +1828,12 @@ class Topic(models.Model):
             raise
 
     def user_has_access(self, user):
-        """Check if user has access to this topic - SCORM CONTENT RESTRICTED TO LEARNERS ONLY"""
+#         """Check if user has access to this topic - SCORM CONTENT RESTRICTED TO LEARNERS ONLY""" # SCORM removed
         if user.is_superuser:
             return True
         
-        # ROLE RESTRICTION: Only learner role users can access SCORM activities
-        if self.content_type == 'SCORM' and user.role != 'learner':
+#         # ROLE RESTRICTION: Only learner role users can access SCORM activities # SCORM removed
+#         if self.content_type == 'SCORM' and user.role != 'learner': # SCORM removed
             return False
         
         # Check if user is restricted from this topic
@@ -1868,14 +1859,6 @@ class Topic(models.Model):
 
     def get_completion_requirements(self):
         """Get topic completion requirements based on content type"""
-        if self.content_type == 'SCORM':
-            if hasattr(self, 'scorm_cloud_content'):
-                return {
-                    'requires_score': self.scorm_cloud_content.requires_passing_score,
-                    'requires_completion': True,
-                    'pass_score': self.scorm_cloud_content.passing_score,
-                    'requires_passing_score': self.scorm_cloud_content.requires_passing_score
-                }
         return {
             'requires_completion': True,
             'requires_score': False,
@@ -1885,86 +1868,15 @@ class Topic(models.Model):
 
     def get_user_progress(self, user):
         """Get progress for a specific user"""
-        if self.content_type == 'SCORM':
-            scorm_progress = self.get_scorm_progress(user)
-            if scorm_progress:
-                return scorm_progress
+#         if self.content_type == 'SCORM': # SCORM removed
+#             scorm_progress = self.get_scorm_progress(user) # SCORM removed
+#             if scorm_progress: # SCORM removed
+#                 return scorm_progress # SCORM removed
         return TopicProgress.objects.filter(
             topic=self,
             user=user
         ).first()
 
-    def get_scorm_content(self):
-        """Get SCORM content with improved error handling"""
-        if self.content_type == 'SCORM':
-            try:
-                # Get SCORM content by content_id
-                SCORMCloudContent = apps.get_model('scorm_cloud', 'SCORMCloudContent')
-                
-                # First check if file exists
-                if not self.content_file:
-                    logger.warning(f"Topic {self.id} ({self.title}) has no content file")
-                    return None
-                
-                # For S3 storage, we can't use os.path.exists with .path
-                # Instead, check if the file has a URL (which means it exists)
-                if not hasattr(self.content_file, 'url'):
-                    logger.warning(f"Topic {self.id} ({self.title}) content file does not exist: {self.content_file.name}")
-                    return None
-                
-                # Then try to get the SCORM Cloud content
-                return SCORMCloudContent.objects.filter(
-                    content_id=str(self.id),
-                    content_type='topic'
-                ).first()
-            except Exception as e:
-                logger.error(f"Error getting SCORM content for topic {self.id}: {str(e)}")
-                return None
-        return None
-
-    def get_launch_url(self, user):
-        """Get SCORM launch URL for user with branch-specific support"""
-        scorm_content = self.get_scorm_content()
-        if scorm_content:
-            return scorm_content.get_launch_url(user)
-        return None
-
-    def get_scorm_progress(self, user):
-        """Get SCORM progress for a specific user"""
-        if self.content_type == 'SCORM':
-            scorm_content = self.get_scorm_content()
-            if scorm_content:
-                registration = scorm_content.package.get_registration(user)
-                return registration
-        return None
-
-    def sync_scorm_progress(self, user):
-        """Sync SCORM progress data with branch-specific support"""
-        scorm_content = self.get_scorm_content()
-        if scorm_content:
-            return scorm_content.sync_progress(user)
-        return False
-
-    def get_user_progress_record(self, user=None):
-        """Get progress record for a specific user or the current request user"""
-        from django.utils.functional import SimpleLazyObject
-        
-        # If no user provided, try to get from request context
-        if user is None:
-            from django.core.exceptions import ObjectDoesNotExist
-            from django.template import RequestContext
-            try:
-                # Try to get user from request context
-                context = RequestContext.get_context()
-                user = context.get('user', None)
-            except:
-                return None
-                
-        # Handle case where user is a lazy object
-        if isinstance(user, SimpleLazyObject):
-            if not hasattr(user, '_wrapped') or user._wrapped.__class__.__name__ == 'AnonymousUser':
-                return None
-        
         # Return None for anonymous users
         if not user or not user.is_authenticated:
             return None
@@ -1985,27 +1897,6 @@ class TopicProgress(models.Model):
     topic = models.ForeignKey(
         Topic,
         on_delete=models.CASCADE,
-        related_name='user_progress'
-    )
-    
-    # SCORM tracking
-    scorm_registration = models.CharField(
-        max_length=255,
-        null=True,
-        blank=True,
-        help_text="SCORM Cloud registration ID"
-    )
-    
-    # Progress tracking
-    progress_data = models.JSONField(
-        default=dict,
-        help_text="Stores progress data specific to content type"
-    )
-    bookmark = models.JSONField(
-        null=True,
-        blank=True,
-        help_text="Stores last position or state in content"
-    )
     completion_data = models.JSONField(
         null=True,
         blank=True,
@@ -2019,7 +1910,7 @@ class TopicProgress(models.Model):
         choices=[
             ('auto', 'Automatic'),
             ('manual', 'Manual'),
-            ('scorm', 'SCORM')
+#             ('scorm', 'SCORM') # SCORM removed
         ],
         default='auto'
     )
@@ -2097,7 +1988,7 @@ class TopicProgress(models.Model):
         # Use type-safe progress data handling
         normalized_data = normalize_mixed_type_field(self.progress_data)
         if normalized_data:
-            # For Video, Audio, SCORM content
+#             # For Video, Audio, SCORM content # SCORM removed
             progress = safe_get_float(normalized_data, 'progress')
             if progress is not None:
                 # Handle both percentage (0-100) and decimal (0-1) formats
@@ -2106,7 +1997,7 @@ class TopicProgress(models.Model):
                 else:  # Percentage format (0-100)
                     return round(min(progress, 100))
             
-            # For SCORM content, check completion_percent
+#             # For SCORM content, check completion_percent # SCORM removed
             completion = safe_get_float(normalized_data, 'completion_percent')
             if completion is not None:
                 return round(min(completion, 100))
@@ -2174,8 +2065,8 @@ class TopicProgress(models.Model):
             if 'last_position' not in self.progress_data:
                 self.progress_data['last_position'] = 0
         
-        # SCORM-specific defaults
-        elif self.topic.content_type == 'SCORM':
+#         # SCORM-specific defaults # SCORM removed
+#         elif self.topic.content_type == 'SCORM': # SCORM removed
             if 'status' not in self.progress_data:
                 self.progress_data['status'] = 'not_attempted'
                 
@@ -2218,8 +2109,8 @@ class TopicProgress(models.Model):
                 
             self.save()
 
-    def update_from_scorm(self, registration):
-        """Update progress based on SCORM Cloud registration data"""
+#     def update_from_scorm(self, registration): # SCORM removed
+#         """Update progress based on SCORM Cloud registration data""" # SCORM removed
         # Ensure progress_data is initialized as a dictionary
         if not isinstance(self.progress_data, dict):
             self.progress_data = {}
@@ -2257,14 +2148,8 @@ class TopicProgress(models.Model):
         })
         
         # Check completion requirements
-        if registration.completion_status in ['completed', 'passed']:
-            scorm_content = self.topic.get_scorm_content()
-            if scorm_content:
-                if not scorm_content.requires_passing_score or (
-                    registration.score and registration.score >= scorm_content.passing_score
-                ):
-                    self.mark_complete('scorm')
-                    return  # mark_complete already calls save()
+        # SCORM completion logic removed - using default completion
+        pass
                     
         # Save if mark_complete wasn't called
         self.save()
@@ -2541,14 +2426,14 @@ class TopicProgress(models.Model):
             return 'In Progress'
         return 'Not Started'
 
-    def update_scorm_progress(self, registration_report):
-        """Update progress based on SCORM Cloud registration report"""
+#     def update_scorm_progress(self, registration_report): # SCORM removed
+#         """Update progress based on SCORM Cloud registration report""" # SCORM removed
         if not registration_report:
             logger.warning(f"Empty registration report for topic {self.topic.id}, user {self.user.username}")
             return
 
         try:
-            logger.info(f"Updating SCORM progress for topic {self.topic.id}, user {self.user.username}")
+#             logger.info(f"Updating SCORM progress for topic {self.topic.id}, user {self.user.username}") # SCORM removed
             
             # Ensure progress_data is initialized as a dictionary
             if not isinstance(self.progress_data, dict):
@@ -2605,7 +2490,7 @@ class TopicProgress(models.Model):
                 from core.utils.scoring import ScoreCalculationService
                 
                 score_data = registration_report.get('score', {})
-                normalized_score = ScoreCalculationService.handle_scorm_score(score_data)
+#                 normalized_score = ScoreCalculationService.handle_scorm_score(score_data) # SCORM removed
                 
                 if normalized_score is not None:
                     self.last_score = normalized_score
@@ -2635,7 +2520,7 @@ class TopicProgress(models.Model):
                 'score': float(normalized_score) if normalized_score is not None else None,
                 'total_time': registration_report.get('totalSecondsTracked', 0),
                 'last_updated': timezone.now().isoformat(),
-                'scorm_cloud_sync': True
+#                 'scorm_cloud_sync': True # SCORM removed
             })
             logger.info(f"Updated progress_data with completion status: {completion_status}, success status: {success_status}, progress: {completion_percent}%")
             
@@ -2675,7 +2560,7 @@ class TopicProgress(models.Model):
             if completion_status in ['completed', 'passed'] or success_status == 'passed':
                 logger.info(f"Completion/success status indicates completion, marking as completed")
                 self.completed = True
-                self.completion_method = 'scorm'
+#                 self.completion_method = 'scorm' # SCORM removed
                 if not self.completed_at:
                     self.completed_at = timezone.now()
                     logger.info(f"Set completed_at to {self.completed_at}")
@@ -2685,13 +2570,13 @@ class TopicProgress(models.Model):
             self.save()
             logger.info(f"Saved progress record")
             
-            # Check course completion after updating SCORM progress
+#             # Check course completion after updating SCORM progress # SCORM removed
             if self.completed:
                 logger.info(f"Topic completed, checking course completion")
                 self._check_course_completion()
                 
         except Exception as e:
-            logger.error(f"Error updating SCORM progress: {str(e)}")
+#             logger.error(f"Error updating SCORM progress: {str(e)}") # SCORM removed
             logger.exception("Exception details:")
 
     def update_audio_progress(self, current_time, duration):
@@ -2727,15 +2612,15 @@ class CourseTopic(models.Model):
 
 # DISABLED - Using direct upload system instead of signals
 # @receiver(post_save, sender=Topic)
-# def handle_scorm_content(sender, instance, created, **kwargs):
+# # def handle_scorm_content(sender, instance, created, **kwargs): # SCORM removed
 #     """
-#     DISABLED - Direct upload system handles SCORM content creation
+# #     DISABLED - Direct upload system handles SCORM content creation # SCORM removed
 #     """
 #     return  # Signal disabled - using direct upload in views
     
 #     # Import required models and utilities
 #     from django.core.cache import cache
-#     from scorm_cloud.models import SCORMCloudContent, SCORMPackage
+# #     from scorm_cloud.models import SCORMCloudContent, SCORMPackage # SCORM removed
     
 #     # Use a more robust lock key with file hash to prevent duplicates
 #     import hashlib
@@ -2760,16 +2645,16 @@ class CourseTopic(models.Model):
 #             file_size = 0
 #         
 #         unique_key = f"{instance.id}_{file_size}_{instance.title}"
-#         lock_key = f"scorm_upload_lock_{hashlib.md5(unique_key.encode()).hexdigest()}"
+# #         lock_key = f"scorm_upload_lock_{hashlib.md5(unique_key.encode()).hexdigest()}" # SCORM removed
 #         
 #         # Use database-level check first (more reliable than cache)
-#         existing_content = SCORMCloudContent.objects.filter(
+# #         existing_content = SCORMCloudContent.objects.filter( # SCORM removed
 #             content_type='topic',
 #             content_id=str(instance.id)
 #         ).first()
 #         
 #         if existing_content and existing_content.package:
-#             logger.info(f"Found existing SCORM content for topic {instance.id}, skipping upload")
+# #             logger.info(f"Found existing SCORM content for topic {instance.id}, skipping upload") # SCORM removed
 #             return
 #             
 #         # Try to acquire cache lock with shorter timeout to reduce blocking
@@ -2781,28 +2666,28 @@ class CourseTopic(models.Model):
 #             
 #         try:
 #             # Double-check after acquiring lock (race condition protection)
-#             existing_content = SCORMCloudContent.objects.filter(
+# #             existing_content = SCORMCloudContent.objects.filter( # SCORM removed
 #                 content_type='topic',
 #                 content_id=str(instance.id)
 #             ).first()
 #             
 #             if existing_content and existing_content.package:
-#                 logger.info(f"Found existing SCORM content for topic {instance.id} after lock, skipping upload")
+# #                 logger.info(f"Found existing SCORM content for topic {instance.id} after lock, skipping upload") # SCORM removed
 #                 return
 #             
 #             # Check if the file exists
 #             # For S3 storage, we can't use os.path.exists with .path
 #             # Instead, check if the file has a URL (which means it exists)
 #             if not hasattr(instance.content_file, 'url'):
-#                 logger.error(f"SCORM file does not exist: {instance.content_file.name}")
+# #                 logger.error(f"SCORM file does not exist: {instance.content_file.name}") # SCORM removed
 #                 return
 #                 
 #             # Use the async uploader and return early
 #             try:
-#                 from scorm_cloud.utils.async_uploader import enqueue_upload
+# #                 from scorm_cloud.utils.async_uploader import enqueue_upload # SCORM removed
 #                 
 #                 # Queue the upload task with unique identifier and user context
-#                 # Try to get user from course/branch context for branch-specific SCORM
+# #                 # Try to get user from course/branch context for branch-specific SCORM # SCORM removed
 #                 user = None
 #                 try:
 #                     logger.info(f"🏭 courses/models.py: Determining user context for topic {instance.id}")
@@ -2822,7 +2707,7 @@ class CourseTopic(models.Model):
 #                             user = topic_course.created_by
 #                         elif topic_course and topic_course.branch:
 #                             logger.info(f"🏭 courses/models.py: Looking for branch admin in {topic_course.branch.name}")
-#                             # Get a branch admin user for branch-specific SCORM
+# #                             # Get a branch admin user for branch-specific SCORM # SCORM removed
 #                             from django.contrib.auth import get_user_model
 #                             User = get_user_model()
 #                             user = User.objects.filter(
@@ -2845,22 +2730,22 @@ class CourseTopic(models.Model):
 #                 
 #                 logger.info(f"🏭 courses/models.py: Final user for enqueue_upload: {user.username if user else None}")
 #                 
-#                 # For SCORM topics with content files, we need to upload to SCORM Cloud
-#                 # This handles the case where topics are created with SCORM files
+# #                 # For SCORM topics with content files, we need to upload to SCORM Cloud # SCORM removed
+# #                 # This handles the case where topics are created with SCORM files # SCORM removed
 #                 if instance.content_file:
 #                     try:
 #                         # Get the file path for upload (handle cloud storage properly)
 #                         upload_file_path = None
 #                         
-#                         # Use local storage for SCORM files - no need for cloud storage handling
+# #                         # Use local storage for SCORM files - no need for cloud storage handling # SCORM removed
 #                         upload_file_path = instance.content_file.path
-#                         logger.info(f"Using local SCORM file path: {upload_file_path}")
+# #                         logger.info(f"Using local SCORM file path: {upload_file_path}") # SCORM removed
 #                         
 #                         if not upload_file_path:
-#                             logger.error("Could not determine file path for SCORM upload")
-#                             raise Exception("Could not determine file path for SCORM upload")
+# #                             logger.error("Could not determine file path for SCORM upload") # SCORM removed
+# #                             raise Exception("Could not determine file path for SCORM upload") # SCORM removed
 #                         
-#                         logger.info(f"Uploading SCORM file for topic {instance.id}: {upload_file_path}")
+# #                         logger.info(f"Uploading SCORM file for topic {instance.id}: {upload_file_path}") # SCORM removed
 #                         
 #                         # Enqueue the upload
 #                         enqueue_upload(
@@ -2870,23 +2755,23 @@ class CourseTopic(models.Model):
 #                             user=user
 #                         )
 #                         
-#                         logger.info(f"Queued SCORM upload for topic {instance.id}")
+# #                         logger.info(f"Queued SCORM upload for topic {instance.id}") # SCORM removed
 #                         return
 #                         
 #                     except Exception as upload_error:
-#                         logger.error(f"Error queuing SCORM upload for topic {instance.id}: {str(upload_error)}")
+# #                         logger.error(f"Error queuing SCORM upload for topic {instance.id}: {str(upload_error)}") # SCORM removed
 #                         logger.exception("Full upload error traceback:")
 #                         
 #                         # Upload failed, log error and return
-#                         logger.error(f"SCORM upload failed for topic {instance.id}")
+# #                         logger.error(f"SCORM upload failed for topic {instance.id}") # SCORM removed
 #                         return
 #                 else:
-#                     logger.info(f"SCORM topic {instance.id} has no content file - skipping upload")
+# #                     logger.info(f"SCORM topic {instance.id} has no content file - skipping upload") # SCORM removed
 #                     return
 #                 
-#                 logger.error(f"No file path available for SCORM upload of topic {instance.id}")
+# #                 logger.error(f"No file path available for SCORM upload of topic {instance.id}") # SCORM removed
 #                 
-#                 logger.info(f"Queued SCORM upload for topic {instance.id}")
+# #                 logger.info(f"Queued SCORM upload for topic {instance.id}") # SCORM removed
 #                 return
 #                 
 #             except ImportError:
@@ -2901,7 +2786,7 @@ class CourseTopic(models.Model):
 #                 logger.warning(f"Error releasing cache lock for topic {instance.id}: {str(cache_error)}")
 #                 
 #     except Exception as e:
-#         logger.error(f"Error processing SCORM content for topic {instance.id}: {str(e)}")
+# #         logger.error(f"Error processing SCORM content for topic {instance.id}: {str(e)}") # SCORM removed
 #         # Make sure to release lock on error
 #         try:
 #                 cache.delete(lock_key)

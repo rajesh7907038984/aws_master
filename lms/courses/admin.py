@@ -19,7 +19,7 @@ from .models import (
     LearningObjective, CourseFeature
 )
 from .forms import TopicAdminForm
-from scorm_cloud.models import SCORMPackage, SCORMRegistration
+# SCORM imports removed - functionality no longer supported
 
 logger = logging.getLogger(__name__)
 

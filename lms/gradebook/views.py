@@ -9,7 +9,7 @@ from courses.models import Course, CourseEnrollment, Topic
 from quiz.models import Quiz, QuizAttempt, QuizRubricEvaluation
 from discussions.models import Discussion
 from conferences.models import Conference, ConferenceRubricEvaluation
-from scorm_cloud.models import SCORMPackage, SCORMRegistration, SCORMCloudContent
+# SCORM imports removed - functionality no longer supported
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from decimal import Decimal

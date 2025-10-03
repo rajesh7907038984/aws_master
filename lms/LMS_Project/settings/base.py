@@ -175,7 +175,7 @@ INSTALLED_APPS = [
     'groups',
     'branches',
     'business',
-    'scorm_cloud',
+    # 'scorm_cloud',  # SCORM functionality removed
     'branch_portal',
     'LMS_Project',
     'core',

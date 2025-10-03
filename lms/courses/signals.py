@@ -10,7 +10,7 @@ from django.utils import timezone
 import logging
 
 from .models import Course, Topic, TopicProgress, CourseTopic
-from scorm_cloud.models import SCORMRegistration, SCORMCloudContent
+# SCORM imports removed - functionality no longer supported
 
 logger = logging.getLogger(__name__)
 
