@@ -5,13 +5,18 @@
         <!-- Left Section: Logo and Sidebar Toggle -->
         <div class="flex items-center gap-1 sm:gap-2 md:gap-4 flex-shrink-0">
             <a href="{% url 'users:role_based_redirect' %}" class="flex items-center transition-transform hover:scale-105 flex-shrink-0">
-                <img src="{% static 'core/img/logo-light.png' %}" alt="Nexsy LMS" class="h-6 sm:h-7 md:h-9 w-auto" style="display: block !important; visibility: visible !important; opacity: 1 !important;">
+                <img src="{% static 'core/img/logo-light.png' %}" alt="Nexsy LMS" class="h-6 sm:h-7 md:h-9 w-auto">
             </a>
             
             <!-- Sidebar Toggle Button (moved after logo) -->
-            <button id="mobile-menu-toggle" class="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0" style="display: flex !important; visibility: visible !important; opacity: 1 !important;" type="button">
+            <button id="mobile-menu-toggle" 
+                    class="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0" 
+                    type="button"
+                    aria-label="Toggle navigation menu"
+                    aria-expanded="false"
+                    aria-controls="mobile-menu">
                 <!-- Hamburger menu icon (three horizontal lines) -->
-                <svg class="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="display: inline !important; visibility: visible !important; opacity: 1 !important;">
+                <svg class="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
             </button>
@@ -25,7 +30,7 @@
                     <select name="category" class="h-10 pl-4 pr-8 text-sm bg-transparent border-0 rounded-l-xl text-gray-600 focus:outline-none focus:ring-0 cursor-pointer appearance-none border-r border-gray-300">
                         <option value="all" selected>Select Option</option>
                         <option value="courses">Courses</option>
-                        {% if user.role in 'globaladmin,superadmin,admin,instructor' %}
+                        {% if user.is_authenticated and user.role in 'globaladmin,superadmin,admin,instructor' %}
                         <option value="users">Users</option>
                         {% endif %}
                         {% for category in categories %}
@@ -64,41 +69,52 @@
         <!-- Right Section: Notifications and Profile -->
         <div class="flex items-center gap-1 sm:gap-2 md:gap-3 flex-shrink-0">
             <!-- Messages Button - Hidden on smallest screens -->
-            <a href="{% url 'lms_messages:messages' %}" class="header-icon discussion-icon hidden xs:flex relative items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0" title="Messages ({{ unread_messages_count }} unread)" style="display: flex !important; visibility: visible !important; opacity: 1 !important;">
-                <svg class="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="display: inline !important; visibility: visible !important; opacity: 1 !important;">
+            <a href="{% url 'lms_messages:messages' %}" 
+               class="header-icon discussion-icon hidden xs:flex relative items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0" 
+               title="Messages ({{ unread_messages_count|default:0 }} unread)"
+               aria-label="Messages ({{ unread_messages_count|default:0 }} unread)"
+               role="button">
+                <svg class="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                 </svg>
-                {% if unread_messages_count > 0 %}
-                <span class="absolute top-1 right-1 sm:top-1 sm:right-1 md:top-2 md:right-2 w-2 h-2 bg-blue-500 rounded-full" style="display: block !important; visibility: visible !important; opacity: 1 !important;"></span>
+                {% if unread_messages_count and unread_messages_count > 0 %}
+                <span class="absolute top-1 right-1 sm:top-1 sm:right-1 md:top-2 md:right-2 w-2 h-2 bg-blue-500 rounded-full" aria-hidden="true"></span>
                 {% if unread_messages_count > 9 %}
-                <span class="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full px-1 min-w-[1rem] h-4 flex items-center justify-center" style="font-size: 9px;" id="messages-count-badge">9+</span>
-                {% elif unread_messages_count > 0 %}
-                <span class="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full px-1 min-w-[1rem] h-4 flex items-center justify-center" style="font-size: 9px;" id="messages-count-badge">{{ unread_messages_count }}</span>
+                <span class="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full px-1 min-w-[1rem] h-4 flex items-center justify-center" id="messages-count-badge" aria-label="{{ unread_messages_count }} unread messages">9+</span>
+                {% else %}
+                <span class="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full px-1 min-w-[1rem] h-4 flex items-center justify-center" id="messages-count-badge" aria-label="{{ unread_messages_count }} unread messages">{{ unread_messages_count }}</span>
                 {% endif %}
                 {% endif %}
             </a>
 
             <!-- Notification Bell Button -->
-            <a href="{% url 'lms_notifications:notification_center' %}" class="header-icon notification-icon relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0" title="Notifications ({{ unread_notifications_count }} unread{% if urgent_notifications_count > 0 %}, {{ urgent_notifications_count }} urgent{% endif %})" style="display: flex !important; visibility: visible !important; opacity: 1 !important;">
-                <svg class="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="display: inline !important; visibility: visible !important; opacity: 1 !important;">
+            <a href="{% url 'lms_notifications:notification_center' %}" 
+               class="header-icon notification-icon relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0" 
+               title="Notifications ({{ unread_notifications_count|default:0 }} unread{% if urgent_notifications_count and urgent_notifications_count > 0 %}, {{ urgent_notifications_count }} urgent{% endif %})"
+               aria-label="Notifications ({{ unread_notifications_count|default:0 }} unread{% if urgent_notifications_count and urgent_notifications_count > 0 %}, {{ urgent_notifications_count }} urgent{% endif %})"
+               role="button">
+                <svg class="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                 </svg>
-                <span id="notification-indicator" class="absolute top-1 right-1 sm:top-1 sm:right-1 md:top-2 md:right-2 w-2 h-2 rounded-full {% if unread_notifications_count > 0 %}{% if urgent_notifications_count > 0 %}bg-red-500 animate-pulse{% else %}bg-orange-500{% endif %}{% else %}hidden{% endif %}" style="{% if unread_notifications_count > 0 %}display: block !important; visibility: visible !important; opacity: 1 !important;{% endif %}"></span>
-                <span id="notification-count-badge" class="absolute -top-1 -right-1 text-white text-xs rounded-full px-1 min-w-[1rem] h-4 flex items-center justify-center {% if unread_notifications_count > 0 %}{% if urgent_notifications_count > 0 %}bg-red-500 animate-pulse{% else %}bg-orange-500{% endif %}{% else %}hidden{% endif %}" style="font-size: 9px; {% if unread_notifications_count == 0 %}display: none;{% endif %}">{% if unread_notifications_count > 9 %}9+{% elif unread_notifications_count > 0 %}{{ unread_notifications_count }}{% endif %}</span>
+                {% if unread_notifications_count and unread_notifications_count > 0 %}
+                <span id="notification-indicator" 
+                      class="absolute top-1 right-1 sm:top-1 sm:right-1 md:top-2 md:right-2 w-2 h-2 rounded-full {% if urgent_notifications_count and urgent_notifications_count > 0 %}bg-red-500 animate-pulse{% else %}bg-orange-500{% endif %}" 
+                      aria-hidden="true"></span>
+                <span id="notification-count-badge" 
+                      class="absolute -top-1 -right-1 text-white text-xs rounded-full px-1 min-w-[1rem] h-4 flex items-center justify-center {% if urgent_notifications_count and urgent_notifications_count > 0 %}bg-red-500 animate-pulse{% else %}bg-orange-500{% endif %}"
+                      aria-label="{% if unread_notifications_count > 9 %}9+{% else %}{{ unread_notifications_count }}{% endif %} unread notifications">
+                    {% if unread_notifications_count > 9 %}9+{% else %}{{ unread_notifications_count }}{% endif %}
+                </span>
+                {% endif %}
             </a>
 
             <!-- Profile Picture with Dropdown -->
-            <div class="flex items-center relative flex-shrink-0" 
-                 x-data="{ isOpen: false, branchMenuOpen: false }" 
-                 @click.away="isOpen = false; branchMenuOpen = false"
-                 x-init="console.log('Profile dropdown initialized')">
+            <div class="flex items-center relative flex-shrink-0" id="profile-container">
                 <button 
-                    @click.stop="isOpen = !isOpen; branchMenuOpen = false; console.log('Profile clicked, isOpen:', isOpen)" 
-                    @touchend.prevent="isOpen = !isOpen; branchMenuOpen = false; console.log('Profile touched, isOpen:', isOpen)"
                     class="relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all overflow-hidden flex-shrink-0"
-                    style="z-index: 60; -webkit-tap-highlight-color: transparent;"
+                    style="z-index: 60; -webkit-tap-highlight-color: transparent; touch-action: manipulation;"
                     aria-label="Profile menu"
-                    :aria-expanded="isOpen"
+                    id="profile-button"
                 >
                     {% if user.profile_image %}
                     <img src="{{ user.profile_image.url }}" alt="{{ user.username }}" class="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full object-cover">
@@ -109,17 +125,9 @@
 
                 <!-- Dropdown Menu -->
                 <div 
-                    x-show="isOpen"
-                    x-transition:enter="transition ease-out duration-100"
-                    x-transition:enter-start="transform opacity-0 scale-95"
-                    x-transition:enter-end="transform opacity-100 scale-100"
-                    x-transition:leave="transition ease-in duration-75"
-                    x-transition:leave-start="transform opacity-100 scale-100"
-                    x-transition:leave-end="transform opacity-0 scale-95"
-                    @click.away="isOpen = false"
-                    class="absolute right-0 top-12 w-48 py-2 bg-white rounded-xl shadow-lg ring-1 ring-gray-200"
+                    id="profile-dropdown"
+                    class="absolute right-0 top-12 w-48 py-2 bg-white rounded-xl shadow-lg ring-1 ring-gray-200 hidden"
                     style="z-index: 70; display: none;"
-                    :style="isOpen ? 'display: block; z-index: 70;' : 'display: none; z-index: 70;'"
                 >
                     {% if user.is_authenticated %}
                     <a href="{% url 'users:user_profile' user.id %}" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
@@ -147,7 +155,7 @@
                             Current Branch
                         </div>
                         <div class="text-sm font-medium text-gray-900 mb-3" id="current-branch-display">
-                            {{ user_branch_access.effective_branch.name|default:"Primary Branch" }}
+                            {{ user_branch_access.effective_branch.name|default:"Primary Branch"|default:"No Branch Selected" }}
                         </div>
                         
                         <!-- Branch Switcher Dropdown -->
@@ -231,7 +239,7 @@
                 <select name="category" class="h-9 sm:h-10 pl-2 sm:pl-3 pr-5 sm:pr-6 text-xs sm:text-sm bg-transparent border-0 rounded-l-xl text-gray-600 focus:outline-none focus:ring-0 cursor-pointer appearance-none border-r border-gray-300">
                     <option value="all" selected>All</option>
                     <option value="courses">Courses</option>
-                    {% if user.role in 'globaladmin,superadmin,admin,instructor' %}
+                    {% if user.is_authenticated and user.role in 'globaladmin,superadmin,admin,instructor' %}
                     <option value="users">Users</option>
                     {% endif %}
                     {% for category in categories %}
@@ -582,7 +590,7 @@
     }
     
     /* Prevent duplicate menu items on mobile */
-    #mobile-menu .py-4 .menu-item:nth-child(n+2):nth-child(-n+2):has(~ .menu-item:nth-child(n+2):nth-child(-n+2)):not(:first-child) {
+    #mobile-menu .py-4 .menu-item.duplicate {
         display: none !important;
     }
 
@@ -748,31 +756,24 @@
     .header-icon,
     .discussion-icon,
     .notification-icon {
-        display: flex !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        position: relative !important;
-        z-index: 10 !important;
+        display: flex;
+        visibility: visible;
+        opacity: 1;
+        position: relative;
+        z-index: 10;
+        min-width: 2rem;
+        min-height: 2rem;
+        width: 2rem;
+        height: 2rem;
+        align-items: center;
+        justify-content: center;
     }
     
     /* Fix header icon positioning and alignment */
     header .flex.items-center.gap-1 {
-        display: flex !important;
-        align-items: center !important;
-        gap: 0.25rem !important;
-    }
-    
-    /* Ensure header icons are properly sized and positioned */
-    .header-icon,
-    .discussion-icon,
-    .notification-icon {
-        min-width: 2rem !important;
-        min-height: 2rem !important;
-        width: 2rem !important;
-        height: 2rem !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
     }
     
     /* Mobile menu toggle button proper alignment */
@@ -784,9 +785,9 @@
     .header-icon svg,
     .discussion-icon svg,
     .notification-icon svg {
-        display: inline !important;
-        visibility: visible !important;
-        opacity: 1 !important;
+        display: inline;
+        visibility: visible;
+        opacity: 1;
     }
     
     /* Mobile search container animations */
@@ -815,14 +816,14 @@
     .header-icon span,
     .discussion-icon span,
     .notification-icon span {
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
+        display: block;
+        visibility: visible;
+        opacity: 1;
     }
     
     /* Override the hidden class for the discussion icon */
     a.discussion-icon.hidden {
-        display: flex !important;
+        display: flex;
     }
     
     /* Mobile search visibility rules */
@@ -943,58 +944,67 @@
         }
     }
     
-    /* Mobile profile dropdown fixes */
+    /* Profile dropdown fixes - Simple approach */
+    #profile-container {
+        position: relative !important;
+        z-index: 60 !important;
+    }
+    
+    #profile-button {
+        touch-action: manipulation !important;
+        -webkit-tap-highlight-color: transparent !important;
+        cursor: pointer !important;
+        min-height: 44px !important;
+        min-width: 44px !important;
+    }
+    
+    #profile-dropdown {
+        position: absolute !important;
+        top: 3rem !important;
+        right: 0 !important;
+        z-index: 9999 !important;
+        min-width: 12rem !important;
+        max-width: calc(100vw - 2rem) !important;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+        background-color: white !important;
+        border-radius: 0.75rem !important;
+        border: 1px solid #e5e7eb !important;
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+    }
+    
+    #profile-dropdown:not(.hidden) {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+    
+    /* Mobile specific fixes */
     @media (max-width: 768px) {
-        /* Ensure profile dropdown container has proper stacking */
-        .flex.items-center.relative[x-data] {
-            z-index: 60 !important;
-            position: relative !important;
-        }
-        
-        /* Ensure profile button is touch-friendly */
-        .flex.items-center.relative[x-data] button {
-            touch-action: manipulation !important;
-            -webkit-tap-highlight-color: transparent !important;
-            cursor: pointer !important;
-        }
-        
-        /* Ensure profile dropdown menu is visible and properly positioned on mobile */
-        .flex.items-center.relative[x-data] > div[x-show] {
-            z-index: 70 !important;
-            position: absolute !important;
-            top: 3rem !important;
-            right: 0 !important;
-            min-width: 12rem !important;
-            width: max-content !important;
-            max-width: calc(100vw - 2rem) !important;
-        }
-        
-        /* Prevent mobile menu from interfering with profile dropdown */
-        #mobile-menu {
-            z-index: 40 !important;
-        }
-        
-        /* Fix for touch devices - improve button feedback */
-        .flex.items-center.relative[x-data] button:active {
-            background-color: #f3f4f6 !important;
+        #profile-dropdown {
+            max-width: calc(100vw - 1rem) !important;
+            right: -0.5rem !important;
         }
         
         /* Ensure dropdown menu items are touch-friendly on mobile */
-        .flex.items-center.relative[x-data] a,
-        .flex.items-center.relative[x-data] button[type="submit"] {
+        #profile-dropdown a,
+        #profile-dropdown button[type="submit"] {
             min-height: 44px !important;
             touch-action: manipulation !important;
             -webkit-tap-highlight-color: transparent !important;
+            padding: 12px 16px !important;
         }
         
         /* Better visual feedback for touch on menu items */
-        .flex.items-center.relative[x-data] a:active,
-        .flex.items-center.relative[x-data] button[type="submit"]:active {
+        #profile-dropdown a:active,
+        #profile-dropdown button[type="submit"]:active {
             background-color: #e5e7eb !important;
+            transform: scale(0.98) !important;
         }
         
         /* Ensure dropdown stays within viewport on small screens */
-        .flex.items-center.relative[x-data] > div[x-show] {
+        #profile-dropdown {
             max-height: calc(100vh - 5rem) !important;
             overflow-y: auto !important;
             -webkit-overflow-scrolling: touch !important;
@@ -1003,7 +1013,7 @@
     
     /* Extra small screens - adjust dropdown positioning */
     @media (max-width: 480px) {
-        .flex.items-center.relative[x-data] > div[x-show] {
+        #profile-dropdown {
             right: -0.5rem !important;
             max-width: calc(100vw - 1rem) !important;
         }
@@ -1015,7 +1025,7 @@
 // Consolidated header JavaScript
 document.addEventListener('DOMContentLoaded', function() {
     // Branch Switcher JavaScript
-    {% if user.role == 'admin' and user_branch_access.can_switch_branches %}
+    {% if user.is_authenticated and user.role == 'admin' and user_branch_access.can_switch_branches %}
     let branchData = null;
     let isLoading = false;
     
@@ -1024,11 +1034,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (branchMenuButton) {
         // Load branches when menu is first opened
         document.addEventListener('click', function(e) {
-            if (e.target.closest('[x-data]')) {
-                const dropdown = e.target.closest('[x-data]');
-                if (dropdown && dropdown.getAttribute('x-data').includes('branchMenuOpen') && !isLoading && !branchData) {
-                    loadUserBranches();
-                }
+            const dropdown = e.target.closest('[x-data]');
+            if (dropdown && dropdown.getAttribute('x-data') && dropdown.getAttribute('x-data').includes('branchMenuOpen') && !isLoading && !branchData) {
+                loadUserBranches();
             }
         });
     }
@@ -1220,11 +1228,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            // Clone the content instead of using innerHTML to avoid duplicate IDs
-            const clone = sidebarContent.cloneNode(true);
-            mobileMenuContent.innerHTML = '';
-            mobileMenuContent.appendChild(clone);
-            mobileMenuContentLoaded = true;
+            try {
+                // Clone the content instead of using innerHTML to avoid duplicate IDs
+                const clone = sidebarContent.cloneNode(true);
+                mobileMenuContent.innerHTML = '';
+                mobileMenuContent.appendChild(clone);
+                mobileMenuContentLoaded = true;
+            } catch (error) {
+                console.error('Error loading mobile menu content:', error);
+                return;
+            }
             
             // Reinitialize submenu toggles in mobile menu with improved error handling
             const submenuToggleButtons = mobileMenuContent.querySelectorAll('.menu-item.has-submenu');
@@ -1236,8 +1249,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     button.removeAttribute('onclick');
                     
                     // Extract submenu ID from data attributes or existing onclick
-                    const submenuId = button.getAttribute('data-submenu') || 
-                                     (button.getAttribute('onclick') && button.getAttribute('onclick').match(/'([^']+)'/)?.[1]);
+                    let submenuId = button.getAttribute('data-submenu');
+                    if (!submenuId && button.getAttribute('onclick')) {
+                        const onclickMatch = button.getAttribute('onclick').match(/'([^']+)'/);
+                        submenuId = onclickMatch ? onclickMatch[1] : null;
+                    }
                     
                     console.log(`Processing mobile submenu button ${index + 1}:`, submenuId);
                     
@@ -1527,7 +1543,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return originalFetch.apply(this, args)
             .then(response => {
                 // Ensure response has proper status information
-                if (response.status === undefined || response.status === null) {
+                if (typeof response.status === 'undefined' || response.status === null) {
                     console.warn('Response with undefined status detected:', {
                         url: args[0],
                         status: response.status,
@@ -1798,11 +1814,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Update counts with adaptive frequency based on success/failure
-    let updateInterval = 300000; // Start with 5 minutes (reduced from 30 seconds)
+    let updateInterval = 300000; // Start with 5 minutes
     let consecutiveFailures = 0;
     const maxFailures = 3;
-    const maxInterval = 600000; // 10 minutes max (increased from 5 minutes)
+    const maxInterval = 600000; // 10 minutes max
     let isPollingPaused = false; // Flag to pause polling during critical operations
+    let pollingTimeout = null; // Store timeout ID for cleanup
 
     // Function to check if we should pause polling based on current page context
     function shouldPausePolling() {
@@ -1850,12 +1867,18 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function scheduleNextUpdate() {
+        // Clear existing timeout to prevent multiple timers
+        if (pollingTimeout) {
+            clearTimeout(pollingTimeout);
+            pollingTimeout = null;
+        }
+        
         if (typeof window !== 'undefined' && window.location) {
             // Check if polling should be paused
             if (shouldPausePolling()) {
                 isPollingPaused = true;
                 // Schedule a shorter check to resume polling when appropriate
-                setTimeout(() => {
+                pollingTimeout = setTimeout(() => {
                     scheduleNextUpdate();
                 }, 5000); // Check every 5 seconds if we should resume
                 return;
@@ -1867,7 +1890,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log('Resuming notification polling after course creation context');
             }
             
-            setTimeout(() => {
+            pollingTimeout = setTimeout(() => {
                 updateHeaderCounts();
                 scheduleNextUpdate();
             }, updateInterval);
@@ -1945,57 +1968,21 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Check if Alpine.js is loaded
-    console.log('Checking Alpine.js availability:', typeof Alpine !== 'undefined' ? 'Available' : 'NOT AVAILABLE');
-    
-    // Wait for Alpine.js to be available
-    function waitForAlpine() {
-        if (typeof Alpine !== 'undefined') {
-            console.log('✅ Alpine.js is loaded and available');
-            
-            // Enhanced Alpine.js initialization for mobile devices
-            document.addEventListener('alpine:init', () => {
-                console.log('✅ Alpine.js alpine:init event fired');
-            });
-            
-            // Ensure Alpine.js properly handles touch events on mobile
-            if (window.innerWidth <= 768) {
-                console.log('📱 Mobile device detected - setting up touch support');
-                
-                // Wait for Alpine to be fully loaded
-                document.addEventListener('alpine:initialized', () => {
-                    console.log('✅ Alpine.js alpine:initialized event fired');
-                    const profileContainer = document.querySelector('[x-data*="isOpen"]');
-                    if (profileContainer) {
-                        console.log('✅ Profile dropdown container found');
-                        
-                        // Check if Alpine is bound
-                        if (profileContainer.__x) {
-                            console.log('✅ Alpine.js is bound to profile container');
-                        } else {
-                            console.error('❌ Alpine.js is NOT bound to profile container');
-                        }
-                        
-                        // Add additional touch event support for better mobile compatibility
-                        const profileButton = profileContainer.querySelector('button');
-                        if (profileButton) {
-                            // Prevent double-tap zoom on the profile button
-                            profileButton.style.touchAction = 'manipulation';
-                            console.log('✅ Profile button touch events configured');
-                        }
-                    } else {
-                        console.error('❌ Profile dropdown container NOT found');
-                    }
-                });
-            }
-        } else {
-            console.warn('⏳ Alpine.js not yet loaded, waiting...');
-            setTimeout(waitForAlpine, 100);
+    // Cleanup function to prevent memory leaks
+    function cleanupPolling() {
+        if (pollingTimeout) {
+            clearTimeout(pollingTimeout);
+            pollingTimeout = null;
         }
+        isPollingPaused = true;
     }
     
-    // Start waiting for Alpine
-    waitForAlpine();
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', cleanupPolling);
+    window.addEventListener('pagehide', cleanupPolling);
+    
+    // Simple profile dropdown - no Alpine.js needed
+    console.log('✅ Simple profile dropdown system loaded');
     
     // Handle window resize to adjust for orientation changes
     let resizeTimer;

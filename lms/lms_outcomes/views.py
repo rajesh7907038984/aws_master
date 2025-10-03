@@ -494,6 +494,11 @@ def create_outcome(request):
         friendly_description = request.POST.get('friendly_description')
         group_id = request.POST.get('group')
         
+        # Validate that a group is selected
+        if not group_id:
+            messages.error(request, 'Please select a group for this outcome. At least one group must be selected.')
+            return redirect('lms_outcomes:create_outcome')
+        
         # Handle proficiency ratings
         proficiency_ratings = []
         for i in range(1, 6):
@@ -1243,43 +1248,7 @@ def get_outcomes_api(request):
         for group in groups:
             result.append(process_group(group))
         
-        # Add outcomes that don't belong to any group (if any) - apply same filtering
-        if request.user.role == 'globaladmin' or request.user.is_superuser:
-            ungrouped_outcomes = Outcome.objects.filter(group__isnull=True)
-        elif request.user.role == 'superadmin':
-            from core.utils.business_filtering import filter_queryset_by_business
-            ungrouped_outcomes = filter_queryset_by_business(
-                Outcome.objects.filter(group__isnull=True), 
-                request.user, 
-                business_field_path='branch__business'
-            )
-        elif request.user.role in ['admin', 'instructor']:
-            if request.user.branch:
-                ungrouped_outcomes = Outcome.objects.filter(group__isnull=True, branch=request.user.branch)
-            else:
-                ungrouped_outcomes = Outcome.objects.none()
-        else:
-            ungrouped_outcomes = Outcome.objects.none()
-            
-        ungrouped_data = []
-        for outcome in ungrouped_outcomes:
-            ungrouped_data.append({
-                'id': outcome.id,
-                'title': outcome.title,
-                'description': outcome.description,
-                'friendly_name': outcome.friendly_name,
-                'type': 'outcome'
-            })
-        
-        if ungrouped_data:
-            result.append({
-                'id': 'ungrouped',
-                'name': 'Ungrouped Outcomes',
-                'type': 'group',
-                'children': ungrouped_data
-            })
-        
-        return JsonResponse({'grouped_outcomes': result, 'ungrouped_outcomes': ungrouped_data})
+        return JsonResponse({'grouped_outcomes': result, 'ungrouped_outcomes': []})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
 
@@ -1404,6 +1373,11 @@ def edit_outcome(request, outcome_id):
         description = request.POST.get('description')
         friendly_description = request.POST.get('friendly_description')
         group_id = request.POST.get('group')
+        
+        # Validate that a group is selected
+        if not group_id:
+            messages.error(request, 'Please select a group for this outcome. At least one group must be selected.')
+            return redirect('lms_outcomes:edit_outcome', outcome_id=outcome_id)
         
         # Handle proficiency ratings
         proficiency_ratings = []
