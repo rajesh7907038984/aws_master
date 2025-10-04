@@ -39,13 +39,11 @@ from wsgiref.util import FileWrapper
 import magic
 from io import BytesIO
 from urllib.parse import urlparse
-from core.decorators import check_scorm_configuration  # Import from core.decorators.py file
 from core.decorators.error_handling import comprehensive_error_handler, api_error_handler, safe_file_operation
 # from core.utils.file_Session import FileSessionValidator
 from core.utils.query_optimization import QueryOptimizer
 
 # Third-party imports
-# SCORM imports removed - functionality no longer supported
 from role_management.utils import require_capability, require_any_capability, PermissionManager
 
 # Local imports
@@ -53,12 +51,30 @@ from .models import (
     Course, 
     Topic, 
     CourseEnrollment, 
-    TopicProgress, 
-    Section,
-    CourseTopic,
-    Comment,
-    Attachment
+    Section
 )
+
+# Import Comment and Attachment dynamically (they may not exist)
+try:
+    from .models import Comment
+except ImportError:
+    Comment = None
+
+try:
+    from .models import Attachment
+except ImportError:
+    Attachment = None
+
+# Import TopicProgress and CourseTopic dynamically
+try:
+    from courses.models import TopicProgress
+except ImportError:
+    TopicProgress = None
+
+try:
+    from courses.models import CourseTopic
+except ImportError:
+    CourseTopic = Course.topics.through if hasattr(Course, "topics") else None
 from .forms import CourseForm, TopicForm
 from categories.models import CourseCategory
 from categories.context_processors import get_user_accessible_categories
@@ -67,7 +83,6 @@ from assignments.models import Assignment
 from conferences.models import Conference
 from discussions.models import Discussion as DiscussionModel, Comment as DiscussionComment
 from users.models import CustomUser, Branch
-# SCORM models removed - functionality no longer supported
 from role_management.models import RoleCapability, UserRole
 from groups.models import CourseGroup, BranchGroup
 from certificates.models import CertificateTemplate
@@ -374,7 +389,13 @@ def course_list(request):
     user = request.user
     
     # Import needed models
-    from courses.models import CourseEnrollment, TopicProgress
+    from courses.models import CourseEnrollment
+    
+    # Import TopicProgress dynamically
+    try:
+        from courses.models import TopicProgress
+    except ImportError:
+        TopicProgress = None
     
     # Remove automatic group check functionality
     
@@ -2007,110 +2028,6 @@ def course_delete(request, course_id):
     return render(request, 'courses/course_delete_confirm.html', context)
 
 @require_POST
-def scorm_tracking_update(request, topic_id):
-    """Handle SCORM tracking updates from SCORM Cloud with branch-specific support"""
-    topic = get_object_or_404(Topic, id=topic_id)
-    
-    if not check_course_permission(request.user, get_topic_course(topic)):
-        return JsonResponse({'error': 'Permission denied'}, status=403)
-    
-    try:
-        # Get branch-specific SCORM client
-        from scorm_cloud.utils.api import get_scorm_client
-        course = get_topic_course(topic)
-        branch = course.branch if course else request.user.branch
-        scorm_cloud = get_scorm_client(user=request.user, branch=branch)
-        
-        logger.info(f"SCORM tracking update for topic_id={topic_id}, user={request.user.username}")
-        progress = TopicProgress.objects.get(user=request.user, topic=topic)
-        
-        if progress.scorm_registration:
-            # Get registration report from SCORM Cloud using branch-specific client
-            logger.info(f"Fetching registration report for scorm_registration={progress.scorm_registration}")
-            registration_report = scorm_cloud.get_registration_progress(
-                progress.scorm_registration
-            )
-            
-            # Update progress based on report
-            logger.info(f"Updating progress with registration report. Current completed status: {progress.completed}")
-            progress.update_scorm_progress(registration_report)
-            
-            # Explicitly refresh from database to get the latest status
-            progress.refresh_from_db()
-            logger.info(f"Progress updated. New completed status: {progress.completed}")
-            
-            # Get the next topic for reference
-            next_topic = None
-            first_incomplete_topic = None
-            course = get_topic_course(topic)
-            
-            if progress.completed and course:
-                try:
-                    if request.user.role == 'learner':
-                        # Filter out draft topics for learners
-                        topics = list(Topic.objects.filter(
-                            coursetopic__course=course
-                        ).exclude(
-                            status='draft'  # Hide draft topics from learners
-                        ).exclude(
-                            restrict_to_learners=True,
-                            restricted_learners=request.user  # Hide topics where learner is restricted
-                        ).order_by('order', 'coursetopic__order', 'created_at'))
-                    else:
-                        # Admin, instructors and other roles see all topics
-                        topics = list(Topic.objects.filter(coursetopic__course=course).order_by('coursetopic__order', 'created_at'))
-                    
-                    # Find next topic in sequence
-                    current_index = topics.index(topic)
-                    if current_index < len(topics) - 1:
-                        next_topic = topics[current_index + 1]
-                        
-                    # Also look for first incomplete topic as fallback
-                    if not next_topic:
-                        for t in topics:
-                            if t.id == topic.id:
-                                continue
-                                
-                            t_progress = TopicProgress.objects.filter(user=request.user, topic=t).first()
-                            if not t_progress or not t_progress.completed:
-                                first_incomplete_topic = t
-                                break
-                except (ValueError, IndexError) as e:
-                    logger.error(f"Error finding next topic: {str(e)}")
-            
-            # Prepare response with next topic information if available
-            response_data = {
-                'status': 'success',
-                'completed': progress.completed,
-                'score': progress.last_score,
-                'best_score': progress.best_score
-            }
-            
-            # Add next topic info if we found it and we're completed
-            if progress.completed:
-                if next_topic:
-                    response_data['next_topic'] = {
-                        'id': next_topic.id,
-                        'title': next_topic.title,
-                        'url': reverse('courses:topic_view', kwargs={'topic_id': next_topic.id})
-                    }
-                elif first_incomplete_topic:
-                    response_data['next_topic'] = {
-                        'id': first_incomplete_topic.id,
-                        'title': first_incomplete_topic.title,
-                        'url': reverse('courses:topic_view', kwargs={'topic_id': first_incomplete_topic.id}),
-                        'is_first_incomplete': True
-                    }
-            
-            return JsonResponse(response_data)
-    except Exception as e:
-        logger.error(f"Error in scorm_tracking_update for topic_id={topic_id}: {str(e)}")
-        logger.exception("Full error details:")
-        return JsonResponse({
-            'error': str(e)
-        }, status=500)
-    
-    return JsonResponse({'status': 'error'}, status=400)
 
 @login_required
 def course_enrollment_toggle(request, course_id):
@@ -2943,117 +2860,6 @@ def update_video_progress(request, topic_id):
         traceback.print_exc()
         return JsonResponse({'error': str(e)}, status=500)
 
-def handle_scorm_content(request, topic, context):
-    """Helper function to set up SCORM content parameters with branch-specific support"""
-    try:
-        # Import SCORM models if available
-        from scorm_cloud.models import SCORMCloudContent, SCORMRegistration
-        from scorm_cloud.utils.api import get_scorm_client, has_branch_scorm_enabled
-        
-        # Get topic's course to determine branch context
-        course = get_topic_course(topic)
-        branch = course.branch if course else request.user.branch
-        
-        # Check if SCORM is enabled for this branch
-        branch_scorm_enabled = has_branch_scorm_enabled(user=request.user, branch=branch)
-        
-        # Set up basic parameters
-        context['scorm_enabled'] = branch_scorm_enabled
-        context['branch_scorm_enabled'] = branch_scorm_enabled
-        
-        # Get the appropriate SCORM client
-        scorm_cloud = get_scorm_client(user=request.user, branch=branch)
-        
-        # Get associated SCORM content
-        scorm_content = None
-        try:
-            # Look for SCORM Cloud content linked to this topic
-            scorm_content = SCORMCloudContent.objects.filter(
-                content_type='topic',
-                content_id=str(topic.id)
-            ).select_related('package').first()
-        except Exception as sc_error:
-            logger.error(f"Error retrieving SCORM content for topic {topic.id}: {str(sc_error)}")
-        
-        context['has_scorm_content'] = scorm_content is not None
-        context['scorm_content'] = scorm_content
-        
-        # If we have content, get registration and progress info
-        if scorm_content:
-            logger.info(f"Found SCORM content for topic {topic.id}: {scorm_content.id}")
-            try:
-                # Get or create a progress record
-                progress, _ = TopicProgress.objects.get_or_create(
-                    user=request.user, 
-                    topic=topic
-                )
-                context['topic_progress'] = progress
-                
-                # Get or create SCORM registration
-                registration = SCORMRegistration.objects.filter(
-                    package=scorm_content.package,
-                    user=request.user
-                ).first()
-                
-                # If registration exists, sync with SCORM Cloud
-                if registration:
-                    context['scorm_registration'] = registration
-                    
-                    # Sync with SCORM Cloud to get latest status using branch-specific client
-                    try:
-                        result = scorm_cloud.get_registration_status(registration.registration_id)
-                        if result:
-                            # Update registration with latest data
-                            completion_status = result.get('registrationCompletion', '').lower()
-                            success_status = result.get('registrationSuccess', '').lower()
-                            
-                            # Normalize completion status
-                            if completion_status == 'complete':
-                                completion_status = 'completed'
-                            
-                            # Update progress data
-                            if not isinstance(progress.progress_data, dict):
-                                progress.progress_data = {}
-                            
-                            progress.progress_data.update({
-                                'completion_status': completion_status,
-                                'success_status': success_status,
-                                'last_updated': timezone.now().isoformat()
-                            })
-                            
-                            # Mark as completed if SCORM reports completion
-                            if completion_status in ['completed', 'passed'] and not progress.completed:
-                                progress.completed = True
-                                progress.completion_method = 'scorm'
-                                if not progress.completed_at:
-                                    progress.completed_at = timezone.now()
-                                logger.info(f"Auto-synced SCORM completion in handle_scorm_content for topic {topic.id}, user {request.user.username}")
-                            
-                            # Store registration ID in progress for tracking
-                            if not progress.scorm_registration:
-                                progress.scorm_registration = registration.registration_id
-                            
-                            progress.save()
-                    except Exception as sync_error:
-                        logger.error(f"Error syncing with SCORM Cloud: {str(sync_error)}")
-                    
-                    # Get launch URL after syncing
-                    context['scorm_launch_url'] = registration.get_launch_url(
-                        redirect_url=request.build_absolute_uri(
-                            reverse('courses:topic_view', kwargs={'topic_id': topic.id})
-                        )
-                    )
-            except Exception as reg_error:
-                logger.error(f"Error handling SCORM registration for topic {topic.id}: {str(reg_error)}")
-    except ImportError:
-        logger.warning("SCORM Cloud module not available")
-        context['scorm_enabled'] = False
-        context['has_scorm_content'] = False
-    except Exception as e:
-        logger.error(f"Error in handle_scorm_content: {str(e)}")
-        logger.exception("Full error details:")
-    
-    return context
 
 @login_required
 def like_item(request, topic_id, item_type, item_id):
@@ -3519,7 +3325,6 @@ def topic_edit(request, topic_id, section_id=None):
             # Process text content - directly use the content from TinyMCE
             text_content = form_data.get('text_content', '')
             topic.text_content = text_content
-        elif content_type in ['audio', 'video', 'document', 'scorm'] and 'content_file' in files:
             content_file = files['content_file']
             
             # Check file size for all content types - maximum 600MB
@@ -3541,178 +3346,6 @@ def topic_edit(request, topic_id, section_id=None):
                 else:
                     return redirect('courses:course_list')
             
-            # DIRECT SCORM CLOUD UPLOAD - No local storage for SCORM files
-            if content_type == 'scorm':
-                logger.info(f"🚀 DIRECT SCORM UPLOAD: Starting direct upload for topic {topic.id}")
-                
-                try:
-                    from scorm_cloud.utils.api import get_scorm_client
-                    from scorm_cloud.models import SCORMCloudContent, SCORMPackage
-                    from django.contrib.auth import get_user_model
-                    import uuid
-                    import tempfile
-                    import os
-                    
-                    User = get_user_model()
-                    
-                    # Get branch context
-                    branch = course.branch if course else None
-                    branch_user = User.objects.filter(branch=branch).first() if branch else None
-                    
-                    if not branch_user:
-                        logger.error(f"No user found for branch {branch.name if branch else 'None'}")
-                        raise Exception("No user found for branch")
-                    
-                    # Get SCORM client
-                    scorm_client = get_scorm_client(user=branch_user, branch=branch)
-                    
-                    if not scorm_client or not scorm_client.is_configured:
-                        logger.error(f"SCORM client not configured for branch {branch.name}")
-                        raise Exception("SCORM client not configured")
-                    
-                    # Create temporary file for upload
-                    with tempfile.NamedTemporaryFile(delete=False, suffix='.zip') as temp_file:
-                        # Write uploaded file to temporary file
-                        for chunk in content_file.chunks():
-                            temp_file.write(chunk)
-                        temp_file_path = temp_file.name
-                    
-                    try:
-                        # Generate unique course ID
-                        unique_id = uuid.uuid4().hex[:8]
-                        course_id = f"LMS_{topic.id}_{unique_id}"
-                        
-                        # Upload directly to SCORM Cloud
-                        logger.info(f"🚀 DIRECT UPLOAD: Uploading to SCORM Cloud with ID: {course_id}")
-                        response = scorm_client.upload_package(
-                            temp_file_path,
-                            course_id=course_id,
-                            title=topic.title
-                        )
-                        
-                        if response:
-                            logger.info(f"✅ DIRECT UPLOAD SUCCESS: Topic {topic.id} uploaded directly to SCORM Cloud!")
-                            
-                            # Create SCORM package and content
-                            package = SCORMPackage.objects.create(
-                                cloud_id=course_id,
-                                title=topic.title,
-                                description=topic.title,
-                                version=0,
-                                launch_mode='new_window'
-                            )
-                            
-                            # Create SCORM content
-                            scorm_content = SCORMCloudContent.objects.create(
-                                content_type='topic',
-                                content_id=str(topic.id),
-                                package=package,
-                                title=topic.title
-                            )
-                            
-                            # Generate launch URL
-                            try:
-                                # Use request to build absolute URI instead of hardcoded domain
-                                from django.urls import reverse
-                                topic_url = reverse('courses:topic_view', args=[topic.id])
-                                redirect_url = request.build_absolute_uri(topic_url)
-                                
-                                launch_url = scorm_client.get_direct_launch_url(
-                                    course_id=course_id,
-                                    redirect_url=redirect_url
-                                )
-                                
-                                package.launch_url = launch_url
-                                package.save()
-                                
-                                logger.info(f"✅ DIRECT LAUNCH URL: Generated for topic {topic.id}")
-                                
-                            except Exception as e:
-                                logger.warning(f"⚠️ Launch URL generation failed: {e}")
-                            
-                            # Set a placeholder content_file path (not actually stored)
-                            topic.content_file = f"scorm_cloud/{course_id}.zip"
-                            
-                            logger.info(f"✅ DIRECT SUCCESS: Topic {topic.id} ready for learners - no local storage!")
-                            
-                        else:
-                            logger.error(f"❌ DIRECT UPLOAD FAILED: No response from SCORM Cloud for topic {topic.id}")
-                            raise Exception("SCORM Cloud upload failed")
-                            
-                    finally:
-                        # Clean up temporary file
-                        if os.path.exists(temp_file_path):
-                            os.unlink(temp_file_path)
-                            
-                except Exception as e:
-                    logger.error(f"❌ DIRECT SCORM UPLOAD ERROR: {str(e)}")
-                    # Fall back to regular file storage
-                    logger.info("Falling back to regular file storage...")
-                    
-                    # Get the course ID for file storage
-                    course_id = course.id if course else 'unknown'
-                    
-                    # Create file path
-                    file_dir = f"courses/{course_id}/topics/{topic.id}"
-                    file_path = f"{file_dir}/{content_file.name}"
-                    
-                    # Use Django's default storage (works with both local and S3)
-                    from django.core.files.storage import default_storage
-                    
-                    # Save the file using default storage
-                    saved_path = default_storage.save(file_path, content_file)
-                    
-                    # Update the topic with the saved file path
-                    topic.content_file = saved_path
-                    
-                    # Register file in media database for tracking
-                    try:
-                        from lms_media.utils import register_media_file
-                        register_media_file(
-                            file_path=saved_path,
-                            uploaded_by=request.user,
-                            source_type='course_content',
-                            source_model='Topic',
-                            source_object_id=topic.id,
-                            course=course,
-                            filename=content_file.name,
-                            description=f'Topic content file for: {topic.title} ({content_type})'
-                        )
-                    except Exception as e:
-                        logger.error(f"Error registering topic content file in media database: {str(e)}")
-            else:
-                # Regular file storage for non-SCORM content
-                # Get the course ID for file storage
-                course_id = course.id if course else 'unknown'
-            
-            # Create file path
-            file_dir = f"courses/{course_id}/topics/{topic.id}"
-            file_path = f"{file_dir}/{content_file.name}"
-            
-            # Use Django's default storage (works with both local and S3)
-            from django.core.files.storage import default_storage
-            
-            # Save the file using default storage
-            saved_path = default_storage.save(file_path, content_file)
-            
-            # Update the topic with the saved file path
-            topic.content_file = saved_path
-            
-            # Register file in media database for tracking
-            try:
-                from lms_media.utils import register_media_file
-                register_media_file(
-                    file_path=saved_path,
-                    uploaded_by=request.user,
-                    source_type='course_content',
-                    source_model='Topic',
-                    source_object_id=topic.id,
-                    course=course,
-                    filename=content_file.name,
-                    description=f'Topic content file for: {topic.title} ({content_type})'
-                )
-            except Exception as e:
-                logger.error(f"Error registering topic content file in media database: {str(e)}")
         elif content_type == 'web':
             # Handle web content
             topic.web_url = form_data.get('web_url')
@@ -3838,7 +3471,6 @@ def topic_edit(request, topic_id, section_id=None):
         ('Assignment', 'Assignment'),
         ('Conference', 'Conference'),
         ('Discussion', 'Discussion'),
-        ('SCORM', 'SCORM')
     ]
     
     # Define breadcrumbs for this view
@@ -6621,115 +6253,6 @@ def toggle_topic_status(request, topic_id):
 
 
 @require_POST
-@login_required
-@user_passes_test(lambda u: u.is_superuser or u.role in ['admin', 'instructor'])
-def sync_scorm_progress_admin(request, progress_id):
-    """
-    Admin endpoint to manually sync SCORM progress data from SCORM Cloud.
-    This is useful when there are discrepancies between the LMS and SCORM Cloud.
-    """
-    try:
-        # Get the progress record
-        progress = get_object_or_404(TopicProgress, id=progress_id)
-        
-        # Get the SCORM registration model
-        SCORMRegistration = apps.get_model('scorm_cloud', 'SCORMRegistration')
-        
-        # If there's a SCORM registration ID, fetch the registration
-        if progress.scorm_registration:
-            registration = SCORMRegistration.objects.filter(
-                registration_id=progress.scorm_registration
-            ).first()
-            
-            if registration:
-                # Import SCORM Cloud API and get branch-specific client
-                from scorm_cloud.utils.api import get_scorm_client
-                
-                # Get the topic and determine branch context
-                topic = progress.topic
-                course = get_topic_course(topic)
-                branch = course.branch if course else progress.user.branch
-                scorm_cloud = get_scorm_client(user=progress.user, branch=branch)
-                
-                # Get registration data directly from SCORM Cloud using branch-specific client
-                result = scorm_cloud.get_registration_status(progress.scorm_registration)
-                
-                if not result:
-                    messages.error(request, "No data returned from SCORM Cloud.")
-                    return JsonResponse({'status': 'error', 'message': 'No data returned from SCORM Cloud'}, status=500)
-                
-                try:
-                    # Handle the score using unified scoring service
-                    if 'score' in result:
-                        from core.utils.scoring import ScoreCalculationService
-                        
-                        score_data = result.get('score', {})
-                        normalized_score = ScoreCalculationService.handle_scorm_score(score_data)
-                        
-                        if normalized_score is not None:
-                            # Update both registration and progress with normalized score
-                            registration.score = normalized_score
-                            progress.last_score = normalized_score
-                            if progress.best_score is None or normalized_score > progress.best_score:
-                                progress.best_score = normalized_score
-                    
-                    # Update completion status
-                    completion_status = result.get('registrationCompletion', '').lower()
-                    success_status = result.get('registrationSuccess', '').lower()
-                    
-                    # Update registration
-                    registration.completion_status = completion_status
-                    registration.success_status = success_status
-                    registration.save()
-                    
-                    # Update progress data
-                    progress.progress_data.update({
-                        'status': completion_status,
-                        'completion_status': completion_status,
-                        'success_status': success_status,
-                        'last_updated': timezone.now().isoformat(),
-                        'scorm_cloud_sync': True
-                    })
-                    
-                    # Mark complete if appropriate
-                    if completion_status in ['completed', 'passed', 'complete']:
-                        progress.completed = True
-                        progress.completion_method = 'scorm'
-                        if not progress.completed_at:
-                            progress.completed_at = timezone.now()
-                    
-                    # Save progress
-                    progress.save()
-                    
-                    # Set success message and redirect
-                    messages.success(request, "SCORM progress synced successfully.")
-                    return JsonResponse({
-                        'status': 'success', 
-                        'message': 'SCORM progress synced successfully',
-                        'completion_status': completion_status,
-                        'success_status': success_status,
-                        'score': float(progress.last_score) if progress.last_score else None
-                    })
-                    
-                except (ValueError, TypeError) as e:
-                    error_msg = f"Error processing SCORM data: {str(e)}"
-                    logger.error(error_msg)
-                    messages.error(request, error_msg)
-                    return JsonResponse({'status': 'error', 'message': error_msg}, status=500)
-            else:
-                messages.error(request, "SCORM registration not found.")
-                return JsonResponse({'status': 'error', 'message': 'SCORM registration not found'}, status=404)
-        else:
-            messages.error(request, "No SCORM registration ID associated with this progress.")
-            return JsonResponse({
-                'status': 'error', 
-                'message': 'No SCORM registration ID associated with this progress'
-            }, status=400)
-            
-    except Exception as e:
-        logger.error(f"Error syncing SCORM progress: {str(e)}")
-        messages.error(request, f"Error syncing SCORM progress: {str(e)}")
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 @login_required
 def generate_certificate(request, course_id):
@@ -7170,6 +6693,8 @@ def topic_create(request, course_id):
         content_type = request.POST.get('content_type')
         assignment_id = request.POST.get('assignment')
         logger.info(f"Content type: {content_type}, Assignment ID: {assignment_id}")
+        logger.info(f"Files submitted: {list(request.FILES.keys())}")
+        logger.info(f"POST keys: {list(request.POST.keys())}")
         
         if form.is_valid():
             # Save the form but don't commit to DB yet
@@ -7200,366 +6725,43 @@ def topic_create(request, course_id):
                     order=CourseTopic.objects.filter(course=course).count() + 1
                 )
                 
-                # DIRECT SCORM CLOUD UPLOAD - No signals, direct upload
-                if new_topic.content_type == 'SCORM' and new_topic.content_file:
-                    logger.info(f"🚀 DIRECT SCORM UPLOAD: Starting direct upload for new topic {new_topic.id}")
-                    
-                    try:
-                        from scorm_cloud.utils.api import get_scorm_client
-                        from scorm_cloud.models import SCORMCloudContent, SCORMPackage
-                        from django.contrib.auth import get_user_model
-                        import uuid
-                        import tempfile
-                        import os
-                        
-                        User = get_user_model()
-                        
-                        # Get branch context
-                        branch = course.branch if course else None
-                        branch_user = User.objects.filter(branch=branch).first() if branch else None
-                        
-                        if not branch_user:
-                            logger.error(f"No user found for branch {branch.name if branch else 'None'}")
-                            raise Exception("No user found for branch")
-                        
-                        # Get SCORM client
-                        scorm_client = get_scorm_client(user=branch_user, branch=branch)
-                        
-                        if not scorm_client or not scorm_client.is_configured:
-                            logger.error(f"SCORM client not configured for branch {branch.name}")
-                            raise Exception("SCORM client not configured")
-                        
-                        # Create temporary file for upload
-                        with tempfile.NamedTemporaryFile(delete=False, suffix='.zip') as temp_file:
-                            # Write uploaded file to temporary file
-                            for chunk in new_topic.content_file.chunks():
-                                temp_file.write(chunk)
-                            temp_file_path = temp_file.name
-                        
-                        try:
-                            # Generate unique course ID
-                            unique_id = uuid.uuid4().hex[:8]
-                            course_id = f"LMS_{new_topic.id}_{unique_id}"
-                            
-                            # Upload directly to SCORM Cloud
-                            logger.info(f"🚀 DIRECT UPLOAD: Uploading to SCORM Cloud with ID: {course_id}")
-                            response = scorm_client.upload_package(
-                                temp_file_path,
-                                course_id=course_id,
-                                title=new_topic.title
-                            )
-                            
-                            if response:
-                                logger.info(f"✅ DIRECT UPLOAD SUCCESS: Topic {new_topic.id} uploaded directly to SCORM Cloud!")
-                                
-                                # Create SCORM package and content
-                                package = SCORMPackage.objects.create(
-                                    cloud_id=course_id,
-                                    title=new_topic.title,
-                                    description=new_topic.title,
-                                    version=0,
-                                    launch_mode='new_window'
-                                )
-                                
-                                # Create SCORM content
-                                scorm_content = SCORMCloudContent.objects.create(
-                                    content_type='topic',
-                                    content_id=str(new_topic.id),
-                                    package=package,
-                                    title=new_topic.title
-                                )
-                                
-                                # Generate launch URL
-                                try:
-                                    # Use request to build absolute URI instead of hardcoded domain
-                                    from django.urls import reverse
-                                    topic_url = reverse('courses:topic_view', args=[new_topic.id])
-                                    redirect_url = request.build_absolute_uri(topic_url)
-                                    
-                                    launch_url = scorm_client.get_direct_launch_url(
-                                        course_id=course_id,
-                                        redirect_url=redirect_url
-                                    )
-                                    
-                                    package.launch_url = launch_url
-                                    package.save()
-                                    
-                                    logger.info(f"✅ DIRECT LAUNCH URL: Generated for topic {new_topic.id}")
-                                    
-                                except Exception as e:
-                                    logger.warning(f"⚠️ Launch URL generation failed: {e}")
-                                
-                                # Set a placeholder content_file path (not actually stored)
-                                new_topic.content_file = f"scorm_cloud/{course_id}.zip"
-                                new_topic.save()
-                                
-                                logger.info(f"✅ DIRECT SUCCESS: Topic {new_topic.id} ready for learners - no local storage!")
-                                
-                            else:
-                                logger.error(f"❌ DIRECT UPLOAD FAILED: No response from SCORM Cloud for topic {new_topic.id}")
-                                raise Exception("SCORM Cloud upload failed")
-                                
-                        finally:
-                            # Clean up temporary file
-                            if os.path.exists(temp_file_path):
-                                os.unlink(temp_file_path)
-                                
-                    except Exception as e:
-                        logger.error(f"❌ DIRECT SCORM UPLOAD ERROR: {str(e)}")
-                        # Fall back to regular file storage
-                        logger.info("Falling back to regular file storage...")
-                        
-                        # Get the course ID for file storage
-                        course_id = course.id if course else 'unknown'
-                        
-                        # Create file path
-                        file_dir = f"courses/{course_id}/topics/{new_topic.id}"
-                        file_path = f"{file_dir}/{new_topic.content_file.name}"
-                        
-                        # Use Django's default storage (works with both local and S3)
-                        from django.core.files.storage import default_storage
-                        
-                        # Save the file using default storage
-                        saved_path = default_storage.save(file_path, new_topic.content_file)
-                        
-                        # Update the topic with the saved file path
-                        new_topic.content_file = saved_path
-                        new_topic.save()
-                        
-                        # Register file in media database for tracking
-                        try:
-                            from lms_media.utils import register_media_file
-                            register_media_file(
-                                file_path=saved_path,
-                                uploaded_by=request.user,
-                                source_type='course_content',
-                                source_model='Topic',
-                                source_object_id=new_topic.id,
-                                course=course,
-                                filename=new_topic.content_file.name,
-                                description=f'Topic content file for: {new_topic.title} (SCORM)'
-                            )
-                        except Exception as e:
-                            logger.error(f"Error registering topic content file in media database: {str(e)}")
-            except ValidationError as e:
-                logger.error(f"Validation error saving topic: {str(e)}")
-                
-                # Handle AJAX requests
-                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    return JsonResponse({
-                        'success': False,
-                        'error': str(e),
-                        'details': {'storage': [str(e)]}
-                    }, status=400)
-                
-                # Add error to form and re-render
-                if 'disk space' in str(e).lower() or 'storage' in str(e).lower():
-                    messages.error(request, str(e))
-                else:
-                    messages.error(request, f"Failed to save topic: {str(e)}")
-                
-                # Re-render form with error
-                filtered_content = get_user_filtered_content(request.user, course, request)
-                context = {
-                    'action': 'Create',
-                    'course': course,
-                    'course_id': course_id,
-                    'sections': sections,
-                    'content_types': Topic.TOPIC_TYPE_CHOICES,
-                    'quizzes': filtered_content['quizzes'],
-                    'assignments': filtered_content['assignments'],
-                    'conferences': filtered_content['conferences'],
-                    'discussions': filtered_content['discussions'],
-                    'section_id': section.id if section else None,
-                    'form': form,
-                    'breadcrumbs': [
-                        {'url': reverse('users:role_based_redirect'), 'label': 'Dashboard', 'icon': 'fa-home'},
-                        {'url': reverse('courses:course_list'), 'label': 'Course Catalog', 'icon': 'fa-book'},
-                        {'url': reverse('courses:course_edit', kwargs={'course_id': course.id}), 'label': course.title, 'icon': 'fa-edit'},
-                        {'label': 'Create Topic', 'icon': 'fa-plus-circle'}
-                    ],
-                }
-                return render(request, 'courses/add_topic.html', context)
             except Exception as e:
-                from role_management.utils import SessionErrorHandler
-                logger.error(f"Unexpected error saving topic: {str(e)}", exc_info=True)
-                
-                # Get more specific error message
-                error_message = SessionErrorHandler.log_and_sanitize_error(
-                    e, request, error_type='system', operation='topic creation'
-                )
-                
-                # Handle AJAX requests
-                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    return JsonResponse({
-                        'success': False,
-                        'error': error_message,
-                        'details': {'server': ['Please check your input and try again, or contact support if the problem persists.']}
-                    }, status=500)
-                
-                messages.error(request, error_message)
-                
-                # Re-render form with error
-                filtered_content = get_user_filtered_content(request.user, course, request)
-                context = {
-                    'action': 'Create',
-                    'course': course,
-                    'course_id': course_id,
-                    'sections': sections,
-                    'content_types': Topic.TOPIC_TYPE_CHOICES,
-                    'quizzes': filtered_content['quizzes'],
-                    'assignments': filtered_content['assignments'],
-                    'conferences': filtered_content['conferences'],
-                    'discussions': filtered_content['discussions'],
-                    'section_id': section.id if section else None,
-                    'form': form,
-                    'can_create_quiz': course.can_create_quiz(),
-                    'can_create_assignment': course.can_create_assignment(),
-                    'quiz_count': course.get_quiz_count(),
-                    'assignment_count': course.get_assignment_count(),
-                    'breadcrumbs': [
-                        {'url': reverse('users:role_based_redirect'), 'label': 'Dashboard', 'icon': 'fa-home'},
-                        {'url': reverse('courses:course_list'), 'label': 'Course Catalog', 'icon': 'fa-book'},
-                        {'url': reverse('courses:course_edit', kwargs={'course_id': course.id}), 'label': course.title, 'icon': 'fa-edit'},
-                        {'label': 'Create Topic', 'icon': 'fa-plus-circle'}
-                    ],
-                }
-                return render(request, 'courses/add_topic.html', context)
+                logger.error(f"Error creating topic: {str(e)}")
+                messages.error(request, f"Error creating topic: {str(e)}")
+                return redirect("courses:course_edit", course_id=course.id)
             
-            # Handle learner restrictions
-            restrict_to_learners = request.POST.get('restrict_to_learners') == 'on'
-            new_topic.restrict_to_learners = restrict_to_learners
-            new_topic.save(update_fields=['restrict_to_learners'])
-            
-            if restrict_to_learners:
-                restricted_learner_ids = request.POST.getlist('restricted_learners')
-                if restricted_learner_ids:
-                    for learner_id in restricted_learner_ids:
-                        try:
-                            learner = CustomUser.objects.get(id=learner_id, role='learner')
-                            new_topic.restricted_learners.add(learner)
-                        except CustomUser.DoesNotExist:
-                            pass
-            
-            # Handle special case for assignment topics - ensure assignment has course relationship
-            if new_topic.content_type == 'Assignment' and new_topic.assignment:
-                from assignments.models import AssignmentCourse
-                
-                # Update assignment's direct course reference if not set
-                if not new_topic.assignment.course:
-                    new_topic.assignment.course = course
-                    new_topic.assignment.save(update_fields=['course'])
-                
-                # Create or update the many-to-many relationship through AssignmentCourse
-                AssignmentCourse.objects.get_or_create(
-                    assignment=new_topic.assignment,
-                    course=course,
-                    defaults={'is_primary': True}
-                )
-            
-            # Handle new section creation if requested
-            if request.POST.get('section') == 'new_section' and request.POST.get('new_section_name'):
-                new_section = Section.objects.create(
-                    name=request.POST.get('new_section_name'),
-                    course=course,
-                    order=Section.objects.filter(course=course).count() + 1
-                )
-                new_topic.section = new_section
-                new_topic.save()
-            
-            # Success message
-            messages.success(request, 'Topic created successfully.')
-            
-            # Ensure a proper redirect to the course edit page
-            course_edit_url = reverse('courses:course_edit', kwargs={'course_id': course.id})
-            logger.info(f"Redirecting to course edit page: {course_edit_url}")
-            
-            # Check if this is a SCORM topic that needs upload processing
-            is_scorm_topic = (new_topic.content_type == 'SCORM' and 
-                            hasattr(new_topic, 'content_file') and 
-                            new_topic.content_file)
-            
-            # Check if this is a SCORM topic without file (direct upload)
-            is_scorm_direct_upload = (new_topic.content_type == 'SCORM' and 
-                                    (not hasattr(new_topic, 'content_file') or not new_topic.content_file))
-            
-            # Handle AJAX requests (for both SCORM and non-SCORM topics)
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                if is_scorm_topic:
-                    return JsonResponse({
-                        'success': True,
-                        'is_scorm': True,
-                        'topic_id': new_topic.id,
-                        'message': 'SCORM topic created. Upload in progress...',
-                        'upload_status_url': reverse('courses:scorm_upload_status', kwargs={'topic_id': new_topic.id}),
-                        'redirect_url': course_edit_url
-                    })
-                elif is_scorm_direct_upload:
-                    return JsonResponse({
-                        'success': True,
-                        'is_scorm_direct': True,
-                        'topic_id': new_topic.id,
-                        'message': 'SCORM topic created. Ready for direct upload.',
-                        'direct_upload_url': reverse('scorm_cloud:topic_scorm_upload'),
-                        'redirect_url': course_edit_url
-                    })
-                else:
-                    return JsonResponse({
-                        'success': True,
-                        'message': 'Topic created successfully.',
-                        'redirect_url': course_edit_url
-                    })
-            
-            # For non-AJAX requests, always redirect to course edit page
-            return redirect(course_edit_url)
+            messages.success(request, f"Topic created successfully!")
+            return redirect("courses:course_edit", course_id=course.id)
         else:
-            # Form is invalid
-            logger.warning(f"Topic form validation failed: {form.errors}")
-            
-            # Return JSON response for AJAX requests
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                # Provide more specific error messages
-                error_messages = []
-                for field, errors in form.errors.items():
-                    for error in errors:
-                        if 'redis' in str(error).lower() or 'connection' in str(error).lower():
-                            error_messages.append("System temporarily unavailable. Please try again in a few moments.")
-                        elif 'scorm cloud' in str(error).lower():
-                            error_messages.append("SCORM Cloud integration is not configured. Please contact your administrator.")
-                        else:
-                            error_messages.append(f"{field}: {error}")
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field}: {error}")
+    
+        # If form invalid, rebuild context for error display
+        content_types = Topic.TOPIC_TYPE_CHOICES
+        categories = get_user_accessible_categories(request.user)
+        
+        context = {
+            'action': 'Create',
+            'course': course,
+            'course_id': course_id,
+            'sections': sections,
+            'content_types': content_types,
+            'quizzes': filtered_content['quizzes'],
+            'assignments': filtered_content['assignments'],
+            'conferences': filtered_content['conferences'],
+            'discussions': filtered_content['discussions'],
+            'section_id': section.id if section else None,
+            'categories': categories,
+            'form': form,
+            'can_create_quiz': course.can_create_quiz(),
+            'can_create_assignment': course.can_create_assignment(),
+            'quiz_count': course.get_quiz_count(),
+            'assignment_count': course.get_assignment_count(),
+        }
+        
+        return render(request, "courses/add_topic.html", context)
                 
-                return JsonResponse({
-                    'success': False,
-                    'error': 'Failed to create topic',
-                    'details': form.errors,
-                    'user_messages': error_messages
-                }, status=400)
-            
-            # Re-render the form with errors using properly filtered content
-            context = {
-                'action': 'Create',
-                'course': course,
-                'course_id': course_id,
-                'sections': sections,
-                'content_types': Topic.TOPIC_TYPE_CHOICES,
-                'quizzes': filtered_content['quizzes'],
-                'assignments': filtered_content['assignments'],
-                'conferences': filtered_content['conferences'],
-                'discussions': filtered_content['discussions'],
-                'section_id': section.id if section else None,
-                'form': form,
-                'form_errors': form.errors,
-                'breadcrumbs': [
-                    {'url': reverse('users:role_based_redirect'), 'label': 'Dashboard', 'icon': 'fa-home'},
-                    {'url': reverse('courses:course_list'), 'label': 'Course Catalog', 'icon': 'fa-book'},
-                    {'url': reverse('courses:course_edit', kwargs={'course_id': course.id}), 'label': course.title, 'icon': 'fa-edit'},
-                    {'label': 'Create Topic', 'icon': 'fa-plus-circle'}
-                ],
-            }
-            
-            return render(request, 'courses/add_topic.html', context)
-
 def get_user_filtered_content(user, course=None, request=None):
     """Filter content (Quiz, Assignment, Conference, Discussion) based on user role
     
@@ -7733,112 +6935,4 @@ def get_user_filtered_content(user, course=None, request=None):
         'discussions': discussions.distinct()
     }
 
-@login_required
-def scorm_upload_progress(request, topic_id):
-    """Show SCORM upload progress page"""
-    import os
-    
-    try:
-        topic = Topic.objects.get(id=topic_id)
-        course = get_topic_course(topic)
-        
-        # Check permissions
-        if not course.user_can_modify(request.user):
-            messages.error(request, "You don't have permission to view this page.")
-            return redirect('courses:course_list')
-        
-        # Check if topic is SCORM type
-        if topic.content_type != 'SCORM':
-            messages.error(request, "This topic is not a SCORM topic.")
-            return redirect('courses:course_edit', course_id=course.id)
-        
-        # Extract filename if content_file exists
-        filename = None
-        if topic.content_file and topic.content_file.name:
-            filename = os.path.basename(topic.content_file.name)
-        
-        context = {
-            'topic': topic,
-            'course': course,
-            'filename': filename,
-            'upload_status_url': reverse('courses:scorm_upload_status', kwargs={'topic_id': topic.id}),
-            'course_edit_url': reverse('courses:course_edit', kwargs={'course_id': course.id}),
-            'breadcrumbs': [
-                {'url': reverse('users:role_based_redirect'), 'label': 'Dashboard', 'icon': 'fa-home'},
-                {'url': reverse('courses:course_list'), 'label': 'Course Catalog', 'icon': 'fa-book'},
-                {'url': reverse('courses:course_edit', kwargs={'course_id': course.id}), 'label': course.title, 'icon': 'fa-edit'},
-                {'label': f'SCORM Upload: {topic.title}', 'icon': 'fa-upload'}
-            ]
-        }
-        
-        return render(request, 'courses/scorm_upload_progress.html', context)
-        
-    except Topic.DoesNotExist:
-        messages.error(request, "Topic not found.")
-        return redirect('courses:course_list')
-
-@login_required
-def scorm_upload_status(request, topic_id):
-    """AJAX endpoint to check SCORM upload status"""
-    try:
-        topic = Topic.objects.get(id=topic_id)
-        course = get_topic_course(topic)
-        
-        # Check permissions
-        if not course.user_can_modify(request.user):
-            return JsonResponse({'error': 'Permission denied'}, status=403)
-        
-        # Check if topic is SCORM type
-        if topic.content_type != 'SCORM':
-            return JsonResponse({'error': 'Not a SCORM topic'}, status=400)
-        
-        # Check for SCORM Cloud content
-        try:
-            from scorm_cloud.models import SCORMCloudContent
-            scorm_content = SCORMCloudContent.objects.filter(
-                content_type='topic',
-                content_id=str(topic.id)
-            ).first()
-            
-            if scorm_content and scorm_content.package:
-                # Check if it's a placeholder (failed upload)
-                if 'PLACEHOLDER' in scorm_content.package.cloud_id:
-                    return JsonResponse({
-                        'status': 'error',
-                        'message': 'SCORM upload failed. Please try uploading again.',
-                        'topic_title': topic.title
-                    })
-                else:
-                    # Upload completed successfully
-                    return JsonResponse({
-                    'status': 'completed',
-                    'message': 'SCORM package uploaded successfully!',
-                        'course_id': scorm_content.package.cloud_id,
-                    'package_title': scorm_content.package.title,
-                    'topic_title': topic.title,
-                        'launch_url': scorm_content.package.launch_url if scorm_content.package.launch_url else None
-                })
-            else:
-                # No SCORM content found - direct upload should have created this
-                # This means the direct upload failed
-                    return JsonResponse({
-                        'status': 'error',
-                    'message': 'SCORM upload failed. Please try uploading again.',
-                    'topic_title': topic.title
-                })
-                
-        except ImportError:
-            return JsonResponse({
-                'status': 'error', 
-                'message': 'SCORM Cloud module not available'
-            })
-            
-    except Topic.DoesNotExist:
-        return JsonResponse({'error': 'Topic not found'}, status=404)
-    except Exception as e:
-        logger.error(f"Error checking SCORM upload status for topic {topic_id}: {str(e)}")
-        return JsonResponse({
-            'status': 'error',
-            'message': f'Error checking upload status: {str(e)}'
-        })
 

@@ -45,8 +45,10 @@ class TodoService:
     
     def _get_learner_todos(self, limit=10, offset=0):
         """Generate todos for learners"""
-        from assignments.models import Assignment
+        from assignments.models import Assignment, AssignmentSubmission
         from conferences.models import Conference
+        from lms_messages.models import Message, MessageReadStatus
+        from lms_notifications.models import Notification
         
         # Use module-level import, fallback to local import if needed
         if CourseEnrollment is None:
@@ -62,7 +64,86 @@ class TodoService:
         ).select_related('course')
         enrolled_course_ids = list(enrolled_courses.values_list('course_id', flat=True))
         
-        if not enrolled_course_ids:
+        # 0. URGENT PRIORITY: Unread messages
+        unread_messages = Message.objects.filter(
+            recipients=self.user
+        ).exclude(
+            messagereadstatus__user=self.user,
+            messagereadstatus__is_read=True
+        ).select_related('sender').order_by('-created_at')[:10]
+        
+        for message in unread_messages:
+            days_ago = (self.now.date() - message.created_at.date()).days
+            if days_ago == 0:
+                due_text, priority = "Received today", 'high'
+            elif days_ago == 1:
+                due_text, priority = "Received yesterday", 'high'
+            else:
+                due_text, priority = f"Received {days_ago} days ago", 'medium'
+            
+            sender_name = message.sender.get_full_name() if message.sender else "System"
+            
+            todos.append({
+                'id': f'message_unread_{message.id}',
+                'title': f'Message: {message.subject}',
+                'description': f'From: {sender_name}',
+                'due_date': due_text,
+                'sort_date': message.created_at,
+                'type': 'message',
+                'priority': priority,
+                'icon': 'envelope',
+                'url': f'/messages/{message.id}/',
+                'metadata': {
+                    'message_id': message.id,
+                    'sender_id': message.sender.id if message.sender else None,
+                    'days_ago': days_ago,
+                    'has_notification': True
+                }
+            })
+        
+        # 0b. URGENT PRIORITY: Graded assignments with feedback to review
+        graded_submissions = AssignmentSubmission.objects.filter(
+            user=self.user,
+            status='graded',
+            grade__isnull=False,
+            graded_at__isnull=False
+        ).exclude(
+            Q(feedback='') | Q(feedback__isnull=True)
+        ).select_related('assignment', 'assignment__course').order_by('-graded_at')[:10]
+        
+        for submission in graded_submissions:
+            days_ago = (self.now.date() - submission.graded_at.date()).days
+            if days_ago == 0:
+                due_text, priority = "Graded today", 'high'
+            elif days_ago <= 2:
+                due_text, priority = f"Graded {days_ago} days ago", 'high'
+            else:
+                due_text, priority = f"Graded {days_ago} days ago", 'medium'
+            
+            # Calculate grade percentage
+            grade_pct = (submission.grade / submission.assignment.points * 100) if submission.assignment.points else 0
+            
+            todos.append({
+                'id': f'feedback_review_{submission.id}',
+                'title': f'View Feedback: {submission.assignment.title}',
+                'description': f'Grade: {grade_pct:.0f}% - {submission.assignment.course.title if submission.assignment.course else "General"}',
+                'due_date': due_text,
+                'sort_date': submission.graded_at,
+                'type': 'feedback',
+                'priority': priority,
+                'icon': 'comment-alt',
+                'url': f'/assignments/{submission.assignment.id}/submission/{submission.id}/',
+                'metadata': {
+                    'submission_id': submission.id,
+                    'assignment_id': submission.assignment.id,
+                    'grade': submission.grade,
+                    'grade_percentage': grade_pct,
+                    'days_ago': days_ago,
+                    'has_notification': True
+                }
+            })
+        
+        if not enrolled_course_ids and not unread_messages and not graded_submissions:
             return []
         
         # 1. HIGH PRIORITY: Overdue assignments
@@ -254,8 +335,46 @@ class TodoService:
         from courses.models import Course
         from assignments.models import AssignmentSubmission
         from users.models import CustomUser
+        from lms_messages.models import Message, MessageReadStatus
         
         todos = []
+        
+        # 0. URGENT PRIORITY: Unread messages
+        unread_messages = Message.objects.filter(
+            recipients=self.user
+        ).exclude(
+            messagereadstatus__user=self.user,
+            messagereadstatus__is_read=True
+        ).select_related('sender').order_by('-created_at')[:10]
+        
+        for message in unread_messages:
+            days_ago = (self.now.date() - message.created_at.date()).days
+            if days_ago == 0:
+                due_text, priority = "Received today", 'high'
+            elif days_ago == 1:
+                due_text, priority = "Received yesterday", 'high'
+            else:
+                due_text, priority = f"Received {days_ago} days ago", 'medium'
+            
+            sender_name = message.sender.get_full_name() if message.sender else "System"
+            
+            todos.append({
+                'id': f'message_unread_{message.id}',
+                'title': f'Message: {message.subject}',
+                'description': f'From: {sender_name}',
+                'due_date': due_text,
+                'sort_date': message.created_at,
+                'type': 'message',
+                'priority': priority,
+                'icon': 'envelope',
+                'url': f'/messages/{message.id}/',
+                'metadata': {
+                    'message_id': message.id,
+                    'sender_id': message.sender.id if message.sender else None,
+                    'days_ago': days_ago,
+                    'has_notification': True
+                }
+            })
         
         # Get instructor's courses
         if self.user.role == 'instructor' and self.user.branch:

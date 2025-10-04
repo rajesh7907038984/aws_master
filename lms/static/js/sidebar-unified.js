@@ -215,11 +215,13 @@
         e.preventDefault();
         e.stopPropagation();
         
-        console.log('Toggle button clicked, isMobile:', state.isMobile);
+        console.log('Toggle button clicked, isMobile:', state.isMobile, 'window width:', window.innerWidth);
         
         if (state.isMobile) {
+            console.log('Mobile mode: toggling mobile menu');
             toggleMobileMenu();
         } else {
+            console.log('Desktop mode: toggling sidebar');
             toggleSidebar();
         }
     }
@@ -267,15 +269,19 @@
         }
         
         console.log('Toggling sidebar, current state:', state.isCollapsed);
+        console.log('Sidebar element:', elements.sidebar);
+        console.log('Main content element:', elements.mainContent);
         
         state.isCollapsed = !state.isCollapsed;
         
         // Toggle collapsed class
         elements.sidebar.classList.toggle('collapsed');
+        console.log('Sidebar collapsed class toggled, now has collapsed:', elements.sidebar.classList.contains('collapsed'));
         
         // Update main content
         if (elements.mainContent) {
             elements.mainContent.classList.toggle('sidebar-collapsed');
+            console.log('Main content sidebar-collapsed class toggled, now has sidebar-collapsed:', elements.mainContent.classList.contains('sidebar-collapsed'));
         }
         
         // If collapsing, close all submenus
@@ -285,6 +291,7 @@
         
         // Store state in localStorage
         localStorage.setItem(CONFIG.storage.collapsedKey, state.isCollapsed);
+        console.log('Sidebar state saved to localStorage:', state.isCollapsed);
         
         // Hide tooltip when toggling
         hideHoverTooltip();

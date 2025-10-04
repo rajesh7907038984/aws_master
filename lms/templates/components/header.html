@@ -8,13 +8,14 @@
                 <img src="{% static 'core/img/logo-light.png' %}" alt="Nexsy LMS" class="h-6 sm:h-7 md:h-9 w-auto">
             </a>
             
-            <!-- Sidebar Toggle Button (moved after logo) -->
+            <!-- Sidebar Toggle Button (works for both mobile and desktop) -->
             <button id="mobile-menu-toggle" 
                     class="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0" 
                     type="button"
                     aria-label="Toggle navigation menu"
                     aria-expanded="false"
-                    aria-controls="mobile-menu">
+                    aria-controls="mobile-menu"
+                    style="display: flex !important; visibility: visible !important; opacity: 1 !important;">
                 <!-- Hamburger menu icon (three horizontal lines) -->
                 <svg class="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
@@ -779,6 +780,40 @@
     /* Mobile menu toggle button proper alignment */
     button#mobile-menu-toggle {
         margin-left: 0;
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+    
+    /* Ensure toggle button is always visible on desktop */
+    @media (min-width: 768px) {
+        button#mobile-menu-toggle {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            cursor: pointer !important;
+            transition: all 0.2s ease !important;
+            position: relative !important;
+            z-index: 10 !important;
+        }
+        
+        button#mobile-menu-toggle:hover {
+            background-color: #f3f4f6 !important;
+            transform: scale(1.05) !important;
+        }
+        
+        button#mobile-menu-toggle:active {
+            transform: scale(0.95) !important;
+        }
+    }
+    
+    /* Force toggle button visibility on all screen sizes */
+    button#mobile-menu-toggle {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        position: relative !important;
+        z-index: 10 !important;
     }
     
     /* Fix for icon SVGs */
@@ -1386,11 +1421,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.log('Mobile menu closed');
                 }
             } else {
-                // On desktop, use the global toggleSidebar function
-                if (typeof window.toggleSidebar === 'function') {
+                // On desktop, toggle sidebar collapse/expand
+                console.log('Desktop sidebar toggle clicked');
+                
+                if (typeof window.SidebarManager !== 'undefined' && window.SidebarManager.toggle) {
+                    // Use SidebarManager if available
+                    window.SidebarManager.toggle();
+                    console.log('Desktop sidebar toggled via SidebarManager');
+                } else if (typeof window.toggleSidebar === 'function') {
+                    // Use global toggleSidebar function
                     window.toggleSidebar();
+                    console.log('Desktop sidebar toggled via global function');
                 } else {
-                    // Fallback if the function isn't available yet
+                    // Fallback if the functions aren't available yet
                     if (sidebar && mainContent) {
                         const wasCollapsed = sidebar.classList.contains('collapsed');
                         sidebar.classList.toggle('collapsed');
@@ -1404,7 +1447,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (window.hideTooltip) {
                             window.hideTooltip();
                         }
-                        console.log('Desktop sidebar toggled, collapsed:', isNowCollapsed);
+                        console.log('Desktop sidebar toggled via fallback, collapsed:', isNowCollapsed);
+                    } else {
+                        console.error('Sidebar or main content elements not found');
                     }
                 }
             }

@@ -1,16 +1,28 @@
 """
 Course and Topic Deletion Signals
 Automatically clean up related data when courses or topics are deleted.
+Also handles enrollment notifications.
 """
 
-from django.db.models.signals import pre_delete, post_delete
+from django.db.models.signals import pre_delete, post_delete, post_save
 from django.dispatch import receiver
 from django.db import transaction
 from django.utils import timezone
 import logging
 
-from .models import Course, Topic, TopicProgress, CourseTopic
-# SCORM imports removed - functionality no longer supported
+from .models import Course, Topic, CourseEnrollment
+
+# Import TopicProgress and CourseTopic dynamically  
+try:
+    from .models import TopicProgress
+except ImportError:
+    TopicProgress = None
+
+try:
+    from .models import CourseTopic
+except ImportError:
+    # CourseTopic is a through model, get it dynamically
+    CourseTopic = Course.topics.through if hasattr(Course, 'topics') else None
 
 logger = logging.getLogger(__name__)
 
@@ -45,33 +57,6 @@ def cleanup_course_data(sender, instance, **kwargs):
                 relationships.delete()
                 logger.info(f"Deleted {relationship_count} course-topic relationships for course {course_id}")
             
-            # 4. Keep SCORM content in SCORM Cloud - only remove local database references
-            scorm_content = SCORMCloudContent.objects.filter(
-                content_type='topic',
-                content_id__in=[str(tid) for tid in topic_ids]
-            )
-            scorm_content_count = scorm_content.count()
-            if scorm_content_count > 0:
-                # Only delete local database references, keep SCORM content in SCORM Cloud
-                scorm_content.delete()
-                logger.info(f"Removed {scorm_content_count} local SCORM content references for course {course_id} (SCORM content preserved in SCORM Cloud)")
-            
-            # 5. Keep SCORM registrations in SCORM Cloud - only remove local database references
-            scorm_registrations = []
-            for topic in topics:
-                if topic.content_type in ['SCORM', 'scorm']:
-                    registrations = SCORMRegistration.objects.filter(
-                        package__scormcloudcontent__content_type='topic',
-                        package__scormcloudcontent__content_id=str(topic.id)
-                    )
-                    scorm_registrations.extend(registrations)
-            
-            if scorm_registrations:
-                for reg in scorm_registrations:
-                    # Only delete local database references, keep registrations in SCORM Cloud
-                    reg.delete()
-                logger.info(f"Removed {len(scorm_registrations)} local SCORM registration references for course {course_id} (registrations preserved in SCORM Cloud)")
-            
             logger.info(f"Course {course_id} cleanup completed successfully")
             
     except Exception as e:
@@ -92,45 +77,41 @@ def cleanup_topic_data(sender, instance, **kwargs):
             
             logger.info(f"Starting cleanup for topic {topic_id}: {topic_title}")
             
-            # 1. Delete all progress records for this topic
+            # 1. Delete SCORM-related data if this is a SCORM topic
+            if instance.content_type == 'SCORM':
+                try:
+                    from scorm.models import ScormPackage, ScormAttempt
+                    
+                    # Check if SCORM package exists
+                    if hasattr(instance, 'scorm_package'):
+                        scorm_package = instance.scorm_package
+                        
+                        # Delete all attempts first
+                        attempts_count = ScormAttempt.objects.filter(scorm_package=scorm_package).count()
+                        if attempts_count > 0:
+                            ScormAttempt.objects.filter(scorm_package=scorm_package).delete()
+                            logger.info(f"Deleted {attempts_count} SCORM attempts for topic {topic_id}")
+                        
+                        # Delete the package (this will cascade to files if configured)
+                        scorm_package.delete()
+                        logger.info(f"Deleted SCORM package for topic {topic_id}")
+                        
+                except Exception as scorm_error:
+                    logger.error(f"Error cleaning up SCORM data for topic {topic_id}: {str(scorm_error)}")
+            
+            # 2. Delete all progress records for this topic
             progress_records = TopicProgress.objects.filter(topic=instance)
             progress_count = progress_records.count()
             if progress_count > 0:
                 progress_records.delete()
                 logger.info(f"Deleted {progress_count} progress records for topic {topic_id}")
             
-            # 2. Delete all course-topic relationships for this topic
+            # 3. Delete all course-topic relationships for this topic
             relationships = CourseTopic.objects.filter(topic=instance)
             relationship_count = relationships.count()
             if relationship_count > 0:
                 relationships.delete()
                 logger.info(f"Deleted {relationship_count} course-topic relationships for topic {topic_id}")
-            
-            # 3. Keep SCORM content in SCORM Cloud - only remove local database references
-            scorm_content = SCORMCloudContent.objects.filter(
-                content_type='topic',
-                content_id=str(topic_id)
-            )
-            scorm_content_count = scorm_content.count()
-            if scorm_content_count > 0:
-                # Only delete local database references, keep SCORM content in SCORM Cloud
-                scorm_content.delete()
-                logger.info(f"Removed {scorm_content_count} local SCORM content references for topic {topic_id} (SCORM content preserved in SCORM Cloud)")
-            
-            # 4. Keep SCORM registrations in SCORM Cloud - only remove local database references
-            if instance.content_type in ['SCORM', 'scorm']:
-                try:
-                    scorm_registrations = SCORMRegistration.objects.filter(
-                        package__scormcloudcontent__content_type='topic',
-                        package__scormcloudcontent__content_id=str(topic_id)
-                    )
-                    reg_count = scorm_registrations.count()
-                    if reg_count > 0:
-                        # Only delete local database references, keep registrations in SCORM Cloud
-                        scorm_registrations.delete()
-                        logger.info(f"Removed {reg_count} local SCORM registration references for topic {topic_id} (registrations preserved in SCORM Cloud)")
-                except Exception as e:
-                    logger.error(f"Error removing local SCORM registration references for topic {topic_id}: {str(e)}")
             
             logger.info(f"Topic {topic_id} cleanup completed successfully")
             
@@ -190,25 +171,7 @@ def cleanup_orphaned_data():
             orphaned_progress.delete()
             logger.info(f"Deleted {orphaned_count} orphaned progress records")
         
-        # Find orphaned SCORM registrations
-        orphaned_registrations = SCORMRegistration.objects.filter(user__isnull=True)
-        orphaned_reg_count = orphaned_registrations.count()
-        if orphaned_reg_count > 0:
-            orphaned_registrations.delete()
-            logger.info(f"Deleted {orphaned_reg_count} orphaned SCORM registrations")
-        
-        # Find orphaned SCORM content
-        orphaned_content = SCORMCloudContent.objects.filter(
-            content_type='topic'
-        ).exclude(
-            content_id__in=[str(t.id) for t in Topic.objects.all()]
-        )
-        orphaned_content_count = orphaned_content.count()
-        if orphaned_content_count > 0:
-            orphaned_content.delete()
-            logger.info(f"Deleted {orphaned_content_count} orphaned SCORM content records")
-        
-        total_cleaned = orphaned_count + orphaned_reg_count + orphaned_content_count
+        total_cleaned = orphaned_count
         logger.info(f"Orphaned data cleanup completed: {total_cleaned} records cleaned")
         
         return total_cleaned
@@ -216,3 +179,119 @@ def cleanup_orphaned_data():
     except Exception as e:
         logger.error(f"Error during orphaned data cleanup: {str(e)}")
         return 0
+
+
+@receiver(post_save, sender=CourseEnrollment)
+def send_enrollment_notification(sender, instance, created, **kwargs):
+    """
+    Send email notification when a user is enrolled in a course
+    """
+    if created and instance.user and instance.course:
+        try:
+            # Import here to avoid circular imports
+            from lms_notifications.utils import send_notification
+            from django.urls import reverse
+            
+            # Prepare enrollment message
+            enrollment_message = f"""
+            <h2>Course Enrollment Confirmation</h2>
+            <p>Dear {instance.user.first_name or instance.user.username},</p>
+            <p>You have been successfully enrolled in the following course:</p>
+            <p><strong>Course Details:</strong></p>
+            <ul>
+                <li><strong>Course Name:</strong> {instance.course.title}</li>
+                {f'<li><strong>Description:</strong> {instance.course.description[:200]}...</li>' if instance.course.description else ''}
+                <li><strong>Enrollment Date:</strong> {instance.enrolled_at.strftime('%B %d, %Y')}</li>
+                <li><strong>Enrollment Type:</strong> {instance.get_enrollment_source_display()}</li>
+            </ul>
+            <p>You can now access the course materials and start learning.</p>
+            <p>Good luck with your studies!</p>
+            <p>Best regards,<br>The LMS Team</p>
+            """
+            
+            # Send notification
+            notification = send_notification(
+                recipient=instance.user,
+                notification_type_name='course_enrollment',
+                title=f"Enrolled in: {instance.course.title}",
+                message=enrollment_message,
+                short_message=f"You have been enrolled in {instance.course.title}",
+                priority='normal',
+                action_url=f"/courses/{instance.course.id}/",
+                action_text="View Course",
+                related_course=instance.course,
+                send_email=True
+            )
+            
+            if notification:
+                logger.info(f"Enrollment notification sent to user: {instance.user.username} for course: {instance.course.title}")
+            else:
+                logger.warning(f"Enrollment notification created but email may not have been sent for user: {instance.user.username}")
+                
+        except Exception as e:
+            logger.error(f"Error sending enrollment notification to {instance.user.username} for course {instance.course.title}: {str(e)}")
+
+
+@receiver(post_save, sender=Topic)
+def process_scorm_package(sender, instance, created, **kwargs):
+    """
+    Process SCORM package after Topic is saved with SCORM content.
+    This handler extracts and parses SCORM packages automatically.
+    """
+    # Only process if this is a SCORM topic with a content file
+    if instance.content_type != 'SCORM' or not instance.content_file:
+        return
+    
+    try:
+        # Import SCORM models
+        from scorm.models import ScormPackage
+        
+        # Check if ScormPackage already exists for this topic
+        if hasattr(instance, 'scorm_package') and ScormPackage.objects.filter(topic=instance).exists():
+            logger.info(f"SCORM package already exists for topic {instance.id}, skipping processing")
+            return
+        
+        # Import parser
+        from scorm.parser import ScormParser
+        
+        logger.info(f"🎯 Processing SCORM package for topic {instance.id}: {instance.title}")
+        
+        # Open and parse the SCORM package
+        try:
+            instance.content_file.open('rb')
+            parser = ScormParser(instance.content_file)
+            package_data = parser.parse()
+            instance.content_file.close()
+        except Exception as parse_error:
+            logger.error(f"❌ Error parsing SCORM package for topic {instance.id}: {str(parse_error)}")
+            instance.content_file.close()
+            raise
+        
+        # Create ScormPackage record
+        scorm_package = ScormPackage.objects.create(
+            topic=instance,
+            version=package_data['version'],
+            identifier=package_data['identifier'],
+            title=package_data.get('title', instance.title),
+            description=package_data.get('description', ''),
+            package_file=instance.content_file,
+            extracted_path=package_data['extracted_path'],
+            launch_url=package_data['launch_url'],
+            manifest_data=package_data['manifest_data'],
+            mastery_score=package_data.get('mastery_score')
+        )
+        
+        logger.info(f"✅ SCORM package created successfully for topic {instance.id}")
+        logger.info(f"   📦 Package ID: {scorm_package.id}")
+        logger.info(f"   📌 Version: SCORM {scorm_package.version}")
+        logger.info(f"   🚀 Launch URL: {scorm_package.launch_url}")
+        logger.info(f"   📂 Extracted to: {scorm_package.extracted_path}")
+        logger.info(f"   🎯 Mastery Score: {scorm_package.mastery_score or 'Not set'}")
+        logger.info(f"   📝 Title: {scorm_package.title}")
+        
+    except Exception as e:
+        logger.error(f"❌ Error processing SCORM package for topic {instance.id}: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        # Don't raise the exception to prevent topic creation failure
+        # The topic will be created but SCORM package won't be available

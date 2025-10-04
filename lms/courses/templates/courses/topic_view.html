@@ -481,16 +481,19 @@
                             </button>
                         {% else %}
                             <!-- Normal access for learners -->
-                            {% if scorm_content and scorm_content.package and not scorm_content.package.cloud_id|slice:":10" == "PLACEHOLDER" %}
-                                <!-- Real SCORM content - launch button -->
+                            {% if topic.scorm_package %}
+                                <!-- SCORM package available - launch button -->
                                 <div class="w-full max-w-md">
-                                    <!-- Launch Button -->
-                                    <div class="flex flex-col sm:flex-row gap-3">
-                                        <!-- Direct Launch Button (existing functionality) -->
-                                        <a href="{% url 'scorm_cloud:scorm_launch' topic.id %}" 
+                                    <div class="flex flex-col gap-3">
+                                        <!-- SCORM Launch Button -->
+                                        <a href="{% url 'scorm:player' topic.id %}" 
                                            class="btn btn-primary text-lg px-6 py-3 flex items-center justify-center">
                                             <i class="fas fa-play mr-2"></i>Launch SCORM Content
                                         </a>
+                                        <div class="text-sm text-gray-600 text-center">
+                                            <p>{{ topic.scorm_package.title }}</p>
+                                            <p class="text-xs">SCORM {{ topic.scorm_package.version }}</p>
+                                        </div>
                                     </div>
                                 </div>
                             {% else %}

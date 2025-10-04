@@ -1617,31 +1617,13 @@
 
                     <!-- SCORM Content -->
                     <div id="scorm-content" class="content-type-field">
-                        <!-- SCORM Connection Status -->
-                        <div id="scorm-connection-status" class="mb-4 hidden">
-                            <div class="flex items-center p-3 rounded-md">
-                                <div class="flex-shrink-0">
-                                    <svg class="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                                    </svg>
-                                </div>
-                                <div class="ml-3">
-                                    <p class="text-sm font-medium text-green-800">SCORM Cloud Connected</p>
-                                    <p class="text-xs text-green-600">Ready for direct upload to SCORM Cloud</p>
-                                </div>
-                            </div>
-                        </div>
-
                         <div class="file-upload-container">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">SCORM Package</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">SCORM Package (ZIP file)</label>
                             {% if topic.content_file and topic.content_type.lower == 'scorm' %}
-                            <!-- Existing SCORM file - show read-only info -->
+                            <!-- Existing SCORM file -->
                             <div class="mt-1 p-4 bg-gray-50 border-2 border-gray-300 rounded-md">
                                 <div class="flex items-center space-x-3">
-                                    <svg class="h-10 w-10 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
-                                        <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 1 1 0 000 2H6a2 2 0 00-2 2v6a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-1a1 1 0 100-2h1a4 4 0 014 4v10a4 4 0 01-4 4H6a4 4 0 01-4-4V7a4 4 0 014-4z" clip-rule="evenodd"/>
-                                    </svg>
+                                    <i class="fas fa-file-archive text-3xl text-blue-500"></i>
                                     <div class="flex-1">
                                         <p class="text-sm font-medium text-gray-900">{{ topic.content_file|last_part }}</p>
                                         <p class="text-xs text-gray-500 mt-1">SCORM package uploaded</p>
@@ -1655,54 +1637,23 @@
                                 </div>
                             </div>
                             {% else %}
-                            <!-- New SCORM upload with enhanced UI -->
-                            <div class="mt-1">
-                            <!-- SCORM Direct Upload -->
-                            <div class="border-2 border-dashed border-green-300 rounded-lg p-6 bg-green-50 mb-4">
-                                <div class="text-center">
-                                    <svg class="mx-auto h-12 w-12 text-green-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-                                    </svg>
-                                    <h3 class="text-lg font-medium text-green-800 mb-2">Direct Upload to SCORM Cloud</h3>
-                                    <p class="text-sm text-green-600 mb-4">Upload your SCORM package directly to SCORM Cloud for immediate use</p>
-                                    <div>
-                                        <label for="scorm-file-input" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 cursor-pointer transition-colors duration-200">
-                                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-                                            </svg>
-                                            Choose SCORM Package
-                                            <input id="scorm-file-input" name="content_file" type="file" accept=".zip" class="sr-only">
+                            <!-- Simple file upload like video topics -->
+                            <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-gray-400 transition-colors">
+                                <div class="space-y-1 text-center">
+                                    <i class="fas fa-file-archive text-5xl text-gray-400 mb-3"></i>
+                                    <div class="flex text-sm text-gray-600">
+                                        <label for="scorm-file-input" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
+                                            <span>Upload a SCORM package</span>
+                                            <input id="scorm-file-input" name="content_file" type="file" accept=".zip,application/zip" class="file-input sr-only">
                                         </label>
+                                        <p class="pl-1">or drag and drop</p>
                                     </div>
+                                    <p class="text-xs text-gray-500">ZIP files (SCORM 1.2 or 2004) up to 600MB</p>
                                 </div>
                             </div>
-                                
-                                <!-- File Information -->
-                                <div class="bg-gray-50 rounded-lg p-4">
-                                    <h4 class="text-sm font-medium text-gray-900 mb-2">SCORM Package Requirements</h4>
-                                    <ul class="text-xs text-gray-600 space-y-1">
-                                        <li>• ZIP files up to 600MB</li>
-                                        <li>• SCORM 1.2 or 2004 compliant packages only</li>
-                                        <li>• Files upload directly to SCORM Cloud</li>
-                                        <li>• No local storage required</li>
-                                    </ul>
-                                </div>
-                            </div>
-                            
                             <div class="selected-filename mt-2 text-sm text-gray-600 hidden"></div>
                             <div class="file-preview mt-4 hidden"></div>
                             {% endif %}
-                            
-                            <!-- Upload Status -->
-                            <div id="scorm-upload-status" class="mt-2 hidden">
-                                <div class="flex items-center">
-                                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    <span class="text-sm font-medium">Processing SCORM package...</span>
-                                </div>
-                            </div>
                         </div>
                     </div>
                     
@@ -2360,162 +2311,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Function to handle SCORM connection when SCORM type is selected
-    function handleSCORMConnection() {
-        console.log('🔗 Checking SCORM connection...');
-
-        // Show connection status container
-        const statusContainer = document.getElementById('scorm-connection-status');
-        if (statusContainer) {
-            statusContainer.classList.remove('hidden');
-        }
-
-        // Check if SCORM is available for this branch
-        fetch('/scorm/check-connection/', {
-            method: 'GET',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.connected) {
-                console.log('✅ SCORM connection established');
-                showSCORMConnectionStatus('success', 'SCORM Cloud connected successfully');
-                enableSCORMUploads();
-            } else {
-                console.log('❌ SCORM connection failed:', data.error);
-                showSCORMConnectionStatus('error', data.error || 'SCORM Cloud not configured');
-                disableSCORMUploads();
-            }
-        })
-        .catch(error => {
-            console.error('❌ SCORM connection error:', error);
-            showSCORMConnectionStatus('error', 'Failed to connect to SCORM Cloud');
-            disableSCORMUploads();
-        });
-    }
-    
-    // Function to show SCORM connection status
-    function showSCORMConnectionStatus(type, message) {
-        const statusContainer = document.getElementById('scorm-connection-status');
-        if (!statusContainer) return;
-
-        const statusDiv = statusContainer.querySelector('.flex.items-center');
-        if (!statusDiv) return;
-
-        if (type === 'success') {
-            statusContainer.className = 'mb-4 p-3 rounded-md bg-green-50 border border-green-200';
-            statusDiv.innerHTML = `
-                <div class="flex-shrink-0">
-                    <svg class="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                    </svg>
-                </div>
-                <div class="ml-3">
-                    <p class="text-sm font-medium text-green-800">SCORM Cloud Connected</p>
-                    <p class="text-xs text-green-600">${message}</p>
-                </div>
-            `;
-        } else {
-            statusContainer.className = 'mb-4 p-3 rounded-md bg-red-50 border border-red-200';
-            statusDiv.innerHTML = `
-                <div class="flex-shrink-0">
-                    <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
-                    </svg>
-                </div>
-                <div class="ml-3">
-                    <p class="text-sm font-medium text-red-800">SCORM Cloud Not Available</p>
-                    <p class="text-xs text-red-600">${message}</p>
-                </div>
-            `;
-        }
-    }
-
-    // Function to enable SCORM uploads
-    function enableSCORMUploads() {
-        console.log('✅ Enabling SCORM uploads...');
-        
-        // Enable direct upload option
-        const directUpload = document.querySelector('#scorm-file-input');
-        if (directUpload) {
-            directUpload.disabled = false;
-            directUpload.closest('.border-green-300').classList.remove('opacity-50');
-        }
-        
-        // Enable local upload option
-        const localUpload = document.querySelector('#scorm-file-input-local');
-        if (localUpload) {
-            localUpload.disabled = false;
-            localUpload.closest('.border-blue-300').classList.remove('opacity-50');
-        }
-    }
-
-    // Function to disable SCORM uploads
-    function disableSCORMUploads() {
-        console.log('❌ Disabling SCORM uploads...');
-        
-        // Disable direct upload option
-        const directUpload = document.querySelector('#scorm-file-input');
-        if (directUpload) {
-            directUpload.disabled = true;
-            directUpload.closest('.border-green-300').classList.add('opacity-50');
-        }
-        
-        // Disable local upload option
-        const localUpload = document.querySelector('#scorm-file-input-local');
-        if (localUpload) {
-            localUpload.disabled = true;
-            localUpload.closest('.border-blue-300').classList.add('opacity-50');
-        }
-    }
-
-    // Function to handle SCORM file selection
-    function handleSCORMFileSelection(event, uploadType) {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        console.log(`📁 SCORM file selected (${uploadType}):`, file.name);
-        
-        // Show file information
-        const filenameDiv = document.querySelector('.selected-filename');
-        if (filenameDiv) {
-            filenameDiv.textContent = `Selected: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
-            filenameDiv.classList.remove('hidden');
-        }
-
-        // Show upload status
-        const statusDiv = document.getElementById('scorm-upload-status');
-        if (statusDiv) {
-            statusDiv.classList.remove('hidden');
-            const statusText = statusDiv.querySelector('span');
-            if (statusText) {
-                if (uploadType === 'direct') {
-                    statusText.textContent = 'Ready for direct upload to SCORM Cloud...';
-                } else {
-                    statusText.textContent = 'Ready for local upload...';
-                }
-            }
-        }
-
-        // Disable the other upload option to prevent conflicts
-        if (uploadType === 'direct') {
-            const localInput = document.getElementById('scorm-file-input-local');
-            if (localInput) {
-                localInput.disabled = true;
-                localInput.closest('.border-blue-300').classList.add('opacity-50');
-            }
-        } else {
-            const directInput = document.getElementById('scorm-file-input');
-            if (directInput) {
-                directInput.disabled = true;
-                directInput.closest('.border-green-300').classList.add('opacity-50');
-            }
-        }
-    }
+    // SCORM file selection - now handled like video uploads (no direct S3 upload needed)
+    // File will be uploaded with form submission
 
     // Function to toggle description field visibility based on content type
     function toggleDescriptionVisibility(contentType) {
@@ -2583,12 +2380,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (this.checked) {
                     toggleInstructionsVisibility(this.value);
                     toggleDescriptionVisibility(this.value);
-                    
-                    // Handle SCORM connection when SCORM is selected
-                    if (this.value === 'SCORM') {
-                        console.log('🔗 SCORM type selected - checking connection...');
-                        handleSCORMConnection();
-                    }
                 }
             });
         });
@@ -2600,21 +2391,7 @@ document.addEventListener('DOMContentLoaded', function() {
             toggleDescriptionVisibility(selectedRadio.value);
         }
         
-        // Add event listeners for SCORM file inputs
-        const scormFileInput = document.getElementById('scorm-file-input');
-        const scormFileInputLocal = document.getElementById('scorm-file-input-local');
-        
-        if (scormFileInput) {
-            scormFileInput.addEventListener('change', function(e) {
-                handleSCORMFileSelection(e, 'direct');
-            });
-        }
-        
-        if (scormFileInputLocal) {
-            scormFileInputLocal.addEventListener('change', function(e) {
-                handleSCORMFileSelection(e, 'local');
-            });
-        }
+        // SCORM file input now uses standard file upload (no special handler needed)
     });
 </script>
 
@@ -3061,29 +2838,34 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
                 
-                // Submit the form
-                topicForm.addEventListener('formdata', function(e) {
-                    const formData = e.formData;
-                    if (formData) {
-                        console.log('FormData created, tracking upload progress');
+                // FIXED: Use requestSubmit() instead of submit() to properly handle file uploads
+                // requestSubmit() triggers validation and fires submit events, allowing files to be uploaded
+                // Unlike submit(), requestSubmit() properly handles multipart/form-data encoding
+                if (topicForm.requestSubmit) {
+                    // Modern browsers support requestSubmit
+                    console.log('Using requestSubmit() for proper file upload handling');
+                    topicForm.requestSubmit();
+                } else {
+                    // Fallback for older browsers: create and click a submit button
+                    console.log('Using fallback submit method for file uploads');
+                    const submitEvent = new Event('submit', {bubbles: true, cancelable: true});
+                    if (topicForm.dispatchEvent(submitEvent)) {
+                        // If not cancelled by validation, submit natively
+                        HTMLFormElement.prototype.submit.call(topicForm);
                     }
-                });
+                }
                 
-                topicForm.addEventListener('submit', function() {
-                    // Complete the progress animation when the form is actually submitted
-                    setTimeout(() => {
-                        progressBar.style.width = '100%';
-                        progressText.textContent = '100%';
-                        
-                        // Clear the interval timer to prevent memory leaks
-                        if (progressTimer) {
-                            clearInterval(progressTimer);
-                            progressTimer = null;
-                        }
-                    }, 500);
-                });
-                
-                topicForm.submit();
+                // Track completion
+                setTimeout(() => {
+                    progressBar.style.width = '100%';
+                    progressText.textContent = '100%';
+                    
+                    // Clear the interval timer to prevent memory leaks
+                    if (progressTimer) {
+                        clearInterval(progressTimer);
+                        progressTimer = null;
+                    }
+                }, 500);
             });
         }
 
@@ -4204,26 +3986,8 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                 const contentTypeRadio = document.querySelector('input[name="content_type"]:checked');
                 const scormFile = document.querySelector('input[name="content_file"]');
                 
-                // Check if this is a SCORM topic
-                if (contentTypeRadio && contentTypeRadio.value === 'SCORM') {
-                    e.preventDefault(); // Prevent normal form submission
-                    
-                    if (isUploadInProgress) {
-                        alert('Upload already in progress. Please wait...');
-                        return;
-                    }
-                    
-                    isUploadInProgress = true;
-                    
-                    // Check if file is provided for regular upload or direct upload
-                    if (scormFile && scormFile.files[0]) {
-                        // Regular SCORM upload with file
-                        handleSCORMUpload();
-                    } else {
-                        // Direct SCORM upload without file
-                        handleSCORMDirectUpload();
-                    }
-                }
+                // SCORM now uses standard file upload like video - no special handling needed
+                console.log('📝 Standard form submission for all content types');
             });
             
             function handleSCORMUpload() {
@@ -4242,14 +4006,23 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                 // Prepare form data
                 const formData = new FormData(topicForm);
                 
-                // Submit via AJAX
+                // IMPORTANT: Do NOT set Content-Type header when uploading files
+                // The browser will automatically set it to multipart/form-data with boundary
+                
+                // Log what we're sending
+                console.log('📤 Submitting SCORM form via AJAX');
+                console.log('Files in FormData:');
+                for (let pair of formData.entries()) {
+                    if (pair[1] instanceof File) {
+                        console.log(`  - ${pair[0]}: ${pair[1].name} (${pair[1].size} bytes)`);
+                    }
+                }
+                
+                // Submit via AJAX - CSRF token is already in FormData from form
                 fetch(topicForm.action, {
                     method: 'POST',
                     body: formData,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-                    }
+                    // Do NOT include any headers - let browser handle it for file uploads
                 })
                 .then(response => {
                     if (!response.ok) {

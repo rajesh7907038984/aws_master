@@ -29,6 +29,16 @@ def create_default_notification_types(sender, **kwargs):
                 'is_active': True,
             },
             {
+                'name': 'welcome_mail',
+                'display_name': 'Welcome Mail',
+                'description': 'Welcome email sent to new users upon account creation',
+                'available_to_roles': ['globaladmin', 'superadmin', 'admin', 'instructor', 'learner'],
+                'default_email_enabled': True,
+                'default_web_enabled': True,
+                'can_be_disabled': False,
+                'is_active': True,
+            },
+            {
                 'name': 'assignment_due',
                 'display_name': 'Assignment Due',
                 'description': 'Reminders about upcoming assignment deadlines',

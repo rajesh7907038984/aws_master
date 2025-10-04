@@ -4,7 +4,18 @@ from django.contrib import messages
 from django.http import HttpResponseForbidden, JsonResponse, HttpResponse, HttpResponseServerError
 from django.contrib.auth import authenticate, login, update_session_auth_hash, logout
 from django.template.exceptions import TemplateDoesNotExist
-from courses.models import Course, Topic, CourseEnrollment, CourseTopic, TopicProgress
+from courses.models import Course, Topic, CourseEnrollment
+
+# Import TopicProgress and CourseTopic dynamically
+try:
+    from courses.models import TopicProgress
+except ImportError:
+    TopicProgress = None
+
+try:
+    from courses.models import CourseTopic
+except ImportError:
+    CourseTopic = Course.topics.through if hasattr(Course, 'topics') else None
 from courses.forms import CourseForm
 from users.models import CustomUser, Branch, UserQuestionnaire
 from .forms import (
@@ -6905,12 +6916,13 @@ def user_settings(request):
 
 @login_required
 def search(request):
-    """Global search view for searching across various models in the LMS"""
+    """Global search view for searching across various models in the LMS with enhanced PostgreSQL full-text search"""
     query = request.GET.get('q', '')
     category = request.GET.get('category', 'all')
     
     from courses.models import Course, CourseCategory
     from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
+    from django.db.models import F
     
     results = {
         'courses': [],
@@ -6927,14 +6939,28 @@ def search(request):
     
     if query:
         # Search users when 'users' category is selected
-        if category == 'users' and request.user.role in ['superadmin', 'admin', 'instructor']:
+        if category == 'users' and request.user.role in ['globaladmin', 'superadmin', 'admin', 'instructor']:
             try:
-                users = CustomUser.objects.filter(
-                    Q(username__icontains=query) | 
-                    Q(email__icontains=query) |
-                    Q(first_name__icontains=query) |
-                    Q(last_name__icontains=query)
-                )
+                # Use PostgreSQL full-text search for better accuracy
+                search_vector = SearchVector('username', weight='A') + \
+                               SearchVector('first_name', weight='A') + \
+                               SearchVector('last_name', weight='A') + \
+                               SearchVector('email', weight='B')
+                search_query = SearchQuery(query)
+                
+                # Perform full-text search with ranking
+                users = CustomUser.objects.annotate(
+                    rank=SearchRank(search_vector, search_query)
+                ).filter(rank__gt=0).order_by('-rank')
+                
+                # Fallback to basic search if no results found
+                if not users.exists():
+                    users = CustomUser.objects.filter(
+                        Q(username__icontains=query) | 
+                        Q(email__icontains=query) |
+                        Q(first_name__icontains=query) |
+                        Q(last_name__icontains=query)
+                    )
                 
                 # Filter users based on role permissions
                 if request.user.role == 'admin':
@@ -6947,42 +6973,73 @@ def search(request):
                     # Super admin users cannot see globaladmin users
                     users = users.exclude(role='globaladmin')
                 
-                results['users'] = users[:10]  # Limit to 10 results
+                results['users'] = users[:20]  # Increased limit for better results
                 results['total_results'] += users.count()
             except Exception as e:
                 logger.error(f"User search error for query '{query}': {str(e)}")
-                results['users'] = []
+                # Fallback to basic search on error
+                try:
+                    users = CustomUser.objects.filter(
+                        Q(username__icontains=query) | 
+                        Q(email__icontains=query) |
+                        Q(first_name__icontains=query) |
+                        Q(last_name__icontains=query)
+                    )
+                    
+                    if request.user.role == 'admin':
+                        users = users.filter(branch=request.user.branch).exclude(role__in=['superadmin', 'globaladmin'])
+                    elif request.user.role == 'instructor':
+                        users = users.filter(branch=request.user.branch, role='learner')
+                    elif request.user.role == 'superadmin':
+                        users = users.exclude(role='globaladmin')
+                    
+                    results['users'] = users[:20]
+                    results['total_results'] += users.count()
+                except Exception as fallback_error:
+                    logger.error(f"User search fallback error: {str(fallback_error)}")
+                    results['users'] = []
         
         # Search courses when 'courses' category is selected or a specific category is selected
         elif category == 'courses' or category == 'all' or any(str(cat.slug) == category for cat in categories):
-            # Create the text search query - removed problematic learning_objectives__description lookup
-            # that was causing 500 errors. Simplified to search only in title and description.
-            courses_query = Q(title__icontains=query) | Q(description__icontains=query)
-            
-            # Initialize courses queryset
-            courses = Course.objects.all()
-            
-            # Apply text search filter
             try:
-                courses = courses.filter(courses_query).distinct()
-            except Exception as e:
-                # Log the error and return empty course results rather than crashing
-                logger.error(f"Search error for query '{query}': {str(e)}")
-                courses = Course.objects.none()
-            
-            # If a specific category is selected (not 'all' or 'courses'), filter by category
-            if category != 'all' and category != 'courses' and category != 'users':
-                try:
-                    # Find the category by slug and filter courses directly
-                    selected_category = CourseCategory.objects.get(slug=category)
-                    courses = courses.filter(category=selected_category)
-                except CourseCategory.DoesNotExist:
-                    # If category doesn't exist, continue with unfiltered course search
-                    # Don't return empty results, let the search continue
-                    pass
-            
-            # Filter courses based on access permissions
-            try:
+                # Use PostgreSQL full-text search for better accuracy
+                # Create search vectors for different fields with different weights
+                search_vector = SearchVector('title', weight='A') + \
+                               SearchVector('description', weight='B') + \
+                               SearchVector('category__name', weight='C') + \
+                               SearchVector('instructor__first_name', weight='C') + \
+                               SearchVector('instructor__last_name', weight='C')
+                
+                search_query = SearchQuery(query)
+                
+                # Initialize courses queryset with full-text search
+                courses = Course.objects.select_related('category', 'instructor', 'branch').annotate(
+                    rank=SearchRank(search_vector, search_query)
+                ).filter(rank__gt=0).order_by('-rank')
+                
+                # Fallback to basic search if no results found
+                if not courses.exists():
+                    logger.info(f"Full-text search returned no results for '{query}', using fallback search")
+                    courses = Course.objects.select_related('category', 'instructor', 'branch').filter(
+                        Q(title__icontains=query) | 
+                        Q(description__icontains=query) |
+                        Q(category__name__icontains=query) |
+                        Q(instructor__first_name__icontains=query) |
+                        Q(instructor__last_name__icontains=query)
+                    ).distinct()
+                
+                # If a specific category is selected (not 'all' or 'courses'), filter by category
+                if category != 'all' and category != 'courses' and category != 'users':
+                    try:
+                        # Find the category by slug and filter courses directly
+                        selected_category = CourseCategory.objects.get(slug=category)
+                        courses = courses.filter(category=selected_category)
+                    except CourseCategory.DoesNotExist:
+                        logger.warning(f"Category '{category}' not found, continuing with unfiltered search")
+                        # If category doesn't exist, continue with unfiltered course search
+                        pass
+                
+                # Filter courses based on access permissions
                 if request.user.role == 'globaladmin':
                     pass  # Global Admin can see all courses
                 elif request.user.role == 'superadmin':
@@ -7005,14 +7062,56 @@ def search(request):
                         Q(id__in=enrolled_courses) | 
                         Q(is_public=True)
                     )
-                    
-                results['courses'] = courses[:10]  # Limit to 10 results
+                
+                results['courses'] = courses[:20]  # Increased limit for better results
                 results['total_results'] += courses.count()
+                
             except Exception as e:
-                logger.error(f"Course filtering error for query '{query}': {str(e)}")
-                results['courses'] = []
-            
-        # No need for a separate 'all' category case as it's handled above
+                # Log the error and try fallback search
+                logger.error(f"Course search error for query '{query}': {str(e)}")
+                try:
+                    # Fallback to basic search
+                    courses = Course.objects.select_related('category', 'instructor', 'branch').filter(
+                        Q(title__icontains=query) | 
+                        Q(description__icontains=query)
+                    ).distinct()
+                    
+                    # Apply category filter if needed
+                    if category != 'all' and category != 'courses' and category != 'users':
+                        try:
+                            selected_category = CourseCategory.objects.get(slug=category)
+                            courses = courses.filter(category=selected_category)
+                        except CourseCategory.DoesNotExist:
+                            pass
+                    
+                    # Apply permission filters
+                    if request.user.role == 'globaladmin':
+                        pass
+                    elif request.user.role == 'superadmin':
+                        from core.utils.business_filtering import filter_courses_by_business
+                        business_courses = filter_courses_by_business(request.user)
+                        business_course_ids = list(business_courses.values_list('id', flat=True))
+                        courses = courses.filter(id__in=business_course_ids)
+                    elif request.user.role == 'admin':
+                        courses = courses.filter(branch=request.user.branch)
+                    elif request.user.role == 'instructor':
+                        instructor_courses = list(request.user.instructor_courses.values_list('id', flat=True))
+                        courses = courses.filter(
+                            Q(id__in=instructor_courses) | 
+                            Q(branch=request.user.branch)
+                        )
+                    else:
+                        enrolled_courses = list(request.user.enrollments.values_list('course_id', flat=True))
+                        courses = courses.filter(
+                            Q(id__in=enrolled_courses) | 
+                            Q(is_public=True)
+                        )
+                    
+                    results['courses'] = courses[:20]
+                    results['total_results'] += courses.count()
+                except Exception as fallback_error:
+                    logger.error(f"Course search fallback error: {str(fallback_error)}")
+                    results['courses'] = []
     
     context = {
         'query': query,

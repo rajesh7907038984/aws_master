@@ -50,12 +50,13 @@
     #main-content.sidebar-collapsed {
         margin-left: 3.5rem !important;
         width: calc(100% - 3.5rem) !important;
+        transition: margin-left 0.3s ease, width 0.3s ease !important;
     }
 }
 
 /* ===== COLLAPSED STATE ===== */
 #sidebar.collapsed {
-    width: 5.5rem !important; /* 56px */
+    width: 3.5rem !important; /* 56px - reduced for better UX */
 }
 
 #sidebar.collapsed .menu-text {
@@ -672,6 +673,39 @@ html body #sidebar.collapsed .arrow-icon {
 
 #sidebar .arrow-icon {
     transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ===== TOGGLE BUTTON STYLES ===== */
+/* Ensure toggle button is always visible on desktop */
+@media (min-width: 768px) {
+    #mobile-menu-toggle {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        position: relative !important;
+        z-index: 10 !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease !important;
+    }
+    
+    #mobile-menu-toggle:hover {
+        background-color: #f3f4f6 !important;
+        transform: scale(1.05) !important;
+    }
+    
+    #mobile-menu-toggle:active {
+        transform: scale(0.95) !important;
+    }
+}
+
+/* Force toggle button visibility on all screen sizes */
+#mobile-menu-toggle {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: relative !important;
+    z-index: 10 !important;
+    cursor: pointer !important;
 }
 
 /* ===== PRINT STYLES ===== */

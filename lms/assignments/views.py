@@ -27,7 +27,14 @@ from django.views.decorators.csrf import csrf_exempt, csrf_protect, ensure_csrf_
 from django.views.decorators.http import require_POST
 from django.core.files.storage import FileSystemStorage
 
-from courses.models import Course, Topic, CourseTopic, CourseEnrollment
+from courses.models import Course, Topic, CourseEnrollment
+
+try:
+    from courses.models import CourseTopic
+except ImportError:
+    from courses.models import Course
+    CourseTopic = Course.topics.through if hasattr(Course, "topics") else None
+
 from courses.views import get_topic_course, check_instructor_management_access
 from lms_rubrics.models import Rubric, RubricRating, RubricEvaluation, RubricCriterion, RubricEvaluationHistory
 from users.models import CustomUser

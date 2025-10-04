@@ -1,0 +1,439 @@
+/**
+ * Header Styles - Consolidated and optimized
+ * Removes duplication and conflicting rules
+ */
+
+/* ===== Core Header Styles ===== */
+header {
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    height: 4rem;
+    display: block;
+    visibility: visible;
+    opacity: 1;
+    z-index: 50;
+}
+
+header > div,
+header .flex.items-center {
+    overflow: visible;
+}
+
+/* ===== Header Icons - Always Visible ===== */
+.header-icon,
+.discussion-icon,
+.notification-icon,
+#mobile-menu-toggle,
+#profile-container,
+#profile-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    visibility: visible;
+    opacity: 1;
+    position: relative;
+}
+
+/* CRITICAL: Header icons that must NEVER be hidden by JavaScript */
+.header-icon-permanent,
+.header-icon-permanent *,
+button.header-icon-permanent,
+a.header-icon-permanent,
+div.header-icon-permanent {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Override ANY JavaScript attempts to hide permanent icons */  
+.header-icon-permanent[style*="display: none"],
+.header-icon-permanent[style*="visibility: hidden"],
+.header-icon-permanent[style*="opacity: 0"] {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.header-icon svg,
+.discussion-icon svg,
+.notification-icon svg,
+#mobile-menu-toggle svg {
+    display: inline-block;
+    visibility: visible;
+    opacity: 1;
+}
+
+/* ===== Dropdown Styling ===== */
+select option {
+    background: white;
+    color: #111827;
+    padding: 0.5rem 1rem;
+}
+
+select::-webkit-scrollbar {
+    width: 8px;
+}
+
+select::-webkit-scrollbar-track {
+    background: #f3f4f6;
+}
+
+select::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 9999px;
+}
+
+.shadow-lg {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* ===== Mobile Menu Styles ===== */
+#mobile-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 50;
+    display: none;
+    transition: transform 0.3s ease-in-out, visibility 0.3s ease-in-out;
+}
+
+#mobile-menu.open {
+    display: block;
+    visibility: visible;
+}
+
+#mobile-menu .absolute.top-0.left-0 {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 16rem;
+    height: 100%;
+    background: #1C2260;
+    z-index: 51;
+    transform: translateX(0);
+    transition: transform 0.3s ease-in-out;
+}
+
+#mobile-menu:not(.open) .absolute.top-0.left-0 {
+    transform: translateX(-100%);
+}
+
+#mobile-menu-overlay {
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+    pointer-events: none;
+    z-index: 39;
+}
+
+#mobile-menu.open #mobile-menu-overlay {
+    opacity: 0.5;
+    pointer-events: auto;
+}
+
+/* ===== Mobile Menu Items ===== */
+#mobile-menu .menu-item {
+    position: relative;
+    width: 100%;
+    cursor: pointer;
+    color: white;
+    padding: 12px 24px;
+    min-height: 48px;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    transition: all 0.3s ease;
+    background-color: transparent;
+    border: none;
+    text-align: left;
+}
+
+#mobile-menu .menu-item:hover,
+#mobile-menu .menu-item.active {
+    background-color: #050c50;
+    border-left: 4px solid #02f711;
+}
+
+#mobile-menu .icon-container {
+    min-width: 16px;
+    width: 16px;
+}
+
+#mobile-menu .icon-container svg {
+    width: 16px;
+    height: 16px;
+    stroke-width: 2;
+    fill: none;
+    color: white;
+    stroke: white;
+}
+
+#mobile-menu .menu-text {
+    color: white;
+    font-size: 0.75rem;
+    line-height: 1.1rem;
+    margin-left: 0.5rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ===== Mobile Submenus ===== */
+#mobile-menu .submenu {
+    background-color: rgba(0, 0, 0, 0.1);
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+    opacity: 0;
+    visibility: hidden;
+}
+
+#mobile-menu .submenu:not(.hidden) {
+    max-height: 1200px;
+    opacity: 1;
+    visibility: visible;
+    overflow: visible;
+}
+
+#mobile-menu .submenu .menu-item {
+    padding: 12px 24px 12px 52px;
+    font-size: 0.875rem;
+    opacity: 0.9;
+}
+
+#mobile-menu .submenu .menu-item:hover {
+    background-color: #050c50;
+    opacity: 1;
+    border-left: 3px solid #02f711;
+}
+
+#mobile-menu .menu-item.has-submenu .arrow-icon {
+    position: absolute;
+    right: 1rem;
+    transition: transform 0.3s ease;
+    width: 12px;
+    height: 12px;
+    color: white;
+    stroke: white;
+    fill: none;
+}
+
+#mobile-menu .menu-item.has-submenu.expanded .arrow-icon {
+    transform: rotate(180deg);
+}
+
+/* ===== Mobile Search ===== */
+#mobile-search-container {
+    transition: all 0.3s ease-in-out;
+    transform: translateY(-10px);
+    opacity: 0;
+    display: none !important;
+    visibility: hidden;
+    height: 0;
+    overflow: hidden;
+}
+
+#mobile-search-container:not(.hidden) {
+    transform: translateY(0);
+    opacity: 1;
+    display: block !important;
+    visibility: visible;
+    height: auto;
+}
+
+/* Mobile search toggle - hidden on desktop, shown on mobile */
+#mobile-search-toggle.active {
+    background-color: #3b82f6;
+    color: white;
+}
+
+#mobile-search-toggle.active:hover {
+    background-color: #2563eb;
+}
+
+/* ===== Header Layout Adjustments ===== */
+/* Spacer for mobile layout - hidden on desktop */
+header .flex-1.md\:hidden {
+    display: none !important;
+}
+
+@media (max-width: 767px) {
+    header .flex-1.md\:hidden {
+        display: block !important;
+    }
+}
+
+/* ===== Profile Dropdown ===== */
+#profile-dropdown {
+    position: absolute;
+    top: 3.5rem;
+    right: 0;
+    z-index: 9999;
+    min-width: 12rem;
+    max-width: calc(100vw - 2rem);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    background-color: white;
+    border-radius: 0.75rem;
+    border: 1px solid #e5e7eb;
+    display: none;
+    visibility: hidden;
+    opacity: 0;
+    max-height: calc(100vh - 5rem);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+#profile-dropdown:not(.hidden) {
+    display: block;
+    visibility: visible;
+    opacity: 1;
+}
+
+#profile-dropdown a,
+#profile-dropdown button[type="submit"] {
+    min-height: 44px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    padding: 12px 16px;
+}
+
+#profile-dropdown a:active,
+#profile-dropdown button[type="submit"]:active {
+    background-color: #e5e7eb;
+    transform: scale(0.98);
+}
+
+/* ===== Responsive Breakpoints ===== */
+
+/* Mobile devices */
+@media (max-width: 767px) {
+    /* FORCE HIDE desktop search completely */
+    header .hidden.md\:flex,
+    header > div > .hidden.md\:flex,
+    .md\:flex.flex-1.max-w-3xl {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        width: 0 !important;
+        height: 0 !important;
+        overflow: hidden !important;
+        position: absolute !important;
+        left: -9999px !important;
+    }
+    
+    /* Show mobile search toggle - ensure proper positioning */
+    #mobile-search-toggle {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        flex-shrink: 0;
+        margin-left: auto;
+        margin-right: 0.5rem;
+    }
+    
+    /* Mobile search container - keep hidden until toggled */
+    #mobile-search-container {
+        display: none !important;
+        visibility: hidden;
+    }
+    
+    #mobile-search-container:not(.hidden) {
+        display: block !important;
+        visibility: visible;
+    }
+    
+    /* Header spacing adjustments for mobile */
+    header .flex.items-center.justify-between {
+        gap: 0.5rem;
+    }
+    
+    header .flex.items-center.gap-1 {
+        gap: 0.25rem;
+    }
+    
+    /* Mobile submenu improvements */
+    #mobile-menu .submenu {
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+    
+    #mobile-menu .submenu .menu-item {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+}
+
+/* Desktop */
+@media (min-width: 768px) {
+    /* FORCE HIDE mobile search elements completely */
+    #mobile-search-toggle,
+    #mobile-search-container,
+    #mobile-search-container:not(.hidden) {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        width: 0 !important;
+        height: 0 !important;
+        overflow: hidden !important;
+        position: absolute !important;
+        left: -9999px !important;
+    }
+    
+    /* Show desktop search */
+    header .hidden.md\:flex,
+    header > div > .hidden.md\:flex {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        width: auto !important;
+        height: auto !important;
+        position: relative !important;
+        left: auto !important;
+    }
+    
+    /* Ensure mobile menu is hidden */
+    #mobile-menu:not(.open) {
+        display: none;
+    }
+}
+
+/* Extra small screens */
+@media (max-width: 480px) {
+    #mobile-menu .submenu .menu-item {
+        padding: 10px 16px 10px 40px;
+        font-size: 0.8rem;
+        height: 44px;
+        min-height: 44px;
+    }
+    
+    #mobile-menu .submenu .icon-container {
+        min-width: 12px;
+        width: 12px;
+        height: 12px;
+    }
+}
+
+/* ===== Accessibility ===== */
+@media (prefers-reduced-motion: reduce) {
+    .transition-all,
+    #mobile-menu,
+    #mobile-menu-overlay,
+    #mobile-search-container,
+    * {
+        animation-duration: 0.01ms;
+        animation-iteration-count: 1;
+        transition-duration: 0.01ms;
+    }
+}
+
+/* Touch devices - improve focus states */
+@media (any-hover: none) {
+    button:focus,
+    a:focus {
+        outline: 3px solid #3b82f6;
+        outline-offset: 2px;
+    }
+}
+

@@ -18,7 +18,6 @@ class Discussion(models.Model):
     ASSESSMENT_TYPE_CHOICES = (
         ('quiz', 'Quiz'),
         ('assignment', 'Assignment'),
-        ('scorm', 'SCORM'),
         ('ilt_conference', 'ILT/Conference'),
         ('discussion', 'Discussion'),
     )
@@ -80,7 +79,12 @@ class Discussion(models.Model):
             }
         
         # Check topic-based courses (discussion -> topic -> course)
-        from courses.models import CourseTopic
+        try:
+            from courses.models import CourseTopic
+        except ImportError:
+            from courses.models import Course
+            CourseTopic = Course.topics.through if hasattr(Course, "topics") else None
+        
         topic_courses = CourseTopic.objects.filter(
             topic__discussion=self
         ).select_related('course').distinct()

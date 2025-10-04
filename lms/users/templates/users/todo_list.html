@@ -239,6 +239,12 @@
             </button>
             
             {% if user_role == 'learner' %}
+                <button class="filter-tab" data-type="message">
+                    <i class="fas fa-envelope"></i> Messages
+                </button>
+                <button class="filter-tab" data-type="feedback">
+                    <i class="fas fa-comment-alt"></i> Feedback
+                </button>
                 <button class="filter-tab" data-type="assignment">
                     <i class="fas fa-file-alt"></i> Assignments
                 </button>
@@ -249,6 +255,9 @@
                     <i class="fas fa-video"></i> Conferences
                 </button>
             {% elif user_role == 'instructor' %}
+                <button class="filter-tab" data-type="message">
+                    <i class="fas fa-envelope"></i> Messages
+                </button>
                 <button class="filter-tab" data-type="grading">
                     <i class="fas fa-check-circle"></i> Grading
                 </button>

@@ -2,7 +2,13 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
 from .models import Comment
-from courses.models import TopicProgress, Topic
+from courses.models import Topic
+
+# Import TopicProgress dynamically
+try:
+    from courses.models import TopicProgress
+except ImportError:
+    TopicProgress = None
 import logging
 
 logger = logging.getLogger(__name__)

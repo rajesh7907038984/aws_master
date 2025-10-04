@@ -67,8 +67,18 @@ class ZoomAPI:
         }
     
     def create_meeting(self, topic, start_time=None, duration=60, password=None, 
-                      waiting_room=True, join_before_host=False):
-        """Create a Zoom meeting"""
+                      waiting_room=True, join_before_host=False, meeting_type=3):
+        """Create a Zoom meeting
+        
+        Args:
+            topic: Meeting topic/title
+            start_time: Meeting start time (datetime object)
+            duration: Meeting duration in minutes (used for scheduling only, not enforced for type 3)
+            password: Meeting password
+            waiting_room: Enable waiting room
+            join_before_host: Allow joining before host
+            meeting_type: Meeting type (2=Scheduled with fixed duration, 3=Recurring no fixed time - unlimited)
+        """
         try:
             headers = self.get_headers()
             
@@ -81,9 +91,9 @@ class ZoomAPI:
             
             meeting_data = {
                 'topic': topic,
-                'type': 2,  # Scheduled meeting
+                'type': meeting_type,  # Type 3: Recurring meeting with no fixed time (unlimited duration)
                 'start_time': start_time_str,
-                'duration': duration,
+                'duration': duration,  # Duration is for scheduling reference only for type 3
                 'timezone': 'UTC',
                 'settings': {
                     'waiting_room': waiting_room,
@@ -91,9 +101,17 @@ class ZoomAPI:
                     'mute_upon_entry': True,
                     'approval_type': 2,  # No registration required
                     'audio': 'both',  # Both telephony and VoIP
-                    'auto_recording': 'none'
+                    'auto_recording': 'cloud'  # Enable cloud recording
                 }
             }
+            
+            # For recurring meetings (type 3), add recurrence settings for "no fixed time"
+            if meeting_type == 3:
+                meeting_data['recurrence'] = {
+                    'type': 1,  # Daily recurrence
+                    'repeat_interval': 1,  # Every day
+                    'end_times': 1  # Only one occurrence (this makes it "no fixed time")
+                }
             
             if password:
                 meeting_data['password'] = password

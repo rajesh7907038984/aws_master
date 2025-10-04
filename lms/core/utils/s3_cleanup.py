@@ -37,18 +37,22 @@ class S3CleanupManager:
                    secret_access_key in ['your_secret_key_here', None, '']:
                     # Try IAM role-based authentication (no explicit credentials)
                     logger.info("Using IAM role-based authentication for S3")
+                    from botocore.client import Config
                     self.s3_client = boto3.client(
                         's3',
-                        region_name=getattr(settings, 'AWS_S3_REGION_NAME', 'eu-west-2')
+                        region_name=getattr(settings, 'AWS_S3_REGION_NAME', 'eu-west-2'),
+                        config=Config(signature_version='s3v4')
                     )
                 else:
                     # Use explicit credentials
                     logger.info("Using explicit AWS credentials for S3")
+                    from botocore.client import Config
                     self.s3_client = boto3.client(
                         's3',
                         aws_access_key_id=access_key_id,
                         aws_secret_access_key=secret_access_key,
-                        region_name=getattr(settings, 'AWS_S3_REGION_NAME', 'eu-west-2')
+                        region_name=getattr(settings, 'AWS_S3_REGION_NAME', 'eu-west-2'),
+                        config=Config(signature_version='s3v4')
                     )
                 
                 # Test the connection

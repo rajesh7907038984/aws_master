@@ -1,0 +1,403 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ scorm_package.title }} - SCORM Player{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+    
+    .scorm-player-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        flex-direction: column;
+        background: #1f2937;
+    }
+    
+    .scorm-header {
+        background: #111827;
+        padding: 12px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        z-index: 1000;
+    }
+    
+    .scorm-title {
+        font-size: 16px;
+        font-weight: 600;
+        margin: 0;
+    }
+    
+    .scorm-status {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        font-size: 14px;
+    }
+    
+    .status-indicator {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #6b7280;
+    }
+    
+    .status-dot.active {
+        background: #10b981;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+    
+    .scorm-actions {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .btn-exit {
+        background: #ef4444;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background 0.2s;
+    }
+    
+    .btn-exit:hover {
+        background: #dc2626;
+    }
+    
+    .scorm-content {
+        flex: 1;
+        position: relative;
+        background: white;
+    }
+    
+    #scorm-frame {
+        width: 100%;
+        height: 100%;
+        border: none;
+        display: block;
+    }
+    
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #1f2937;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+    }
+    
+    .loading-overlay.hidden {
+        display: none;
+    }
+    
+    .loading-spinner {
+        width: 48px;
+        height: 48px;
+        border: 4px solid #374151;
+        border-top-color: #3b82f6;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="scorm-player-container">
+    <div class="scorm-header">
+        <h1 class="scorm-title">{{ scorm_package.title }}</h1>
+        
+        <div class="scorm-status">
+            <div class="status-indicator">
+                <div class="status-dot" id="connection-status"></div>
+                <span id="status-text">Connecting...</span>
+            </div>
+            <div class="status-indicator">
+                <span>Time: <span id="time-display">00:00:00</span></span>
+            </div>
+        </div>
+        
+        <div class="scorm-actions">
+            <button class="btn-exit" onclick="exitPlayer()">Exit</button>
+        </div>
+    </div>
+    
+    <div class="scorm-content">
+        <div class="loading-overlay" id="loading-overlay">
+            <div class="loading-spinner"></div>
+        </div>
+        <iframe id="scorm-frame" src="{{ launch_url }}" allow="autoplay; fullscreen"></iframe>
+    </div>
+</div>
+
+<script>
+// SCORM API Wrapper
+(function() {
+    const API_ENDPOINT = '{{ api_endpoint }}';
+    const ATTEMPT_ID = {{ attempt.id }};
+    const SCORM_VERSION = '{{ scorm_package.version }}';
+    
+    let sessionStartTime = Date.now();
+    let timeInterval = null;
+    
+    // SCORM API Implementation
+    class ScormAPI {
+        constructor() {
+            this.initialized = false;
+            this.lastError = '0';
+            this.data = {};
+        }
+        
+        async callAPI(method, parameters = []) {
+            try {
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        method: method,
+                        parameters: parameters
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    this.lastError = result.error_code || '0';
+                    return result.result;
+                } else {
+                    console.error('API Error:', result.error);
+                    this.lastError = '101';
+                    return 'false';
+                }
+            } catch (error) {
+                console.error('API Call Failed:', error);
+                this.lastError = '101';
+                return 'false';
+            }
+        }
+        
+        // SCORM 1.2 API
+        LMSInitialize(param) {
+            updateStatus('Initializing...', true);
+            return this.callAPI('LMSInitialize', [param]).then(result => {
+                if (result === 'true') {
+                    this.initialized = true;
+                    updateStatus('Connected', true);
+                    startTimer();
+                }
+                return result;
+            });
+        }
+        
+        LMSFinish(param) {
+            updateStatus('Saving...', true);
+            return this.callAPI('LMSFinish', [param]).then(result => {
+                if (result === 'true') {
+                    this.initialized = false;
+                    updateStatus('Completed', false);
+                    stopTimer();
+                }
+                return result;
+            });
+        }
+        
+        LMSGetValue(element) {
+            return this.callAPI('LMSGetValue', [element]);
+        }
+        
+        LMSSetValue(element, value) {
+            return this.callAPI('LMSSetValue', [element, value]);
+        }
+        
+        LMSCommit(param) {
+            return this.callAPI('LMSCommit', [param]);
+        }
+        
+        LMSGetLastError() {
+            return this.lastError;
+        }
+        
+        LMSGetErrorString(errorCode) {
+            return this.callAPI('LMSGetErrorString', [errorCode]);
+        }
+        
+        LMSGetDiagnostic(errorCode) {
+            return this.callAPI('LMSGetDiagnostic', [errorCode]);
+        }
+        
+        // SCORM 2004 API
+        Initialize(param) {
+            return this.LMSInitialize(param);
+        }
+        
+        Terminate(param) {
+            return this.LMSFinish(param);
+        }
+        
+        GetValue(element) {
+            return this.LMSGetValue(element);
+        }
+        
+        SetValue(element, value) {
+            return this.LMSSetValue(element, value);
+        }
+        
+        Commit(param) {
+            return this.LMSCommit(param);
+        }
+        
+        GetLastError() {
+            return this.LMSGetLastError();
+        }
+        
+        GetErrorString(errorCode) {
+            return this.LMSGetErrorString(errorCode);
+        }
+        
+        GetDiagnostic(errorCode) {
+            return this.LMSGetDiagnostic(errorCode);
+        }
+    }
+    
+    // Create API instance and expose it globally
+    const scormAPI = new ScormAPI();
+    
+    // SCORM 1.2 API
+    window.API = scormAPI;
+    
+    // SCORM 2004 API
+    window.API_1484_11 = scormAPI;
+    
+    // Helper function to get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    // Update status display
+    function updateStatus(text, active) {
+        const statusText = document.getElementById('status-text');
+        const statusDot = document.getElementById('connection-status');
+        
+        if (statusText) statusText.textContent = text;
+        if (statusDot) {
+            if (active) {
+                statusDot.classList.add('active');
+            } else {
+                statusDot.classList.remove('active');
+            }
+        }
+    }
+    
+    // Timer functions
+    function startTimer() {
+        if (timeInterval) return;
+        
+        timeInterval = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - sessionStartTime) / 1000);
+            const hours = Math.floor(elapsed / 3600);
+            const minutes = Math.floor((elapsed % 3600) / 60);
+            const seconds = elapsed % 60;
+            
+            const display = document.getElementById('time-display');
+            if (display) {
+                display.textContent = 
+                    `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            }
+        }, 1000);
+    }
+    
+    function stopTimer() {
+        if (timeInterval) {
+            clearInterval(timeInterval);
+            timeInterval = null;
+        }
+    }
+    
+    // Exit player
+    window.exitPlayer = function() {
+        if (confirm('Are you sure you want to exit? Your progress will be saved.')) {
+            stopTimer();
+            window.location.href = '{% url "courses:topic_view" topic.id %}';
+        }
+    };
+    
+    // Handle iframe load
+    document.getElementById('scorm-frame').addEventListener('load', function() {
+        const loadingOverlay = document.getElementById('loading-overlay');
+        if (loadingOverlay) {
+            loadingOverlay.classList.add('hidden');
+        }
+        
+        // Make API available to iframe
+        const iframe = this;
+        if (iframe.contentWindow) {
+            iframe.contentWindow.API = window.API;
+            iframe.contentWindow.API_1484_11 = window.API_1484_11;
+        }
+    });
+    
+    // Handle page unload
+    window.addEventListener('beforeunload', function(e) {
+        if (scormAPI.initialized) {
+            // Auto-commit on page unload
+            scormAPI.LMSCommit('');
+        }
+    });
+    
+    // Auto-save every 30 seconds
+    setInterval(() => {
+        if (scormAPI.initialized) {
+            scormAPI.LMSCommit('');
+        }
+    }, 30000);
+    
+})();
+</script>
+{% endblock %}
+

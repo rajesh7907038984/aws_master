@@ -5,8 +5,19 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.urls import reverse
 
-from .models import Topic, Course, Section, TopicProgress, CourseTopic
-from .views import get_topic_course, check_course_permission, get_course_context, handle_scorm_content, check_instructor_management_access
+from .models import Topic, Course, Section
+from .views import get_topic_course
+
+# Import TopicProgress and CourseTopic dynamically
+try:
+    from .models import TopicProgress
+except ImportError:
+    TopicProgress = None
+
+try:
+    from .models import CourseTopic
+except ImportError:
+    CourseTopic = Course.topics.through if hasattr(Course, "topics") else None
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +48,13 @@ def topic_view(request, topic_id):
             messages.error(request, 'Topic is not associated with any course')
             return redirect('courses:course_list')
         
+        # Check if user has permission to access this topic's course (enrollment check)
+        # Only enforce for authenticated users; anonymous users handled by course visibility
+        if request.user.is_authenticated:
+            if not topic.user_has_access(request.user):
+                messages.error(request, "You don't have permission to access this content. Please enroll in the course first.")
+                return redirect('courses:course_view', course_id=course.id)
+        
         # Simple access - just show the topic content
         logger.info(f"DEBUG: Showing topic {topic_id} - {topic.title}")
         
@@ -57,7 +75,14 @@ def topic_view(request, topic_id):
             request.session['has_viewed_content'] = True
         
         # Build proper course content navigation context
-        from courses.models import Section, CourseTopic
+        from courses.models import Section
+        
+        # Import CourseTopic dynamically
+        try:
+            from courses.models import CourseTopic
+        except ImportError:
+            from courses.models import Course
+            CourseTopic = Course.topics.through if hasattr(Course, "topics") else None
         
         # Get all topics for this course that the user can access
         if request.user.is_authenticated and request.user.role == 'learner':
@@ -171,9 +196,6 @@ def topic_view(request, topic_id):
             'access_warning': access_warning
         }
         
-        # Handle SCORM content if needed (only for authenticated users)
-        if topic.content_type == 'SCORM' and request.user.is_authenticated:
-            context = handle_scorm_content(request, topic, context)
         
         return render(request, 'courses/topic_view.html', context)
     

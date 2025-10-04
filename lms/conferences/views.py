@@ -772,14 +772,20 @@ def create_zoom_meeting(user, integration_id, title, description, start_datetime
         }
         
         # Prepare request payload with enhanced settings for direct join WITHOUT registration
+        # Type 3 = Recurring meeting with no fixed time (unlimited duration for Pro accounts)
         payload = {
             'topic': title,
-            'type': 2,  # Scheduled meeting
+            'type': 3,  # Recurring meeting with no fixed time (unlimited duration)
             'start_time': start_time,
-            'duration': duration,
+            'duration': duration,  # Duration is for reference only, meeting won't auto-stop
             'timezone': 'UTC',
             'agenda': description,
             'password': f"{random.randint(100000, 999999)}",  # Generate 6-digit meeting passcode
+            'recurrence': {
+                'type': 1,  # Daily
+                'repeat_interval': 1,  # Every day
+                'end_times': 1  # Only one occurrence (makes it "no fixed time")
+            },
             'settings': {
                 # Basic video/audio settings
                 'host_video': True,

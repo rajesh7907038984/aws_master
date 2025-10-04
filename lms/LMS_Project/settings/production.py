@@ -164,12 +164,21 @@ SECURE_HSTS_PRELOAD = True
 # AWS S3 Configuration for Production
 AWS_ACCESS_KEY_ID = get_env('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = get_env('AWS_SECRET_ACCESS_KEY')
-AWS_STORAGE_BUCKET_NAME = get_env('AWS_STORAGE_BUCKET_NAME', 'elasticbeanstalk-eu-west-2-006619321740')
+# Force the correct bucket name
+AWS_STORAGE_BUCKET_NAME = 'lms-staging-nexsy-io'
 AWS_S3_REGION_NAME = 'eu-west-2'
-AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3-accelerate.amazonaws.com'
 
-# S3 Transfer Acceleration for faster uploads
-AWS_S3_TRANSFER_ACCELERATION = True
+# Disable Transfer Acceleration to avoid signature mismatch errors with large uploads
+# Using standard S3 endpoint for reliable uploads
+AWS_S3_TRANSFER_ACCELERATION = False
+AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com'
+
+# Force signature version v4 (required for eu-west-2 and Transfer Acceleration)
+AWS_S3_SIGNATURE_VERSION = 's3v4'
+
+# Configure boto3 client for S3 (required for django-storages)
+# from botocore.client import Config
+# AWS_S3_CONFIG = Config(signature_version='s3v4')  # Removed - not supported by django-storages
 
 # S3 Media Storage Settings
 # Disable ACL for modern S3 buckets that don't support ACLs
@@ -188,8 +197,13 @@ AWS_S3_OBJECT_ACL = None  # Disable object ACL
 DEFAULT_FILE_STORAGE = 'core.s3_storage.MediaS3Storage'
 MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_MEDIA_LOCATION}/'
 
+# IMPORTANT: When using S3, MEDIA_ROOT should not be set to a local path
+# Set to None to ensure all media operations use S3 storage
+MEDIA_ROOT = None
+
 print("☁️ Using S3 media storage configuration")
 print(f"☁️ MEDIA_URL set to: {MEDIA_URL}")
+print(f"☁️ MEDIA_ROOT set to: None (using S3 storage)")
 
 # ==============================================
 # PRODUCTION SETTINGS

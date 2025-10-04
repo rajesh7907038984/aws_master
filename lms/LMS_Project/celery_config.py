@@ -67,6 +67,34 @@ if crontab is not None:
                 'expires': 3600,  # 1 hour expiry
             }
         },
+        
+        # Notification tasks
+        'send-deadline-reminders': {
+            'task': 'lms_notifications.tasks.send_deadline_reminders',
+            'schedule': crontab(hour=8, minute=0),  # 8:00 AM daily
+            'options': {
+                'queue': 'notifications',
+                'expires': 3600,  # 1 hour expiry
+            }
+        },
+        
+        'send-unread-message-digest': {
+            'task': 'lms_notifications.tasks.send_unread_message_digest',
+            'schedule': crontab(hour=9, minute=0),  # 9:00 AM daily
+            'options': {
+                'queue': 'notifications',
+                'expires': 3600,  # 1 hour expiry
+            }
+        },
+        
+        'send-feedback-reminders': {
+            'task': 'lms_notifications.tasks.send_feedback_reminders',
+            'schedule': crontab(hour=10, minute=0),  # 10:00 AM daily
+            'options': {
+                'queue': 'notifications',
+                'expires': 3600,  # 1 hour expiry
+            }
+        },
     }
 else:
     # Fallback when celery is not available
@@ -95,6 +123,11 @@ CELERY_TASK_ROUTES = {
     'sharepoint_integration.tasks.batch_sync_enrollments': {'queue': 'sync'},
     'sharepoint_integration.tasks.sync_single_record': {'queue': 'sync'},
     'sharepoint_integration.tasks.health_check_sharepoint_integrations': {'queue': 'monitoring'},
+    
+    # Notification tasks
+    'lms_notifications.tasks.send_deadline_reminders': {'queue': 'notifications'},
+    'lms_notifications.tasks.send_unread_message_digest': {'queue': 'notifications'},
+    'lms_notifications.tasks.send_feedback_reminders': {'queue': 'notifications'},
 }
 
 # Task settings
@@ -120,6 +153,7 @@ CELERY_TASK_QUEUES = {
     'maintenance': {'routing_key': 'maintenance'},
     'monitoring': {'routing_key': 'monitoring'},
     'emails': {'routing_key': 'emails'},
+    'notifications': {'routing_key': 'notifications'},
 }
 
 # Worker settings for conference sync

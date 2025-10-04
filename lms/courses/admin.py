@@ -14,10 +14,29 @@ from django.utils import timezone
 
 from users.models import Branch, CustomUser
 from .models import (
-    Course, Topic, TopicProgress, CourseEnrollment, 
-    CourseCategory, CourseTopic,
-    LearningObjective, CourseFeature
+    Course, Topic, CourseEnrollment
 )
+
+# Try to import optional models
+try:
+    from .models import CourseCategory
+except ImportError:
+    CourseCategory = None
+
+try:
+    from .models import CourseTopic
+except ImportError:
+    CourseTopic = None
+
+try:
+    from .models import LearningObjective
+except ImportError:
+    LearningObjective = None
+
+try:
+    from .models import CourseFeature
+except ImportError:
+    CourseFeature = None
 from .forms import TopicAdminForm
 # SCORM imports removed - functionality no longer supported
 
@@ -275,7 +294,7 @@ class TopicAdmin(admin.ModelAdmin):
     add_form_template = 'admin/courses/topic/add_form.html'
     change_form_template = 'admin/courses/topic/change_form.html'
 
-@admin.register(TopicProgress)
+
 class TopicProgressAdmin(admin.ModelAdmin):
     list_display = ('user', 'topic', 'completed', 'completion_method', 'manually_completed', 'last_accessed', 'get_progress_display', 'get_status_display')
     list_filter = ('completed', 'completion_method', 'manually_completed')
@@ -1129,7 +1148,8 @@ class CourseEnrollmentAdmin(admin.ModelAdmin):
 admin.site.unregister(Topic)
 admin.site.register(Topic, TopicAdmin)
 
-@admin.register(CourseTopic)
+# CourseTopic admin temporarily disabled - model import issues
+# @admin.register(CourseTopic)
 class CourseTopicAdmin(admin.ModelAdmin):
     list_display = ('course', 'topic', 'order')
     list_filter = ('course', 'topic')

@@ -725,6 +725,12 @@ class Course(models.Model):
             
         # Define paths for course files
         media_root = settings.MEDIA_ROOT
+        
+        # Skip directory creation if using S3 storage (MEDIA_ROOT is None)
+        if media_root is None:
+            logger.info(f"Using S3 storage, skipping local directory creation for course {self.pk}")
+            return
+        
         course_images_dir = os.path.join(media_root, 'course_images', str(self.pk))
         course_videos_dir = os.path.join(media_root, 'course_videos', str(self.pk))
         
@@ -1407,7 +1413,7 @@ class Section(models.Model):
 class Topic(models.Model):
     """Model for course topics with various content types"""
     TOPIC_TYPE_CHOICES = [
-        # ('SCORM', 'SCORM'),  # SCORM support removed
+        ('SCORM', 'SCORM Package'),
         ('Video', 'Video'),
         ('Document', 'Document'),
         ('Text', 'Text'),
