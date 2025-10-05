@@ -104,11 +104,13 @@ class ScormAPIHandler:
         self.initialized = True
         self.last_error = '0'
         
-        # Set entry mode
+        # Set entry mode based on bookmark data
         if self.attempt.lesson_location or self.attempt.suspend_data:
             self.attempt.entry = 'resume'
+            logger.info(f"🔄 SCORM Resume: lesson_location='{self.attempt.lesson_location}', suspend_data='{self.attempt.suspend_data[:50] if self.attempt.suspend_data else 'None'}...'")
         else:
             self.attempt.entry = 'ab-initio'
+            logger.info(f"🆕 SCORM New attempt: starting from beginning")
         
         if self.version == '1.2':
             self.attempt.cmi_data['cmi.core.entry'] = self.attempt.entry
@@ -118,6 +120,11 @@ class ScormAPIHandler:
             # Ensure lesson_mode is set
             if not self.attempt.cmi_data.get('cmi.core.lesson_mode'):
                 self.attempt.cmi_data['cmi.core.lesson_mode'] = 'normal'
+            # Ensure bookmark data is properly set
+            if self.attempt.lesson_location:
+                self.attempt.cmi_data['cmi.core.lesson_location'] = self.attempt.lesson_location
+            if self.attempt.suspend_data:
+                self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data
         else:
             self.attempt.cmi_data['cmi.entry'] = self.attempt.entry
             # Ensure completion_status is set
@@ -126,12 +133,18 @@ class ScormAPIHandler:
             # Ensure mode is set
             if not self.attempt.cmi_data.get('cmi.mode'):
                 self.attempt.cmi_data['cmi.mode'] = 'normal'
+            # Ensure bookmark data is properly set
+            if self.attempt.lesson_location:
+                self.attempt.cmi_data['cmi.location'] = self.attempt.lesson_location
+            if self.attempt.suspend_data:
+                self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data
         
         # Save the updated data
         self.attempt.save()
         
         logger.info(f"✅ SCORM API initialized for attempt {self.attempt.id}, version {self.version}")
         logger.info(f"CMI data keys: {list(self.attempt.cmi_data.keys())}")
+        logger.info(f"📍 Bookmark data: location='{self.attempt.lesson_location}', suspend_data='{self.attempt.suspend_data[:50] if self.attempt.suspend_data else 'None'}...'")
         
         return 'true'
     

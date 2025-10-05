@@ -413,11 +413,62 @@
         // Synchronous wrapper for SCORM API calls
         function makeApiCallSync(method, parameters) {
             // For SCORM compatibility, we need to return synchronously
-            // This is a simplified implementation that returns default values
-            // In a real SCORM environment, the LMS would handle this properly
+            // This implementation makes actual API calls but returns cached results for synchronous compatibility
             
             try {
-                // Return appropriate default values based on method
+                // For critical bookmark elements, we need to make actual API calls
+                if (method === 'GetValue' || method === 'LMSGetValue') {
+                    const element = parameters[0];
+                    
+                    // Check if we have cached data for this element
+                    const cacheKey = method + '_' + JSON.stringify(parameters);
+                    if (apiCache.has(cacheKey)) {
+                        const cached = apiCache.get(cacheKey);
+                        if (Date.now() - cached.timestamp < CACHE_DURATION) {
+                            return cached.value;
+                        }
+                    }
+                    
+                    // For bookmark-related elements, make actual API call
+                    if (element === 'cmi.core.lesson_location' || element === 'cmi.location' || 
+                        element === 'cmi.suspend_data' || element === 'cmi.core.entry' || 
+                        element === 'cmi.entry' || element === 'cmi.core.lesson_status' || 
+                        element === 'cmi.completion_status') {
+                        
+                        // Make synchronous API call using XMLHttpRequest
+                        try {
+                            const xhr = new XMLHttpRequest();
+                            xhr.open('POST', API_ENDPOINT, false); // Synchronous request
+                            xhr.setRequestHeader('Content-Type', 'application/json');
+                            xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+                            
+                            xhr.send(JSON.stringify({
+                                method: method,
+                                parameters: parameters
+                            }));
+                            
+                            if (xhr.status === 200) {
+                                const response = JSON.parse(xhr.responseText);
+                                if (response.success) {
+                                    const result = response.result;
+                                    
+                                    // Cache the result
+                                    apiCache.set(cacheKey, {
+                                        value: result,
+                                        timestamp: Date.now()
+                                    });
+                                    
+                                    console.log(`[SCORM API] ${method}(${element}) -> ${result}`);
+                                    return result;
+                                }
+                            }
+                        } catch (e) {
+                            console.error(`[SCORM API] ${method} sync error:`, e);
+                        }
+                    }
+                }
+                
+                // For other methods, return appropriate default values
                 switch(method) {
                     case 'Initialize':
                     case 'LMSInitialize':
@@ -501,6 +552,11 @@
                 preloadCommonAPI();
             }, 500); // Reduced timeout for faster preloading
             
+            // Preload bookmark data for resume functionality
+            setTimeout(() => {
+                preloadBookmarkData();
+            }, 750); // Load bookmark data after common API calls
+            
             // Preload SCORM assets for better performance
             setTimeout(() => {
                 preloadSCORMAssets();
@@ -549,12 +605,39 @@
                 ['GetValue', ['cmi.core.student_id']],
                 ['GetValue', ['cmi.core.student_name']],
                 ['GetValue', ['cmi.core.score.max']],
-                ['GetValue', ['cmi.core.score.min']]
+                ['GetValue', ['cmi.core.score.min']],
+                // Preload bookmark data for proper resume functionality
+                ['GetValue', ['cmi.core.lesson_location']],
+                ['GetValue', ['cmi.location']],
+                ['GetValue', ['cmi.suspend_data']],
+                ['GetValue', ['cmi.core.entry']],
+                ['GetValue', ['cmi.entry']]
             ];
             
             commonCalls.forEach(([method, params]) => {
                 makeApiCall(method, params).catch(err => {
                     console.log(`Preload ${method} failed:`, err);
+                });
+            });
+        }
+        
+        // Preload bookmark data specifically for resume functionality
+        function preloadBookmarkData() {
+            console.log('📍 Preloading bookmark data for resume functionality...');
+            
+            const bookmarkCalls = [
+                ['GetValue', ['cmi.core.lesson_location']],
+                ['GetValue', ['cmi.location']],
+                ['GetValue', ['cmi.suspend_data']],
+                ['GetValue', ['cmi.core.entry']],
+                ['GetValue', ['cmi.entry']]
+            ];
+            
+            bookmarkCalls.forEach(([method, params]) => {
+                makeApiCall(method, params).then(result => {
+                    console.log(`📍 Bookmark data: ${params[0]} = ${result}`);
+                }).catch(err => {
+                    console.log(`Bookmark preload ${method} failed:`, err);
                 });
             });
         }
@@ -582,9 +665,41 @@
                     iframeWindow.API = api;
                     iframeWindow.API_1484_11 = api;
                     console.log('✅ SCORM API injected into iframe');
+                    
+                    // Also inject bookmark data if available
+                    injectBookmarkData(iframeWindow);
                 }
             } catch (e) {
                 console.log('ℹ️ Could not inject API into iframe:', e.message);
+            }
+        }
+        
+        // Inject bookmark data into iframe for immediate access
+        function injectBookmarkData(iframeWindow) {
+            try {
+                // Preload bookmark data and make it available in the iframe
+                const bookmarkElements = [
+                    'cmi.core.lesson_location',
+                    'cmi.location', 
+                    'cmi.suspend_data',
+                    'cmi.core.entry',
+                    'cmi.entry'
+                ];
+                
+                bookmarkElements.forEach(element => {
+                    makeApiCall('GetValue', [element]).then(result => {
+                        if (result && result !== '') {
+                            console.log(`📍 Injecting bookmark data: ${element} = ${result}`);
+                            // Store in iframe window for immediate access
+                            iframeWindow.scormBookmarkData = iframeWindow.scormBookmarkData || {};
+                            iframeWindow.scormBookmarkData[element] = result;
+                        }
+                    }).catch(err => {
+                        console.log(`Bookmark injection failed for ${element}:`, err);
+                    });
+                });
+            } catch (e) {
+                console.log('ℹ️ Could not inject bookmark data:', e.message);
             }
         }
         
