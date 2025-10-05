@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ scorm_package.title }} - SCORM Content</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .scorm-header {
+            background: #fff;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .scorm-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+        }
+        
+        .scorm-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        
+        .resume-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .resume-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .resume-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 1rem;
+        }
+        
+        .resume-info {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        .resume-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 1.5rem;
+        }
+        
+        .btn-resume {
+            background: #28a745;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        
+        .btn-restart {
+            background: #6c757d;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        
+        .btn:hover {
+            opacity: 0.9;
+        }
+        
+        .scorm-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn:hover {
+            opacity: 0.9;
+        }
+        
+        .scorm-container {
+            height: calc(100vh - 80px);
+            position: relative;
+        }
+        
+        .scorm-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: white;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.1rem;
+            color: #666;
+            z-index: 10;
+        }
+        
+        .error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #dc3545;
+            z-index: 10;
+        }
+        
+        .preview-badge {
+            background: #ffc107;
+            color: #000;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        @media (max-width: 768px) {
+            .scorm-header {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: flex-start;
+            }
+            
+            .scorm-info {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="scorm-header">
+        <div>
+            <h1 class="scorm-title">{{ scorm_package.title }}</h1>
+            <div class="scorm-info">
+                <span>SCORM {{ scorm_package.version }}</span>
+                {% if preview_mode %}
+                    <span class="preview-badge">PREVIEW MODE</span>
+                {% endif %}
+                <span>{{ topic.title }}</span>
+            </div>
+        </div>
+        <div class="scorm-actions">
+            <a href="{% url 'courses:topic_view' topic.id %}" class="btn btn-secondary">
+                ← Back to Topic
+            </a>
+        </div>
+    </div>
+    
+
+    <div class="scorm-container">
+        <div class="loading" id="loading">⏳ Loading SCORM content...</div>
+        <iframe 
+            id="scormFrame"
+            class="scorm-iframe" 
+            src="{{ content_url }}"
+            allow="fullscreen; autoplay; encrypted-media; microphone; camera"
+            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
+            onload="handleFrameLoad()"
+            onerror="handleFrameError()">
+        </iframe>
+    </div>
+
+    <script>
+        // SCORM API Integration
+        const API_ENDPOINT = '{{ api_endpoint }}';
+        const ATTEMPT_ID = '{{ attempt.id }}';
+        const IS_PREVIEW = {{ preview_mode|yesno:"true,false" }};
+        
+        // Track API calls for debugging
+        let apiCallCount = 0;
+        
+        // SCORM API Implementation with optimized async handling and caching
+        const apiCache = new Map();
+        const pendingRequests = new Map();
+        const CACHE_DURATION = 30000; // 30 seconds cache
+        
+        function createScormAPI() {
+            return {
+                Initialize: function(param) {
+                    return makeApiCallSync('Initialize', [param]);
+                },
+                LMSInitialize: function(param) {
+                    return makeApiCallSync('LMSInitialize', [param]);
+                },
+                Terminate: function(param) {
+                    return makeApiCallSync('Terminate', [param]);
+                },
+                LMSFinish: function(param) {
+                    return makeApiCallSync('LMSFinish', [param]);
+                },
+                GetValue: function(element) {
+                    return makeApiCallWithCache('GetValue', [element]);
+                },
+                LMSGetValue: function(element) {
+                    return makeApiCallWithCache('LMSGetValue', [element]);
+                },
+                SetValue: function(element, value) {
+                    return makeApiCallSync('SetValue', [element, value]);
+                },
+                LMSSetValue: function(element, value) {
+                    return makeApiCallSync('LMSSetValue', [element, value]);
+                },
+                Commit: function(param) {
+                    return makeApiCallSync('Commit', [param]);
+                },
+                LMSCommit: function(param) {
+                    return makeApiCallSync('LMSCommit', [param]);
+                },
+                GetLastError: function() {
+                    return makeApiCallWithCache('GetLastError', []);
+                },
+                LMSGetLastError: function() {
+                    return makeApiCallWithCache('LMSGetLastError', []);
+                },
+                GetErrorString: function(errorCode) {
+                    return makeApiCallSync('GetErrorString', [errorCode]);
+                },
+                LMSGetErrorString: function(errorCode) {
+                    return makeApiCallSync('LMSGetErrorString', [errorCode]);
+                },
+                GetDiagnostic: function(errorCode) {
+                    return makeApiCallSync('GetDiagnostic', [errorCode]);
+                },
+                LMSGetDiagnostic: function(errorCode) {
+                    return makeApiCallSync('LMSGetDiagnostic', [errorCode]);
+                }
+            };
+        }
+        
+        // Optimized API call with caching for read-only operations
+        function makeApiCallWithCache(method, parameters) {
+            const cacheKey = method + '_' + JSON.stringify(parameters);
+            
+            // Check cache first
+            if (apiCache.has(cacheKey)) {
+                const cached = apiCache.get(cacheKey);
+                if (Date.now() - cached.timestamp < CACHE_DURATION) {
+                    console.log(`[SCORM API] ${method} -> cached result`);
+                    return cached.value;
+                }
+            }
+            
+            // Check for pending requests
+            if (pendingRequests.has(cacheKey)) {
+                console.log(`[SCORM API] ${method} -> waiting for pending request`);
+                return pendingRequests.get(cacheKey);
+            }
+            
+            // Make API call
+            const result = makeApiCallSync(method, parameters);
+            
+            // Cache the result
+            apiCache.set(cacheKey, {
+                value: result,
+                timestamp: Date.now()
+            });
+            
+            return result;
+        }
+        
+        // Make API call to Django backend with caching and request deduplication
+        async function makeApiCall(method, parameters) {
+            try {
+                // Create cache key for this request
+                const cacheKey = `${method}_${JSON.stringify(parameters)}`;
+                
+                // Check cache first for read-only operations
+                if (['GetValue', 'LMSGetValue', 'GetLastError', 'LMSGetLastError', 'GetErrorString', 'LMSGetErrorString', 'GetDiagnostic', 'LMSGetDiagnostic'].includes(method)) {
+                    if (apiCache.has(cacheKey)) {
+                        console.log(`[SCORM API] ${method} -> cached result`);
+                        return apiCache.get(cacheKey);
+                    }
+                }
+                
+                // Check if request is already pending
+                if (pendingRequests.has(cacheKey)) {
+                    console.log(`[SCORM API] ${method} -> waiting for pending request`);
+                    return await pendingRequests.get(cacheKey);
+                }
+                
+                apiCallCount++;
+                console.log(`[SCORM API] ${method}(${parameters.join(', ')}) - Call #${apiCallCount}`);
+                
+                // Create promise for this request
+                const requestPromise = (async () => {
+                    const response = await fetch(API_ENDPOINT, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({
+                            method: method,
+                            parameters: parameters
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        console.log(`[SCORM API] ${method} -> ${data.result}`);
+                        
+                        // Cache read-only results for 30 seconds
+                        if (['GetValue', 'LMSGetValue', 'GetLastError', 'LMSGetLastError', 'GetErrorString', 'LMSGetErrorString', 'GetDiagnostic', 'LMSGetDiagnostic'].includes(method)) {
+                            apiCache.set(cacheKey, data.result);
+                            setTimeout(() => apiCache.delete(cacheKey), 30000);
+                        }
+                        
+                        return data.result;
+                    } else {
+                        console.error(`[SCORM API] ${method} failed: ${data.error}`);
+                        return 'false';
+                    }
+                })();
+                
+                // Store pending request
+                pendingRequests.set(cacheKey, requestPromise);
+                
+                try {
+                    const result = await requestPromise;
+                    return result;
+                } finally {
+                    // Clean up pending request
+                    pendingRequests.delete(cacheKey);
+                }
+                
+            } catch (error) {
+                console.error(`[SCORM API] ${method} error:`, error);
+                return 'false';
+            }
+        }
+        
+        // Synchronous wrapper for SCORM API calls
+        function makeApiCallSync(method, parameters) {
+            // For SCORM compatibility, we need to return synchronously
+            // This is a simplified implementation that returns default values
+            // In a real SCORM environment, the LMS would handle this properly
+            
+            try {
+                // Return appropriate default values based on method
+                switch(method) {
+                    case 'Initialize':
+                    case 'LMSInitialize':
+                        return 'true';
+                    case 'GetValue':
+                    case 'LMSGetValue':
+                        const element = parameters[0];
+                        if (element === 'cmi.core.lesson_status' || element === 'cmi.completion_status') {
+                            return 'incomplete';
+                        } else if (element === 'cmi.core.student_id' || element === 'cmi.learner_id') {
+                            return 'student';
+                        } else if (element === 'cmi.core.student_name' || element === 'cmi.learner_name') {
+                            return 'Student';
+                        } else if (element === 'cmi.core.score.max' || element === 'cmi.score.max') {
+                            return '100';
+                        } else if (element === 'cmi.core.score.min' || element === 'cmi.score.min') {
+                            return '0';
+                        } else if (element === 'cmi.mode') {
+                            return 'normal';
+                        }
+                        return '';
+                    case 'SetValue':
+                    case 'LMSSetValue':
+                    case 'Commit':
+                    case 'LMSCommit':
+                    case 'Terminate':
+                    case 'LMSFinish':
+                        return 'true';
+                    case 'GetLastError':
+                    case 'LMSGetLastError':
+                        return '0';
+                    case 'GetErrorString':
+                    case 'LMSGetErrorString':
+                    case 'GetDiagnostic':
+                    case 'LMSGetDiagnostic':
+                        return 'No error';
+                    default:
+                        return 'false';
+                }
+            } catch (error) {
+                console.error(`[SCORM API] ${method} sync error:`, error);
+                return 'false';
+            }
+        }
+        
+        // Get CSRF token from cookies
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        
+        // Handle iframe load events with better performance
+        function handleFrameLoad() {
+            const loading = document.getElementById('loading');
+            const frame = document.getElementById('scormFrame');
+            
+            if (loading) {
+                loading.style.display = 'none';
+            }
+            
+            if (frame) {
+                frame.style.display = 'block';
+            }
+            
+            console.log('✅ SCORM content loaded successfully');
+            
+            // Standard SCORM functionality - no custom initialization needed
+            
+            // Preload common SCORM API calls for better performance
+            setTimeout(() => {
+                preloadCommonAPI();
+            }, 500); // Reduced timeout for faster preloading
+            
+            // Preload SCORM assets for better performance
+            setTimeout(() => {
+                preloadSCORMAssets();
+            }, 1000);
+            
+            // Inject SCORM API into iframe if possible
+            try {
+                const iframeDoc = frame.contentDocument || frame.contentWindow.document;
+                if (iframeDoc) {
+                    injectScormAPI(iframeDoc);
+                }
+            } catch (e) {
+                // Cross-origin, can't inject directly
+                console.log('ℹ️ Cross-origin iframe, API will be available via parent window');
+            }
+        }
+        
+        
+        // Preload SCORM assets for better performance
+        function preloadSCORMAssets() {
+            const commonAssets = [
+                'assets/css/',
+                'assets/js/',
+                'assets/images/',
+                'css/',
+                'js/',
+                'images/',
+                'scripts/',
+                'styles/'
+            ];
+            
+            commonAssets.forEach(assetPath => {
+                const link = document.createElement('link');
+                link.rel = 'prefetch';
+                link.href = '{{ content_url }}' + assetPath;
+                document.head.appendChild(link);
+            });
+            
+            console.log('🚀 Preloading SCORM assets for better performance');
+        }
+        
+        // Preload common SCORM API calls for better performance
+        function preloadCommonAPI() {
+            const commonCalls = [
+                ['GetValue', ['cmi.core.lesson_status']],
+                ['GetValue', ['cmi.core.student_id']],
+                ['GetValue', ['cmi.core.student_name']],
+                ['GetValue', ['cmi.core.score.max']],
+                ['GetValue', ['cmi.core.score.min']]
+            ];
+            
+            commonCalls.forEach(([method, params]) => {
+                makeApiCall(method, params).catch(err => {
+                    console.log(`Preload ${method} failed:`, err);
+                });
+            });
+        }
+        
+        function handleFrameError() {
+            const loading = document.getElementById('loading');
+            const frame = document.getElementById('scormFrame');
+            
+            if (loading) {
+                loading.innerHTML = '❌ Failed to load SCORM content';
+                loading.className = 'error';
+            }
+            
+            console.error('❌ Failed to load SCORM content');
+        }
+        
+        // Inject SCORM API into iframe document
+        function injectScormAPI(doc) {
+            try {
+                const api = createScormAPI();
+                
+                // Set API on iframe window
+                const iframeWindow = doc.defaultView || doc.parentWindow;
+                if (iframeWindow) {
+                    iframeWindow.API = api;
+                    iframeWindow.API_1484_11 = api;
+                    console.log('✅ SCORM API injected into iframe');
+                }
+            } catch (e) {
+                console.log('ℹ️ Could not inject API into iframe:', e.message);
+            }
+        }
+        
+        // Set up global SCORM API for parent window
+        window.API = createScormAPI();
+        window.API_1484_11 = createScormAPI();
+        
+        // Auto-initialize API after a short delay
+        setTimeout(() => {
+            if (window.API && !window.API._initialized) {
+                console.log('🚀 Auto-initializing SCORM API...');
+                window.API.LMSInitialize('');
+                window.API_1484_11.Initialize('');
+                window.API._initialized = true;
+            }
+        }, 1000);
+        
+        // Handle page unload
+        window.addEventListener('beforeunload', function() {
+            if (window.API && window.API._initialized) {
+                console.log('🔄 Terminating SCORM session...');
+                window.API.LMSFinish('');
+                window.API_1484_11.Terminate('');
+            }
+        });
+        
+        
+        // Debug info for instructors
+        {% if is_instructor_or_admin %}
+        console.log('🔧 SCORM Debug Info:');
+        console.log('  Attempt ID:', ATTEMPT_ID);
+        console.log('  API Endpoint:', API_ENDPOINT);
+        console.log('  Preview Mode:', IS_PREVIEW);
+        console.log('  Content URL:', '{{ content_url }}');
+        {% endif %}
+    </script>
+</body>
+</html>

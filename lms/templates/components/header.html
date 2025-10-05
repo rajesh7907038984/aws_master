@@ -116,6 +116,7 @@
                     style="z-index: 60; -webkit-tap-highlight-color: transparent; touch-action: manipulation;"
                     aria-label="Profile menu"
                     id="profile-button"
+                    type="button"
                 >
                     {% if user.profile_image %}
                     <img src="{{ user.profile_image.url }}" alt="{{ user.username }}" class="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full object-cover">
@@ -128,7 +129,7 @@
                 <div 
                     id="profile-dropdown"
                     class="absolute right-0 top-12 w-48 py-2 bg-white rounded-xl shadow-lg ring-1 ring-gray-200 hidden"
-                    style="z-index: 70; display: none;"
+                    style="z-index: 70;"
                 >
                     {% if user.is_authenticated %}
                     <a href="{% url 'users:user_profile' user.id %}" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
@@ -148,7 +149,7 @@
                     <!-- Branch Switcher for Admin Users -->
                     {% if user.role == 'admin' and user_branch_access.can_switch_branches %}
                     <div class="border-t border-gray-100 my-1"></div>
-                    <div class="px-4 py-2" @click.stop>
+                    <div class="px-4 py-2">
                         <div class="flex items-center text-xs text-gray-500 mb-2">
                             <svg class="w-3 h-3 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h2M7 16h6M7 8h6m-6 4h6" />
@@ -162,8 +163,7 @@
                         <!-- Branch Switcher Dropdown -->
                         <div class="relative">
                             <button 
-                                @click.stop="branchMenuOpen = !branchMenuOpen" 
-                                @touchend.stop.prevent="branchMenuOpen = !branchMenuOpen"
+                                id="branch-switcher-button"
                                 class="flex items-center w-full px-3 py-2 text-sm text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
                                 type="button"
                             >
@@ -171,25 +171,15 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                                 </svg>
                                 Switch Branch
-                                <svg class="w-4 h-4 ml-auto transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" :class="{'rotate-180': branchMenuOpen}">
+                                <svg class="w-4 h-4 ml-auto transition-transform" id="branch-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                                 </svg>
                             </button>
                             
                             <!-- Branch Options -->
                             <div 
-                                x-show="branchMenuOpen"
-                                @click.stop
-                                x-transition:enter="transition ease-out duration-100"
-                                x-transition:enter-start="transform opacity-0 scale-95"
-                                x-transition:enter-end="transform opacity-100 scale-100"
-                                x-transition:leave="transition ease-in duration-75"
-                                x-transition:leave-start="transform opacity-100 scale-100"
-                                x-transition:leave-end="transform opacity-0 scale-95"
-                                class="absolute left-0 top-full mt-2 w-64 bg-white rounded-lg shadow-lg ring-1 ring-gray-200 z-50"
-                                style="display: none;"
-                                :style="branchMenuOpen ? 'display: block;' : 'display: none;'"
                                 id="branch-switcher-menu"
+                                class="absolute left-0 top-full mt-2 w-64 bg-white rounded-lg shadow-lg ring-1 ring-gray-200 z-50 hidden"
                             >
                                 <div class="py-2" id="branch-options">
                                     <!-- Branch options will be loaded here via JavaScript -->
@@ -756,18 +746,21 @@
     /* Enhanced fix for header icons */
     .header-icon,
     .discussion-icon,
-    .notification-icon {
-        display: flex;
-        visibility: visible;
-        opacity: 1;
-        position: relative;
-        z-index: 10;
-        min-width: 2rem;
-        min-height: 2rem;
-        width: 2rem;
-        height: 2rem;
-        align-items: center;
-        justify-content: center;
+    .notification-icon,
+    #mobile-menu-toggle,
+    #mobile-search-toggle,
+    #profile-button {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        position: relative !important;
+        z-index: 10 !important;
+        min-width: 2rem !important;
+        min-height: 2rem !important;
+        width: 2rem !important;
+        height: 2rem !important;
+        align-items: center !important;
+        justify-content: center !important;
     }
     
     /* Fix header icon positioning and alignment */
@@ -783,9 +776,22 @@
         display: flex !important;
         visibility: visible !important;
         opacity: 1 !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease !important;
+        position: relative !important;
+        z-index: 10 !important;
     }
     
-    /* Ensure toggle button is always visible on desktop */
+    button#mobile-menu-toggle:hover {
+        background-color: #f3f4f6 !important;
+        transform: scale(1.05) !important;
+    }
+    
+    button#mobile-menu-toggle:active {
+        transform: scale(0.95) !important;
+    }
+    
+    /* Ensure toggle button is always visible on all screen sizes */
     @media (min-width: 768px) {
         button#mobile-menu-toggle {
             display: flex !important;
@@ -796,24 +802,6 @@
             position: relative !important;
             z-index: 10 !important;
         }
-        
-        button#mobile-menu-toggle:hover {
-            background-color: #f3f4f6 !important;
-            transform: scale(1.05) !important;
-        }
-        
-        button#mobile-menu-toggle:active {
-            transform: scale(0.95) !important;
-        }
-    }
-    
-    /* Force toggle button visibility on all screen sizes */
-    button#mobile-menu-toggle {
-        display: flex !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        position: relative !important;
-        z-index: 10 !important;
     }
     
     /* Fix for icon SVGs */
@@ -830,11 +818,15 @@
         transition: all 0.3s ease-in-out;
         transform: translateY(-10px);
         opacity: 0;
+        display: none !important;
+        visibility: hidden;
     }
     
     #mobile-search-container:not(.hidden) {
         transform: translateY(0);
         opacity: 1;
+        display: block !important;
+        visibility: visible;
     }
     
     /* Mobile search toggle active state */
@@ -1004,6 +996,10 @@
         background-color: white !important;
         border-radius: 0.75rem !important;
         border: 1px solid #e5e7eb !important;
+        transition: all 0.2s ease-in-out !important;
+    }
+    
+    #profile-dropdown.hidden {
         display: none !important;
         visibility: hidden !important;
         opacity: 0 !important;
@@ -1052,6 +1048,37 @@
             right: -0.5rem !important;
             max-width: calc(100vw - 1rem) !important;
         }
+    }
+    
+    /* Branch switcher menu styles */
+    #branch-switcher-menu {
+        position: absolute !important;
+        top: 100% !important;
+        left: 0 !important;
+        z-index: 9999 !important;
+        min-width: 16rem !important;
+        max-width: calc(100vw - 2rem) !important;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+        background-color: white !important;
+        border-radius: 0.5rem !important;
+        border: 1px solid #e5e7eb !important;
+        transition: all 0.2s ease-in-out !important;
+    }
+    
+    #branch-switcher-menu.hidden {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+    }
+    
+    #branch-switcher-menu:not(.hidden) {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+    
+    #branch-arrow {
+        transition: transform 0.2s ease-in-out !important;
     }
 </style>
 
@@ -1245,7 +1272,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const sidebar = document.getElementById('sidebar');
     const mainContent = document.getElementById('main-content');
     
-    
     // Flag to track if content has been loaded to mobile menu
     let mobileMenuContentLoaded = false;
     
@@ -1388,17 +1414,16 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     if (mobileMenuToggle && mobileMenu) {
-        // Remove any existing event listeners to prevent duplicates
-        const newToggleButton = mobileMenuToggle.cloneNode(true);
-        if (mobileMenuToggle.parentNode) {
-            mobileMenuToggle.parentNode.replaceChild(newToggleButton, mobileMenuToggle);
+        // Check if event listener already exists to prevent duplicates
+        if (mobileMenuToggle.hasAttribute('data-listener-added')) {
+            return;
         }
         
-        // Update reference to new button
-        const toggleButton = document.getElementById('mobile-menu-toggle');
+        // Mark as having listener to prevent duplicates
+        mobileMenuToggle.setAttribute('data-listener-added', 'true');
         
         // Toggle menu or sidebar
-        toggleButton.addEventListener('click', function(e) {
+        mobileMenuToggle.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
             
@@ -1509,16 +1534,15 @@ document.addEventListener('DOMContentLoaded', function() {
             mobileSearchContainer.setAttribute('data-initialized', 'true');
         }
         
-        // Remove existing event listeners to prevent duplicates
-        const newSearchToggle = mobileSearchToggle.cloneNode(true);
-        if (mobileSearchToggle.parentNode) {
-            mobileSearchToggle.parentNode.replaceChild(newSearchToggle, mobileSearchToggle);
+        // Check if event listener already exists to prevent duplicates
+        if (mobileSearchToggle.hasAttribute('data-listener-added')) {
+            return;
         }
         
-        // Update reference to new button
-        const searchToggleButton = document.getElementById('mobile-search-toggle');
+        // Mark as having listener to prevent duplicates
+        mobileSearchToggle.setAttribute('data-listener-added', 'true');
         
-        searchToggleButton.addEventListener('click', function(e) {
+        mobileSearchToggle.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
             
@@ -2029,13 +2053,119 @@ document.addEventListener('DOMContentLoaded', function() {
     // Simple profile dropdown - no Alpine.js needed
     console.log('✅ Simple profile dropdown system loaded');
     
+    // Profile dropdown functionality
+    const profileButton = document.getElementById('profile-button');
+    const profileDropdown = document.getElementById('profile-dropdown');
+    const profileContainer = document.getElementById('profile-container');
+    
+    if (profileButton && profileDropdown && profileContainer) {
+        let isProfileOpen = false;
+        
+        // Toggle profile dropdown
+        function toggleProfileDropdown() {
+            isProfileOpen = !isProfileOpen;
+            if (isProfileOpen) {
+                profileDropdown.classList.remove('hidden');
+                profileDropdown.style.display = 'block';
+                profileDropdown.style.visibility = 'visible';
+                profileDropdown.style.opacity = '1';
+            } else {
+                profileDropdown.classList.add('hidden');
+                profileDropdown.style.display = 'none';
+                profileDropdown.style.visibility = 'hidden';
+                profileDropdown.style.opacity = '0';
+            }
+        }
+        
+        // Close profile dropdown
+        function closeProfileDropdown() {
+            isProfileOpen = false;
+            profileDropdown.classList.add('hidden');
+            profileDropdown.style.display = 'none';
+            profileDropdown.style.visibility = 'hidden';
+            profileDropdown.style.opacity = '0';
+        }
+        
+        // Profile button click handler
+        profileButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleProfileDropdown();
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (isProfileOpen && !profileContainer.contains(e.target)) {
+                closeProfileDropdown();
+            }
+        });
+        
+        // Close dropdown on escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && isProfileOpen) {
+                closeProfileDropdown();
+            }
+        });
+    }
+    
+    // Branch switcher functionality
+    const branchSwitcherButton = document.getElementById('branch-switcher-button');
+    const branchSwitcherMenu = document.getElementById('branch-switcher-menu');
+    const branchArrow = document.getElementById('branch-arrow');
+    
+    if (branchSwitcherButton && branchSwitcherMenu && branchArrow) {
+        let isBranchMenuOpen = false;
+        
+        // Toggle branch menu
+        function toggleBranchMenu() {
+            isBranchMenuOpen = !isBranchMenuOpen;
+            if (isBranchMenuOpen) {
+                branchSwitcherMenu.classList.remove('hidden');
+                branchSwitcherMenu.style.display = 'block';
+                branchSwitcherMenu.style.visibility = 'visible';
+                branchSwitcherMenu.style.opacity = '1';
+                branchArrow.style.transform = 'rotate(180deg)';
+            } else {
+                branchSwitcherMenu.classList.add('hidden');
+                branchSwitcherMenu.style.display = 'none';
+                branchSwitcherMenu.style.visibility = 'hidden';
+                branchSwitcherMenu.style.opacity = '0';
+                branchArrow.style.transform = 'rotate(0deg)';
+            }
+        }
+        
+        // Close branch menu
+        function closeBranchMenu() {
+            isBranchMenuOpen = false;
+            branchSwitcherMenu.classList.add('hidden');
+            branchSwitcherMenu.style.display = 'none';
+            branchSwitcherMenu.style.visibility = 'hidden';
+            branchSwitcherMenu.style.opacity = '0';
+            branchArrow.style.transform = 'rotate(0deg)';
+        }
+        
+        // Branch button click handler
+        branchSwitcherButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleBranchMenu();
+        });
+        
+        // Close branch menu when clicking outside
+        document.addEventListener('click', function(e) {
+            if (isBranchMenuOpen && !branchSwitcherButton.contains(e.target) && !branchSwitcherMenu.contains(e.target)) {
+                closeBranchMenu();
+            }
+        });
+    }
+    
     // Handle window resize to adjust for orientation changes
     let resizeTimer;
     window.addEventListener('resize', function() {
         clearTimeout(resizeTimer);
         resizeTimer = setTimeout(function() {
             if (window.innerWidth <= 768) {
-                const profileButton = document.querySelector('[x-data*="isOpen"] button');
+                const profileButton = document.getElementById('profile-button');
                 if (profileButton) {
                     profileButton.style.touchAction = 'manipulation';
                 }

@@ -2,6 +2,7 @@
 SCORM Package Parser
 Handles SCORM 1.2 and SCORM 2004 package parsing without external APIs
 Stores extracted content to S3
+Includes comprehensive validation before processing
 """
 import os
 import zipfile
@@ -12,6 +13,7 @@ from django.core.files.storage import default_storage
 import logging
 import uuid
 import json
+from .validators import validate_scorm_package, ScormValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -46,13 +48,31 @@ class ScormParser:
         self.version = None
         self.launch_url = None
         
-    def parse(self):
+    def parse(self, skip_validation=False):
         """
         Parse SCORM package and extract to S3
+        
+        Args:
+            skip_validation: If True, skip validation checks (for testing)
         
         Returns:
             dict: Package information including version, launch_url, manifest_data, extracted_path
         """
+        # Validate package before processing (unless skipped)
+        if not skip_validation:
+            logger.info("Validating SCORM package before parsing...")
+            validation_results = validate_scorm_package(self.uploaded_file)
+            
+            if not validation_results['valid']:
+                error_msg = f"SCORM package validation failed: {'; '.join(validation_results['errors'])}"
+                logger.error(error_msg)
+                raise ScormValidationError(error_msg, validation_results['errors'])
+            
+            if validation_results['warnings']:
+                logger.warning(f"SCORM package has warnings: {'; '.join(validation_results['warnings'])}")
+            
+            logger.info(f"SCORM package validation passed: {validation_results['info']}")
+        
         # Generate unique identifier for this package
         package_id = str(uuid.uuid4())
         base_path = f'scorm_content/{package_id}'

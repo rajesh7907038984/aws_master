@@ -56,6 +56,13 @@
                     {% endif %}
                 </div>
                 <div class="text-sm text-gray-600">Average Score</div>
+                <!-- Debug info (remove in production) -->
+                {% if is_scorm %}
+                <div class="text-xs text-gray-400 mt-1">
+                    Debug: avg={{ progress_stats.average_score|default:"None" }}, 
+                    scorm_avg={{ scorm_stats.avg_completion_percent|default:"None" }}
+                </div>
+                {% endif %}
             </div>
         </div>
         

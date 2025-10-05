@@ -347,7 +347,7 @@ def role_list(request):
     status_filter = request.GET.get('status', 'all')
     
     # Base queryset with optimizations
-    roles = Role.objects.select_related('created_by').prefetch_related('capabilities', 'user_roles__user')
+    roles = Role.objects.select_related('created_by').prefetch_related('capabilities', 'user_roles__user').order_by('name')
     
     # Apply role-based filtering
     if request.user.role == 'globaladmin':

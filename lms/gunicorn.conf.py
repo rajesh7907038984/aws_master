@@ -34,7 +34,7 @@ backlog = 2048
 # Worker processes - optimized for performance
 worker_class = "sync"
 worker_connections = 1000
-timeout = max(GUNICORN_TIMEOUT, 120)  # Minimum 120 seconds for large uploads
+timeout = max(GUNICORN_TIMEOUT, 600)  # Minimum 600 seconds (10 minutes) for large SCORM uploads
 keepalive = 5  # Increased for better connection reuse
 
 # Restart workers after this many requests, to prevent memory leaks
@@ -61,10 +61,10 @@ tmp_upload_dir = None
 # keyfile = "/path/to/keyfile"
 # certfile = "/path/to/certfile"
 
-# Security
-limit_request_line = 4094
-limit_request_fields = 100
-limit_request_field_size = 8190
+# Security - increased limits for large SCORM uploads
+limit_request_line = 8190
+limit_request_fields = 200
+limit_request_field_size = 16380
 
 # Performance
 preload_app = True

@@ -66,12 +66,12 @@ class EnvironmentLoader:
                         elif value.startswith("'") and value.endswith("'"):
                             value = value[1:-1]
                         
-                        # Only set if not already in environment
-                        if not os.environ.get(key):
-                            os.environ[key] = value
-                            self.loaded_variables[key] = value
-                        else:
-                            logger.debug(f"Variable {key} already set in environment, skipping")
+                        # Always override environment variables from .env file
+                        # This ensures production.env values take precedence over stale system env vars
+                        if os.environ.get(key) and os.environ.get(key) != value:
+                            logger.info(f"Overriding {key} with value from .env file")
+                        os.environ[key] = value
+                        self.loaded_variables[key] = value
                     else:
                         logger.warning(f"Invalid line format in {self.env_file_path}:{line_num}: {line}")
             

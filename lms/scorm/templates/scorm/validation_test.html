@@ -1,0 +1,321 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}SCORM Package Validation Test{% endblock %}
+
+{% block extra_css %}
+<style>
+    .validation-container {
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 20px;
+    }
+    
+    .validation-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 30px;
+        margin-bottom: 20px;
+    }
+    
+    .validation-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    
+    .validation-header h1 {
+        color: #1f2937;
+        margin-bottom: 10px;
+    }
+    
+    .validation-header p {
+        color: #6b7280;
+        margin: 0;
+    }
+    
+    .upload-area {
+        border: 2px dashed #d1d5db;
+        border-radius: 8px;
+        padding: 40px 20px;
+        text-align: center;
+        margin-bottom: 20px;
+        transition: border-color 0.2s;
+    }
+    
+    .upload-area:hover {
+        border-color: #3b82f6;
+    }
+    
+    .upload-area.dragover {
+        border-color: #3b82f6;
+        background-color: #eff6ff;
+    }
+    
+    .upload-icon {
+        font-size: 48px;
+        color: #9ca3af;
+        margin-bottom: 15px;
+    }
+    
+    .file-input {
+        display: none;
+    }
+    
+    .upload-button {
+        background: #3b82f6;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 16px;
+        margin-top: 10px;
+    }
+    
+    .upload-button:hover {
+        background: #2563eb;
+    }
+    
+    .results-section {
+        margin-top: 30px;
+    }
+    
+    .result-status {
+        padding: 15px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+        font-weight: 600;
+    }
+    
+    .result-status.valid {
+        background: #d1fae5;
+        color: #065f46;
+        border: 1px solid #a7f3d0;
+    }
+    
+    .result-status.invalid {
+        background: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #fca5a5;
+    }
+    
+    .result-status.warning {
+        background: #fef3c7;
+        color: #92400e;
+        border: 1px solid #fcd34d;
+    }
+    
+    .result-details {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        padding: 20px;
+        margin-top: 15px;
+    }
+    
+    .detail-section {
+        margin-bottom: 20px;
+    }
+    
+    .detail-section:last-child {
+        margin-bottom: 0;
+    }
+    
+    .detail-title {
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 8px;
+    }
+    
+    .detail-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .detail-list li {
+        padding: 5px 0;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .detail-list li:last-child {
+        border-bottom: none;
+    }
+    
+    .error-item {
+        color: #dc2626;
+    }
+    
+    .warning-item {
+        color: #d97706;
+    }
+    
+    .info-item {
+        color: #059669;
+    }
+    
+    .metadata-grid {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: 10px;
+        align-items: center;
+    }
+    
+    .metadata-label {
+        font-weight: 600;
+        color: #374151;
+    }
+    
+    .metadata-value {
+        color: #6b7280;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="validation-container">
+    <div class="validation-card">
+        <div class="validation-header">
+            <h1>🔍 SCORM Package Validation</h1>
+            <p>Test and validate SCORM packages before uploading to courses</p>
+        </div>
+        
+        <form method="post" enctype="multipart/form-data" id="validation-form">
+            {% csrf_token %}
+            
+            <div class="upload-area" id="upload-area">
+                <div class="upload-icon">📦</div>
+                <h3>Upload SCORM Package (.zip)</h3>
+                <p>Drag and drop your SCORM package here, or click to browse</p>
+                <input type="file" name="scorm_package" id="file-input" class="file-input" accept=".zip" required>
+                <button type="button" class="upload-button" onclick="document.getElementById('file-input').click()">
+                    Choose File
+                </button>
+            </div>
+            
+            <div style="text-align: center;">
+                <button type="submit" class="upload-button" style="background: #10b981;">
+                    🧪 Validate Package
+                </button>
+            </div>
+        </form>
+        
+        {% if validation_results %}
+        <div class="results-section">
+            <div class="result-status {% if validation_results.valid %}valid{% elif validation_results.warnings %}warning{% else %}invalid{% endif %}">
+                {{ summary }}
+            </div>
+            
+            <div class="result-details">
+                <div class="metadata-grid">
+                    <div class="metadata-label">File Name:</div>
+                    <div class="metadata-value">{{ uploaded_file.name }}</div>
+                    
+                    <div class="metadata-label">File Size:</div>
+                    <div class="metadata-value">{{ uploaded_file.size|filesizeformat }}</div>
+                    
+                    <div class="metadata-label">Status:</div>
+                    <div class="metadata-value">{{ validation_results.status|title }}</div>
+                    
+                    {% if validation_results.file_count %}
+                    <div class="metadata-label">Files in Package:</div>
+                    <div class="metadata-value">{{ validation_results.file_count }}</div>
+                    {% endif %}
+                    
+                    {% if validation_results.manifest_data.version %}
+                    <div class="metadata-label">SCORM Version:</div>
+                    <div class="metadata-value">{{ validation_results.manifest_data.version }}</div>
+                    {% endif %}
+                    
+                    {% if validation_results.manifest_data.title %}
+                    <div class="metadata-label">Package Title:</div>
+                    <div class="metadata-value">{{ validation_results.manifest_data.title }}</div>
+                    {% endif %}
+                </div>
+                
+                {% if validation_results.errors %}
+                <div class="detail-section">
+                    <div class="detail-title">❌ Errors ({{ validation_results.errors|length }})</div>
+                    <ul class="detail-list">
+                        {% for error in validation_results.errors %}
+                        <li class="error-item">{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                {% if validation_results.warnings %}
+                <div class="detail-section">
+                    <div class="detail-title">⚠️ Warnings ({{ validation_results.warnings|length }})</div>
+                    <ul class="detail-list">
+                        {% for warning in validation_results.warnings %}
+                        <li class="warning-item">{{ warning }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                {% if validation_results.info %}
+                <div class="detail-section">
+                    <div class="detail-title">ℹ️ Information</div>
+                    <ul class="detail-list">
+                        {% for info in validation_results.info %}
+                        <li class="info-item">{{ info }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <div style="text-align: center; margin-top: 30px;">
+            <a href="{% url 'scorm:help' %}" class="upload-button" style="background: #6b7280; text-decoration: none; display: inline-block;">
+                📚 SCORM Help & Guidelines
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+// Drag and drop functionality
+const uploadArea = document.getElementById('upload-area');
+const fileInput = document.getElementById('file-input');
+
+uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.classList.add('dragover');
+});
+
+uploadArea.addEventListener('dragleave', () => {
+    uploadArea.classList.remove('dragover');
+});
+
+uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        fileInput.files = files;
+        updateFileDisplay();
+    }
+});
+
+uploadArea.addEventListener('click', () => {
+    fileInput.click();
+});
+
+fileInput.addEventListener('change', updateFileDisplay);
+
+function updateFileDisplay() {
+    const file = fileInput.files[0];
+    if (file) {
+        const uploadText = uploadArea.querySelector('h3');
+        uploadText.textContent = `Selected: ${file.name}`;
+        uploadText.style.color = '#059669';
+    }
+}
+</script>
+{% endblock %}

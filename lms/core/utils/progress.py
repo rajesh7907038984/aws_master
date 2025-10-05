@@ -83,49 +83,59 @@ class ProgressCalculationService:
     def _calculate_scorm_progress(cls, progress, topic) -> Dict[str, Any]:
         """Calculate progress for SCORM content"""
         try:
-            # Get SCORM registration data
-            scorm_content = topic.get_scorm_content() if hasattr(topic, 'get_scorm_content') else None
+            # Get native SCORM package data
+            from scorm.models import ScormPackage, ScormAttempt
             
-            if not scorm_content:
+            # Check if this topic has a SCORM package
+            try:
+                scorm_package = ScormPackage.objects.get(topic=topic)
+            except ScormPackage.DoesNotExist:
                 return {'completion_percentage': 100.0 if progress.completed else 0.0}
             
-            # Check SCORM registration
-            from scorm_cloud.models import SCORMRegistration
-            registration = SCORMRegistration.objects.filter(
+            # Get the user's latest attempt
+            latest_attempt = ScormAttempt.objects.filter(
                 user=progress.user,
-                package=scorm_content.scorm_package
-            ).first()
+                scorm_package=scorm_package
+            ).order_by('-attempt_number').first()
             
-            if not registration:
+            if not latest_attempt:
                 return {'completion_percentage': 0.0}
             
             # Calculate based on SCORM completion status and score requirements
             completion_percentage = 0.0
             
-            if registration.completion_status in ['completed', 'passed']:
-                if scorm_content.requires_passing_score and scorm_content.passing_score:
+            # Check completion based on SCORM version
+            is_completed = False
+            if scorm_package.version == '1.2':
+                is_completed = latest_attempt.lesson_status in ['completed', 'passed']
+            else:  # SCORM 2004
+                is_completed = latest_attempt.completion_status == 'completed'
+            
+            if is_completed:
+                # Check if there's a mastery score requirement
+                if scorm_package.mastery_score:
                     # Check if score requirement is met
-                    if registration.score and registration.score >= scorm_content.passing_score:
+                    if latest_attempt.score_raw and latest_attempt.score_raw >= scorm_package.mastery_score:
                         completion_percentage = 100.0
                     else:
                         # Partial completion based on score
-                        score_progress = (registration.score or 0) / scorm_content.passing_score * 100
+                        score_progress = (float(latest_attempt.score_raw or 0) / float(scorm_package.mastery_score)) * 100
                         completion_percentage = min(score_progress, 99.0)  # Cap at 99% if not passed
                 else:
                     completion_percentage = 100.0
-            elif registration.completion_status == 'incomplete':
+            else:
                 # Calculate partial progress based on available data
                 if progress.progress_data.get('completion_percent'):
                     completion_percentage = float(progress.progress_data['completion_percent'])
-                elif registration.score:
+                elif latest_attempt.score_raw:
                     # Estimate progress based on score
-                    completion_percentage = min(float(registration.score), 90.0)
+                    completion_percentage = min(float(latest_attempt.score_raw), 90.0)
             
             return {
                 'completion_percentage': completion_percentage,
-                'scorm_status': registration.completion_status,
-                'scorm_score': float(registration.score) if registration.score else None,
-                'scorm_time': registration.total_time
+                'scorm_status': latest_attempt.completion_status,
+                'scorm_score': float(latest_attempt.score_raw) if latest_attempt.score_raw else None,
+                'scorm_time': latest_attempt.total_time
             }
             
         except Exception as e:

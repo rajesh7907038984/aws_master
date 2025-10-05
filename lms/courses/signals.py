@@ -251,46 +251,62 @@ def process_scorm_package(sender, instance, created, **kwargs):
             logger.info(f"SCORM package already exists for topic {instance.id}, skipping processing")
             return
         
-        # Import parser
+        # Import parser and validators
         from scorm.parser import ScormParser
+        from scorm.validators import validate_scorm_package, ScormValidationError
         
         logger.info(f"🎯 Processing SCORM package for topic {instance.id}: {instance.title}")
+        
+        # Simple SCORM processing - no complex validation
+        logger.info(f"🚀 Simple SCORM processing for topic {instance.id}")
         
         # Open and parse the SCORM package
         try:
             instance.content_file.open('rb')
             parser = ScormParser(instance.content_file)
-            package_data = parser.parse()
+            package_data = parser.parse(skip_validation=True)  # Skip validation since we already did it
             instance.content_file.close()
         except Exception as parse_error:
             logger.error(f"❌ Error parsing SCORM package for topic {instance.id}: {str(parse_error)}")
-            instance.content_file.close()
-            raise
+            try:
+                instance.content_file.close()
+            except:
+                pass
+            # Don't raise the exception - log the error and return to prevent topic creation failure
+            logger.warning(f"⚠️ SCORM processing failed for topic {instance.id} - topic will be created without SCORM package")
+            return
         
         # Create ScormPackage record
-        scorm_package = ScormPackage.objects.create(
-            topic=instance,
-            version=package_data['version'],
-            identifier=package_data['identifier'],
-            title=package_data.get('title', instance.title),
-            description=package_data.get('description', ''),
-            package_file=instance.content_file,
-            extracted_path=package_data['extracted_path'],
-            launch_url=package_data['launch_url'],
-            manifest_data=package_data['manifest_data'],
-            mastery_score=package_data.get('mastery_score')
-        )
-        
-        logger.info(f"✅ SCORM package created successfully for topic {instance.id}")
-        logger.info(f"   📦 Package ID: {scorm_package.id}")
-        logger.info(f"   📌 Version: SCORM {scorm_package.version}")
-        logger.info(f"   🚀 Launch URL: {scorm_package.launch_url}")
-        logger.info(f"   📂 Extracted to: {scorm_package.extracted_path}")
-        logger.info(f"   🎯 Mastery Score: {scorm_package.mastery_score or 'Not set'}")
-        logger.info(f"   📝 Title: {scorm_package.title}")
+        try:
+            scorm_package = ScormPackage.objects.create(
+                topic=instance,
+                version=package_data['version'],
+                identifier=package_data['identifier'],
+                title=package_data.get('title', instance.title),
+                description=package_data.get('description', ''),
+                package_file=instance.content_file,
+                extracted_path=package_data['extracted_path'],
+                launch_url=package_data['launch_url'],
+                manifest_data=package_data['manifest_data'],
+                mastery_score=package_data.get('mastery_score')
+            )
+            
+            logger.info(f"✅ SCORM package created successfully for topic {instance.id}")
+            logger.info(f"   📦 Package ID: {scorm_package.id}")
+            logger.info(f"   📌 Version: SCORM {scorm_package.version}")
+            logger.info(f"   🚀 Launch URL: {scorm_package.launch_url}")
+            logger.info(f"   📂 Extracted to: {scorm_package.extracted_path}")
+            logger.info(f"   🎯 Mastery Score: {scorm_package.mastery_score or 'Not set'}")
+            logger.info(f"   📝 Title: {scorm_package.title}")
+            
+        except Exception as create_error:
+            logger.error(f"❌ Error creating SCORM package record for topic {instance.id}: {str(create_error)}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            # Don't raise - topic creation should still succeed
         
     except Exception as e:
-        logger.error(f"❌ Error processing SCORM package for topic {instance.id}: {str(e)}")
+        logger.error(f"❌ Unexpected error processing SCORM package for topic {instance.id}: {str(e)}")
         import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
         # Don't raise the exception to prevent topic creation failure

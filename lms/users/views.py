@@ -298,6 +298,17 @@ def home(request: HttpRequest) -> HttpResponse:
         return redirect('login')
 
 def custom_login(request):
+    # Check if user is already authenticated
+    if request.user.is_authenticated:
+        # User is already logged in, redirect to appropriate dashboard
+        user_role = getattr(request.user, 'role', 'learner')
+        if user_role in ['instructor', 'admin', 'superadmin', 'globaladmin']:
+            return redirect('dashboard_instructor')
+        elif user_role == 'learner':
+            return redirect('dashboard_learner')
+        else:
+            return redirect('dashboard_learner')
+    
     # SIMPLE SESSION FIX - Force session creation with error handling
     try:
         if hasattr(request, 'session') and not request.session.session_key:

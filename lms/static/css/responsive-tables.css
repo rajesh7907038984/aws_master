@@ -9,15 +9,16 @@
     width: 100%;
 }
 
-/* Full width table wrapper for reports */
+/* Full width table wrapper for reports - Fixed to prevent sidebar overlap */
 .responsive-table-wrapper.full-width {
-    width: 100vw !important;
-    margin-left: calc(-50vw + 50%) !important;
-    margin-right: calc(-50vw + 50%) !important;
-    border-radius: 0;
-    box-shadow: none;
-    padding: 0 2rem;
-    max-width: none !important;
+    width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+    padding: 0;
+    max-width: 100% !important;
+    overflow: hidden;
 }
 
 /* Default table styling for desktop */
@@ -476,4 +477,118 @@
     font-size: 0.875rem;
     color: #6b7280;
     max-width: 28rem;
+}
+
+/* Sidebar overlap fixes */
+@media (min-width: 768px) {
+    /* Ensure main content doesn't overlap with sidebar */
+    #main-content {
+        margin-left: 16rem !important;
+        width: calc(100% - 16rem) !important;
+        max-width: calc(100% - 16rem) !important;
+    }
+    
+    /* When sidebar is collapsed */
+    #main-content.sidebar-collapsed {
+        margin-left: 3.5rem !important;
+        width: calc(100% - 3.5rem) !important;
+        max-width: calc(100% - 3.5rem) !important;
+    }
+    
+    /* Ensure tables don't extend beyond content area */
+    .responsive-table-wrapper,
+    .responsive-table-wrapper.full-width {
+        max-width: 100% !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+}
+
+/* Mobile sidebar fixes */
+@media (max-width: 767px) {
+    #main-content {
+        margin-left: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    
+    .responsive-table-wrapper,
+    .responsive-table-wrapper.full-width {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+}
+
+/* Table content truncation fixes */
+.responsive-table td {
+    word-wrap: break-word;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+}
+
+/* Ensure table cells have proper spacing */
+.responsive-table th,
+.responsive-table td {
+    padding: 0.75rem 1rem;
+    min-height: 2.5rem;
+    vertical-align: middle;
+}
+
+/* Fix for "No data to display" text truncation */
+.responsive-table tbody tr td[colspan] {
+    padding: 2rem 1rem !important;
+    text-align: center;
+    vertical-align: middle;
+}
+
+/* Tab styling improvements */
+.nav-tabs {
+    border-bottom: 2px solid #e5e7eb;
+    margin-bottom: 1.5rem;
+}
+
+.nav-tabs .nav-link {
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #6b7280;
+    font-weight: 500;
+    padding: 0.75rem 1rem;
+    transition: all 0.2s ease;
+}
+
+.nav-tabs .nav-link:hover {
+    border-bottom-color: #d1d5db;
+    color: #374151;
+}
+
+.nav-tabs .nav-link.active {
+    border-bottom-color: #3b82f6;
+    color: #3b82f6;
+    font-weight: 600;
+}
+
+/* Report page specific fixes */
+.report-content {
+    padding: 1.5rem;
+    background: #f9fafb;
+    min-height: calc(100vh - 4rem);
+}
+
+.report-tabs {
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+    overflow: hidden;
+}
+
+/* Ensure proper spacing between elements */
+.report-section {
+    margin-bottom: 2rem;
+}
+
+.report-section:last-child {
+    margin-bottom: 0;
 }

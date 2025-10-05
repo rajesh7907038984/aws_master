@@ -63,7 +63,7 @@ def activity_report_overview(request, activity_id):
         not_started_users = progress_data.filter(first_accessed__isnull=True).count()
         
         # Check if this is SCORM content for proper score handling
-        is_scorm = hasattr(topic, 'scorm_content') and topic.scorm_content is not None
+        is_scorm = hasattr(topic, 'scorm_package') and topic.scorm_package is not None
         
         # Calculate average score with proper SCORM handling
         completed_with_scores = progress_data.filter(completed=True, last_score__isnull=False)
@@ -72,43 +72,86 @@ def activity_report_overview(request, activity_id):
         
         if completed_with_scores.exists():
             if is_scorm:
-                # Use unified scoring service for SCORM scores
-                from core.utils.scoring import ScoreCalculationService
-                
+                # For SCORM content, use last_score directly from TopicProgress
                 scorm_scores = []
                 for progress in completed_with_scores:
-                    normalized_score = ScoreCalculationService.normalize_score(progress.last_score)
-                    if normalized_score is not None:
-                        scorm_scores.append(float(normalized_score))
+                    if progress.last_score is not None:
+                        scorm_scores.append(float(progress.last_score))
                 
                 average_score = sum(scorm_scores) / len(scorm_scores) if scorm_scores else 0
                 
-                # Get SCORM-specific statistics
-                scorm_progress = progress_data.exclude(scorm_registration__isnull=True)
+                # Get SCORM-specific statistics from progress_data
+                scorm_progress = progress_data.filter(progress_data__isnull=False)
+                passed_count = 0
+                for progress in scorm_progress:
+                    progress_data_dict = progress.progress_data or {}
+                    if progress_data_dict.get('lesson_status') in ['passed', 'completed']:
+                        passed_count += 1
+                
                 scorm_stats = {
                     'total_scorm_users': scorm_progress.count(),
-                    'completion_status_complete': scorm_progress.filter(completed=True).count(),
-                    'success_status_passed': scorm_progress.filter(
-                        progress_data__scorm_cloud_sync=True,
-                        progress_data__success_status='passed'
-                    ).count(),
+                    'completion_status_complete': completed_users,
+                    'success_status_passed': passed_count,
                     'avg_completion_percent': average_score if average_score else 0
                 }
             else:
                 total_score = sum(normalize_score(progress.last_score) for progress in completed_with_scores)
                 average_score = total_score / completed_with_scores.count() if completed_with_scores.count() > 0 else None
+        else:
+            # If no completed users with scores, try to get scores from all users with scores
+            all_users_with_scores = progress_data.filter(last_score__isnull=False)
+            if all_users_with_scores.exists() and is_scorm:
+                scorm_scores = []
+                for progress in all_users_with_scores:
+                    if progress.last_score is not None:
+                        scorm_scores.append(float(progress.last_score))
+                
+                average_score = sum(scorm_scores) / len(scorm_scores) if scorm_scores else 0
+                
+                # Get SCORM-specific statistics
+                scorm_progress = progress_data.filter(progress_data__isnull=False)
+                passed_count = 0
+                for progress in scorm_progress:
+                    progress_data_dict = progress.progress_data or {}
+                    if progress_data_dict.get('lesson_status') in ['passed', 'completed']:
+                        passed_count += 1
+                
+                scorm_stats = {
+                    'total_scorm_users': scorm_progress.count(),
+                    'completion_status_complete': completed_users,
+                    'success_status_passed': passed_count,
+                    'avg_completion_percent': average_score if average_score else 0
+                }
         
         # Calculate total progress records (attempts field doesn't exist)
         total_attempts = progress_data.count()
+        
+        # Use SCORM average if available and main average is not
+        final_average_score = average_score
+        if is_scorm and scorm_stats and scorm_stats.get('avg_completion_percent') and not average_score:
+            final_average_score = scorm_stats.get('avg_completion_percent')
         
         progress_stats = {
             'total_users': total_users,
             'completed_users': completed_users,
             'in_progress_users': in_progress_users,
             'not_started_users': not_started_users,
-            'average_score': average_score,
+            'average_score': final_average_score,
             'total_attempts': total_attempts,
         }
+        
+        # Debug logging for SCORM scores
+        if is_scorm:
+            logger.info(f"SCORM Activity Report Debug for topic {topic.id}:")
+            logger.info(f"  - Total users: {total_users}")
+            logger.info(f"  - Completed users: {completed_users}")
+            logger.info(f"  - Completed with scores: {completed_with_scores.count()}")
+            logger.info(f"  - Average score: {average_score}")
+            logger.info(f"  - SCORM stats: {scorm_stats}")
+            
+            # Log individual progress records for debugging
+            for progress in progress_data[:5]:  # Log first 5 records
+                logger.info(f"  - User {progress.user.username}: completed={progress.completed}, last_score={progress.last_score}, progress_data={progress.progress_data}")
         
         context = {
             'activity': topic,  # Use 'activity' to match template expectations
@@ -1961,6 +2004,9 @@ def timeline(request):
     if course_id:
         events = events.filter(course_id=course_id)
 
+    # Order the queryset to avoid pagination warnings
+    events = events.order_by('-created_at')
+
     # Handle pagination
     paginator = Paginator(events, per_page)
     page_obj = paginator.get_page(page_number)
@@ -2025,6 +2071,9 @@ def subgroup_report(request):
     # Apply search filter if provided
     if search_query:
         subgroups = subgroups.filter(name__icontains=search_query)
+    
+    # Order the queryset to avoid pagination warnings
+    subgroups = subgroups.order_by('name')
 
     # Calculate overall statistics with proper branch filtering
     enrollments = CourseEnrollment.objects.all()
@@ -2885,6 +2934,9 @@ def reports_dashboard(request):
                 Q(last_name__icontains=search_query)
             )
         
+        # Order the queryset to avoid pagination warnings
+        users = users.order_by('first_name', 'last_name')
+        
         # Get all users with their course statistics and initial assessment data
         from quiz.models import Quiz, QuizAttempt
         users = users.annotate(
@@ -3006,10 +3058,10 @@ class GroupReportView(LoginRequiredMixin, TemplateView):
         groups = BranchGroup.objects.annotate(
             assigned_users=Count('memberships__user', filter=Q(memberships__user__role='learner'), distinct=True),
             completed_courses=Count(
-                'memberships__user__courseenrollment_set',
-                filter=Q(memberships__user__courseenrollment_set__completed=True)
+                'memberships__user__courseenrollment',
+                filter=Q(memberships__user__courseenrollment__completed=True)
             ),
-            total_courses=Count('memberships__user__courseenrollment_set'),
+            total_courses=Count('memberships__user__courseenrollment'),
         ).annotate(
             completion_rate=Case(
                 When(total_courses=0, then=Value(0.0)),
@@ -3023,6 +3075,9 @@ class GroupReportView(LoginRequiredMixin, TemplateView):
         # Apply search filter if provided
         if search_query:
             groups = groups.filter(name__icontains=search_query)
+        
+        # Order the queryset to avoid pagination warnings
+        groups = groups.order_by('name')
 
         # Calculate overall statistics
         enrollments = CourseEnrollment.objects.all()
@@ -5547,6 +5602,9 @@ class BranchReportView(LoginRequiredMixin, TemplateView):
             branches = branches.filter(Q(name__icontains=search_query) | 
                                     Q(description__icontains=search_query))
         
+        # Order the queryset to avoid pagination warnings
+        branches = branches.order_by('name')
+        
         # Annotate branches with statistics
         branches = branches.annotate(
             users_count=Count('users', filter=Q(users__role='learner'), distinct=True),
@@ -5681,6 +5739,9 @@ class CourseReportView(LoginRequiredMixin, TemplateView):
                 courses = courses.filter(categories__id=category_id)
             except (ValueError, TypeError):
                 pass
+        
+        # Order the queryset to avoid pagination warnings
+        courses = courses.order_by('title')
         
         # Get categories for filter dropdown
         categories = CourseCategory.objects.all()

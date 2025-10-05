@@ -431,27 +431,38 @@ def get_topic_progress(topic, user):
             progress.save()
             logger.info(f"Auto-fixed SCORM completion status for topic {topic.id}, user {user.username}")
             
-        # Also try to sync with SCORM registration if available
+        # Also try to sync with native SCORM attempts if available
         elif not progress.completed:
             try:
-                from scorm_cloud.models import SCORMRegistration
-                registrations = SCORMRegistration.objects.filter(
-                    user=user,
-                    package__cloud_contents__content_id=str(topic.id),
-                    package__cloud_contents__content_type='topic'
-                )
-                
-                for registration in registrations:
-                    if registration.completion_status in ['completed', 'passed']:
-                        progress.completed = True
-                        progress.completion_method = 'scorm'
-                        if not progress.completed_at:
-                            progress.completed_at = timezone.now()
-                        progress.save()
-                        logger.info(f"Auto-synced SCORM completion from registration for topic {topic.id}, user {user.username}")
-                        break
+                from scorm.models import ScormAttempt, ScormPackage
+                # Check if this topic has a SCORM package
+                try:
+                    scorm_package = ScormPackage.objects.get(topic=topic)
+                    # Get the user's latest attempt
+                    latest_attempt = ScormAttempt.objects.filter(
+                        user=user,
+                        scorm_package=scorm_package
+                    ).order_by('-attempt_number').first()
+                    
+                    if latest_attempt:
+                        # Check completion based on SCORM version
+                        is_completed = False
+                        if scorm_package.version == '1.2':
+                            is_completed = latest_attempt.lesson_status in ['completed', 'passed']
+                        else:  # SCORM 2004
+                            is_completed = latest_attempt.completion_status == 'completed'
+                        
+                        if is_completed:
+                            progress.completed = True
+                            progress.completion_method = 'scorm'
+                            if not progress.completed_at:
+                                progress.completed_at = timezone.now()
+                            progress.save()
+                            logger.info(f"Auto-synced SCORM completion from native attempt for topic {topic.id}, user {user.username}")
+                except ScormPackage.DoesNotExist:
+                    pass  # Topic doesn't have a SCORM package
             except Exception as e:
-                logger.error(f"Error checking SCORM registration for topic {topic.id}, user {user.username}: {str(e)}")
+                logger.error(f"Error checking SCORM attempt for topic {topic.id}, user {user.username}: {str(e)}")
     
     # For quiz topics, check if there's a passing attempt
     elif topic.content_type == 'Quiz' and progress:
@@ -756,12 +767,14 @@ def can_delete_topic(user, topic):
 
 @register.filter
 def scorm_cloud_content_exists(topic_id):
-    """Check if SCORM Cloud content exists for topic by content_id"""
-    from scorm_cloud.models import SCORMCloudContent
-    return SCORMCloudContent.objects.filter(
-        content_id=str(topic_id),
-        content_type='topic'
-    ).exists()
+    """Check if SCORM content exists for topic (native SCORM implementation)"""
+    try:
+        from scorm.models import ScormPackage
+        from courses.models import Topic
+        topic = Topic.objects.get(id=topic_id)
+        return hasattr(topic, 'scorm_package')
+    except:
+        return False
 
 @register.filter
 def contains_id(queryset, id_to_check):
@@ -871,4 +884,43 @@ def contains(queryset, user):
     try:
         return queryset.filter(id=user.id).exists()
     except (AttributeError, TypeError):
+        return False
+
+@register.filter
+def has_scorm_resume(topic, user):
+    """
+    Check if a user has started a SCORM course but hasn't completed it
+    This is used to show "Resume" button instead of "Start" button
+    
+    Usage: {{ topic|has_scorm_resume:user }}
+    """
+    if not user or not user.is_authenticated:
+        return False
+    
+    if topic.content_type != 'SCORM':
+        return False
+    
+    try:
+        from scorm.models import ScormAttempt, ScormPackage
+        scorm_package = ScormPackage.objects.get(topic=topic)
+        
+        # Check if user has any attempt (started the course)
+        has_attempt = ScormAttempt.objects.filter(
+            user=user,
+            scorm_package=scorm_package
+        ).exists()
+        
+        if has_attempt:
+            # Check if the attempt is incomplete (not completed/passed)
+            latest_attempt = ScormAttempt.objects.filter(
+                user=user,
+                scorm_package=scorm_package
+            ).order_by('-attempt_number').first()
+            
+            if latest_attempt and latest_attempt.lesson_status in ['incomplete', 'not_attempted']:
+                return True
+        
+        return False
+    except Exception as e:
+        logger.warning(f"Error checking SCORM resume for topic {topic.id}: {str(e)}")
         return False

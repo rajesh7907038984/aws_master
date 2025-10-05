@@ -10,6 +10,8 @@ Group=ec2-user
 WorkingDirectory=/home/ec2-user/lms
 
 # Environment configuration
+# Use .env (symlinked to production.env) for consistency with env_loader
+EnvironmentFile=-/home/ec2-user/lms/.env
 EnvironmentFile=-/home/ec2-user/lms/production.env
 Environment="LOGS_DIR=/home/ec2-user/lmslogs"
 Environment="DJANGO_SETTINGS_MODULE=LMS_Project.settings.production"

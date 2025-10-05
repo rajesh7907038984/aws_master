@@ -212,7 +212,9 @@ INSTALLED_APPS = [
 # ==============================================
 
 MIDDLEWARE = [
+    'django.middleware.gzip.GZipMiddleware',  # Enable GZIP compression for large SCORM files
     'django.middleware.security.SecurityMiddleware',
+    'scorm.middleware.ScormSSLExemptMiddleware',  # SCORM SSL bypass (must be after SecurityMiddleware)
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -321,13 +323,14 @@ SESSION_SAVE_EVERY_REQUEST = True  # CRITICAL: Enable session saving for proper 
 # Session serialization and security
 SESSION_SERIALIZER = 'django.contrib.sessions.serializers.JSONSerializer'
 SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SAMESITE = 'None'  # Changed from 'Lax' to 'None' to support SCORM in new tabs/iframes
 SESSION_COOKIE_NAME = 'lms_sessionid'  # Custom session cookie name
 SESSION_COOKIE_DOMAIN = None
 SESSION_COOKIE_PATH = '/'
 
 # Session security (will be overridden in production settings)
-SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+# Note: Secure flag is handled by SECURE_PROXY_SSL_HEADER for ALB deployments
+SESSION_COOKIE_SECURE = False  # Set to True in production.py when HTTPS is properly configured
 
 # Session timeout configuration
 SESSION_TIMEOUT_REDIRECT = '/login/'  # Redirect to login on session timeout
@@ -545,10 +548,14 @@ env_trusted_ips = get_list_env('TRUSTED_IPS', default=[])
 TRUSTED_IPS = DEFAULT_TRUSTED_IPS + env_trusted_ips
 
 # Content Session Settings
-X_FRAME_OPTIONS = 'DENY'
+X_FRAME_OPTIONS = 'SAMEORIGIN'  # Allow iframes from same origin (required for SCORM content)
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+
+# Content Security Policy - Allow S3 content for SCORM
+# Note: Individual views can override this with more permissive policies
+SECURE_CONTENT_SECURITY_POLICY = None  # Disable default CSP, let views handle it
 
 # HTTPS/SSL Session Settings (addressing Django Session warnings)
 SECURE_HSTS_SECONDS = 31536000  # 1 year
@@ -580,9 +587,17 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
 # File permissions for uploaded files
 FILE_UPLOAD_PERMISSIONS = 0o644
 FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
-FILE_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024 * 1024  # 1GB - supports large SCORM packages
-DATA_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024 * 1024   # 1GB - supports large SCORM packages
+
+# Large file upload support for SCORM packages (1GB+)
+FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024 * 1024  # 2GB - supports large SCORM packages
+DATA_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024 * 1024   # 2GB - supports large SCORM packages
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
+
+# Temporary file handling for large uploads
+FILE_UPLOAD_TEMP_DIR = get_env('FILE_UPLOAD_TEMP_DIR', '/tmp')
+FILE_UPLOAD_HANDLERS = [
+    'django.core.files.uploadhandler.TemporaryFileUploadHandler',
+]
 
 # ==============================================
 # STATIC FILES CONFIGURATION

@@ -151,11 +151,15 @@ print("📁 Using local static files storage for production (better performance)
 
 # SSL Configuration - ALB handles SSL termination
 # Enable SSL redirect since ALB terminates SSL and forwards to HTTP backend
-SECURE_SSL_REDIRECT = True
+# Disabled for staging environment direct access
+SECURE_SSL_REDIRECT = False
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
+
+# Exempt SCORM content from SSL redirect to prevent iframe resource loading issues
+SECURE_REDIRECT_EXEMPT = [r'^scorm/content/']
 
 # ==============================================
 # PRODUCTION MEDIA FILES CONFIGURATION
@@ -173,12 +177,8 @@ AWS_S3_REGION_NAME = 'eu-west-2'
 AWS_S3_TRANSFER_ACCELERATION = False
 AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com'
 
-# Force signature version v4 (required for eu-west-2 and Transfer Acceleration)
+# Force signature version v4 (required for eu-west-2)
 AWS_S3_SIGNATURE_VERSION = 's3v4'
-
-# Configure boto3 client for S3 (required for django-storages)
-# from botocore.client import Config
-# AWS_S3_CONFIG = Config(signature_version='s3v4')  # Removed - not supported by django-storages
 
 # S3 Media Storage Settings
 # Disable ACL for modern S3 buckets that don't support ACLs
@@ -192,6 +192,17 @@ AWS_S3_FILE_OVERWRITE = False
 # Additional S3 settings for modern buckets
 AWS_S3_ACL = None  # Disable ACL completely
 AWS_S3_OBJECT_ACL = None  # Disable object ACL
+
+# Critical settings to prevent signature errors
+AWS_S3_ADDRESSING_STYLE = 'virtual'  # Use virtual-hosted style URLs
+AWS_S3_USE_SSL = True  # Always use HTTPS
+AWS_S3_VERIFY = True  # Verify SSL certificates
+AWS_QUERYSTRING_AUTH = True  # Use query string authentication for presigned URLs
+AWS_S3_MAX_MEMORY_SIZE = 100 * 1024 * 1024  # 100MB - Don't load large files into memory
+
+# CRITICAL: Set AWS_LOCATION to None so storage classes can set their own location
+# This prevents conflicts between django-storages and custom storage classes
+AWS_LOCATION = ''  # Empty string means use bucket root, then location property adds 'media/'
 
 # Use S3 for media files
 DEFAULT_FILE_STORAGE = 'core.s3_storage.MediaS3Storage'

@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 from courses.models import Topic
 import json
 
@@ -170,6 +171,7 @@ class ScormAttempt(models.Model):
         help_text="Complete CMI data model storage"
     )
     
+    
     # Timestamps
     started_at = models.DateTimeField(auto_now_add=True)
     last_accessed = models.DateTimeField(auto_now=True)
@@ -196,4 +198,5 @@ class ScormAttempt(models.Model):
         if self.scorm_package.mastery_score and self.score_raw is not None:
             return self.score_raw >= self.scorm_package.mastery_score
         return self.lesson_status in ['passed', 'completed']
+    
 

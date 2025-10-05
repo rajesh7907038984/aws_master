@@ -1,9 +1,11 @@
-{% extends 'base.html' %}
-{% load static %}
-
-{% block title %}{{ scorm_package.title }} - SCORM Player{% endblock %}
-
-{% block extra_css %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>{{ scorm_package.title }} - SCORM Player</title>
+    {% load static %}
 <style>
     body {
         margin: 0;
@@ -98,8 +100,10 @@
     #scorm-frame {
         width: 100%;
         height: 100%;
+        min-height: 600px;
         border: none;
         display: block;
+        background: white;
     }
     
     .loading-overlay {
@@ -132,17 +136,17 @@
         to { transform: rotate(360deg); }
     }
 </style>
-{% endblock %}
-
-{% block content %}
+</head>
+<body>
 <div class="scorm-player-container">
+    {% csrf_token %}
     <div class="scorm-header">
         <h1 class="scorm-title">{{ scorm_package.title }}</h1>
         
         <div class="scorm-status">
             <div class="status-indicator">
                 <div class="status-dot" id="connection-status"></div>
-                <span id="status-text">Connecting...</span>
+                <span id="status-text">Loading...</span>
             </div>
             <div class="status-indicator">
                 <span>Time: <span id="time-display">00:00:00</span></span>
@@ -157,167 +161,131 @@
     <div class="scorm-content">
         <div class="loading-overlay" id="loading-overlay">
             <div class="loading-spinner"></div>
+            <div style="color: white; margin-top: 20px; font-size: 14px;">Loading assessment content...</div>
         </div>
-        <iframe id="scorm-frame" src="{{ launch_url }}" allow="autoplay; fullscreen"></iframe>
+        <iframe id="scorm-frame" 
+                src="{{ launch_url }}" 
+                allow="autoplay; fullscreen; camera; microphone; encrypted-media"
+                loading="eager"
+                importance="high"
+                sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads allow-modals"
+                referrerpolicy="no-referrer-when-downgrade"></iframe>
     </div>
 </div>
 
 <script>
-// SCORM API Wrapper
+// SCORM Real API - Connects to Django SCORM API endpoint
 (function() {
-    const API_ENDPOINT = '{{ api_endpoint }}';
-    const ATTEMPT_ID = {{ attempt.id }};
-    const SCORM_VERSION = '{{ scorm_package.version }}';
-    
     let sessionStartTime = Date.now();
     let timeInterval = null;
+    let apiEndpoint = '{{ api_endpoint }}';
+    let csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
     
-    // SCORM API Implementation
-    class ScormAPI {
-        constructor() {
-            this.initialized = false;
-            this.lastError = '0';
-            this.data = {};
+    // Get CSRF token from cookies if not in form
+    if (!csrfToken) {
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            const [name, value] = cookie.trim().split('=');
+            if (name === 'csrftoken') {
+                csrfToken = value;
+                break;
+            }
         }
-        
-        async callAPI(method, parameters = []) {
-            try {
-                const response = await fetch(API_ENDPOINT, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCookie('csrftoken')
-                    },
-                    body: JSON.stringify({
-                        method: method,
-                        parameters: parameters
-                    })
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    this.lastError = result.error_code || '0';
-                    return result.result;
+    }
+    
+    // Function to make API calls to Django backend
+    function callSCORMAPI(method, parameters = []) {
+        try {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', apiEndpoint, false); // Synchronous for SCORM compliance
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.setRequestHeader('X-CSRFToken', csrfToken);
+            
+            const data = JSON.stringify({
+                method: method,
+                parameters: parameters
+            });
+            
+            xhr.send(data);
+            
+            if (xhr.status === 200) {
+                const response = JSON.parse(xhr.responseText);
+                if (response.success) {
+                    return response.result;
                 } else {
-                    console.error('API Error:', result.error);
-                    this.lastError = '101';
+                    console.error('SCORM API Error:', response.error);
                     return 'false';
                 }
-            } catch (error) {
-                console.error('API Call Failed:', error);
-                this.lastError = '101';
+            } else {
+                console.error('SCORM API HTTP Error:', xhr.status);
                 return 'false';
             }
+        } catch (error) {
+            console.error('SCORM API Exception:', error);
+            return 'false';
         }
-        
+    }
+    
+    // Create the real SCORM API that communicates with Django
+    const realAPI = {
         // SCORM 1.2 API
-        LMSInitialize(param) {
+        LMSInitialize: function(param) { 
+            console.log('🚀 SCORM API: LMSInitialize called');
             updateStatus('Initializing...', true);
-            return this.callAPI('LMSInitialize', [param]).then(result => {
-                if (result === 'true') {
-                    this.initialized = true;
-                    updateStatus('Connected', true);
-                    startTimer();
-                }
-                return result;
-            });
-        }
-        
-        LMSFinish(param) {
-            updateStatus('Saving...', true);
-            return this.callAPI('LMSFinish', [param]).then(result => {
-                if (result === 'true') {
-                    this.initialized = false;
-                    updateStatus('Completed', false);
-                    stopTimer();
-                }
-                return result;
-            });
-        }
-        
-        LMSGetValue(element) {
-            return this.callAPI('LMSGetValue', [element]);
-        }
-        
-        LMSSetValue(element, value) {
-            return this.callAPI('LMSSetValue', [element, value]);
-        }
-        
-        LMSCommit(param) {
-            return this.callAPI('LMSCommit', [param]);
-        }
-        
-        LMSGetLastError() {
-            return this.lastError;
-        }
-        
-        LMSGetErrorString(errorCode) {
-            return this.callAPI('LMSGetErrorString', [errorCode]);
-        }
-        
-        LMSGetDiagnostic(errorCode) {
-            return this.callAPI('LMSGetDiagnostic', [errorCode]);
-        }
-        
-        // SCORM 2004 API
-        Initialize(param) {
-            return this.LMSInitialize(param);
-        }
-        
-        Terminate(param) {
-            return this.LMSFinish(param);
-        }
-        
-        GetValue(element) {
-            return this.LMSGetValue(element);
-        }
-        
-        SetValue(element, value) {
-            return this.LMSSetValue(element, value);
-        }
-        
-        Commit(param) {
-            return this.LMSCommit(param);
-        }
-        
-        GetLastError() {
-            return this.LMSGetLastError();
-        }
-        
-        GetErrorString(errorCode) {
-            return this.LMSGetErrorString(errorCode);
-        }
-        
-        GetDiagnostic(errorCode) {
-            return this.LMSGetDiagnostic(errorCode);
-        }
-    }
-    
-    // Create API instance and expose it globally
-    const scormAPI = new ScormAPI();
-    
-    // SCORM 1.2 API
-    window.API = scormAPI;
-    
-    // SCORM 2004 API
-    window.API_1484_11 = scormAPI;
-    
-    // Helper function to get CSRF token
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
+            startTimer();
+            const result = callSCORMAPI('Initialize', [param]);
+            if (result === 'true') {
+                updateStatus('Content Initialized', true);
             }
-        }
-        return cookieValue;
-    }
+            return result;
+        },
+        LMSFinish: function(param) { 
+            console.log('🏁 SCORM API: LMSFinish called');
+            const result = callSCORMAPI('Terminate', [param]);
+            if (result === 'true') {
+                updateStatus('Content Finished', false);
+                stopTimer();
+            }
+            return result;
+        },
+        LMSGetValue: function(element) { 
+            console.log('📖 SCORM API: LMSGetValue(' + element + ')');
+            return callSCORMAPI('GetValue', [element]);
+        },
+        LMSSetValue: function(element, value) { 
+            console.log('💾 SCORM API: LMSSetValue(' + element + ', ' + value + ')');
+            return callSCORMAPI('SetValue', [element, value]);
+        },
+        LMSCommit: function(param) { 
+            console.log('✅ SCORM API: LMSCommit called');
+            return callSCORMAPI('Commit', [param]);
+        },
+        LMSGetLastError: function() { 
+            return callSCORMAPI('GetLastError', []);
+        },
+        LMSGetErrorString: function(errorCode) { 
+            return callSCORMAPI('GetErrorString', [errorCode]);
+        },
+        LMSGetDiagnostic: function(errorCode) { 
+            return callSCORMAPI('GetDiagnostic', [errorCode]);
+        },
+        
+        // SCORM 2004 API (aliases)
+        Initialize: function(param) { return this.LMSInitialize(param); },
+        Terminate: function(param) { return this.LMSFinish(param); },
+        GetValue: function(element) { return this.LMSGetValue(element); },
+        SetValue: function(element, value) { return this.LMSSetValue(element, value); },
+        Commit: function(param) { return this.LMSCommit(param); },
+        GetLastError: function() { return this.LMSGetLastError(); },
+        GetErrorString: function(errorCode) { return this.LMSGetErrorString(errorCode); },
+        GetDiagnostic: function(errorCode) { return this.LMSGetDiagnostic(errorCode); }
+    };
+    
+    // Expose the real API globally for SCORM content to find
+    window.API = realAPI;
+    window.API_1484_11 = realAPI;
+    
+    console.log('🔗 SCORM Real API created and connected to Django backend');
     
     // Update status display
     function updateStatus(text, active) {
@@ -361,43 +329,55 @@
     
     // Exit player
     window.exitPlayer = function() {
-        if (confirm('Are you sure you want to exit? Your progress will be saved.')) {
+        if (confirm('Are you sure you want to exit?')) {
             stopTimer();
             window.location.href = '{% url "courses:topic_view" topic.id %}';
         }
     };
     
     // Handle iframe load
-    document.getElementById('scorm-frame').addEventListener('load', function() {
+    const scormFrame = document.getElementById('scorm-frame');
+    let loadTimeout;
+    
+    scormFrame.addEventListener('load', function() {
+        clearTimeout(loadTimeout);
         const loadingOverlay = document.getElementById('loading-overlay');
         if (loadingOverlay) {
             loadingOverlay.classList.add('hidden');
         }
         
-        // Make API available to iframe
-        const iframe = this;
-        if (iframe.contentWindow) {
-            iframe.contentWindow.API = window.API;
-            iframe.contentWindow.API_1484_11 = window.API_1484_11;
+        updateStatus('Ready', true);
+        
+        console.log('SCORM content loaded with stub API available');
+    });
+    
+    // Add timeout for loading - increased for complex SCORM packages
+    loadTimeout = setTimeout(() => {
+        console.info('SCORM content is still loading - large course packages may take longer');
+        updateStatus('Loading course content (this may take a moment for large courses)...', true);
+    }, 15000);
+    
+    // Add additional status update for very large packages
+    setTimeout(() => {
+        if (loadTimeout) {
+            updateStatus('Loading assessment questions and resources...', true);
+        }
+    }, 5000);
+    
+    // Handle iframe errors
+    scormFrame.addEventListener('error', function(e) {
+        console.error('SCORM frame error:', e);
+        updateStatus('Error loading content', false);
+        const loadingOverlay = document.getElementById('loading-overlay');
+        if (loadingOverlay) {
+            loadingOverlay.innerHTML = '<div style="color: white; text-align: center;"><h3>Error Loading SCORM Content</h3><p>Please refresh the page or contact support.</p></div>';
         }
     });
     
-    // Handle page unload
-    window.addEventListener('beforeunload', function(e) {
-        if (scormAPI.initialized) {
-            // Auto-commit on page unload
-            scormAPI.LMSCommit('');
-        }
-    });
-    
-    // Auto-save every 30 seconds
-    setInterval(() => {
-        if (scormAPI.initialized) {
-            scormAPI.LMSCommit('');
-        }
-    }, 30000);
+    // Initial status
+    updateStatus('Loading content...', true);
     
 })();
 </script>
-{% endblock %}
-
+</body>
+</html>

@@ -1843,15 +1843,11 @@ class Topic(models.Model):
             raise
 
     def user_has_access(self, user):
-        """Check if user has access to this topic - SCORM CONTENT RESTRICTED TO LEARNERS ONLY"""
+        """Check if user has access to this topic - requires course enrollment and proper permissions"""
         if user.is_superuser:
             return True
         
-        # ROLE RESTRICTION: Only learner role users can access SCORM activities
-        if self.content_type == 'SCORM' and user.role != 'learner':
-            return False
-        
-        # Check if user is restricted from this topic
+        # Check if user is restricted from this topic (learner-specific restrictions)
         if self.restrict_to_learners and user.role == 'learner':
             if self.restricted_learners.filter(id=user.id).exists():
                 return False
@@ -1859,6 +1855,8 @@ class Topic(models.Model):
         # Get the course through CourseTopic
         course = Course.objects.filter(coursetopic__topic=self).first()
         if course:
+            # All content types (including SCORM) require proper course access
+            # This includes enrollment for learners, instructor permissions, etc.
             return course.user_has_access(user)
         return False
 

@@ -9,7 +9,8 @@ from courses.models import Course, CourseEnrollment, Topic
 from quiz.models import Quiz, QuizAttempt, QuizRubricEvaluation
 from discussions.models import Discussion
 from conferences.models import Conference, ConferenceRubricEvaluation
-# SCORM imports removed - functionality no longer supported
+# SCORM imports for new implementation
+from scorm.models import ScormAttempt
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from decimal import Decimal
@@ -33,50 +34,50 @@ from django.shortcuts import redirect
 
 logger = logging.getLogger(__name__)
 
-def has_scorm_progress(registration):
+def has_scorm_progress(attempt):
     """
-    Check if a SCORM registration represents actual progress (not just an initial registration)
+    Check if a SCORM attempt represents actual progress (not just an initial attempt)
     """
-    if not registration:
+    if not attempt:
         return False
     
     # Consider it progress if any of these conditions are met:
     # 1. Has been accessed (last_accessed is set) - this indicates user actually opened the content
     # 2. Has spent some time (more than 0 seconds) - this indicates user interaction
-    # 3. Completion status is completed or passed - this indicates actual completion
+    # 3. Lesson status is completed or passed - this indicates actual completion
     # 4. Has a score AND last_accessed (score without access suggests programmatic assignment)
     
     # First check: User actually accessed the content
-    if registration.last_accessed:
+    if attempt.last_accessed:
         return True
     
     # Second check: User spent time on the content
-    if registration.total_time and registration.total_time > 0:
+    if attempt.total_time and attempt.total_time != '0000:00:00.00':
         return True
     
     # Third check: Content is completed or passed (regardless of access time)
-    if registration.completion_status in ['completed', 'passed']:
+    if attempt.lesson_status in ['completed', 'passed']:
         return True
         
     # Fourth check: Has a score AND was accessed (prevents false positives from programmatic scores)
-    if registration.score and registration.score > 0 and registration.last_accessed:
+    if attempt.score_raw and attempt.score_raw > 0 and attempt.last_accessed:
         return True
     
     # Check if there's meaningful progress data that indicates actual user interaction
-    if registration.progress_data and isinstance(registration.progress_data, dict):
+    if attempt.cmi_data and isinstance(attempt.cmi_data, dict):
         # Look for meaningful progress indicators that suggest user interaction
-        if registration.progress_data.get('progress', 0) > 0:
+        if attempt.cmi_data.get('progress', 0) > 0:
             return True
-        if registration.progress_data.get('completion_percent', 0) > 0:
+        if attempt.cmi_data.get('completion_percent', 0) > 0:
             return True
         # Only consider scorm_cloud_sync if there's also evidence of user interaction
-        if (registration.progress_data.get('scorm_cloud_sync', False) and 
-            (registration.last_accessed or registration.total_time > 0)):
+        if (attempt.cmi_data.get('scorm_cloud_sync', False) and 
+            (attempt.last_accessed or attempt.total_time != '0000:00:00.00')):
             return True
     
     return False
 
-def pre_calculate_student_scores(students, activities, grades, quiz_attempts, scorm_registrations, conference_evaluations, initial_assessment_attempts=None):
+def pre_calculate_student_scores(students, activities, grades, quiz_attempts, scorm_attempts, conference_evaluations, initial_assessment_attempts=None):
     """
     Pre-calculate all student scores for activities to reduce template computation.
     Returns a dictionary structure: {student_id: {activity_id: score_data}}
@@ -107,10 +108,10 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                     quiz_attempt_lookup[key] = attempt
         
         scorm_lookup = {}
-        if scorm_registrations:
-            for registration in scorm_registrations:
-                key = (registration.user_id, registration.package_id)
-                scorm_lookup[key] = registration
+        if scorm_attempts:
+            for attempt in scorm_attempts:
+                key = (attempt.user_id, attempt.scorm_package_id)
+                scorm_lookup[key] = attempt
         
         conference_lookup = {}
         for evaluation in conference_evaluations:
@@ -341,25 +342,25 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                         elif activity_type == 'scorm':
                             key = (student.id, activity_id)
                             if key in scorm_lookup:
-                                registration = scorm_lookup[key]
+                                attempt = scorm_lookup[key]
                                 
-                                # Check if registration has meaningful data
-                                has_registration_data = (
-                                    registration.score is not None or 
-                                    registration.completion_status in ['completed', 'passed'] or
-                                    registration.last_accessed is not None or
-                                    registration.total_time > 0
+                                # Check if attempt has meaningful data
+                                has_attempt_data = (
+                                    attempt.score_raw is not None or 
+                                    attempt.lesson_status in ['completed', 'passed'] or
+                                    attempt.last_accessed is not None or
+                                    attempt.total_time != '0000:00:00.00'
                                 )
                                 
-                                if has_registration_data:
+                                if has_attempt_data:
                                     student_scores[activity_id] = {
-                                        'score': registration.score,
-                                        'max_score': 100,  # SCORM typically uses 0-100 scale
-                                        'date': registration.last_accessed,
+                                        'score': attempt.score_raw,
+                                        'max_score': attempt.score_max or 100,  # SCORM typically uses 0-100 scale
+                                        'date': attempt.last_accessed,
                                         'type': 'scorm',
-                                        'registration': registration,
-                                        'completion_status': registration.completion_status,
-                                        'success_status': registration.success_status
+                                        'attempt': attempt,
+                                        'lesson_status': attempt.lesson_status,
+                                        'success_status': attempt.success_status
                                     }
                                 else:
                                     # Registration exists but has no meaningful data
@@ -1362,11 +1363,11 @@ def course_gradebook_detail(request, course_id):
 
     # Initial assessment attempts are now included in the main quiz_attempts query above
     
-    # SCORM registrations with optimized queries
-    all_scorm_registrations = SCORMRegistration.objects.filter(
-        package__in=scorm_packages,
+    # SCORM attempts with optimized queries
+    all_scorm_attempts = ScormAttempt.objects.filter(
+        scorm_package__in=scorm_packages,
         user__in=students
-    ).select_related('package', 'user', 'package__default_destination').order_by('-last_accessed')
+    ).select_related('scorm_package', 'user').order_by('-last_accessed')
     
     # Calculate total possible activity instances (students × activities)
     total_possible_instances = students_count * total_activities
@@ -1375,16 +1376,16 @@ def course_gradebook_detail(request, course_id):
     submitted_assignments = all_submissions.filter(status__in=['submitted', 'not_graded', 'graded', 'returned']).count()
     submitted_quizzes = quiz_attempts.count()  # This now includes initial assessment attempts
     # Only count completed SCORM activities as submitted
-    submitted_scorm = all_scorm_registrations.filter(completion_status='completed').count()
+    submitted_scorm = all_scorm_attempts.filter(lesson_status='completed').count()
     total_submitted = submitted_assignments + submitted_quizzes + submitted_scorm
     
     # Count in-progress activities (for more accurate metrics)
-    # Only count SCORM registrations that have actual progress
+    # Only count SCORM attempts that have actual progress
     in_progress_scorm = 0
-    for registration in all_scorm_registrations:
-        if registration.completion_status == 'incomplete':
+    for attempt in all_scorm_attempts:
+        if attempt.lesson_status == 'incomplete':
             # Check if there's actual progress
-            has_progress = has_scorm_progress(registration)
+            has_progress = has_scorm_progress(attempt)
             if has_progress:
                 in_progress_scorm += 1
     
@@ -1586,12 +1587,12 @@ def course_gradebook_detail(request, course_id):
             # 'useranswer_set__answer'  # Commented out - invalid prefetch_related parameter
         ).order_by('-end_time')
         
-        # Get SCORM registrations for this course with optimized queries
-        scorm_registrations = SCORMRegistration.objects.filter(
+        # Get SCORM attempts for this course with optimized queries
+        scorm_attempts = ScormAttempt.objects.filter(
             user__in=students,
-            package__in=scorm_packages
+            scorm_package__in=scorm_packages
         ).select_related(
-            'package__default_destination',
+            'scorm_package',
             'user'
         ).order_by('-last_accessed')
         
@@ -1606,7 +1607,7 @@ def course_gradebook_detail(request, course_id):
         # Initialize empty lists/querysets as fallback
         grades = []
         quiz_attempts = QuizAttempt.objects.none()
-        scorm_registrations = SCORMRegistration.objects.none()
+        scorm_attempts = ScormAttempt.objects.none()
         conference_evaluations = ConferenceRubricEvaluation.objects.none()
     
     # Define breadcrumbs for this view
@@ -1632,7 +1633,7 @@ def course_gradebook_detail(request, course_id):
             # Note: initial_assessment_attempts are included in quiz_attempts now
             student_scores = pre_calculate_student_scores(
                 students, activities, grades, quiz_attempts, 
-                scorm_registrations, conference_evaluations, None
+                scorm_attempts, conference_evaluations, None
             )
             # Cache for 10 minutes (increased from 5 since we have proper invalidation)
             cache.set(cache_key, student_scores, timeout=600)
@@ -1785,7 +1786,7 @@ def course_gradebook_detail(request, course_id):
         'quizzes': quizzes,
         'grades': grades,
         'quiz_attempts': quiz_attempts,
-        'scorm_registrations': scorm_registrations,
+        'scorm_attempts': scorm_attempts,
         'scorm_packages': scorm_packages,
         'discussions': discussions,
         'conferences': conferences,
@@ -2846,11 +2847,11 @@ def export_gradebook_csv(request, course_id):
             end_time__in=Subquery(latest_attempts.values('end_time')[:1])
         ).select_related('quiz', 'user', 'quiz__rubric')
         
-        # Get SCORM registrations
-        all_scorm_registrations = SCORMRegistration.objects.filter(
-            package__in=scorm_packages,
+        # Get SCORM attempts
+        all_scorm_attempts = ScormAttempt.objects.filter(
+            scorm_package__in=scorm_packages,
             user__in=students
-        ).select_related('package', 'user')
+        ).select_related('scorm_package', 'user')
         
         # Write data rows
         for student in students:
@@ -2907,18 +2908,18 @@ def export_gradebook_csv(request, course_id):
             
             # Add SCORM grades
             for package in scorm_packages:
-                registration = all_scorm_registrations.filter(
-                    package=package,
+                attempt = all_scorm_attempts.filter(
+                    scorm_package=package,
                     user=student
                 ).first()
                 
-                if registration:
-                    if registration.completion_status == 'completed':
+                if attempt:
+                    if attempt.lesson_status == 'completed':
                         row.append('Completed')
-                    elif registration.completion_status == 'incomplete':
+                    elif attempt.lesson_status == 'incomplete':
                         row.append('In Progress')
                     else:
-                        row.append(registration.completion_status.title())
+                        row.append(attempt.lesson_status.title())
                 else:
                     row.append('Not Started')
             

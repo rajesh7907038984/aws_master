@@ -1595,7 +1595,7 @@
                             <div class="flex mt-3 space-x-2">
                                 <div class="relative inline-block text-left">
                                     <a href="{% url 'quiz:create_quiz' %}" target="_blank" 
-                                       class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
+                                       class="inline-flex items-center px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-200">
                                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                                         </svg>
@@ -1993,14 +1993,14 @@
                 <!-- Progress Bar Container (hidden by default) -->
                 <div id="progress-container" class="hidden flex-1 flex items-center mr-4">
                     <div class="w-full bg-gray-200 rounded-full h-2.5">
-                        <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+                        <div id="progress-bar" class="bg-primary-600 h-2.5 rounded-full" style="width: 0%"></div>
                     </div>
                     <span id="progress-text" class="ml-2 text-sm font-medium text-gray-700">0%</span>
                 </div>
                 
                 <button type="submit" 
                         id="topic-submit-button"
-                        class="btn-submit px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+                        class="btn-submit px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700">
                     <span class="submit-text">{% if action == 'Edit' %}Update Topic{% else %}{{ action }} Topic{% endif %}</span>
                     <span class="spinner hidden">
                         <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -3959,7 +3959,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                     </div>
                     <div class="progress-bar-container mb-4">
                         <div class="w-full bg-blue-200 rounded-full h-6">
-                            <div id="scormProgressBar" class="bg-blue-600 h-6 rounded-full transition-all duration-300 relative overflow-hidden" style="width: 10%">
+                            <div id="scormProgressBar" class="bg-primary-600 h-6 rounded-full transition-all duration-300 relative overflow-hidden" style="width: 10%">
                                 <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30 animate-pulse"></div>
                             </div>
                         </div>
@@ -4129,7 +4129,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                             <input type="file" id="directScormFile" accept=".zip" 
                                    class="hidden" onchange="handleDirectFileSelection(event)">
                             <label for="directScormFile" 
-                                   class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 cursor-pointer">
+                                   class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 cursor-pointer">
                                 <i class="fas fa-file-archive mr-2"></i>Choose SCORM Package
                             </label>
                         </div>
@@ -4150,7 +4150,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                         
                         <div id="directUploadProgress" class="mt-6 hidden">
                             <div class="bg-gray-200 rounded-full h-2 mb-2">
-                                <div id="directProgressBar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                                <div id="directProgressBar" class="bg-primary-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
                             </div>
                             <div id="directProgressMessage" class="text-sm text-gray-600">Uploading...</div>
                         </div>

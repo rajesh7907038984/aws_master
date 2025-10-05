@@ -1,97 +1,44 @@
 """
 Custom S3 Storage Classes for LMS
-Handles proper media location prefixing for S3 storage
+Only overrides what's absolutely necessary to avoid HeadObject 403 errors
 """
 
-from django.conf import settings
 from storages.backends.s3boto3 import S3Boto3Storage
-from botocore.client import Config
-import boto3
 
 
 class MediaS3Storage(S3Boto3Storage):
     """
-    Custom S3 storage for media files that properly handles AWS_MEDIA_LOCATION
-    and fixes absolute path issues for SCORM uploads
+    Custom S3 storage for media files that doesn't require HeadObject permission
+    Lets django-storages handle all signature generation and AWS configuration
     """
-    
-    # Force configuration for all S3 operations
-    def __init__(self, *args, **kwargs):
-        # django-storages reads configuration from Django settings, not from kwargs
-        # We only set the location here
-        super().__init__(*args, **kwargs)
     
     @property
     def location(self):
-        """Override location to use media prefix"""
+        """
+        Return location from settings - this is needed for existing files to work
+        """
+        from django.conf import settings
         return getattr(settings, 'AWS_MEDIA_LOCATION', 'media')
-    
-    def _get_connection(self):
-        """Override connection method to ensure proper configuration"""
-        if not hasattr(self, '_connection') or self._connection is None:
-            self._connection = boto3.client(
-                's3',
-                aws_access_key_id=getattr(settings, 'AWS_ACCESS_KEY_ID', None),
-                aws_secret_access_key=getattr(settings, 'AWS_SECRET_ACCESS_KEY', None),
-                region_name=getattr(settings, 'AWS_S3_REGION_NAME', 'eu-west-2')
-            )
-        return self._connection
-    
-    @property
-    def base_url(self):
-        """Return the base URL for this storage"""
-        return getattr(settings, 'MEDIA_URL', '')
     
     def exists(self, name):
         """
-        Override exists() to skip HeadObject check for SCORM content
-        Always return False to avoid 403 Forbidden errors on HeadObject
-        This is safe because we use unique filenames (UUIDs)
+        Override exists() to skip HeadObject permission check
+        Always return False to skip the existence check
+        This is safe because we use file_overwrite=False and unique filenames (UUIDs)
+        
+        Why: HeadObject requires s3:HeadObject permission which many IAM policies don't grant.
+        By returning False, we skip the check and let S3 handle duplicates (won't happen with UUIDs).
         """
-        # Skip existence check for SCORM content to avoid HeadObject 403 errors
-        if name and ('scorm_content/' in name or 'topics/' in name):
-            return False
-        # For other files, use the parent's exists method
-        try:
-            return super().exists(name)
-        except Exception:
-            # If HeadObject fails, assume file doesn't exist
-            return False
+        return False
     
-    def save(self, name, content, max_length=None):
+    def get_available_name(self, name, max_length=None):
         """
-        Override save method to handle absolute paths from SCORM uploads
+        Override to return the name as-is without checking existence
+        Since we use UUIDs and file_overwrite=False, names are always unique
         """
-        # Convert absolute paths to relative paths
-        if name and name.startswith('/'):
-            name = name.lstrip('/')
-        return super().save(name, content, max_length)
-    
-    def url(self, name):
-        """
-        Override url method to ensure proper URL generation
-        """
-        # Handle absolute paths that might come from legacy code
-        if name and name.startswith('/'):
-            name = name.lstrip('/')
-        url = super().url(name)
-        return url
-
-    def path(self, name):
-        """
-        Override path method to handle S3 storage that doesn't support absolute paths
-        """
-        # S3 storage doesn't support absolute paths, raise NotImplementedError
-        raise NotImplementedError("This backend doesn't support absolute paths.")
-
-    def rsplit(self, sep, maxsplit=-1):
-        """
-        Split string from the right at the specified separator
-        This method is added for compatibility with legacy code
-        """
-        if hasattr(self, 'name') and self.name:
-            return self.name.rsplit(sep, maxsplit)
-        return ''.rsplit(sep, maxsplit)
+        # Don't check for file_overwrite, just return the name
+        # This avoids extra S3 calls
+        return name
 
 class StaticS3Storage(S3Boto3Storage):
     """

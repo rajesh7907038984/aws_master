@@ -95,22 +95,30 @@ def calendar_activities(request):
 @require_http_methods(["GET"])
 # @csrf_exempt  # COMMENTED OUT TO FIX ERRORS
 def health_check(request):
-    """Simple health check endpoint for deployment monitoring"""
+    """Comprehensive health check endpoint for deployment monitoring"""
     try:
-        # Basic health check - just return server status
+        # Test database connection
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute('SELECT 1')
+        
         return JsonResponse({
-            'status': 'ok',
-            'message': 'LMS server is running',
+            'status': 'healthy',
+            'message': 'All systems operational', 
             'timestamp': timezone.now().isoformat(),
             'server': 'django',
+            'database': 'connected',
             'version': '1.0.0'
         })
     except Exception as e:
         return JsonResponse({
-            'status': 'error',
+            'status': 'unhealthy',
             'message': f'Health check failed: {str(e)}',
-            'timestamp': timezone.now().isoformat()
-        }, status=500)
+            'timestamp': timezone.now().isoformat(),
+            'server': 'django',
+            'database': 'disconnected',
+            'version': '1.0.0'
+        }, status=503)
 
 
 @require_http_methods(["GET"])

@@ -125,29 +125,21 @@ def get_item(dictionary, key):
 @register.simple_tag
 def get_scorm_topic(scorm_package):
     """
-    Gets the Topic object associated with a SCORM package
+    Gets the Topic object associated with a native SCORM package
     Usage: {% get_scorm_topic scorm_package as topic %}
     """
     try:
         # Import here to avoid circular imports
         from courses.models import Topic
-        from scorm_cloud.models import SCORMCloudContent
         
-        # Find the SCORMCloudContent that links to this package
-        scorm_content = SCORMCloudContent.objects.filter(
-            package=scorm_package,
-            content_type='topic'
-        ).first()
+        # For native SCORM, the package has a direct relationship with topic
+        if hasattr(scorm_package, 'topic'):
+            return scorm_package.topic
         
-        if scorm_content and scorm_content.content_id:
-            # Get the topic by its ID
-            topic = Topic.objects.filter(id=scorm_content.content_id).first()
-            return topic
-        
-        # Fallback to the old method if no SCORMCloudContent found
+        # Fallback: try to find topic by matching SCORM content
         topic = Topic.objects.filter(
             content_type='SCORM',
-            content_file__icontains=str(scorm_package.id)
+            scorm_package=scorm_package
         ).first()
         return topic
     except Exception:
