@@ -20,5 +20,6 @@ urlpatterns = [
     path('manage-admin-assignments/', views.manage_admin_branches, name='manage_admin_branches'),
     path('assign-admin/', views.assign_admin_to_branch, name='assign_admin_to_branch'),
     path('remove-admin/', views.remove_admin_from_branch, name='remove_admin_from_branch'),
+    path('edit-admin-assignment/', views.edit_admin_assignment, name='edit_admin_assignment'),
     path('api/admin-assignments/<int:admin_user_id>/', views.get_admin_branch_assignments, name='get_admin_assignments'),
 ] 

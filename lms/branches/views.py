@@ -148,22 +148,26 @@ def manage_admin_branches(request):
     Super admin interface to manage admin users' additional branch assignments.
     """
     if request.user.role == 'superadmin':
-        # Super admins can manage any admin user but only assign to branches in their accessible businesses
+        # Super admins can only see admin users and branches within their assigned businesses
         accessible_businesses = request.user.business_assignments.filter(is_active=True).values_list('business', flat=True)
         accessible_branches = Branch.objects.filter(business__in=accessible_businesses, is_active=True)
-        # Show all admin users for multi-branch assignment capability
+        
+        # Filter admin users to only show those in businesses the super admin has access to
         admin_users = CustomUser.objects.filter(
             role='admin',
-            is_active=True
-        )
+            is_active=True,
+            branch__business__in=accessible_businesses
+        ).select_related('branch', 'branch__business')
+        
+        # Get accessible businesses for display
+        accessible_businesses_objects = Business.objects.filter(id__in=accessible_businesses, is_active=True)
     else:  # globaladmin
-        # Global admins can manage all admin users
+        # Global admins can manage all admin users and all businesses
         accessible_branches = Branch.objects.filter(is_active=True)
         admin_users = CustomUser.objects.filter(role='admin', is_active=True)
+        accessible_businesses_objects = Business.objects.filter(is_active=True)
     
     # Get current assignments
-    # Note: admin_users now includes all admin users (for multi-branch assignment capability)
-    # but assignments are filtered to only show branches the super admin can manage
     assignments = AdminBranchAssignment.objects.filter(
         is_active=True,
         user__in=admin_users,
@@ -173,6 +177,7 @@ def manage_admin_branches(request):
     context = {
         'admin_users': admin_users,
         'accessible_branches': accessible_branches,
+        'accessible_businesses': accessible_businesses_objects,
         'assignments': assignments,
         'page_title': 'Manage Admin Branch Assignments'
     }
@@ -263,21 +268,149 @@ def remove_admin_from_branch(request):
         # Validation: ensure super admin has access to this assignment
         if request.user.role == 'superadmin':
             accessible_businesses = list(request.user.business_assignments.filter(is_active=True).values_list('business', flat=True))
-            if assignment.branch.business not in accessible_businesses:
+            if assignment.branch.business.id not in accessible_businesses:
                 raise PermissionDenied("You don't have access to manage this assignment")
         
-        # Deactivate the assignment
-        assignment.is_active = False
-        assignment.save()
-        
-        logger.info(f"Admin {request.user.username} removed {assignment.user.username} from branch {assignment.branch.name}")
-        messages.success(request, f'Successfully removed {assignment.user.get_full_name()} from {assignment.branch.name}')
+        # Deactivate the assignment with transaction support
+        with transaction.atomic():
+            assignment.is_active = False
+            assignment.save()
+            
+            logger.info(f"Admin {request.user.username} removed {assignment.user.username} from branch {assignment.branch.name}")
+            messages.success(request, f'Successfully removed {assignment.user.get_full_name()} from {assignment.branch.name}')
     
     except AdminBranchAssignment.DoesNotExist:
-        messages.error(request, 'Assignment not found.')
+        logger.warning(f"Assignment not found - ID: {assignment_id}, User: {request.user.username}")
+        messages.error(request, 'Assignment not found or already removed.')
+    except PermissionDenied as pe:
+        logger.warning(f"Permission denied for {request.user.username}: {str(pe)}")
+        messages.error(request, str(pe))
     except Exception as e:
-        logger.error(f"Error removing admin from branch: {str(e)}")
-        messages.error(request, 'An error occurred while removing the admin from the branch.')
+        logger.error(f"Error removing admin from branch: {str(e)}", exc_info=True)
+        messages.error(request, 'An error occurred while removing the admin from the branch. Please try again or contact support.')
+    
+    return redirect('branches:manage_admin_branches')
+
+
+@login_required
+@require_superadmin_or_higher
+@require_POST
+@csrf_protect
+def edit_admin_assignment(request):
+    """
+    Edit an admin user's assignment (admin user, branch, and notes).
+    """
+    assignment_id = request.POST.get('assignment_id')
+    admin_user_id = request.POST.get('admin_user_id')
+    branch_id = request.POST.get('branch_id')
+    notes = request.POST.get('notes', '').strip()
+    
+    if not assignment_id:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'error': 'Assignment ID is required.'})
+        messages.error(request, 'Assignment ID is required.')
+        return redirect('branches:manage_admin_branches')
+    
+    try:
+        assignment = get_object_or_404(AdminBranchAssignment, id=assignment_id, is_active=True)
+        
+        # Validation: ensure super admin has access to this assignment
+        if request.user.role == 'superadmin':
+            accessible_businesses = list(request.user.business_assignments.filter(is_active=True).values_list('business', flat=True))
+            if assignment.branch.business.id not in accessible_businesses:
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': False, 'error': "You don't have access to manage this assignment"})
+                raise PermissionDenied("You don't have access to manage this assignment")
+        
+        # Handle admin user change
+        if admin_user_id and admin_user_id != str(assignment.user.id):
+            try:
+                new_admin_user = get_object_or_404(CustomUser, id=admin_user_id, role='admin', is_active=True)
+                
+                # Validate that the new admin user is accessible to the super admin
+                if request.user.role == 'superadmin':
+                    if new_admin_user.branch and new_admin_user.branch.business:
+                        if new_admin_user.branch.business.id not in accessible_businesses:
+                            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                                return JsonResponse({'success': False, 'error': "You don't have access to assign this admin user"})
+                            raise PermissionDenied("You don't have access to assign this admin user")
+                
+                assignment.user = new_admin_user
+                logger.info(f"Admin {request.user.username} changed assignment {assignment.id} user from {assignment.user.username} to {new_admin_user.username}")
+            except CustomUser.DoesNotExist:
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': False, 'error': 'Invalid admin user selected.'})
+                messages.error(request, 'Invalid admin user selected.')
+                return redirect('branches:manage_admin_branches')
+        
+        # Handle branch change
+        if branch_id and branch_id != str(assignment.branch.id):
+            try:
+                new_branch = get_object_or_404(Branch, id=branch_id, is_active=True)
+                
+                # Validate that the new branch is accessible to the super admin
+                if request.user.role == 'superadmin':
+                    if new_branch.business and new_branch.business.id not in accessible_businesses:
+                        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                            return JsonResponse({'success': False, 'error': "You don't have access to assign to this branch"})
+                        raise PermissionDenied("You don't have access to assign to this branch")
+                
+                # Check if the new assignment would create a duplicate
+                existing_assignment = AdminBranchAssignment.objects.filter(
+                    user=assignment.user,
+                    branch=new_branch,
+                    is_active=True
+                ).exclude(id=assignment.id).first()
+                
+                if existing_assignment:
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return JsonResponse({'success': False, 'error': f'{assignment.user.get_full_name()} is already assigned to {new_branch.name}'})
+                    messages.error(request, f'{assignment.user.get_full_name()} is already assigned to {new_branch.name}')
+                    return redirect('branches:manage_admin_branches')
+                
+                # Prevent assignment to user's primary branch
+                if assignment.user.branch == new_branch:
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return JsonResponse({'success': False, 'error': 'Cannot assign admin to their primary branch'})
+                    messages.error(request, 'Cannot assign admin to their primary branch')
+                    return redirect('branches:manage_admin_branches')
+                
+                assignment.branch = new_branch
+                logger.info(f"Admin {request.user.username} changed assignment {assignment.id} branch to {new_branch.name}")
+            except Branch.DoesNotExist:
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': False, 'error': 'Invalid branch selected.'})
+                messages.error(request, 'Invalid branch selected.')
+                return redirect('branches:manage_admin_branches')
+        
+        # Update the assignment with transaction support
+        with transaction.atomic():
+            assignment.notes = notes
+            assignment.save()
+            
+            logger.info(f"Admin {request.user.username} updated assignment {assignment.id}")
+            
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True, 
+                    'message': f'Successfully updated assignment for {assignment.user.get_full_name()}'
+                })
+            
+            messages.success(request, f'Successfully updated assignment for {assignment.user.get_full_name()}')
+    
+    except AdminBranchAssignment.DoesNotExist:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'error': 'Assignment not found.'})
+        messages.error(request, 'Assignment not found.')
+    except PermissionDenied as pe:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'error': str(pe)})
+        messages.error(request, str(pe))
+    except Exception as e:
+        logger.error(f"Error updating assignment: {str(e)}", exc_info=True)
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'error': 'An error occurred while updating the assignment.'})
+        messages.error(request, 'An error occurred while updating the assignment.')
     
     return redirect('branches:manage_admin_branches')
 
