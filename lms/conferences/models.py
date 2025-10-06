@@ -815,24 +815,24 @@ class ConferenceParticipant(models.Model):
             try:
                 # Method 1: If URL contains 'register', force convert to direct join
                 if 'register' in base_meeting_url:
-                    logger.info("🔄 Converting registration URL to direct join")
+                    logger.info(" Converting registration URL to direct join")
                     tracking_url = force_convert_registration_url_to_direct_join(base_meeting_url)
                     conversion_method = 'force_convert_registration'
                 else:
                     # Method 2: For non-registration URLs, still clean them to ensure direct join format
-                    logger.info("🔧 Cleaning URL format for direct join")
+                    logger.info(" Cleaning URL format for direct join")
                     tracking_url = clean_zoom_url_format(self.conference) if hasattr(self, 'conference') else base_meeting_url
                     conversion_method = 'clean_zoom_format'
                 
                 # DOUBLE CHECK: If the converted URL still contains 'register', force another conversion
                 if 'register' in tracking_url:
-                    logger.warning("⚠️ URL still contains 'register' after conversion, forcing another conversion")
+                    logger.warning(" URL still contains 'register' after conversion, forcing another conversion")
                     tracking_url = force_convert_registration_url_to_direct_join(tracking_url)
                     conversion_method = 'double_force_convert'
                 
                 # TRIPLE CHECK: If it's still a registration URL, create a manual direct join URL
                 if 'register' in tracking_url:
-                    logger.error("❌ URL conversion failed, creating manual direct join URL")
+                    logger.error(" URL conversion failed, creating manual direct join URL")
                     # Extract meeting ID and create simple direct join URL
                     from conferences.views import extract_meeting_id_from_any_zoom_url
                     meeting_id = extract_meeting_id_from_any_zoom_url(base_meeting_url)
@@ -850,19 +850,19 @@ class ConferenceParticipant(models.Model):
                             tracking_url += f"?pwd={self.conference.meeting_password}"
                         
                         conversion_method = 'manual_direct_join'
-                        logger.info(f"✅ Created manual direct join URL: {tracking_url}")
+                        logger.info(f" Created manual direct join URL: {tracking_url}")
                     else:
-                        logger.error("❌ Could not extract meeting ID, using original URL")
+                        logger.error(" Could not extract meeting ID, using original URL")
                         tracking_url = base_meeting_url
                         conversion_method = 'failed_fallback'
                 
                 # Final validation: Log the result
                 if 'register' in tracking_url:
-                    logger.error(f"❌ CRITICAL: Learner will still see registration form! URL: {tracking_url}")
+                    logger.error(f" CRITICAL: Learner will still see registration form! URL: {tracking_url}")
                 else:
-                    logger.info(f"✅ SUCCESS: Learner will get direct join URL: {tracking_url}")
+                    logger.info(f" SUCCESS: Learner will get direct join URL: {tracking_url}")
                 
-                # ✅ NOW ADD NAME AND EMAIL TO THE CLEAN ZOOM URL
+                #  NOW ADD NAME AND EMAIL TO THE CLEAN ZOOM URL
                 # Parse the clean URL and add user credentials
                 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
                 parsed_url = urlparse(tracking_url)
@@ -897,7 +897,7 @@ class ConferenceParticipant(models.Model):
                     parsed_url.fragment
                 ))
                 
-                logger.info(f"✅ ENHANCED: Added user credentials to URL: {final_tracking_url}")
+                logger.info(f" ENHANCED: Added user credentials to URL: {final_tracking_url}")
                 
                 # Update tracking data with detailed conversion info
                 self.tracking_data.update({
@@ -928,7 +928,7 @@ class ConferenceParticipant(models.Model):
                 return final_tracking_url
                 
             except Exception as e:
-                logger.error(f"❌ Error in Zoom URL conversion: {str(e)}")
+                logger.error(f" Error in Zoom URL conversion: {str(e)}")
                 # Fallback: try to create a simple direct join URL
                 try:
                     from conferences.views import extract_meeting_id_from_any_zoom_url
@@ -937,10 +937,10 @@ class ConferenceParticipant(models.Model):
                         fallback_url = f"https://zoom.us/j/{meeting_id}"
                         if self.conference.meeting_password:
                             fallback_url += f"?pwd={self.conference.meeting_password}"
-                        logger.info(f"✅ Created fallback direct join URL: {fallback_url}")
+                        logger.info(f" Created fallback direct join URL: {fallback_url}")
                         return fallback_url
                 except Exception as fe:
-                    logger.error(f"❌ Fallback URL creation failed: {str(fe)}")
+                    logger.error(f" Fallback URL creation failed: {str(fe)}")
                 
                 # Ultimate fallback: return original URL
                 return base_meeting_url

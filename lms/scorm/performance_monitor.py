@@ -29,7 +29,7 @@ class SCORMPerformanceMonitor:
             load_time = time.time() - start_time
             
             if response.status_code == 200:
-                logger.info(f"✅ SCORM view loaded in {load_time:.2f}s for topic {topic_id}")
+                logger.info(f" SCORM view loaded in {load_time:.2f}s for topic {topic_id}")
                 return {
                     'topic_id': topic_id,
                     'load_time': load_time,
@@ -37,7 +37,7 @@ class SCORMPerformanceMonitor:
                     'status_code': response.status_code
                 }
             else:
-                logger.error(f"❌ SCORM view failed with status {response.status_code}")
+                logger.error(f" SCORM view failed with status {response.status_code}")
                 return {
                     'topic_id': topic_id,
                     'load_time': load_time,
@@ -45,7 +45,7 @@ class SCORMPerformanceMonitor:
                     'status_code': response.status_code
                 }
         except Exception as e:
-            logger.error(f"❌ Error testing SCORM loading: {str(e)}")
+            logger.error(f" Error testing SCORM loading: {str(e)}")
             return {
                 'topic_id': topic_id,
                 'load_time': None,
@@ -61,7 +61,7 @@ class SCORMPerformanceMonitor:
             load_time = time.time() - start_time
             
             if response.status_code == 200:
-                logger.info(f"✅ SCORM content served in {load_time:.2f}s for {content_path}")
+                logger.info(f" SCORM content served in {load_time:.2f}s for {content_path}")
                 return {
                     'topic_id': topic_id,
                     'content_path': content_path,
@@ -70,7 +70,7 @@ class SCORMPerformanceMonitor:
                     'content_size': len(response.content)
                 }
             else:
-                logger.error(f"❌ SCORM content failed with status {response.status_code}")
+                logger.error(f" SCORM content failed with status {response.status_code}")
                 return {
                     'topic_id': topic_id,
                     'content_path': content_path,
@@ -79,7 +79,7 @@ class SCORMPerformanceMonitor:
                     'status_code': response.status_code
                 }
         except Exception as e:
-            logger.error(f"❌ Error testing SCORM content: {str(e)}")
+            logger.error(f" Error testing SCORM content: {str(e)}")
             return {
                 'topic_id': topic_id,
                 'content_path': content_path,
@@ -117,7 +117,7 @@ class SCORMPerformanceMonitor:
         # Check for specific issues
         slow_tests = [test for test in successful_tests if test['load_time'] > 5.0]
         if slow_tests:
-            recommendations.append(f"⚠️  {len(slow_tests)} tests took over 5 seconds")
+            recommendations.append(f"  {len(slow_tests)} tests took over 5 seconds")
         
         return {
             'average_load_time': avg_load_time,
@@ -133,7 +133,7 @@ class SCORMPerformanceMonitor:
             scorm_topics = ScormPackage.objects.select_related('topic').all()[:5]  # Limit to 5 for testing
             topic_ids = [pkg.topic.id for pkg in scorm_topics]
         
-        logger.info(f"🚀 Starting SCORM performance test for {len(topic_ids)} topics")
+        logger.info(f" Starting SCORM performance test for {len(topic_ids)} topics")
         
         for topic_id in topic_ids:
             logger.info(f"Testing topic {topic_id}...")

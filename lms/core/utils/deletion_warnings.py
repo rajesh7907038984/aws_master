@@ -36,7 +36,7 @@ def _get_topic_deletion_warning(topic_name, related_data_count):
     """Generate warning message for topic deletion."""
     
     warning_parts = [
-        f"<strong>⚠️ WARNING: You are about to delete the topic '{topic_name}'</strong>",
+        f"<strong> WARNING: You are about to delete the topic '{topic_name}'</strong>",
         "<br><br>",
         "<strong>This action will permanently delete ALL related data including:</strong>",
         "<ul>"
@@ -69,7 +69,7 @@ def _get_topic_deletion_warning(topic_name, related_data_count):
     warning_parts.extend([
         "</ul>",
         "<br>",
-        "<strong style='color: #dc3545;'>⚠️ THIS ACTION CANNOT BE UNDONE!</strong>",
+        "<strong style='color: #dc3545;'> THIS ACTION CANNOT BE UNDONE!</strong>",
         "<br><br>",
         "All student progress, submissions, and related data will be permanently lost.",
         "<br><br>",
@@ -83,7 +83,7 @@ def _get_course_deletion_warning(course_name, related_data_count):
     """Generate warning message for course deletion."""
     
     warning_parts = [
-        f"<strong>⚠️ WARNING: You are about to delete the course '{course_name}'</strong>",
+        f"<strong> WARNING: You are about to delete the course '{course_name}'</strong>",
         "<br><br>",
         "<strong>This action will permanently delete ALL related data including:</strong>",
         "<ul>"
@@ -116,7 +116,7 @@ def _get_course_deletion_warning(course_name, related_data_count):
     warning_parts.extend([
         "</ul>",
         "<br>",
-        "<strong style='color: #dc3545;'>⚠️ THIS ACTION CANNOT BE UNDONE!</strong>",
+        "<strong style='color: #dc3545;'> THIS ACTION CANNOT BE UNDONE!</strong>",
         "<br><br>",
         "All student progress, enrollments, and course content will be permanently lost.",
         "<br><br>",
@@ -143,11 +143,11 @@ def _get_generic_deletion_warning(obj_name, related_data_count):
     """Generate generic warning message for deletion."""
     
     warning_parts = [
-        f"<strong>⚠️ WARNING: You are about to delete '{obj_name}'</strong>",
+        f"<strong> WARNING: You are about to delete '{obj_name}'</strong>",
         "<br><br>",
         "<strong>This action will permanently delete ALL related data.</strong>",
         "<br><br>",
-        "<strong style='color: #dc3545;'>⚠️ THIS ACTION CANNOT BE UNDONE!</strong>",
+        "<strong style='color: #dc3545;'> THIS ACTION CANNOT BE UNDONE!</strong>",
         "<br><br>",
         "All related data will be permanently lost.",
         "<br><br>",

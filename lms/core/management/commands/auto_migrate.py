@@ -49,7 +49,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        self.stdout.write(self.style.SUCCESS('🔄 Auto Migration System Starting...'))
+        self.stdout.write(self.style.SUCCESS(' Auto Migration System Starting...'))
         
         # List pending migrations if requested
         if options['list_pending']:
@@ -64,7 +64,7 @@ class Command(BaseCommand):
         pending_migrations = self.detect_pending_migrations(options.get('app'))
         
         if not pending_migrations:
-            self.stdout.write(self.style.SUCCESS('✅ No pending migrations found'))
+            self.stdout.write(self.style.SUCCESS(' No pending migrations found'))
             return
 
         self.stdout.write(f'📋 Found {len(pending_migrations)} pending migrations')
@@ -114,7 +114,7 @@ class Command(BaseCommand):
         pending = self.detect_pending_migrations(specific_app)
         
         if not pending:
-            self.stdout.write(self.style.SUCCESS('✅ No pending migrations'))
+            self.stdout.write(self.style.SUCCESS(' No pending migrations'))
             return
             
         for app_label, migration_name in pending:
@@ -128,7 +128,7 @@ class Command(BaseCommand):
                 try:
                     operations = self.extract_migration_operations(migration_path)
                     if operations:
-                        self.stdout.write(f'     🔧 Operations: {", ".join(operations)}')
+                        self.stdout.write(f'      Operations: {", ".join(operations)}')
                 except:
                     pass
             else:
@@ -184,17 +184,17 @@ class Command(BaseCommand):
                 call_command('dumpdata', '--natural-foreign', '--natural-primary', 
                            stdout=f, verbosity=0)
             
-            self.stdout.write(self.style.SUCCESS(f'✅ Backup created: {backup_file}'))
+            self.stdout.write(self.style.SUCCESS(f' Backup created: {backup_file}'))
             
         except Exception as e:
             self.stdout.write(
-                self.style.ERROR(f'❌ Backup failed: {e}')
+                self.style.ERROR(f' Backup failed: {e}')
             )
             raise CommandError('Backup failed - stopping migration process')
 
     def apply_migrations_safely(self, pending_migrations, force=False):
         """Apply migrations with safety checks"""
-        self.stdout.write('🔧 Applying migrations with safety checks...')
+        self.stdout.write(' Applying migrations with safety checks...')
         
         # Group migrations by app
         apps_to_migrate = {}
@@ -212,7 +212,7 @@ class Command(BaseCommand):
             if not force and self.has_dangerous_operations(app_label, migrations):
                 self.stdout.write(
                     self.style.WARNING(
-                        f'⚠️ App {app_label} has potentially dangerous operations. '
+                        f' App {app_label} has potentially dangerous operations. '
                         f'Use --force to proceed.'
                     )
                 )
@@ -220,27 +220,27 @@ class Command(BaseCommand):
             
             try:
                 # Apply migrations for this app
-                self.stdout.write(f'🔧 Migrating {app_label}...')
+                self.stdout.write(f' Migrating {app_label}...')
                 call_command('migrate', app_label, verbosity=1, interactive=False)
                 total_applied += len(migrations)
                 self.stdout.write(
-                    self.style.SUCCESS(f'✅ {app_label} migrations applied successfully')
+                    self.style.SUCCESS(f' {app_label} migrations applied successfully')
                 )
                 
             except Exception as e:
                 self.stdout.write(
-                    self.style.ERROR(f'❌ Migration failed for {app_label}: {e}')
+                    self.style.ERROR(f' Migration failed for {app_label}: {e}')
                 )
                 
                 # Try to continue with other apps
                 if force:
-                    self.stdout.write('⚠️ Continuing with other apps due to --force flag')
+                    self.stdout.write(' Continuing with other apps due to --force flag')
                     continue
                 else:
                     raise CommandError(f'Migration failed for {app_label}: {e}')
         
         self.stdout.write(
-            self.style.SUCCESS(f'🎉 Applied {total_applied} migrations successfully!')
+            self.style.SUCCESS(f' Applied {total_applied} migrations successfully!')
         )
         
         # Run post-migration checks
@@ -278,29 +278,29 @@ class Command(BaseCommand):
                 cursor.execute("SELECT 1")
                 result = cursor.fetchone()
                 if result[0] == 1:
-                    self.stdout.write(self.style.SUCCESS('✅ Database connectivity OK'))
+                    self.stdout.write(self.style.SUCCESS(' Database connectivity OK'))
                 else:
-                    self.stdout.write(self.style.ERROR('❌ Database connectivity issue'))
+                    self.stdout.write(self.style.ERROR(' Database connectivity issue'))
             
             # Run Django checks
             try:
                 call_command('check', verbosity=0)
-                self.stdout.write(self.style.SUCCESS('✅ Django system checks passed'))
+                self.stdout.write(self.style.SUCCESS(' Django system checks passed'))
             except:
-                self.stdout.write(self.style.WARNING('⚠️ Some Django system checks failed'))
+                self.stdout.write(self.style.WARNING(' Some Django system checks failed'))
             
             # Check for additional pending migrations
             remaining = self.detect_pending_migrations()
             if remaining:
                 self.stdout.write(
-                    self.style.WARNING(f'⚠️ {len(remaining)} migrations still pending')
+                    self.style.WARNING(f' {len(remaining)} migrations still pending')
                 )
             else:
-                self.stdout.write(self.style.SUCCESS('✅ All migrations applied'))
+                self.stdout.write(self.style.SUCCESS(' All migrations applied'))
                 
         except Exception as e:
             self.stdout.write(
-                self.style.ERROR(f'❌ Post-migration check failed: {e}')
+                self.style.ERROR(f' Post-migration check failed: {e}')
             )
 
     def get_migration_summary(self):

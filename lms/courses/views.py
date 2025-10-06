@@ -3330,7 +3330,7 @@ def topic_edit(request, topic_id, section_id=None):
             # Check file size for all content types - maximum 600MB
             max_size = 600 * 1024 * 1024  # 600MB in bytes
             if content_file.size > max_size:
-                error_msg = f"⚠️ File size limit exceeded! Your file size: {(content_file.size / (1024 * 1024)):.2f}MB. Maximum allowed: 600MB. Please upload a smaller file."
+                error_msg = f" File size limit exceeded! Your file size: {(content_file.size / (1024 * 1024)):.2f}MB. Maximum allowed: 600MB. Please upload a smaller file."
                 logger.warning(f"File size exceeded limit: {error_msg}")
                 
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':

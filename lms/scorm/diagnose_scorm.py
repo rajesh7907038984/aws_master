@@ -68,7 +68,7 @@ def diagnose_package(package_id):
     try:
         package = ScormPackage.objects.get(id=package_id)
     except ScormPackage.DoesNotExist:
-        print(f"❌ Error: SCORM Package with ID {package_id} not found")
+        print(f" Error: SCORM Package with ID {package_id} not found")
         return
     
     print(f"📦 Package Information:")
@@ -85,36 +85,36 @@ def diagnose_package(package_id):
     try:
         exists = default_storage.exists(package.extracted_path)
         if exists:
-            print(f"   ✅ Extracted path exists in storage")
+            print(f"    Extracted path exists in storage")
         else:
-            print(f"   ❌ Extracted path does NOT exist in storage")
+            print(f"    Extracted path does NOT exist in storage")
             return
     except Exception as e:
-        print(f"   ❌ Error checking storage: {e}")
+        print(f"    Error checking storage: {e}")
         return
     print()
     
     # Check launch file
-    print(f"🚀 Launch File Check:")
+    print(f" Launch File Check:")
     launch_file_path = f"{package.extracted_path}/{package.launch_url}"
     try:
         if default_storage.exists(launch_file_path):
-            print(f"   ✅ Launch file exists: {package.launch_url}")
+            print(f"    Launch file exists: {package.launch_url}")
             
             # Check for hardcoded base tag
             has_base, base_href = check_base_tag_in_file(launch_file_path)
             if has_base:
-                print(f"   ⚠️  WARNING: Launch file has hardcoded <base> tag!")
+                print(f"     WARNING: Launch file has hardcoded <base> tag!")
                 print(f"      Base href: {base_href}")
                 print(f"      This will be automatically fixed by the system.")
             elif has_base is False:
-                print(f"   ✅ No hardcoded base tag found (good)")
+                print(f"    No hardcoded base tag found (good)")
             else:
-                print(f"   ⚠️  Could not check for base tag: {base_href}")
+                print(f"     Could not check for base tag: {base_href}")
         else:
-            print(f"   ❌ Launch file NOT found: {package.launch_url}")
+            print(f"    Launch file NOT found: {package.launch_url}")
     except Exception as e:
-        print(f"   ❌ Error checking launch file: {e}")
+        print(f"    Error checking launch file: {e}")
     print()
     
     # List package contents
@@ -130,7 +130,7 @@ def diagnose_package(package_id):
             print(f"   Total directories: {len(dirs)}")
             
             if errors:
-                print(f"   ⚠️  Errors: {len(errors)}")
+                print(f"     Errors: {len(errors)}")
                 for _, error in errors[:5]:
                     print(f"      - {error}")
             
@@ -143,9 +143,9 @@ def diagnose_package(package_id):
             if len(files) > 20:
                 print(f"      ... and {len(files) - 20} more files")
         else:
-            print(f"   ⚠️  No contents found (empty directory or access error)")
+            print(f"     No contents found (empty directory or access error)")
     except Exception as e:
-        print(f"   ❌ Error listing contents: {e}")
+        print(f"    Error listing contents: {e}")
     print()
     
     # Check attempts
@@ -172,18 +172,18 @@ def diagnose_package(package_id):
     # Check for JavaScript files
     js_files = [f for t, f in contents if t == 'file' and f.endswith('.js')]
     if not js_files:
-        print(f"   ⚠️  WARNING: No JavaScript files found")
+        print(f"     WARNING: No JavaScript files found")
         issues_found = True
     else:
-        print(f"   ✅ Found {len(js_files)} JavaScript files")
+        print(f"    Found {len(js_files)} JavaScript files")
     
     # Check for HTML files
     html_files = [f for t, f in contents if t == 'file' and (f.endswith('.html') or f.endswith('.htm'))]
     if not html_files:
-        print(f"   ⚠️  WARNING: No HTML files found")
+        print(f"     WARNING: No HTML files found")
         issues_found = True
     else:
-        print(f"   ✅ Found {len(html_files)} HTML files")
+        print(f"    Found {len(html_files)} HTML files")
         
         # Check each HTML file for hardcoded base tags
         print(f"\n   Checking HTML files for hardcoded base tags...")
@@ -195,24 +195,24 @@ def diagnose_package(package_id):
                 html_with_base.append((relative_path, base_href))
         
         if html_with_base:
-            print(f"   ⚠️  Found {len(html_with_base)} HTML files with hardcoded base tags:")
+            print(f"     Found {len(html_with_base)} HTML files with hardcoded base tags:")
             for file_path, base_href in html_with_base[:5]:
                 print(f"      - {file_path}")
                 print(f"        Base href: {base_href}")
             issues_found = True
         else:
-            print(f"   ✅ No hardcoded base tags in checked HTML files")
+            print(f"    No hardcoded base tags in checked HTML files")
     
     # Check manifest
     manifest_path = f"{package.extracted_path}/imsmanifest.xml"
     if default_storage.exists(manifest_path):
-        print(f"   ✅ Manifest file exists")
+        print(f"    Manifest file exists")
     else:
-        print(f"   ⚠️  WARNING: imsmanifest.xml not found")
+        print(f"     WARNING: imsmanifest.xml not found")
         issues_found = True
     
     if not issues_found:
-        print(f"\n   ✅ No obvious issues detected")
+        print(f"\n    No obvious issues detected")
     
     print()
     print("=" * 80)

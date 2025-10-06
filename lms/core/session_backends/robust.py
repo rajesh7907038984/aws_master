@@ -33,14 +33,14 @@ class RobustSessionStore(DatabaseSessionStore):
             
             # Verify save worked
             if self._verify_session_saved():
-                logger.info(f"✅ Session {self.session_key} saved successfully")
+                logger.info(f" Session {self.session_key} saved successfully")
                 return result
             else:
                 # Strategy 2: Manual database save
                 return self._manual_save()
                 
         except Exception as e:
-            logger.error(f"❌ Session save failed: {str(e)}")
+            logger.error(f" Session save failed: {str(e)}")
             # Strategy 3: Cache fallback
             return self._cache_fallback()
     
@@ -68,10 +68,10 @@ class RobustSessionStore(DatabaseSessionStore):
                     session_obj.expire_date = self.get_expiry_date()
                     session_obj.save()
                 
-                logger.info(f"✅ Session {self.session_key} manually saved")
+                logger.info(f" Session {self.session_key} manually saved")
                 return True
         except Exception as e:
-            logger.error(f"❌ Manual save failed: {str(e)}")
+            logger.error(f" Manual save failed: {str(e)}")
             return False
     
     def _cache_fallback(self):
@@ -91,10 +91,10 @@ class RobustSessionStore(DatabaseSessionStore):
                     session_obj.expire_date = self.get_expiry_date()
                     session_obj.save()
             
-            logger.info(f"✅ Session {self.session_key} saved to database fallback")
+            logger.info(f" Session {self.session_key} saved to database fallback")
             return True
         except Exception as e:
-            logger.error(f"❌ Database fallback failed: {str(e)}")
+            logger.error(f" Database fallback failed: {str(e)}")
             return False
     
     def load(self):
@@ -109,7 +109,7 @@ class RobustSessionStore(DatabaseSessionStore):
             return self._load_from_cache()
             
         except Exception as e:
-            logger.error(f"❌ Session load failed: {str(e)}")
+            logger.error(f" Session load failed: {str(e)}")
             return {}
     
     def _load_from_cache(self):
@@ -119,11 +119,11 @@ class RobustSessionStore(DatabaseSessionStore):
             session_obj = Session.objects.get(session_key=self.session_key)
             if session_obj and not session_obj.expired():
                 self._session_cache = self.decode(session_obj.session_data)
-                logger.info(f"✅ Session {self.session_key} loaded from database")
+                logger.info(f" Session {self.session_key} loaded from database")
                 return self._session_cache
         except Session.DoesNotExist:
             logger.info(f"Session {self.session_key} not found in database")
         except Exception as e:
-            logger.error(f"❌ Database load failed: {str(e)}")
+            logger.error(f" Database load failed: {str(e)}")
         
         return {}

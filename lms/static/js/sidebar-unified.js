@@ -330,7 +330,7 @@
     function setupSubmenuToggles() {
         if (!elements.sidebar) return;
         
-        console.log('🔧 Setting up submenu toggles...');
+        console.log(' Setting up submenu toggles...');
         
         // Remove existing event listeners and reinitialize
         document.querySelectorAll('.menu-item.has-submenu, [data-submenu]').forEach(button => {
@@ -362,7 +362,7 @@
                     arrow.style.height = '0.75rem';
                     arrow.style.zIndex = '10';
                     arrow.style.transition = 'transform 0.3s ease';
-                    console.log('✅ Arrow icon styled for:', submenuId);
+                    console.log(' Arrow icon styled for:', submenuId);
                 }
                 
                 // Add new event listener with enhanced error handling
@@ -380,7 +380,7 @@
                     // Direct toggle implementation
                     const submenu = document.getElementById(submenuId);
                     if (!submenu) {
-                        console.error('❌ Submenu not found:', submenuId);
+                        console.error(' Submenu not found:', submenuId);
                         return;
                     }
                     
@@ -396,7 +396,7 @@
                     if (arrow) {
                         const isNowHidden = submenu.classList.contains('hidden');
                         arrow.style.transform = isNowHidden ? '' : 'rotate(180deg)';
-                        console.log('🔄 Arrow rotated:', !isNowHidden);
+                        console.log(' Arrow rotated:', !isNowHidden);
                     }
                     
                     // Close other submenus if opening this one
@@ -418,10 +418,10 @@
                         });
                     }
                     
-                    console.log('✅ Submenu toggled successfully');
+                    console.log(' Submenu toggled successfully');
                 });
                 
-                console.log('✅ Submenu toggle setup for:', submenuId);
+                console.log(' Submenu toggle setup for:', submenuId);
             }
         });
         

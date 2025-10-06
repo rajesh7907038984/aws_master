@@ -55,14 +55,14 @@ class Command(BaseCommand):
         self.safety = UniversalMigrationSafety()
         self.resolver = DynamicMigrationResolver()
         
-        self.stdout.write(self.style.SUCCESS('🚀 Universal Migration System'))
+        self.stdout.write(self.style.SUCCESS(' Universal Migration System'))
         self.stdout.write('🔍 Analyzing database schema and pending migrations...\n')
         
         # Get all pending migrations
         pending_migrations = self._get_pending_migrations(options.get('app'))
         
         if not pending_migrations:
-            self.stdout.write(self.style.SUCCESS('✅ No pending migrations found'))
+            self.stdout.write(self.style.SUCCESS(' No pending migrations found'))
             return
         
         self.stdout.write(f"📋 Found {len(pending_migrations)} pending migrations:")
@@ -76,7 +76,7 @@ class Command(BaseCommand):
             conflicts = self._analyze_migration_file(app_name, migration_name)
             if conflicts:
                 all_conflicts.extend(conflicts)
-                self.stdout.write(f"⚠️  {app_name}.{migration_name} has {len(conflicts)} potential conflicts")
+                self.stdout.write(f"  {app_name}.{migration_name} has {len(conflicts)} potential conflicts")
         
         if options['analyze_only']:
             self._display_conflict_analysis(all_conflicts)
@@ -148,10 +148,10 @@ class Command(BaseCommand):
     def _display_conflict_analysis(self, conflicts):
         """Display detailed conflict analysis"""
         if not conflicts:
-            self.stdout.write(self.style.SUCCESS('✅ No conflicts detected!'))
+            self.stdout.write(self.style.SUCCESS(' No conflicts detected!'))
             return
         
-        self.stdout.write(self.style.WARNING(f'⚠️  Found {len(conflicts)} potential conflicts:'))
+        self.stdout.write(self.style.WARNING(f'  Found {len(conflicts)} potential conflicts:'))
         
         for i, conflict in enumerate(conflicts, 1):
             self.stdout.write(f"\n{i}. {conflict['type'].upper()}")
@@ -177,16 +177,16 @@ class Command(BaseCommand):
             has_conflicts = any(True for c in conflicts if app_name in str(c))
             
             if has_conflicts:
-                self.stdout.write(f"   🔧 Would FAKE: {app_name}.{migration_name} (has conflicts)")
+                self.stdout.write(f"    Would FAKE: {app_name}.{migration_name} (has conflicts)")
             else:
-                self.stdout.write(f"   ✅ Would APPLY: {app_name}.{migration_name}")
+                self.stdout.write(f"    Would APPLY: {app_name}.{migration_name}")
         
         if conflicts:
-            self.stdout.write(f"\n⚠️  {len(conflicts)} conflicts would be automatically resolved")
+            self.stdout.write(f"\n  {len(conflicts)} conflicts would be automatically resolved")
     
     def _apply_migrations_safely(self, pending_migrations, conflicts, force_safe=False):
         """Apply migrations with intelligent conflict resolution"""
-        self.stdout.write('🚀 Applying migrations with intelligent conflict resolution...\n')
+        self.stdout.write(' Applying migrations with intelligent conflict resolution...\n')
         
         success_count = 0
         error_count = 0
@@ -202,45 +202,45 @@ class Command(BaseCommand):
                 # DISABLED: Fake conflicting migrations (dangerous)
                 # try:
                 #     call_command('migrate', app_name, migration_name, fake=True, verbosity=0)
-                #     self.stdout.write(f"   🔧 FAKED (had {len(migration_conflicts)} conflicts)")
+                #     self.stdout.write(f"    FAKED (had {len(migration_conflicts)} conflicts)")
                 #     faked_count += 1
                 # except Exception as e:
-                #     self.stdout.write(f"   ❌ FAILED to fake: {e}")
+                #     self.stdout.write(f"    FAILED to fake: {e}")
                 #     error_count += 1
-                self.stdout.write(f"   ⚠️  SKIPPED (had {len(migration_conflicts)} conflicts) - use safe_migration_manager.py instead")
+                self.stdout.write(f"     SKIPPED (had {len(migration_conflicts)} conflicts) - use safe_migration_manager.py instead")
                 error_count += 1
             else:
                 # Try to apply normally, with fallback to conflict resolution
                 try:
                     call_command('migrate', app_name, migration_name, verbosity=0)
-                    self.stdout.write(f"   ✅ APPLIED successfully")
+                    self.stdout.write(f"    APPLIED successfully")
                     success_count += 1
                 except Exception as e:
-                    self.stdout.write(f"   ⚠️  Failed, attempting intelligent resolution...")
+                    self.stdout.write(f"     Failed, attempting intelligent resolution...")
                     
                     # Try to resolve the error dynamically
                     if self.resolver.resolve_migration_error(str(e), app_name):
-                        self.stdout.write(f"   🔧 RESOLVED and faked")
+                        self.stdout.write(f"    RESOLVED and faked")
                         faked_count += 1
                     else:
-                        self.stdout.write(f"   ❌ FAILED: {e}")
+                        self.stdout.write(f"    FAILED: {e}")
                         error_count += 1
         
         # Final summary
         self.stdout.write(f"\n📊 Migration Summary:")
-        self.stdout.write(f"   ✅ Successfully applied: {success_count}")
-        self.stdout.write(f"   🔧 Safely faked: {faked_count}")
-        self.stdout.write(f"   ❌ Failed: {error_count}")
+        self.stdout.write(f"    Successfully applied: {success_count}")
+        self.stdout.write(f"    Safely faked: {faked_count}")
+        self.stdout.write(f"    Failed: {error_count}")
         
         if error_count == 0:
-            self.stdout.write(self.style.SUCCESS('\n🎉 All migrations completed successfully!'))
+            self.stdout.write(self.style.SUCCESS('\n All migrations completed successfully!'))
             
             # Final validation
             try:
                 call_command('check', database='default')
-                self.stdout.write('✅ Database validation passed')
+                self.stdout.write(' Database validation passed')
             except Exception as e:
-                self.stdout.write(self.style.WARNING(f'⚠️  Database validation warnings: {e}'))
+                self.stdout.write(self.style.WARNING(f'  Database validation warnings: {e}'))
         else:
             self.stdout.write(self.style.ERROR(f'\n💥 {error_count} migrations failed'))
             

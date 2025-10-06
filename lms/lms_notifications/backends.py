@@ -54,7 +54,7 @@ class OutlookOAuth2Backend(BaseEmailBackend):
                 
             # Validate OAuth2 credentials are configured
             if not all([settings.OUTLOOK_TENANT_ID, settings.OUTLOOK_CLIENT_ID, settings.OUTLOOK_CLIENT_SECRET]):
-                logger.error("❌ OAuth2 credentials are incomplete. Required: OUTLOOK_TENANT_ID, OUTLOOK_CLIENT_ID, OUTLOOK_CLIENT_SECRET")
+                logger.error(" OAuth2 credentials are incomplete. Required: OUTLOOK_TENANT_ID, OUTLOOK_CLIENT_ID, OUTLOOK_CLIENT_SECRET")
                 return None
                 
             # Get new token
@@ -77,14 +77,14 @@ class OutlookOAuth2Backend(BaseEmailBackend):
             expires_in = token_data.get('expires_in', 3600) - 300
             self.token_expires = timezone.now() + timezone.timedelta(seconds=expires_in)
             
-            logger.info("✅ Successfully obtained OAuth2 access token")
+            logger.info(" Successfully obtained OAuth2 access token")
             return self.access_token
             
         except requests.exceptions.HTTPError as e:
             # HTTP errors (400, 401, 403, etc.)
             status_code = e.response.status_code if hasattr(e, 'response') else 'unknown'
             error_msg = e.response.text if hasattr(e, 'response') else str(e)
-            logger.error(f"❌ OAuth2 HTTP Error {status_code}: {error_msg}")
+            logger.error(f" OAuth2 HTTP Error {status_code}: {error_msg}")
             
             if status_code == 400:
                 logger.error("🔑 Bad Request - OAuth2 credentials may be invalid, expired, or incorrectly configured")
@@ -96,7 +96,7 @@ class OutlookOAuth2Backend(BaseEmailBackend):
             return None
             
         except Exception as e:
-            logger.error(f"❌ Failed to get OAuth2 token: {str(e)}")
+            logger.error(f" Failed to get OAuth2 token: {str(e)}")
             # Always return None on failure, never raise
             # This prevents server crashes when OAuth2 credentials are invalid
             return None
@@ -109,14 +109,14 @@ class OutlookOAuth2Backend(BaseEmailBackend):
         # Ensure connection is open
         if not self.connection:
             if not self.open():
-                logger.error("❌ Failed to establish OAuth2 connection - OAuth2 credentials may be invalid or expired")
+                logger.error(" Failed to establish OAuth2 connection - OAuth2 credentials may be invalid or expired")
                 # Don't raise exception, just return 0 to indicate failure
                 # The calling code can handle this gracefully
                 return 0
             
         access_token = self.get_access_token()
         if not access_token:
-            logger.error("❌ Failed to get OAuth2 access token - check OUTLOOK_CLIENT_ID, OUTLOOK_CLIENT_SECRET, and OUTLOOK_TENANT_ID")
+            logger.error(" Failed to get OAuth2 access token - check OUTLOOK_CLIENT_ID, OUTLOOK_CLIENT_SECRET, and OUTLOOK_TENANT_ID")
             return 0
             
         sent_count = 0
@@ -126,12 +126,12 @@ class OutlookOAuth2Backend(BaseEmailBackend):
                 if self.send_single_message(message, access_token):
                     sent_count += 1
                 else:
-                    logger.error(f"❌ Failed to send email to {', '.join(message.to)} - send_single_message returned False")
+                    logger.error(f" Failed to send email to {', '.join(message.to)} - send_single_message returned False")
             except Exception as e:
-                logger.error(f"❌ Exception while sending email to {', '.join(message.to)}: {str(e)}")
+                logger.error(f" Exception while sending email to {', '.join(message.to)}: {str(e)}")
                 if not self.fail_silently:
                     # Don't raise - log and continue to prevent crashes
-                    logger.error("⚠️ Email send failed but not raising exception to prevent server crashes")
+                    logger.error(" Email send failed but not raising exception to prevent server crashes")
                     
         return sent_count
     

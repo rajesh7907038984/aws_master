@@ -6,7 +6,7 @@
 (function() {
     'use strict';
     
-    console.log('🔧 Sidebar Submenu Fix Script loaded');
+    console.log(' Sidebar Submenu Fix Script loaded');
     
     // Wait for DOM to be ready
     function waitForDOM() {
@@ -25,11 +25,11 @@
         
         // Check if SidebarManager is available and initialized
         if (window.SidebarManager && window.SidebarManager.isInitialized) {
-            console.log('🔧 SidebarManager is available, skipping duplicate submenu fix');
+            console.log(' SidebarManager is available, skipping duplicate submenu fix');
             return;
         }
         
-        console.log('🔧 Fixing submenu functionality...');
+        console.log(' Fixing submenu functionality...');
         
         // Find all submenu buttons
         const submenuButtons = document.querySelectorAll('.menu-item.has-submenu, [data-submenu]');
@@ -78,7 +78,7 @@
                     
                     const submenu = document.getElementById(submenuId);
                     if (!submenu) {
-                        console.error('❌ Submenu not found:', submenuId);
+                        console.error(' Submenu not found:', submenuId);
                         return;
                     }
                     
@@ -94,7 +94,7 @@
                     if (arrow) {
                         const isNowHidden = submenu.classList.contains('hidden');
                         arrow.style.transform = isNowHidden ? '' : 'rotate(180deg)';
-                        console.log('🔄 Arrow rotated:', !isNowHidden);
+                        console.log(' Arrow rotated:', !isNowHidden);
                     }
                     
                     // Close other submenus if opening this one
@@ -102,14 +102,14 @@
                         closeOtherSubmenus(submenuId);
                     }
                     
-                    console.log('✅ Submenu toggled successfully');
+                    console.log(' Submenu toggled successfully');
                 });
                 
-                console.log(`✅ Submenu toggle setup for: ${submenuId}`);
+                console.log(` Submenu toggle setup for: ${submenuId}`);
             }
         });
         
-        console.log('🎉 Submenu functionality fixed!');
+        console.log(' Submenu functionality fixed!');
     }
     
     // Close other submenus

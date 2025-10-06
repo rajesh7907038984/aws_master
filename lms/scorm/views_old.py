@@ -227,7 +227,7 @@ def scorm_player(request, topic_id):
             'created_at': timezone.now().isoformat(),
         }
         
-        logger.info("🎭 Created preview attempt {} for user {} on topic {}".format(preview_id, request.user.username, topic_id))
+        logger.info("Created preview attempt {} for user {} on topic {}".format(preview_id, request.user.username, topic_id))
     else:
         # Normal mode: Get or create actual database attempt for user tracking
         last_attempt = ScormAttempt.objects.filter(
@@ -379,10 +379,10 @@ def scorm_api(request, attempt_id):
         # Initialize appropriate API handler
         if is_preview:
             handler = ScormPreviewHandler(attempt)
-            logger.info("🎭 Using preview handler for attempt {}".format(attempt_id))
+            logger.info("Using preview handler for attempt {}".format(attempt_id))
         else:
             handler = ScormAPIHandler(attempt)
-            logger.info("📝 Using regular handler for attempt {}".format(attempt_id))
+            logger.info("Using regular handler for attempt {}".format(attempt_id))
         
         # Route to appropriate API method
         if method == 'Initialize' or method == 'LMSInitialize':

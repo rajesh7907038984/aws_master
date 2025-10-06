@@ -268,17 +268,17 @@ class MigrationDevelopmentHelper:
         # For now, just verify the migration system is working
         try:
             call_command('check', verbosity=0)
-            print("✅ Django configuration is valid")
+            print(" Django configuration is valid")
         except Exception as e:
-            print(f"⚠️ Django configuration issues: {e}")
+            print(f" Django configuration issues: {e}")
         
         # Check database connectivity
         try:
             with connection.cursor() as cursor:
                 cursor.execute("SELECT 1")
-            print("✅ Database connection is working")
+            print(" Database connection is working")
         except Exception as e:
-            print(f"⚠️ Database connection issues: {e}")
+            print(f" Database connection issues: {e}")
         
         print("🎯 Ready for makemigrations!")
     
@@ -293,10 +293,10 @@ class MigrationDevelopmentHelper:
             # This would analyze the migration file for conflicts
             # For now, just run a dry-run check
             call_command('migrate', app_name, migration_name, verbosity=1, dry_run=True)
-            print("✅ Migration appears safe")
+            print(" Migration appears safe")
             return True
         except Exception as e:
-            print(f"⚠️ Migration may have issues: {e}")
+            print(f" Migration may have issues: {e}")
             return False
 
 

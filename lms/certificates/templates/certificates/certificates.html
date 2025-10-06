@@ -860,7 +860,7 @@
                                 
                                 // Make field clickable for styling
                                 placeholder.addEventListener('click', function(e) {
-                                    if (e.target.innerHTML !== ' ❌') {
+                                    if (e.target.innerHTML !== ' ') {
                                         selectField(this);
                                         e.stopPropagation();
                                     }
@@ -871,7 +871,7 @@
                                 
                                 // Add delete option
                                 const deleteBtn = document.createElement('span');
-                                deleteBtn.innerHTML = ' ❌';
+                                deleteBtn.innerHTML = ' ';
                                 deleteBtn.style.cursor = 'pointer';
                                 deleteBtn.addEventListener('click', function() {
                                     placeholder.remove();
@@ -1022,7 +1022,7 @@
             
             // Make field clickable for styling
             placeholder.addEventListener('click', function(e) {
-                if (e.target.innerHTML !== ' ❌') {
+                if (e.target.innerHTML !== ' ') {
                     selectField(this);
                     e.stopPropagation();
                 }
@@ -1033,7 +1033,7 @@
             
             // Add delete option
             const deleteBtn = document.createElement('span');
-            deleteBtn.innerHTML = ' ❌';
+            deleteBtn.innerHTML = ' ';
             deleteBtn.style.cursor = 'pointer';
             deleteBtn.style.marginLeft = '5px';
             deleteBtn.style.fontSize = '12px';
@@ -1115,7 +1115,7 @@
             
             element.addEventListener('mousedown', function(e) {
                 // Only start drag if we're not clicking on the delete button
-                if (e.target.innerHTML !== ' ❌') {
+                if (e.target.innerHTML !== ' ') {
                     isDragging = true;
                     
                     // Get the initial mouse position

@@ -13,7 +13,7 @@
  * 5. User feedback during deletion process
  */
 
-console.log('🔧 Loading Course Delete Fix...');
+console.log(' Loading Course Delete Fix...');
 
 /**
  * Enhanced Course Delete Handler
@@ -28,7 +28,7 @@ window.handleCourseDelete = function(button) {
     
     // Show confirmation dialog
     if (!confirm(`Are you sure you want to delete the course "${courseTitle}"? This action cannot be undone.`)) {
-        console.log('❌ User cancelled deletion');
+        console.log(' User cancelled deletion');
         return;
     }
     
@@ -46,7 +46,7 @@ window.handleCourseDelete = function(button) {
         return;
     }
     
-    console.log('✅ CSRF token found');
+    console.log(' CSRF token found');
     
     // Create and submit form dynamically
     const form = document.createElement('form');
@@ -68,7 +68,7 @@ window.handleCourseDelete = function(button) {
     try {
         form.submit();
     } catch (error) {
-        console.error('❌ Form submission error:', error);
+        console.error(' Form submission error:', error);
         alert('An error occurred while deleting the course. Please try again.');
         resetDeleteButton(button);
         document.body.removeChild(form);
@@ -84,38 +84,38 @@ function getCsrfToken() {
     // Method 1: Hidden form
     const csrfForm = document.querySelector('#csrf-form [name=csrfmiddlewaretoken]');
     if (csrfForm && csrfForm.value) {
-        console.log('✅ CSRF token found in hidden form');
+        console.log(' CSRF token found in hidden form');
         return csrfForm.value;
     }
     
     // Method 2: Any form on the page
     const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
     if (csrfInput && csrfInput.value) {
-        console.log('✅ CSRF token found in form input');
+        console.log(' CSRF token found in form input');
         return csrfInput.value;
     }
     
     // Method 3: Meta tag
     const csrfMeta = document.querySelector('meta[name=csrf-token]');
     if (csrfMeta && csrfMeta.content) {
-        console.log('✅ CSRF token found in meta tag');
+        console.log(' CSRF token found in meta tag');
         return csrfMeta.content;
     }
     
     // Method 4: Cookie
     const cookieToken = getCookie('csrftoken');
     if (cookieToken) {
-        console.log('✅ CSRF token found in cookie');
+        console.log(' CSRF token found in cookie');
         return cookieToken;
     }
     
     // Method 5: Window object (if set)
     if (window.CSRF_TOKEN) {
-        console.log('✅ CSRF token found in window object');
+        console.log(' CSRF token found in window object');
         return window.CSRF_TOKEN;
     }
     
-    console.error('❌ CSRF token not found with any method');
+    console.error(' CSRF token not found with any method');
     return null;
 }
 
@@ -162,7 +162,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    console.log(`✅ Found ${deleteButtons.length} delete buttons`);
+    console.log(` Found ${deleteButtons.length} delete buttons`);
 });
 
-console.log('✅ Course Delete Fix loaded successfully');
+console.log(' Course Delete Fix loaded successfully');

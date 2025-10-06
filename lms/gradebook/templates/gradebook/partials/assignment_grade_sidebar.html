@@ -473,7 +473,7 @@
 <!-- Simplified JavaScript -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 Assignment grading sidebar initializing...');
+    console.log(' Assignment grading sidebar initializing...');
     
     // Get the container for this sidebar
     const container = document.querySelector('.assignment-grade-sidebar') || document.body;
@@ -484,10 +484,10 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
         // Fallback to widget system
         if (window.TinyMCEWidget && window.TinyMCEWidget.initializeAll) {
-            console.log('✅ Initializing TinyMCE using widget system');
+            console.log(' Initializing TinyMCE using widget system');
             window.TinyMCEWidget.initializeAll();
         } else {
-            console.log('⏳ TinyMCE widget system not available yet, retrying...');
+            console.log(' TinyMCE widget system not available yet, retrying...');
             setTimeout(function() {
                 if (window.TinyMCEWidget && window.TinyMCEWidget.initializeAll) {
                     window.TinyMCEWidget.initializeAll();
@@ -514,7 +514,7 @@ document.addEventListener('DOMContentLoaded', function() {
         buttons.forEach(button => {
             button.addEventListener('click', function() {
                 const targetTab = this.dataset.tab;
-                console.log('🔄 Switching to feedback tab:', targetTab);
+                console.log(' Switching to feedback tab:', targetTab);
                 
                 // Update button states
                 buttons.forEach(btn => {
@@ -580,7 +580,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (gradingForm) {
         gradingForm.addEventListener('submit', function(e) {
             e.preventDefault();
-            console.log('📝 Form submission started...');
+            console.log(' Form submission started...');
             
             // Save TinyMCE content before submission
             if (typeof tinymce !== 'undefined') {
@@ -606,7 +606,7 @@ document.addEventListener('DOMContentLoaded', function() {
             submitBtn.textContent = 'Saving...';
             submitBtn.disabled = true;
             
-            console.log('🚀 Sending request to:', this.action);
+            console.log(' Sending request to:', this.action);
             
             fetch(this.action, {
                 method: 'POST',
@@ -623,7 +623,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return response.json();
             })
             .then(data => {
-                console.log('✅ Response data:', data);
+                console.log(' Response data:', data);
                 if (data.success) {
                     alert('Grade and feedback saved successfully!');
                     // Reload parent page
@@ -639,7 +639,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(error => {
-                console.error('❌ Form submission error:', error);
+                console.error(' Form submission error:', error);
                 alert('Error saving grade and feedback: ' + error.message);
             })
             .finally(() => {

@@ -68,16 +68,16 @@ def upload_certificate_image_direct(image_file, template_id):
             CacheControl='max-age=86400'
         )
         
-        logger.info(f"✅ Successfully uploaded certificate image to S3: {s3_key}")
+        logger.info(f" Successfully uploaded certificate image to S3: {s3_key}")
         return True, django_path, None
         
     except ClientError as e:
         error_msg = f"S3 upload failed: {str(e)}"
-        logger.error(f"❌ {error_msg}")
+        logger.error(f" {error_msg}")
         return False, None, error_msg
     except Exception as e:
         error_msg = f"Upload failed: {str(e)}"
-        logger.error(f"❌ {error_msg}")
+        logger.error(f" {error_msg}")
         return False, None, error_msg
 
 def update_template_image_path_direct(template_id, image_path):
@@ -90,10 +90,10 @@ def update_template_image_path_direct(template_id, image_path):
                 "UPDATE certificates_certificatetemplate SET image = %s WHERE id = %s",
                 [image_path, template_id]
             )
-        logger.info(f"✅ Updated template {template_id} image path: {image_path}")
+        logger.info(f" Updated template {template_id} image path: {image_path}")
         return True
     except Exception as e:
-        logger.error(f"❌ Failed to update template {template_id} image path: {str(e)}")
+        logger.error(f" Failed to update template {template_id} image path: {str(e)}")
         return False
 
 def construct_image_url_safe(image_path):

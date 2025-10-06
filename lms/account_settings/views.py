@@ -6,7 +6,9 @@ from django.contrib import messages
 from django.http import HttpResponseForbidden, JsonResponse, FileResponse, Http404
 from django.db.models import Count, Prefetch, Q, Sum
 from django.core.cache import cache
-from .models import TeamsIntegration, ZoomIntegration, StripeIntegration, PayPalIntegration, SharePointIntegration, SCORMIntegration, PortalSettings, ExportJob, ImportJob, DataBackup, GlobalAdminSettings, MenuControlSettings
+from smtplib import SMTPException
+from socket import timeout as SocketTimeout
+from .models import TeamsIntegration, ZoomIntegration, StripeIntegration, PayPalIntegration, SharePointIntegration, PortalSettings, ExportJob, ImportJob, DataBackup, GlobalAdminSettings, MenuControlSettings
 from django.contrib.auth import get_user_model
 from branches.models import Branch, BranchUserLimits
 from business.models import Business, BusinessLimits
@@ -342,7 +344,7 @@ def account_settings(request):
                             from_email = global_admin_settings.get_from_email()
                             
                             test_email = EmailMessage(
-                                subject='✅ LMS SMTP Test - Configuration Successful',
+                                subject=' LMS SMTP Test - Configuration Successful',
                                 body=f'''Hello,
 
 This is a test email from your LMS system to confirm that the SMTP configuration is working correctly.
@@ -366,7 +368,10 @@ LMS System''',
                             messages.success(request, f'SMTP settings saved and test email sent successfully to {test_smtp_email}')
                         else:
                             messages.warning(request, f'SMTP settings saved but test failed: {test_message}')
+                    except (SMTPException, ConnectionError, TimeoutError) as e:
+                        messages.warning(request, f'SMTP settings saved but test email failed: {str(e)}')
                     except Exception as e:
+                        logger.error(f"Unexpected error in SMTP test: {str(e)}")
                         messages.warning(request, f'SMTP settings saved but test email failed: {str(e)}')
                 else:
                     if smtp_enabled:
@@ -406,7 +411,10 @@ LMS System''',
                             messages.success(request, f'Anthropic AI settings saved and connection tested successfully: {test_message}')
                         else:
                             messages.warning(request, f'Anthropic AI settings saved but connection test failed: {test_message}')
+                    except (ConnectionError, TimeoutError, ValueError) as e:
+                        messages.warning(request, f'Anthropic AI settings saved but connection test failed: {str(e)}')
                     except Exception as e:
+                        logger.error(f"Unexpected error in Anthropic AI test: {str(e)}")
                         messages.warning(request, f'Anthropic AI settings saved but connection test failed: {str(e)}')
                 else:
                     if anthropic_ai_enabled and anthropic_api_key:
@@ -730,7 +738,6 @@ LMS System''',
         stripe_integration = None
         paypal_integration = None
         sharepoint_integration = None
-        scorm_integration = None
         
         # Always load user's own integrations for proper template rendering
         teams_integration = TeamsIntegration.objects.filter(user=request.user).first()
@@ -740,24 +747,6 @@ LMS System''',
         paypal_integration = PayPalIntegration.objects.filter(user=request.user).first()
         sharepoint_integration = SharePointIntegration.objects.filter(user=request.user).first()
         
-        # Load SCORM integration for branch admins (always allow branch admins to configure SCORM)
-        if is_branch_admin:
-            # First try to get integration for user and their branch
-            if request.user.branch:
-                scorm_integration = SCORMIntegration.objects.filter(user=request.user, branch=request.user.branch).first()
-                logger.info(f"SCORM integration lookup for user {request.user.username} and branch {request.user.branch.name}: {scorm_integration}")
-            
-            # If no integration found for user+branch, try to get any integration for the user
-            if not scorm_integration:
-                scorm_integration = SCORMIntegration.objects.filter(user=request.user).first()
-                logger.info(f"SCORM integration lookup for user {request.user.username} (any branch): {scorm_integration}")
-            
-            # If still no integration found, try to get integration for the user's branch (any user)
-            if not scorm_integration and request.user.branch:
-                scorm_integration = SCORMIntegration.objects.filter(branch=request.user.branch, is_active=True).first()
-                logger.info(f"SCORM integration lookup for branch {request.user.branch.name} (any user): {scorm_integration}")
-            
-            logger.info(f"Final SCORM integration for {request.user.username}: {scorm_integration}")
         
         # Get SharePoint sync mode status
         sharepoint_sync_status = None
@@ -861,7 +850,7 @@ LMS System''',
             form_type = request.POST.get('form_type')
             
             # Handle integration forms (zoom, stripe, paypal)
-            if form_type in ['zoom_integration', 'stripe_integration', 'paypal_integration', 'sharepoint_integration', 'scorm_integration', 'enable_branch_sharepoint', 'sharepoint_system_settings', 'order_management_system_settings']:
+            if form_type in ['zoom_integration', 'stripe_integration', 'paypal_integration', 'sharepoint_integration', 'enable_branch_sharepoint', 'sharepoint_system_settings', 'order_management_system_settings']:
                 
                 # Zoom Integration Form (only for branch admins)
                 if form_type == 'zoom_integration':
@@ -1044,59 +1033,6 @@ LMS System''',
                     
                     return redirect(reverse('account_settings:settings') + '?tab=integrations&integration=sharepoint')
                 
-                # SCORM Integration Form (Branch Admin only)
-                elif form_type == 'scorm_integration':
-                    if is_branch_admin and request.user.branch:
-                        # Retrieve existing SCORM integration for this user and branch
-                        scorm_integration = SCORMIntegration.objects.filter(user=request.user, branch=request.user.branch).first()
-                        
-                        name = request.POST.get('scorm_name')
-                        app_id = request.POST.get('scorm_app_id')
-                        secret_key = request.POST.get('scorm_secret_key')
-                        pens_key = request.POST.get('scorm_pens_key')
-                        base_url = request.POST.get('scorm_base_url', 'https://cloud.scorm.com/api/v2')
-                        verify_ssl = request.POST.get('scorm_verify_ssl') == 'on'
-                        request_timeout = int(request.POST.get('scorm_request_timeout', 900))
-                        upload_timeout = int(request.POST.get('scorm_upload_timeout', 1800))
-                        max_upload_size = int(request.POST.get('scorm_max_upload_size', 629145600))
-                        is_active = request.POST.get('scorm_is_active') == 'on'
-                        
-                        # Update existing or create new SCORM integration
-                        if scorm_integration:
-                            scorm_integration.name = name
-                            scorm_integration.app_id = app_id
-                            if secret_key:  # Only update if new secret is provided
-                                scorm_integration.secret_key = secret_key
-                            if pens_key:  # Only update if PENS key is provided
-                                scorm_integration.pens_key = pens_key
-                            scorm_integration.base_url = base_url
-                            scorm_integration.verify_ssl = verify_ssl
-                            scorm_integration.request_timeout = request_timeout
-                            scorm_integration.upload_timeout = upload_timeout
-                            scorm_integration.max_upload_size = max_upload_size
-                            scorm_integration.is_active = is_active
-                            scorm_integration.save()
-                            messages.success(request, 'SCORM integration updated successfully.')
-                        else:
-                            scorm_integration = SCORMIntegration.objects.create(
-                                user=request.user,
-                                branch=request.user.branch,
-                                name=name,
-                                app_id=app_id,
-                                secret_key=secret_key,
-                                pens_key=pens_key,
-                                base_url=base_url,
-                                verify_ssl=verify_ssl,
-                                request_timeout=request_timeout,
-                                upload_timeout=upload_timeout,
-                                max_upload_size=max_upload_size,
-                                is_active=is_active
-                            )
-                            messages.success(request, 'SCORM integration created successfully.')
-                    else:
-                        messages.error(request, 'Only branch administrators can configure SCORM integration.')
-                    
-                    return redirect(reverse('account_settings:settings') + '?tab=integrations&integration=scorm')
                 
                 # Enable SharePoint Integration for Branch Form
                 elif form_type == 'enable_branch_sharepoint':
@@ -1220,7 +1156,6 @@ LMS System''',
         teams_integrations = [teams_integration] if teams_integration else []
         zoom_integrations = [zoom_integration] if zoom_integration else []
         sharepoint_integrations = [sharepoint_integration] if sharepoint_integration else []
-        scorm_integrations = [scorm_integration] if scorm_integration else []
         
         # Debug information
         if zoom_integration:
@@ -1459,13 +1394,11 @@ LMS System''',
             'teams_integrations': teams_integrations,
             'zoom_integrations': zoom_integrations,
             'sharepoint_integrations': sharepoint_integrations,
-            'scorm_integrations': scorm_integrations,
             'teams_integration': teams_integration,
             'zoom_integration': zoom_integration,
             'stripe_integration': stripe_integration,
             'paypal_integration': paypal_integration,
             'sharepoint_integration': sharepoint_integration,
-            'scorm_integration': scorm_integration,
             'sharepoint_sync_status': sharepoint_sync_status,
             'branches': branches_with_limits,
             'businesses_with_branches': businesses_with_branches,
@@ -2897,7 +2830,6 @@ def test_scorm_connection(request):
             })
         
         # For display purposes, try to find the integration model (might be None for global settings)
-        scorm_integration = None
         try:
             logger.info("Looking up SCORM integration from database...")
             if request.user.branch:
@@ -2911,7 +2843,6 @@ def test_scorm_connection(request):
             logger.error(f"Database error looking up SCORM integration: {str(db_error)}")
             # If we can't access the database, but we have a working SCORM client, 
             # we can still test the connection using the global settings
-            scorm_integration = None
         
         logger.info(f"Test connection - Using SCORM integration: {scorm_integration}")
         

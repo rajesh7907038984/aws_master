@@ -2239,21 +2239,21 @@ class PasswordResetToken(models.Model):
             # Check if email was sent successfully
             # result should be 1 for success, 0 for failure
             if result == 1:
-                logger.info(f"✅ Password reset email sent successfully to {self.user.email}")
+                logger.info(f" Password reset email sent successfully to {self.user.email}")
                 return True
             elif result == 0:
                 # Email backend returned 0 - this means the email failed to send
-                logger.error(f"❌ Email backend returned 0 - email not sent to {self.user.email}. "
+                logger.error(f" Email backend returned 0 - email not sent to {self.user.email}. "
                            f"This usually means OAuth2 credentials are invalid or SMTP is not configured.")
                 return False
             else:
-                logger.warning(f"⚠️ Unexpected result from email.send(): {result}")
+                logger.warning(f" Unexpected result from email.send(): {result}")
                 return False
                 
         except Exception as e:
             # Catch all email sending errors
             error_msg = str(e)
-            logger.error(f"❌ Exception while sending password reset email to {self.user.email}: {error_msg}")
+            logger.error(f" Exception while sending password reset email to {self.user.email}: {error_msg}")
             
             # Provide specific error messages for common issues
             if "400 Client Error" in error_msg or "Bad Request" in error_msg:

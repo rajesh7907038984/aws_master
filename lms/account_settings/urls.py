@@ -35,7 +35,6 @@ urlpatterns = [
     # Integration Test URLs
     path('test-zoom-connection/', views.test_zoom_connection, name='test_zoom_connection'),
     path('test-sharepoint-connection/', views.test_sharepoint_connection, name='test_sharepoint_connection'),
-    path('test-scorm-connection/', views.test_scorm_connection, name='test_scorm_connection'),
     path('sharepoint-manual-setup-guide/', views.sharepoint_manual_setup_guide, name='sharepoint_manual_setup_guide'),
     
     # SharePoint Sync URLs

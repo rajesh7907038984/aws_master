@@ -726,7 +726,7 @@
                             {% endif %}
                         {% endif %}
                         
-                        <!-- ✅ FIX #5: Direct download for cloud recordings without password restrictions -->
+                        <!--  FIX #5: Direct download for cloud recordings without password restrictions -->
                         {% if recording.download_url %}
                         <div class="flex justify-center">
                             <a href="{% url 'conferences:download_conference_recording' conference.id recording.id %}" 
@@ -797,7 +797,7 @@
 </div>
 
 <script>
-// ✅ FIX #5: Direct download for all cloud recordings - no password required
+//  FIX #5: Direct download for all cloud recordings - no password required
 // JavaScript functions removed as direct links are now used
 </script>
 {% endblock %} 

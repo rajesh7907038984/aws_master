@@ -226,7 +226,7 @@ function showNotification(message, type) {
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('✅ Simple category modal loaded - CLEAN VERSION');
+    console.log(' Simple category modal loaded - CLEAN VERSION');
     console.log('Available functions:', {
         showCategoryModal: typeof showCategoryModal,
         hideCategoryModal: typeof hideCategoryModal

@@ -2,7 +2,7 @@
 
 A comprehensive Learning Management System with server-independent configuration.
 
-## 🚀 Quick Start
+##  Quick Start
 
 ### Initial Setup
 ```bash
@@ -74,7 +74,7 @@ All documentation is in the `docs/` folder:
 - **[SERVER_INDEPENDENCE_OVERVIEW.md](docs/SERVER_INDEPENDENCE_OVERVIEW.md)** - Architecture and design
 - **[DEPLOYMENT_SUMMARY.md](docs/DEPLOYMENT_SUMMARY.md)** - Detailed change log
 
-## 🔧 Common Commands
+##  Common Commands
 
 ### Server Management
 ```bash
@@ -131,15 +131,15 @@ AWS_DB_PASSWORD=your-password
 # ... see env_template for complete list
 ```
 
-## 🌐 Server Independence
+##  Server Independence
 
 This project is **fully server-independent**:
 
-✅ All paths configurable via `.env`  
-✅ No hardcoded server paths in code  
-✅ Dynamic nginx configuration generation  
-✅ Dynamic systemd service generation  
-✅ One-command setup and restart  
+ All paths configurable via `.env`  
+ No hardcoded server paths in code  
+ Dynamic nginx configuration generation  
+ Dynamic systemd service generation  
+ One-command setup and restart  
 
 To deploy on a new server, simply:
 1. Edit `.env` with new server paths
@@ -204,7 +204,7 @@ Before going live:
 - [ ] Security headers configured
 - [ ] Rate limiting set up (if needed)
 
-## 📝 License
+##  License
 
 [Your License Here]
 
@@ -214,7 +214,7 @@ Before going live:
 
 ---
 
-**Status**: ✅ Production Ready  
+**Status**:  Production Ready  
 **Version**: 1.0  
 **Last Updated**: October 1, 2025
 

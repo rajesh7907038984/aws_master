@@ -55,7 +55,7 @@ def session_heartbeat(request):
             session.expire_date = new_expiry
             session.save()
             
-            logger.info(f"✅ Session extended for user {user.id}")
+            logger.info(f" Session extended for user {user.id}")
             
             return JsonResponse({
                 'success': True,
@@ -77,7 +77,7 @@ def session_heartbeat(request):
             'error': 'Session not found'
         }, status=404)
     except Exception as e:
-        logger.error(f"❌ Heartbeat failed for user {request.user.id}: {str(e)}")
+        logger.error(f" Heartbeat failed for user {request.user.id}: {str(e)}")
         return JsonResponse({
             'success': False,
             'error': 'Internal server error'
@@ -125,7 +125,7 @@ def session_warning(request):
             'error': 'Session not found'
         })
     except Exception as e:
-        logger.error(f"❌ Warning check failed for user {request.user.id}: {str(e)}")
+        logger.error(f" Warning check failed for user {request.user.id}: {str(e)}")
         return JsonResponse({
             'warning_needed': False,
             'error': 'Internal server error'
@@ -171,7 +171,7 @@ def session_extend(request):
             activity_key = f"user_activity_{user.id}"
             cache.set(activity_key, timezone.now().timestamp(), timeout=28800)
             
-            logger.info(f"✅ Session manually extended for user {user.id}")
+            logger.info(f" Session manually extended for user {user.id}")
             
             return JsonResponse({
                 'success': True,
@@ -186,7 +186,7 @@ def session_extend(request):
             'error': 'Session not found'
         }, status=404)
     except Exception as e:
-        logger.error(f"❌ Session extension failed for user {request.user.id}: {str(e)}")
+        logger.error(f" Session extension failed for user {request.user.id}: {str(e)}")
         return JsonResponse({
             'success': False,
             'error': 'Internal server error'
@@ -230,7 +230,7 @@ def session_status(request):
             'error': 'Session not found'
         })
     except Exception as e:
-        logger.error(f"❌ Status check failed for user {request.user.id}: {str(e)}")
+        logger.error(f" Status check failed for user {request.user.id}: {str(e)}")
         return JsonResponse({
             'active': False,
             'error': 'Internal server error'

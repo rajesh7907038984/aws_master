@@ -163,7 +163,7 @@ def create_default_branch_for_business(sender, instance, created, **kwargs):
     """Automatically create a default branch when a business is created"""
     if created:
         instance.create_default_branch()
-        print(f"✅ Created default branch for business: {instance.name}")
+        print(f" Created default branch for business: {instance.name}")
 
 
 @receiver(post_save, sender=BusinessUserAssignment)
@@ -185,15 +185,15 @@ def assign_user_to_appropriate_branch(sender, instance, created, **kwargs):
                 if not instance.user.branch:
                     instance.user.branch = default_branch
                     instance.user.save()
-                    print(f"✅ Assigned Global Admin {instance.user.username} to default branch: {default_branch.name}")
+                    print(f" Assigned Global Admin {instance.user.username} to default branch: {default_branch.name}")
                 elif instance.user.branch.business != instance.business:
                     # If user has a branch but it's in a different business, update it
                     instance.user.branch = default_branch
                     instance.user.save()
-                    print(f"✅ Reassigned Global Admin {instance.user.username} to default branch: {default_branch.name}")
+                    print(f" Reassigned Global Admin {instance.user.username} to default branch: {default_branch.name}")
             else:
                 # Super admin assigned to default business - this should not happen due to validation
-                print(f"⚠️  Warning: Super Admin {instance.user.username} assigned to default business - this should be prevented")
+                print(f"  Warning: Super Admin {instance.user.username} assigned to default business - this should be prevented")
         else:
             # Non-default business - assign to business's default branch or first available branch
             branches = instance.business.get_business_branches()
@@ -204,12 +204,12 @@ def assign_user_to_appropriate_branch(sender, instance, created, **kwargs):
                 if not instance.user.branch:
                     instance.user.branch = target_branch
                     instance.user.save()
-                    print(f"✅ Assigned {instance.user.username} to branch: {target_branch.name}")
+                    print(f" Assigned {instance.user.username} to branch: {target_branch.name}")
                 elif instance.user.branch.business != instance.business:
                     # If user has a branch but it's in a different business, update it
                     instance.user.branch = target_branch
                     instance.user.save()
-                    print(f"✅ Reassigned {instance.user.username} to branch: {target_branch.name}")
+                    print(f" Reassigned {instance.user.username} to branch: {target_branch.name}")
 
 
 class BusinessLimits(models.Model):

@@ -596,8 +596,8 @@ class GlobalAdminSettings(models.Model):
         # Microsoft 365/Office 365 specific errors
         if "5.7.139" in error_msg or "Session defaults policy" in error_lower:
             return (
-                f"❌ Microsoft 365 Session Error: {error_msg}\n\n"
-                "🔧 SOLUTION STEPS:\n"
+                f" Microsoft 365 Session Error: {error_msg}\n\n"
+                " SOLUTION STEPS:\n"
                 "1. DISABLE Session Defaults (Most Important!):\n"
                 "   • Go to https://entra.microsoft.com\n"
                 "   • Navigate to Identity > Properties\n"
@@ -609,14 +609,14 @@ class GlobalAdminSettings(models.Model):
                 "   • Generate an App Password\n"
                 "   • Use the App Password instead of your regular password\n\n"
                 "3. Alternative: Use Microsoft Graph API (Recommended for production)\n\n"
-                "⚠️ Session Defaults blocks SMTP AUTH even when enabled per-user!"
+                " Session Defaults blocks SMTP AUTH even when enabled per-user!"
             )
         
         # Gmail specific errors
         elif "gmail.com" in error_lower and ("535" in error_msg or "authentication" in error_lower):
             return (
-                f"❌ Gmail Authentication Error: {error_msg}\n\n"
-                "🔧 SOLUTION STEPS:\n"
+                f" Gmail Authentication Error: {error_msg}\n\n"
+                " SOLUTION STEPS:\n"
                 "1. Enable 'Less secure app access' in Gmail settings\n"
                 "2. OR generate an App Password if 2FA is enabled:\n"
                 "   • Go to Google Account settings\n"
@@ -632,8 +632,8 @@ class GlobalAdminSettings(models.Model):
         # Generic authentication errors
         elif any(term in error_lower for term in ['535', '530', 'authentication', 'login', 'password']):
             return (
-                f"❌ SMTP Authentication Failed: {error_msg}\n\n"
-                "🔧 TROUBLESHOOTING STEPS:\n"
+                f" SMTP Authentication Failed: {error_msg}\n\n"
+                " TROUBLESHOOTING STEPS:\n"
                 "1. Verify username and password are correct\n"
                 "2. Check if your email provider requires:\n"
                 "   • App-specific passwords\n"
@@ -648,8 +648,8 @@ class GlobalAdminSettings(models.Model):
         # Connection errors
         elif any(term in error_lower for term in ['connection', 'timeout', 'refused', 'unreachable']):
             return (
-                f"❌ SMTP Connection Error: {error_msg}\n\n"
-                "🔧 TROUBLESHOOTING STEPS:\n"
+                f" SMTP Connection Error: {error_msg}\n\n"
+                " TROUBLESHOOTING STEPS:\n"
                 "1. Verify SMTP server hostname is correct\n"
                 "2. Check port number (common ports: 25, 587, 465)\n"
                 "3. Verify firewall/network settings allow SMTP traffic\n"
@@ -658,7 +658,7 @@ class GlobalAdminSettings(models.Model):
             )
         
         # Return original error if no specific pattern matches
-        return f"❌ SMTP Error: {error_msg}"
+        return f" SMTP Error: {error_msg}"
     
     def test_anthropic_ai_connection(self):
         """Test the Anthropic AI configuration"""

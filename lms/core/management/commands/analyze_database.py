@@ -192,10 +192,10 @@ class Command(BaseCommand):
         self.analysis_results['orphaned_tables'] = list(orphaned)
         self.analysis_results['missing_model_tables'] = list(missing)
         
-        self.stdout.write(f"✅ Found {len(db_tables)} database tables")
-        self.stdout.write(f"✅ Found {len(model_tables)} Django model tables")
-        self.stdout.write(f"⚠️  Found {len(orphaned)} orphaned tables")
-        self.stdout.write(f"❌ Found {len(missing)} missing model tables")
+        self.stdout.write(f" Found {len(db_tables)} database tables")
+        self.stdout.write(f" Found {len(model_tables)} Django model tables")
+        self.stdout.write(f"  Found {len(orphaned)} orphaned tables")
+        self.stdout.write(f" Found {len(missing)} missing model tables")
         
         if orphaned:
             self.stdout.write("\n🗑️  Orphaned Tables (exist in DB but not in models):")
@@ -204,7 +204,7 @@ class Command(BaseCommand):
                 self.stdout.write(f"   • {table} ({row_count} rows)")
         
         if missing:
-            self.stdout.write("\n⚠️  Missing Tables (defined in models but not in DB):")
+            self.stdout.write("\n  Missing Tables (defined in models but not in DB):")
             for table in sorted(missing):
                 self.stdout.write(f"   • {table}")
 
@@ -247,7 +247,7 @@ class Command(BaseCommand):
                         })
                         
             except Exception as e:
-                self.stdout.write(f"⚠️  Error analyzing {table_name}: {e}")
+                self.stdout.write(f"  Error analyzing {table_name}: {e}")
         
         self.analysis_results['orphaned_columns'] = orphaned_columns
         
@@ -292,14 +292,14 @@ class Command(BaseCommand):
                     })
                     
             except Exception as e:
-                self.stdout.write(f"⚠️  Error analyzing indexes: {e}")
+                self.stdout.write(f"  Error analyzing indexes: {e}")
         
         self.analysis_results['unknown_indexes'] = unknown_indexes
         self.stdout.write(f"📇 Found {len(unknown_indexes)} custom indexes")
 
     def check_migration_artifacts(self):
         """Check for potential migration artifacts"""
-        self.stdout.write("\n🔄 Checking Migration Artifacts...")
+        self.stdout.write("\n Checking Migration Artifacts...")
         
         artifacts = []
         
@@ -330,7 +330,7 @@ class Command(BaseCommand):
         baseline_path = Path(__file__).parent.parent.parent.parent / 'schema_baselines' / 'baseline_schema.json'
         
         if not baseline_path.exists():
-            self.stdout.write("⚠️  Baseline schema file not found")
+            self.stdout.write("  Baseline schema file not found")
             return
         
         try:
@@ -359,10 +359,10 @@ class Command(BaseCommand):
                 for diff in differences:
                     self.stdout.write(f"   • {diff['type']}: {diff['name']}")
             else:
-                self.stdout.write("✅ Database matches baseline schema")
+                self.stdout.write(" Database matches baseline schema")
                 
         except Exception as e:
-            self.stdout.write(f"❌ Error comparing with baseline: {e}")
+            self.stdout.write(f" Error comparing with baseline: {e}")
 
     def get_table_row_count(self, table_name):
         """Get row count for a table"""
@@ -429,10 +429,10 @@ class Command(BaseCommand):
                        len(self.analysis_results['migration_artifacts']))
         
         if total_issues == 0:
-            self.stdout.write(self.style.SUCCESS("✅ No database cleanup issues found!"))
+            self.stdout.write(self.style.SUCCESS(" No database cleanup issues found!"))
             return
         
-        self.stdout.write(f"⚠️  Found {total_issues} potential cleanup items")
+        self.stdout.write(f"  Found {total_issues} potential cleanup items")
         
         # Summary
         self.stdout.write(f"\n📊 Summary:")
@@ -469,4 +469,4 @@ class Command(BaseCommand):
             
             self.stdout.write(f"\n📄 Analysis results exported to {output_file}")
         except Exception as e:
-            self.stdout.write(f"❌ Error exporting results: {e}")
+            self.stdout.write(f" Error exporting results: {e}")

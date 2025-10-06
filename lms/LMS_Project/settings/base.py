@@ -135,14 +135,14 @@ SECRET_KEY = get_env('DJANGO_SECRET_KEY')
 if not SECRET_KEY:
     # Generate a secure secret key if not provided
     SECRET_KEY = get_random_secret_key()
-    print("⚠️  Generated new SECRET_KEY - set DJANGO_SECRET_KEY environment variable for production")
+    print("Generated new SECRET_KEY - set DJANGO_SECRET_KEY environment variable for production")
 else:
     # Validate SECRET_KEY length and complexity
     if len(SECRET_KEY) < 50:
-        print("⚠️  SECRET_KEY is too short - generating a secure replacement")
+        print("SECRET_KEY is too short - generating a secure replacement")
         SECRET_KEY = get_random_secret_key()
     elif SECRET_KEY.startswith('django-insecure-'):
-        print("⚠️  SECRET_KEY uses insecure prefix - generating a secure replacement")
+        print("SECRET_KEY uses insecure prefix - generating a secure replacement")
         SECRET_KEY = get_random_secret_key()
     else:
         print("✅ Using provided SECRET_KEY from environment")
@@ -498,7 +498,7 @@ PRIMARY_DOMAIN = get_env('PRIMARY_DOMAIN', 'localhost:8000')
 BASE_URL = get_env('BASE_URL', f'http{"s" if ENVIRONMENT == "production" else ""}://{PRIMARY_DOMAIN}')
 
 # ==============================================
-# SCORM CLOUD CONFIGURATION
+# SCORM CONFIGURATION (New Implementation)
 # ==============================================
 
 # SCORM Upload Behavior - kept for worker management
@@ -510,8 +510,8 @@ SCORM_ROOT_FOLDER = get_env('SCORM_ROOT_FOLDER', os.path.join(str(BASE_DIR), 'sc
 SCORM_AUTO_CLEANUP = get_bool_env('SCORM_AUTO_CLEANUP', True)
 SCORM_CLEANUP_MAX_AGE_HOURS = get_int_env('SCORM_CLEANUP_MAX_AGE_HOURS', 24)
 
-# Note: SCORM Cloud credentials are now managed per-branch via SCORMIntegration model
-# See account_settings.models.SCORMIntegration for branch-specific SCORM configuration
+# Note: SCORM functionality now uses local TopicProgress model
+# See courses.models.TopicProgress for SCORM progress tracking
 
 # ==============================================
 # AI INTEGRATION (ANTHROPIC)

@@ -4,7 +4,7 @@
  * Version: 2025-01-26
  */
 
-console.log('🔧 Loading Fixed Section Delete Handler...');
+console.log(' Loading Fixed Section Delete Handler...');
 
 // Global state management
 window.sectionDeleteState = {
@@ -21,14 +21,14 @@ function getCSRFToken() {
     // Method 1: Form input
     const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
     if (csrfInput && csrfInput.value) {
-        console.log('✅ CSRF token found in form input');
+        console.log(' CSRF token found in form input');
         return csrfInput.value;
     }
     
     // Method 2: Meta tag
     const csrfMeta = document.querySelector('meta[name=csrf-token]');
     if (csrfMeta && csrfMeta.content) {
-        console.log('✅ CSRF token found in meta tag');
+        console.log(' CSRF token found in meta tag');
         return csrfMeta.content;
     }
     
@@ -37,18 +37,18 @@ function getCSRFToken() {
     for (let cookie of cookies) {
         const [name, value] = cookie.trim().split('=');
         if (name === 'csrftoken' || name === 'lms_csrftoken') {
-            console.log('✅ CSRF token found in cookie');
+            console.log(' CSRF token found in cookie');
             return value;
         }
     }
     
     // Method 4: Window object
     if (window.CSRF_TOKEN) {
-        console.log('✅ CSRF token found in window object');
+        console.log(' CSRF token found in window object');
         return window.CSRF_TOKEN;
     }
     
-    console.error('❌ CSRF token not found with any method');
+    console.error(' CSRF token not found with any method');
     return null;
 }
 
@@ -101,14 +101,14 @@ window.deleteSection = async function deleteSection(sectionId) {
     
     // Prevent multiple simultaneous deletions
     if (window.sectionDeleteState.inProgress) {
-        console.warn('⚠️ Section deletion already in progress');
+        console.warn(' Section deletion already in progress');
         showNotification('Please wait for the current deletion to complete', 'warning');
         return;
     }
     
     // Confirm deletion
     if (!confirm('Are you sure you want to delete this section? All topics in this section will be moved to unsectioned.')) {
-        console.log('❌ User cancelled deletion');
+        console.log(' User cancelled deletion');
         return;
     }
     
@@ -156,7 +156,7 @@ window.deleteSection = async function deleteSection(sectionId) {
         console.log('📡 Response data:', data);
         
         if (data.success) {
-            console.log('✅ Section deleted successfully');
+            console.log(' Section deleted successfully');
             
             // Animate section removal
             sectionElement.style.transition = 'all 0.3s ease';
@@ -192,7 +192,7 @@ window.deleteSection = async function deleteSection(sectionId) {
         }
         
     } catch (error) {
-        console.error('❌ Section deletion failed:', error);
+        console.error(' Section deletion failed:', error);
         
         // Restore section element state
         const sectionElement = document.querySelector(`[data-section-id="${sectionId}"]`);
@@ -215,9 +215,9 @@ window.deleteSection = async function deleteSection(sectionId) {
  */
 function testSectionDelete() {
     console.log('🧪 Testing section delete functionality...');
-    console.log('✅ deleteSection function available:', typeof deleteSection === 'function');
-    console.log('✅ CSRF token available:', getCSRFToken() !== null);
-    console.log('✅ Section delete state:', window.sectionDeleteState);
+    console.log(' deleteSection function available:', typeof deleteSection === 'function');
+    console.log(' CSRF token available:', getCSRFToken() !== null);
+    console.log(' Section delete state:', window.sectionDeleteState);
     return true;
 }
 
@@ -230,7 +230,7 @@ window.showNotification = showNotification;
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🎯 Section Delete Handler initialized');
-    console.log('✅ Available functions:', {
+    console.log(' Available functions:', {
         deleteSection: typeof window.deleteSection,
         testSectionDelete: typeof window.testSectionDelete,
         getCSRFToken: typeof window.getCSRFToken,
@@ -238,4 +238,4 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-console.log('✅ Fixed Section Delete Handler loaded successfully');
+console.log(' Fixed Section Delete Handler loaded successfully');

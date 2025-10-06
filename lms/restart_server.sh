@@ -11,10 +11,10 @@ set -e  # Exit on error
 
 RESTART_MODE="${1:-full}"  # Default to full restart
 
-echo "🔄 LMS Server Restart Script"
+echo " LMS Server Restart Script"
 echo "=================================="
 echo "📅 $(date)"
-echo "🔧 Mode: $RESTART_MODE"
+echo " Mode: $RESTART_MODE"
 echo ""
 
 # ==============================================
@@ -29,9 +29,9 @@ cd "$SCRIPT_DIR"
 if [ -f ".env" ]; then
     echo "📋 Loading environment variables from .env..."
     export $(cat .env | grep -v '^#' | xargs)
-    echo "✅ Environment variables loaded"
+    echo " Environment variables loaded"
 else
-    echo "❌ No .env file found!"
+    echo " No .env file found!"
     echo "   Please run ./setup_server.sh first"
     exit 1
 fi
@@ -75,16 +75,16 @@ sleep 2
 
 # Verify processes are stopped
 if lsof -Pi :$SERVER_PORT -sTCP:LISTEN -t >/dev/null 2>&1; then
-    echo "⚠️  Warning: Port $SERVER_PORT is still occupied"
+    echo "  Warning: Port $SERVER_PORT is still occupied"
     echo "   Attempting to forcefully free the port..."
     lsof -ti:$SERVER_PORT | xargs kill -9 2>/dev/null || true
     sleep 2
 fi
 
 if ! lsof -Pi :$SERVER_PORT -sTCP:LISTEN -t >/dev/null 2>&1; then
-    echo "✅ All processes stopped, port $SERVER_PORT is free"
+    echo " All processes stopped, port $SERVER_PORT is free"
 else
-    echo "❌ Failed to free port $SERVER_PORT"
+    echo " Failed to free port $SERVER_PORT"
     exit 1
 fi
 
@@ -110,7 +110,7 @@ if [ "$RESTART_MODE" == "full" ]; then
     python manage.py check --deploy
     
     if [ $? -ne 0 ]; then
-        echo "❌ Django configuration check failed"
+        echo " Django configuration check failed"
         exit 1
     fi
     
@@ -119,7 +119,7 @@ if [ "$RESTART_MODE" == "full" ]; then
     python manage.py migrate --noinput
     
     if [ $? -ne 0 ]; then
-        echo "❌ Database migrations failed"
+        echo " Database migrations failed"
         exit 1
     fi
     
@@ -128,7 +128,7 @@ if [ "$RESTART_MODE" == "full" ]; then
     python manage.py collectstatic --noinput
     
     if [ $? -ne 0 ]; then
-        echo "❌ Static files collection failed"
+        echo " Static files collection failed"
         exit 1
     fi
     
@@ -138,25 +138,25 @@ if [ "$RESTART_MODE" == "full" ]; then
 from django.db import connection
 try:
     connection.ensure_connection()
-    print('✅ Database connection successful')
+    print(' Database connection successful')
 except Exception as e:
-    print(f'❌ Database connection failed: {e}')
+    print(f' Database connection failed: {e}')
     exit(1)
     "
     
     if [ $? -ne 0 ]; then
-        echo "❌ Database connection test failed"
+        echo " Database connection test failed"
         exit 1
     fi
     
-    echo "✅ All pre-start checks passed"
+    echo " All pre-start checks passed"
 fi
 
 # ==============================================
 # START SERVER
 # ==============================================
 
-echo "🚀 Starting LMS server..."
+echo " Starting LMS server..."
 echo "   - Project: $PROJECT_ROOT"
 echo "   - Logs: $LOGS_DIR"
 echo "   - Bind: $GUNICORN_BIND"
@@ -180,7 +180,7 @@ echo "🔍 Verifying server status..."
 
 if lsof -Pi :$SERVER_PORT -sTCP:LISTEN -t >/dev/null 2>&1; then
     PID=$(lsof -ti:$SERVER_PORT)
-    echo "✅ LMS server is running!"
+    echo " LMS server is running!"
     echo "   - Process ID: $PID"
     echo "   - Port: $SERVER_PORT"
     
@@ -188,14 +188,14 @@ if lsof -Pi :$SERVER_PORT -sTCP:LISTEN -t >/dev/null 2>&1; then
     if [ "$SERVER_PORT" -lt 65536 ]; then
         sleep 2
         if curl -f -s -I "http://localhost:$SERVER_PORT/" > /dev/null 2>&1; then
-            echo "   - Health check: ✅ Server is responding"
+            echo "   - Health check:  Server is responding"
         else
-            echo "   - Health check: ⚠️  Server may not be responding yet"
+            echo "   - Health check:   Server may not be responding yet"
             echo "   - Check logs: tail -f $LOGS_DIR/gunicorn_error.log"
         fi
     fi
 else
-    echo "❌ Failed to start server!"
+    echo " Failed to start server!"
     echo ""
     echo "📋 Recent startup logs:"
     tail -20 "$LOGS_DIR/gunicorn_startup.log"
@@ -210,11 +210,11 @@ fi
 # ==============================================
 
 echo ""
-echo "🎉 Server Restart Completed Successfully!"
+echo " Server Restart Completed Successfully!"
 echo "==========================================="
 echo ""
 echo "📊 Server Status:"
-echo "   - Status: ✅ Running"
+echo "   - Status:  Running"
 echo "   - PID: $(lsof -ti:$SERVER_PORT)"
 echo "   - Port: $SERVER_PORT"
 echo "   - Logs: $LOGS_DIR"

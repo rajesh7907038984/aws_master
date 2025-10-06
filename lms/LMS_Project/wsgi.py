@@ -16,9 +16,9 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'LMS_Project.settings.production
 # Get WSGI application
 try:
     application = get_wsgi_application()
-    logger.info("✅ WSGI application initialized successfully")
+    logger.info(" WSGI application initialized successfully")
 except Exception as e:
-    logger.error(f"❌ WSGI application initialization failed: {e}")
+    logger.error(f" WSGI application initialization failed: {e}")
     raise
 
 # Helper functions for runtime directory management
@@ -43,7 +43,7 @@ def ensure_media_directories():
             os.makedirs(MEDIA_ROOT, exist_ok=True)
         
         if not os.access(MEDIA_ROOT, os.W_OK):
-            logger.warning(f"⚠️ MEDIA_ROOT is not writable: {MEDIA_ROOT}")
+            logger.warning(f" MEDIA_ROOT is not writable: {MEDIA_ROOT}")
             return
     
         # Define required directories
@@ -65,7 +65,7 @@ def ensure_media_directories():
                     created_count += 1
                 os.chmod(dir_path, 0o755)
             except Exception as e:
-                logger.warning(f"⚠️ Failed to create/set permissions for {dir_path}: {e}")
+                logger.warning(f" Failed to create/set permissions for {dir_path}: {e}")
         
         if created_count > 0:
             logger.info(f"📁 Created {created_count} media directories")
@@ -73,14 +73,14 @@ def ensure_media_directories():
             logger.info("📁 All media directories already exist")
             
     except Exception as e:
-        logger.error(f"❌ Error during media directory setup: {e}")
+        logger.error(f" Error during media directory setup: {e}")
         logger.info("📁 Media directories will be created at runtime when needed")
 
 # Ensure media directories exist at application startup
 try:
     ensure_media_directories()
 except Exception as e:
-    logger.error(f"❌ Media directory setup failed: {e}")
+    logger.error(f" Media directory setup failed: {e}")
     logger.info("📁 Application will continue - directories created on demand")
 
 logger.info("🎯 WSGI configuration completed successfully")

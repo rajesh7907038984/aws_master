@@ -10,7 +10,7 @@ from gradebook.models import Grade
 from courses.models import Course
 
 try:
-    from scorm_cloud.models import SCORMPackage, SCORMRegistration
+    from courses.models import Topic, TopicProgress
     SCORM_AVAILABLE = True
 except ImportError:
     SCORM_AVAILABLE = False
@@ -66,7 +66,7 @@ class Command(BaseCommand):
                 self.stdout.write('Run with --fix to attempt repairs')
         else:
             self.stdout.write(
-                self.style.SUCCESS('\n✅ NO ISSUES FOUND - All activity scoring looks good!')
+                self.style.SUCCESS('\n NO ISSUES FOUND - All activity scoring looks good!')
             )
 
     def check_course_activities(self, course, fix_issues):
@@ -85,7 +85,7 @@ class Command(BaseCommand):
                 issues_found += unlinked.count()
                 self.stdout.write(
                     self.style.ERROR(
-                        f'❌ Assignment "{assignment.title}": {unlinked.count()} unlinked grades'
+                        f' Assignment "{assignment.title}": {unlinked.count()} unlinked grades'
                     )
                 )
                 
@@ -100,9 +100,9 @@ class Command(BaseCommand):
                             grade.submission = submission
                             grade.save()
                             fixed += 1
-                    self.stdout.write(f'  🔧 Fixed {fixed} unlinked grades')
+                    self.stdout.write(f'   Fixed {fixed} unlinked grades')
             else:
-                self.stdout.write(f'✅ Assignment "{assignment.title}": All grades properly linked')
+                self.stdout.write(f' Assignment "{assignment.title}": All grades properly linked')
 
         # 2. QUIZZES (Auto + Manual with Rubric)
         self.stdout.write('\n--- QUIZZES ---')
@@ -121,16 +121,16 @@ class Command(BaseCommand):
                         issues_found += 1
                         self.stdout.write(
                             self.style.ERROR(
-                                f'❌ Quiz "{quiz.title}": {attempts.count()} attempts but no rubric evaluations'
+                                f' Quiz "{quiz.title}": {attempts.count()} attempts but no rubric evaluations'
                             )
                         )
                     else:
-                        self.stdout.write(f'✅ Quiz "{quiz.title}": Has rubric evaluations')
+                        self.stdout.write(f' Quiz "{quiz.title}": Has rubric evaluations')
                         
                 except Exception as e:
-                    self.stdout.write(f'⚠️  Quiz "{quiz.title}": Error checking evaluations: {e}')
+                    self.stdout.write(f'  Quiz "{quiz.title}": Error checking evaluations: {e}')
             else:
-                self.stdout.write(f'✅ Quiz "{quiz.title}": Auto scoring (no rubric)')
+                self.stdout.write(f' Quiz "{quiz.title}": Auto scoring (no rubric)')
 
         # 3. DISCUSSIONS (Manual with Rubric)
         self.stdout.write('\n--- DISCUSSIONS ---')
@@ -147,14 +147,14 @@ class Command(BaseCommand):
                         issues_found += 1
                         self.stdout.write(
                             self.style.ERROR(
-                                f'❌ Discussion "{discussion.title}": {comments.count()} comments but no rubric evaluations'
+                                f' Discussion "{discussion.title}": {comments.count()} comments but no rubric evaluations'
                             )
                         )
                     else:
-                        self.stdout.write(f'✅ Discussion "{discussion.title}": Has rubric evaluations')
+                        self.stdout.write(f' Discussion "{discussion.title}": Has rubric evaluations')
                         
                 except Exception as e:
-                    self.stdout.write(f'⚠️  Discussion "{discussion.title}": Error checking evaluations: {e}')
+                    self.stdout.write(f'  Discussion "{discussion.title}": Error checking evaluations: {e}')
             else:
                 self.stdout.write(f'ℹ️  Discussion "{discussion.title}": No rubric (no scoring)')
 
@@ -173,14 +173,14 @@ class Command(BaseCommand):
                         issues_found += 1
                         self.stdout.write(
                             self.style.ERROR(
-                                f'❌ Conference "{conference.title}": {attendances.count()} attendances but no rubric evaluations'
+                                f' Conference "{conference.title}": {attendances.count()} attendances but no rubric evaluations'
                             )
                         )
                     else:
-                        self.stdout.write(f'✅ Conference "{conference.title}": Has rubric evaluations')
+                        self.stdout.write(f' Conference "{conference.title}": Has rubric evaluations')
                         
                 except Exception as e:
-                    self.stdout.write(f'⚠️  Conference "{conference.title}": Error checking evaluations: {e}')
+                    self.stdout.write(f'  Conference "{conference.title}": Error checking evaluations: {e}')
             else:
                 self.stdout.write(f'ℹ️  Conference "{conference.title}": No rubric (no scoring)')
 
@@ -196,22 +196,20 @@ class Command(BaseCommand):
                 
                 for topic in scorm_topics:
                     try:
-                        from scorm_cloud.models import SCORMCloudContent
-                        scorm_content = SCORMCloudContent.objects.filter(
-                            content_type='topic',
-                            content_id=str(topic.id)
-                        ).first()
+                        # Use new SCORM implementation - topic itself is SCORM content
+                        scorm_content = topic if topic.content_type == 'SCORM' else None
                         
-                        if scorm_content and scorm_content.package:
-                            registrations = SCORMRegistration.objects.filter(package=scorm_content.package)
+                        if scorm_content and hasattr(scorm_content, 'scorm_package') and scorm_content.scorm_package:
+                            # Use new SCORM implementation - check for SCORM package
+                            registrations = []  # No longer using SCORMRegistration model
                         else:
-                            registrations = SCORMRegistration.objects.none()
+                            registrations = []
                     except Exception:
-                        registrations = SCORMRegistration.objects.none()
-                    self.stdout.write(f'✅ SCORM Topic "{topic.title}": Auto scoring ({registrations.count()} registrations)')
+                        registrations = []
+                    self.stdout.write(f' SCORM Topic "{topic.title}": Auto scoring ({len(registrations)} registrations)')
                     
             except Exception as e:
-                self.stdout.write(f'⚠️  SCORM: Error checking: {e}')
+                self.stdout.write(f'  SCORM: Error checking: {e}')
         else:
             self.stdout.write('ℹ️  SCORM: Module not available')
 

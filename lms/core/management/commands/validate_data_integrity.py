@@ -93,9 +93,9 @@ class Command(BaseCommand):
         )
         self.stdout.write(f'📊 Issues found: {issues_found}')
         if not self.dry_run:
-            self.stdout.write(f'✅ Issues fixed: {issues_fixed}')
+            self.stdout.write(f' Issues fixed: {issues_fixed}')
         else:
-            self.stdout.write(f'🔄 Issues that would be fixed: {issues_fixed}')
+            self.stdout.write(f' Issues that would be fixed: {issues_fixed}')
         
         if issues_found > 0 and self.dry_run:
             self.stdout.write(
@@ -185,7 +185,7 @@ class Command(BaseCommand):
                         issues_found += orphan_count
                         self.stdout.write(
                             self.style.WARNING(
-                                f'  ⚠️  {rel["description"]}: {orphan_count} orphaned records'
+                                f'    {rel["description"]}: {orphan_count} orphaned records'
                             )
                         )
                         
@@ -201,17 +201,17 @@ class Command(BaseCommand):
                             issues_fixed += orphan_count
                             self.stdout.write(
                                 self.style.SUCCESS(
-                                    f'    ✅ Cleaned up {orphan_count} orphaned records'
+                                    f'     Cleaned up {orphan_count} orphaned records'
                                 )
                             )
                     elif self.verbose:
                         self.stdout.write(
-                            self.style.SUCCESS(f'  ✅ {rel["description"]}: No issues')
+                            self.style.SUCCESS(f'   {rel["description"]}: No issues')
                         )
                         
                 except Exception as e:
                     self.stdout.write(
-                        self.style.ERROR(f'  ❌ Error checking {rel["table"]}: {e}')
+                        self.style.ERROR(f'   Error checking {rel["table"]}: {e}')
                     )
         
         return issues_found, issues_fixed
@@ -277,7 +277,7 @@ class Command(BaseCommand):
                         issues_found += overflow_count
                         self.stdout.write(
                             self.style.WARNING(
-                                f'  ⚠️  {score_field["description"]}: {overflow_count} values exceed {score_field["max_value"]}'
+                                f'    {score_field["description"]}: {overflow_count} values exceed {score_field["max_value"]}'
                             )
                         )
                         
@@ -292,17 +292,17 @@ class Command(BaseCommand):
                             issues_fixed += overflow_count
                             self.stdout.write(
                                 self.style.SUCCESS(
-                                    f'    ✅ Capped {overflow_count} values to {score_field["max_value"]}'
+                                    f'     Capped {overflow_count} values to {score_field["max_value"]}'
                                 )
                             )
                     elif self.verbose:
                         self.stdout.write(
-                            self.style.SUCCESS(f'  ✅ {score_field["description"]}: No overflows')
+                            self.style.SUCCESS(f'   {score_field["description"]}: No overflows')
                         )
                         
                 except Exception as e:
                     self.stdout.write(
-                        self.style.ERROR(f'  ❌ Error checking {score_field["table"]}.{score_field["field"]}: {e}')
+                        self.style.ERROR(f'   Error checking {score_field["table"]}.{score_field["field"]}: {e}')
                     )
         
         return issues_found, issues_fixed
@@ -331,7 +331,7 @@ class Command(BaseCommand):
                     issues_found += duplicate_count
                     self.stdout.write(
                         self.style.WARNING(
-                            f'  ⚠️  Duplicate enrollments: {duplicate_count} user-course pairs have multiple enrollments'
+                            f'    Duplicate enrollments: {duplicate_count} user-course pairs have multiple enrollments'
                         )
                     )
                     
@@ -353,12 +353,12 @@ class Command(BaseCommand):
                         issues_fixed += duplicate_count
                         self.stdout.write(
                             self.style.SUCCESS(
-                                f'    ✅ Removed {duplicate_count} duplicate enrollments'
+                                f'     Removed {duplicate_count} duplicate enrollments'
                             )
                         )
                 elif self.verbose:
                     self.stdout.write(
-                        self.style.SUCCESS('  ✅ No duplicate enrollments found')
+                        self.style.SUCCESS('   No duplicate enrollments found')
                     )
                 
                 # Check for enrollments with completion dates but not marked as completed
@@ -373,7 +373,7 @@ class Command(BaseCommand):
                     issues_found += inconsistent_completions
                     self.stdout.write(
                         self.style.WARNING(
-                            f'  ⚠️  Inconsistent completion status: {inconsistent_completions} enrollments have completion dates but not marked as completed'
+                            f'    Inconsistent completion status: {inconsistent_completions} enrollments have completion dates but not marked as completed'
                         )
                     )
                     
@@ -387,17 +387,17 @@ class Command(BaseCommand):
                         issues_fixed += inconsistent_completions
                         self.stdout.write(
                             self.style.SUCCESS(
-                                f'    ✅ Fixed {inconsistent_completions} completion status inconsistencies'
+                                f'     Fixed {inconsistent_completions} completion status inconsistencies'
                             )
                         )
                 elif self.verbose:
                     self.stdout.write(
-                        self.style.SUCCESS('  ✅ No completion status inconsistencies found')
+                        self.style.SUCCESS('   No completion status inconsistencies found')
                     )
                 
             except Exception as e:
                 self.stdout.write(
-                    self.style.ERROR(f'  ❌ Error checking enrollments: {e}')
+                    self.style.ERROR(f'   Error checking enrollments: {e}')
                 )
         
         return issues_found, issues_fixed
@@ -417,13 +417,13 @@ class Command(BaseCommand):
             if users_without_email > 0:
                 issues_found += users_without_email
                 self.stdout.write(
-                    self.style.WARNING(f'  ⚠️  Users without email: {users_without_email}')
+                    self.style.WARNING(f'    Users without email: {users_without_email}')
                 )
             
             if users_without_username > 0:
                 issues_found += users_without_username
                 self.stdout.write(
-                    self.style.WARNING(f'  ⚠️  Users without username: {users_without_username}')
+                    self.style.WARNING(f'    Users without username: {users_without_username}')
                 )
             
             # Check for courses without required fields
@@ -433,17 +433,17 @@ class Command(BaseCommand):
             if courses_without_title > 0:
                 issues_found += courses_without_title
                 self.stdout.write(
-                    self.style.WARNING(f'  ⚠️  Courses without title: {courses_without_title}')
+                    self.style.WARNING(f'    Courses without title: {courses_without_title}')
                 )
             
             if issues_found == 0 and self.verbose:
                 self.stdout.write(
-                    self.style.SUCCESS('  ✅ No general consistency issues found')
+                    self.style.SUCCESS('   No general consistency issues found')
                 )
                 
         except Exception as e:
             self.stdout.write(
-                self.style.ERROR(f'  ❌ Error checking data consistency: {e}')
+                self.style.ERROR(f'   Error checking data consistency: {e}')
             )
         
         return issues_found

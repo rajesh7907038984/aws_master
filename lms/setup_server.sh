@@ -9,7 +9,7 @@
 
 set -e  # Exit on error
 
-echo "🚀 LMS Server Setup Script"
+echo " LMS Server Setup Script"
 echo "=================================="
 echo "📅 $(date)"
 echo ""
@@ -26,9 +26,9 @@ cd "$SCRIPT_DIR"
 if [ -f ".env" ]; then
     echo "📋 Loading environment variables from .env..."
     export $(cat .env | grep -v '^#' | xargs)
-    echo "✅ Environment variables loaded"
+    echo " Environment variables loaded"
 else
-    echo "❌ No .env file found!"
+    echo " No .env file found!"
     echo "   Please copy env_template to .env and configure it for your server:"
     echo "   cp env_template .env"
     echo "   nano .env"
@@ -61,7 +61,7 @@ for var in "${required_vars[@]}"; do
 done
 
 if [ ${#missing_vars[@]} -gt 0 ]; then
-    echo "❌ Missing required environment variables:"
+    echo " Missing required environment variables:"
     for var in "${missing_vars[@]}"; do
         echo "   - $var"
     done
@@ -70,7 +70,7 @@ if [ ${#missing_vars[@]} -gt 0 ]; then
     exit 1
 fi
 
-echo "✅ All required environment variables are set"
+echo " All required environment variables are set"
 
 # ==============================================
 # CREATE REQUIRED DIRECTORIES
@@ -108,7 +108,7 @@ chmod 755 "$STATIC_ROOT"
 [ ! -z "$MEDIA_ROOT" ] && [ -d "$MEDIA_ROOT" ] && chmod 755 "$MEDIA_ROOT"
 [ ! -z "$SCORM_ROOT_FOLDER" ] && [ -d "$SCORM_ROOT_FOLDER" ] && chmod 755 "$SCORM_ROOT_FOLDER"
 
-echo "✅ Directories created successfully"
+echo " Directories created successfully"
 
 # ==============================================
 # ACTIVATE VIRTUAL ENVIRONMENT
@@ -116,14 +116,14 @@ echo "✅ Directories created successfully"
 
 echo "🐍 Activating virtual environment..."
 if [ ! -d "$PROJECT_ROOT/venv" ]; then
-    echo "❌ Virtual environment not found at $PROJECT_ROOT/venv"
+    echo " Virtual environment not found at $PROJECT_ROOT/venv"
     echo "   Please create a virtual environment first:"
     echo "   python3 -m venv venv"
     exit 1
 fi
 
 source "$PROJECT_ROOT/venv/bin/activate"
-echo "✅ Virtual environment activated"
+echo " Virtual environment activated"
 
 # ==============================================
 # INSTALL/UPDATE DEPENDENCIES
@@ -132,7 +132,7 @@ echo "✅ Virtual environment activated"
 echo "📦 Checking Python dependencies..."
 # Note: For Python 3.7 compatibility, dependencies are managed separately
 # Use requirements-py37-installed.txt for this server's specific versions
-echo "✅ Using pre-installed dependencies (Python 3.7 compatible versions)"
+echo " Using pre-installed dependencies (Python 3.7 compatible versions)"
 
 # ==============================================
 # CHECK DJANGO CONFIGURATION
@@ -142,11 +142,11 @@ echo "🔍 Checking Django configuration..."
 python manage.py check --deploy
 
 if [ $? -ne 0 ]; then
-    echo "❌ Django configuration check failed"
+    echo " Django configuration check failed"
     exit 1
 fi
 
-echo "✅ Django configuration is valid"
+echo " Django configuration is valid"
 
 # ==============================================
 # RUN DATABASE MIGRATIONS
@@ -156,11 +156,11 @@ echo "🗄️  Running database migrations..."
 python manage.py migrate --noinput
 
 if [ $? -ne 0 ]; then
-    echo "❌ Database migrations failed"
+    echo " Database migrations failed"
     exit 1
 fi
 
-echo "✅ Database migrations completed"
+echo " Database migrations completed"
 
 # ==============================================
 # COLLECT STATIC FILES
@@ -170,11 +170,11 @@ echo "📁 Collecting static files..."
 python manage.py collectstatic --noinput
 
 if [ $? -ne 0 ]; then
-    echo "❌ Static files collection failed"
+    echo " Static files collection failed"
     exit 1
 fi
 
-echo "✅ Static files collected"
+echo " Static files collected"
 
 # ==============================================
 # TEST DATABASE CONNECTION
@@ -185,14 +185,14 @@ python manage.py shell -c "
 from django.db import connection
 try:
     connection.ensure_connection()
-    print('✅ Database connection successful')
+    print(' Database connection successful')
 except Exception as e:
-    print(f'❌ Database connection failed: {e}')
+    print(f' Database connection failed: {e}')
     exit(1)
 "
 
 if [ $? -ne 0 ]; then
-    echo "❌ Database connection test failed"
+    echo " Database connection test failed"
     exit 1
 fi
 
@@ -200,7 +200,7 @@ fi
 # GENERATE NGINX CONFIGURATION
 # ==============================================
 
-echo "🌐 Generating nginx configuration..."
+echo " Generating nginx configuration..."
 python - <<EOF
 import os
 
@@ -346,16 +346,16 @@ server {{
 with open(f'{project_root}/nginx_generated.conf', 'w') as f:
     f.write(nginx_config)
 
-print(f"✅ Nginx configuration generated: {project_root}/nginx_generated.conf")
+print(f" Nginx configuration generated: {project_root}/nginx_generated.conf")
 EOF
 
-echo "✅ Nginx configuration generated"
+echo " Nginx configuration generated"
 
 # ==============================================
 # GENERATE SYSTEMD SERVICE FILE
 # ==============================================
 
-echo "🔧 Generating systemd service file..."
+echo " Generating systemd service file..."
 cat > "$PROJECT_ROOT/lms-production-generated.service" <<EOF
 [Unit]
 Description=LMS Production Django Application
@@ -391,14 +391,14 @@ SyslogIdentifier=lms-production
 WantedBy=multi-user.target
 EOF
 
-echo "✅ Systemd service file generated: $PROJECT_ROOT/lms-production-generated.service"
+echo " Systemd service file generated: $PROJECT_ROOT/lms-production-generated.service"
 
 # ==============================================
 # SETUP SUMMARY
 # ==============================================
 
 echo ""
-echo "🎉 Server Setup Completed Successfully!"
+echo " Server Setup Completed Successfully!"
 echo "======================================"
 echo ""
 echo "📋 Configuration Summary:"
@@ -413,7 +413,7 @@ echo "📁 Generated Files:"
 echo "   - $PROJECT_ROOT/nginx_generated.conf"
 echo "   - $PROJECT_ROOT/lms-production-generated.service"
 echo ""
-echo "🔧 Next Steps:"
+echo " Next Steps:"
 echo ""
 echo "1. Install and configure nginx (if not done already):"
 echo "   sudo cp $PROJECT_ROOT/nginx_generated.conf /etc/nginx/sites-available/lms"
@@ -429,5 +429,5 @@ echo ""
 echo "3. Start the LMS server:"
 echo "   ./restart_server.sh"
 echo ""
-echo "✅ Your server is ready to use!"
+echo " Your server is ready to use!"
 

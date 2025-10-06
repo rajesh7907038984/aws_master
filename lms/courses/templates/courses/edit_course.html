@@ -2149,9 +2149,9 @@
         
         // Cache busting for drag and drop fixes - 2025-01-26
         console.log('🎯 Course Edit Template Loaded - Drag & Drop Fixes Applied');
-        console.log('🔄 Template Version: 2025-01-26-drag-drop-complete-fix');
+        console.log(' Template Version: 2025-01-26-drag-drop-complete-fix');
         console.log('⏰ Load Time:', new Date().toISOString());
-        console.log('🔧 Features: Section Accordion + Cross-Section Topic Drag + Section Reorder');
+        console.log(' Features: Section Accordion + Cross-Section Topic Drag + Section Reorder');
         
         // Force template reload detection
         window.DRAG_DROP_FIXES_LOADED = true;
@@ -2171,7 +2171,7 @@
             
             // Initialize section accordion functionality
             function initializeSectionAccordion() {
-                console.log('🔧 Initializing section accordion...');
+                console.log(' Initializing section accordion...');
                 
                 // Add click handlers to section toggle buttons
                 const sectionToggles = document.querySelectorAll('.section-toggle');
@@ -2207,7 +2207,7 @@
                     });
                 });
                 
-                console.log('✅ Section accordion initialized');
+                console.log(' Section accordion initialized');
             }
             
             // Make section accordion function globally available
@@ -2215,7 +2215,7 @@
             
             // Initialize sections sortable functionality
             function initializeSectionsSortable() {
-                console.log('🔧 Initializing sections sortable...');
+                console.log(' Initializing sections sortable...');
                 
                 // Check if Sortable is available
                 if (typeof Sortable === 'undefined') {
@@ -2266,7 +2266,7 @@
                     });
                     
                     sectionsContainer.setAttribute('data-sortable-initialized', 'true');
-                    console.log('✅ Sections sortable initialized successfully');
+                    console.log(' Sections sortable initialized successfully');
                 } catch (error) {
                     console.error('Error initializing sections sortable:', error);
                 }
@@ -2274,7 +2274,7 @@
             
             // Initialize topics sortable functionality with cross-section support
             function initializeTopicsSortable() {
-                console.log('🔧 Initializing topics sortable with cross-section support...');
+                console.log(' Initializing topics sortable with cross-section support...');
                 
                 // Check if Sortable is available
                 if (typeof Sortable === 'undefined') {
@@ -2338,19 +2338,19 @@
                     try {
                         new Sortable(container, sortableOptions);
                         container.setAttribute('data-sortable-initialized', 'true');
-                        console.log('✅ Sortable initialized for container:', container.getAttribute('data-section-id'));
+                        console.log(' Sortable initialized for container:', container.getAttribute('data-section-id'));
                     } catch (error) {
                         console.error('Error initializing sortable for container:', container, error);
                     }
                 });
                 
-                console.log('✅ Topics sortable with cross-section support initialized');
+                console.log(' Topics sortable with cross-section support initialized');
             }
             
             // Function to save section order
             async function saveSectionOrder() {
                 try {
-                    console.log('💾 Saving section order...');
+                    console.log(' Saving section order...');
                     const sectionsContainer = document.getElementById('sections-container');
                     const sectionItems = sectionsContainer.querySelectorAll('.section-item[data-id]');
                     const sectionOrders = [];
@@ -2395,14 +2395,14 @@
                     console.log('Section reorder response data:', data);
                     
                     if (data.success) {
-                        console.log('✅ Section order saved successfully');
+                        console.log(' Section order saved successfully');
                         showNotification('Section order updated successfully', 'success');
                     } else {
-                        console.error('❌ Failed to save section order:', data.error);
+                        console.error(' Failed to save section order:', data.error);
                         showNotification('Failed to update section order: ' + data.error, 'error');
                     }
                 } catch (error) {
-                    console.error('❌ Error saving section order:', error);
+                    console.error(' Error saving section order:', error);
                     showNotification('Error updating section order: ' + error.message, 'error');
                 }
             }
@@ -2410,7 +2410,7 @@
             // Function to save topic order with section change
             async function saveTopicOrderWithSectionChange(topicItem, newContainer, originalSectionId, newSectionId) {
                 try {
-                    console.log('💾 Saving topic order with section change...');
+                    console.log(' Saving topic order with section change...');
                     console.log('Topic:', topicItem.dataset.topicId, 'from section:', originalSectionId, 'to section:', newSectionId);
                     
                     const topicId = topicItem.getAttribute('data-topic-id');
@@ -2452,13 +2452,13 @@
                     console.log('Topic move response data:', data);
                     
                     if (data.success) {
-                        console.log('✅ Topic moved successfully');
+                        console.log(' Topic moved successfully');
                         showNotification('Topic moved successfully', 'success');
                         
                         // Update the topic's data attributes
                         topicItem.setAttribute('data-section-id', newSectionId);
                     } else {
-                        console.error('❌ Failed to move topic:', data.error);
+                        console.error(' Failed to move topic:', data.error);
                         showNotification('Failed to move topic: ' + data.error, 'error');
                         
                         // Revert the move by moving the topic back
@@ -2468,7 +2468,7 @@
                         }
                     }
                 } catch (error) {
-                    console.error('❌ Error moving topic:', error);
+                    console.error(' Error moving topic:', error);
                     showNotification('Error moving topic: ' + error.message, 'error');
                 }
             }
@@ -2476,7 +2476,7 @@
             // Function to save topic order
             async function saveTopicOrder(container) {
                 try {
-                    console.log('💾 Saving topic order...');
+                    console.log(' Saving topic order...');
                     const sectionId = container.getAttribute('data-section-id');
                     const topicItems = container.querySelectorAll('.topic-item[data-topic-id]');
                     const topicOrders = [];
@@ -2522,14 +2522,14 @@
                     console.log('Topic reorder response data:', data);
                     
                     if (data.success) {
-                        console.log('✅ Topic order saved successfully');
+                        console.log(' Topic order saved successfully');
                         showNotification('Topic order updated successfully', 'success');
                     } else {
-                        console.error('❌ Failed to save topic order:', data.error);
+                        console.error(' Failed to save topic order:', data.error);
                         showNotification('Failed to update topic order: ' + data.error, 'error');
                     }
                 } catch (error) {
-                    console.error('❌ Error saving topic order:', error);
+                    console.error(' Error saving topic order:', error);
                     showNotification('Error updating topic order: ' + error.message, 'error');
                 }
             }
@@ -2584,10 +2584,10 @@
                     initializeSectionsSortable();
                     // Initialize topics sortable
                     initializeTopicsSortable();
-                    console.log('✅ Sortable initialization completed');
+                    console.log(' Sortable initialization completed');
                 } else {
                     // Retry after a short delay
-                    console.log('🔄 Containers not ready, retrying in 200ms...');
+                    console.log(' Containers not ready, retrying in 200ms...');
                     setTimeout(initializeSortableWhenReady, 200);
                 }
             }
@@ -2990,7 +2990,7 @@
 
         // Enhanced SCORM upload completion notification
         function showSCORMUploadNotification(topicTitle, packageTitle) {
-            const message = `🎉 SCORM upload completed successfully!<br>
+            const message = ` SCORM upload completed successfully!<br>
                 <strong>Topic:</strong> ${topicTitle}<br>
                 <strong>Package:</strong> ${packageTitle || 'SCORM Content'}<br>
                 <small class="text-green-100">Your SCORM package is now ready for use.</small>`;
@@ -5799,7 +5799,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!-- Category functionality removed as requested -->
 <script>
-console.log('✅ Add Category button has been removed - Template updated successfully');
+console.log(' Add Category button has been removed - Template updated successfully');
 </script>
 
 {% endblock %}

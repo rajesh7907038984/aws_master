@@ -48,7 +48,7 @@ def validate_scorm_ajax(request):
         return JsonResponse({
             'valid': False,
             'error': f'Validation error: {str(e)}',
-            'summary': '❌ Validation failed'
+            'summary': ' Validation failed'
         }, status=500)
 
 
@@ -66,9 +66,9 @@ def validation_test_page(request):
             summary = get_validation_summary(validation_results)
             
             if validation_results['valid']:
-                messages.success(request, f"✅ {summary}")
+                messages.success(request, f" {summary}")
             else:
-                messages.error(request, f"❌ {summary}")
+                messages.error(request, f" {summary}")
             
             return render(request, 'scorm/validation_test.html', {
                 'validation_results': validation_results,

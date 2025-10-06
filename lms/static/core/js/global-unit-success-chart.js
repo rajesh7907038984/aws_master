@@ -77,7 +77,7 @@ class GlobalUnitSuccessChart {
         
         if (typeof Chart === 'undefined') {
             if (retryCount >= maxRetries) {
-                console.error('❌ Chart.js library not available for Unit Success Chart');
+                console.error('Chart.js library not available for Unit Success Chart');
                 this.showError('Chart library not loaded');
                 return;
             }
@@ -89,7 +89,7 @@ class GlobalUnitSuccessChart {
         const canvas = document.getElementById(this.canvasId);
         if (!canvas) {
             if (retryCount >= maxRetries) {
-                console.error('❌ Canvas not found for Unit Success Chart');
+                console.error('Canvas not found for Unit Success Chart');
                 this.showError('Canvas element not found');
                 return;
             }
@@ -124,11 +124,11 @@ class GlobalUnitSuccessChart {
             // Create the chart
             this.chart = new Chart(ctx, this.chartConfig);
             
-            console.log('✅ Global Unit Success Chart created successfully');
+            console.log('Global Unit Success Chart created successfully');
             this.hideStatus();
             
         } catch (error) {
-            console.error('❌ Failed to create Global Unit Success Chart:', error);
+            console.error('Failed to create Global Unit Success Chart:', error);
             this.showError('Chart creation failed: ' + error.message);
         }
     }
@@ -148,7 +148,7 @@ class GlobalUnitSuccessChart {
         const statusDiv = document.getElementById('unit-success-status');
         if (statusDiv) {
             statusDiv.className = 'text-center text-sm text-red-500 mt-4';
-            statusDiv.innerHTML = `<div>❌ ${message}</div>`;
+            statusDiv.innerHTML = `<div>Error: ${message}</div>`;
         }
     }
     

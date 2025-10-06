@@ -6,7 +6,7 @@
 (function() {
     'use strict';
     
-    console.log('🔧 Loading Courses Chart Fix...');
+    console.log(' Loading Courses Chart Fix...');
     
     // Wait for DOM and Chart.js to be ready
     function waitForDependencies() {
@@ -28,13 +28,13 @@
         
         const canvas = document.getElementById('courses-chart');
         if (!canvas) {
-            console.log('⚠️ Courses chart canvas not found');
+            console.log(' Courses chart canvas not found');
             return;
         }
         
         // Check if chart already exists
         if (canvas.chart) {
-            console.log('✅ Courses chart already initialized');
+            console.log(' Courses chart already initialized');
             return;
         }
         
@@ -117,10 +117,10 @@
             // Store chart reference
             canvas.chart = chart;
             
-            console.log('✅ Courses chart initialized successfully');
+            console.log(' Courses chart initialized successfully');
             
         } catch (error) {
-            console.error('❌ Failed to initialize courses chart:', error);
+            console.error(' Failed to initialize courses chart:', error);
             
             // Show error message in the canvas
             const ctx = canvas.getContext('2d');
@@ -138,7 +138,7 @@
         const canvas = document.getElementById('courses-chart');
         if (canvas && canvas.chart) {
             canvas.chart.resize();
-            console.log('🔄 Courses chart re-rendered');
+            console.log(' Courses chart re-rendered');
         }
     }
     
@@ -160,5 +160,5 @@
         rerender: forceChartRerender
     };
     
-    console.log('🎉 Courses Chart Fix loaded successfully');
+    console.log(' Courses Chart Fix loaded successfully');
 })();

@@ -794,7 +794,7 @@ def create_zoom_meeting(user, integration_id, title, description, start_datetime
                 'mute_upon_entry': False,
                 'audio': 'both',
                 
-                # ✅ CRITICAL: Direct join settings (NO REGISTRATION)
+                #  CRITICAL: Direct join settings (NO REGISTRATION)
                 'approval_type': 2,  # No registration required (2 = no registration)
                 'registration_type': 0,  # No registration required
                 'meeting_authentication': False,  # Allow guests without Zoom account
@@ -802,13 +802,13 @@ def create_zoom_meeting(user, integration_id, title, description, start_datetime
                 'enforce_login_domains': '',  # No domain restrictions
                 'waiting_room': False,  # Disable waiting room for immediate join
                 
-                # ✅ Guest access settings
+                #  Guest access settings
                 'allow_multiple_devices': True,  # Allow multiple devices per participant
                 'alternative_hosts': '',  # No alternative hosts restrictions
                 'close_registration': False,  # Keep open (though registration is disabled)
                 'show_share_button': True,  # Show share button for easy link sharing
                 
-                # ✅ Cloud recording settings
+                #  Cloud recording settings
                 'auto_recording': 'cloud',  # Enable automatic cloud recording
                 'cloud_recording': True,     # Explicit cloud recording
                 'record_play_own_voice': True,  # Record participant audio
@@ -818,27 +818,27 @@ def create_zoom_meeting(user, integration_id, title, description, start_datetime
                 'auto_recording_local': False,  # Disable local recording
                 'auto_recording_cloud': True,   # Enable cloud recording
                 
-                # ✅ Additional accessibility settings
+                #  Additional accessibility settings
                 'use_pmi': False,  # Don't use Personal Meeting ID
                 'encryption_type': 'enhanced_encryption',  # Use enhanced encryption
                 'breakout_room': False,  # Disable breakout rooms by default
                 'global_dial_in_countries': ['US'],  # Allow dial-in from US
                 
-                # ✅ Enhanced direct join settings
+                #  Enhanced direct join settings
                 'jbh_time': 10,  # Allow joining 10 minutes before host
                 'cn_meeting': False,  # Don't restrict to China
                 'in_meeting': False,  # Don't restrict to India
                 'participant_video': True,  # Enable participant video by default
                 'host_video': True,  # Enable host video by default
                 
-                # ✅ Meeting controls that enhance accessibility
+                #  Meeting controls that enhance accessibility
                 'auto_recording': 'cloud',  # Ensure cloud recording
                 'alternative_hosts_email_notification': False,  # Don't send notifications
                 'focus_mode': False,  # Disable focus mode
                 'private_meeting': False,  # Make meeting discoverable
                 'internal_meeting': False,  # Not internal only
                 
-                # ✅ Additional settings for easy access
+                #  Additional settings for easy access
                 'contact_name': '',  # No contact name required
                 'contact_email': '',  # No contact email required
                 'registrants_confirmation_email': False,  # Don't send confirmation emails
@@ -847,7 +847,7 @@ def create_zoom_meeting(user, integration_id, title, description, start_datetime
                 'global_dial_in_numbers': [],  # Basic dial-in numbers
                 'registrants_restriction_type': 0,  # No registration restrictions
                 
-                # ✅ CHAT AND FILE SHARING SETTINGS
+                #  CHAT AND FILE SHARING SETTINGS
                 'allow_participants_chat_with': 1,  # 1 = Everyone publicly and privately
                 'allow_users_save_chats': 2,  # 2 = Everyone can save
                 'chat_etiquette_tool': {
@@ -2009,7 +2009,7 @@ def sync_zoom_meeting_data(conference):
                                         
                                         if potential_users.count() == 1:
                                             user = potential_users.first()
-                                            logger.info(f"✅ FIX #2: Matched participant {participant_name} via enhanced fuzzy match -> User: {user.username}")
+                                            logger.info(f" FIX #2: Matched participant {participant_name} via enhanced fuzzy match -> User: {user.username}")
                                         elif potential_users.count() > 1:
                                             # Use similarity scoring to find best match
                                             best_match = None
@@ -2035,7 +2035,7 @@ def sync_zoom_meeting_data(conference):
                                             
                                             if best_match and best_score >= 100:  # Require high confidence match
                                                 user = best_match
-                                                logger.info(f"✅ FIX #2: Matched participant {participant_name} via similarity scoring (score: {best_score}) -> User: {user.username}")
+                                                logger.info(f" FIX #2: Matched participant {participant_name} via similarity scoring (score: {best_score}) -> User: {user.username}")
                                     
                                     # Method 5e: Try matching by display name patterns (handles "FirstName LastName (email)")
                                     if not user and '(' in participant_name and ')' in participant_name:
@@ -2056,7 +2056,7 @@ def sync_zoom_meeting_data(conference):
                                                 
                                                 if potential_users.count() == 1:
                                                     user = potential_users.first()
-                                                    logger.info(f"✅ FIX #2: Matched participant via parenthetical name pattern -> User: {user.username}")
+                                                    logger.info(f" FIX #2: Matched participant via parenthetical name pattern -> User: {user.username}")
                             
                             # Method 6: Try matching by initials (e.g., "J. Smith" -> "John Smith")
                             if not user and participant_name:
@@ -2130,7 +2130,7 @@ def sync_zoom_meeting_data(conference):
                                         attendance_status = 'late'
                                 
                                 # Enhanced logging for learner matching success
-                                logger.info(f"✅ LEARNER SYNC SUCCESS: {participant_name} -> {user.username} ({user.role}) | Duration: {duration_minutes}min | Status: {attendance_status}")
+                                logger.info(f" LEARNER SYNC SUCCESS: {participant_name} -> {user.username} ({user.role}) | Duration: {duration_minutes}min | Status: {attendance_status}")
                                 if user.role == 'learner':
                                     logger.info(f"🎯 LEARNER DETAILS: User ID={user.id}, Email={user.email}, Join={join_time}, Leave={leave_time}")
                                 
@@ -2183,7 +2183,7 @@ def sync_zoom_meeting_data(conference):
                             
                             else:
                                 # Enhanced logging for unmatched participants (especially learners)
-                                logger.warning(f"❌ UNMATCHED PARTICIPANT: {participant_name} ({participant_email}) | Duration: {participant.get('duration', 0)//60}min")
+                                logger.warning(f" UNMATCHED PARTICIPANT: {participant_name} ({participant_email}) | Duration: {participant.get('duration', 0)//60}min")
                                 
                                 # Provide detailed suggestions for manual mapping
                                 if participant_name:
@@ -2268,7 +2268,7 @@ def sync_zoom_meeting_data(conference):
                                     # Calculate duration
                                     duration_minutes = participant.get('duration', 0) // 60 if participant.get('duration') else 0
                                     
-                                    # ✅ FIX #1: Prevent duplicate sync data by using get_or_create
+                                    #  FIX #1: Prevent duplicate sync data by using get_or_create
                                     unique_participant_id = f"zoom_{zoom_participant_id or f'sync_{uuid.uuid4().hex[:8]}'}"
                                     
                                     guest_participant, created = ConferenceParticipant.objects.get_or_create(
@@ -2300,7 +2300,7 @@ def sync_zoom_meeting_data(conference):
                                     
                                     if created:
                                         participants_processed += 1
-                                        logger.info(f"✅ Created new guest participant: {participant_name} ({participant_email})")
+                                        logger.info(f" Created new guest participant: {participant_name} ({participant_email})")
                                     else:
                                         # Update existing record to prevent stale data
                                         guest_participant.display_name = participant_name or guest_participant.display_name
@@ -2313,7 +2313,7 @@ def sync_zoom_meeting_data(conference):
                                             'sync_count': guest_participant.tracking_data.get('sync_count', 0) + 1
                                         })
                                         guest_participant.save()
-                                        logger.info(f"🔄 Updated existing guest participant: {participant_name} ({participant_email})")
+                                        logger.info(f" Updated existing guest participant: {participant_name} ({participant_email})")
                                     
                                 except Exception as e:
                                     logger.error(f"Error creating guest participant record: {str(e)}")
@@ -2705,19 +2705,19 @@ def ensure_meeting_recording_enabled(conference):
         update_response = requests.patch(settings_url, headers=headers, json=meeting_update)
         
         if update_response.status_code in [200, 204]:
-            logger.info(f"✅ Successfully enabled comprehensive cloud recording for meeting {conference.meeting_id}")
+            logger.info(f" Successfully enabled comprehensive cloud recording for meeting {conference.meeting_id}")
             conference.auto_recording_status = 'enabled'
             conference.auto_recording_enabled_at = timezone.now()
             conference.save(update_fields=['auto_recording_status', 'auto_recording_enabled_at'])
             return True
         else:
-            logger.error(f"❌ Failed to enable recording for meeting {conference.meeting_id}: {update_response.status_code} - {update_response.text}")
+            logger.error(f" Failed to enable recording for meeting {conference.meeting_id}: {update_response.status_code} - {update_response.text}")
             conference.auto_recording_status = 'failed_api_error'
             conference.save(update_fields=['auto_recording_status'])
             return False
             
     except Exception as e:
-        logger.error(f"❌ Error enabling recording for conference {conference.id}: {str(e)}")
+        logger.error(f" Error enabling recording for conference {conference.id}: {str(e)}")
         conference.auto_recording_status = 'failed_exception'
         conference.save(update_fields=['auto_recording_status'])
         return False
@@ -2987,26 +2987,26 @@ def generate_simple_zoom_link(request):
                         "duration": 60,  # Default 1 hour
                         "settings": {
                             "join_before_host": True,
-                            "auto_recording": "cloud",  # ✅ FORCE CLOUD RECORDING
-                            "cloud_recording": True,     # ✅ EXPLICIT CLOUD RECORDING
+                            "auto_recording": "cloud",  #  FORCE CLOUD RECORDING
+                            "cloud_recording": True,     #  EXPLICIT CLOUD RECORDING
                             "allow_multiple_devices": True,
                             "participant_video": True,
                             "host_video": True,
                             "mute_upon_entry": False,
                             "waiting_room": False,
-                            "meeting_authentication": False,  # ✅ ALLOW GUESTS
-                            "enforce_login": False,           # ✅ NO LOGIN REQUIRED
-                            "approval_type": 2,               # ✅ NO REGISTRATION REQUIRED
-                            "record_play_own_voice": True,    # ✅ RECORD AUDIO
-                            "record_repeat_caller": True,     # ✅ RECORD REPEAT CALLERS
-                            "recording_authentication": False, # ✅ NO AUTH FOR RECORDING ACCESS
-                            "recording_disclaimer": True,     # ✅ SHOW RECORDING NOTICE
-                            "auto_recording_local": False,    # ✅ DISABLE LOCAL RECORDING
-                            "auto_recording_cloud": True,     # ✅ ENABLE CLOUD RECORDING
-                            "show_share_button": True,        # ✅ SHOW SHARE BUTTON
-                            "use_pmi": False,                 # ✅ DON'T USE PMI
+                            "meeting_authentication": False,  #  ALLOW GUESTS
+                            "enforce_login": False,           #  NO LOGIN REQUIRED
+                            "approval_type": 2,               #  NO REGISTRATION REQUIRED
+                            "record_play_own_voice": True,    #  RECORD AUDIO
+                            "record_repeat_caller": True,     #  RECORD REPEAT CALLERS
+                            "recording_authentication": False, #  NO AUTH FOR RECORDING ACCESS
+                            "recording_disclaimer": True,     #  SHOW RECORDING NOTICE
+                            "auto_recording_local": False,    #  DISABLE LOCAL RECORDING
+                            "auto_recording_cloud": True,     #  ENABLE CLOUD RECORDING
+                            "show_share_button": True,        #  SHOW SHARE BUTTON
+                            "use_pmi": False,                 #  DON'T USE PMI
                             
-                            # ✅ CHAT AND FILE SHARING SETTINGS
+                            #  CHAT AND FILE SHARING SETTINGS
                             "allow_participants_chat_with": 1,  # 1 = Everyone publicly and privately
                             "allow_users_save_chats": 2,  # 2 = Everyone can save
                             "chat_etiquette_tool": {
@@ -3219,7 +3219,7 @@ def conference_detail(request, conference_id):
         # Enhanced view for instructors with rubric evaluations
         template_name = 'conferences/conference_detail_instructor.html'
         
-        # ✅ FIX #4: Only show registered users - exclude unmatched guests
+        #  FIX #4: Only show registered users - exclude unmatched guests
         participants = ConferenceParticipant.objects.filter(
             conference=conference,
             user__isnull=False  # Only show participants with matched LMS users
@@ -3241,7 +3241,7 @@ def conference_detail(request, conference_id):
             conference=conference
         ).select_related('shared_by').order_by('-shared_at')
         
-        # ✅ FIX #4: Only show chat messages from registered users - exclude guest messages
+        #  FIX #4: Only show chat messages from registered users - exclude guest messages
         chat_messages = ConferenceChat.objects.filter(
             conference=conference,
             sender__isnull=False  # Only show messages from matched LMS users
@@ -3416,14 +3416,14 @@ def conference_detailed_report(request, conference_id):
     User = get_user_model()
     student = get_object_or_404(User, id=student_id)
     
-    # ✅ FIX #4: Get attendance record for this student (registered users only)
+    #  FIX #4: Get attendance record for this student (registered users only)
     attendance = ConferenceAttendance.objects.filter(
         conference=conference,
         user=student,
         user__isnull=False  # Only registered users
     ).first()
     
-    # ✅ FIX #4: Get participation record for this student (registered users only)
+    #  FIX #4: Get participation record for this student (registered users only)
     participation = ConferenceParticipant.objects.filter(
         conference=conference,
         user=student,
@@ -3619,7 +3619,7 @@ def conference_detailed_report(request, conference_id):
 @login_required
 def download_conference_recording(request, conference_id, recording_id):
     """
-    ✅ FIX #3: Secure conference recording download with password authentication
+     FIX #3: Secure conference recording download with password authentication
     """
     try:
         conference = get_object_or_404(Conference, id=conference_id)
@@ -3633,13 +3633,13 @@ def download_conference_recording(request, conference_id, recording_id):
                 'error': 'You do not have access to this conference recording.'
             }, status=403)
         
-        # ✅ FIX #5: Allow direct download for cloud recordings without password restrictions
+        #  FIX #5: Allow direct download for cloud recordings without password restrictions
         # Skip password authentication for cloud recordings - allow direct access
         
-        # ✅ FIX #5: Provide direct download access for cloud recordings
+        #  FIX #5: Provide direct download access for cloud recordings
         if recording.download_url:
             # Log successful download
-            logger.info(f"✅ Direct download granted: User {request.user.username} downloading '{recording.title}' from conference {conference.title}")
+            logger.info(f" Direct download granted: User {request.user.username} downloading '{recording.title}' from conference {conference.title}")
             
             # Always redirect directly to the download URL
             return redirect(recording.download_url)
@@ -5073,7 +5073,7 @@ def rematch_unmatched_chat_messages(conference):
             message.sender = matched_user
             message.save(update_fields=['sender'])
             matched_count += 1
-            logger.info(f"✅ Matched chat message: '{sender_name}' -> {matched_user.username} ({matched_user.role})")
+            logger.info(f" Matched chat message: '{sender_name}' -> {matched_user.username} ({matched_user.role})")
     
     logger.info(f"Re-matched {matched_count} out of {unmatched_messages.count()} unmatched chat messages")
     return matched_count

@@ -810,7 +810,7 @@ def edit_quiz(request, quiz_id):
 # The original IndentationError at line 390 has been resolved by removing the misplaced code blocks  
 # that were causing syntax errors in the GET request handler of the create_quiz function
 #
-# Status: ✅ FIXED - Django server can now start without IndentationError
+# Status:  FIXED - Django server can now start without IndentationError
 @login_required
 def delete_quiz(request, quiz_id):
     """View to delete a quiz"""

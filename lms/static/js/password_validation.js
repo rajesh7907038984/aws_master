@@ -66,23 +66,23 @@ function createPasswordStrengthIndicator() {
         </div>
         <div class="strength-requirements text-xs mt-2 space-y-1">
             <div class="requirement" data-requirement="length">
-                <span class="requirement-icon">❌</span>
+                <span class="requirement-icon"></span>
                 <span class="requirement-text">At least 8 characters</span>
             </div>
             <div class="requirement" data-requirement="uppercase">
-                <span class="requirement-icon">❌</span>
+                <span class="requirement-icon"></span>
                 <span class="requirement-text">One uppercase letter</span>
             </div>
             <div class="requirement" data-requirement="lowercase">
-                <span class="requirement-icon">❌</span>
+                <span class="requirement-icon"></span>
                 <span class="requirement-text">One lowercase letter</span>
             </div>
             <div class="requirement" data-requirement="number">
-                <span class="requirement-icon">❌</span>
+                <span class="requirement-icon"></span>
                 <span class="requirement-text">One number</span>
             </div>
             <div class="requirement" data-requirement="special">
-                <span class="requirement-icon">❌</span>
+                <span class="requirement-icon"></span>
                 <span class="requirement-text">One special character</span>
             </div>
         </div>
@@ -95,7 +95,7 @@ function createPasswordMatchIndicator() {
     indicator.className = 'password-match-indicator mt-2 text-sm';
     indicator.innerHTML = `
         <div class="match-status flex items-center">
-            <span class="match-icon mr-1">❌</span>
+            <span class="match-icon mr-1"></span>
             <span class="match-text">Passwords must match</span>
         </div>
     `;
@@ -142,11 +142,11 @@ function validatePasswordStrength(password, indicator) {
         const text = requirementElement.querySelector('.requirement-text');
         
         if (requirements[requirement]) {
-            icon.textContent = '✅';
+            icon.textContent = '';
             icon.className = 'requirement-icon text-green-600';
             text.className = 'requirement-text text-green-600';
         } else {
-            icon.textContent = '❌';
+            icon.textContent = '';
             icon.className = 'requirement-icon text-red-600';
             text.className = 'requirement-text text-red-600';
         }
@@ -161,7 +161,7 @@ function validatePasswordMatch(password1, password2, indicator) {
     const matchText = indicator.querySelector('.match-text');
     
     if (!password1 || !password2) {
-        matchIcon.textContent = '❌';
+        matchIcon.textContent = '';
         matchIcon.className = 'match-icon mr-1 text-red-600';
         matchText.textContent = 'Passwords must match';
         matchText.className = 'match-text text-red-600';
@@ -170,14 +170,14 @@ function validatePasswordMatch(password1, password2, indicator) {
     }
     
     if (password1 === password2) {
-        matchIcon.textContent = '✅';
+        matchIcon.textContent = '';
         matchIcon.className = 'match-icon mr-1 text-green-600';
         matchText.textContent = 'Passwords match';
         matchText.className = 'match-text text-green-600';
         indicator.className = 'password-match-indicator mt-2 text-sm';
         return true;
     } else {
-        matchIcon.textContent = '❌';
+        matchIcon.textContent = '';
         matchIcon.className = 'match-icon mr-1 text-red-600';
         matchText.textContent = 'Passwords do not match';
         matchText.className = 'match-text text-red-600';

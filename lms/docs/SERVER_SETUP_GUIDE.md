@@ -125,7 +125,7 @@ AWS_S3_REGION_NAME=eu-west-2
 
 ---
 
-## 🔧 How It Works
+##  How It Works
 
 ### Environment Variable Loading
 
@@ -172,7 +172,7 @@ The `setup_server.sh` script generates server-specific configuration files:
 
 ---
 
-## 🚀 Deployment Workflows
+##  Deployment Workflows
 
 ### Development → Staging → Production
 
@@ -232,7 +232,7 @@ To migrate from one server to another:
 
 ---
 
-## 🔄 Restart Methods
+##  Restart Methods
 
 ### 1. Quick Restart (Fastest)
 ```bash
@@ -423,7 +423,7 @@ Then manually edit `nginx_generated.conf` to include additional domains in the `
 
 ---
 
-## ✅ Verification Checklist
+##  Verification Checklist
 
 After setup, verify:
 
@@ -453,5 +453,5 @@ If you encounter issues:
 
 ---
 
-**Remember:** All server-specific configuration is in `.env`. Change the file, restart the server. That's it! 🎉
+**Remember:** All server-specific configuration is in `.env`. Change the file, restart the server. That's it! 
 

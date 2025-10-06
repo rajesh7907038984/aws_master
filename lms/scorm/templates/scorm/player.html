@@ -230,7 +230,7 @@
     const realAPI = {
         // SCORM 1.2 API
         LMSInitialize: function(param) { 
-            console.log('🚀 SCORM API: LMSInitialize called');
+            console.log('SCORM API: LMSInitialize called');
             updateStatus('Initializing...', true);
             startTimer();
             const result = callSCORMAPI('Initialize', [param]);
@@ -257,7 +257,7 @@
             return callSCORMAPI('SetValue', [element, value]);
         },
         LMSCommit: function(param) { 
-            console.log('✅ SCORM API: LMSCommit called');
+            console.log('SCORM API: LMSCommit called');
             return callSCORMAPI('Commit', [param]);
         },
         LMSGetLastError: function() { 

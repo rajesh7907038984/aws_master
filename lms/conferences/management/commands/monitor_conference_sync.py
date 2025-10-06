@@ -72,20 +72,20 @@ class Command(BaseCommand):
                 self.stdout.write(f"Chat: {health['chat_status']}")
             
             if health['issues']:
-                self.stdout.write(self.style.WARNING(f"⚠️  Issues Found: {len(health['issues'])}"))
+                self.stdout.write(self.style.WARNING(f"  Issues Found: {len(health['issues'])}"))
                 for issue in health['issues']:
                     self.stdout.write(f"  • {issue}")
                 
                 if auto_fix:
-                    self.stdout.write("\n🔧 Attempting automatic recovery...")
+                    self.stdout.write("\n Attempting automatic recovery...")
                     recovery_result = SyncRecoveryManager.auto_recover_conference(conference_id)
                     
                     if recovery_result['success']:
-                        self.stdout.write(self.style.SUCCESS("✅ Recovery successful!"))
+                        self.stdout.write(self.style.SUCCESS(" Recovery successful!"))
                         for action in recovery_result['actions_taken']:
                             self.stdout.write(f"  ✓ {action}")
                     else:
-                        self.stdout.write(self.style.ERROR("❌ Recovery failed"))
+                        self.stdout.write(self.style.ERROR(" Recovery failed"))
                         for error in recovery_result['errors']:
                             self.stdout.write(f"  ✗ {error}")
                 
@@ -93,7 +93,7 @@ class Command(BaseCommand):
                     self.send_alert_email([health])
                     
             else:
-                self.stdout.write(self.style.SUCCESS("✅ No issues found"))
+                self.stdout.write(self.style.SUCCESS(" No issues found"))
                 
         except Conference.DoesNotExist:
             self.stdout.write(self.style.ERROR(f"Conference {conference_id} not found"))
@@ -110,7 +110,7 @@ class Command(BaseCommand):
         self.stdout.write(f"Critical: {system_health['critical']}")
         
         if system_health['issues_by_type']:
-            self.stdout.write(f"\n⚠️  Common Issues:")
+            self.stdout.write(f"\n  Common Issues:")
             for issue, count in system_health['issues_by_type'].items():
                 self.stdout.write(f"  • {issue}: {count} conferences")
         
@@ -133,7 +133,7 @@ class Command(BaseCommand):
             
             if health['issues'] and auto_fix:
                 if verbose:
-                    self.stdout.write(f"\n🔧 Auto-fixing: {health['conference_title']}")
+                    self.stdout.write(f"\n Auto-fixing: {health['conference_title']}")
                 
                 recovery_result = SyncRecoveryManager.auto_recover_conference(conference.id)
                 
@@ -143,7 +143,7 @@ class Command(BaseCommand):
                         'recovery': recovery_result
                     })
                     if verbose:
-                        self.stdout.write(self.style.SUCCESS(f"  ✅ Fixed {len(recovery_result['actions_taken'])} issues"))
+                        self.stdout.write(self.style.SUCCESS(f"   Fixed {len(recovery_result['actions_taken'])} issues"))
         
         # Report results
         if critical_conferences:
@@ -154,12 +154,12 @@ class Command(BaseCommand):
                     self.stdout.write(f"    - {issue}")
         
         if warning_conferences and verbose:
-            self.stdout.write(f"\n⚠️  Warnings ({len(warning_conferences)} conferences):")
+            self.stdout.write(f"\n  Warnings ({len(warning_conferences)} conferences):")
             for health in warning_conferences[:3]:  # Show top 3
                 self.stdout.write(f"  • {health['conference_title']}")
         
         if fixed_conferences:
-            self.stdout.write(f"\n🔧 Auto-Fixed ({len(fixed_conferences)} conferences):")
+            self.stdout.write(f"\n Auto-Fixed ({len(fixed_conferences)} conferences):")
             for fix_info in fixed_conferences:
                 health = fix_info['conference']
                 recovery = fix_info['recovery']

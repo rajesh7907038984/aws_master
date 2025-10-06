@@ -85,8 +85,8 @@ wsgi_module = "LMS_Project.wsgi:application"
 # Security headers
 def when_ready(server):
     """Called just after the server is started."""
-    server.log.info(f"🚀 LMS {DJANGO_ENV.upper()} Server Started with Gunicorn")
-    server.log.info(f"🔧 Workers: {server.cfg.workers}")
+    server.log.info(f"LMS {DJANGO_ENV.upper()} Server Started with Gunicorn")
+    server.log.info(f"Workers: {server.cfg.workers}")
     server.log.info(f"🌐 Binding to: {server.cfg.bind}")
 
 def worker_int(worker):
@@ -95,7 +95,7 @@ def worker_int(worker):
 
 def pre_fork(server, worker):
     """Called just before a worker is forked."""
-    server.log.info("🔄 Worker will be spawned")
+    server.log.info("Worker will be spawned")
 
 def post_fork(server, worker):
     """Called just after a worker has been forked."""

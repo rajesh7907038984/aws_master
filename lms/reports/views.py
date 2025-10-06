@@ -123,6 +123,35 @@ def activity_report_overview(request, activity_id):
                     'avg_completion_percent': average_score if average_score else 0
                 }
         
+        # Fallback: If no scores found in last_score, check progress_data for SCORM scores
+        if is_scorm and (average_score is None or average_score == 0):
+            scorm_scores = []
+            scorm_progress = progress_data.filter(progress_data__isnull=False)
+            passed_count = 0
+            
+            for progress in scorm_progress:
+                progress_data_dict = progress.progress_data or {}
+                score_raw = progress_data_dict.get('score_raw')
+                
+                if score_raw is not None:
+                    try:
+                        scorm_scores.append(float(score_raw))
+                    except (ValueError, TypeError):
+                        pass
+                
+                if progress_data_dict.get('lesson_status') in ['passed', 'completed']:
+                    passed_count += 1
+            
+            if scorm_scores:
+                average_score = sum(scorm_scores) / len(scorm_scores)
+                
+                scorm_stats = {
+                    'total_scorm_users': scorm_progress.count(),
+                    'completion_status_complete': completed_users,
+                    'success_status_passed': passed_count,
+                    'avg_completion_percent': average_score
+                }
+        
         # Calculate total progress records (attempts field doesn't exist)
         total_attempts = progress_data.count()
         

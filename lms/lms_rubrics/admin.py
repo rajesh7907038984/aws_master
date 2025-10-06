@@ -157,7 +157,7 @@ class RubricOverallFeedbackAdmin(admin.ModelAdmin):
             return "No feedback"
         
         type_icons = {
-            'text': '📝',
+            'text': '',
             'audio': '🎵',
             'video': '📹'
         }

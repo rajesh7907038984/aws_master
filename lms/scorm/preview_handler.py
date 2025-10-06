@@ -20,14 +20,14 @@ class ScormPreviewHandler(ScormAPIHandler):
         """Initialize preview handler"""
         super().__init__(attempt)
         self.preview_data = {}
-        logger.info(f"🎭 SCORM Preview Handler initialized for user: {attempt.user.username}")
+        logger.info(f"SCORM Preview Handler initialized for user: {attempt.user.username}")
     
     def _commit_data(self):
         """Preview mode: Log data but don't save to database"""
-        logger.info(f"🎭 [PREVIEW] SCORM data would be saved: {self.attempt.cmi_data}")
-        logger.info(f"🎭 [PREVIEW] Lesson status: {self.attempt.lesson_status}")
-        logger.info(f"🎭 [PREVIEW] Score: {self.attempt.score_raw}")
-        logger.info(f"🎭 [PREVIEW] Total time: {self.attempt.total_time}")
+        logger.info(f"[PREVIEW] SCORM data would be saved: {self.attempt.cmi_data}")
+        logger.info(f"[PREVIEW] Lesson status: {self.attempt.lesson_status}")
+        logger.info(f"[PREVIEW] Score: {self.attempt.score_raw}")
+        logger.info(f"[PREVIEW] Total time: {self.attempt.total_time}")
         
         # Store data in preview_data for logging but don't save to database
         self.preview_data = {
@@ -40,11 +40,11 @@ class ScormPreviewHandler(ScormAPIHandler):
         }
         
         # DON'T call attempt.save() - this is preview mode
-        logger.info("🎭 [PREVIEW] Data logged but not saved to database")
+        logger.info("[PREVIEW] Data logged but not saved to database")
     
     def _update_topic_progress(self):
         """Preview mode: Don't update topic progress"""
-        logger.info("🎭 [PREVIEW] Topic progress update skipped (preview mode)")
+        logger.info("[PREVIEW] Topic progress update skipped (preview mode)")
         
     def get_preview_summary(self):
         """Get a summary of preview session data"""

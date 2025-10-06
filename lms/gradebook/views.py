@@ -70,8 +70,8 @@ def has_scorm_progress(attempt):
             return True
         if attempt.cmi_data.get('completion_percent', 0) > 0:
             return True
-        # Only consider scorm_cloud_sync if there's also evidence of user interaction
-        if (attempt.cmi_data.get('scorm_cloud_sync', False) and 
+        # Only consider scorm_sync if there's also evidence of user interaction
+        if (attempt.cmi_data.get('scorm_sync', False) and 
             (attempt.last_accessed or attempt.total_time != '0000:00:00.00')):
             return True
     
@@ -344,15 +344,37 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                             if key in scorm_lookup:
                                 attempt = scorm_lookup[key]
                                 
-                                # Check if attempt has meaningful data
+                                # Check if attempt has meaningful data (including TOC navigation data)
                                 has_attempt_data = (
                                     attempt.score_raw is not None or 
                                     attempt.lesson_status in ['completed', 'passed'] or
                                     attempt.last_accessed is not None or
-                                    attempt.total_time != '0000:00:00.00'
+                                    attempt.total_time != '0000:00:00.00' or
+                                    attempt.lesson_location or  # TOC navigation bookmark
+                                    attempt.suspend_data or    # TOC progress data
+                                    (attempt.navigation_history and len(attempt.navigation_history) > 0)  # Navigation history
                                 )
                                 
                                 if has_attempt_data:
+                                    # Parse TOC progress from suspend_data if available
+                                    toc_progress = None
+                                    current_slide = None
+                                    completed_slides = []
+                                    
+                                    if attempt.suspend_data:
+                                        import re
+                                        # Extract progress from suspend_data: "progress=30&current_slide=3&completed_slides=1,2"
+                                        progress_match = re.search(r'progress=(\d+)', attempt.suspend_data)
+                                        slide_match = re.search(r'current_slide=([^&]+)', attempt.suspend_data)
+                                        completed_match = re.search(r'completed_slides=([^&]+)', attempt.suspend_data)
+                                        
+                                        if progress_match:
+                                            toc_progress = int(progress_match.group(1))
+                                        if slide_match:
+                                            current_slide = slide_match.group(1)
+                                        if completed_match:
+                                            completed_slides = [s.strip() for s in completed_match.group(1).split(',') if s.strip()]
+                                    
                                     student_scores[activity_id] = {
                                         'score': attempt.score_raw,
                                         'max_score': attempt.score_max or 100,  # SCORM typically uses 0-100 scale
@@ -360,24 +382,27 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                         'type': 'scorm',
                                         'attempt': attempt,
                                         'lesson_status': attempt.lesson_status,
-                                        'success_status': attempt.success_status
+                                        'success_status': attempt.success_status,
+                                        # TOC Navigation Data
+                                        'toc_progress': toc_progress,
+                                        'current_slide': current_slide or attempt.lesson_location,
+                                        'completed_slides': completed_slides,
+                                        'navigation_history': attempt.navigation_history[-5:] if attempt.navigation_history else [],  # Last 5 navigation entries
+                                        'has_toc_data': bool(attempt.lesson_location or attempt.suspend_data or attempt.navigation_history)
                                     }
                                 else:
                                     # Registration exists but has no meaningful data
                                     # Check TopicProgress as fallback
                                     try:
                                         from courses.models import TopicProgress
-                                        from scorm_cloud.models import SCORMCloudContent
                                         
                                         # Find the topic linked to this SCORM package
-                                        scorm_content = SCORMCloudContent.objects.filter(
-                                            package=activity['object'],
-                                            content_type='topic'
-                                        ).first()
+                                        # SCORM packages are directly linked to topics
+                                        topic = activity['object'].topic if hasattr(activity['object'], 'topic') else None
                                         
-                                        if scorm_content:
+                                        if topic:
                                             topic_progress = TopicProgress.objects.filter(
-                                                topic_id=scorm_content.content_id,
+                                                topic=topic,
                                                 user=student
                                             ).first()
                                             
@@ -386,8 +411,22 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                                 completion_status = 'completed' if topic_progress.completed else 'incomplete'
                                                 success_status = 'unknown'
                                                 
+                                                # Get score from last_score or fallback to progress_data
+                                                score_value = None
                                                 if topic_progress.last_score is not None:
-                                                    if float(topic_progress.last_score) >= 70:
+                                                    score_value = float(topic_progress.last_score)
+                                                else:
+                                                    # Fallback: check progress_data for SCORM score
+                                                    progress_data = topic_progress.progress_data or {}
+                                                    score_raw = progress_data.get('score_raw')
+                                                    if score_raw is not None:
+                                                        try:
+                                                            score_value = float(score_raw)
+                                                        except (ValueError, TypeError):
+                                                            pass
+                                                
+                                                if score_value is not None:
+                                                    if score_value >= 70:
                                                         success_status = 'passed'
                                                     else:
                                                         success_status = 'failed'
@@ -395,7 +434,7 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                                     success_status = 'passed'
                                                 
                                                 student_scores[activity_id] = {
-                                                    'score': float(topic_progress.last_score) if topic_progress.last_score else None,
+                                                    'score': score_value,
                                                     'max_score': 100,
                                                     'date': topic_progress.last_accessed,
                                                     'type': 'scorm',
@@ -427,17 +466,14 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                 # No registration found - check TopicProgress as fallback
                                 try:
                                     from courses.models import TopicProgress
-                                    from scorm_cloud.models import SCORMCloudContent
                                     
                                     # Find the topic linked to this SCORM package
-                                    scorm_content = SCORMCloudContent.objects.filter(
-                                        package=activity['object'],
-                                        content_type='topic'
-                                    ).first()
+                                    # SCORM packages are directly linked to topics
+                                    topic = activity['object'].topic if hasattr(activity['object'], 'topic') else None
                                     
-                                    if scorm_content:
+                                    if topic:
                                         topic_progress = TopicProgress.objects.filter(
-                                            topic_id=scorm_content.content_id,
+                                            topic=topic,
                                             user=student
                                         ).first()
                                         
@@ -498,11 +534,25 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                     # Calculate completion status
                                     completion_status = 'completed' if topic_progress.completed else 'incomplete'
                                     
+                                    # Get score from last_score or fallback to progress_data
+                                    score_value = None
+                                    if topic_progress.last_score is not None:
+                                        score_value = float(topic_progress.last_score)
+                                    else:
+                                        # Fallback: check progress_data for SCORM score
+                                        progress_data = topic_progress.progress_data or {}
+                                        score_raw = progress_data.get('score_raw')
+                                        if score_raw is not None:
+                                            try:
+                                                score_value = float(score_raw)
+                                            except (ValueError, TypeError):
+                                                pass
+                                    
                                     # Determine success status based on score
                                     success_status = 'unknown'
-                                    if topic_progress.last_score is not None:
+                                    if score_value is not None:
                                         # Consider passed if score is 70% or higher (typical passing threshold)
-                                        if float(topic_progress.last_score) >= 70:
+                                        if score_value >= 70:
                                             success_status = 'passed'
                                         else:
                                             success_status = 'failed'
@@ -510,7 +560,7 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                         success_status = 'passed'
                                     
                                     student_scores[activity_id] = {
-                                        'score': float(topic_progress.last_score) if topic_progress.last_score else None,
+                                        'score': score_value,
                                         'max_score': 100,  # SCORM scores are typically 0-100 scale
                                         'date': topic_progress.last_accessed,
                                         'type': 'scorm_topic',
@@ -1295,12 +1345,10 @@ def course_gradebook_detail(request, course_id):
         discussions = Discussion.objects.none()
         conferences = Conference.objects.none()
     
-    # Get SCORM packages for this course
+    # Get SCORM topics for this course
     scorm_packages = []
     scorm_topics_without_packages = []  # Keep track of topics without packages
     try:
-        from scorm_cloud.models import SCORMCloudContent
-        
         # Get topics that contain SCORM content for this course
         scorm_topics = Topic.objects.filter(
             coursetopic__course=course,
@@ -1309,15 +1357,10 @@ def course_gradebook_detail(request, course_id):
         ).prefetch_related('coursetopic_set__course').order_by('created_at')
         
         for topic in scorm_topics:
-            # Get SCORM package through SCORMCloudContent model
+            # Check if topic has a SCORM package
             try:
-                scorm_content = SCORMCloudContent.objects.filter(
-                    content_type='topic',
-                    content_id=str(topic.id)
-                ).select_related('package').first()
-                
-                if scorm_content and scorm_content.package:
-                    scorm_packages.append(scorm_content.package)
+                if hasattr(topic, 'scorm_package') and topic.scorm_package:
+                    scorm_packages.append(topic.scorm_package)
                 else:
                     # Topic exists but has no package - still include it in activities
                     scorm_topics_without_packages.append(topic)
@@ -2306,7 +2349,7 @@ def ajax_save_grade(request):
         return JsonResponse({'success': False, 'error': 'Unauthorized'})
     
     try:
-        logger.info(f"📝 ajax_save_grade called by {user.username}")
+        logger.info(f" ajax_save_grade called by {user.username}")
         logger.info(f"📦 POST data: {dict(request.POST)}")
         logger.info(f"📁 FILES data: {list(request.FILES.keys())}")
         # Use comprehensive validation
@@ -2369,7 +2412,7 @@ def ajax_save_grade(request):
             
             logger.info(f"🎵 Audio feedback: {audio_feedback.name if audio_feedback else 'None'}")
             logger.info(f"🎥 Video feedback: {video_feedback.name if video_feedback else 'None'}")
-            logger.info(f"📝 Text feedback: {'Present' if feedback_text else 'None'}")
+            logger.info(f" Text feedback: {'Present' if feedback_text else 'None'}")
             
             if feedback_text or audio_feedback or video_feedback:
                 # Get the most recent feedback or create a new one
@@ -2673,11 +2716,11 @@ def ajax_save_grade(request):
                         defaults=feedback_data
                     )
         
-        logger.info(f"✅ Grade saved successfully for {activity_type} ID {activity_id}, student {student_id}")
+        logger.info(f" Grade saved successfully for {activity_type} ID {activity_id}, student {student_id}")
         return JsonResponse({'success': True})
         
     except Exception as e:
-        logger.error(f"❌ Error saving grade: {str(e)}", exc_info=True)
+        logger.error(f" Error saving grade: {str(e)}", exc_info=True)
         return JsonResponse({'success': False, 'error': str(e)})
 
 @login_required
@@ -2766,7 +2809,6 @@ def export_gradebook_csv(request, course_id):
         scorm_packages = []
         scorm_topics_without_packages = []
         try:
-            from scorm_cloud.models import SCORMCloudContent
             scorm_topics = Topic.objects.filter(
                 coursetopic__course=course,
                 content_type='SCORM',
@@ -2775,13 +2817,9 @@ def export_gradebook_csv(request, course_id):
             
             for topic in scorm_topics:
                 try:
-                    scorm_content = SCORMCloudContent.objects.filter(
-                        content_type='topic',
-                        content_id=str(topic.id)
-                    ).select_related('package').first()
-                    
-                    if scorm_content and scorm_content.package:
-                        scorm_packages.append(scorm_content.package)
+                    # Check if topic has a SCORM package
+                    if hasattr(topic, 'scorm_package') and topic.scorm_package:
+                        scorm_packages.append(topic.scorm_package)
                     else:
                         scorm_topics_without_packages.append(topic)
                 except Exception as e:

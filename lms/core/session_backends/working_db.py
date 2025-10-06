@@ -37,10 +37,10 @@ class SessionStore(DatabaseSessionStore):
             # Verify the session was actually saved by checking the database
             try:
                 session_obj = Session.objects.get(session_key=self.session_key)
-                logger.info(f"✅ Session {self.session_key} successfully saved to database")
+                logger.info(f" Session {self.session_key} successfully saved to database")
                 return result
             except Session.DoesNotExist:
-                logger.error(f"❌ Session {self.session_key} was not saved to database despite save() call")
+                logger.error(f" Session {self.session_key} was not saved to database despite save() call")
                 
                 # Fallback: manually save to database
                 session_obj = Session(
@@ -49,11 +49,11 @@ class SessionStore(DatabaseSessionStore):
                     expire_date=self.get_expiry_date()
                 )
                 session_obj.save()
-                logger.info(f"✅ Session {self.session_key} manually saved to database")
+                logger.info(f" Session {self.session_key} manually saved to database")
                 return result
                 
         except Exception as e:
-            logger.error(f"❌ Session save error: {str(e)}")
+            logger.error(f" Session save error: {str(e)}")
             raise
             
         return result

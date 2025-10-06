@@ -378,8 +378,8 @@ def get_validation_summary(validation_results) -> str:
         str: Summary message
     """
     if not validation_results['valid']:
-        return f"❌ Invalid SCORM package ({len(validation_results['errors'])} errors)"
+        return f" Invalid SCORM package ({len(validation_results['errors'])} errors)"
     elif validation_results['warnings']:
-        return f"⚠️ Valid with warnings ({len(validation_results['warnings'])} warnings)"
+        return f" Valid with warnings ({len(validation_results['warnings'])} warnings)"
     else:
-        return "✅ Valid SCORM package"
+        return " Valid SCORM package"

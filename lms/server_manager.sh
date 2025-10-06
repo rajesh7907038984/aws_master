@@ -18,23 +18,23 @@ case "$1" in
         rm -f "$LOGS_DIR/gunicorn.pid" 2>/dev/null
         sleep 3
         if ! lsof -Pi :8000 -sTCP:LISTEN -t >/dev/null 2>&1; then
-            echo "✅ All processes killed, port 8000 is free"
+            echo " All processes killed, port 8000 is free"
         else
-            echo "⚠️  Some processes may still be running"
+            echo "  Some processes may still be running"
         fi
         ;;
     enable-services)
-        echo "🔧 Enabling system services..."
-        echo "🌐 Enabling nginx service..."
+        echo " Enabling system services..."
+        echo " Enabling nginx service..."
         sudo systemctl enable nginx
-        echo "🔧 Enabling lms-production service..."
+        echo " Enabling lms-production service..."
         sudo systemctl enable lms-production
-        echo "🚀 Starting nginx..."
+        echo " Starting nginx..."
         sudo systemctl start nginx
-        echo "✅ Services enabled and nginx started"
+        echo " Services enabled and nginx started"
         ;;
     restart)
-        echo "🔄 Full server restart with checks..."
+        echo " Full server restart with checks..."
         cd $LMS_DIR
         
         echo "🛑 Killing ALL server processes..."
@@ -51,18 +51,18 @@ case "$1" in
         
         echo "🔍 Verifying cleanup..."
         if ! lsof -Pi :8000 -sTCP:LISTEN -t >/dev/null 2>&1; then
-            echo "✅ Port 8000 is free"
+            echo " Port 8000 is free"
         else
-            echo "❌ Port 8000 still occupied, force killing..."
+            echo " Port 8000 still occupied, force killing..."
             lsof -ti:8000 | xargs kill -9 2>/dev/null || true
             sleep 2
         fi
         
-        echo "🚀 Starting fresh server..."
+        echo " Starting fresh server..."
         if [ -f "production.env" ]; then
             export $(cat production.env | grep -v '^#' | xargs)
         else
-            echo "❌ production.env not found!"
+            echo " production.env not found!"
             exit 1
         fi
         
@@ -76,14 +76,14 @@ case "$1" in
         
         sleep 3
         if lsof -Pi :8000 -sTCP:LISTEN -t >/dev/null 2>&1; then
-            echo "✅ Server restarted successfully!"
+            echo " Server restarted successfully!"
         else
-            echo "❌ Failed to restart server!"
+            echo " Failed to restart server!"
             tail -10 $LOGS_DIR/gunicorn_startup.log
         fi
         ;;
     service-restart)
-        echo "🔄 Production service restart..."
+        echo " Production service restart..."
         echo "🛑 Stopping LMS production service..."
         sudo systemctl stop lms-production 2>/dev/null || true
         
@@ -93,7 +93,7 @@ case "$1" in
         lsof -ti:8000 | xargs kill -9 2>/dev/null || true
         sleep 3
         
-        echo "🚀 Starting LMS production service..."
+        echo " Starting LMS production service..."
         sudo systemctl start lms-production
         sleep 5
         
@@ -123,9 +123,9 @@ case "$1" in
         
         sleep 2
         if lsof -Pi :8000 -sTCP:LISTEN -t >/dev/null 2>&1; then
-            echo "✅ Quick restart successful!"
+            echo " Quick restart successful!"
         else
-            echo "❌ Quick restart failed!"
+            echo " Quick restart failed!"
             tail -10 $LOGS_DIR/gunicorn_startup.log
         fi
         ;;
@@ -135,37 +135,37 @@ case "$1" in
         
         # Check Nginx status
         if systemctl is-active --quiet nginx; then
-            echo "✅ Nginx is active"
+            echo " Nginx is active"
         else
-            echo "❌ Nginx is not active"
+            echo " Nginx is not active"
         fi
         
         # Check LMS Production service status
         if systemctl is-active --quiet lms-production 2>/dev/null; then
-            echo "✅ LMS Production service is active"
+            echo " LMS Production service is active"
         else
-            echo "⚠️  LMS Production service status unknown or inactive"
+            echo "  LMS Production service status unknown or inactive"
         fi
         
         # Check port 8000
         if lsof -Pi :8000 -sTCP:LISTEN -t >/dev/null 2>&1; then
-            echo "✅ Server is running on port 8000"
+            echo " Server is running on port 8000"
             PID=$(lsof -ti:8000)
             echo "🔢 Process ID: $PID"
             if curl -f -s -I http://localhost:8000/ > /dev/null 2>&1; then
-                echo "✅ Server is responding"
+                echo " Server is responding"
             else
-                echo "⚠️  Server may not be responding properly"
+                echo "  Server may not be responding properly"
             fi
         else
-            echo "❌ Server is not running on port 8000"
+            echo " Server is not running on port 8000"
         fi
         
         # Check if domain is accessible
         if curl -f -s -I https://lms.nexsy.io/ > /dev/null 2>&1; then
-            echo "✅ Domain https://lms.nexsy.io is accessible"
+            echo " Domain https://lms.nexsy.io is accessible"
         else
-            echo "⚠️  Domain may not be accessible or responding"
+            echo "  Domain may not be accessible or responding"
         fi
         ;;
     services-status)
@@ -216,7 +216,7 @@ case "$1" in
         echo "  $0 status            # Check status"
         echo "  $0 services-status   # Detailed service status"
         echo ""
-        echo "🔧 For Internal Server Error issues:"
+        echo " For Internal Server Error issues:"
         echo "  1. $0 enable-services"
         echo "  2. $0 restart"
         echo "  3. $0 status"

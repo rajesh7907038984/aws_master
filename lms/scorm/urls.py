@@ -16,6 +16,7 @@ urlpatterns = [
     path('api/<int:attempt_id>/', views.scorm_api, name='api'),
     path('status/<int:attempt_id>/', views.scorm_status, name='status'),
     path('debug/<int:attempt_id>/', views.scorm_debug, name='debug'),
+    path('tracking-report/<int:attempt_id>/', views.scorm_tracking_report, name='tracking_report'),
     
     # SCORM validation endpoints
     path('validate/', validation_views.validate_scorm_ajax, name='validate'),

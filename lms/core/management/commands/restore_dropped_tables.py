@@ -8,7 +8,7 @@ class Command(BaseCommand):
     help = 'Restore the incorrectly dropped tables to fix functionality'
 
     def handle(self, *args, **options):
-        self.stdout.write('🔄 Restoring incorrectly dropped tables...')
+        self.stdout.write(' Restoring incorrectly dropped tables...')
         
         # Recreate the dropped tables using raw SQL
         cursor = connection.cursor()
@@ -130,15 +130,15 @@ class Command(BaseCommand):
         for table in tables_to_recreate:
             try:
                 cursor.execute(table['sql'])
-                self.stdout.write(f'✅ Recreated table: {table["name"]}')
+                self.stdout.write(f' Recreated table: {table["name"]}')
                 created_count += 1
             except Exception as e:
                 self.stdout.write(
-                    self.style.WARNING(f'⚠️ Table {table["name"]} already exists or error: {e}')
+                    self.style.WARNING(f' Table {table["name"]} already exists or error: {e}')
                 )
         
         self.stdout.write(
-            self.style.SUCCESS(f'🎉 Successfully recreated {created_count} tables!')
+            self.style.SUCCESS(f' Successfully recreated {created_count} tables!')
         )
         
         # Run Django system check to verify everything is working
@@ -146,9 +146,9 @@ class Command(BaseCommand):
         try:
             call_command('check', verbosity=0)
             self.stdout.write(
-                self.style.SUCCESS('✅ System check passed - all functionality restored!')
+                self.style.SUCCESS(' System check passed - all functionality restored!')
             )
         except Exception as e:
             self.stdout.write(
-                self.style.ERROR(f'❌ System check failed: {e}')
+                self.style.ERROR(f' System check failed: {e}')
             )

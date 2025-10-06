@@ -410,11 +410,8 @@
             }
         }
         
-        // Synchronous wrapper for SCORM API calls
+        // CRITICAL FIX: Enhanced synchronous wrapper for SCORM API calls with proper resume support
         function makeApiCallSync(method, parameters) {
-            // For SCORM compatibility, we need to return synchronously
-            // This implementation makes actual API calls but returns cached results for synchronous compatibility
-            
             try {
                 // For critical bookmark elements, we need to make actual API calls
                 if (method === 'GetValue' || method === 'LMSGetValue') {
@@ -425,15 +422,20 @@
                     if (apiCache.has(cacheKey)) {
                         const cached = apiCache.get(cacheKey);
                         if (Date.now() - cached.timestamp < CACHE_DURATION) {
+                            console.log(`[SCORM API] ${method}(${element}) -> cached: ${cached.value}`);
                             return cached.value;
                         }
                     }
                     
-                    // For bookmark-related elements, make actual API call
+                    // CRITICAL FIX: For ALL bookmark-related elements, make actual API call
                     if (element === 'cmi.core.lesson_location' || element === 'cmi.location' || 
                         element === 'cmi.suspend_data' || element === 'cmi.core.entry' || 
                         element === 'cmi.entry' || element === 'cmi.core.lesson_status' || 
-                        element === 'cmi.completion_status') {
+                        element === 'cmi.completion_status' || element === 'cmi.core.student_id' ||
+                        element === 'cmi.learner_id' || element === 'cmi.core.student_name' ||
+                        element === 'cmi.learner_name' || element === 'cmi.core.score.max' ||
+                        element === 'cmi.score.max' || element === 'cmi.core.score.min' ||
+                        element === 'cmi.score.min' || element === 'cmi.mode') {
                         
                         // Make synchronous API call using XMLHttpRequest
                         try {
@@ -460,7 +462,48 @@
                                     
                                     console.log(`[SCORM API] ${method}(${element}) -> ${result}`);
                                     return result;
+                                } else {
+                                    console.error(`[SCORM API] ${method}(${element}) failed: ${response.error}`);
                                 }
+                            } else {
+                                console.error(`[SCORM API] ${method}(${element}) HTTP error: ${xhr.status}`);
+                            }
+                        } catch (e) {
+                            console.error(`[SCORM API] ${method} sync error:`, e);
+                        }
+                    }
+                }
+                
+                // CRITICAL FIX: For SetValue operations, always make actual API calls for bookmark data
+                if (method === 'SetValue' || method === 'LMSSetValue') {
+                    const element = parameters[0];
+                    const value = parameters[1];
+                    
+                    // For bookmark-related elements, make actual API call
+                    if (element === 'cmi.core.lesson_location' || element === 'cmi.location' || 
+                        element === 'cmi.suspend_data') {
+                        
+                        try {
+                            const xhr = new XMLHttpRequest();
+                            xhr.open('POST', API_ENDPOINT, false); // Synchronous request
+                            xhr.setRequestHeader('Content-Type', 'application/json');
+                            xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+                            
+                            xhr.send(JSON.stringify({
+                                method: method,
+                                parameters: parameters
+                            }));
+                            
+                            if (xhr.status === 200) {
+                                const response = JSON.parse(xhr.responseText);
+                                if (response.success) {
+                                    console.log(`[SCORM API] ${method}(${element}, ${value}) -> stored successfully`);
+                                    return 'true';
+                                } else {
+                                    console.error(`[SCORM API] ${method}(${element}) failed: ${response.error}`);
+                                }
+                            } else {
+                                console.error(`[SCORM API] ${method}(${element}) HTTP error: ${xhr.status}`);
                             }
                         } catch (e) {
                             console.error(`[SCORM API] ${method} sync error:`, e);
@@ -543,7 +586,7 @@
                 frame.style.display = 'block';
             }
             
-            console.log('✅ SCORM content loaded successfully');
+            console.log('SCORM content loaded successfully');
             
             // Standard SCORM functionality - no custom initialization needed
             
@@ -567,10 +610,12 @@
                 const iframeDoc = frame.contentDocument || frame.contentWindow.document;
                 if (iframeDoc) {
                     injectScormAPI(iframeDoc);
+                    // Also inject exit button handler
+                    injectExitButtonHandler();
                 }
             } catch (e) {
                 // Cross-origin, can't inject directly
-                console.log('ℹ️ Cross-origin iframe, API will be available via parent window');
+                console.log('Cross-origin iframe, API will be available via parent window');
             }
         }
         
@@ -595,7 +640,7 @@
                 document.head.appendChild(link);
             });
             
-            console.log('🚀 Preloading SCORM assets for better performance');
+            console.log('Preloading SCORM assets for better performance');
         }
         
         // Preload common SCORM API calls for better performance
@@ -623,7 +668,7 @@
         
         // Preload bookmark data specifically for resume functionality
         function preloadBookmarkData() {
-            console.log('📍 Preloading bookmark data for resume functionality...');
+            console.log('Preloading bookmark data for resume functionality...');
             
             const bookmarkCalls = [
                 ['GetValue', ['cmi.core.lesson_location']],
@@ -635,7 +680,22 @@
             
             bookmarkCalls.forEach(([method, params]) => {
                 makeApiCall(method, params).then(result => {
-                    console.log(`📍 Bookmark data: ${params[0]} = ${result}`);
+                    console.log(`Bookmark data: ${params[0]} = ${result}`);
+                    
+                    // CRITICAL FIX: Store bookmark data in global cache for immediate access
+                    if (result && result !== '') {
+                        const cacheKey = method + '_' + JSON.stringify(params);
+                        apiCache.set(cacheKey, {
+                            value: result,
+                            timestamp: Date.now()
+                        });
+                        
+                        // Also store in window for iframe access
+                        if (!window.scormBookmarkData) {
+                            window.scormBookmarkData = {};
+                        }
+                        window.scormBookmarkData[params[0]] = result;
+                    }
                 }).catch(err => {
                     console.log(`Bookmark preload ${method} failed:`, err);
                 });
@@ -647,14 +707,14 @@
             const frame = document.getElementById('scormFrame');
             
             if (loading) {
-                loading.innerHTML = '❌ Failed to load SCORM content';
+                loading.innerHTML = 'Failed to load SCORM content';
                 loading.className = 'error';
             }
             
-            console.error('❌ Failed to load SCORM content');
+            console.error('Failed to load SCORM content');
         }
         
-        // Inject SCORM API into iframe document
+        // Enhanced SCORM API injection into iframe document
         function injectScormAPI(doc) {
             try {
                 const api = createScormAPI();
@@ -664,13 +724,42 @@
                 if (iframeWindow) {
                     iframeWindow.API = api;
                     iframeWindow.API_1484_11 = api;
-                    console.log('✅ SCORM API injected into iframe');
+                    console.log('SCORM API injected into iframe');
                     
                     // Also inject bookmark data if available
                     injectBookmarkData(iframeWindow);
+                    
+                    // Add exit button communication helper
+                    iframeWindow.scormExit = function() {
+                        console.log('SCORM exit called from iframe');
+                        try {
+                            // Try to save data first
+                            if (window.parent && window.parent.API) {
+                                if (window.parent.API.LMSCommit) {
+                                    window.parent.API.LMSCommit('');
+                                }
+                                if (window.parent.API.LMSFinish) {
+                                    window.parent.API.LMSFinish('');
+                                }
+                            }
+                            
+                            // Send exit message to parent
+                            window.parent.postMessage({
+                                action: 'scorm_exit',
+                                type: 'exit_assessment',
+                                source: 'iframe'
+                            }, '*');
+                        } catch (error) {
+                            console.error('Error in iframe exit:', error);
+                            // Still send message
+                            window.parent.postMessage('scorm_exit', '*');
+                        }
+                    };
+                    
+                    console.log('SCORM exit helper added to iframe');
                 }
             } catch (e) {
-                console.log('ℹ️ Could not inject API into iframe:', e.message);
+                console.log('Could not inject API into iframe:', e.message);
             }
         }
         
@@ -689,7 +778,7 @@
                 bookmarkElements.forEach(element => {
                     makeApiCall('GetValue', [element]).then(result => {
                         if (result && result !== '') {
-                            console.log(`📍 Injecting bookmark data: ${element} = ${result}`);
+                            console.log(`Injecting bookmark data: ${element} = ${result}`);
                             // Store in iframe window for immediate access
                             iframeWindow.scormBookmarkData = iframeWindow.scormBookmarkData || {};
                             iframeWindow.scormBookmarkData[element] = result;
@@ -699,7 +788,7 @@
                     });
                 });
             } catch (e) {
-                console.log('ℹ️ Could not inject bookmark data:', e.message);
+                console.log('Could not inject bookmark data:', e.message);
             }
         }
         
@@ -710,7 +799,7 @@
         // Auto-initialize API after a short delay
         setTimeout(() => {
             if (window.API && !window.API._initialized) {
-                console.log('🚀 Auto-initializing SCORM API...');
+                console.log('Auto-initializing SCORM API...');
                 window.API.LMSInitialize('');
                 window.API_1484_11.Initialize('');
                 window.API._initialized = true;
@@ -720,16 +809,432 @@
         // Handle page unload
         window.addEventListener('beforeunload', function() {
             if (window.API && window.API._initialized) {
-                console.log('🔄 Terminating SCORM session...');
+                console.log('Terminating SCORM session...');
                 window.API.LMSFinish('');
                 window.API_1484_11.Terminate('');
             }
         });
         
+        // CRITICAL FIX: Handle SCORM exit/terminate events
+        function handleScormExit() {
+            console.log('SCORM Exit Assessment triggered');
+            
+            // Call SCORM terminate methods
+            if (window.API && window.API._initialized) {
+                try {
+                    console.log('Calling SCORM Terminate...');
+                    const result = window.API.LMSFinish('');
+                    console.log('SCORM Terminate result:', result);
+                    
+                    // Wait a moment for data to be saved
+                    setTimeout(() => {
+                        console.log('Redirecting to topic view...');
+                        // Redirect to topic view
+                        window.location.href = '{% url "courses:topic_view" topic.id %}';
+                    }, 1000);
+                } catch (error) {
+                    console.error('SCORM Terminate error:', error);
+                    // Still redirect even if terminate fails
+                    setTimeout(() => {
+                        window.location.href = '{% url "courses:topic_view" topic.id %}';
+                    }, 1000);
+                }
+            } else {
+                console.log('SCORM API not initialized, redirecting anyway...');
+                window.location.href = '{% url "courses:topic_view" topic.id %}';
+            }
+        }
+        
+        // Enhanced message listener for iframe exit communication
+        window.addEventListener('message', function(event) {
+            console.log('Received message from iframe:', event.data, 'Origin:', event.origin);
+            
+            // Handle exit messages from SCORM content
+            let shouldExit = false;
+            
+            if (event.data && typeof event.data === 'string') {
+                const message = event.data.toLowerCase();
+                if (message.includes('exit') || message.includes('terminate') || message.includes('finish') || 
+                    message === 'scorm_exit' || message === 'exit_assessment' || message === 'complete_assessment') {
+                    console.log('Received string exit message from SCORM content:', event.data);
+                    shouldExit = true;
+                }
+            } else if (event.data && typeof event.data === 'object') {
+                // Handle structured messages
+                if (event.data.action === 'exit' || event.data.action === 'terminate' || event.data.action === 'finish' ||
+                    event.data.type === 'scorm_exit' || event.data.type === 'exit_assessment') {
+                    console.log('Received structured exit message from SCORM content:', event.data);
+                    shouldExit = true;
+                }
+            }
+            
+            if (shouldExit) {
+                console.log('Processing exit request from SCORM content...');
+                
+                // Ensure all SCORM data is saved before redirecting
+                if (window.API && window.API._initialized) {
+                    try {
+                        console.log('Saving SCORM data before exit...');
+                        
+                        // Force commit any pending data
+                        if (window.API.LMSCommit) {
+                            window.API.LMSCommit('');
+                        }
+                        if (window.API_1484_11 && window.API_1484_11.Commit) {
+                            window.API_1484_11.Commit('');
+                        }
+                        
+                        // Terminate the session
+                        if (window.API.LMSFinish) {
+                            const result = window.API.LMSFinish('');
+                            console.log('SCORM LMSFinish result:', result);
+                        }
+                        if (window.API_1484_11 && window.API_1484_11.Terminate) {
+                            window.API_1484_11.Terminate('');
+                        }
+                        
+                        console.log('SCORM data saved successfully');
+                    } catch (error) {
+                        console.error('Error saving SCORM data:', error);
+                    }
+                }
+                
+                // Redirect to topic view after a short delay to ensure data is saved
+                setTimeout(() => {
+                    console.log('Redirecting to topic view after exit...');
+                    window.location.href = '{% url "courses:topic_view" topic.id %}';
+                }, 1000);
+            }
+        });
+        
+        // Make handleScormExit available globally for SCORM content to call
+        window.handleScormExit = handleScormExit;
+        
+        // Focus on iframe content - no global handlers needed
+        
+        // CRITICAL FIX: Enhanced EXIT ASSESSMENT button handling
+        function handleExitButtonClicks() {
+            // Function to find and fix exit buttons
+            function fixExitButtons() {
+                // Look for various exit button patterns - expanded list
+                const exitButtonSelectors = [
+                    '.courseExit',
+                    '.courseExit--standard',
+                    'button[class*="exit"]',
+                    'button[class*="Exit"]',
+                    'button:contains("EXIT")',
+                    'button:contains("Exit")',
+                    'button:contains("exit")',
+                    'input[type="button"][value*="EXIT"]',
+                    'input[type="button"][value*="Exit"]',
+                    'input[type="button"][value*="exit"]',
+                    'a[class*="exit"]',
+                    'a:contains("EXIT")',
+                    'a:contains("Exit")',
+                    'a:contains("exit")',
+                    '[data-action="exit"]',
+                    '[data-exit="true"]',
+                    '.exit-button',
+                    '.exit-btn',
+                    '#exit-button',
+                    '#exit-btn'
+                ];
+                
+                let buttonsFound = 0;
+                
+                exitButtonSelectors.forEach(selector => {
+                    try {
+                        const buttons = document.querySelectorAll(selector);
+                        buttons.forEach(button => {
+                            // Check if button text contains "EXIT" or "Exit"
+                            const buttonText = button.textContent || button.value || '';
+                            if (buttonText.toLowerCase().includes('exit') || 
+                                button.classList.contains('courseExit') ||
+                                button.classList.contains('courseExit--standard')) {
+                                
+                                console.log('Found exit button:', button);
+                                buttonsFound++;
+                                
+                                // Remove any existing click handlers to avoid conflicts
+                                const newButton = button.cloneNode(true);
+                                button.parentNode.replaceChild(newButton, button);
+                                
+                                // Add our click handler with enhanced error handling
+                                newButton.addEventListener('click', function(e) {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    
+                                    console.log('EXIT ASSESSMENT button clicked - Enhanced handler');
+                                    
+                                    // Show user feedback
+                                    const originalText = newButton.textContent || newButton.value;
+                                    newButton.textContent = 'Exiting...';
+                                    newButton.disabled = true;
+                                    
+                                    // Call SCORM API terminate functions with retry logic
+                                    let terminateAttempts = 0;
+                                    const maxAttempts = 3;
+                                    
+                                    function attemptTerminate() {
+                                        terminateAttempts++;
+                                        console.log(`SCORM Terminate attempt ${terminateAttempts}/${maxAttempts}`);
+                                        
+                                        if (window.API && window.API._initialized) {
+                                            try {
+                                                // Call both SCORM 1.2 and 2004 APIs
+                                                const result1 = window.API.LMSFinish('');
+                                                console.log('SCORM 1.2 LMSFinish result:', result1);
+                                                
+                                                if (window.API_1484_11) {
+                                                    const result2 = window.API_1484_11.Terminate('');
+                                                    console.log('SCORM 2004 Terminate result:', result2);
+                                                }
+                                                
+                                                // Force commit any pending data
+                                                if (window.API.LMSCommit) {
+                                                    window.API.LMSCommit('');
+                                                }
+                                                if (window.API_1484_11 && window.API_1484_11.Commit) {
+                                                    window.API_1484_11.Commit('');
+                                                }
+                                                
+                                                console.log('SCORM Terminate successful, redirecting...');
+                                                setTimeout(() => {
+                                                    window.location.href = '{% url "courses:topic_view" topic.id %}';
+                                                }, 500);
+                                                
+                                            } catch (error) {
+                                                console.error(`SCORM Terminate attempt ${terminateAttempts} failed:`, error);
+                                                
+                                                if (terminateAttempts < maxAttempts) {
+                                                    setTimeout(attemptTerminate, 1000);
+                                                } else {
+                                                    console.log('Max terminate attempts reached, redirecting anyway...');
+                                                    setTimeout(() => {
+                                                        window.location.href = '{% url "courses:topic_view" topic.id %}';
+                                                    }, 500);
+                                                }
+                                            }
+                                        } else {
+                                            console.log('SCORM API not initialized, redirecting anyway...');
+                                            setTimeout(() => {
+                                                window.location.href = '{% url "courses:topic_view" topic.id %}';
+                                            }, 500);
+                                        }
+                                    }
+                                    
+                                    // Start the terminate process
+                                    attemptTerminate();
+                                });
+                                
+                                console.log('Exit button handler attached successfully');
+                            }
+                        });
+                    } catch (e) {
+                        // Ignore selector errors
+                    }
+                });
+                
+                if (buttonsFound > 0) {
+                    console.log(`Fixed ${buttonsFound} exit button(s)`);
+                }
+            }
+            
+            // Run immediately
+            fixExitButtons();
+            
+            // Also run periodically to catch dynamically added buttons
+            setInterval(fixExitButtons, 2000);
+            
+            // Use MutationObserver to watch for new buttons
+            if (window.MutationObserver) {
+                const observer = new MutationObserver(function(mutations) {
+                    let shouldCheck = false;
+                    mutations.forEach(function(mutation) {
+                        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                            shouldCheck = true;
+                        }
+                    });
+                    if (shouldCheck) {
+                        setTimeout(fixExitButtons, 100);
+                    }
+                });
+                
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true
+                });
+            }
+        }
+        
+        // Enhanced exit button handler injection for iframe content
+        function injectExitButtonHandler() {
+            try {
+                const iframe = document.getElementById('scormFrame');
+                if (iframe && iframe.contentDocument) {
+                    const iframeDoc = iframe.contentDocument;
+                    const iframeWindow = iframe.contentWindow;
+                    
+                    // Inject comprehensive exit button handler script
+                    const script = iframeDoc.createElement('script');
+                    script.textContent = `
+                        (function() {
+                            console.log('SCORM Exit Button Handler injected into iframe');
+                            
+                            // Enhanced exit button detection and handling
+                            function handleExitButtons() {
+                                function findAndFixExitButtons() {
+                                    const exitSelectors = [
+                                        '.courseExit',
+                                        '.courseExit--standard',
+                                        'button[class*="exit"]',
+                                        'button[class*="Exit"]',
+                                        'button:contains("EXIT")',
+                                        'button:contains("Exit")',
+                                        'button:contains("exit")',
+                                        'input[type="button"][value*="EXIT"]',
+                                        'input[type="button"][value*="Exit"]',
+                                        'input[type="button"][value*="exit"]',
+                                        'a[class*="exit"]',
+                                        'a:contains("EXIT")',
+                                        'a:contains("Exit")',
+                                        'a:contains("exit")',
+                                        '[data-action="exit"]',
+                                        '[data-exit="true"]',
+                                        '.exit-button',
+                                        '.exit-btn',
+                                        '#exit-button',
+                                        '#exit-btn'
+                                    ];
+                                    
+                                    let buttonsFound = 0;
+                                    
+                                    exitSelectors.forEach(selector => {
+                                        try {
+                                            const buttons = document.querySelectorAll(selector);
+                                            buttons.forEach(button => {
+                                                const buttonText = button.textContent || button.value || '';
+                                                if (buttonText.toLowerCase().includes('exit') || 
+                                                    button.classList.contains('courseExit') ||
+                                                    button.classList.contains('courseExit--standard') ||
+                                                    button.getAttribute('data-action') === 'exit' ||
+                                                    button.getAttribute('data-exit') === 'true') {
+                                                    
+                                                    console.log('Found exit button in iframe:', button);
+                                                    buttonsFound++;
+                                                    
+                                                    // Remove existing handlers and add new one
+                                                    const newButton = button.cloneNode(true);
+                                                    button.parentNode.replaceChild(newButton, button);
+                                                    
+                                                    newButton.addEventListener('click', function(e) {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        
+                                                        console.log('EXIT ASSESSMENT button clicked in iframe');
+                                                        
+                                                        // Show user feedback
+                                                        const originalText = newButton.textContent || newButton.value;
+                                                        newButton.textContent = 'Exiting...';
+                                                        newButton.disabled = true;
+                                                        
+                                                        // Call SCORM API to save data
+                                                        try {
+                                                            // Try to call parent window's SCORM API
+                                                            if (window.parent && window.parent.API) {
+                                                                console.log('Calling parent SCORM API...');
+                                                                
+                                                                // Save current progress
+                                                                if (window.parent.API.LMSCommit) {
+                                                                    window.parent.API.LMSCommit('');
+                                                                }
+                                                                
+                                                                // Terminate session
+                                                                if (window.parent.API.LMSFinish) {
+                                                                    const result = window.parent.API.LMSFinish('');
+                                                                    console.log('SCORM LMSFinish result:', result);
+                                                                }
+                                                                
+                                                                // Also try SCORM 2004 API
+                                                                if (window.parent.API_1484_11 && window.parent.API_1484_11.Terminate) {
+                                                                    window.parent.API_1484_11.Terminate('');
+                                                                }
+                                                                
+                                                                // Send message to parent to handle redirect
+                                                                window.parent.postMessage({
+                                                                    action: 'scorm_exit',
+                                                                    type: 'exit_assessment'
+                                                                }, '*');
+                                                                
+                                                                console.log('SCORM data saved, redirecting...');
+                                                            } else {
+                                                                console.log('Parent SCORM API not available, sending exit message...');
+                                                                window.parent.postMessage('scorm_exit', '*');
+                                                            }
+                                                        } catch (error) {
+                                                            console.error('Error calling SCORM API:', error);
+                                                            // Still send exit message
+                                                            window.parent.postMessage('scorm_exit', '*');
+                                                        }
+                                                    });
+                                                    
+                                                    console.log('Exit button handler attached in iframe');
+                                                }
+                                            });
+                                        } catch (e) {
+                                            // Ignore selector errors
+                                        }
+                                    });
+                                    
+                                    if (buttonsFound > 0) {
+                                        console.log('Fixed ' + buttonsFound + ' exit button(s) in iframe');
+                                    }
+                                }
+                                
+                                // Run immediately
+                                findAndFixExitButtons();
+                                
+                                // Also run periodically to catch dynamically added buttons
+                                setInterval(findAndFixExitButtons, 2000);
+                                
+                                // Use MutationObserver to watch for new buttons
+                                if (window.MutationObserver) {
+                                    const observer = new MutationObserver(function(mutations) {
+                                        let shouldCheck = false;
+                                        mutations.forEach(function(mutation) {
+                                            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                                                shouldCheck = true;
+                                            }
+                                        });
+                                        if (shouldCheck) {
+                                            setTimeout(findAndFixExitButtons, 100);
+                                        }
+                                    });
+                                    
+                                    observer.observe(document.body, {
+                                        childList: true,
+                                        subtree: true
+                                    });
+                                }
+                            }
+                            
+                            // Start the exit button handler
+                            handleExitButtons();
+                        })();
+                    `;
+                    iframeDoc.head.appendChild(script);
+                    
+                    console.log('Enhanced exit button handler injected into iframe');
+                }
+            } catch (e) {
+                console.log('Could not inject exit button handler into iframe (cross-origin):', e.message);
+            }
+        }
+        
         
         // Debug info for instructors
         {% if is_instructor_or_admin %}
-        console.log('🔧 SCORM Debug Info:');
+        console.log('SCORM Debug Info:');
         console.log('  Attempt ID:', ATTEMPT_ID);
         console.log('  API Endpoint:', API_ENDPOINT);
         console.log('  Preview Mode:', IS_PREVIEW);

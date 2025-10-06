@@ -81,7 +81,7 @@ class Command(BaseCommand):
             if not force and total_cleaned > 100:
                 self.stdout.write(
                     self.style.WARNING(
-                        f'⚠️  Would clean up {total_cleaned} attempts. Use --force to proceed.'
+                        f'  Would clean up {total_cleaned} attempts. Use --force to proceed.'
                     )
                 )
                 return
@@ -97,7 +97,7 @@ class Command(BaseCommand):
             else:
                 self.stdout.write(
                     self.style.SUCCESS(
-                        f'✅ Cleaned up {expired_count} expired, {stale_count} stale attempts, '
+                        f' Cleaned up {expired_count} expired, {stale_count} stale attempts, '
                         f'and {orphaned_count} orphaned answers'
                     )
                 )
@@ -105,7 +105,7 @@ class Command(BaseCommand):
         except Exception as e:
             logger.error(f"Quiz cleanup failed: {str(e)}")
             self.stdout.write(
-                self.style.ERROR(f'❌ Quiz cleanup failed: {str(e)}')
+                self.style.ERROR(f' Quiz cleanup failed: {str(e)}')
             )
             return 1
 
@@ -139,7 +139,7 @@ class Command(BaseCommand):
                 
                 if verbose:
                     for attempt in expired_attempts:
-                        self.stdout.write(f'  ❌ Deleted expired attempt {attempt.id} for quiz "{attempt.quiz.title}"')
+                        self.stdout.write(f'   Deleted expired attempt {attempt.id} for quiz "{attempt.quiz.title}"')
         
         return len(expired_attempts)
     

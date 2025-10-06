@@ -24,10 +24,10 @@ class Command(BaseCommand):
             # Clean SCORM related data
             self.stdout.write('Cleaning SCORM data...')
             try:
-                SCORMRegistration.objects.all().delete()
-                SCORMDestination.objects.all().delete()
-                SCORMCloudContent.objects.all().delete()
-                SCORMPackage.objects.all().delete()
+                # Use new SCORM implementation - clean TopicProgress instead
+                from courses.models import TopicProgress
+                TopicProgress.objects.all().delete()
+                self.stdout.write('Cleaned TopicProgress data (new SCORM implementation)')
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f'Error cleaning SCORM data: {str(e)}'))
 

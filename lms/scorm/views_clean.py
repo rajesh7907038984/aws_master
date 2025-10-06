@@ -103,7 +103,7 @@ def scorm_view(request, topic_id):
             'created_at': timezone.now().isoformat(),
         }
         
-        logger.info(f"🎭 Created preview attempt {attempt_id} for user {request.user.username} on topic {topic_id}")
+        logger.info(f"Created preview attempt {attempt_id} for user {request.user.username} on topic {topic_id}")
     else:
         # Normal mode: Get or create actual database attempt for user tracking
         last_attempt = ScormAttempt.objects.filter(
@@ -152,6 +152,7 @@ def scorm_view(request, topic_id):
     response['Content-Security-Policy'] = (
         "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
         "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
+        "worker-src 'self' blob: data: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
         "style-src 'self' 'unsafe-inline' https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
         "img-src 'self' data: blob: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
         "font-src 'self' data: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
@@ -231,10 +232,10 @@ def scorm_api(request, attempt_id):
         # Initialize appropriate API handler
         if is_preview:
             handler = ScormPreviewHandler(attempt)
-            logger.info(f"🎭 Using preview handler for attempt {attempt_id}")
+            logger.info(f"Using preview handler for attempt {attempt_id}")
         else:
             handler = ScormAPIHandler(attempt)
-            logger.info(f"📝 Using regular handler for attempt {attempt_id}")
+            logger.info(f"Using regular handler for attempt {attempt_id}")
         
         # Route to appropriate API method
         if method == 'Initialize' or method == 'LMSInitialize':

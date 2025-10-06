@@ -421,7 +421,7 @@ class TopicProgressAdmin(admin.ModelAdmin):
                                     'success_status': success_status,
                                     'completion_percent': completion_percent,
                                     'last_updated': timezone.now().isoformat(),
-                                    'scorm_cloud_sync': True,
+                                    'scorm_sync': True,
                                     'status': completion_status if completion_status else 'not_attempted'
                                 })
                                 
@@ -716,9 +716,9 @@ class TopicProgressAdmin(admin.ModelAdmin):
             if last_updated_at:
                 html += f"<tr><td>Last Updated At</td><td>{last_updated_at}</td></tr>"
             
-            # Display SCORM Cloud sync status
-            scorm_sync = obj.progress_data.get('scorm_cloud_sync', False)
-            html += f"<tr><td>Scorm Cloud Sync</td><td>{'Yes' if scorm_sync else 'No'}</td></tr>"
+            # Display SCORM sync status
+            scorm_sync = obj.progress_data.get('scorm_sync', False)
+            html += f"<tr><td>SCORM Sync</td><td>{'Yes' if scorm_sync else 'No'}</td></tr>"
             
             # Display completion status
             completion_status = obj.progress_data.get('completion_status', 'not_attempted')
@@ -1039,7 +1039,7 @@ class TopicProgressAdmin(admin.ModelAdmin):
                                     'success_status': success_status,
                                     'completion_percent': completion_percent,
                                     'last_updated': timezone.now().isoformat(),
-                                    'scorm_cloud_sync': True,
+                                    'scorm_sync': True,
                                     'manual_sync': True,
                                     'status': completion_status if completion_status else 'not_attempted'
                                 })

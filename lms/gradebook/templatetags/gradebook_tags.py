@@ -182,8 +182,8 @@ def has_scorm_progress(registration):
             return True
         if registration.progress_data.get('completion_percent', 0) > 0:
             return True
-        # Only consider scorm_cloud_sync if there's also evidence of user interaction
-        if (registration.progress_data.get('scorm_cloud_sync', False) and 
+        # Only consider scorm_sync if there's also evidence of user interaction
+        if (registration.progress_data.get('scorm_sync', False) and 
             (registration.last_accessed or registration.total_time > 0)):
             return True
     

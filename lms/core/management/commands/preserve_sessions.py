@@ -32,7 +32,7 @@ class Command(BaseCommand):
         health = check_session_health()
         if health:
             self.stdout.write(f"📊 Session Health Report:")
-            self.stdout.write(f"   Redis Connection: {'✅ OK' if health['redis_connection'] else '❌ Failed'}")
+            self.stdout.write(f"   Redis Connection: {' OK' if health['redis_connection'] else ' Failed'}")
             self.stdout.write(f"   Active Sessions: {health['database_sessions']}")
             self.stdout.write(f"   Session Engine: {health['session_engine']}")
             self.stdout.write(f"   Cache Alias: {health['session_cache_alias']}")
@@ -40,7 +40,7 @@ class Command(BaseCommand):
         
         if options['check_only']:
             self.stdout.write(
-                self.style.SUCCESS('✅ Session health check completed')
+                self.style.SUCCESS(' Session health check completed')
             )
             return
         
@@ -53,7 +53,7 @@ class Command(BaseCommand):
         if result:
             self.stdout.write(
                 self.style.SUCCESS(
-                    f"✅ Session preservation completed:\n"
+                    f" Session preservation completed:\n"
                     f"   Extended sessions: {result['extended_sessions']}\n"
                     f"   Cleared expired: {result['cleared_sessions']}\n"
                     f"   Active sessions: {result['active_sessions']}"
@@ -61,5 +61,5 @@ class Command(BaseCommand):
             )
         else:
             self.stdout.write(
-                self.style.ERROR('❌ Failed to preserve sessions')
+                self.style.ERROR(' Failed to preserve sessions')
             )

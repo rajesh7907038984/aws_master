@@ -387,7 +387,7 @@ class UserProgressChart {
 
 // Static create method for template compatibility
 UserProgressChart.create = function(canvasId, userData) {
-    console.log('🔧 UserProgressChart.create called with:', canvasId, userData);
+    console.log(' UserProgressChart.create called with:', canvasId, userData);
     return new UserProgressChart({
         canvasId: canvasId,
         userData: userData

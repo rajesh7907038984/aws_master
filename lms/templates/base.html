@@ -1116,7 +1116,7 @@
                             console.log('📱 Mobile menu closed via fallback');
                         }
                     } else {
-                        console.error('❌ Mobile menu element not found');
+                        console.error(' Mobile menu element not found');
                     }
                 } else {
                     // Desktop behavior - toggle sidebar collapse
@@ -1135,13 +1135,13 @@
                         localStorage.setItem('sidebar_collapsed', !wasCollapsed);
                         console.log('🖥️ Sidebar toggled via fallback:', !wasCollapsed);
                     } else {
-                        console.error('❌ Sidebar or main content element not found');
+                        console.error(' Sidebar or main content element not found');
                         console.error('Sidebar:', sidebar);
                         console.error('Main content:', mainContent);
                     }
                 }
             } catch (error) {
-                console.error('❌ Error in handleSidebarToggle:', error);
+                console.error(' Error in handleSidebarToggle:', error);
             }
         }
         

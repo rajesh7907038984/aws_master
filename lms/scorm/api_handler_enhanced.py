@@ -9,6 +9,7 @@ import re
 from datetime import datetime, timedelta
 from decimal import Decimal
 from django.utils import timezone
+from .models import ScormInteraction, ScormObjective, ScormComment
 
 logger = logging.getLogger(__name__)
 
@@ -248,11 +249,17 @@ class ScormAPIHandlerEnhanced:
         self.initialized = True
         self.last_error = '0'
         
+        # CRITICAL FIX: Ensure CMI data is properly initialized with resume data BEFORE any GetValue calls
+        if not self.attempt.cmi_data:
+            self.attempt.cmi_data = self._initialize_cmi_data()
+        
         # Mark as initialized in CMI data for persistence
         self.attempt.cmi_data['_initialized'] = True
         
-        # Set entry mode based on bookmark data
-        if self.attempt.lesson_location or self.attempt.suspend_data:
+        # CRITICAL FIX: Check for existing bookmark data and set entry mode accordingly
+        has_bookmark_data = bool(self.attempt.lesson_location or self.attempt.suspend_data)
+        
+        if has_bookmark_data:
             self.attempt.entry = 'resume'
             suspend_data_preview = self.attempt.suspend_data[:50] if self.attempt.suspend_data else "None"
             logger.info("SCORM Resume: location='%s', suspend_data='%s...'", self.attempt.lesson_location, suspend_data_preview)
@@ -260,39 +267,79 @@ class ScormAPIHandlerEnhanced:
             self.attempt.entry = 'ab-initio'
             logger.info("SCORM New attempt: starting fresh")
         
-        # Update CMI data with proper defaults
+        # CRITICAL FIX: Update CMI data with proper defaults AND resume data
         if self.version == '1.2':
+            # CRITICAL FIX: Always set entry mode in CMI data
             self.attempt.cmi_data['cmi.core.entry'] = self.attempt.entry
+            
+            # CRITICAL FIX: Ensure bookmark data is ALWAYS available in CMI data
+            if self.attempt.lesson_location:
+                self.attempt.cmi_data['cmi.core.lesson_location'] = self.attempt.lesson_location
+            if self.attempt.suspend_data:
+                self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data
+            
+            # Set other required fields
             self.attempt.cmi_data['cmi.core.lesson_status'] = self.attempt.lesson_status or 'not attempted'
             self.attempt.cmi_data['cmi.core.lesson_mode'] = 'normal'
             self.attempt.cmi_data['cmi.core.credit'] = 'credit'
             self.attempt.cmi_data['cmi.core.student_id'] = str(self.attempt.user.id) if self.attempt.user else 'student'
             self.attempt.cmi_data['cmi.core.student_name'] = self.attempt.user.get_full_name() or self.attempt.user.username if self.attempt.user else 'Student'
         else:
+            # CRITICAL FIX: Always set entry mode in CMI data
             self.attempt.cmi_data['cmi.entry'] = self.attempt.entry
+            
+            # CRITICAL FIX: Ensure bookmark data is ALWAYS available in CMI data
+            if self.attempt.lesson_location:
+                self.attempt.cmi_data['cmi.location'] = self.attempt.lesson_location
+            if self.attempt.suspend_data:
+                self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data
+            
+            # Set other required fields
             self.attempt.cmi_data['cmi.completion_status'] = self.attempt.lesson_status or 'not attempted'
             self.attempt.cmi_data['cmi.mode'] = 'normal'
             self.attempt.cmi_data['cmi.credit'] = 'credit'
             self.attempt.cmi_data['cmi.learner_id'] = str(self.attempt.user.id) if self.attempt.user else 'student'
             self.attempt.cmi_data['cmi.learner_name'] = self.attempt.user.get_full_name() or self.attempt.user.username if self.attempt.user else 'Student'
         
-        # Save the updated data
+        # CRITICAL FIX: Save the updated data immediately
         self.attempt.save()
         
         logger.info("SCORM API initialized for attempt %s", self.attempt.id)
+        logger.info("Resume data in CMI: entry='%s', location='%s'", 
+                   self.attempt.cmi_data.get('cmi.core.entry' if self.version == '1.2' else 'cmi.entry'),
+                   self.attempt.cmi_data.get('cmi.core.lesson_location' if self.version == '1.2' else 'cmi.location'))
         return 'true'
     
     def terminate(self):
         """LMSFinish / Terminate"""
         if not self.initialized:
             self.last_error = '301'
+            logger.warning("SCORM API Terminate called before initialization for attempt %s", self.attempt.id)
             return 'false'
         
         self.initialized = False
         self.last_error = '0'
         
+        # CRITICAL FIX: Set exit mode to indicate proper termination
+        self.attempt.exit_mode = 'logout'
+        if self.version == '1.2':
+            self.attempt.cmi_data['cmi.core.exit'] = 'logout'
+        else:
+            self.attempt.cmi_data['cmi.exit'] = 'logout'
+        
+        # CRITICAL FIX: Update lesson status if not already set
+        if not self.attempt.lesson_status or self.attempt.lesson_status == 'not_attempted':
+            self.attempt.lesson_status = 'incomplete'
+            if self.version == '1.2':
+                self.attempt.cmi_data['cmi.core.lesson_status'] = 'incomplete'
+            else:
+                self.attempt.cmi_data['cmi.completion_status'] = 'incomplete'
+        
         # Save all data
         self._commit_data()
+        
+        logger.info("SCORM API Terminated for attempt %s - exit_mode: %s, lesson_status: %s", 
+                   self.attempt.id, self.attempt.exit_mode, self.attempt.lesson_status)
         
         return 'true'
     
@@ -336,8 +383,10 @@ class ScormAPIHandlerEnhanced:
                 elif element == 'cmi.core.student_name' or element == 'cmi.learner_name':
                     value = self.attempt.user.get_full_name() or self.attempt.user.username
                 elif element == 'cmi.core.lesson_location' or element == 'cmi.location':
+                    # CRITICAL FIX: Always return bookmark data from model fields
                     value = self.attempt.lesson_location or ''
                 elif element == 'cmi.suspend_data':
+                    # CRITICAL FIX: Always return suspend data from model fields
                     value = self.attempt.suspend_data or ''
                 elif element == 'cmi.core.total_time':
                     value = self.attempt.total_time or ('0000:00:00.00' if self.version == '1.2' else 'PT00H00M00S')
@@ -402,11 +451,33 @@ class ScormAPIHandlerEnhanced:
     
     def set_value(self, element, value):
         """LMSSetValue / SetValue - Enhanced to handle all SCORM data elements"""
-        if not self.initialized:
+        # CRITICAL FIX: Allow bookmark data to be stored even before initialization
+        if not self.initialized and element not in ['cmi.core.lesson_location', 'cmi.location', 'cmi.suspend_data']:
             self.last_error = '301'
             return 'false'
         
         try:
+            # CRITICAL FIX: Handle bookmark data storage before initialization
+            if not self.initialized and element in ['cmi.core.lesson_location', 'cmi.location', 'cmi.suspend_data']:
+                # Ensure CMI data exists
+                if not self.attempt.cmi_data:
+                    self.attempt.cmi_data = {}
+                
+                # Store bookmark data immediately
+                self.attempt.cmi_data[element] = value
+                logger.info("SCORM SetValue(%s, %s) - stored before initialization", element, value)
+                
+                # Also store in model fields for persistence
+                if element in ['cmi.core.lesson_location', 'cmi.location']:
+                    self.attempt.lesson_location = value
+                elif element == 'cmi.suspend_data':
+                    self.attempt.suspend_data = value
+                
+                # Save immediately for persistence
+                self.attempt.save()
+                self.last_error = '0'
+                return 'true'
+            
             # Validate element based on SCORM specification
             if not self._validate_element(element, value):
                 return 'false'
@@ -443,9 +514,13 @@ class ScormAPIHandlerEnhanced:
                         self.last_error = '405'
                         return 'false'
                 elif element == 'cmi.core.lesson_location':
+                    # CRITICAL FIX: Store bookmark data in both CMI data and model fields
                     self.attempt.lesson_location = value
+                    self.attempt.cmi_data['cmi.core.lesson_location'] = value
                 elif element == 'cmi.suspend_data':
+                    # CRITICAL FIX: Store suspend data in both CMI data and model fields
                     self.attempt.suspend_data = value
+                    self.attempt.cmi_data['cmi.suspend_data'] = value
                 elif element == 'cmi.core.session_time':
                     self.attempt.session_time = value
                     self._update_total_time(value)
@@ -498,9 +573,13 @@ class ScormAPIHandlerEnhanced:
                         self.last_error = '405'
                         return 'false'
                 elif element == 'cmi.location':
+                    # CRITICAL FIX: Store bookmark data in both CMI data and model fields
                     self.attempt.lesson_location = value
+                    self.attempt.cmi_data['cmi.location'] = value
                 elif element == 'cmi.suspend_data':
+                    # CRITICAL FIX: Store suspend data in both CMI data and model fields
                     self.attempt.suspend_data = value
+                    self.attempt.cmi_data['cmi.suspend_data'] = value
                 elif element == 'cmi.session_time':
                     self.attempt.session_time = value
                     self._update_total_time(value)
@@ -702,18 +781,55 @@ class ScormAPIHandlerEnhanced:
         return ''
     
     def _set_interaction_value(self, element, value):
-        """Set interaction value"""
+        """Set interaction value and save to database"""
         # Extract interaction index from element
         match = re.match(r'cmi\.interactions\.(\d+)\.(.+)', element)
         if match:
             index = match.group(1)
             field = match.group(2)
+            
             # Validate interaction data
-            if self._validate_interaction_data(field, value):
-                self.attempt.cmi_data[element] = value
-            else:
+            if not self._validate_interaction_data(field, value):
                 self.last_error = '402'
                 return False
+            
+            # Store in CMI data
+            self.attempt.cmi_data[element] = value
+            
+            # Save to database using interaction handler
+            try:
+                from .interaction_handler import ScormInteractionHandler
+                handler = ScormInteractionHandler(self.attempt)
+                
+                # Get or create interaction data
+                interaction_data = self._build_interaction_data(index)
+                if interaction_data:
+                    # Check if interaction already exists
+                    existing_interaction = ScormInteraction.objects.filter(
+                        attempt=self.attempt,
+                        interaction_id=interaction_data['id']
+                    ).first()
+                    
+                    if existing_interaction:
+                        # Update existing interaction
+                        existing_interaction.interaction_type = interaction_data.get('type', existing_interaction.interaction_type)
+                        existing_interaction.student_response = interaction_data.get('student_response', existing_interaction.student_response)
+                        existing_interaction.correct_response = interaction_data.get('correct_response', existing_interaction.correct_response)
+                        existing_interaction.result = interaction_data.get('result', existing_interaction.result)
+                        existing_interaction.weighting = interaction_data.get('weighting', existing_interaction.weighting)
+                        existing_interaction.score_raw = interaction_data.get('score_raw', existing_interaction.score_raw)
+                        existing_interaction.latency = interaction_data.get('latency', existing_interaction.latency)
+                        existing_interaction.objectives = interaction_data.get('objectives', existing_interaction.objectives)
+                        existing_interaction.learner_response_data = interaction_data.get('learner_response_data', existing_interaction.learner_response_data)
+                        existing_interaction.save()
+                        logger.info(f"Updated interaction {index} in database")
+                    else:
+                        # Create new interaction
+                        handler.save_interaction(interaction_data)
+                        logger.info(f"Saved new interaction {index} to database")
+            except Exception as e:
+                logger.error(f"Error saving interaction to database: {str(e)}")
+            
         return True
     
     def _set_objective_value(self, element, value):
@@ -896,6 +1012,94 @@ class ScormAPIHandlerEnhanced:
         # Update TopicProgress if applicable
         self._update_topic_progress()
     
+    def _build_interaction_data(self, index):
+        """Build interaction data from CMI data for database storage"""
+        try:
+            interaction_data = {}
+            
+            # Get interaction ID
+            id_key = f'cmi.interactions.{index}.id'
+            interaction_id = self.attempt.cmi_data.get(id_key, f'interaction_{index}')
+            if not interaction_id:
+                return None
+            
+            interaction_data['id'] = interaction_id
+            
+            # Get interaction type
+            type_key = f'cmi.interactions.{index}.type'
+            interaction_data['type'] = self.attempt.cmi_data.get(type_key, 'other')
+            
+            # Get description
+            desc_key = f'cmi.interactions.{index}.description'
+            interaction_data['description'] = self.attempt.cmi_data.get(desc_key, '')
+            
+            # Get student response
+            if self.version == '1.2':
+                response_key = f'cmi.interactions.{index}.student_response'
+            else:
+                response_key = f'cmi.interactions.{index}.learner_response'
+            interaction_data['student_response'] = self.attempt.cmi_data.get(response_key, '')
+            
+            # Get correct response
+            correct_key = f'cmi.interactions.{index}.correct_responses.0.pattern'
+            interaction_data['correct_response'] = self.attempt.cmi_data.get(correct_key, '')
+            
+            # Get result
+            result_key = f'cmi.interactions.{index}.result'
+            interaction_data['result'] = self.attempt.cmi_data.get(result_key, '')
+            
+            # Get weighting
+            weight_key = f'cmi.interactions.{index}.weighting'
+            weight_value = self.attempt.cmi_data.get(weight_key, '')
+            if weight_value:
+                try:
+                    interaction_data['weighting'] = float(weight_value)
+                except (ValueError, TypeError):
+                    interaction_data['weighting'] = None
+            
+            # Get score
+            score_key = f'cmi.interactions.{index}.score_raw'
+            score_value = self.attempt.cmi_data.get(score_key, '')
+            if score_value:
+                try:
+                    interaction_data['score_raw'] = float(score_value)
+                except (ValueError, TypeError):
+                    interaction_data['score_raw'] = None
+            
+            # Get timestamp
+            time_key = f'cmi.interactions.{index}.time'
+            if self.version == '2004':
+                time_key = f'cmi.interactions.{index}.timestamp'
+            timestamp_value = self.attempt.cmi_data.get(time_key, '')
+            if timestamp_value:
+                try:
+                    from datetime import datetime
+                    interaction_data['timestamp'] = datetime.fromisoformat(timestamp_value.replace('Z', '+00:00'))
+                except (ValueError, TypeError):
+                    interaction_data['timestamp'] = None
+            
+            # Get latency
+            latency_key = f'cmi.interactions.{index}.latency'
+            interaction_data['latency'] = self.attempt.cmi_data.get(latency_key, '')
+            
+            # Get objectives
+            objectives = []
+            for i in range(10):  # Check up to 10 objectives
+                obj_key = f'cmi.interactions.{index}.objectives.{i}.id'
+                obj_id = self.attempt.cmi_data.get(obj_key, '')
+                if obj_id:
+                    objectives.append(obj_id)
+            interaction_data['objectives'] = objectives
+            
+            # Get learner response data
+            interaction_data['learner_response_data'] = {}
+            
+            return interaction_data
+            
+        except Exception as e:
+            logger.error(f"Error building interaction data: {str(e)}")
+            return None
+    
     def _update_topic_progress(self):
         """Update related TopicProgress based on SCORM data"""
         try:
@@ -933,6 +1137,15 @@ class ScormAPIHandlerEnhanced:
                 progress.completed = True
                 progress.completion_method = 'scorm'
                 progress.completed_at = timezone.now()
+            
+            # Update score fields - this was missing!
+            if self.attempt.score_raw is not None:
+                score_value = float(self.attempt.score_raw)
+                progress.last_score = score_value
+                
+                # Update best score if this is better
+                if progress.best_score is None or score_value > progress.best_score:
+                    progress.best_score = score_value
             
             progress.save()
             

@@ -3635,14 +3635,14 @@ def send_self_password_reset(request):
         email_sent = reset_token.send_reset_email(request)
         
         if email_sent:
-            logger.info(f"✅ Password reset email sent successfully to {request.user.email}")
+            logger.info(f" Password reset email sent successfully to {request.user.email}")
             return JsonResponse({
                 'success': True, 
                 'message': f'Password reset email has been sent to {request.user.email}. Please check your inbox and spam folder.'
             })
         else:
             # Email failed - delete the token and provide helpful message
-            logger.error(f"❌ Failed to send password reset email to {request.user.email}. Check email configuration.")
+            logger.error(f" Failed to send password reset email to {request.user.email}. Check email configuration.")
             reset_token.delete()
             
             return JsonResponse({
@@ -3651,7 +3651,7 @@ def send_self_password_reset(request):
             }, status=500)
         
     except Exception as e:
-        logger.error(f"❌ Exception in send_self_password_reset for {request.user.email}: {str(e)}")
+        logger.error(f" Exception in send_self_password_reset for {request.user.email}: {str(e)}")
         return JsonResponse({
             'success': False, 
             'message': 'An error occurred while processing your request. Please try again later or contact support.'
@@ -9673,7 +9673,7 @@ def forgot_password(request, branch_slug=None):
                         # Email failed but don't crash - provide helpful message
                         import logging
                         logger = logging.getLogger(__name__)
-                        logger.error(f"❌ Email system failed to send password reset email to {email}. "
+                        logger.error(f" Email system failed to send password reset email to {email}. "
                                    f"Check logs for details (OAuth2 credentials may be invalid/expired, or SMTP not configured).")
                         
                         # Delete the token since email failed

@@ -139,14 +139,14 @@ class Command(BaseCommand):
     def provide_render_help(self):
         """Provide helpful instructions for cloud deployment"""
         if os.environ.get('RENDER'):
-            self.stdout.write("\n" + self.style.WARNING("🔧 CLOUD DEPLOYMENT SETUP REQUIRED"))
+            self.stdout.write("\n" + self.style.WARNING(" CLOUD DEPLOYMENT SETUP REQUIRED"))
             self.stdout.write(self.style.WARNING("━" * 50))
             self.stdout.write("To fix media storage issues on cloud deployment:")
             self.stdout.write("")
             self.stdout.write("1. 📋 Check your deployment platform dashboard")
-            self.stdout.write("2. 🔧 Configure persistent storage if needed")
+            self.stdout.write("2.  Configure persistent storage if needed")
             self.stdout.write("3. ➕ Ensure media directory is properly mounted")
-            self.stdout.write("4. 🚀 Redeploy your application")
+            self.stdout.write("4.  Redeploy your application")
             self.stdout.write("")
             self.stdout.write("📖 Check your platform's documentation for persistent storage setup")
             self.stdout.write("")

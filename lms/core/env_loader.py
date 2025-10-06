@@ -39,7 +39,7 @@ class EnvironmentLoader:
     def _load_environment_variables(self):
         """Load environment variables from the .env file"""
         if not self.env_file_path.exists():
-            logger.warning(f"⚠️ Environment file not found: {self.env_file_path}")
+            logger.warning(f" Environment file not found: {self.env_file_path}")
             logger.info("Using system environment variables only")
             return
         
@@ -75,13 +75,13 @@ class EnvironmentLoader:
                     else:
                         logger.warning(f"Invalid line format in {self.env_file_path}:{line_num}: {line}")
             
-            logger.info(f"✅ Loaded {len(self.loaded_variables)} environment variables")
+            logger.info(f" Loaded {len(self.loaded_variables)} environment variables")
             
             # Log key variables (without sensitive data)
             self._log_loaded_variables()
             
         except Exception as e:
-            logger.error(f"❌ Failed to load environment variables: {e}")
+            logger.error(f" Failed to load environment variables: {e}")
             raise
     
     def _log_loaded_variables(self):
@@ -156,7 +156,7 @@ class EnvironmentLoader:
         if missing_vars:
             raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
         
-        logger.info("✅ All required environment variables are set")
+        logger.info(" All required environment variables are set")
     
     def get_environment_info(self) -> Dict[str, Any]:
         """Get information about the current environment configuration"""

@@ -60,7 +60,7 @@ class Command(BaseCommand):
         
         if not orphaned_tables:
             self.stdout.write(
-                self.style.SUCCESS('🎉 No truly orphaned tables found!')
+                self.style.SUCCESS(' No truly orphaned tables found!')
             )
             return
         
@@ -75,15 +75,15 @@ class Command(BaseCommand):
                 
                 if row_count == 0:
                     safe_to_drop.append(table_name)
-                    self.stdout.write(f'✅ {table_name}: Empty orphaned table, safe to drop')
+                    self.stdout.write(f' {table_name}: Empty orphaned table, safe to drop')
                 else:
                     has_data.append(table_name)
                     self.stdout.write(
-                        self.style.WARNING(f'⚠️ {table_name}: Contains {row_count} rows, needs review')
+                        self.style.WARNING(f' {table_name}: Contains {row_count} rows, needs review')
                     )
             except Exception as e:
                 self.stdout.write(
-                    self.style.ERROR(f'❌ Error checking {table_name}: {e}')
+                    self.style.ERROR(f' Error checking {table_name}: {e}')
                 )
         
         # Show analysis results
@@ -92,8 +92,8 @@ class Command(BaseCommand):
         self.stdout.write(f'  🏷️ Django model tables: {len(django_tables)}')
         self.stdout.write(f'  🔗 Many-to-many tables: {len(model_m2m_tables)}')
         self.stdout.write(f'  🏝️ Truly orphaned tables: {len(orphaned_tables)}')
-        self.stdout.write(f'  ✅ Safe to drop (empty): {len(safe_to_drop)}')
-        self.stdout.write(f'  ⚠️ Has data (needs review): {len(has_data)}')
+        self.stdout.write(f'   Safe to drop (empty): {len(safe_to_drop)}')
+        self.stdout.write(f'   Has data (needs review): {len(has_data)}')
         
         if safe_to_drop:
             self.stdout.write(f'\n📋 Safe to drop (empty orphaned tables):')
@@ -101,7 +101,7 @@ class Command(BaseCommand):
                 self.stdout.write(f'  - {table}')
         
         if has_data:
-            self.stdout.write(f'\n⚠️ Tables with data (manual review needed):')
+            self.stdout.write(f'\n Tables with data (manual review needed):')
             for table in has_data:
                 self.stdout.write(f'  - {table}')
         
@@ -113,13 +113,13 @@ class Command(BaseCommand):
         
         if not safe_to_drop:
             self.stdout.write(
-                self.style.SUCCESS('\n🎉 No safe tables to drop!')
+                self.style.SUCCESS('\n No safe tables to drop!')
             )
             return
         
         if not options['confirm']:
             self.stdout.write(
-                self.style.WARNING('\n⚠️ Use --confirm flag to proceed with deletion')
+                self.style.WARNING('\n Use --confirm flag to proceed with deletion')
             )
             return
         
@@ -132,11 +132,11 @@ class Command(BaseCommand):
                 dropped_count += 1
             except Exception as e:
                 self.stdout.write(
-                    self.style.ERROR(f'❌ Failed to drop {table_name}: {e}')
+                    self.style.ERROR(f' Failed to drop {table_name}: {e}')
                 )
         
         self.stdout.write(
-            self.style.SUCCESS(f'\n🎉 Successfully dropped {dropped_count} truly orphaned tables!')
+            self.style.SUCCESS(f'\n Successfully dropped {dropped_count} truly orphaned tables!')
         )
         
         if has_data:

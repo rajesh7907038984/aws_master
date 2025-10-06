@@ -1,6 +1,6 @@
 # LMS Server - Quick Reference Guide
 
-## 🚀 Quick Commands
+##  Quick Commands
 
 ### Initial Setup (First Time Only)
 ```bash
@@ -62,7 +62,7 @@ GUNICORN_WORKERS=auto
 
 ---
 
-## 🔧 Common Tasks
+##  Common Tasks
 
 ### Change Server Port
 ```bash
@@ -178,5 +178,5 @@ $SCORM_ROOT_FOLDER/     - SCORM uploads
 
 ---
 
-**Remember**: Edit `.env` → Run setup (if needed) → Restart → Done! ✅
+**Remember**: Edit `.env` → Run setup (if needed) → Restart → Done! 
 

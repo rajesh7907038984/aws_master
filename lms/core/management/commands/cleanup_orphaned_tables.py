@@ -63,21 +63,21 @@ class Command(BaseCommand):
                     
                     if row_count == 0:
                         tables_to_drop.append(table_name)
-                        self.stdout.write(f'✅ {table_name}: Empty table, safe to drop')
+                        self.stdout.write(f' {table_name}: Empty table, safe to drop')
                     else:
                         self.stdout.write(
-                            self.style.WARNING(f'⚠️ {table_name}: Contains {row_count} rows, skipping')
+                            self.style.WARNING(f' {table_name}: Contains {row_count} rows, skipping')
                         )
                 else:
                     self.stdout.write(f'ℹ️ {table_name}: Table does not exist, skipping')
                     
             except Exception as e:
                 self.stdout.write(
-                    self.style.ERROR(f'❌ Error checking {table_name}: {e}')
+                    self.style.ERROR(f' Error checking {table_name}: {e}')
                 )
 
         if not tables_to_drop:
-            self.stdout.write(self.style.SUCCESS('🎉 No orphaned tables to clean up!'))
+            self.stdout.write(self.style.SUCCESS(' No orphaned tables to clean up!'))
             return
 
         self.stdout.write(f'\n📋 Found {len(tables_to_drop)} empty orphaned tables to drop:')
@@ -92,7 +92,7 @@ class Command(BaseCommand):
 
         if not options['confirm']:
             self.stdout.write(
-                self.style.WARNING('\n⚠️ Use --confirm flag to proceed with deletion')
+                self.style.WARNING('\n Use --confirm flag to proceed with deletion')
             )
             return
 
@@ -105,11 +105,11 @@ class Command(BaseCommand):
                 dropped_count += 1
             except Exception as e:
                 self.stdout.write(
-                    self.style.ERROR(f'❌ Failed to drop {table_name}: {e}')
+                    self.style.ERROR(f' Failed to drop {table_name}: {e}')
                 )
 
         self.stdout.write(
-            self.style.SUCCESS(f'\n🎉 Successfully dropped {dropped_count} orphaned tables!')
+            self.style.SUCCESS(f'\n Successfully dropped {dropped_count} orphaned tables!')
         )
         
         if dropped_count > 0:

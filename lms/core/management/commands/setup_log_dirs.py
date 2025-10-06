@@ -132,14 +132,14 @@ class Command(BaseCommand):
 
     def _provide_troubleshooting_help(self):
         """Provide troubleshooting guidance"""
-        self.stdout.write("\n" + self.style.WARNING("🔧 TROUBLESHOOTING TIPS"))
+        self.stdout.write("\n" + self.style.WARNING(" TROUBLESHOOTING TIPS"))
         self.stdout.write(self.style.WARNING("━" * 40))
         self.stdout.write("If log directory creation failed:")
         self.stdout.write("")
         self.stdout.write("1. 🗂️  Check filesystem permissions")
-        self.stdout.write("2. 💾 Ensure sufficient disk space")
+        self.stdout.write("2.  Ensure sufficient disk space")
         self.stdout.write("3. 🔒 Verify the application has write access")
-        self.stdout.write("4. 🚀 For production: check if directories need to be created as root")
+        self.stdout.write("4.  For production: check if directories need to be created as root")
         self.stdout.write("")
         self.stdout.write("Alternative: Use console logging only by setting DEBUG=True temporarily")
         self.stdout.write("")

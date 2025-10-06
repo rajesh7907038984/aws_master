@@ -1092,20 +1092,25 @@ document.addEventListener('DOMContentLoaded', function() {
     let isLoading = false;
     
     // Load branch data when dropdown is opened
-    const branchMenuButton = document.querySelector('#branch-switcher-menu');
+    const branchMenuButton = document.querySelector('#branch-switcher-button');
     if (branchMenuButton) {
+        console.log('Branch menu button found, adding click listener');
         // Load branches when menu is first opened
-        document.addEventListener('click', function(e) {
-            const dropdown = e.target.closest('[x-data]');
-            if (dropdown && dropdown.getAttribute('x-data') && dropdown.getAttribute('x-data').includes('branchMenuOpen') && !isLoading && !branchData) {
+        branchMenuButton.addEventListener('click', function(e) {
+            console.log('Branch button clicked, isLoading:', isLoading, 'branchData:', branchData);
+            if (!isLoading && !branchData) {
                 loadUserBranches();
             }
         });
+    } else {
+        console.log('Branch menu button not found');
     }
     
     async function loadUserBranches() {
         if (isLoading) return;
         isLoading = true;
+        
+        console.log('Loading user branches...');
         
         try {
             const response = await fetch('{% url "branches:get_user_branches" %}', {
@@ -1116,11 +1121,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
             
+            console.log('Branch response status:', response.status);
+            
             if (!response.ok) {
                 throw new Error('Failed to load branches');
             }
             
             branchData = await response.json();
+            console.log('Branch data loaded:', branchData);
             renderBranchOptions();
             updateCurrentBranchDisplay();
             
@@ -2051,7 +2059,7 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addEventListener('pagehide', cleanupPolling);
     
     // Simple profile dropdown - no Alpine.js needed
-    console.log('✅ Simple profile dropdown system loaded');
+    console.log(' Simple profile dropdown system loaded');
     
     // Profile dropdown functionality
     const profileButton = document.getElementById('profile-button');

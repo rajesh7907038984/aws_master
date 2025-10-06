@@ -448,7 +448,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Clear any existing calendar state
     if (window.DashboardCalendarInitialized) {
-        console.log('🔄 Clearing existing calendar state');
+        console.log(' Clearing existing calendar state');
         delete window.DashboardCalendarInitialized;
     }
     
@@ -856,7 +856,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize the dashboard calendar
     if (typeof window.DashboardCalendarInitialized === 'undefined') {
-        console.log('🔄 Initializing dashboard calendar');
+        console.log(' Initializing dashboard calendar');
         window.DashboardCalendarInitialized = true;
         DashboardCalendar.init();
     }

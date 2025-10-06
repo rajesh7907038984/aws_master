@@ -40,7 +40,7 @@ def content_file_path(instance: Any, filename: str) -> str:
     """Generate file path for course content with safe filename handling for S3 storage"""
     # Local file storage configuration
     if isinstance(instance, Topic) and instance.content_type == 'SCORM':
-        return f"scorm_cloud/{instance.pk}_{filename}"
+        return f"scorm_content/{instance.pk}_{filename}"
     
     # Get the base filename and extension
     name, ext = os.path.splitext(filename)
@@ -80,9 +80,13 @@ def content_file_path(instance: Any, filename: str) -> str:
             else:
                 # No course found, use a default folder
                 return f"courses/topic_uploads/{instance.pk}/{new_filename}"
+        except (AttributeError, ValueError) as e:
+            # Log the error and use a fallback location
+            logger.warning(f"Course relationship error in content_file_path: {str(e)}")
+            return f"courses/topic_uploads/{unique_id}{ext.lower()}"
         except Exception as e:
             # Log the error and use a fallback location
-            logger.error(f"Error in content_file_path: {str(e)}")
+            logger.error(f"Unexpected error in content_file_path: {str(e)}")
             return f"courses/topic_uploads/{unique_id}{ext.lower()}"
     else:
         course_id = 'misc'
@@ -1873,12 +1877,13 @@ class Topic(models.Model):
     def get_completion_requirements(self):
         """Get topic completion requirements based on content type"""
         if self.content_type == 'SCORM':
-            if hasattr(self, 'scorm_cloud_content'):
+            # Use new SCORM implementation - check for SCORM package requirements
+            if hasattr(self, 'scorm_package') and self.scorm_package:
                 return {
-                    'requires_score': self.scorm_cloud_content.requires_passing_score,
+                    'requires_score': getattr(self.scorm_package, 'requires_passing_score', False),
                     'requires_completion': True,
-                    'pass_score': self.scorm_cloud_content.passing_score,
-                    'requires_passing_score': self.scorm_cloud_content.requires_passing_score
+                    'pass_score': getattr(self.scorm_package, 'passing_score', None),
+                    'requires_passing_score': getattr(self.scorm_package, 'requires_passing_score', False)
                 }
         return {
             'requires_completion': True,
@@ -1902,10 +1907,7 @@ class Topic(models.Model):
         """Get SCORM content with improved error handling"""
         if self.content_type == 'SCORM':
             try:
-                # Get SCORM content by content_id
-                SCORMCloudContent = apps.get_model('scorm_cloud', 'SCORMCloudContent')
-                
-                # First check if file exists
+                # Use new SCORM implementation - return the topic itself as SCORM content
                 if not self.content_file:
                     logger.warning(f"Topic {self.id} ({self.title}) has no content file")
                     return None
@@ -1916,11 +1918,8 @@ class Topic(models.Model):
                     logger.warning(f"Topic {self.id} ({self.title}) content file does not exist: {self.content_file.name}")
                     return None
                 
-                # Then try to get the SCORM Cloud content
-                return SCORMCloudContent.objects.filter(
-                    content_id=str(self.id),
-                    content_type='topic'
-                ).first()
+                # Return the topic as SCORM content
+                return self
             except Exception as e:
                 logger.error(f"Error getting SCORM content for topic {self.id}: {str(e)}")
                 return None
@@ -2639,7 +2638,7 @@ class TopicProgress(models.Model):
                 'score': float(normalized_score) if normalized_score is not None else None,
                 'total_time': registration_report.get('totalSecondsTracked', 0),
                 'last_updated': timezone.now().isoformat(),
-                'scorm_cloud_sync': True
+                'scorm_sync': True
             })
             logger.info(f"Updated progress_data with completion status: {completion_status}, success status: {success_status}, progress: {completion_percent}%")
             
@@ -2809,23 +2808,23 @@ class CourseTopic(models.Model):
 #                 # Try to get user from course/branch context for branch-specific SCORM
 #                 user = None
 #                 try:
-#                     logger.info(f"🏭 courses/models.py: Determining user context for topic {instance.id}")
+#                     logger.info(f"courses/models.py: Determining user context for topic {instance.id}")
 #                     
 #                     # First try to get user from the stored context
 #                     if hasattr(instance, '_creation_user') and instance._creation_user:
 #                         user = instance._creation_user
-#                         logger.info(f"🏭 courses/models.py: Using stored creation user: {user.username}")
+#                         logger.info(f"courses/models.py: Using stored creation user: {user.username}")
 #                     else:
 #                         # Fallback to course lookup
 #                         from courses.views import get_topic_course
 #                         topic_course = get_topic_course(instance)
-#                         logger.info(f"🏭 courses/models.py: get_topic_course result: {topic_course.title if topic_course else None}")
+#                         logger.info(f"courses/models.py: get_topic_course result: {topic_course.title if topic_course else None}")
 #                         
 #                         if topic_course and hasattr(topic_course, 'created_by'):
-#                             logger.info(f"🏭 courses/models.py: Using course.created_by")
+#                             logger.info(f"courses/models.py: Using course.created_by")
 #                             user = topic_course.created_by
 #                         elif topic_course and topic_course.branch:
-#                             logger.info(f"🏭 courses/models.py: Looking for branch admin in {topic_course.branch.name}")
+#                             logger.info(f"courses/models.py: Looking for branch admin in {topic_course.branch.name}")
 #                             # Get a branch admin user for branch-specific SCORM
 #                             from django.contrib.auth import get_user_model
 #                             User = get_user_model()
@@ -2833,21 +2832,21 @@ class CourseTopic(models.Model):
 #                                 branch=topic_course.branch,
 #                                 role='admin'
 #                             ).first()
-#                             logger.info(f"🏭 courses/models.py: Branch admin found: {user.username if user else None}")
+#                             logger.info(f"courses/models.py: Branch admin found: {user.username if user else None}")
 #                             
 #                             # If no branch admin, try to get any admin user
 #                             if not user:
 #                                 user = User.objects.filter(role='admin').first()
-#                                 logger.info(f"🏭 courses/models.py: Fallback admin found: {user.username if user else None}")
+#                                 logger.info(f"courses/models.py: Fallback admin found: {user.username if user else None}")
 #                         else:
-#                             logger.info(f"🏭 courses/models.py: No course or no branch")
+#                             logger.info(f"courses/models.py: No course or no branch")
 #                             
 #                 except Exception as e:
-#                     logger.error(f"🏭 courses/models.py: Error determining user context: {str(e)}")
+#                     logger.error(f"courses/models.py: Error determining user context: {str(e)}")
 #                     import traceback
-#                     logger.error(f"🏭 courses/models.py: Full traceback: {traceback.format_exc()}")
+#                     logger.error(f"courses/models.py: Full traceback: {traceback.format_exc()}")
 #                 
-#                 logger.info(f"🏭 courses/models.py: Final user for enqueue_upload: {user.username if user else None}")
+#                 logger.info(f"courses/models.py: Final user for enqueue_upload: {user.username if user else None}")
 #                 
 #                 # For SCORM topics with content files, we need to upload to SCORM Cloud
 #                 # This handles the case where topics are created with SCORM files

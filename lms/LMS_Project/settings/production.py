@@ -82,7 +82,7 @@ def add_dynamic_ip_async():
             # Use environment variable or cache for dynamic IP
             import os
             os.environ.setdefault('DYNAMIC_PUBLIC_IP', public_ip)
-            print(f"🌐 Dynamic public IP detected: {public_ip}")
+            print(f" Dynamic public IP detected: {public_ip}")
     except:
         pass  # Silently ignore if metadata service is not available
 
@@ -105,7 +105,7 @@ AWS_DB_PASSWORD = get_env('AWS_DB_PASSWORD')
 if not AWS_DB_PASSWORD:
     AWS_DB_PASSWORD = get_env('DATABASE_PASSWORD') or get_env('DB_PASSWORD')
     if not AWS_DB_PASSWORD:
-        print("❌ CRITICAL: Database password not found in environment variables")
+        print(" CRITICAL: Database password not found in environment variables")
         print("   Please set AWS_DB_PASSWORD in .env file")
         raise ValueError("Database password is required for production deployment")
 

@@ -56,7 +56,7 @@ function refreshCategoryDropdown(newCategoryData) {
 
 // Initialize on DOM ready
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('✅ Simple category script initialized');
+    console.log(' Simple category script initialized');
     initializeSimpleCategory();
 });
 

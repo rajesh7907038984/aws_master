@@ -76,10 +76,10 @@ class Command(BaseCommand):
                     country="United Kingdom"
                 )
                 self.stdout.write(
-                    self.style.SUCCESS(f'   ✅ Created default business: {default_business.name}')
+                    self.style.SUCCESS(f'    Created default business: {default_business.name}')
                 )
         else:
-            self.stdout.write(f'   ✅ Default business already exists: {default_business.name}')
+            self.stdout.write(f'    Default business already exists: {default_business.name}')
         
         # 2. Create or get default branch
         if not dry_run and default_business:
@@ -87,10 +87,10 @@ class Command(BaseCommand):
             if not default_branch:
                 default_branch = default_business.create_default_branch()
                 self.stdout.write(
-                    self.style.SUCCESS(f'   ✅ Created default branch: {default_branch.name}')
+                    self.style.SUCCESS(f'    Created default branch: {default_branch.name}')
                 )
             else:
-                self.stdout.write(f'   ✅ Default branch already exists: {default_branch.name}')
+                self.stdout.write(f'    Default branch already exists: {default_branch.name}')
         elif dry_run:
             self.stdout.write(
                 self.style.WARNING(f'   Would create default branch for business')
@@ -107,10 +107,10 @@ class Command(BaseCommand):
             )
             if created:
                 self.stdout.write(
-                    self.style.SUCCESS(f'   ✅ Created business limits for {default_business.name}')
+                    self.style.SUCCESS(f'    Created business limits for {default_business.name}')
                 )
             else:
-                self.stdout.write(f'   ✅ Business limits already exist for {default_business.name}')
+                self.stdout.write(f'    Business limits already exist for {default_business.name}')
         elif dry_run:
             self.stdout.write(
                 self.style.WARNING(f'   Would create business limits')
@@ -124,7 +124,7 @@ class Command(BaseCommand):
         default_business = Business.objects.filter(name="Default Business").first()
         if not default_business:
             self.stdout.write(
-                self.style.ERROR('   ❌ Default business not found. Run with --create-defaults first.')
+                self.style.ERROR('    Default business not found. Run with --create-defaults first.')
             )
             return
         
@@ -161,7 +161,7 @@ class Command(BaseCommand):
                     )
                     # The signal handler will automatically assign them to the default branch
                     self.stdout.write(
-                        self.style.SUCCESS(f'     ✅ Assigned {superadmin.username} to {default_business.name}')
+                        self.style.SUCCESS(f'      Assigned {superadmin.username} to {default_business.name}')
                     )
         
         # 2. Handle Admin/Instructor/Learner users without branch assignments
@@ -183,7 +183,7 @@ class Command(BaseCommand):
                     user.branch = default_branch
                     user.save()
                     self.stdout.write(
-                        self.style.SUCCESS(f'     ✅ Assigned {user.username} ({user.role}) to {default_branch.name}')
+                        self.style.SUCCESS(f'      Assigned {user.username} ({user.role}) to {default_branch.name}')
                     )
         
         # 3. Ensure Global Admin users don't have branch assignments (they shouldn't)
@@ -194,7 +194,7 @@ class Command(BaseCommand):
         )
         
         if global_admins_with_branches.exists():
-            self.stdout.write(f'   ⚠️  Found {global_admins_with_branches.count()} Global Admin users with branch assignments (cleaning up)')
+            self.stdout.write(f'     Found {global_admins_with_branches.count()} Global Admin users with branch assignments (cleaning up)')
             
             for global_admin in global_admins_with_branches:
                 if dry_run:
@@ -205,7 +205,7 @@ class Command(BaseCommand):
                     global_admin.branch = None
                     global_admin.save()
                     self.stdout.write(
-                        self.style.SUCCESS(f'     ✅ Removed branch assignment from {global_admin.username}')
+                        self.style.SUCCESS(f'      Removed branch assignment from {global_admin.username}')
                     )
 
     def display_summary(self):
@@ -240,15 +240,15 @@ class Command(BaseCommand):
         
         if unassigned_superadmins > 0:
             self.stdout.write(
-                self.style.WARNING(f'   ⚠️  Super Admins without business assignment: {unassigned_superadmins}')
+                self.style.WARNING(f'     Super Admins without business assignment: {unassigned_superadmins}')
             )
         
         if unassigned_users > 0:
             self.stdout.write(
-                self.style.WARNING(f'   ⚠️  Users without branch assignment: {unassigned_users}')
+                self.style.WARNING(f'     Users without branch assignment: {unassigned_users}')
             )
         
         if unassigned_superadmins == 0 and unassigned_users == 0:
             self.stdout.write(
-                self.style.SUCCESS('   ✅ All users properly assigned to business/branch structures!')
+                self.style.SUCCESS('    All users properly assigned to business/branch structures!')
             )

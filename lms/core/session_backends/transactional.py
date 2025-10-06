@@ -36,7 +36,7 @@ class TransactionalSessionStore(DatabaseSessionStore):
                     session_obj.session_data = self.encode(self._get_session(no_load=True))
                     session_obj.expire_date = self.get_expiry_date()
                     session_obj.save()
-                    logger.info(f"✅ Updated existing session {self.session_key}")
+                    logger.info(f" Updated existing session {self.session_key}")
                 except Session.DoesNotExist:
                     # Create new session
                     session_obj = Session.objects.create(
@@ -44,18 +44,18 @@ class TransactionalSessionStore(DatabaseSessionStore):
                         session_data=self.encode(self._get_session(no_load=True)),
                         expire_date=self.get_expiry_date()
                     )
-                    logger.info(f"✅ Created new session {self.session_key}")
+                    logger.info(f" Created new session {self.session_key}")
                 
                 # Verify save worked
                 if Session.objects.filter(session_key=self.session_key).exists():
-                    logger.info(f"✅ Session {self.session_key} verified in database")
+                    logger.info(f" Session {self.session_key} verified in database")
                     return True
                 else:
-                    logger.error(f"❌ Session {self.session_key} not found after save")
+                    logger.error(f" Session {self.session_key} not found after save")
                     return False
                     
         except Exception as e:
-            logger.error(f"❌ Session save failed: {str(e)}")
+            logger.error(f" Session save failed: {str(e)}")
             return False
     
     def load(self):
@@ -63,5 +63,5 @@ class TransactionalSessionStore(DatabaseSessionStore):
         try:
             return super().load()
         except Exception as e:
-            logger.error(f"❌ Session load failed: {str(e)}")
+            logger.error(f" Session load failed: {str(e)}")
             return {}

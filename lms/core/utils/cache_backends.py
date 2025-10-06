@@ -82,8 +82,19 @@ class FallbackRedisCache(RedisCache):
         try:
             fallback_method = getattr(self._fallback_cache, operation_name)
             return fallback_method(*args, **kwargs)
+        except (AttributeError, TypeError) as e:
+            logger.error(f"Fallback cache method error for {operation_name}: {str(e)}")
+            # Return sensible defaults for different operations
+            if operation_name in ['get', 'get_many']:
+                return None if operation_name == 'get' else {}
+            elif operation_name in ['set', 'add', 'delete', 'set_many', 'delete_many']:
+                return True
+            elif operation_name == 'incr':
+                return 1
+            else:
+                return None
         except Exception as e:
-            logger.error(f"Fallback cache operation failed: {str(e)}")
+            logger.error(f"Unexpected fallback cache error for {operation_name}: {str(e)}")
             # Return sensible defaults for different operations
             if operation_name in ['get', 'get_many']:
                 return None if operation_name == 'get' else {}

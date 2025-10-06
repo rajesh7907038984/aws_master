@@ -672,7 +672,7 @@
                     
                     <div class="flex flex-col space-y-2 ml-4">
                         {% if recording.download_url %}
-                        <!-- ✅ FIX #5: Direct download for cloud recordings without password restrictions -->
+                        <!--  FIX #5: Direct download for cloud recordings without password restrictions -->
                         <a href="{% url 'conferences:download_conference_recording' conference.id recording.id %}" 
                            class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                            target="_blank">
@@ -1926,7 +1926,7 @@ function generateConferenceDetailedReport(conferenceId, studentId) {
     window.location.href = `/conferences/${conferenceId}/detailed-report/?student_id=${studentId}`;
 }
 
-// ✅ FIX #5: Direct download for all cloud recordings - no password required
+//  FIX #5: Direct download for all cloud recordings - no password required
 
 </script>
 

@@ -3,14 +3,14 @@
  * Designed to avoid conflicts with mobile-tabs-accordion.js
  */
 
-console.log('🚀 Loading User Report Tabs Script');
-console.log('📍 Current pathname:', window.location.pathname);
+console.log(' Loading User Report Tabs Script');
+console.log(' Current pathname:', window.location.pathname);
 
 // Prevent conflicts with mobile accordion by checking if we're on the right page
 const isReportsPage = window.location.pathname.includes('/reports/');
 const isUserPage = window.location.pathname.includes('/user') || window.location.pathname.includes('/my-');
-console.log('✅ Is reports page:', isReportsPage);
-console.log('✅ Is user/my page:', isUserPage);
+console.log(' Is reports page:', isReportsPage);
+console.log(' Is user/my page:', isUserPage);
 
 if (isReportsPage && isUserPage) {
     
@@ -22,7 +22,7 @@ if (isReportsPage && isUserPage) {
         const tabContainer = document.querySelector('.user-report-tab-content');
         console.log('🗂️ Tab container found:', !!tabContainer);
         if (!tabContainer) {
-            console.log('⚠️ User report tab container not found - will retry');
+            console.log(' User report tab container not found - will retry');
             return false;
         }
         
@@ -48,7 +48,7 @@ if (isReportsPage && isUserPage) {
         }
         
         if (tabButtons.length === 0 || tabPanes.length === 0) {
-            console.log('⚠️ No user report tabs found - will retry');
+            console.log(' No user report tabs found - will retry');
             return false;
         }
         
@@ -59,7 +59,7 @@ if (isReportsPage && isUserPage) {
         
         // Simple tab switching function with conflict prevention
         function showTab(tabName) {
-            console.log('🔄 Switching to tab:', tabName);
+            console.log(' Switching to tab:', tabName);
             
             // Hide all user report panes only
             tabPanes.forEach(pane => {
@@ -86,9 +86,9 @@ if (isReportsPage && isUserPage) {
                 targetButton.classList.add('active', 'border-blue-500', 'text-blue-600');
                 targetButton.classList.remove('border-transparent', 'text-gray-500');
                 
-                console.log('✅ Successfully switched to:', tabName);
+                console.log(' Successfully switched to:', tabName);
             } else {
-                console.error('❌ Target elements not found for:', tabName);
+                console.error(' Target elements not found for:', tabName);
             }
         }
         
@@ -115,7 +115,7 @@ if (isReportsPage && isUserPage) {
         setInterval(function() {
             const activePane = document.querySelector('.user-report-tab-pane.active');
             if (activePane && activePane.style.display === 'none') {
-                console.log('🔧 Fixing hidden active pane');
+                console.log(' Fixing hidden active pane');
                 activePane.style.setProperty('display', 'block', 'important');
                 activePane.style.setProperty('visibility', 'visible', 'important');
                 activePane.style.setProperty('opacity', '1', 'important');
@@ -136,7 +136,7 @@ if (isReportsPage && isUserPage) {
             });
         };
         
-        console.log('✅ User Report Tabs initialized successfully');
+        console.log(' User Report Tabs initialized successfully');
         return true;
     }
     
@@ -147,7 +147,7 @@ if (isReportsPage && isUserPage) {
             if (!initializeTabs()) {
                 // Retry after a short delay if initialization failed
                 setTimeout(() => {
-                    console.log('🔄 Retrying tab initialization...');
+                    console.log(' Retrying tab initialization...');
                     initializeTabs();
                 }, 500);
             }
@@ -157,7 +157,7 @@ if (isReportsPage && isUserPage) {
         if (!initializeTabs()) {
             // Retry after a short delay if initialization failed
             setTimeout(() => {
-                console.log('🔄 Retrying tab initialization...');
+                console.log(' Retrying tab initialization...');
                 initializeTabs();
             }, 500);
         }
@@ -168,7 +168,7 @@ if (isReportsPage && isUserPage) {
     
 } else {
     console.log('🚫 Not on user report page - skipping tab initialization');
-    console.log('📍 Current URL does not match expected patterns');
+    console.log(' Current URL does not match expected patterns');
     console.log('   Expected: /reports/ AND (/user OR /my-)');
     console.log('   Current:', window.location.pathname);
 }

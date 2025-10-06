@@ -4,7 +4,7 @@
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🔧 Simple Profile Dropdown Handler Loading...');
+    console.log(' Simple Profile Dropdown Handler Loading...');
     
     // Get profile elements
     const profileButton = document.getElementById('profile-button');
@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Check if elements exist
     if (!profileButton || !profileDropdown || !profileContainer) {
-        console.error('❌ Profile dropdown elements not found:', {
+        console.error(' Profile dropdown elements not found:', {
             profileButton: !!profileButton,
             profileDropdown: !!profileDropdown,
             profileContainer: !!profileContainer
@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
     
-    console.log('✅ Profile dropdown elements found');
+    console.log(' Profile dropdown elements found');
     
     // Track dropdown state
     let isDropdownOpen = false;
@@ -161,7 +161,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 100);
     });
     
-    console.log('✅ Simple Profile Dropdown Handler Loaded Successfully');
+    console.log(' Simple Profile Dropdown Handler Loaded Successfully');
 });
 
 // Export functions for external use

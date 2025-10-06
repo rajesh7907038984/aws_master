@@ -236,7 +236,7 @@
                 
                 {% if validation_results.errors %}
                 <div class="detail-section">
-                    <div class="detail-title">❌ Errors ({{ validation_results.errors|length }})</div>
+                    <div class="detail-title"> Errors ({{ validation_results.errors|length }})</div>
                     <ul class="detail-list">
                         {% for error in validation_results.errors %}
                         <li class="error-item">{{ error }}</li>
@@ -247,7 +247,7 @@
                 
                 {% if validation_results.warnings %}
                 <div class="detail-section">
-                    <div class="detail-title">⚠️ Warnings ({{ validation_results.warnings|length }})</div>
+                    <div class="detail-title"> Warnings ({{ validation_results.warnings|length }})</div>
                     <ul class="detail-list">
                         {% for warning in validation_results.warnings %}
                         <li class="warning-item">{{ warning }}</li>

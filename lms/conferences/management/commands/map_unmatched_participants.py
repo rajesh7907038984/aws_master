@@ -79,7 +79,7 @@ class Command(BaseCommand):
         )
         
         if not unmatched_participants.exists():
-            self.stdout.write(self.style.SUCCESS('✅ All participants are already mapped!'))
+            self.stdout.write(self.style.SUCCESS(' All participants are already mapped!'))
             return
 
         self.stdout.write(f'Found {unmatched_participants.count()} unmatched participants:\n')
@@ -167,7 +167,7 @@ class Command(BaseCommand):
         )
         
         if not unmatched_participants.exists():
-            self.stdout.write(self.style.SUCCESS('✅ All participants are already mapped!'))
+            self.stdout.write(self.style.SUCCESS(' All participants are already mapped!'))
             return
 
         mapped_count = 0
@@ -200,11 +200,11 @@ class Command(BaseCommand):
                 
                 mapped_count += 1
                 self.stdout.write(
-                    self.style.SUCCESS(f'✅ Mapped: {participant.display_name} -> {user.username} ({user.get_full_name()})')
+                    self.style.SUCCESS(f' Mapped: {participant.display_name} -> {user.username} ({user.get_full_name()})')
                 )
             else:
                 self.stdout.write(
-                    self.style.ERROR(f'❌ Could not auto-map: {participant.display_name}')
+                    self.style.ERROR(f' Could not auto-map: {participant.display_name}')
                 )
         
         self.stdout.write(f'\nAuto-mapped {mapped_count} out of {unmatched_participants.count()} participants')
@@ -296,5 +296,5 @@ class Command(BaseCommand):
         participant.save(update_fields=['user'])
         
         self.stdout.write(
-            self.style.SUCCESS(f'✅ Successfully mapped: {participant.display_name} -> {user.username} ({user.get_full_name()})')
+            self.style.SUCCESS(f' Successfully mapped: {participant.display_name} -> {user.username} ({user.get_full_name()})')
         ) 

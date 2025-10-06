@@ -34,10 +34,10 @@ def fix_template_image(template_id, image_path=None):
                 exists = default_storage.exists(template.image.name)
                 print(f"Image exists in S3: {exists}")
                 if exists:
-                    print("✅ Image already exists, no fix needed")
+                    print(" Image already exists, no fix needed")
                     return True
             except Exception as e:
-                print(f"⚠️  Cannot check if image exists (expected with HeadObject permission issue): {str(e)}")
+                print(f"  Cannot check if image exists (expected with HeadObject permission issue): {str(e)}")
         
         # If we have a local image path, upload it
         if image_path and os.path.exists(image_path):
@@ -64,8 +64,8 @@ def fix_template_image(template_id, image_path=None):
             # Refresh from database
             template.refresh_from_db()
             
-            print(f"✅ Successfully uploaded image: {saved_path}")
-            print(f"✅ Image URL: {template.get_image_url()}")
+            print(f" Successfully uploaded image: {saved_path}")
+            print(f" Image URL: {template.get_image_url()}")
             return True
             
         else:
@@ -98,12 +98,12 @@ def fix_template_image(template_id, image_path=None):
             # Refresh from database
             template.refresh_from_db()
             
-            print(f"✅ Created placeholder image: {saved_path}")
-            print(f"✅ Image URL: {template.get_image_url()}")
+            print(f" Created placeholder image: {saved_path}")
+            print(f" Image URL: {template.get_image_url()}")
             return True
             
     except Exception as e:
-        print(f"❌ Error fixing template: {str(e)}")
+        print(f" Error fixing template: {str(e)}")
         return False
 
 if __name__ == "__main__":
@@ -121,9 +121,9 @@ if __name__ == "__main__":
         # Try to check if exists (will likely fail with HeadObject error)
         try:
             exists = default_storage.exists(template.image.name)
-            status = "✅ EXISTS" if exists else "❌ MISSING"
+            status = " EXISTS" if exists else " MISSING"
         except Exception:
-            status = "⚠️  UNKNOWN (HeadObject permission issue)"
+            status = "  UNKNOWN (HeadObject permission issue)"
         
         print(f"  Status: {status}")
         print()
@@ -134,8 +134,8 @@ if __name__ == "__main__":
     if wdfw_template:
         success = fix_template_image(wdfw_template.id)
         if success:
-            print(f"✅ Fixed template '{wdfw_template.name}'")
+            print(f" Fixed template '{wdfw_template.name}'")
         else:
-            print(f"❌ Failed to fix template '{wdfw_template.name}'")
+            print(f" Failed to fix template '{wdfw_template.name}'")
     else:
-        print("❌ 'wdfw' template not found")
+        print(" 'wdfw' template not found")

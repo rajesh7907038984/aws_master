@@ -13,7 +13,7 @@
  * 5. Network error recovery for file operations
  */
 
-console.log('🔧 Loading S3 File Handling Fix...');
+console.log(' Loading S3 File Handling Fix...');
 
 /**
  * Enhanced S3 Error Handler
@@ -68,7 +68,7 @@ window.S3FileHandler = {
             }
         }
         
-        console.error('❌ CSRF token not found');
+        console.error(' CSRF token not found');
         return null;
     },
     
@@ -132,7 +132,7 @@ window.S3FileHandler = {
                 const result = await response.json();
                 
                 if (result.success) {
-                    console.log('✅ File upload successful');
+                    console.log(' File upload successful');
                     return result;
                 } else {
                     throw new Error(result.error || 'Upload failed');
@@ -140,14 +140,14 @@ window.S3FileHandler = {
                 
             } catch (error) {
                 lastError = error;
-                console.error(`❌ Upload attempt ${attempt} failed:`, error);
+                console.error(` Upload attempt ${attempt} failed:`, error);
                 
                 // Check if we should retry
                 const shouldRetry = attempt < config.maxRetries && 
                                    (this.isS3Error(error) || this.isNetworkError(error));
                 
                 if (shouldRetry) {
-                    console.log(`⏳ Retrying in ${config.retryDelay}ms...`);
+                    console.log(` Retrying in ${config.retryDelay}ms...`);
                     await this.sleep(config.retryDelay);
                     // Increase delay for next attempt
                     config.retryDelay *= 1.5;
@@ -271,7 +271,7 @@ window.S3FileHandler = {
             }
         });
         
-        console.log(`✅ Enhanced ${fileInputs.length} file inputs for S3 handling`);
+        console.log(` Enhanced ${fileInputs.length} file inputs for S3 handling`);
     },
     
     /**
@@ -351,7 +351,7 @@ window.S3FileHandler = {
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
     window.S3FileHandler.initializeFormHandling();
-    console.log('✅ S3 File Handling Fix initialized');
+    console.log(' S3 File Handling Fix initialized');
 });
 
 // Also initialize if DOM is already loaded
@@ -363,4 +363,4 @@ if (document.readyState === 'loading') {
     window.S3FileHandler.initializeFormHandling();
 }
 
-console.log('✅ S3 File Handling Fix loaded successfully');
+console.log(' S3 File Handling Fix loaded successfully');

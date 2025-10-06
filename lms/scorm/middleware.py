@@ -30,7 +30,7 @@ class ScormSSLExemptMiddleware(MiddlewareMixin):
             request._is_scorm_request = True
             # Force the request to appear as HTTPS to prevent redirects
             request.META['HTTP_X_FORWARDED_PROTO'] = 'https'
-            logger.info(f"✅ SCORM Middleware: Set _is_scorm_request flag for {path}")
+            logger.info(f"SCORM Middleware: Set _is_scorm_request flag for {path}")
         
         return None
     
@@ -58,6 +58,7 @@ class ScormSSLExemptMiddleware(MiddlewareMixin):
             response['Content-Security-Policy'] = (
                 "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; "
                 "script-src * 'unsafe-inline' 'unsafe-eval'; "
+                "worker-src * blob: data:; "
                 "style-src * 'unsafe-inline'; "
                 "img-src * data: blob:; "
                 "font-src * data:; "
@@ -65,7 +66,7 @@ class ScormSSLExemptMiddleware(MiddlewareMixin):
                 "media-src * data: blob:; "
                 "frame-src *"
             )
-            logger.info(f"✅ Set permissive CSP with unsafe-eval for SCORM request: {path}")
+            logger.info(f"Set permissive CSP with unsafe-eval for SCORM request: {path}")
             
             # Allow iframe embedding for SCORM content
             response['X-Frame-Options'] = 'SAMEORIGIN'

@@ -64,7 +64,7 @@ class Command(BaseCommand):
             else:
                 self.stdout.write(
                     self.style.SUCCESS(
-                        f'✅ Cleaned up {expired_count} expired '
+                        f' Cleaned up {expired_count} expired '
                         f'and {corrupted_count} corrupted sessions'
                     )
                 )
@@ -72,7 +72,7 @@ class Command(BaseCommand):
         except Exception as e:
             logger.error(f"Session cleanup failed: {str(e)}")
             self.stdout.write(
-                self.style.ERROR(f'❌ Session cleanup failed: {str(e)}')
+                self.style.ERROR(f' Session cleanup failed: {str(e)}')
             )
             return 1
 
@@ -113,8 +113,8 @@ class Command(BaseCommand):
             if verbose:
                 self.stdout.write(f'🔍 Checking {total_sessions} sessions for corruption...')
             
-            # Check each session for corruption
-            for session in Session.objects.all():
+            # Check each session for corruption - use iterator for memory efficiency
+            for session in Session.objects.all().iterator():
                 try:
                     # Try to decode session data - this is what triggers corruption warnings
                     decoded_data = session.get_decoded()
@@ -138,7 +138,7 @@ class Command(BaseCommand):
             
             count = len(corrupted_sessions)
             if verbose:
-                self.stdout.write(f'🔧 Found {count} corrupted sessions')
+                self.stdout.write(f' Found {count} corrupted sessions')
             
             if not dry_run and count > 0:
                 with transaction.atomic():
@@ -173,5 +173,5 @@ class Command(BaseCommand):
             logger.warning(f"Could not clear session cache: {str(e)}")
             if verbose:
                 self.stdout.write(
-                    self.style.WARNING(f'⚠️  Could not clear session cache: {str(e)}')
+                    self.style.WARNING(f'  Could not clear session cache: {str(e)}')
                 )

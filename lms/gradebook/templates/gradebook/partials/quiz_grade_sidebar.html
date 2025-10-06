@@ -488,11 +488,11 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 Quiz grading sidebar JavaScript initializing...');
+    console.log(' Quiz grading sidebar JavaScript initializing...');
     
     // Rubric Rating Selection Handling
     function initializeRubricRatingHandlers() {
-        console.log('🚀 Initializing rubric rating handlers...');
+        console.log(' Initializing rubric rating handlers...');
         
         // Handle rating selection changes
         document.querySelectorAll('[data-rating-select]').forEach(select => {
@@ -517,7 +517,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             setTimeout(() => {
                                 pointsInput.style.backgroundColor = '';
                             }, 1000);
-                            console.log(`✅ Auto-populated points for criterion ${criterionId}: ${points}`);
+                            console.log(` Auto-populated points for criterion ${criterionId}: ${points}`);
                         } else {
                             // If instructor has entered custom points, show a subtle indicator
                             pointsInput.style.transition = 'all 0.3s ease';
@@ -527,7 +527,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             setTimeout(() => {
                                 pointsInput.style.borderColor = '';
                             }, 2000);
-                            console.log(`✅ Custom points preserved for criterion ${criterionId}: ${currentPoints} (rating suggests ${points})`);
+                            console.log(` Custom points preserved for criterion ${criterionId}: ${currentPoints} (rating suggests ${points})`);
                         }
                     }
                 } else {
@@ -567,7 +567,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     if (bestMatch && bestDiff < 0.1) { // Close enough match
                         ratingSelect.value = bestMatch.value;
-                        console.log(`✅ Auto-selected rating for criterion ${criterionId}`);
+                        console.log(` Auto-selected rating for criterion ${criterionId}`);
                     } else {
                         ratingSelect.value = ''; // Clear selection if no close match
                     }
@@ -575,7 +575,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
         
-        console.log('✅ Rubric rating handlers initialized');
+        console.log(' Rubric rating handlers initialized');
     }
     
     // Initialize rating handlers
@@ -619,7 +619,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Save quiz rubric evaluation
     function saveQuizRubricEvaluation() {
-        console.log('🚀 Starting quiz rubric evaluation save...');
+        console.log(' Starting quiz rubric evaluation save...');
         
         const rubricData = collectRubricData();
         
@@ -631,7 +631,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Find the save button and get data from it
         const saveBtn = document.querySelector('button[onclick="saveQuizRubricEvaluation()"]');
         if (!saveBtn) {
-            console.error('❌ Save button not found');
+            console.error(' Save button not found');
             alert('Error: Save button not found');
             return;
         }
@@ -641,20 +641,20 @@ document.addEventListener('DOMContentLoaded', function() {
         const studentId = saveBtn.dataset.studentId;
         const attemptId = saveBtn.dataset.attemptId;
         
-        console.log('📝 Quiz data:', { quizId, studentId, attemptId });
+        console.log(' Quiz data:', { quizId, studentId, attemptId });
         
         // Get CSRF token from the rubric evaluation form
         const rubricForm = document.getElementById('rubricEvaluationForm');
         const csrfToken = rubricForm ? rubricForm.querySelector('[name=csrfmiddlewaretoken]')?.value : null;
         
         if (!csrfToken) {
-            console.error('❌ CSRF token not found');
+            console.error(' CSRF token not found');
             alert('CSRF token not found. Please refresh the page.');
             return;
         }
         
         if (!quizId || !studentId) {
-            console.error('❌ Missing required data:', { quizId, studentId, attemptId });
+            console.error(' Missing required data:', { quizId, studentId, attemptId });
             alert('Missing required data. Please refresh the page.');
             return;
         }
@@ -702,12 +702,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }, 1500);
             } else {
-                console.error('❌ Server error:', data.error);
+                console.error(' Server error:', data.error);
                 alert(data.error || 'Error saving rubric evaluation');
             }
         })
         .catch(error => {
-            console.error('❌ Quiz rubric evaluation save error:', error);
+            console.error(' Quiz rubric evaluation save error:', error);
             alert('Error saving rubric evaluation: ' + error.message);
         })
         .finally(() => {
@@ -731,12 +731,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (typeof window.saveQuizRubricEvaluation === 'function') {
                     window.saveQuizRubricEvaluation();
                 } else {
-                    console.error('❌ saveQuizRubricEvaluation function not found');
+                    console.error(' saveQuizRubricEvaluation function not found');
                     alert('Function not found. Please refresh the page.');
                 }
             });
         } else {
-            console.warn('⚠️ Save button not found for event listener');
+            console.warn(' Save button not found for event listener');
         }
     }
     
@@ -746,6 +746,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Also try after a delay in case the button loads later
     setTimeout(attachSaveButtonListener, 1000);
     
-    console.log('✅ Quiz grading sidebar JavaScript initialized');
+    console.log(' Quiz grading sidebar JavaScript initialized');
 });
 </script> 

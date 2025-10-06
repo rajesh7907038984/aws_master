@@ -2902,7 +2902,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         newSectionNameField.required = true; // Make it required when visible
                     }
                 } else {
-                    console.log('📝 Regular section selected - hiding new section input');
+                    console.log(' Regular section selected - hiding new section input');
                     newSectionInput.style.display = 'none';
                     if (newSectionNameField) {
                         newSectionNameField.value = ''; // Clear the input
@@ -2917,16 +2917,16 @@ document.addEventListener('DOMContentLoaded', function() {
             // Check initial state (in case "new_section" is pre-selected)
             toggleNewSectionInput();
             
-            console.log('✅ Section dropdown change handler initialized');
+            console.log(' Section dropdown change handler initialized');
             
             // Debug: Log current section selection state for editing
             if (sectionSelect.value) {
-                console.log('📍 Section currently selected:', sectionSelect.value, sectionSelect.selectedOptions[0]?.text);
+                console.log(' Section currently selected:', sectionSelect.value, sectionSelect.selectedOptions[0]?.text);
             } else {
-                console.log('📍 No section selected (standalone topic)');
+                console.log(' No section selected (standalone topic)');
             }
         } else {
-            console.warn('⚠️  Section dropdown or new section input not found');
+            console.warn('  Section dropdown or new section input not found');
             console.log('Debug - sectionSelect:', sectionSelect);
             console.log('Debug - newSectionInput:', newSectionInput);
         }
@@ -3679,7 +3679,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
         
         // Enhanced function to force hide instructions field (including TinyMCE)
         function forceHideInstructionsField() {
-            console.log('🔧 Force hiding instructions field...');
+            console.log(' Force hiding instructions field...');
             
             // Method 1: Hide by label
             const instructionsLabel = document.querySelector('label[for="topic_instructions"]') || 
@@ -3690,7 +3690,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                 if (instructionsContainer) {
                     instructionsContainer.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0 !important; overflow: hidden !important;';
                     instructionsContainer.setAttribute('hidden', 'hidden');
-                    console.log('✅ Instructions container hidden via label');
+                    console.log(' Instructions container hidden via label');
                 }
             }
             
@@ -3702,7 +3702,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                 if (parentDiv) {
                     parentDiv.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0 !important; overflow: hidden !important;';
                     parentDiv.setAttribute('hidden', 'hidden');
-                    console.log('✅ Instructions TinyMCE container hidden');
+                    console.log(' Instructions TinyMCE container hidden');
                 }
             }
             
@@ -3713,7 +3713,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                 if (textareaContainer) {
                     textareaContainer.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0 !important; overflow: hidden !important;';
                     textareaContainer.setAttribute('hidden', 'hidden');
-                    console.log('✅ Instructions textarea container hidden');
+                    console.log(' Instructions textarea container hidden');
                 }
             }
             
@@ -3724,14 +3724,14 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                 if (label && label.textContent && label.textContent.includes('Instructions')) {
                     div.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0 !important; overflow: hidden !important;';
                     div.setAttribute('hidden', 'hidden');
-                    console.log('✅ Instructions div hidden by text content');
+                    console.log(' Instructions div hidden by text content');
                 }
             });
         }
         
         // Enhanced function to show instructions field
         function forceShowInstructionsField() {
-            console.log('🔧 Force showing instructions field...');
+            console.log(' Force showing instructions field...');
             
             // Method 1: Show by label
             const instructionsLabel = document.querySelector('label[for="topic_instructions"]') || 
@@ -3742,7 +3742,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                 if (instructionsContainer) {
                     instructionsContainer.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; height: auto !important; overflow: visible !important;';
                     instructionsContainer.removeAttribute('hidden');
-                    console.log('✅ Instructions container shown via label');
+                    console.log(' Instructions container shown via label');
                 }
             }
             
@@ -3754,7 +3754,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                 if (parentDiv) {
                     parentDiv.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; height: auto !important; overflow: visible !important;';
                     parentDiv.removeAttribute('hidden');
-                    console.log('✅ Instructions TinyMCE container shown');
+                    console.log(' Instructions TinyMCE container shown');
                 }
             }
             
@@ -3765,7 +3765,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                 if (textareaContainer) {
                     textareaContainer.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; height: auto !important; overflow: visible !important;';
                     textareaContainer.removeAttribute('hidden');
-                    console.log('✅ Instructions textarea container shown');
+                    console.log(' Instructions textarea container shown');
                 }
             }
         }
@@ -3778,7 +3778,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
         
         // Additional aggressive check after TinyMCE loads
         setTimeout(function() {
-            console.log('🚀 Running post-TinyMCE instructions visibility check...');
+            console.log(' Running post-TinyMCE instructions visibility check...');
             const checkedRadio = document.querySelector('input[name="content_type"]:checked');
             if (checkedRadio) {
                 const contentType = checkedRadio.value.toLowerCase();
@@ -3965,7 +3965,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                         </div>
                     </div>
                     <div id="scormProgressMessage" class="text-blue-700 mb-2">
-                        <span class="inline-block animate-spin mr-2">⏳</span>
+                        <span class="inline-block animate-spin mr-2"></span>
                         Initializing upload...
                     </div>
                     <div class="text-sm text-blue-600">
@@ -3987,7 +3987,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                 const scormFile = document.querySelector('input[name="content_file"]');
                 
                 // SCORM now uses standard file upload like video - no special handling needed
-                console.log('📝 Standard form submission for all content types');
+                console.log(' Standard form submission for all content types');
             });
             
             function handleSCORMUpload() {
@@ -4000,7 +4000,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                 formElements.forEach(el => el.disabled = true);
                 
                 if (submitBtn) {
-                    submitBtn.innerHTML = '<span class="animate-spin mr-2">⏳</span> Uploading...';
+                    submitBtn.innerHTML = '<span class="animate-spin mr-2"></span> Uploading...';
                 }
                 
                 // Prepare form data
@@ -4103,9 +4103,9 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                     if (errorMessage.includes('System temporarily unavailable') || 
                         errorMessage.includes('connection') || 
                         errorMessage.includes('redis')) {
-                        errorMessage = '⚠️ System temporarily unavailable. Please try again in a few moments.';
-                    } else if (errorMessage.includes('SCORM Cloud integration is not configured')) {
-                        errorMessage = '⚠️ SCORM Cloud integration is not configured. Please contact your administrator.';
+                        errorMessage = ' System temporarily unavailable. Please try again in a few moments.';
+                    } else if (errorMessage.includes('SCORM integration is not configured')) {
+                        errorMessage = ' SCORM integration is not configured. Please contact your administrator.';
                     }
                     
                     showUploadError(errorMessage);
@@ -4123,7 +4123,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                         <h3 class="text-lg font-semibold text-gray-800 mb-4">
                             <i class="fas fa-upload text-blue-600 mr-2"></i>SCORM Topic Created
                         </h3>
-                        <p class="text-gray-600 mb-4">Now upload your SCORM package directly to the cloud:</p>
+                        <p class="text-gray-600 mb-4">Now upload your SCORM package:</p>
                         
                         <div class="mb-4">
                             <input type="file" id="directScormFile" accept=".zip" 
@@ -4211,7 +4211,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                 formData.append('topic_title', document.querySelector('[name="title"]').value);
                 formData.append('topic_id', topicId);
                 
-                // Upload to SCORM Cloud
+                // Upload SCORM package
                 fetch(uploadUrl, {
                     method: 'POST',
                     body: formData,
@@ -4251,11 +4251,11 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                     if (errorMessage.includes('System temporarily unavailable') || 
                         errorMessage.includes('connection') || 
                         errorMessage.includes('redis')) {
-                        errorMessage = '⚠️ System temporarily unavailable. Please try again in a few moments.';
-                    } else if (errorMessage.includes('SCORM Cloud integration is not configured')) {
-                        errorMessage = '⚠️ SCORM Cloud integration is not configured. Please contact your administrator.';
+                        errorMessage = ' System temporarily unavailable. Please try again in a few moments.';
+                    } else if (errorMessage.includes('SCORM integration is not configured')) {
+                        errorMessage = ' SCORM integration is not configured. Please contact your administrator.';
                     } else if (errorMessage.includes('timeout')) {
-                        errorMessage = '⚠️ Upload timed out. Please try with a smaller file or check your internet connection.';
+                        errorMessage = ' Upload timed out. Please try with a smaller file or check your internet connection.';
                     }
                     
                     progressMessage.innerHTML = `<i class="fas fa-exclamation-triangle text-red-600 mr-2"></i>${errorMessage}`;
@@ -4323,7 +4323,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                                     message += ` (Est. ${estimatedMinutes} min)`;
                                 }
                                 
-                                updateProgress(progressValue, `<span class="inline-block animate-spin mr-2">⏳</span>${message}`);
+                                updateProgress(progressValue, `<span class="inline-block animate-spin mr-2"></span>${message}`);
                                 
                                 // Continue polling
                                 if (pollCount < maxPolls) {
@@ -4348,7 +4348,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                 }
                 
                 // Start status checking
-                updateProgress(10, '<span class="inline-block animate-spin mr-2">⏳</span>Starting upload...');
+                updateProgress(10, '<span class="inline-block animate-spin mr-2"></span>Starting upload...');
                 setTimeout(checkStatus, 2000);
             }
             

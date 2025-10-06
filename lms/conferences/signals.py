@@ -205,7 +205,7 @@ def send_conference_update_email(sender, instance, created, **kwargs):
                         <li><strong>Platform:</strong> {instance.get_meeting_platform_display()}</li>
                     </ul>
                     <div style="background-color: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 15px 0;">
-                        <p><strong>⚠️ Important:</strong> Please update your calendar with the new details.</p>
+                        <p><strong> Important:</strong> Please update your calendar with the new details.</p>
                     </div>
                     {f'<div style="background-color: #f5f5f5; padding: 15px; border-left: 4px solid #2196F3; margin: 15px 0;"><p><strong>Description:</strong></p><p>{instance.description}</p></div>' if instance.description else ''}
                     <p>We apologize for any inconvenience this may cause.</p>

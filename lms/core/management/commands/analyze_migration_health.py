@@ -64,14 +64,14 @@ class Command(BaseCommand):
             
             if all_issues:
                 self.stdout.write(
-                    self.style.WARNING(f'⚠️  Found {len(all_issues)} potential issues:')
+                    self.style.WARNING(f'  Found {len(all_issues)} potential issues:')
                 )
                 for issue in all_issues:
                     self.stdout.write(f'   - {issue}')
                 
                 if fix_issues and not dry_run:
                     self.stdout.write(
-                        self.style.SUCCESS('🔧 Attempting to fix issues...')
+                        self.style.SUCCESS(' Attempting to fix issues...')
                     )
                     self.fix_detected_issues(all_issues)
                 elif dry_run:
@@ -80,12 +80,12 @@ class Command(BaseCommand):
                     )
             else:
                 self.stdout.write(
-                    self.style.SUCCESS('✅ No migration health issues detected!')
+                    self.style.SUCCESS(' No migration health issues detected!')
                 )
             
         except Exception as e:
             self.stdout.write(
-                self.style.ERROR(f'❌ Error during migration health check: {e}')
+                self.style.ERROR(f' Error during migration health check: {e}')
             )
             raise
 
@@ -112,7 +112,7 @@ class Command(BaseCommand):
                             migration_deps[migration_key].append(dep_key)
             except Exception as e:
                 if verbose:
-                    self.stdout.write(f'⚠️ Error parsing {filepath}: {e}')
+                    self.stdout.write(f' Error parsing {filepath}: {e}')
         
         # Check for circular dependencies
         if self.has_circular_dependency(migration_deps):
@@ -300,24 +300,24 @@ class Command(BaseCommand):
         for issue in issues:
             try:
                 if 'Missing dependency' in issue:
-                    self.stdout.write(f'🔧 Attempting to fix: {issue}')
+                    self.stdout.write(f' Attempting to fix: {issue}')
                     # This would need specific logic based on the issue
                     # For now, just log that we would fix it
                     self.stdout.write('   → Would resolve missing dependency')
                     fixed_count += 1
                 
                 elif 'Complex merge history' in issue:
-                    self.stdout.write(f'📝 Recommendation for: {issue}')
+                    self.stdout.write(f' Recommendation for: {issue}')
                     self.stdout.write('   → Consider squashing migrations in this app')
                 
                 elif 'High dependency pattern' in issue:
-                    self.stdout.write(f'⚠️ Manual review needed: {issue}')
+                    self.stdout.write(f' Manual review needed: {issue}')
                     self.stdout.write('   → Review dependency chain for potential conflicts')
                 
             except Exception as e:
-                self.stdout.write(f'❌ Failed to fix issue: {issue} - {e}')
+                self.stdout.write(f' Failed to fix issue: {issue} - {e}')
         
         if fixed_count > 0:
             self.stdout.write(
-                self.style.SUCCESS(f'✅ Fixed {fixed_count} issues')
+                self.style.SUCCESS(f' Fixed {fixed_count} issues')
             )
