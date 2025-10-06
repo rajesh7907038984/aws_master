@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views, validation_views
+from . import views, validation_views, views_simple
 
 app_name = 'scorm'
 
@@ -8,6 +8,9 @@ urlpatterns = [
     path('view/<int:topic_id>/', views.scorm_view, name='view'),
     path('player/<int:topic_id>/', views.scorm_view, name='player'),  # Legacy URL support
     path('content/<int:topic_id>/<path:path>', views.scorm_content, name='content'),
+    
+    # Direct SCORM content access (no authentication required for direct access)
+    path('direct/<int:topic_id>/<path:path>', views_simple.scorm_content_simple, name='content_direct'),
     
     # SCORM Content with attempt_id (for backward compatibility)
     path('content/<int:attempt_id>/<path:path>', views.scorm_content, name='content_by_attempt'),

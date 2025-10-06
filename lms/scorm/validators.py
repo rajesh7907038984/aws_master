@@ -25,8 +25,8 @@ class ScormPackageValidator:
     Validates packages before processing to prevent errors
     """
     
-    # Required files for SCORM packages
-    REQUIRED_FILES = ['imsmanifest.xml']
+    # Required files for SCORM packages (either imsmanifest.xml or tincan.xml)
+    REQUIRED_FILES = ['imsmanifest.xml', 'tincan.xml']
     
     # Common SCORM file extensions
     ALLOWED_EXTENSIONS = [
@@ -153,10 +153,16 @@ class ScormPackageValidator:
                 if len(file_list) > self.MAX_FILES:
                     self.errors.append(f"Too many files: {len(file_list)} (max: {self.MAX_FILES})")
                 
-                # Check for required files
-                manifest_found = any(f.lower().endswith('imsmanifest.xml') for f in file_list)
+                # Check for required files (either imsmanifest.xml or tincan.xml)
+                manifest_found = any(f.lower().endswith(('imsmanifest.xml', 'tincan.xml')) for f in file_list)
                 if not manifest_found:
-                    self.errors.append("Required file 'imsmanifest.xml' not found")
+                    # Check if it's a legacy package with HTML content
+                    html_files = [f for f in file_list if f.lower().endswith(('.html', '.htm'))]
+                    if html_files:
+                        self.warnings.append("No manifest file found - treating as legacy SCORM package")
+                        self.info.append("Legacy SCORM package detected")
+                    else:
+                        self.errors.append("Required manifest file not found (imsmanifest.xml or tincan.xml required)")
                 
                 # Check for common SCORM structure
                 html_files = [f for f in file_list if f.lower().endswith(('.html', '.htm'))]
@@ -176,17 +182,23 @@ class ScormPackageValidator:
             return []
     
     def _validate_manifest(self, file_buffer, file_list) -> Optional[Dict]:
-        """Validate imsmanifest.xml structure and content"""
+        """Validate imsmanifest.xml or tincan.xml structure and content"""
         manifest_file = None
         manifest_data = {}
         
-        # Find manifest file
+        # Find manifest file (either imsmanifest.xml or tincan.xml)
         for file_name in file_list:
             if file_name.lower().endswith('imsmanifest.xml'):
                 manifest_file = file_name
+                manifest_data['type'] = 'scorm'
+                break
+            elif file_name.lower().endswith('tincan.xml'):
+                manifest_file = file_name
+                manifest_data['type'] = 'xapi'
                 break
         
         if not manifest_file:
+            self.errors.append("No manifest file found (imsmanifest.xml or tincan.xml required)")
             return None
         
         try:
@@ -201,13 +213,20 @@ class ScormPackageValidator:
                     self.errors.append(f"Invalid manifest XML: {str(e)}")
                     return manifest_data
                 
-                # Detect SCORM version
-                version = self._detect_scorm_version(root)
-                manifest_data['version'] = version
-                self.info.append(f"SCORM version detected: {version}")
-                
-                # Validate basic structure
-                self._validate_manifest_structure(root, version)
+                # Handle different manifest types
+                if manifest_data['type'] == 'xapi':
+                    # For xAPI/Tin Can packages
+                    manifest_data['version'] = 'xapi'
+                    self.info.append("xAPI/Tin Can package detected")
+                    self._validate_tincan_structure(root)
+                else:
+                    # For SCORM packages
+                    version = self._detect_scorm_version(root)
+                    manifest_data['version'] = version
+                    self.info.append(f"SCORM version detected: {version}")
+                    
+                    # Validate basic structure
+                    self._validate_manifest_structure(root, version)
                 
                 # Extract metadata
                 manifest_data.update(self._extract_manifest_metadata(root))
@@ -242,6 +261,60 @@ class ScormPackageValidator:
         
         # Default to SCORM 1.2
         return '1.2'
+    
+    def _validate_tincan_structure(self, root):
+        """Validate tincan.xml structure for xAPI packages"""
+        try:
+            # Check for tincan root element
+            if not root.tag.lower().endswith('tincan'):
+                self.errors.append("Invalid tincan.xml: root element should be <tincan>")
+                return
+            
+            # Look for activities (they should be under <activities> element)
+            activities_container = root.find('.//activities')
+            if activities_container is None:
+                self.errors.append("No <activities> element found in tincan.xml")
+                return
+            
+            activities = activities_container.findall('.//activity')
+            if not activities:
+                self.errors.append("No activities found in tincan.xml")
+                return
+            
+            # Validate first activity
+            main_activity = activities[0]
+            
+            # Check for activity ID
+            activity_id = main_activity.get('id')
+            if not activity_id:
+                self.warnings.append("Activity missing ID attribute")
+            
+            # Check for activity name
+            name_elem = main_activity.find('.//name')
+            if name_elem is None:
+                self.warnings.append("Activity missing name element")
+            else:
+                langstring = name_elem.find('.//langstring')
+                if langstring is None or not langstring.text:
+                    self.warnings.append("Activity name missing langstring content")
+            
+            # Check for launch URL or entry point
+            # For xAPI, this might be in extensions or other elements
+            has_launch_info = False
+            extensions = main_activity.find('.//extensions')
+            if extensions is not None:
+                has_launch_info = True
+            
+            # Also check for common entry points in the package
+            # This will be validated during file extraction
+            
+            if not has_launch_info:
+                self.warnings.append("No launch information found in tincan.xml - will use common entry points")
+            
+            self.info.append(f"Validated {len(activities)} activities in tincan.xml")
+            
+        except Exception as e:
+            self.errors.append(f"Error validating tincan.xml structure: {str(e)}")
     
     def _validate_manifest_structure(self, root, version):
         """Validate manifest XML structure"""

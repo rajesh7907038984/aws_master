@@ -696,16 +696,37 @@ if (!window.API_1484_11) {
                 
                 # Inject before </head> or at beginning of <body>
                 if '</head>' in html_content:
-                    html_content = html_content.replace('</head>', api_injection + '</head>')
-                elif '<body' in html_content:
-                    # Find body tag and inject after it
-                    body_pos = html_content.find('<body')
-                    body_end = html_content.find('>', body_pos)
-                    if body_end != -1:
-                        html_content = html_content[:body_end+1] + api_injection + html_content[body_end+1:]
-                else:
-                    # As last resort, prepend to the content
-                    html_content = api_injection + html_content
+            const current = parseInt(match[1]);
+            const total = parseInt(match[2]);
+            const progress = Math.round((current / total) * 100);
+            if (progress > contentProgress) contentProgress = progress;
+        }}
+    }});
+    
+    // CRITICAL FIX: Check for answered questions
+    const answeredQuestions = document.querySelectorAll('input[type="radio"]:checked, input[type="checkbox"]:checked, select option:checked');
+    if (answeredQuestions.length > 0) {{
+        // Estimate progress based on answered questions
+        const estimatedProgress = Math.min(answeredQuestions.length * 20, 100); // Assume 5 questions max
+        if (estimatedProgress > contentProgress) contentProgress = estimatedProgress;
+        console.log(`[SCORM SYNC] Found ${{answeredQuestions.length}} answered questions, progress: ${{estimatedProgress}}%`);
+    }}
+    
+    // Method 4: Check for completed elements
+    const completedElements = document.querySelectorAll('.completed, .done, .finished, .answered');
+    if (completedElements.length > 0) {{
+        // Estimate progress based on completed elements
+        const estimatedProgress = Math.min(completedElements.length * 12.5, 100); // Assume 8 questions max
+        if (estimatedProgress > contentProgress) contentProgress = estimatedProgress;
+    }}
+    
+    // Method 5: Check for navigation state
+    const activeElements = document.querySelectorAll('.active, .current, .selected');
+    if (activeElements.length > 0) {{
+        // Try to determine position from active elements
+        activeElements.forEach(el => {{
+            const classes = el.className;
+            const slideMatch = classes.match(/slide-(\d+)|question-(\d+)|step-(\d+)/);
             if (slideMatch) {{
                 const slideNum = parseInt(slideMatch[1] || slideMatch[2] || slideMatch[3]);
                 if (slideNum > 1) {{

@@ -479,7 +479,8 @@
                             {% if user.role == 'instructor' or user.role == 'admin' or user.role == 'superadmin' or user.role == 'globaladmin' %}
                                 {% if topic.scorm_package %}
                                     <div class="w-full max-w-md">
-                                        <a href="{% url 'scorm:view' topic.id %}?preview=true" 
+                                        <a href="/scorm/view/{{ topic.id }}/?preview=true" 
+                                           target="_blank"
                                            class="btn btn-primary text-lg px-6 py-3 flex items-center justify-center">
                                             <i class="fas fa-eye mr-2"></i>Preview SCORM Content
                                         </a>
@@ -502,8 +503,9 @@
                                 <!-- SCORM package available - launch button -->
                                 <div class="w-full max-w-md">
                                     <div class="flex flex-col gap-3">
-                                        <!-- SCORM Launch Button -->
-                                        <a href="{% url 'scorm:view' topic.id %}" 
+                                        <!-- SCORM Launch Button - Direct to content -->
+                                        <a href="/scorm/view/{{ topic.id }}/" 
+                                           target="_blank"
                                            class="btn btn-primary text-lg px-6 py-3 flex items-center justify-center">
                                             <i class="fas fa-play mr-2"></i>Launch SCORM Content
                                         </a>

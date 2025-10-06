@@ -308,11 +308,10 @@ def scorm_content(request, topic_id, path):
                 
                 # Inject SCORM API for HTML files
                 if 'text/html' in content_type:
-                    try:
-                        html_content = content.decode('utf-8')
-                        
-                        # Inject SCORM API stub
-                        api_injection = '''
+                    html_content = content.decode('utf-8')
+                    
+                    # Inject SCORM API stub
+                    api_injection = '''
 <script>
 // SCORM API Stub for Content
 window.API = window.API_1484_11 = {
@@ -357,21 +356,21 @@ window.API = window.API_1484_11 = {
 };
 </script>
 '''
-                        
-                        # Inject before </head> or at beginning of <body>
-                        if '</head>' in html_content:
-                            html_content = html_content.replace('</head>', api_injection + '</head>')
-                        elif '<body' in html_content:
-                            import re
-                            html_content = re.sub(r'(<body[^>]*>)', r'\1' + api_injection, html_content)
-                        else:
-                            html_content = api_injection + html_content
-                        
-                        content = html_content.encode('utf-8')
-                        content_type = 'text/html; charset=utf-8'
-                        
-                        logger.info(f"✅ Injected SCORM API into {path}")
                     
+                    # Inject before </head> or at beginning of <body>
+                    if '</head>' in html_content:
+                        html_content = html_content.replace('</head>', api_injection + '</head>')
+                    elif '<body' in html_content:
+                        import re
+                        html_content = re.sub(r'(<body[^>]*>)', r'\1' + api_injection, html_content)
+                    else:
+                        html_content = api_injection + html_content
+                    
+                    content = html_content.encode('utf-8')
+                    content_type = 'text/html; charset=utf-8'
+                    
+                    logger.info(f"✅ Injected SCORM API into {path}")
+                
                 response_obj = HttpResponse(content, content_type=content_type)
                 response_obj['Access-Control-Allow-Origin'] = '*'
                 response_obj['X-Frame-Options'] = 'SAMEORIGIN'

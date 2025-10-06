@@ -3368,6 +3368,13 @@ def topic_edit(request, topic_id, section_id=None):
             discussion_id = form_data.get('discussion')
             if discussion_id:
                 topic.discussion_id = discussion_id
+        elif content_type == 'scorm':
+            # SCORM packages are typically not replaced after creation
+            # But we allow metadata updates (title, description, etc.)
+            # File upload is only allowed during creation, not edit
+            if 'content_file' in files:
+                logger.warning(f"SCORM file upload attempted during edit for topic {topic_id} - ignoring")
+                messages.warning(request, "SCORM packages cannot be replaced after creation.")
         
         # Handle section assignment
         new_section_name = form_data.get('new_section_name')
@@ -3469,6 +3476,7 @@ def topic_edit(request, topic_id, section_id=None):
         ('Document', 'Document'),
         ('Quiz', 'Quiz'),
         ('Assignment', 'Assignment'),
+        ('SCORM', 'SCORM Package'),
         ('Conference', 'Conference'),
         ('Discussion', 'Discussion'),
     ]

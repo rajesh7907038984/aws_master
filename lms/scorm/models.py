@@ -10,8 +10,17 @@ class ScormPackage(models.Model):
     Model to store SCORM package information
     """
     SCORM_VERSION_CHOICES = [
+        ('1.1', 'SCORM 1.1'),
         ('1.2', 'SCORM 1.2'),
         ('2004', 'SCORM 2004'),
+        ('xapi', 'xAPI/Tin Can'),
+        ('dual', 'SCORM + xAPI Dual'),
+        ('legacy', 'Legacy SCORM'),
+        ('html5', 'HTML5 Package'),
+        ('storyline', 'Articulate Storyline'),
+        ('captivate', 'Adobe Captivate'),
+        ('lectora', 'Lectora'),
+        ('unknown', 'Unknown Format'),
     ]
     
     topic = models.OneToOneField(

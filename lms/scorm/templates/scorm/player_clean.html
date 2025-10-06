@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ scorm_package.title }} - SCORM Content</title>
+    <title>{{ topic.title }} - SCORM Content</title>
     <style>
         * {
             margin: 0;
@@ -206,14 +206,12 @@
 <body>
     <div class="scorm-header">
         <div>
-            <h1 class="scorm-title">{{ scorm_package.title }}</h1>
+            <h1 class="scorm-title">{{ topic.title }}</h1>
+            {% if preview_mode %}
             <div class="scorm-info">
-                <span>SCORM {{ scorm_package.version }}</span>
-                {% if preview_mode %}
-                    <span class="preview-badge">PREVIEW MODE</span>
-                {% endif %}
-                <span>{{ topic.title }}</span>
+                <span class="preview-badge">PREVIEW MODE</span>
             </div>
+            {% endif %}
         </div>
         <div class="scorm-actions">
             <a href="{% url 'courses:topic_view' topic.id %}" class="btn btn-secondary">
@@ -588,22 +586,10 @@
             
             console.log('SCORM content loaded successfully');
             
-            // Standard SCORM functionality - no custom initialization needed
-            
-            // Preload common SCORM API calls for better performance
+            // OPTIMIZATION: Preload only essential data for faster initial load
             setTimeout(() => {
                 preloadCommonAPI();
-            }, 500); // Reduced timeout for faster preloading
-            
-            // Preload bookmark data for resume functionality
-            setTimeout(() => {
-                preloadBookmarkData();
-            }, 750); // Load bookmark data after common API calls
-            
-            // Preload SCORM assets for better performance
-            setTimeout(() => {
-                preloadSCORMAssets();
-            }, 1000);
+            }, 300); // Faster preloading
             
             // Inject SCORM API into iframe if possible
             try {
@@ -620,86 +606,29 @@
         }
         
         
-        // Preload SCORM assets for better performance
+        // Disabled asset preloading for better initial load performance
         function preloadSCORMAssets() {
-            const commonAssets = [
-                'assets/css/',
-                'assets/js/',
-                'assets/images/',
-                'css/',
-                'js/',
-                'images/',
-                'scripts/',
-                'styles/'
-            ];
-            
-            commonAssets.forEach(assetPath => {
-                const link = document.createElement('link');
-                link.rel = 'prefetch';
-                link.href = '{{ content_url }}' + assetPath;
-                document.head.appendChild(link);
-            });
-            
-            console.log('Preloading SCORM assets for better performance');
+            console.log('SCORM assets will load on demand for better initial performance');
         }
         
-        // Preload common SCORM API calls for better performance
+        // Simplified API preloading - only essential bookmark data
         function preloadCommonAPI() {
-            const commonCalls = [
-                ['GetValue', ['cmi.core.lesson_status']],
-                ['GetValue', ['cmi.core.student_id']],
-                ['GetValue', ['cmi.core.student_name']],
-                ['GetValue', ['cmi.core.score.max']],
-                ['GetValue', ['cmi.core.score.min']],
-                // Preload bookmark data for proper resume functionality
+            const essentialCalls = [
                 ['GetValue', ['cmi.core.lesson_location']],
-                ['GetValue', ['cmi.location']],
                 ['GetValue', ['cmi.suspend_data']],
-                ['GetValue', ['cmi.core.entry']],
-                ['GetValue', ['cmi.entry']]
+                ['GetValue', ['cmi.core.entry']]
             ];
             
-            commonCalls.forEach(([method, params]) => {
+            essentialCalls.forEach(([method, params]) => {
                 makeApiCall(method, params).catch(err => {
                     console.log(`Preload ${method} failed:`, err);
                 });
             });
         }
         
-        // Preload bookmark data specifically for resume functionality
+        // Simplified bookmark preloading - already handled in preloadCommonAPI
         function preloadBookmarkData() {
-            console.log('Preloading bookmark data for resume functionality...');
-            
-            const bookmarkCalls = [
-                ['GetValue', ['cmi.core.lesson_location']],
-                ['GetValue', ['cmi.location']],
-                ['GetValue', ['cmi.suspend_data']],
-                ['GetValue', ['cmi.core.entry']],
-                ['GetValue', ['cmi.entry']]
-            ];
-            
-            bookmarkCalls.forEach(([method, params]) => {
-                makeApiCall(method, params).then(result => {
-                    console.log(`Bookmark data: ${params[0]} = ${result}`);
-                    
-                    // CRITICAL FIX: Store bookmark data in global cache for immediate access
-                    if (result && result !== '') {
-                        const cacheKey = method + '_' + JSON.stringify(params);
-                        apiCache.set(cacheKey, {
-                            value: result,
-                            timestamp: Date.now()
-                        });
-                        
-                        // Also store in window for iframe access
-                        if (!window.scormBookmarkData) {
-                            window.scormBookmarkData = {};
-                        }
-                        window.scormBookmarkData[params[0]] = result;
-                    }
-                }).catch(err => {
-                    console.log(`Bookmark preload ${method} failed:`, err);
-                });
-            });
+            console.log('Bookmark data loaded via preloadCommonAPI');
         }
         
         function handleFrameError() {
@@ -796,7 +725,7 @@
         window.API = createScormAPI();
         window.API_1484_11 = createScormAPI();
         
-        // Auto-initialize API after a short delay
+        // OPTIMIZATION: Faster API initialization
         setTimeout(() => {
             if (window.API && !window.API._initialized) {
                 console.log('Auto-initializing SCORM API...');
@@ -804,7 +733,7 @@
                 window.API_1484_11.Initialize('');
                 window.API._initialized = true;
             }
-        }, 1000);
+        }, 300); // Reduced from 1000ms to 300ms
         
         // Handle page unload
         window.addEventListener('beforeunload', function() {
@@ -1043,21 +972,15 @@
             // Run immediately
             fixExitButtons();
             
-            // Also run periodically to catch dynamically added buttons
-            setInterval(fixExitButtons, 2000);
+            // OPTIMIZATION: Run periodically but less frequently (every 5 seconds instead of 2)
+            setInterval(fixExitButtons, 5000);
             
-            // Use MutationObserver to watch for new buttons
+            // OPTIMIZATION: Simplified MutationObserver with debouncing
             if (window.MutationObserver) {
+                let debounceTimer;
                 const observer = new MutationObserver(function(mutations) {
-                    let shouldCheck = false;
-                    mutations.forEach(function(mutation) {
-                        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                            shouldCheck = true;
-                        }
-                    });
-                    if (shouldCheck) {
-                        setTimeout(fixExitButtons, 100);
-                    }
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(fixExitButtons, 500);
                 });
                 
                 observer.observe(document.body, {
@@ -1194,21 +1117,15 @@
                                 // Run immediately
                                 findAndFixExitButtons();
                                 
-                                // Also run periodically to catch dynamically added buttons
-                                setInterval(findAndFixExitButtons, 2000);
+                                // OPTIMIZATION: Check less frequently (every 5 seconds)
+                                setInterval(findAndFixExitButtons, 5000);
                                 
-                                // Use MutationObserver to watch for new buttons
+                                // OPTIMIZATION: Debounced MutationObserver
                                 if (window.MutationObserver) {
+                                    let debounceTimer;
                                     const observer = new MutationObserver(function(mutations) {
-                                        let shouldCheck = false;
-                                        mutations.forEach(function(mutation) {
-                                            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                                                shouldCheck = true;
-                                            }
-                                        });
-                                        if (shouldCheck) {
-                                            setTimeout(findAndFixExitButtons, 100);
-                                        }
+                                        clearTimeout(debounceTimer);
+                                        debounceTimer = setTimeout(findAndFixExitButtons, 500);
                                     });
                                     
                                     observer.observe(document.body, {

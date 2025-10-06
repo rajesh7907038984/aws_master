@@ -85,18 +85,37 @@ class ScormParser:
             manifest_content = None
             manifest_file = None
             
-            # Look for imsmanifest.xml in root or subdirectories
+            # Look for manifest files (imsmanifest.xml or tincan.xml)
+            manifest_file = None
+            manifest_content = None
+            
             for file_name in zip_ref.namelist():
                 if file_name.lower().endswith('imsmanifest.xml'):
                     manifest_file = file_name
                     manifest_content = zip_ref.read(file_name)
+                    self.version = 'scorm'  # Will be determined later
+                    break
+                elif file_name.lower().endswith('tincan.xml'):
+                    manifest_file = file_name
+                    manifest_content = zip_ref.read(file_name)
+                    self.version = 'xapi'
                     break
             
+            # If no standard manifest found, try to detect package type from content
             if not manifest_content:
-                raise ValueError("No imsmanifest.xml found in SCORM package")
+                package_type = self._detect_package_type(zip_ref)
+                if package_type:
+                    self.version = package_type
+                    logger.info(f"Detected package type: {package_type}")
+                else:
+                    raise ValueError("No manifest file found and unable to detect package type")
             
-            # Parse the manifest
-            self._parse_manifest(manifest_content)
+            # Parse the manifest if available
+            if manifest_content:
+                self._parse_manifest(manifest_content)
+            else:
+                # Handle packages without manifests
+                self._handle_legacy_package(zip_ref)
             
             # Extract all files to S3
             extracted_files = []
@@ -134,6 +153,24 @@ class ScormParser:
                     # Launch URL is relative to manifest location
                     pass
             
+            # CRITICAL FIX: If launch URL is not set or is index_lms.html, check for story.html
+            # story.html is the correct player file for Articulate Storyline packages
+            if not self.launch_url or self.launch_url == 'index_lms.html':
+                # Check if story.html exists in extracted files
+                story_html_candidates = [f for f in extracted_files if f.lower().endswith('story.html')]
+                if story_html_candidates:
+                    self.launch_url = story_html_candidates[0]
+                    logger.info(f"Using story.html as launch file: {self.launch_url}")
+                elif not self.launch_url:
+                    # Fallback to other common entry points (prioritize story.html)
+                    entry_points = ['story.html', 'index.html', 'launch.html', 'start.html', 'main.html']
+                    for entry_point in entry_points:
+                        candidates = [f for f in extracted_files if f.lower().endswith(entry_point)]
+                        if candidates:
+                            self.launch_url = candidates[0]
+                            logger.info(f"Using {entry_point} as launch file: {self.launch_url}")
+                            break
+            
             return {
                 'version': self.version,
                 'launch_url': self.launch_url,
@@ -148,13 +185,18 @@ class ScormParser:
     
     def _parse_manifest(self, manifest_content):
         """
-        Parse imsmanifest.xml to extract metadata
+        Parse imsmanifest.xml or tincan.xml to extract metadata
         
         Args:
             manifest_content: XML content as bytes
         """
         try:
             root = ET.fromstring(manifest_content)
+            
+            # Check if this is a Tin Can/xAPI package
+            if root.tag.lower().endswith('tincan') or 'tincan' in root.tag.lower():
+                self._parse_tincan_manifest(root)
+                return
             
             # Detect SCORM version
             self.version = self._detect_version(root)
@@ -297,4 +339,164 @@ class ScormParser:
         
         # Default to SCORM 1.2
         return '1.2'
+    
+    def _parse_tincan_manifest(self, root):
+        """
+        Parse tincan.xml to extract xAPI/Tin Can metadata
+        
+        Args:
+            root: XML root element
+        """
+        try:
+            # Set version to xAPI
+            self.version = 'xapi'
+            
+            # Extract basic metadata from tincan.xml
+            self.manifest_data['identifier'] = root.get('id', '')
+            
+            # Look for activities (they should be under <activities> element)
+            activities_container = root.find('.//activities')
+            if activities_container is not None:
+                activities = activities_container.findall('.//activity')
+            else:
+                activities = []
+            
+            if activities:
+                # Use the first activity as the main content
+                main_activity = activities[0]
+                
+                # Get activity name
+                name_elem = main_activity.find('.//name')
+                if name_elem is not None:
+                    langstring = name_elem.find('.//langstring')
+                    if langstring is not None and langstring.text:
+                        self.manifest_data['title'] = langstring.text.strip()
+                
+                # Get activity description
+                description_elem = main_activity.find('.//description')
+                if description_elem is not None:
+                    desc_langstring = description_elem.find('.//langstring')
+                    if desc_langstring is not None and desc_langstring.text:
+                        self.manifest_data['description'] = desc_langstring.text.strip()
+                
+                # Get launch URL from the <launch> element
+                launch_elem = main_activity.find('.//launch')
+                if launch_elem is not None and launch_elem.text:
+                    self.launch_url = launch_elem.text.strip()
+                    logger.info(f"Found launch URL in tincan.xml: {self.launch_url}")
+                
+                # Look for launch URL in extensions if not found
+                if not self.launch_url:
+                    extensions = main_activity.find('.//extensions')
+                    if extensions is not None:
+                        # Look for common launch URL patterns
+                        for ext in extensions.findall('.//*'):
+                            if ext.text and ('index.html' in ext.text or 'story.html' in ext.text or 'launch' in ext.text.lower()):
+                                self.launch_url = ext.text.strip()
+                                break
+            
+            # If no launch URL found, look for common entry points
+            if not self.launch_url:
+                # Common xAPI entry points - prioritize story.html for Articulate Storyline
+                common_entry_points = ['story.html', 'index.html', 'launch.html', 'start.html']
+                # This will be handled in the file extraction process
+            
+            logger.info(f"Parsed Tin Can/xAPI manifest: {self.manifest_data.get('title', 'Untitled')}")
+            
+        except Exception as e:
+            logger.error(f"Error parsing Tin Can manifest: {e}")
+            raise ValueError(f"Failed to parse tincan.xml: {e}")
+    
+    def _detect_package_type(self, zip_ref):
+        """
+        Detect package type from content when no manifest is found
+        
+        Args:
+            zip_ref: ZipFile object
+            
+        Returns:
+            str: Detected package type or None
+        """
+        try:
+            file_list = zip_ref.namelist()
+            
+            # Check for common SCORM package indicators
+            has_html = any(f.lower().endswith(('.html', '.htm')) for f in file_list)
+            has_js = any(f.lower().endswith('.js') for f in file_list)
+            has_css = any(f.lower().endswith('.css') for f in file_list)
+            
+            # Check for specific authoring tool indicators
+            if any('storyline' in f.lower() for f in file_list):
+                return 'storyline'
+            elif any('captivate' in f.lower() for f in file_list):
+                return 'captivate'
+            elif any('lectora' in f.lower() for f in file_list):
+                return 'lectora'
+            elif any('html5' in f.lower() for f in file_list):
+                return 'html5'
+            elif any('scorm' in f.lower() for f in file_list):
+                return 'legacy'
+            
+            # Check for common entry points
+            entry_points = ['index.html', 'story.html', 'launch.html', 'start.html', 'main.html']
+            for entry_point in entry_points:
+                if any(f.lower().endswith(entry_point) for f in file_list):
+                    if has_html and (has_js or has_css):
+                        return 'html5'
+                    else:
+                        return 'legacy'
+            
+            # If it has HTML content but no clear indicators, assume it's a legacy package
+            if has_html:
+                return 'legacy'
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error detecting package type: {e}")
+            return None
+    
+    def _handle_legacy_package(self, zip_ref):
+        """
+        Handle legacy SCORM packages without proper manifests
+        
+        Args:
+            zip_ref: ZipFile object
+        """
+        try:
+            file_list = zip_ref.namelist()
+            
+            # Set basic metadata for legacy packages
+            self.manifest_data['identifier'] = f"legacy_{uuid.uuid4().hex[:8]}"
+            self.manifest_data['title'] = 'Legacy SCORM Package'
+            self.manifest_data['description'] = 'Legacy SCORM package without manifest'
+            
+            # Find the launch URL by looking for common entry points
+            # Prioritize story.html for Articulate Storyline packages
+            entry_points = ['story.html', 'index.html', 'launch.html', 'start.html', 'main.html', 'default.html']
+            for entry_point in entry_points:
+                for file_name in file_list:
+                    if file_name.lower().endswith(entry_point):
+                        self.launch_url = file_name
+                        logger.info(f"Found launch URL for legacy package: {self.launch_url}")
+                        return
+            
+            # If no standard entry point found, use the first HTML file
+            html_files = [f for f in file_list if f.lower().endswith(('.html', '.htm'))]
+            if html_files:
+                self.launch_url = html_files[0]
+                logger.info(f"Using first HTML file as launch URL: {self.launch_url}")
+            else:
+                # If no HTML files, use the first file
+                if file_list:
+                    self.launch_url = file_list[0]
+                    logger.warning(f"No HTML files found, using first file as launch URL: {self.launch_url}")
+                else:
+                    raise ValueError("No files found in package")
+            
+            logger.info(f"Handled legacy package: {self.manifest_data.get('title', 'Untitled')}")
+            
+        except Exception as e:
+            logger.error(f"Error handling legacy package: {e}")
+            raise ValueError(f"Failed to handle legacy package: {e}")
 
