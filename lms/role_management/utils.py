@@ -1109,6 +1109,9 @@ def get_available_capabilities():
         'view_topics', 'manage_topics', 'create_topics', 'delete_topics',
         'view_categories', 'manage_categories', 'create_categories', 'delete_categories',
         
+        # Survey Management
+        'view_surveys', 'manage_surveys', 'view_survey_responses',
+        
         # Assessment Management
         'view_assignments', 'manage_assignments', 'create_assignments', 'delete_assignments',
         'grade_assignments', 'submit_assignments',
@@ -1148,6 +1151,9 @@ def get_capability_categories():
             'view_courses', 'manage_courses', 'create_courses', 'delete_courses',
             'view_topics', 'manage_topics', 'create_topics', 'delete_topics',
             'view_categories', 'manage_categories', 'create_categories', 'delete_categories',
+        ],
+        'Survey Management': [
+            'view_surveys', 'manage_surveys', 'view_survey_responses',
         ],
         'Assessment Management': [
             'view_assignments', 'manage_assignments', 'create_assignments', 'delete_assignments',

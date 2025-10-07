@@ -4221,6 +4221,23 @@ def course_settings(request, course_id):
         # Other roles (learners, etc.) cannot see certificate templates in course settings
         certificate_templates = CertificateTemplate.objects.none()
     
+    # Get available surveys for dropdown - RBAC filtered
+    from course_reviews.models import Survey
+    
+    # Filter surveys based on user role
+    if request.user.is_superuser or request.user.role in ['globaladmin', 'superadmin']:
+        # Super admins can see all surveys
+        available_surveys = Survey.objects.filter(is_active=True)
+    elif request.user.role in ['admin', 'instructor'] and request.user.branch:
+        # Admins and instructors can see surveys from their branch or created by them
+        available_surveys = Survey.objects.filter(
+            Q(branch=request.user.branch) | Q(created_by=request.user),
+            is_active=True
+        ).distinct()
+    else:
+        # Other roles cannot see surveys in course settings
+        available_surveys = Survey.objects.none()
+    
     # Define breadcrumbs for this view
     breadcrumbs = [
         {'url': reverse('users:role_based_redirect'), 'label': 'Dashboard', 'icon': 'fa-home'},
@@ -4279,6 +4296,18 @@ def course_settings(request, course_id):
             issue_certificate = course.issue_certificate
             certificate_type = course.certificate_type
             certificate_template_id = course.certificate_template.id if course.certificate_template else None
+        
+        # Process survey selection (available to admins and instructors)
+        survey_id = request.POST.get('survey')
+        if survey_id:
+            try:
+                from course_reviews.models import Survey
+                survey = Survey.objects.get(id=survey_id)
+                course.survey = survey
+            except Survey.DoesNotExist:
+                messages.error(request, "Selected survey does not exist.")
+        else:
+            course.survey = None
         
         # Update course settings
         # Course Info
@@ -4535,6 +4564,7 @@ def course_settings(request, course_id):
         'instructors': instructors,
         'all_courses': all_courses,
         'certificate_templates': certificate_templates,
+        'available_surveys': available_surveys,
     }
     
     return render(request, 'courses/course_settings.html', context)

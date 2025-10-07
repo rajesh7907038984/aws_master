@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ action }} Survey{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-label {
+        font-weight: 500;
+        color: #374151;
+        margin-bottom: 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .form-control, .form-select {
+        border: 1px solid #E5E7EB;
+        border-radius: 6px;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #9CA3AF;
+        outline: none;
+        box-shadow: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumbs -->
+    {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+    
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div>
+                <h1 class="text-xl font-semibold text-gray-900">{{ action }} Survey</h1>
+                <p class="mt-1 text-sm text-gray-600">Create a new survey to collect course feedback</p>
+            </div>
+        </div>
+
+        <!-- Form -->
+        <form method="post" novalidate class="px-6 py-4">
+            {% csrf_token %}
+            
+            <div class="mb-4">
+                <label for="{{ form.title.id_for_label }}" class="form-label">
+                    Survey Title <span class="text-danger">*</span>
+                </label>
+                {{ form.title }}
+                {% if form.title.errors %}
+                    <div class="text-red-600 text-sm mt-1">{{ form.title.errors }}</div>
+                {% endif %}
+            </div>
+
+            <div class="mb-4">
+                <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
+                {{ form.description }}
+                {% if form.description.errors %}
+                    <div class="text-red-600 text-sm mt-1">{{ form.description.errors }}</div>
+                {% endif %}
+                <small class="text-muted d-block mt-1">Optional description to help learners understand this survey</small>
+            </div>
+
+            <div class="mb-4">
+                <div class="form-check">
+                    {{ form.is_active }}
+                    <label class="form-check-label text-sm" for="{{ form.is_active.id_for_label }}">
+                        Survey is Active (can be assigned to courses)
+                    </label>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center pt-4 border-top" style="border-color: #E5E7EB;">
+                <a href="{% url 'course_reviews:survey_list' %}" class="btn btn-outline-secondary">
+                    Cancel
+                </a>
+                <button type="submit" class="btn text-white" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                    {{ action }} Survey
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

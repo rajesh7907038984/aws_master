@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load course_filters %}
+{% load review_tags %}
 {% load static %}
 
 {% block title %}Courses - Nexsy{% endblock %}
@@ -630,6 +631,13 @@
                                                     </div>
                                                     {% endwith %}
                                                 {% endif %}
+                                            </div>
+                                            {% endif %}
+
+                                            <!-- Course Rating -->
+                                            {% if course.total_reviews > 0 %}
+                                            <div class="mb-3">
+                                                {% star_rating_compact course.average_rating course.total_reviews %}
                                             </div>
                                             {% endif %}
 

@@ -524,6 +524,16 @@ class Course(models.Model):
         help_text="Certificate template to use for this course"
     )
     
+    # Course Review Survey
+    survey = models.ForeignKey(
+        'course_reviews.Survey',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='courses',
+        help_text="Survey to be completed by learners after finishing this course"
+    )
+    
     # Course Availability Settings
     catalog_visibility = models.CharField(
         max_length=20,
@@ -841,6 +851,38 @@ class Course(models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+    def get_average_rating(self) -> Tuple[float, int]:
+        """Get average rating and total reviews for this course"""
+        try:
+            from django.db.models import Avg, Count
+            from course_reviews.models import CourseReview
+            
+            stats = CourseReview.objects.filter(
+                course=self,
+                is_published=True
+            ).aggregate(
+                avg_rating=Avg('average_rating'),
+                total_reviews=Count('id')
+            )
+            
+            avg_rating = stats['avg_rating'] or 0
+            total_reviews = stats['total_reviews'] or 0
+            
+            return (round(avg_rating, 2), total_reviews)
+        except Exception as e:
+            logger.warning(f"Error getting average rating for course {self.id}: {str(e)}")
+            return (0.0, 0)
+    
+    @property
+    def average_rating(self) -> float:
+        """Property to get just the average rating"""
+        return self.get_average_rating()[0]
+    
+    @property
+    def total_reviews(self) -> int:
+        """Property to get total number of reviews"""
+        return self.get_average_rating()[1]
 
     def is_enrolled(self, user: CustomUser) -> bool:
         """Check if user is enrolled in the course"""

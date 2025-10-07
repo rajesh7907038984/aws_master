@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load role_tags %}
 
 {% block title %}Edit Role - LMS{% endblock %}
 
@@ -152,524 +153,35 @@
                             <div class="capability-section">
                                 <h3 class="text-lg font-medium text-gray-900 mb-4">Role Capabilities</h3>
                                 
-                                <!-- User Management Accordion -->
+                                {% for category, caps in capability_categories.items %}
+                                <!-- {{ category }} Accordion -->
                                 <div class="accordion-item mb-4 border border-gray-200 rounded-lg overflow-hidden">
                                     <div class="accordion-header flex justify-between items-center p-4 bg-gray-50 cursor-pointer" 
-                                         onclick="toggleAccordion('user-management')">
-                                        <h4 class="text-md font-medium">User Management</h4>
+                                         onclick="toggleAccordion('{{ category|slugify }}')">
+                                        <h4 class="text-md font-medium">{{ category }}</h4>
                                         <svg class="w-5 h-5 accordion-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                         </svg>
                                     </div>
-                                    <div id="user-management" class="accordion-content p-4 hidden">
+                                    <div id="{{ category|slugify }}" class="accordion-content p-4 hidden">
                                         <div class="mb-3">
                                             <label class="inline-flex items-center">
-                                                <input type="checkbox" class="select-all-checkbox" data-section="user-management">
+                                                <input type="checkbox" class="select-all-checkbox" data-section="{{ category|slugify }}">
                                                 <span class="ml-2 text-sm font-medium">Select All</span>
                                             </label>
                                         </div>
                                         <div class="capability-grid">
+                                            {% for cap in caps %}
                                             <div class="capability-item">
-                                                <input type="checkbox" id="create_users" name="capabilities" value="create_users" 
-                                                       class="capability-checkbox" data-section="user-management" {% if 'create_users' in capabilities %}checked{% endif %}>
-                                                <label for="create_users" class="capability-label">Create Users</label>
+                                                <input type="checkbox" id="{{ cap }}" name="capabilities" value="{{ cap }}" 
+                                                       class="capability-checkbox" data-section="{{ category|slugify }}" {% if cap in capabilities %}checked{% endif %}>
+                                                <label for="{{ cap }}" class="capability-label">{{ cap|format_capability }}</label>
                                             </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="manage_users" name="capabilities" value="manage_users" 
-                                                       class="capability-checkbox" data-section="user-management" {% if 'manage_users' in capabilities %}checked{% endif %}>
-                                                <label for="manage_users" class="capability-label">Manage Users</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="view_users" name="capabilities" value="view_users" 
-                                                       class="capability-checkbox" data-section="user-management" {% if 'view_users' in capabilities %}checked{% endif %}>
-                                                <label for="view_users" class="capability-label">View Users</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="create_groups" name="capabilities" value="create_groups" 
-                                                       class="capability-checkbox" data-section="user-management" {% if 'create_groups' in capabilities %}checked{% endif %}>
-                                                <label for="create_groups" class="capability-label">Create Groups</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="manage_groups" name="capabilities" value="manage_groups" 
-                                                       class="capability-checkbox" data-section="user-management" {% if 'manage_groups' in capabilities %}checked{% endif %}>
-                                                <label for="manage_groups" class="capability-label">Manage Groups</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="view_groups" name="capabilities" value="view_groups" 
-                                                       class="capability-checkbox" data-section="user-management" {% if 'view_groups' in capabilities %}checked{% endif %}>
-                                                <label for="view_groups" class="capability-label">View Groups</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="user_limit" name="capabilities" value="user_limit" 
-                                                       class="capability-checkbox" data-section="user-management" {% if 'user_limit' in capabilities %}checked{% endif %}>
-                                                <label for="user_limit" class="capability-label">User Limit</label>
-                                            </div>
+                                            {% endfor %}
                                         </div>
                                     </div>
                                 </div>
-                                
-                                <!-- Course Management Accordion -->
-                                <div class="accordion-item mb-4 border border-gray-200 rounded-lg overflow-hidden">
-                                    <div class="accordion-header flex justify-between items-center p-4 bg-gray-50 cursor-pointer" 
-                                         onclick="toggleAccordion('course-management')">
-                                        <h4 class="text-md font-medium">Course Management</h4>
-                                        <svg class="w-5 h-5 accordion-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                        </svg>
-                                    </div>
-                                    <div id="course-management" class="accordion-content p-4 hidden">
-                                        <div class="mb-3">
-                                            <label class="inline-flex items-center">
-                                                <input type="checkbox" class="select-all-checkbox" data-section="course-management">
-                                                <span class="ml-2 text-sm font-medium">Select All</span>
-                                            </label>
-                                        </div>
-                                        <div class="capability-grid">
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="create_course" name="capabilities" value="create_course" 
-                                                       class="capability-checkbox" data-section="course-management" {% if 'create_course' in capabilities %}checked{% endif %}>
-                                                <label for="create_course" class="capability-label">Create Course</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="manage_course" name="capabilities" value="manage_course" 
-                                                       class="capability-checkbox" data-section="course-management" {% if 'manage_course' in capabilities %}checked{% endif %}>
-                                                <label for="manage_course" class="capability-label">Manage Course</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="view_course" name="capabilities" value="view_course" 
-                                                       class="capability-checkbox" data-section="course-management" {% if 'view_course' in capabilities %}checked{% endif %}>
-                                                <label for="view_course" class="capability-label">View Course</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="create_categories" name="capabilities" value="create_categories" 
-                                                       class="capability-checkbox" data-section="course-management" {% if 'create_categories' in capabilities %}checked{% endif %}>
-                                                <label for="create_categories" class="capability-label">Create Categories</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="manage_categories" name="capabilities" value="manage_categories" 
-                                                       class="capability-checkbox" data-section="course-management" {% if 'manage_categories' in capabilities %}checked{% endif %}>
-                                                <label for="manage_categories" class="capability-label">Manage Categories</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="view_categories" name="capabilities" value="view_categories" 
-                                                       class="capability-checkbox" data-section="course-management" {% if 'view_categories' in capabilities %}checked{% endif %}>
-                                                <label for="view_categories" class="capability-label">View Categories</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="create_course_groups" name="capabilities" value="create_course_groups" 
-                                                       class="capability-checkbox" data-section="course-management" {% if 'create_course_groups' in capabilities %}checked{% endif %}>
-                                                <label for="create_course_groups" class="capability-label">Create Course Groups</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="manage_course_groups" name="capabilities" value="manage_course_groups" 
-                                                       class="capability-checkbox" data-section="course-management" {% if 'manage_course_groups' in capabilities %}checked{% endif %}>
-                                                <label for="manage_course_groups" class="capability-label">Manage Course Groups</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="view_course_groups" name="capabilities" value="view_course_groups" 
-                                                       class="capability-checkbox" data-section="course-management" {% if 'view_course_groups' in capabilities %}checked{% endif %}>
-                                                <label for="view_course_groups" class="capability-label">View Course Groups</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="create_outcome" name="capabilities" value="create_outcome" 
-                                                       class="capability-checkbox" data-section="course-management" {% if 'create_outcome' in capabilities %}checked{% endif %}>
-                                                <label for="create_outcome" class="capability-label">Create Outcome</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="manage_outcome" name="capabilities" value="manage_outcome" 
-                                                       class="capability-checkbox" data-section="course-management" {% if 'manage_outcome' in capabilities %}checked{% endif %}>
-                                                <label for="manage_outcome" class="capability-label">Manage Outcome</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="view_outcomes" name="capabilities" value="view_outcomes" 
-                                                       class="capability-checkbox" data-section="course-management" {% if 'view_outcomes' in capabilities %}checked{% endif %}>
-                                                <label for="view_outcomes" class="capability-label">View Outcomes</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="view_certificates" name="capabilities" value="view_certificates" 
-                                                       class="capability-checkbox" data-section="course-management" {% if 'view_certificates' in capabilities %}checked{% endif %}>
-                                                <label for="view_certificates" class="capability-label">View Certificates</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="view_topics" name="capabilities" value="view_topics" 
-                                                       class="capability-checkbox" data-section="course-management" {% if 'view_topics' in capabilities %}checked{% endif %}>
-                                                <label for="view_topics" class="capability-label">View Topics</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="manage_topics" name="capabilities" value="manage_topics" 
-                                                       class="capability-checkbox" data-section="course-management" {% if 'manage_topics' in capabilities %}checked{% endif %}>
-                                                <label for="manage_topics" class="capability-label">Manage Topics</label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Assessment Management Accordion -->
-                                <div class="accordion-item mb-4 border border-gray-200 rounded-lg overflow-hidden">
-                                    <div class="accordion-header flex justify-between items-center p-4 bg-gray-50 cursor-pointer" 
-                                         onclick="toggleAccordion('assessment-management')">
-                                        <h4 class="text-md font-medium">Assessment Management</h4>
-                                        <svg class="w-5 h-5 accordion-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                        </svg>
-                                    </div>
-                                    <div id="assessment-management" class="accordion-content p-4 hidden">
-                                        <div class="mb-3">
-                                            <label class="inline-flex items-center">
-                                                <input type="checkbox" class="select-all-checkbox" data-section="assessment-management">
-                                                <span class="ml-2 text-sm font-medium">Select All</span>
-                                            </label>
-                                        </div>
-                                        <div class="capability-grid">
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="create_assignment" name="capabilities" value="create_assignment" 
-                                                       class="capability-checkbox" data-section="assessment-management" {% if 'create_assignment' in capabilities %}checked{% endif %}>
-                                                <label for="create_assignment" class="capability-label">Create Assignment</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="manage_assignments" name="capabilities" value="manage_assignments" 
-                                                       class="capability-checkbox" data-section="assessment-management" {% if 'manage_assignments' in capabilities %}checked{% endif %}>
-                                                <label for="manage_assignments" class="capability-label">Manage Assignments</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="view_assignments" name="capabilities" value="view_assignments" 
-                                                       class="capability-checkbox" data-section="assessment-management" {% if 'view_assignments' in capabilities %}checked{% endif %}>
-                                                <label for="view_assignments" class="capability-label">View Assignments</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="create_quizzes" name="capabilities" value="create_quizzes" 
-                                                       class="capability-checkbox" data-section="assessment-management" {% if 'create_quizzes' in capabilities %}checked{% endif %}>
-                                                <label for="create_quizzes" class="capability-label">Create Quizzes</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="manage_quizzes" name="capabilities" value="manage_quizzes" 
-                                                       class="capability-checkbox" data-section="assessment-management" {% if 'manage_quizzes' in capabilities %}checked{% endif %}>
-                                                <label for="manage_quizzes" class="capability-label">Manage Quizzes</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="view_quizzes" name="capabilities" value="view_quizzes" 
-                                                       class="capability-checkbox" data-section="assessment-management" {% if 'view_quizzes' in capabilities %}checked{% endif %}>
-                                                <label for="view_quizzes" class="capability-label">View Quizzes</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="create_rubrics" name="capabilities" value="create_rubrics" 
-                                                       class="capability-checkbox" data-section="assessment-management" {% if 'create_rubrics' in capabilities %}checked{% endif %}>
-                                                <label for="create_rubrics" class="capability-label">Create Rubrics</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="manage_rubrics" name="capabilities" value="manage_rubrics" 
-                                                       class="capability-checkbox" data-section="assessment-management" {% if 'manage_rubrics' in capabilities %}checked{% endif %}>
-                                                <label for="manage_rubrics" class="capability-label">Manage Rubrics</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="view_rubrics" name="capabilities" value="view_rubrics" 
-                                                       class="capability-checkbox" data-section="assessment-management" {% if 'view_rubrics' in capabilities %}checked{% endif %}>
-                                                <label for="view_rubrics" class="capability-label">View Rubrics</label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Communication Management Accordion -->
-                                <div class="accordion-item mb-4 border border-gray-200 rounded-lg overflow-hidden">
-                                    <div class="accordion-header flex justify-between items-center p-4 bg-gray-50 cursor-pointer" 
-                                         onclick="toggleAccordion('communication-management')">
-                                        <h4 class="text-md font-medium">Communication Management</h4>
-                                        <svg class="w-5 h-5 accordion-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                        </svg>
-                                    </div>
-                                    <div id="communication-management" class="accordion-content p-4 hidden">
-                                        <div class="mb-3">
-                                            <label class="inline-flex items-center">
-                                                <input type="checkbox" class="select-all-checkbox" data-section="communication-management">
-                                                <span class="ml-2 text-sm font-medium">Select All</span>
-                                            </label>
-                                        </div>
-                                        <div class="capability-grid">
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="create_discussions" name="capabilities" value="create_discussions" 
-                                                       class="capability-checkbox" data-section="communication-management" {% if 'create_discussions' in capabilities %}checked{% endif %}>
-                                                <label for="create_discussions" class="capability-label">Create Discussions</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="manage_discussions" name="capabilities" value="manage_discussions" 
-                                                       class="capability-checkbox" data-section="communication-management" {% if 'manage_discussions' in capabilities %}checked{% endif %}>
-                                                <label for="manage_discussions" class="capability-label">Manage Discussions</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="view_discussions" name="capabilities" value="view_discussions" 
-                                                       class="capability-checkbox" data-section="communication-management" {% if 'view_discussions' in capabilities %}checked{% endif %}>
-                                                <label for="view_discussions" class="capability-label">View Discussions</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="create_conference" name="capabilities" value="create_conference" 
-                                                       class="capability-checkbox" data-section="communication-management" {% if 'create_conference' in capabilities %}checked{% endif %}>
-                                                <label for="create_conference" class="capability-label">Create Conference</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="manage_conferences" name="capabilities" value="manage_conferences" 
-                                                       class="capability-checkbox" data-section="communication-management" {% if 'manage_conferences' in capabilities %}checked{% endif %}>
-                                                <label for="manage_conferences" class="capability-label">Manage Conferences</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="view_conferences" name="capabilities" value="view_conferences" 
-                                                       class="capability-checkbox" data-section="communication-management" {% if 'view_conferences' in capabilities %}checked{% endif %}>
-                                                <label for="view_conferences" class="capability-label">View Conferences</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="create_messages" name="capabilities" value="create_messages" 
-                                                       class="capability-checkbox" data-section="communication-management" {% if 'create_messages' in capabilities %}checked{% endif %}>
-                                                <label for="create_messages" class="capability-label">Create Messages</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="manage_messages" name="capabilities" value="manage_messages" 
-                                                       class="capability-checkbox" data-section="communication-management" {% if 'manage_messages' in capabilities %}checked{% endif %}>
-                                                <label for="manage_messages" class="capability-label">Manage Messages</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="view_messages" name="capabilities" value="view_messages" 
-                                                       class="capability-checkbox" data-section="communication-management" {% if 'view_messages' in capabilities %}checked{% endif %}>
-                                                <label for="view_messages" class="capability-label">View Messages</label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Reports Accordion -->
-                                <div class="accordion-item mb-4 border border-gray-200 rounded-lg overflow-hidden">
-                                    <div class="accordion-header flex justify-between items-center p-4 bg-gray-50 cursor-pointer" 
-                                         onclick="toggleAccordion('reports')">
-                                        <h4 class="text-md font-medium">Reports</h4>
-                                        <svg class="w-5 h-5 accordion-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                        </svg>
-                                    </div>
-                                    <div id="reports" class="accordion-content p-4 hidden">
-                                        <div class="mb-3">
-                                            <label class="inline-flex items-center">
-                                                <input type="checkbox" class="select-all-checkbox" data-section="reports">
-                                                <span class="ml-2 text-sm font-medium">Select All</span>
-                                            </label>
-                                        </div>
-                                        <div class="capability-grid">
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="reports_overview" name="capabilities" value="reports_overview" 
-                                                       class="capability-checkbox" data-section="reports" {% if 'reports_overview' in capabilities %}checked{% endif %}>
-                                                <label for="reports_overview" class="capability-label">Reports Overview</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="users_reports" name="capabilities" value="users_reports" 
-                                                       class="capability-checkbox" data-section="reports" {% if 'users_reports' in capabilities %}checked{% endif %}>
-                                                <label for="users_reports" class="capability-label">Users</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="groups_reports" name="capabilities" value="groups_reports" 
-                                                       class="capability-checkbox" data-section="reports" {% if 'groups_reports' in capabilities %}checked{% endif %}>
-                                                <label for="groups_reports" class="capability-label">Groups</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="branches_reports" name="capabilities" value="branches_reports" 
-                                                       class="capability-checkbox" data-section="reports" {% if 'branches_reports' in capabilities %}checked{% endif %}>
-                                                <label for="branches_reports" class="capability-label">Branches</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="courses_reports" name="capabilities" value="courses_reports" 
-                                                       class="capability-checkbox" data-section="reports" {% if 'courses_reports' in capabilities %}checked{% endif %}>
-                                                <label for="courses_reports" class="capability-label">Courses</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="learning_activities" name="capabilities" value="learning_activities" 
-                                                       class="capability-checkbox" data-section="reports" {% if 'learning_activities' in capabilities %}checked{% endif %}>
-                                                <label for="learning_activities" class="capability-label">Learning Activities</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="training_matrix" name="capabilities" value="training_matrix" 
-                                                       class="capability-checkbox" data-section="reports" {% if 'training_matrix' in capabilities %}checked{% endif %}>
-                                                <label for="training_matrix" class="capability-label">Training Matrix</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="gradebook" name="capabilities" value="gradebook" 
-                                                       class="capability-checkbox" data-section="reports" {% if 'gradebook' in capabilities %}checked{% endif %}>
-                                                <label for="gradebook" class="capability-label">Gradebook</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="timeline" name="capabilities" value="timeline" 
-                                                       class="capability-checkbox" data-section="reports" {% if 'timeline' in capabilities %}checked{% endif %}>
-                                                <label for="timeline" class="capability-label">Timeline</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="custom_reports" name="capabilities" value="custom_reports" 
-                                                       class="capability-checkbox" data-section="reports" {% if 'custom_reports' in capabilities %}checked{% endif %}>
-                                                <label for="custom_reports" class="capability-label">Custom Report</label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Branch Management Accordion -->
-                                <div class="accordion-item mb-4 border border-gray-200 rounded-lg overflow-hidden">
-                                    <div class="accordion-header flex justify-between items-center p-4 bg-gray-50 cursor-pointer" 
-                                         onclick="toggleAccordion('branch-management')">
-                                        <h4 class="text-md font-medium">Branch Management</h4>
-                                        <svg class="w-5 h-5 accordion-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                        </svg>
-                                    </div>
-                                    <div id="branch-management" class="accordion-content p-4 hidden">
-                                        <div class="mb-3">
-                                            <label class="inline-flex items-center">
-                                                <input type="checkbox" class="select-all-checkbox" data-section="branch-management">
-                                                <span class="ml-2 text-sm font-medium">Select All</span>
-                                            </label>
-                                        </div>
-                                        <div class="capability-grid">
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="create_branch" name="capabilities" value="create_branch" 
-                                                       class="capability-checkbox" data-section="branch-management" {% if 'create_branch' in capabilities %}checked{% endif %}>
-                                                <label for="create_branch" class="capability-label">Create Branch</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="manage_branch" name="capabilities" value="manage_branch" 
-                                                       class="capability-checkbox" data-section="branch-management" {% if 'manage_branch' in capabilities %}checked{% endif %}>
-                                                <label for="manage_branch" class="capability-label">Manage Branch</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="view_branch" name="capabilities" value="view_branch" 
-                                                       class="capability-checkbox" data-section="branch-management" {% if 'view_branch' in capabilities %}checked{% endif %}>
-                                                <label for="view_branch" class="capability-label">View Branch</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="branch_limit" name="capabilities" value="branch_limit" 
-                                                       class="capability-checkbox" data-section="branch-management" {% if 'branch_limit' in capabilities %}checked{% endif %}>
-                                                <label for="branch_limit" class="capability-label">Branch Limit</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="branch_reports" name="capabilities" value="branch_reports" 
-                                                       class="capability-checkbox" data-section="branch-management" {% if 'branch_reports' in capabilities %}checked{% endif %}>
-                                                <label for="branch_reports" class="capability-label">Branch Reports</label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Role Management Accordion -->
-                                <div class="accordion-item mb-4 border border-gray-200 rounded-lg overflow-hidden">
-                                    <div class="accordion-header flex justify-between items-center p-4 bg-gray-50 cursor-pointer" 
-                                         onclick="toggleAccordion('role-management')">
-                                        <h4 class="text-md font-medium">Role Management</h4>
-                                        <svg class="w-5 h-5 accordion-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                        </svg>
-                                    </div>
-                                    <div id="role-management" class="accordion-content p-4 hidden">
-                                        <div class="mb-3">
-                                            <label class="inline-flex items-center">
-                                                <input type="checkbox" class="select-all-checkbox" data-section="role-management">
-                                                <span class="ml-2 text-sm font-medium">Select All</span>
-                                            </label>
-                                        </div>
-                                        <div class="capability-grid">
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="view_roles" name="capabilities" value="view_roles" 
-                                                       class="capability-checkbox" data-section="role-management" {% if 'view_roles' in capabilities %}checked{% endif %}>
-                                                <label for="view_roles" class="capability-label">View Roles</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="manage_roles" name="capabilities" value="manage_roles" 
-                                                       class="capability-checkbox" data-section="role-management" {% if 'manage_roles' in capabilities %}checked{% endif %}>
-                                                <label for="manage_roles" class="capability-label">Manage Roles</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="create_roles" name="capabilities" value="create_roles" 
-                                                       class="capability-checkbox" data-section="role-management" {% if 'create_roles' in capabilities %}checked{% endif %}>
-                                                <label for="create_roles" class="capability-label">Create Roles</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="delete_roles" name="capabilities" value="delete_roles" 
-                                                       class="capability-checkbox" data-section="role-management" {% if 'delete_roles' in capabilities %}checked{% endif %}>
-                                                <label for="delete_roles" class="capability-label">Delete Roles</label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Certificate Template Management Accordion -->
-                                <div class="accordion-item mb-4 border border-gray-200 rounded-lg overflow-hidden">
-                                    <div class="accordion-header flex justify-between items-center p-4 bg-gray-50 cursor-pointer" 
-                                         onclick="toggleAccordion('certificate-management')">
-                                        <h4 class="text-md font-medium">Certificate Template Management</h4>
-                                        <svg class="w-5 h-5 accordion-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                        </svg>
-                                    </div>
-                                    <div id="certificate-management" class="accordion-content p-4 hidden">
-                                        <div class="mb-3">
-                                            <label class="inline-flex items-center">
-                                                <input type="checkbox" class="select-all-checkbox" data-section="certificate-management">
-                                                <span class="ml-2 text-sm font-medium">Select All</span>
-                                            </label>
-                                        </div>
-                                        <div class="capability-grid">
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="create_certificate" name="capabilities" value="create_certificate" 
-                                                       class="capability-checkbox" data-section="certificate-management" {% if 'create_certificate' in capabilities %}checked{% endif %}>
-                                                <label for="create_certificate" class="capability-label">Create Certificate</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="manage_certificate" name="capabilities" value="manage_certificate" 
-                                                       class="capability-checkbox" data-section="certificate-management" {% if 'manage_certificate' in capabilities %}checked{% endif %}>
-                                                <label for="manage_certificate" class="capability-label">Manage Certificate</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="view_certificates_templates" name="capabilities" value="view_certificates_templates" 
-                                                       class="capability-checkbox" data-section="certificate-management" {% if 'view_certificates_templates' in capabilities %}checked{% endif %}>
-                                                <label for="view_certificates_templates" class="capability-label">View Certificates</label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- AI Features Accordion -->
-                                <div class="accordion-item mb-4 border border-gray-200 rounded-lg overflow-hidden">
-                                    <div class="accordion-header flex justify-between items-center p-4 bg-gray-50 cursor-pointer" 
-                                         onclick="toggleAccordion('ai-features')">
-                                        <h4 class="text-md font-medium">AI Features</h4>
-                                        <svg class="w-5 h-5 accordion-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                        </svg>
-                                    </div>
-                                    <div id="ai-features" class="accordion-content p-4 hidden">
-                                        <div class="mb-3">
-                                            <label class="inline-flex items-center">
-                                                <input type="checkbox" class="select-all-checkbox" data-section="ai-features">
-                                                <span class="ml-2 text-sm font-medium">Select All</span>
-                                            </label>
-                                        </div>
-                                        <div class="capability-grid">
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="ai_lesson_planning" name="capabilities" value="ai_lesson_planning" 
-                                                       class="capability-checkbox" data-section="ai-features" {% if 'ai_lesson_planning' in capabilities %}checked{% endif %}>
-                                                <label for="ai_lesson_planning" class="capability-label">AI - Lesson Planning</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="ai_assessment" name="capabilities" value="ai_assessment" 
-                                                       class="capability-checkbox" data-section="ai-features" {% if 'ai_assessment' in capabilities %}checked{% endif %}>
-                                                <label for="ai_assessment" class="capability-label">AI - Assessment</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="ai_automatic_assessment" name="capabilities" value="ai_automatic_assessment" 
-                                                       class="capability-checkbox" data-section="ai-features" {% if 'ai_automatic_assessment' in capabilities %}checked{% endif %}>
-                                                <label for="ai_automatic_assessment" class="capability-label">AI - Automatic Assessment</label>
-                                            </div>
-                                            <div class="capability-item">
-                                                <input type="checkbox" id="ai_personal_tutor" name="capabilities" value="ai_personal_tutor" 
-                                                       class="capability-checkbox" data-section="ai-features" {% if 'ai_personal_tutor' in capabilities %}checked{% endif %}>
-                                                <label for="ai_personal_tutor" class="capability-label">AI - Personal Tutor Assistance</label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                {% endfor %}
                             </div>
                         </div>
 
@@ -755,18 +267,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
             
-            selectAll.checked = allChecked;
-            selectAll.indeterminate = !allChecked && Array.from(capabilities).some(cap => cap.checked);
+            if (selectAll) {
+                selectAll.checked = allChecked;
+                selectAll.indeterminate = !allChecked && Array.from(capabilities).some(cap => cap.checked);
+            }
         });
     });
     
-    // Initialize "Select All" checkbox states
-    const sections = ['user-management', 'course-management', 'assessment-management', 'communication-management', 'reports', 'branch-management', 'certificate-management', 'ai-features'];
-    sections.forEach(section => {
+    // Initialize "Select All" checkbox states for all dynamic sections
+    const allSections = document.querySelectorAll('.select-all-checkbox');
+    allSections.forEach(selectAll => {
+        const section = selectAll.getAttribute('data-section');
         const capabilities = document.querySelectorAll(`.capability-checkbox[data-section="${section}"]`);
-        const selectAll = document.querySelector(`.select-all-checkbox[data-section="${section}"]`);
         
-        if (selectAll) {
+        if (capabilities.length > 0) {
             let allChecked = true;
             let anyChecked = false;
             

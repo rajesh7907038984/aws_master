@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Review Detail - {{ course.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .review-detail-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 2rem;
+        background: white;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    .reviewer-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 2px solid #e5e7eb;
+    }
+    .reviewer-avatar-large {
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 700;
+        font-size: 2rem;
+    }
+    .reviewer-info h3 {
+        margin: 0 0 0.25rem 0;
+        font-size: 1.5rem;
+    }
+    .star-display-large {
+        color: #fbbf24;
+        font-size: 1.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .response-item {
+        padding: 1.5rem;
+        background: #f9fafb;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+    }
+    .response-label {
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 0.5rem;
+    }
+    .response-value {
+        color: #1f2937;
+        font-size: 1.05rem;
+    }
+    .rating-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: #fef3c7;
+        border-radius: 6px;
+        font-weight: 600;
+        color: #92400e;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Breadcrumbs -->
+    {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+    
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+
+            <!-- Review Detail Card -->
+            <div class="review-detail-card">
+                <div class="reviewer-header">
+                    <div class="reviewer-avatar-large">
+                        {{ review.user.first_name.0|default:review.user.username.0|upper }}
+                    </div>
+                    <div class="flex-grow-1">
+                        <h3>{{ review.user.get_full_name|default:review.user.username }}</h3>
+                        <div class="text-muted mb-2">Reviewed on {{ review.submitted_at|date:"F d, Y" }}</div>
+                        <div class="star-display-large">
+                            {% with rating_int=review.average_rating|floatformat:0 %}
+                            {% for i in "12345"|make_list %}
+                                {% if forloop.counter <= rating_int|add:0 %}
+                                    ★
+                                {% else %}
+                                    ☆
+                                {% endif %}
+                            {% endfor %}
+                            {% endwith %}
+                            <span class="text-dark">{{ review.average_rating|floatformat:2 }}/5</span>
+                        </div>
+                    </div>
+                </div>
+
+                <h4 class="mb-3">Detailed Feedback</h4>
+
+                {% if responses %}
+                    {% for response in responses %}
+                    <div class="response-item">
+                        <div class="response-label">{{ response.survey_field.label }}</div>
+                        <div class="response-value">
+                            {% if response.survey_field.field_type == 'rating' %}
+                                <div class="rating-badge">
+                                    <span style="color: #fbbf24;">
+                                        {% for i in "12345678910"|make_list %}
+                                            {% if forloop.counter <= response.rating_response %}
+                                                ★
+                                            {% endif %}
+                                        {% endfor %}
+                                    </span>
+                                    <span>{{ response.rating_response }}/{{ response.survey_field.max_rating }}</span>
+                                </div>
+                            {% else %}
+                                {{ response.text_response|linebreaks }}
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        No detailed responses available for this review.
+                    </div>
+                {% endif %}
+
+                <div class="mt-4 pt-3 border-top">
+                    <a href="{% url 'course_reviews:course_reviews_list' course.id %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to All Reviews
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

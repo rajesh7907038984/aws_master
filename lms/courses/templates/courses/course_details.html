@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load course_filters %}
+{% load review_tags %}
 
 {% block title %}{{ course.title|format_course_title }}{% endblock %}
 
@@ -1199,6 +1200,7 @@
                 <div class="tab">Outcomes</div>
                 <div class="tab">Rubrics</div>
                 <div class="tab">Certificate</div>
+                <div class="tab">Reviews</div>
             </div>
 
             <div class="tab-content">
@@ -1457,6 +1459,50 @@
                             <p>Complete the course to receive your certificate.</p>
                         </div>
                     {% endif %}
+                </div>
+                
+                <!-- Reviews Tab Content (Hidden by default) -->
+                <div class="reviews-content" style="display: none;">
+                    <div class="p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h2 class="text-2xl font-bold">Course Reviews</h2>
+                            {% if progress == 100 and course.survey %}
+                                <a href="{% url 'course_reviews:submit_course_survey' course.id %}" class="btn btn-primary">
+                                    <i class="fas fa-star"></i> Write a Review
+                                </a>
+                            {% endif %}
+                        </div>
+                        
+                        {% if course.total_reviews > 0 %}
+                            <div class="mb-4 p-4 bg-gray-50 rounded-lg">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="text-center">
+                                        <div class="text-4xl font-bold">{{ course.average_rating|floatformat:1 }}</div>
+                                        <div class="mt-1">
+                                            {% star_rating_display course.average_rating 5 False %}
+                                        </div>
+                                        <div class="text-sm text-gray-600 mt-1">{{ course.total_reviews }} review{{ course.total_reviews|pluralize }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <a href="{% url 'course_reviews:course_reviews_list' course.id %}" class="btn btn-outline-primary w-full">
+                                    <i class="fas fa-list"></i> View All Reviews
+                                </a>
+                            </div>
+                        {% else %}
+                            <div class="p-6 bg-gray-50 rounded-lg text-center">
+                                <i class="fas fa-star text-gray-300" style="font-size: 3rem;"></i>
+                                <p class="mt-3 text-gray-600">No reviews yet. Be the first to review this course!</p>
+                                {% if progress == 100 and course.survey %}
+                                    <a href="{% url 'course_reviews:submit_course_survey' course.id %}" class="btn btn-primary mt-3">
+                                        <i class="fas fa-star"></i> Write the First Review
+                                    </a>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>

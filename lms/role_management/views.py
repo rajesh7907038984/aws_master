@@ -515,6 +515,7 @@ def role_detail(request, role_id):
         'capabilities': capabilities,
         'capability_values': capability_values,
         'all_capabilities': get_available_capabilities(),
+        'capability_categories': get_capability_categories(),
         'user_roles': user_roles,
         'audit_history': audit_history,
         'can_edit': can_edit,

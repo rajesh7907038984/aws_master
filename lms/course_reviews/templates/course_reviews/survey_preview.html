@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Preview Survey - {{ survey.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-label {
+        font-weight: 500;
+        color: #374151;
+        margin-bottom: 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .form-control, .form-select {
+        border: 1px solid #E5E7EB;
+        border-radius: 6px;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+    }
+    
+    .star-rating {
+        display: inline-flex;
+        flex-direction: row-reverse;
+        gap: 0.25rem;
+    }
+    .star-rating input {
+        display: none;
+    }
+    .star-rating label {
+        cursor: pointer;
+        font-size: 2rem;
+        color: #d1d5db;
+        transition: color 0.2s;
+    }
+    .star-rating label:hover,
+    .star-rating label:hover ~ label {
+        color: #fbbf24;
+    }
+    .star-rating input:checked ~ label {
+        color: #fbbf24;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumbs -->
+    {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+    
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <!-- Header -->
+        <div class="px-6 py-4 border-bottom" style="border-color: #E5E7EB;">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="mb-1" style="font-size: 1.25rem; font-weight: 600; color: #111827;">Survey Preview</h1>
+                    <p class="mb-0" style="font-size: 0.875rem; color: #6B7280;">Preview how this survey will appear to learners</p>
+                </div>
+                <a href="{% url 'course_reviews:survey_edit' survey.id %}" class="btn btn-outline-secondary btn-sm">
+                    Edit Survey
+                </a>
+            </div>
+        </div>
+        
+        <!-- Preview Content -->
+        <div class="px-6 py-4">
+                    <div class="mb-4">
+                        <h4>{{ survey.title }}</h4>
+                        {% if survey.description %}
+                        <p class="text-muted">{{ survey.description }}</p>
+                        {% endif %}
+                    </div>
+
+                    <hr>
+
+            {% if fields %}
+                <form onsubmit="return false;">
+                    {% for field in fields %}
+                    <div class="mb-4">
+                        <label class="form-label">
+                            {{ field.label }}
+                            {% if field.is_required %}<span class="text-danger">*</span>{% endif %}
+                        </label>
+                        
+                        {% if field.help_text %}
+                        <small class="form-text text-muted d-block mb-2">{{ field.help_text }}</small>
+                        {% endif %}
+
+                        {% if field.field_type == 'text' %}
+                            <input type="text" class="form-control" placeholder="{{ field.placeholder }}" disabled>
+                        
+                        {% elif field.field_type == 'textarea' %}
+                            <textarea class="form-control" rows="4" placeholder="{{ field.placeholder }}" disabled></textarea>
+                        
+                        {% elif field.field_type == 'rating' %}
+                            <div class="star-rating">
+                                {% for i in "12345678910"|make_list %}
+                                    {% if forloop.counter <= field.max_rating %}
+                                    <input type="radio" id="star-{{ field.id }}-{{ forloop.counter }}" name="rating-{{ field.id }}" value="{{ forloop.counter }}" disabled>
+                                    <label for="star-{{ field.id }}-{{ forloop.counter }}">★</label>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            <div class="mt-2">
+                                <small class="text-muted">Rate from 1 to {{ field.max_rating }} stars</small>
+                            </div>
+                        
+                        {% elif field.field_type == 'number' %}
+                            <input type="number" class="form-control" placeholder="{{ field.placeholder }}" disabled>
+                        
+                        {% elif field.field_type == 'email' %}
+                            <input type="email" class="form-control" placeholder="{{ field.placeholder }}" disabled>
+                        
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+
+                    <div class="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded">
+                        <i class="fas fa-info-circle"></i>
+                        This is a preview only. The form is disabled.
+                    </div>
+                </form>
+            {% else %}
+                <div class="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    No fields have been added to this survey yet.
+                    <a href="{% url 'course_reviews:survey_edit' survey.id %}" class="underline">Add fields now</a>
+                </div>
+            {% endif %}
+
+            <div class="d-flex justify-content-between align-items-center pt-4 border-top mt-4" style="border-color: #E5E7EB;">
+                <a href="{% url 'course_reviews:survey_list' %}" class="btn btn-outline-secondary">
+                    Back to List
+                </a>
+                <a href="{% url 'course_reviews:survey_edit' survey.id %}" class="btn text-white" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                    Edit Survey
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

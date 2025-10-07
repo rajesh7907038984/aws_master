@@ -1,0 +1,261 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Survey Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Survey table styles */
+    .survey-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    
+    .survey-table th {
+        color: #374151;
+        font-weight: 500;
+        text-align: left;
+        padding: 0.75rem 1rem;
+        background-color: #F9FAFB;
+        font-size: 0.875rem;
+        border-bottom: 1px solid #E5E7EB;
+    }
+    
+    .survey-table td {
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+        border-bottom: 1px solid #E5E7EB;
+        text-align: left;
+    }
+
+    .survey-table .actions-cell {
+        text-align: left !important;
+        padding-right: 1.5rem;
+    }
+
+    .survey-table .actions-cell .flex {
+        justify-content: flex-start !important;
+        display: inline-flex;
+    }
+
+    .survey-table tr:nth-child(odd) td {
+        background-color: #F9FAFB;
+    }
+
+    .survey-table tr:nth-child(even) td {
+        background-color: #FFFFFF;
+    }
+    
+    .survey-table tr:hover td {
+        background-color: #F3F4F6;
+    }
+
+    /* Action buttons */
+    .action-btn {
+        padding: 0.375rem;
+        border-radius: 0.375rem;
+        transition: all 0.2s;
+        color: #6B7280;
+        display: inline-flex;
+    }
+    
+    .action-btn:hover {
+        background-color: #F3F4F6;
+        color: #374151;
+    }
+
+    /* Survey info styles */
+    .survey-name {
+        color: #111827;
+        font-weight: 500;
+        font-size: 0.875rem;
+    }
+
+    .survey-description {
+        color: #6B7280;
+        font-size: 0.875rem;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.125rem 0.5rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .status-badge.active {
+        background-color: #DEF7EC;
+        color: #03543F;
+    }
+
+    .status-badge.inactive {
+        background-color: #FDE8E8;
+        color: #9B1C1C;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumbs -->
+    {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-xl font-semibold text-gray-900">Survey Management</h1>
+                    <p class="mt-1 text-sm text-gray-600">Manage course review surveys</p>
+                </div>
+                <a href="{% url 'course_reviews:survey_create' %}" 
+                   class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                    <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                    </svg>
+                    Create New Survey
+                </a>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="overflow-x-auto">
+            <table class="survey-table">
+                <thead>
+                    <tr>
+                        <th class="pl-6">Survey Title</th>
+                        <th>Status</th>
+                        <th>Fields</th>
+                        <th>Responses</th>
+                        <th>Created</th>
+                        <th class="actions-cell">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if surveys %}
+                        {% for survey in surveys %}
+                        <tr>
+                            <td class="pl-6">
+                                <div class="survey-name">{{ survey.title }}</div>
+                                {% if survey.description %}
+                                <div class="survey-description">{{ survey.description|striptags|truncatewords:15 }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="status-badge {% if survey.is_active %}active{% else %}inactive{% endif %}">
+                                    {{ survey.is_active|yesno:"Active,Inactive" }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="text-sm text-gray-600">{{ survey.fields_count }} field{{ survey.fields_count|pluralize }}</span>
+                            </td>
+                            <td>
+                                <span class="text-sm text-gray-600">{{ survey.responses_count }} response{{ survey.responses_count|pluralize }}</span>
+                            </td>
+                            <td>
+                                <span class="text-sm text-gray-600">{{ survey.created_at|date:"M d, Y" }}</span>
+                            </td>
+                            <td class="actions-cell">
+                                <div class="flex space-x-2">
+                                    <a href="{% url 'course_reviews:survey_edit' survey.id %}" 
+                                       class="action-btn" 
+                                       title="Edit">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                        </svg>
+                                    </a>
+                                    <a href="{% url 'course_reviews:survey_preview' survey.id %}" 
+                                       class="action-btn" 
+                                       title="Preview">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                        </svg>
+                                    </a>
+                                    <form method="post" action="{% url 'course_reviews:survey_delete' survey.id %}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this survey? This action cannot be undone.');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="action-btn text-red-600 hover:text-red-800" title="Delete">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                            </svg>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center py-8">
+                                <div class="text-gray-500">
+                                    {% if search_query %}
+                                        No surveys found matching "{{ search_query }}".
+                                    {% else %}
+                                        No surveys found. Click "Create New Survey" to get started.
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if surveys.has_other_pages %}
+        <div class="px-6 py-4 border-t border-gray-200">
+            <nav class="flex justify-center" aria-label="Pagination">
+                <ul class="flex space-x-2">
+                    {% if surveys.has_previous %}
+                    <li>
+                        <a href="?page={{ surveys.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}" 
+                           class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                            Previous
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% for num in surveys.paginator.page_range %}
+                        {% if surveys.number == num %}
+                        <li>
+                            <span class="px-3 py-2 border border-blue-500 rounded-md text-sm font-medium text-blue-600 bg-blue-50">
+                                {{ num }}
+                            </span>
+                        </li>
+                        {% elif num > surveys.number|add:'-3' and num < surveys.number|add:'3' %}
+                        <li>
+                            <a href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}" 
+                               class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                                {{ num }}
+                            </a>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if surveys.has_next %}
+                    <li>
+                        <a href="?page={{ surveys.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}" 
+                           class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                            Next
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-hide success messages
+    setTimeout(function() {
+        $('.alert-success').fadeOut('slow');
+    }, 3000);
+</script>
+{% endblock %}

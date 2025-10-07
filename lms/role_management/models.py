@@ -48,6 +48,28 @@ class RoleManager(models.Manager):
                 'view_rubrics', 'manage_rubrics', 'create_rubrics', 'delete_rubrics',
                 'view_discussions', 'manage_discussions', 'create_discussions', 'delete_discussions',
                 'view_conferences', 'manage_conferences', 'create_conferences', 'delete_conferences',
+                # SCORM Management
+                'view_scorm', 'manage_scorm', 'create_scorm', 'delete_scorm', 'track_scorm_progress',
+                # Outcomes Management
+                'view_outcomes', 'manage_outcomes', 'create_outcomes', 'delete_outcomes', 'align_outcomes',
+                # Gradebook Management
+                'view_gradebook', 'manage_gradebook', 'export_gradebook', 'import_gradebook',
+                # Calendar Management
+                'view_calendar', 'manage_calendar', 'create_calendar_events', 'delete_calendar_events',
+                # Individual Learning Plans
+                'view_ilp', 'manage_ilp', 'create_ilp', 'delete_ilp', 'assign_ilp',
+                # Media Management
+                'view_media', 'manage_media', 'upload_media', 'delete_media',
+                # Course Reviews
+                'view_course_reviews', 'manage_course_reviews', 'delete_course_reviews', 'moderate_reviews',
+                # Survey Management
+                'view_surveys', 'manage_surveys', 'view_survey_responses',
+                # SharePoint Integration
+                'view_sharepoint', 'manage_sharepoint_integration', 'sync_sharepoint',
+                # Account Settings
+                'view_account_settings', 'manage_account_settings', 'manage_global_admin_settings',
+                # Business Management
+                'view_business', 'manage_business', 'create_business', 'delete_business',
                 # Global Admin exclusive capabilities
                 'manage_global_settings', 'manage_oauth_configuration', 'manage_menu_control',
                 'manage_ai_settings', 'system_wide_administration', 'global_menu_visibility',
@@ -68,7 +90,29 @@ class RoleManager(models.Manager):
                 'manage_notifications', 'send_notifications',
                 'create_messages', 'manage_messages', 'view_messages',
                 'view_categories', 'manage_categories', 'create_categories', 'delete_categories',
-                'view_certificates_templates', 'manage_certificates'
+                'view_certificates_templates', 'manage_certificates',
+                # SCORM Management
+                'view_scorm', 'manage_scorm', 'create_scorm', 'delete_scorm', 'track_scorm_progress',
+                # Outcomes Management
+                'view_outcomes', 'manage_outcomes', 'create_outcomes', 'delete_outcomes', 'align_outcomes',
+                # Gradebook Management
+                'view_gradebook', 'manage_gradebook', 'export_gradebook', 'import_gradebook',
+                # Calendar Management
+                'view_calendar', 'manage_calendar', 'create_calendar_events', 'delete_calendar_events',
+                # Individual Learning Plans
+                'view_ilp', 'manage_ilp', 'create_ilp', 'delete_ilp', 'assign_ilp',
+                # Media Management
+                'view_media', 'manage_media', 'upload_media', 'delete_media',
+                # Course Reviews
+                'view_course_reviews', 'manage_course_reviews', 'delete_course_reviews', 'moderate_reviews',
+                # Survey Management
+                'view_surveys', 'manage_surveys', 'view_survey_responses',
+                # SharePoint Integration
+                'view_sharepoint', 'manage_sharepoint_integration', 'sync_sharepoint',
+                # Account Settings
+                'view_account_settings', 'manage_account_settings',
+                # Business Management
+                'view_business', 'manage_business'
             ],
             'admin': [
                 'view_users', 'manage_users', 'create_users', 'delete_users',
@@ -84,7 +128,25 @@ class RoleManager(models.Manager):
                 'manage_notifications', 'send_notifications',
                 'create_messages', 'manage_messages', 'view_messages',
                 'view_categories', 'manage_categories', 'create_categories', 'delete_categories',
-                'view_certificates_templates', 'manage_certificates'
+                'view_certificates_templates', 'manage_certificates',
+                # SCORM Management
+                'view_scorm', 'manage_scorm', 'create_scorm', 'track_scorm_progress',
+                # Outcomes Management
+                'view_outcomes', 'manage_outcomes', 'create_outcomes', 'align_outcomes',
+                # Gradebook Management
+                'view_gradebook', 'manage_gradebook', 'export_gradebook', 'import_gradebook',
+                # Calendar Management
+                'view_calendar', 'manage_calendar', 'create_calendar_events', 'delete_calendar_events',
+                # Individual Learning Plans
+                'view_ilp', 'manage_ilp', 'create_ilp', 'assign_ilp',
+                # Media Management
+                'view_media', 'manage_media', 'upload_media',
+                # Course Reviews
+                'view_course_reviews', 'manage_course_reviews', 'moderate_reviews',
+                # Survey Management
+                'view_surveys', 'manage_surveys', 'view_survey_responses',
+                # Account Settings
+                'view_account_settings'
             ],
             'instructor': [
                 'view_users',
@@ -98,7 +160,25 @@ class RoleManager(models.Manager):
                 'create_messages', 'manage_messages', 'view_messages',
                 'view_reports',
                 'view_categories',
-                'view_certificates_templates', 'manage_certificates'
+                'view_certificates_templates', 'manage_certificates',
+                # SCORM Management
+                'view_scorm', 'manage_scorm', 'create_scorm', 'track_scorm_progress',
+                # Outcomes Management
+                'view_outcomes', 'manage_outcomes', 'align_outcomes',
+                # Gradebook Management
+                'view_gradebook', 'manage_gradebook', 'export_gradebook',
+                # Calendar Management
+                'view_calendar', 'create_calendar_events',
+                # Individual Learning Plans
+                'view_ilp', 'manage_ilp', 'assign_ilp',
+                # Media Management
+                'view_media', 'upload_media',
+                # Course Reviews
+                'view_course_reviews',
+                # Survey Management
+                'view_surveys', 'manage_surveys',
+                # Account Settings
+                'view_account_settings'
             ],
             'learner': [
                 'view_users',
@@ -112,7 +192,23 @@ class RoleManager(models.Manager):
                 'view_messages', 'create_messages',
                 'view_certificates_templates',
                 'view_reports',
-                'view_categories'
+                'view_categories',
+                # SCORM Management
+                'view_scorm', 'track_scorm_progress',
+                # Outcomes Management
+                'view_outcomes',
+                # Gradebook Management
+                'view_gradebook',
+                # Calendar Management
+                'view_calendar',
+                # Individual Learning Plans
+                'view_ilp',
+                # Media Management
+                'view_media',
+                # Course Reviews
+                'view_course_reviews',
+                # Account Settings
+                'view_account_settings'
             ]
         }
         return default_capabilities.get(role_name, [])

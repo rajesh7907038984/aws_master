@@ -228,217 +228,37 @@
                 <!-- All Available Capabilities -->
                 <div class="capability-section">
                     <h2 class="capability-section-title">All Available Capabilities</h2>
-                    <p class="text-sm text-gray-500 mb-4">Below is a list of all capabilities in the system. Assigned capabilities are highlighted.</p>
+                    <p class="text-sm text-gray-500 mb-4">Below is a comprehensive list of all capabilities in the system. Assigned capabilities are highlighted with a check mark.</p>
                     
-                    <!-- User Management Accordion -->
+                    {% for category, caps in capability_categories.items %}
+                    <!-- {{ category }} Accordion -->
                     <div class="accordion-item mb-4 border border-gray-200 rounded-lg overflow-hidden">
                         <div class="accordion-header flex justify-between items-center p-4 bg-gray-50 cursor-pointer" 
-                             onclick="toggleAccordion('user-management')">
-                            <h4 class="text-md font-medium">User Management</h4>
+                             onclick="toggleAccordion('{{ category|slugify }}')">
+                            <h4 class="text-md font-medium">{{ category }}</h4>
                             <svg class="w-5 h-5 accordion-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                             </svg>
                         </div>
-                        <div id="user-management" class="accordion-content p-4 hidden">
+                        <div id="{{ category|slugify }}" class="accordion-content p-4 hidden">
                             <div class="capability-grid">
-                                {% for cap in all_capabilities %}
-                                    {% if cap in 'create_users,manage_users,view_users,create_groups,manage_groups,view_groups,user_limit,manage_group_members'|split:',' %}
-                                        {% if cap in capability_values %}
-                                            <span class="capability-badge manage">
-                                                <i class="fas fa-check"></i>
-                                                {{ cap|format_capability }}
-                                            </span>
-                                        {% else %}
-                                            <span class="capability-badge" style="opacity: 0.5; background-color: #f3f4f6; color: #6b7280;">
-                                                <i class="fas fa-times"></i>
-                                                {{ cap|format_capability }}
-                                            </span>
-                                        {% endif %}
+                                {% for cap in caps %}
+                                    {% if cap in capability_values %}
+                                        <span class="capability-badge manage">
+                                            <i class="fas fa-check"></i>
+                                            {{ cap|format_capability }}
+                                        </span>
+                                    {% else %}
+                                        <span class="capability-badge" style="opacity: 0.5; background-color: #f3f4f6; color: #6b7280;">
+                                            <i class="fas fa-times"></i>
+                                            {{ cap|format_capability }}
+                                        </span>
                                     {% endif %}
                                 {% endfor %}
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- Course Management Accordion -->
-                    <div class="accordion-item mb-4 border border-gray-200 rounded-lg overflow-hidden">
-                        <div class="accordion-header flex justify-between items-center p-4 bg-gray-50 cursor-pointer" 
-                             onclick="toggleAccordion('course-management')">
-                            <h4 class="text-md font-medium">Course Management</h4>
-                            <svg class="w-5 h-5 accordion-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                            </svg>
-                        </div>
-                        <div id="course-management" class="accordion-content p-4 hidden">
-                            <div class="capability-grid">
-                                {% for cap in all_capabilities %}
-                                    {% if cap in 'create_course,manage_course,view_course,create_categories,manage_categories,view_categories,create_course_groups,manage_course_groups,view_course_groups,create_outcome,manage_outcome,view_outcomes,view_certificates,view_topics,manage_topics,view_branches,manage_branches'|split:',' %}
-                                        {% if cap in capability_values %}
-                                            <span class="capability-badge manage">
-                                                <i class="fas fa-check"></i>
-                                                {{ cap|format_capability }}
-                                            </span>
-                                        {% else %}
-                                            <span class="capability-badge" style="opacity: 0.5; background-color: #f3f4f6; color: #6b7280;">
-                                                <i class="fas fa-times"></i>
-                                                {{ cap|format_capability }}
-                                            </span>
-                                        {% endif %}
-                                    {% endif %}
-                                {% endfor %}
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Assessment Management Accordion -->
-                    <div class="accordion-item mb-4 border border-gray-200 rounded-lg overflow-hidden">
-                        <div class="accordion-header flex justify-between items-center p-4 bg-gray-50 cursor-pointer" 
-                             onclick="toggleAccordion('assessment-management')">
-                            <h4 class="text-md font-medium">Assessment Management</h4>
-                            <svg class="w-5 h-5 accordion-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                            </svg>
-                        </div>
-                        <div id="assessment-management" class="accordion-content p-4 hidden">
-                            <div class="capability-grid">
-                                {% for cap in all_capabilities %}
-                                    {% if cap in 'create_assignment,manage_assignments,view_assignments,create_quizzes,manage_quizzes,view_quizzes,create_rubrics,manage_rubrics,view_rubrics,grade_assignments,grade_quizzes'|split:',' %}
-                                        {% if cap in capability_values %}
-                                            <span class="capability-badge manage">
-                                                <i class="fas fa-check"></i>
-                                                {{ cap|format_capability }}
-                                            </span>
-                                        {% else %}
-                                            <span class="capability-badge" style="opacity: 0.5; background-color: #f3f4f6; color: #6b7280;">
-                                                <i class="fas fa-times"></i>
-                                                {{ cap|format_capability }}
-                                            </span>
-                                        {% endif %}
-                                    {% endif %}
-                                {% endfor %}
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Communication Management Accordion -->
-                    <div class="accordion-item mb-4 border border-gray-200 rounded-lg overflow-hidden">
-                        <div class="accordion-header flex justify-between items-center p-4 bg-gray-50 cursor-pointer" 
-                             onclick="toggleAccordion('communication-management')">
-                            <h4 class="text-md font-medium">Communication Management</h4>
-                            <svg class="w-5 h-5 accordion-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                            </svg>
-                        </div>
-                        <div id="communication-management" class="accordion-content p-4 hidden">
-                            <div class="capability-grid">
-                                {% for cap in all_capabilities %}
-                                    {% if cap in 'create_discussions,manage_discussions,view_discussions,create_messages,manage_messages,view_messages,create_announcements,manage_announcements,view_announcements,create_conference,manage_conferences,view_conferences'|split:',' %}
-                                        {% if cap in capability_values %}
-                                            <span class="capability-badge manage">
-                                                <i class="fas fa-check"></i>
-                                                {{ cap|format_capability }}
-                                            </span>
-                                        {% else %}
-                                            <span class="capability-badge" style="opacity: 0.5; background-color: #f3f4f6; color: #6b7280;">
-                                                <i class="fas fa-times"></i>
-                                                {{ cap|format_capability }}
-                                            </span>
-                                        {% endif %}
-                                    {% endif %}
-                                {% endfor %}
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Reports Accordion -->
-                    <div class="accordion-item mb-4 border border-gray-200 rounded-lg overflow-hidden">
-                        <div class="accordion-header flex justify-between items-center p-4 bg-gray-50 cursor-pointer" 
-                             onclick="toggleAccordion('reports')">
-                            <h4 class="text-md font-medium">Reports</h4>
-                            <svg class="w-5 h-5 accordion-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                            </svg>
-                        </div>
-                        <div id="reports" class="accordion-content p-4 hidden">
-                            <div class="capability-grid">
-                                {% for cap in all_capabilities %}
-                                    {% if cap in 'training_matrix,gradebook,analytics_dashboard,user_reports,course_reports,view_analytics,view_reports'|split:',' %}
-                                        {% if cap in capability_values %}
-                                            <span class="capability-badge manage">
-                                                <i class="fas fa-check"></i>
-                                                {{ cap|format_capability }}
-                                            </span>
-                                        {% else %}
-                                            <span class="capability-badge" style="opacity: 0.5; background-color: #f3f4f6; color: #6b7280;">
-                                                <i class="fas fa-times"></i>
-                                                {{ cap|format_capability }}
-                                            </span>
-                                        {% endif %}
-                                    {% endif %}
-                                {% endfor %}
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Role Management Accordion -->
-                    <div class="accordion-item mb-4 border border-gray-200 rounded-lg overflow-hidden">
-                        <div class="accordion-header flex justify-between items-center p-4 bg-gray-50 cursor-pointer" 
-                             onclick="toggleAccordion('role-management')">
-                            <h4 class="text-md font-medium">Role Management</h4>
-                            <svg class="w-5 h-5 accordion-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                            </svg>
-                        </div>
-                        <div id="role-management" class="accordion-content p-4 hidden">
-                            <div class="capability-grid">
-                                {% for cap in all_capabilities %}
-                                    {% if cap in 'view_roles,manage_roles,create_roles,delete_roles'|split:',' %}
-                                        {% if cap in capability_values %}
-                                            <span class="capability-badge manage">
-                                                <i class="fas fa-check"></i>
-                                                {{ cap|format_capability }}
-                                            </span>
-                                        {% else %}
-                                            <span class="capability-badge" style="opacity: 0.5; background-color: #f3f4f6; color: #6b7280;">
-                                                <i class="fas fa-times"></i>
-                                                {{ cap|format_capability }}
-                                            </span>
-                                        {% endif %}
-                                    {% endif %}
-                                {% endfor %}
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- System Management Accordion -->
-                    <div class="accordion-item mb-4 border border-gray-200 rounded-lg overflow-hidden">
-                        <div class="accordion-header flex justify-between items-center p-4 bg-gray-50 cursor-pointer" 
-                             onclick="toggleAccordion('system-management')">
-                            <h4 class="text-md font-medium">System Management</h4>
-                            <svg class="w-5 h-5 accordion-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                            </svg>
-                        </div>
-                        <div id="system-management" class="accordion-content p-4 hidden">
-                            <div class="capability-grid">
-                                {% for cap in all_capabilities %}
-                                    {% if cap in 'manage_system_settings,view_system_logs,view_progress,manage_progress,manage_certificates,view_certificates_templates'|split:',' %}
-                                        {% if cap in capability_values %}
-                                            <span class="capability-badge manage">
-                                                <i class="fas fa-check"></i>
-                                                {{ cap|format_capability }}
-                                            </span>
-                                        {% else %}
-                                            <span class="capability-badge" style="opacity: 0.5; background-color: #f3f4f6; color: #6b7280;">
-                                                <i class="fas fa-times"></i>
-                                                {{ cap|format_capability }}
-                                            </span>
-                                        {% endif %}
-                                    {% endif %}
-                                {% endfor %}
-                            </div>
-                        </div>
-                    </div>
+                    {% endfor %}
                 </div>
             </div>
 
