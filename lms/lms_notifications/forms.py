@@ -400,8 +400,16 @@ class EnhancedNotificationSettingsForm(forms.ModelForm):
         model = NotificationSettings
         fields = [
             'email_notifications_enabled',
-            'web_notifications_enabled'
+            'web_notifications_enabled',
+            'certificate_expiry_reminder_days'
         ]
+        widgets = {
+            'certificate_expiry_reminder_days': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '0',
+                'placeholder': 'Enter days (0 = no reminder)'
+            })
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -410,4 +418,9 @@ class EnhancedNotificationSettingsForm(forms.ModelForm):
             if isinstance(field.widget, forms.CheckboxInput):
                 field.widget.attrs.update({'class': 'form-check-input'})
             elif not field_name.startswith(('enable_all_', 'disable_all_')):
-                field.widget.attrs.update({'class': 'form-control'}) 
+                field.widget.attrs.update({'class': 'form-control'})
+        
+        # Add help text for certificate expiry reminder
+        self.fields['certificate_expiry_reminder_days'].help_text = (
+            'Number of days before certificate expiry to send reminder (0 = no reminder)'
+        ) 

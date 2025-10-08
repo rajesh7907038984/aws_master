@@ -64,6 +64,17 @@ class NotificationSettings(models.Model):
     daily_digest_enabled = models.BooleanField(default=False)
     weekly_digest_enabled = models.BooleanField(default=True)
     
+    # Certificate expiry reminder settings
+    certificate_expiry_reminder_days = models.IntegerField(
+        default=30,
+        help_text="How many days before certificate expiry to send reminder (0 = no reminder)"
+    )
+    certificate_expiry_reminder_intervals = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of days before expiry to send reminders (e.g., [30, 7, 1])"
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

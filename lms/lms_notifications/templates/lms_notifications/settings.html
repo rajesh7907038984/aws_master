@@ -63,6 +63,22 @@ button[type="submit"]:hover {
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
+/* Certificate expiry reminder input styling */
+#id_certificate_expiry_reminder_days {
+    width: 100%;
+    padding: 0.5rem 3rem 0.5rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+}
+
+#id_certificate_expiry_reminder_days:focus {
+    outline: none;
+    border-color: #3b82f6;
+    ring: 2px;
+    ring-color: rgba(59, 130, 246, 0.5);
+}
+
 /* Responsive improvements */
 @media (max-width: 768px) {
     .grid.grid-cols-1.md\\:grid-cols-2 {
@@ -125,6 +141,7 @@ button[type="submit"]:hover {
                                 </div>
                             </div>
                         </div>
+                        
                     </div>
                 </div>
 
@@ -139,34 +156,68 @@ button[type="submit"]:hover {
                     <div class="px-6 py-4">
                         <div class="space-y-4">
                             {% for item in notification_types_with_settings %}
-                            <div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                                <div class="flex-1">
-                                    <div class="flex items-center space-x-3">
-                                        <div>
-                                            <h4 class="text-sm font-medium text-gray-900">{{ item.type.display_name }}</h4>
-                                            <p class="text-sm text-gray-500">{{ item.type.description }}</p>
+                            <div class="border border-gray-200 rounded-lg">
+                                <div class="flex items-center justify-between p-4">
+                                    <div class="flex-1">
+                                        <div class="flex items-center space-x-3">
+                                            <div>
+                                                <h4 class="text-sm font-medium text-gray-900">{{ item.type.display_name }}</h4>
+                                                <p class="text-sm text-gray-500">{{ item.type.description }}</p>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <div class="flex items-center space-x-4">
-                                    <!-- Email Toggle -->
-                                    <div class="flex items-center space-x-2">
-                                        <span class="text-xs text-gray-500">Email</span>
-                                        <input type="checkbox" 
-                                               name="type_{{ item.type.id }}_email" 
-                                               {% if item.settings.email_enabled %}checked{% endif %}
-                                               {% if not item.type.can_be_disabled %}disabled{% endif %}
-                                               class="form-checkbox">
+                                    <div class="flex items-center space-x-4">
+                                        <!-- Email Toggle -->
+                                        <div class="flex items-center space-x-2">
+                                            <span class="text-xs text-gray-500">Email</span>
+                                            <input type="checkbox" 
+                                                   name="type_{{ item.type.id }}_email" 
+                                                   {% if item.settings.email_enabled %}checked{% endif %}
+                                                   {% if not item.type.can_be_disabled %}disabled{% endif %}
+                                                   class="form-checkbox">
+                                        </div>
+                                        <!-- Test Email Button -->
+                                        <button type="button" 
+                                                class="test-email-btn inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md shadow-sm text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                                data-notification-type="{{ item.type.id }}"
+                                                data-notification-name="{{ item.type.display_name }}">
+                                            <i class="fas fa-paper-plane mr-1 text-xs"></i>
+                                            Test
+                                        </button>
                                     </div>
-                                    <!-- Test Email Button -->
-                                    <button type="button" 
-                                            class="test-email-btn inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md shadow-sm text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                                            data-notification-type="{{ item.type.id }}"
-                                            data-notification-name="{{ item.type.display_name }}">
-                                        <i class="fas fa-paper-plane mr-1 text-xs"></i>
-                                        Test
-                                    </button>
                                 </div>
+                                
+                                <!-- Certificate Expiry Reminder - Show Interval Settings -->
+                                {% if item.type.name == 'certificate_expiry_reminder' %}
+                                <div class="px-4 pb-4 pt-2 border-t border-gray-200 bg-gray-50">
+                                    <div class="space-y-3">
+                                        <div>
+                                            <label class="text-xs font-medium text-gray-700 block mb-2">
+                                                <i class="fas fa-clock mr-1"></i> Reminder Intervals (days before expiry)
+                                            </label>
+                                            <p class="text-xs text-gray-500 mb-3">Set when you want to receive reminders before your certificate expires</p>
+                                        </div>
+                                        
+                                        <div id="reminder-intervals-container" class="space-y-2">
+                                            <!-- Intervals will be added here dynamically -->
+                                        </div>
+                                        
+                                        <button type="button" id="add-interval-btn" class="inline-flex items-center px-2 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50">
+                                            <i class="fas fa-plus mr-1"></i> Add Interval
+                                        </button>
+                                        
+                                        <div class="bg-blue-50 border border-blue-200 rounded p-2 mt-2">
+                                            <p class="text-xs text-blue-800">
+                                                <i class="fas fa-info-circle mr-1"></i>
+                                                <strong>Example:</strong> Add 30, 7, and 1 to receive reminders 30 days, 7 days, and 1 day before expiry
+                                            </p>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Hidden input to store intervals as JSON -->
+                                    <input type="hidden" id="certificate_expiry_intervals_json" name="certificate_expiry_intervals_json" value="">
+                                </div>
+                                {% endif %}
                             </div>
                             {% empty %}
                             <div class="text-center py-6">
@@ -225,6 +276,126 @@ button[type="submit"]:hover {
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Certificate Expiry Reminder Intervals Management
+    let intervals = [];
+    const intervalsContainer = document.getElementById('reminder-intervals-container');
+    const addIntervalBtn = document.getElementById('add-interval-btn');
+    const intervalsJsonInput = document.getElementById('certificate_expiry_intervals_json');
+    
+    // Load existing intervals from user settings
+    function loadExistingIntervals() {
+        // Try to get existing intervals from the form or settings
+        const existingIntervalsStr = '{{ request.user.notification_settings.certificate_expiry_reminder_intervals|default:"[]"|safe }}';
+        try {
+            const existingIntervals = JSON.parse(existingIntervalsStr);
+            if (Array.isArray(existingIntervals) && existingIntervals.length > 0) {
+                intervals = existingIntervals;
+            } else {
+                // Default intervals
+                intervals = [30, 7, 1];
+            }
+        } catch (e) {
+            // Default intervals
+            intervals = [30, 7, 1];
+        }
+        renderIntervals();
+    }
+    
+    // Render interval inputs
+    function renderIntervals() {
+        if (!intervalsContainer) return;
+        
+        intervalsContainer.innerHTML = '';
+        
+        // Sort intervals in descending order (larger numbers first)
+        intervals.sort((a, b) => b - a);
+        
+        intervals.forEach((days, index) => {
+            const intervalDiv = document.createElement('div');
+            intervalDiv.className = 'flex items-center space-x-2';
+            intervalDiv.innerHTML = `
+                <div class="flex-1 max-w-xs">
+                    <div class="relative rounded-md shadow-sm">
+                        <input type="number" 
+                               class="interval-input block w-full pr-16 py-1.5 px-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm" 
+                               value="${days}" 
+                               min="1" 
+                               max="365"
+                               data-index="${index}"
+                               placeholder="Days">
+                        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                            <span class="text-gray-500 text-xs">days before</span>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" 
+                        class="remove-interval-btn inline-flex items-center p-1.5 border border-red-300 rounded text-red-700 hover:bg-red-50"
+                        data-index="${index}">
+                    <i class="fas fa-trash text-xs"></i>
+                </button>
+            `;
+            intervalsContainer.appendChild(intervalDiv);
+        });
+        
+        // Add event listeners to inputs
+        document.querySelectorAll('.interval-input').forEach(input => {
+            input.addEventListener('change', function() {
+                const index = parseInt(this.dataset.index);
+                const value = parseInt(this.value);
+                if (value > 0 && value <= 365) {
+                    intervals[index] = value;
+                    updateIntervalsJson();
+                }
+            });
+        });
+        
+        // Add event listeners to remove buttons
+        document.querySelectorAll('.remove-interval-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const index = parseInt(this.dataset.index);
+                intervals.splice(index, 1);
+                renderIntervals();
+                updateIntervalsJson();
+            });
+        });
+        
+        updateIntervalsJson();
+    }
+    
+    // Update hidden JSON input
+    function updateIntervalsJson() {
+        if (intervalsJsonInput) {
+            intervalsJsonInput.value = JSON.stringify(intervals);
+        }
+    }
+    
+    // Add new interval
+    if (addIntervalBtn) {
+        addIntervalBtn.addEventListener('click', function() {
+            // Add a default value (next logical interval)
+            let newValue = 30;
+            if (intervals.length > 0) {
+                // Find a good default value
+                const sortedIntervals = [...intervals].sort((a, b) => b - a);
+                const largest = sortedIntervals[0];
+                if (largest < 30) {
+                    newValue = 30;
+                } else if (largest < 60) {
+                    newValue = 60;
+                } else {
+                    newValue = 90;
+                }
+            }
+            intervals.push(newValue);
+            renderIntervals();
+        });
+    }
+    
+    // Initialize intervals
+    if (intervalsContainer) {
+        loadExistingIntervals();
+    }
+    
     // Handle test email button clicks
     const testEmailButtons = document.querySelectorAll('.test-email-btn');
     

@@ -12,6 +12,10 @@ class CertificateTemplate(models.Model):
         on_delete=models.CASCADE,
         related_name='created_templates'
     )
+    validity_days = models.IntegerField(
+        default=0,
+        help_text="Number of days the certificate is valid (0 = no expiry)"
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -26,6 +30,7 @@ class CertificateElement(models.Model):
         ('name', 'Name'),
         ('grade', 'Grade'),
         ('date', 'Date'),
+        ('expiry_date', 'Expiry Date'),
         ('signature', 'Signature'),
         ('image', 'Image'),
         ('course', 'Course Name'),

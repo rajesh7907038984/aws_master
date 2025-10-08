@@ -318,6 +318,17 @@ def notification_settings(request):
             type_settings.web_enabled = web_key in request.POST
             type_settings.save()
         
+        # Handle certificate expiry reminder intervals
+        intervals_json = request.POST.get('certificate_expiry_intervals_json', '[]')
+        try:
+            intervals = json.loads(intervals_json)
+            if isinstance(intervals, list):
+                # Filter valid intervals (positive integers)
+                valid_intervals = [int(i) for i in intervals if isinstance(i, (int, str)) and int(i) > 0]
+                settings_obj.certificate_expiry_reminder_intervals = valid_intervals
+        except (json.JSONDecodeError, ValueError):
+            pass  # Keep existing intervals if parsing fails
+        
         if form.is_valid():
             form.save()
             messages.success(request, 'Notification settings updated successfully.')

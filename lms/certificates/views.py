@@ -196,6 +196,12 @@ def generate_certificate(request, template_id):
         # Generate unique certificate number
         certificate_number = f"CERT-{uuid.uuid4().hex[:8].upper()}"
         
+        # Calculate expiry date based on template validity_days
+        expiry_date = None
+        if template.validity_days > 0:
+            from datetime import timedelta
+            expiry_date = timezone.now() + timedelta(days=template.validity_days)
+        
         # Create issued certificate record
         certificate = IssuedCertificate.objects.create(
             template=template,
@@ -203,7 +209,8 @@ def generate_certificate(request, template_id):
             issued_by=request.user,
             course_name=course_name,
             grade=grade,
-            certificate_number=certificate_number
+            certificate_number=certificate_number,
+            expiry_date=expiry_date
         )
         
         # Generate certificate file
@@ -410,6 +417,7 @@ def save_template(request):
         # Get form data
         name = request.POST.get('name', '')
         fields_json = request.POST.get('fields', '[]')
+        validity_days = request.POST.get('validity_days', '0')
         
         # Parse fields JSON
         fields = json.loads(fields_json)
@@ -423,10 +431,17 @@ def save_template(request):
             messages.error(request, 'No fields added to the template')
             return redirect('certificates:certificates')
         
+        # Convert validity_days to int
+        try:
+            validity_days = int(validity_days)
+        except (ValueError, TypeError):
+            validity_days = 0
+        
         # Create template record
         template = CertificateTemplate.objects.create(
             name=name,
-            created_by=request.user
+            created_by=request.user,
+            validity_days=validity_days
         )
         
         # Process image upload
@@ -468,6 +483,7 @@ def get_template_data(request, template_id):
             'name': template.name,
             'image': template.image.url if template.image else None,
             'created_by': template.created_by.id,
+            'validity_days': template.validity_days,
             'is_active': template.is_active,
             'created_at': template.created_at.strftime('%Y-%m-%d %H:%M:%S')
         }
@@ -541,6 +557,7 @@ def update_template(request, template_id):
         # Get form data
         name = request.POST.get('name', '')
         fields_json = request.POST.get('fields', '[]')
+        validity_days = request.POST.get('validity_days', '0')
         
         # Parse fields JSON
         fields = json.loads(fields_json)
@@ -552,8 +569,15 @@ def update_template(request, template_id):
                 'message': 'Template name is required'
             }, status=400)
         
+        # Convert validity_days to int
+        try:
+            validity_days = int(validity_days)
+        except (ValueError, TypeError):
+            validity_days = 0
+        
         # Update template data
         template.name = name
+        template.validity_days = validity_days
         
         # Process image upload if new image provided
         if 'image' in request.FILES:

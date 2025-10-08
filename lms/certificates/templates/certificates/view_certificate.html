@@ -326,6 +326,12 @@
                     {{ certificate.grade }}
                 {% elif element.element_type == 'date' %}
                     <span style="display:inline-block; white-space:nowrap; padding:0; margin:0;">{{ certificate.issue_date|date:"d/m/Y" }}</span>
+                {% elif element.element_type == 'expiry_date' %}
+                    {% if certificate.expiry_date %}
+                    <span style="display:inline-block; white-space:nowrap; padding:0; margin:0;">Valid until: {{ certificate.expiry_date|date:"d/m/Y" }}</span>
+                    {% else %}
+                    <span style="display:inline-block; white-space:nowrap; padding:0; margin:0;">No expiry</span>
+                    {% endif %}
                 {% elif element.element_type == 'certificate_id' %}
                     {{ certificate.certificate_number }}
                 {% elif element.element_type == 'signature' and element.default_value %}
@@ -342,6 +348,8 @@
                     grade
                 {% elif element.element_type == 'date' %}
                     date
+                {% elif element.element_type == 'expiry_date' %}
+                    expiry date
                 {% elif element.element_type == 'certificate_id' %}
                     certificate ID
                 {% elif element.element_type == 'signature' %}
@@ -479,6 +487,12 @@
                             {{ certificate.grade }}
                         {% elif element.element_type == 'date' %}
                             <span style="display:inline-block; white-space:nowrap; padding:0; margin:0;">{{ certificate.issue_date|date:"d/m/Y" }}</span>
+                        {% elif element.element_type == 'expiry_date' %}
+                            {% if certificate.expiry_date %}
+                            <span style="display:inline-block; white-space:nowrap; padding:0; margin:0;">Valid until: {{ certificate.expiry_date|date:"d/m/Y" }}</span>
+                            {% else %}
+                            <span style="display:inline-block; white-space:nowrap; padding:0; margin:0;">No expiry</span>
+                            {% endif %}
                         {% elif element.element_type == 'certificate_id' %}
                             {{ certificate.certificate_number }}
                         {% elif element.element_type == 'signature' and element.default_value %}
@@ -495,6 +509,8 @@
                             grade
                         {% elif element.element_type == 'date' %}
                             date
+                        {% elif element.element_type == 'expiry_date' %}
+                            expiry date
                         {% elif element.element_type == 'certificate_id' %}
                             certificate ID
                         {% elif element.element_type == 'signature' %}
