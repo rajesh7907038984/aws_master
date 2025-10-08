@@ -64,9 +64,22 @@ def topic_view(request, topic_id):
         
         if request.user.is_authenticated:
             try:
-                topic_progress = TopicProgress.objects.get(user=request.user, topic=topic)
+                # Use get_or_create to automatically create progress record when learner views topic
+                topic_progress, created = TopicProgress.objects.get_or_create(
+                    user=request.user,
+                    topic=topic,
+                    defaults={
+                        'completed': False,
+                        'completion_method': 'auto'
+                    }
+                )
                 is_completed = topic_progress.completed
-            except TopicProgress.DoesNotExist:
+                
+                # Log creation for debugging
+                if created:
+                    logger.info(f"Created TopicProgress for user {request.user.username} on topic {topic.id} - {topic.title}")
+            except Exception as e:
+                logger.error(f"Error creating/getting TopicProgress: {str(e)}")
                 topic_progress = None
                 is_completed = False
         
