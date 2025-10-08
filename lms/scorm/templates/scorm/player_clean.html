@@ -305,7 +305,29 @@
         function makeApiCallWithCache(method, parameters) {
             const cacheKey = method + '_' + JSON.stringify(parameters);
             
-            // Check cache first
+            // CRITICAL FIX: NEVER cache resume-critical data elements
+            // These must ALWAYS fetch from backend to ensure resume functionality works
+            if (method === 'GetValue' || method === 'LMSGetValue') {
+                const element = parameters[0];
+                const resumeCriticalElements = [
+                    'cmi.core.lesson_location',
+                    'cmi.location',
+                    'cmi.suspend_data',
+                    'cmi.core.entry',
+                    'cmi.entry',
+                    'cmi.core.lesson_status',
+                    'cmi.completion_status',
+                    'cmi.success_status'
+                ];
+                
+                if (resumeCriticalElements.includes(element)) {
+                    console.log(`[SCORM API] ${method}(${element}) -> NO CACHE (resume-critical)`);
+                    // Make API call WITHOUT caching for resume-critical elements
+                    return makeApiCallSync(method, parameters);
+                }
+            }
+            
+            // Check cache first for non-critical elements
             if (apiCache.has(cacheKey)) {
                 const cached = apiCache.get(cacheKey);
                 if (Date.now() - cached.timestamp < CACHE_DURATION) {
@@ -323,7 +345,7 @@
             // Make API call
             const result = makeApiCallSync(method, parameters);
             
-            // Cache the result
+            // Cache the result (only for non-critical elements)
             apiCache.set(cacheKey, {
                 value: result,
                 timestamp: Date.now()
@@ -338,9 +360,34 @@
                 // Create cache key for this request
                 const cacheKey = `${method}_${JSON.stringify(parameters)}`;
                 
-                // Check cache first for read-only operations
+                // CRITICAL FIX: NEVER cache resume-critical data elements
+                let isCacheable = false;
                 if (['GetValue', 'LMSGetValue', 'GetLastError', 'LMSGetLastError', 'GetErrorString', 'LMSGetErrorString', 'GetDiagnostic', 'LMSGetDiagnostic'].includes(method)) {
-                    if (apiCache.has(cacheKey)) {
+                    // Check if this is a resume-critical element
+                    if (method === 'GetValue' || method === 'LMSGetValue') {
+                        const element = parameters[0];
+                        const resumeCriticalElements = [
+                            'cmi.core.lesson_location',
+                            'cmi.location',
+                            'cmi.suspend_data',
+                            'cmi.core.entry',
+                            'cmi.entry',
+                            'cmi.core.lesson_status',
+                            'cmi.completion_status',
+                            'cmi.success_status'
+                        ];
+                        
+                        if (!resumeCriticalElements.includes(element)) {
+                            isCacheable = true;
+                        } else {
+                            console.log(`[SCORM API] ${method}(${element}) -> NO CACHE (resume-critical)`);
+                        }
+                    } else {
+                        isCacheable = true;
+                    }
+                    
+                    // Check cache first for cacheable operations
+                    if (isCacheable && apiCache.has(cacheKey)) {
                         console.log(`[SCORM API] ${method} -> cached result`);
                         return apiCache.get(cacheKey);
                     }
@@ -378,8 +425,8 @@
                     if (data.success) {
                         console.log(`[SCORM API] ${method} -> ${data.result}`);
                         
-                        // Cache read-only results for 30 seconds
-                        if (['GetValue', 'LMSGetValue', 'GetLastError', 'LMSGetLastError', 'GetErrorString', 'LMSGetErrorString', 'GetDiagnostic', 'LMSGetDiagnostic'].includes(method)) {
+                        // Cache read-only results for 30 seconds (but NOT resume-critical elements)
+                        if (isCacheable && ['GetValue', 'LMSGetValue', 'GetLastError', 'LMSGetLastError', 'GetErrorString', 'LMSGetErrorString', 'GetDiagnostic', 'LMSGetDiagnostic'].includes(method)) {
                             apiCache.set(cacheKey, data.result);
                             setTimeout(() => apiCache.delete(cacheKey), 30000);
                         }

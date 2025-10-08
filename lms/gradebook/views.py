@@ -356,39 +356,51 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                 )
                                 
                                 if has_attempt_data:
-                                    # Parse TOC progress from suspend_data if available
-                                    toc_progress = None
-                                    current_slide = None
-                                    completed_slides = []
-                                    
-                                    if attempt.suspend_data:
-                                        import re
-                                        # Extract progress from suspend_data: "progress=30&current_slide=3&completed_slides=1,2"
-                                        progress_match = re.search(r'progress=(\d+)', attempt.suspend_data)
-                                        slide_match = re.search(r'current_slide=([^&]+)', attempt.suspend_data)
-                                        completed_match = re.search(r'completed_slides=([^&]+)', attempt.suspend_data)
+                                    # Get the highest score from TopicProgress (source of truth for gradebook)
+                                    try:
+                                        from courses.models import TopicProgress
+                                        topic = activity['object'].topic if hasattr(activity['object'], 'topic') else None
+                                        topic_progress = TopicProgress.objects.filter(
+                                            topic=topic,
+                                            user=student
+                                        ).first() if topic else None
                                         
-                                        if progress_match:
-                                            toc_progress = int(progress_match.group(1))
-                                        if slide_match:
-                                            current_slide = slide_match.group(1)
-                                        if completed_match:
-                                            completed_slides = [s.strip() for s in completed_match.group(1).split(',') if s.strip()]
+                                        # Use TopicProgress score if available, otherwise use attempt score
+                                        score_value = None
+                                        if topic_progress and topic_progress.last_score is not None:
+                                            score_value = float(topic_progress.last_score)
+                                        elif attempt.score_raw is not None:
+                                            score_value = float(attempt.score_raw)
+                                        
+                                        # Determine completion status based on score and lesson_status
+                                        if score_value is not None:
+                                            if score_value >= 70:  # Passing threshold
+                                                completion_status = 'passed'
+                                                success_status = 'passed'
+                                            else:
+                                                completion_status = 'failed'
+                                                success_status = 'failed'
+                                        elif attempt.lesson_status in ['completed', 'passed']:
+                                            completion_status = 'completed'
+                                            success_status = 'passed'
+                                        else:
+                                            completion_status = 'incomplete'
+                                            success_status = 'unknown'
+                                    except Exception as e:
+                                        logger.error(f"Error getting TopicProgress for SCORM: {str(e)}")
+                                        score_value = float(attempt.score_raw) if attempt.score_raw else None
+                                        completion_status = attempt.lesson_status
+                                        success_status = attempt.success_status
                                     
                                     student_scores[activity_id] = {
-                                        'score': attempt.score_raw,
-                                        'max_score': attempt.score_max or 100,  # SCORM typically uses 0-100 scale
+                                        'score': score_value,
+                                        'max_score': attempt.score_max or 100,
                                         'date': attempt.last_accessed,
                                         'type': 'scorm',
                                         'attempt': attempt,
-                                        'lesson_status': attempt.lesson_status,
-                                        'success_status': attempt.success_status,
-                                        # TOC Navigation Data
-                                        'toc_progress': toc_progress,
-                                        'current_slide': current_slide or attempt.lesson_location,
-                                        'completed_slides': completed_slides,
-                                        'navigation_history': attempt.navigation_history[-5:] if attempt.navigation_history else [],  # Last 5 navigation entries
-                                        'has_toc_data': bool(attempt.lesson_location or attempt.suspend_data or attempt.navigation_history)
+                                        'lesson_status': completion_status,
+                                        'success_status': success_status,
+                                        'completed': completion_status in ['completed', 'passed']
                                     }
                                 else:
                                     # Registration exists but has no meaningful data

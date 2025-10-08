@@ -432,23 +432,26 @@ def scorm_api(request, attempt_id):
         method = data.get('method')
         parameters = data.get('parameters', [])
         
-        # Initialize appropriate API handler with caching
+        # Log all API calls
+        logger.info(f"📞 SCORM API CALL: method={method}, parameters={parameters[:2] if len(parameters) > 2 else parameters}, attempt_id={attempt_id}")
+        
+        # Initialize appropriate API handler WITHOUT caching to ensure fresh data
         if is_preview:
             handler = ScormPreviewHandler(attempt)
             logger.info(f"Using preview handler for attempt {attempt_id}")
         else:
-            # Use cached handler if available
-            from django.core.cache import cache
-            handler_cache_key = f"scorm_handler_v2_{attempt_id}"
-            handler = cache.get(handler_cache_key)
+            # CRITICAL FIX: Removed handler caching to prevent stale data issues
+            # Each request gets a fresh handler with current database state
+            # This ensures:
+            # 1. Accurate score tracking
+            # 2. Proper progress updates
+            # 3. Working resume functionality with correct bookmark/suspend data
             
-            if not handler:
-                handler = ScormAPIHandlerEnhanced(attempt)
-                # Cache handler for 10 minutes
-                cache.set(handler_cache_key, handler, 600)
-                logger.info(f"Created enhanced handler for attempt {attempt_id}")
-            else:
-                logger.info(f"Using cached enhanced handler for attempt {attempt_id}")
+            # IMPORTANT: Refresh attempt from database to get latest data
+            attempt.refresh_from_db()
+            
+            handler = ScormAPIHandlerEnhanced(attempt)
+            logger.info(f"Created fresh enhanced handler for attempt {attempt_id} with latest database state")
         
         # Route to appropriate API method
         if method == 'Initialize' or method == 'LMSInitialize':
@@ -461,9 +464,13 @@ def scorm_api(request, attempt_id):
         elif method == 'SetValue' or method == 'LMSSetValue':
             element = parameters[0] if len(parameters) > 0 else ''
             value = parameters[1] if len(parameters) > 1 else ''
+            logger.info(f"📝 SetValue called: element={element}, value={value}")
             result = handler.set_value(element, value)
+            logger.info(f"📝 SetValue result: {result}")
         elif method == 'Commit' or method == 'LMSCommit':
+            logger.info(f"💾 Commit called for attempt {attempt_id}")
             result = handler.commit()
+            logger.info(f"💾 Commit result: {result}")
         elif method == 'GetLastError' or method == 'LMSGetLastError':
             result = handler.get_last_error()
         elif method == 'GetErrorString' or method == 'LMSGetErrorString':
