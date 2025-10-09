@@ -1462,7 +1462,19 @@ def course_gradebook_detail(request, course_id):
     submitted_quizzes = quiz_attempts.count()  # This now includes initial assessment attempts
     # Only count completed SCORM activities as submitted
     submitted_scorm = all_scorm_attempts.filter(lesson_status='completed').count()
-    total_submitted = submitted_assignments + submitted_quizzes + submitted_scorm
+    
+    # Count SCORM topics (tracked via TopicProgress) as submitted if completed
+    submitted_scorm_topics = 0
+    if scorm_topics_without_packages:
+        from courses.models import TopicProgress
+        for topic in scorm_topics_without_packages:
+            submitted_scorm_topics += TopicProgress.objects.filter(
+                topic=topic,
+                user__in=students,
+                completed=True
+            ).count()
+    
+    total_submitted = submitted_assignments + submitted_quizzes + submitted_scorm + submitted_scorm_topics
     
     # Count in-progress activities (for more accurate metrics)
     # Only count SCORM attempts that have actual progress
@@ -1474,8 +1486,22 @@ def course_gradebook_detail(request, course_id):
             if has_progress:
                 in_progress_scorm += 1
     
+    # Count SCORM topics in progress (accessed but not completed)
+    in_progress_scorm_topics = 0
+    if scorm_topics_without_packages:
+        from courses.models import TopicProgress
+        for topic in scorm_topics_without_packages:
+            # Count as in progress if accessed or has attempts but not completed
+            in_progress_scorm_topics += TopicProgress.objects.filter(
+                topic=topic,
+                user__in=students,
+                completed=False
+            ).filter(
+                Q(last_accessed__isnull=False) | Q(attempts__gt=0)
+            ).count()
+    
     # Adjust not started calculation to account for in-progress activities
-    total_started = total_submitted + in_progress_scorm
+    total_started = total_submitted + in_progress_scorm + in_progress_scorm_topics
     total_not_started = total_possible_instances - total_started
     
     # Ensure not started count is non-negative
@@ -1486,7 +1512,7 @@ def course_gradebook_detail(request, course_id):
         'total_activities': total_activities,
         'total_not_started': total_not_started,
         'total_submitted': total_submitted,
-        'total_in_progress': in_progress_scorm,
+        'total_in_progress': in_progress_scorm + in_progress_scorm_topics,
     }
     
     # Create organized activities list with type-specific numbering
