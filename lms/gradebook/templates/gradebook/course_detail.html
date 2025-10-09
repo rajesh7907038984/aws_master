@@ -1859,7 +1859,28 @@
                         
                       {% elif activity.type == 'scorm' %}
                         {% get_student_activity_score student_scores student.id activity.object.id as score_data %}
-                        {% if score_data.score is not None or score_data.completed or score_data.completion_status == 'completed' or score_data.success_status == 'passed' or score_data.has_toc_data %}
+                        {% if score_data.in_progress %}
+                          <!-- SCORM in progress - show status but no score -->
+                          <div class="submission-date">
+                            {{ score_data.date|date:"M d, Y" }}
+                          </div>
+                          <span class="grade-score grade-good">
+                            {% if score_data.has_bookmark %}
+                              In Progress (Resume Available)
+                            {% else %}
+                              In Progress
+                            {% endif %}
+                          </span>
+                          {% if user.role == 'learner' %}
+                            {% get_scorm_topic activity.object as scorm_topic %}
+                            {% if scorm_topic %}
+                              <a href="{% url 'courses:topic_view' scorm_topic.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
+                                {% if score_data.has_bookmark %}RESUME{% else %}CONTINUE{% endif %}
+                              </a>
+                            {% endif %}
+                          {% endif %}
+                        {% elif score_data.score is not None or score_data.completed or score_data.completion_status == 'completed' or score_data.success_status == 'passed' %}
+                          <!-- SCORM completed - show score -->
                           <div class="submission-date">
                             {{ score_data.date|date:"M d, Y" }}
                           </div>
@@ -1879,21 +1900,12 @@
                             {% else %}
                               <span class="grade-score grade-poor">{{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}</span>
                             {% endif %}
-                          {% elif score_data.has_toc_data %}
-                            <!-- Show TOC progress data -->
-                            {% if score_data.toc_progress %}
-                              <span class="grade-score grade-good">{{ score_data.toc_progress }}% Complete</span>
-                            {% elif score_data.current_slide %}
-                              <span class="grade-score grade-good">In Progress ({{ score_data.current_slide }})</span>
-                            {% else %}
-                              <span class="grade-score grade-good">In Progress</span>
-                            {% endif %}
                           {% endif %}
                           {% if user.role == 'learner' %}
                             {% get_scorm_topic activity.object as scorm_topic %}
                             {% if scorm_topic %}
                               <a href="{% url 'courses:topic_view' scorm_topic.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
-                                {% if score_data.has_toc_data %}RESUME{% else %}VIEW{% endif %}
+                                {% if score_data.has_bookmark or score_data.has_toc_data %}RESUME{% else %}VIEW{% endif %}
                               </a>
                             {% endif %}
                           {% endif %}

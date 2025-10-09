@@ -592,14 +592,20 @@ class ScormAPIHandler:
                 progress.completion_method = 'scorm'
                 progress.completed_at = timezone.now()
             
-            # Update score - use last_score and best_score fields
-            if self.attempt.score_raw is not None:
+            # CRITICAL FIX: Only update score when SCORM is completed
+            # Don't save scores for in-progress attempts - only when all slides are finished
+            if is_completed and self.attempt.score_raw is not None:
                 score_value = float(self.attempt.score_raw)
                 progress.last_score = score_value
                 
                 # Update best score if this is better
                 if progress.best_score is None or score_value > progress.best_score:
                     progress.best_score = score_value
+                
+                logger.info(f"SCORM completed - Score saved to TopicProgress: last_score={progress.last_score}, best_score={progress.best_score}")
+            elif not is_completed:
+                # SCORM in progress - don't save final scores yet
+                logger.info(f"SCORM in progress (status: {self.attempt.lesson_status}) - Not saving score to TopicProgress yet")
             
             # Update time spent
             try:

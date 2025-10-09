@@ -10,6 +10,7 @@ from decimal import Decimal
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.core.cache import cache
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -61,8 +62,14 @@ def auto_extract_score_on_save(sender, instance, created, **kwargs):
             # Save without triggering this signal again
             instance.save(update_fields=['score_raw', 'lesson_status'])
             
-            # Update TopicProgress
-            _update_topic_progress(instance, extracted_score)
+            # CRITICAL FIX: Only update TopicProgress if SCORM is completed
+            # Check if lesson_status indicates completion
+            if instance.lesson_status in ['passed', 'failed', 'completed']:
+                # Update TopicProgress
+                _update_topic_progress(instance, extracted_score)
+                logger.info(f"✅ AUTO-EXTRACT: SCORM completed - updated TopicProgress with score")
+            else:
+                logger.info(f"ℹ️  AUTO-EXTRACT: SCORM in progress (status: {instance.lesson_status}) - not updating TopicProgress yet")
             
             # Clear caches
             cache.clear()
@@ -146,7 +153,7 @@ def _extract_score_from_data(decoded_data):
 
 
 def _update_topic_progress(attempt, score_value):
-    """Update TopicProgress with extracted score"""
+    """Update TopicProgress with extracted score - Only when SCORM is completed"""
     try:
         from courses.models import TopicProgress
         
@@ -156,6 +163,14 @@ def _update_topic_progress(attempt, score_value):
             user=attempt.user,
             topic=topic
         )
+        
+        # CRITICAL FIX: Only update scores when SCORM is completed
+        # Check completion status
+        is_completed = attempt.lesson_status in ['passed', 'failed', 'completed']
+        
+        if not is_completed:
+            logger.info(f"📊 AUTO-EXTRACT: SCORM not completed yet (status: {attempt.lesson_status}) - skipping TopicProgress score update")
+            return
         
         # Update last score
         old_last = topic_progress.last_score
@@ -167,9 +182,15 @@ def _update_topic_progress(attempt, score_value):
         if not topic_progress.best_score or float(score_value) > topic_progress.best_score:
             topic_progress.best_score = float(score_value)
         
+        # Mark as completed
+        if not topic_progress.completed:
+            topic_progress.completed = True
+            topic_progress.completion_method = 'scorm'
+            topic_progress.completed_at = timezone.now()
+        
         topic_progress.save()
         
-        logger.info(f"📊 AUTO-EXTRACT: Updated TopicProgress - last_score: {old_last} → {topic_progress.last_score}, best_score: {old_best} → {topic_progress.best_score}")
+        logger.info(f"📊 AUTO-EXTRACT: SCORM completed - Updated TopicProgress - last_score: {old_last} → {topic_progress.last_score}, best_score: {old_best} → {topic_progress.best_score}")
         
     except Exception as e:
         logger.error(f"Error updating TopicProgress: {e}")

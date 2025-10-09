@@ -366,7 +366,8 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                 )
                                 
                                 if has_attempt_data:
-                                    # Get the highest score from TopicProgress (source of truth for gradebook)
+                                    # CRITICAL FIX: Only show scores in gradebook when SCORM is completed
+                                    # For in-progress attempts, show "In Progress" instead
                                     try:
                                         from courses.models import TopicProgress
                                         topic = activity['object'].topic if hasattr(activity['object'], 'topic') else None
@@ -375,32 +376,44 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                             user=student
                                         ).first() if topic else None
                                         
-                                        # Use TopicProgress last_score (most recent/live score) to match SCORM results page
-                                        score_value = None
-                                        if topic_progress and topic_progress.last_score is not None:
-                                            score_value = float(topic_progress.last_score)
-                                        elif topic_progress and topic_progress.best_score is not None:
-                                            score_value = float(topic_progress.best_score)
-                                        elif attempt.score_raw is not None:
-                                            score_value = float(attempt.score_raw)
+                                        # Check if SCORM is completed
+                                        is_completed = attempt.lesson_status in ['completed', 'passed', 'failed']
                                         
-                                        # Determine completion status based on score and lesson_status
-                                        if score_value is not None:
-                                            if score_value >= 70:  # Passing threshold
-                                                completion_status = 'passed'
+                                        # Only use scores from TopicProgress if SCORM is completed
+                                        score_value = None
+                                        if is_completed:
+                                            if topic_progress and topic_progress.last_score is not None:
+                                                score_value = float(topic_progress.last_score)
+                                            elif topic_progress and topic_progress.best_score is not None:
+                                                score_value = float(topic_progress.best_score)
+                                            elif attempt.score_raw is not None:
+                                                score_value = float(attempt.score_raw)
+                                        
+                                        # Determine completion status
+                                        if is_completed:
+                                            if score_value is not None:
+                                                if score_value >= 70:  # Passing threshold
+                                                    completion_status = 'passed'
+                                                    success_status = 'passed'
+                                                else:
+                                                    completion_status = 'failed'
+                                                    success_status = 'failed'
+                                            elif attempt.lesson_status in ['completed', 'passed']:
+                                                completion_status = 'completed'
                                                 success_status = 'passed'
                                             else:
-                                                completion_status = 'failed'
-                                                success_status = 'failed'
-                                        elif attempt.lesson_status in ['completed', 'passed']:
-                                            completion_status = 'completed'
-                                            success_status = 'passed'
+                                                completion_status = attempt.lesson_status
+                                                success_status = attempt.success_status
                                         else:
+                                            # SCORM in progress - don't show score yet
                                             completion_status = 'incomplete'
                                             success_status = 'unknown'
+                                            score_value = None  # Force no score for in-progress
+                                            
                                     except Exception as e:
                                         logger.error(f"Error getting TopicProgress for SCORM: {str(e)}")
-                                        score_value = float(attempt.score_raw) if attempt.score_raw else None
+                                        is_completed = attempt.lesson_status in ['completed', 'passed', 'failed']
+                                        score_value = float(attempt.score_raw) if (is_completed and attempt.score_raw) else None
                                         completion_status = attempt.lesson_status
                                         success_status = attempt.success_status
                                     
@@ -412,7 +425,9 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                         'attempt': attempt,
                                         'lesson_status': completion_status,
                                         'success_status': success_status,
-                                        'completed': completion_status in ['completed', 'passed']
+                                        'completed': completion_status in ['completed', 'passed'],
+                                        'in_progress': not is_completed and has_attempt_data,  # New flag for in-progress state
+                                        'has_bookmark': bool(attempt.lesson_location or attempt.suspend_data)  # Has resume data
                                     }
                                 else:
                                     # Registration exists but has no meaningful data
