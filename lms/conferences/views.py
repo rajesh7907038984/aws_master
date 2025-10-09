@@ -3619,7 +3619,8 @@ def conference_detailed_report(request, conference_id):
 @login_required
 def download_conference_recording(request, conference_id, recording_id):
     """
-     FIX #3: Secure conference recording download with password authentication
+     FIX #6: Download Zoom cloud recordings without requiring passcode from users
+     Uses OAuth token authentication to proxy downloads through LMS
     """
     try:
         conference = get_object_or_404(Conference, id=conference_id)
@@ -3633,22 +3634,100 @@ def download_conference_recording(request, conference_id, recording_id):
                 'error': 'You do not have access to this conference recording.'
             }, status=403)
         
-        #  FIX #5: Allow direct download for cloud recordings without password restrictions
-        # Skip password authentication for cloud recordings - allow direct access
-        
-        #  FIX #5: Provide direct download access for cloud recordings
-        if recording.download_url:
-            # Log successful download
-            logger.info(f" Direct download granted: User {request.user.username} downloading '{recording.title}' from conference {conference.title}")
-            
-            # Always redirect directly to the download URL
-            return redirect(recording.download_url)
-        else:
-            # For JSON requests or when no download URL is available
+        if not recording.download_url:
             return JsonResponse({
                 'success': False,
                 'error': 'Download URL not available for this recording.'
             }, status=404)
+        
+        #  FIX #6: For Zoom recordings, proxy download using OAuth authentication
+        # This bypasses passcode requirements by using API credentials
+        if conference.meeting_platform == 'zoom':
+            try:
+                # Get Zoom integration for authentication
+                zoom_integration = ZoomIntegration.objects.filter(
+                    user=conference.created_by,
+                    is_active=True
+                ).first()
+                
+                # Try branch integration if user doesn't have one
+                if not zoom_integration and hasattr(conference.created_by, 'branch') and conference.created_by.branch:
+                    zoom_integration = ZoomIntegration.objects.filter(
+                        user__branch=conference.created_by.branch,
+                        is_active=True
+                    ).exclude(user=conference.created_by).first()
+                
+                if zoom_integration:
+                    # Get OAuth access token
+                    access_token = get_zoom_oauth_token(
+                        zoom_integration.api_key, 
+                        zoom_integration.api_secret, 
+                        zoom_integration.account_id
+                    )
+                    
+                    if access_token:
+                        # Download recording using OAuth authentication
+                        headers = {
+                            'Authorization': f'Bearer {access_token}',
+                            'Content-Type': 'application/json'
+                        }
+                        
+                        logger.info(f" Downloading Zoom recording via OAuth: {recording.title} for user {request.user.username}")
+                        
+                        # Stream the recording file through our LMS
+                        import requests
+                        from django.http import StreamingHttpResponse
+                        
+                        response = requests.get(recording.download_url, headers=headers, stream=True)
+                        
+                        if response.status_code == 200:
+                            # Determine file extension and content type
+                            file_extension = recording.file_format or 'mp4'
+                            content_type_map = {
+                                'mp4': 'video/mp4',
+                                'm4a': 'audio/mp4',
+                                'mp3': 'audio/mpeg',
+                                'txt': 'text/plain',
+                                'vtt': 'text/vtt',
+                                'chat': 'text/plain'
+                            }
+                            content_type = content_type_map.get(file_extension.lower(), 'application/octet-stream')
+                            
+                            # Create streaming response
+                            streaming_response = StreamingHttpResponse(
+                                response.iter_content(chunk_size=8192),
+                                content_type=content_type
+                            )
+                            
+                            # Set download filename
+                            filename = f"{recording.title.replace(' ', '_')}_{conference.id}.{file_extension}"
+                            streaming_response['Content-Disposition'] = f'attachment; filename="{filename}"'
+                            
+                            # Set content length if available
+                            if 'Content-Length' in response.headers:
+                                streaming_response['Content-Length'] = response.headers['Content-Length']
+                            
+                            logger.info(f" Successfully streaming Zoom recording: {filename} ({recording.file_size} bytes)")
+                            return streaming_response
+                        else:
+                            logger.error(f" Zoom API download failed with status {response.status_code}")
+                            # Fall back to direct redirect
+                            return redirect(recording.download_url)
+                    else:
+                        logger.warning(f" Could not get OAuth token, falling back to direct download")
+                        return redirect(recording.download_url)
+                else:
+                    logger.warning(f" No Zoom integration found, falling back to direct download")
+                    return redirect(recording.download_url)
+                    
+            except Exception as zoom_error:
+                logger.error(f" Error in Zoom authenticated download: {str(zoom_error)}")
+                # Fall back to direct redirect
+                return redirect(recording.download_url)
+        else:
+            # For non-Zoom platforms, use direct redirect
+            logger.info(f" Direct download: User {request.user.username} downloading '{recording.title}' from {conference.meeting_platform}")
+            return redirect(recording.download_url)
             
     except Conference.DoesNotExist:
         return JsonResponse({'success': False, 'error': 'Conference not found.'}, status=404)
