@@ -20,45 +20,38 @@ logger = logging.getLogger(__name__)
 def dynamic_score_processor(sender, instance, created, **kwargs):
     """
     DYNAMIC SCORE PROCESSOR - Automatically handles all SCORM formats
-    Detects authoring tool type and applies appropriate score extraction patterns
-    Works for Articulate Storyline, Adobe Captivate, Lectora, and generic SCORM
+    Uses centralized ScormScoreSyncService for consistent score synchronization
     """
+    # Import the sync service
+    from .score_sync_service import ScormScoreSyncService
+    
     # Skip if this is a new attempt creation
     if created:
-        return
-    
-    # Skip if score is already properly set and synced
-    if (instance.score_raw and instance.score_raw > 0 and 
-        instance.lesson_status in ['completed', 'passed', 'failed']):
-        return
-    
-    # Skip if no suspend_data to analyze
-    if not instance.suspend_data:
         return
     
     # Skip if this save was triggered by the API handler or another signal
     if (getattr(instance, '_updating_from_api_handler', False) or
         getattr(instance, '_updating_from_signal', False) or
         getattr(instance, '_signal_processing', False)):
-        logger.info(f"🤖 DYNAMIC: Skipping signal for attempt {instance.id} - update in progress by another component")
+        logger.info(f"🔄 SYNC: Skipping signal for attempt {instance.id} - update in progress by another component")
         return
     
     try:
         # Use a flag to prevent recursive signal calls
         instance._signal_processing = True
         
-        logger.info(f"🤖 DYNAMIC: Processing attempt {instance.id} with adaptive SCORM detection...")
+        logger.info(f"🔄 SYNC: Processing score synchronization for attempt {instance.id}...")
         
-        # Use the dynamic processor
-        success = auto_process_scorm_score(instance)
+        # Use the centralized sync service
+        success = ScormScoreSyncService.sync_score(instance)
         
         if success:
-            logger.info(f"✅ DYNAMIC: Successfully processed and synced score for attempt {instance.id}")
+            logger.info(f"✅ SYNC: Successfully synchronized score for attempt {instance.id}")
         else:
-            logger.info(f"ℹ️  DYNAMIC: No actionable score data found for attempt {instance.id}")
+            logger.info(f"ℹ️  SYNC: No score synchronization needed for attempt {instance.id}")
         
     except Exception as e:
-        logger.error(f"❌ DYNAMIC: Error processing attempt {instance.id}: {str(e)}")
+        logger.error(f"❌ SYNC: Error synchronizing attempt {instance.id}: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
     finally:
@@ -133,21 +126,28 @@ def _extract_score_from_data(decoded_data):
         if '"qd"true' in decoded_data or 'quiz_done":true' in decoded_data or '"qd":true' in decoded_data or 'qd"true' in decoded_data:
             logger.info("Quiz marked as done - looking for actual earned score")
             
-            # Pattern 2a: Look for score in various Storyline formats
-            # Format: 'scors88' or 'scor"88' or 'score:88'
+            # Pattern 2a: Look for score in various Storyline formats WITH BETTER FILTERING
+            # Avoid patterns that might be configuration values
+            # Look specifically for patterns that indicate actual earned scores
+            
+            # Check for actual score indicators (not config values)
+            # Example: "scors100" (actual score) vs "ps80" (passing score config)
             scor_patterns = [
-                r'scors(\d+)',           # scors88
-                r'scor["\s]*(\d+)',      # scor"88 or scor 88
-                r'score["\s:]*(\d+)',    # score:88 or score"88
+                r'(?<!p)scors(\d+)',           # scors88 but not pscors88
+                r'(?<!p)scor["\s]*(\d+)',      # scor"88 but not pscor
+                r'actual_score["\s:]*(\d+)',   # actual_score patterns
+                r'earned_score["\s:]*(\d+)',   # earned_score patterns
             ]
             
             for pattern in scor_patterns:
                 scor_match = re.search(pattern, decoded_data)
                 if scor_match:
                     score = float(scor_match.group(1))
-                    if 0 <= score <= 100:
-                        logger.info(f"Found Storyline quiz score (pattern: {pattern}): {score}")
-                        return score
+                    # Additional validation: avoid common config values
+                    if score not in [6, 60, 70, 75, 80, 85, 90, 95] or score == 100:  # 100 is likely a real perfect score
+                        if 0 <= score <= 100:
+                            logger.info(f"Found Storyline quiz score (pattern: {pattern}): {score}")
+                            return score
             
             # Pattern 2b: Look for actual user score patterns in completed quiz
             storyline_pattern = re.search(r'(?:user_score|earned|result)"\s*:\s*(\d+)', decoded_data, re.IGNORECASE)
@@ -155,18 +155,6 @@ def _extract_score_from_data(decoded_data):
                 score = float(storyline_pattern.group(1))
                 if 0 <= score <= 100:
                     logger.info(f"Found Storyline completed quiz score: {score}")
-                    return score
-            
-            # Pattern 2c: Look for embedded score in complex format like 's8' where 8 might be the score
-            # But be careful not to extract the passing score (ps80)
-            embedded_score = re.search(r'[^p]s(\d+)', decoded_data)  # 's' not preceded by 'p' (to avoid 'ps80')
-            if embedded_score:
-                score = float(embedded_score.group(1))
-                # For single digit scores, they might be out of 10, so multiply by 10
-                if score <= 10:
-                    score = score * 10
-                if 0 <= score <= 100:
-                    logger.info(f"Found embedded Storyline score: {score}")
                     return score
         
         # Pattern 3: Look for score with completion percentage

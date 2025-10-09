@@ -228,6 +228,10 @@ def scorm_view(request, topic_id):
                     attempt_number=attempt_number
                 )
                 logger.info(f"Created new attempt {attempt.id} (previous status: {last_attempt.lesson_status}, completed: {last_attempt.completed_at is not None})")
+                
+                # Sync any existing scores for consistency
+                from .score_sync_service import ScormScoreSyncService
+                ScormScoreSyncService.sync_score(attempt)
             elif last_attempt:
                 # Continue existing incomplete attempt - ensure resume data is loaded
                 attempt = last_attempt

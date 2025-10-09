@@ -561,9 +561,18 @@ class ScormAPIHandler:
         
         # Only save to database if not a preview attempt
         if not getattr(self.attempt, 'is_preview', False):
-            self.attempt.save()
-            # Update TopicProgress if applicable
-            self._update_topic_progress()
+            # Set flag to prevent signal from processing this
+            self.attempt._updating_from_api_handler = True
+            try:
+                self.attempt.save()
+                
+                # Use centralized sync service for score synchronization
+                from .score_sync_service import ScormScoreSyncService
+                ScormScoreSyncService.sync_score(self.attempt)
+            finally:
+                # Clean up the flag
+                if hasattr(self.attempt, '_updating_from_api_handler'):
+                    delattr(self.attempt, '_updating_from_api_handler')
         else:
             logger.info("Preview attempt - skipping database save")
     
