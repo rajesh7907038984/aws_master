@@ -38,6 +38,7 @@ class ScormPackage(models.Model):
     # Package file storage
     package_file = models.FileField(
         upload_to='scorm_packages/%Y/%m/',
+        max_length=500,
         help_text="Original SCORM ZIP package"
     )
     extracted_path = models.CharField(
