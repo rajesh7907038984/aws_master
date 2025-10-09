@@ -1287,57 +1287,88 @@ class ScormAPIHandlerEnhanced:
             logger.error("AUTO_EXTRACT: Failed to apply extracted score: %s", str(e))
     
     def _commit_data(self):
-        """Save attempt data to database"""
+        """Save attempt data to database with atomic transactions"""
+        from django.db import transaction
+        
         logger.info("💾 _COMMIT_DATA: Starting (score_raw=%s, cmi_score=%s, lesson_location=%s, suspend_data_len=%s)", 
                    self.attempt.score_raw, 
                    self.attempt.cmi_data.get('cmi.core.score.raw') or self.attempt.cmi_data.get('cmi.score.raw'),
                    self.attempt.lesson_location[:50] if self.attempt.lesson_location else 'None',
                    len(self.attempt.suspend_data) if self.attempt.suspend_data else 0)
         
-        # CRITICAL: Store the score and bookmark before any operations
-        score_before = self.attempt.score_raw
-        cmi_score_before = self.attempt.cmi_data.get('cmi.core.score.raw') or self.attempt.cmi_data.get('cmi.score.raw')
-        location_before = self.attempt.lesson_location
-        suspend_data_len_before = len(self.attempt.suspend_data) if self.attempt.suspend_data else 0
-        
-        self.attempt.last_accessed = timezone.now()
-        
-        logger.info("💾 _COMMIT_DATA: Before save (score_raw=%s, type=%s, bookmark=%s)", 
-                   self.attempt.score_raw, type(self.attempt.score_raw),
-                   self.attempt.lesson_location[:30] if self.attempt.lesson_location else 'None')
-        
-        try:
-            self.attempt.save()
-            logger.info("💾 _COMMIT_DATA: After save (score_raw=%s, bookmark=%s)", 
-                       self.attempt.score_raw,
-                       self.attempt.lesson_location[:30] if self.attempt.lesson_location else 'None')
-            
-            # Verify the save actually worked
-            from scorm.models import ScormAttempt
-            saved_attempt = ScormAttempt.objects.get(id=self.attempt.id)
-            logger.info("💾 _COMMIT_DATA: DB verification (score_raw=%s, cmi_score=%s, bookmark=%s, suspend_len=%s)", 
-                       saved_attempt.score_raw,
-                       saved_attempt.cmi_data.get('cmi.core.score.raw') or saved_attempt.cmi_data.get('cmi.score.raw'),
-                       saved_attempt.lesson_location[:30] if saved_attempt.lesson_location else 'None',
-                       len(saved_attempt.suspend_data) if saved_attempt.suspend_data else 0)
-            
-            if score_before and not saved_attempt.score_raw:
-                logger.error("❌ _COMMIT_DATA: SCORE LOST DURING SAVE! Before=%s, After=%s", score_before, saved_attempt.score_raw)
-            
-            if location_before and not saved_attempt.lesson_location:
-                logger.error("❌ _COMMIT_DATA: BOOKMARK LOST DURING SAVE! Before=%s, After=%s", location_before, saved_attempt.lesson_location)
-            
-            if suspend_data_len_before > 0 and not saved_attempt.suspend_data:
-                logger.error("❌ _COMMIT_DATA: SUSPEND_DATA LOST DURING SAVE! Before=%s chars, After=%s", suspend_data_len_before, len(saved_attempt.suspend_data) if saved_attempt.suspend_data else 0)
-        except Exception as e:
-            logger.error("❌ _COMMIT_DATA: Save failed: %s", str(e))
-            raise
-        
-        # AUTOMATIC SCORE EXTRACTION: If SCORM content didn't report score, try to extract from suspend_data
-        self._auto_extract_score_from_suspend_data()
-        
-        # Update TopicProgress if applicable
-        self._update_topic_progress()
+        # Only save to database if not a preview attempt
+        if not getattr(self.attempt, 'is_preview', False):
+            try:
+                # Use atomic transaction for data consistency
+                with transaction.atomic():
+                    # CRITICAL: Store the score and bookmark before any operations
+                    score_before = self.attempt.score_raw
+                    cmi_score_before = self.attempt.cmi_data.get('cmi.core.score.raw') or self.attempt.cmi_data.get('cmi.score.raw')
+                    location_before = self.attempt.lesson_location
+                    suspend_data_len_before = len(self.attempt.suspend_data) if self.attempt.suspend_data else 0
+                    
+                    # Update last accessed timestamp
+                    self.attempt.last_accessed = timezone.now()
+                    
+                    logger.info("💾 _COMMIT_DATA: Before save (score_raw=%s, type=%s, bookmark=%s)", 
+                               self.attempt.score_raw, type(self.attempt.score_raw),
+                               self.attempt.lesson_location[:30] if self.attempt.lesson_location else 'None')
+                    
+                    # Save ScormAttempt with validation and signal coordination
+                    try:
+                        # Mark that this is being updated by the API handler to prevent signal conflicts
+                        self.attempt._updating_from_api_handler = True
+                        
+                        self.attempt.full_clean()
+                        self.attempt.save()
+                        logger.info("💾 _COMMIT_DATA: ScormAttempt saved successfully")
+                        
+                        # Remove the flag after successful save
+                        delattr(self.attempt, '_updating_from_api_handler')
+                    except Exception as save_error:
+                        # Clean up flag even on error
+                        if hasattr(self.attempt, '_updating_from_api_handler'):
+                            delattr(self.attempt, '_updating_from_api_handler')
+                        logger.error("❌ _COMMIT_DATA: ScormAttempt save failed: %s", str(save_error))
+                        raise
+                    
+                    # Verify the save actually worked
+                    from scorm.models import ScormAttempt
+                    saved_attempt = ScormAttempt.objects.get(id=self.attempt.id)
+                    logger.info("💾 _COMMIT_DATA: DB verification (score_raw=%s, cmi_score=%s, bookmark=%s, suspend_len=%s)", 
+                               saved_attempt.score_raw,
+                               saved_attempt.cmi_data.get('cmi.core.score.raw') or saved_attempt.cmi_data.get('cmi.score.raw'),
+                               saved_attempt.lesson_location[:30] if saved_attempt.lesson_location else 'None',
+                               len(saved_attempt.suspend_data) if saved_attempt.suspend_data else 0)
+                    
+                    # CRITICAL: Check for data loss during save
+                    if score_before and not saved_attempt.score_raw:
+                        logger.error("❌ _COMMIT_DATA: SCORE LOST DURING SAVE! Before=%s, After=%s", score_before, saved_attempt.score_raw)
+                        raise ValueError(f"Score lost during save: {score_before} -> {saved_attempt.score_raw}")
+                    
+                    if location_before and not saved_attempt.lesson_location:
+                        logger.error("❌ _COMMIT_DATA: BOOKMARK LOST DURING SAVE! Before=%s, After=%s", location_before, saved_attempt.lesson_location)
+                        raise ValueError(f"Bookmark lost during save: {location_before} -> {saved_attempt.lesson_location}")
+                    
+                    if suspend_data_len_before > 0 and not saved_attempt.suspend_data:
+                        logger.error("❌ _COMMIT_DATA: SUSPEND_DATA LOST DURING SAVE! Before=%s chars, After=%s", suspend_data_len_before, len(saved_attempt.suspend_data) if saved_attempt.suspend_data else 0)
+                        raise ValueError(f"Suspend data lost during save: {suspend_data_len_before} chars -> {len(saved_attempt.suspend_data) if saved_attempt.suspend_data else 0}")
+                    
+                    # AUTOMATIC SCORE EXTRACTION: If SCORM content didn't report score, try to extract from suspend_data
+                    self._auto_extract_score_from_suspend_data()
+                    
+                    # Update TopicProgress (within same transaction for consistency)
+                    self._update_topic_progress()
+                    
+                    logger.info("✅ _COMMIT_DATA: All data committed successfully with atomic transaction")
+                    
+            except Exception as e:
+                logger.error("❌ _COMMIT_DATA: Transaction failed: %s", str(e))
+                import traceback
+                logger.error(traceback.format_exc())
+                raise
+        else:
+            logger.info("Preview attempt - skipping database save")
     
     def _build_interaction_data(self, index):
         """Build interaction data from CMI data for database storage"""
@@ -1428,81 +1459,116 @@ class ScormAPIHandlerEnhanced:
             return None
     
     def _update_topic_progress(self):
-        """Update related TopicProgress based on SCORM data"""
+        """Update related TopicProgress based on SCORM data with atomic transactions"""
+        from django.db import transaction
+        
         try:
-            from courses.models import TopicProgress, CourseEnrollment, CourseTopic
-            
-            topic = self.attempt.scorm_package.topic
-            
-            # Get or create topic progress
-            progress, created = TopicProgress.objects.get_or_create(
-                user=self.attempt.user,
-                topic=topic
-            )
-            
-            logger.info("🔄 TOPIC_PROGRESS: Updating for topic %s, user %s (created=%s)", 
-                       topic.id, self.attempt.user.username, created)
-            
-            # Parse time spent from SCORM format to seconds
-            time_seconds = self._parse_scorm_time_to_seconds(self.attempt.total_time)
-            
-            # Update progress data
-            progress.progress_data = {
-                'scorm_attempt_id': self.attempt.id,
-                'lesson_status': self.attempt.lesson_status,
-                'completion_status': self.attempt.completion_status,
-                'success_status': self.attempt.success_status,
-                'score_raw': float(self.attempt.score_raw) if self.attempt.score_raw else None,
-                'total_time': self.attempt.total_time,
-                'lesson_location': self.attempt.lesson_location,
-                'suspend_data': self.attempt.suspend_data,
-                'entry': self.attempt.entry,
-                'last_updated': timezone.now().isoformat(),
-            }
-            
-            # Update time spent
-            progress.total_time_spent = time_seconds
-            
-            # Update completion
-            if self.version == '1.2':
-                is_completed = self.attempt.lesson_status in ['completed', 'passed']
-            else:
-                is_completed = self.attempt.completion_status == 'completed'
-            
-            if is_completed and not progress.completed:
-                progress.completed = True
-                progress.completion_method = 'scorm'
-                progress.completed_at = timezone.now()
-                logger.info("✅ TOPIC_PROGRESS: Marked as completed")
-            
-            # Update score fields - SIMPLIFIED: Trust SCORM's native scoring logic
-            if self.attempt.score_raw is not None:
-                score_value = float(self.attempt.score_raw)
-                old_last_score = progress.last_score
-                old_best_score = progress.best_score
+            # Use atomic transaction to prevent race conditions and ensure data consistency
+            with transaction.atomic():
+                from courses.models import TopicProgress, CourseEnrollment, CourseTopic
                 
-                progress.last_score = score_value
+                topic = self.attempt.scorm_package.topic
                 
-                # Update best score if this is better
-                if progress.best_score is None or score_value > progress.best_score:
-                    progress.best_score = score_value
+                # Get or create topic progress with select_for_update to prevent race conditions
+                progress, created = TopicProgress.objects.select_for_update().get_or_create(
+                    user=self.attempt.user,
+                    topic=topic
+                )
                 
-                completion_note = "completed" if is_completed else "incomplete but score valid"
-                logger.info("📊 TOPIC_PROGRESS: Updated scores (%s) - last_score: %s -> %s, best_score: %s -> %s", 
-                           completion_note, old_last_score, progress.last_score, old_best_score, progress.best_score)
-            else:
-                logger.warning("⚠️  TOPIC_PROGRESS: No score to update (score_raw is None)")
-            
-            progress.save()
-            logger.info("✅ TOPIC_PROGRESS: Successfully saved for topic %s", topic.id)
-            
-            # CRITICAL: Update CourseEnrollment for accurate reporting
-            self._update_course_enrollment(topic, progress, time_seconds)
-            
+                logger.info("🔄 TOPIC_PROGRESS: Updating for topic %s, user %s (created=%s)", 
+                           topic.id, self.attempt.user.username, created)
+                
+                # Parse time spent from SCORM format to seconds
+                time_seconds = self._parse_scorm_time_to_seconds(self.attempt.total_time)
+                
+                # Update progress data with comprehensive tracking and sync metadata
+                progress.progress_data = {
+                    'scorm_attempt_id': self.attempt.id,
+                    'lesson_status': self.attempt.lesson_status,
+                    'completion_status': self.attempt.completion_status,
+                    'success_status': self.attempt.success_status,
+                    'score_raw': float(self.attempt.score_raw) if self.attempt.score_raw else None,
+                    'score_max': float(self.attempt.score_max) if self.attempt.score_max else None,
+                    'score_min': float(self.attempt.score_min) if self.attempt.score_min else None,
+                    'score_scaled': float(self.attempt.score_scaled) if self.attempt.score_scaled else None,
+                    'total_time': self.attempt.total_time,
+                    'session_time': self.attempt.session_time,
+                    'lesson_location': self.attempt.lesson_location,
+                    'suspend_data': self.attempt.suspend_data,
+                    'entry': self.attempt.entry,
+                    'exit_mode': self.attempt.exit_mode,
+                    'last_updated': timezone.now().isoformat(),
+                    'sync_method': 'enhanced_api_handler',
+                    'sync_timestamp': timezone.now().isoformat(),
+                }
+                
+                # Update time spent (cumulative, not overwrite)
+                if time_seconds > 0:
+                    current_time = progress.total_time_spent or 0
+                    progress.total_time_spent = max(current_time, time_seconds)
+                    logger.info("⏱️  TOPIC_PROGRESS: Updated time - total_time_spent: %s seconds", progress.total_time_spent)
+                
+                # Determine completion status based on SCORM version
+                if self.version == '1.2':
+                    is_completed = self.attempt.lesson_status in ['completed', 'passed']
+                    is_passed = self.attempt.lesson_status == 'passed'
+                else:
+                    is_completed = self.attempt.completion_status == 'completed'
+                    is_passed = self.attempt.success_status == 'passed'
+                
+                # Update completion status
+                if is_completed and not progress.completed:
+                    progress.completed = True
+                    progress.completion_method = 'scorm'
+                    progress.completed_at = timezone.now()
+                    logger.info("✅ TOPIC_PROGRESS: Marked as completed for topic %s", topic.id)
+                
+                # CRITICAL FIX: Always update scores when available, regardless of completion status
+                if self.attempt.score_raw is not None:
+                    score_value = float(self.attempt.score_raw)
+                    old_last_score = progress.last_score
+                    old_best_score = progress.best_score
+                    
+                    # Always update last_score to reflect the most recent score
+                    progress.last_score = score_value
+                    
+                    # Update best_score if this is better
+                    if progress.best_score is None or score_value > progress.best_score:
+                        progress.best_score = score_value
+                    
+                    # Update attempts counter
+                    progress.attempts = max(progress.attempts or 0, self.attempt.attempt_number)
+                    
+                    completion_note = "completed" if is_completed else "incomplete but score valid"
+                    logger.info("📊 TOPIC_PROGRESS: Updated scores (%s) - last_score: %s → %s, best_score: %s → %s, attempts: %s", 
+                               completion_note, old_last_score, progress.last_score, old_best_score, progress.best_score, progress.attempts)
+                else:
+                    logger.warning("⚠️  TOPIC_PROGRESS: No score to update (score_raw is None), lesson_status: %s", 
+                                 self.attempt.lesson_status)
+                
+                # Update access tracking
+                progress.last_accessed = timezone.now()
+                if not progress.first_accessed:
+                    progress.first_accessed = timezone.now()
+                
+                # Validate and save with proper error handling
+                try:
+                    progress.full_clean()  # Validate before saving
+                    progress.save()
+                    logger.info("✅ TOPIC_PROGRESS: Successfully saved for topic %s with atomic transaction", topic.id)
+                except Exception as save_error:
+                    logger.error("❌ TOPIC_PROGRESS: Save validation failed: %s", str(save_error))
+                    raise
+                
+                # Update CourseEnrollment for accurate reporting (within same transaction)
+                self._update_course_enrollment(topic, progress, time_seconds)
+                
         except Exception as e:
             logger.error("❌ TOPIC_PROGRESS ERROR: Failed to update topic progress: %s", str(e))
             import traceback
             logger.error(traceback.format_exc())
+            # Re-raise the exception to ensure proper error handling up the chain
+            raise
     
     def _parse_scorm_time_to_seconds(self, time_str):
         """Convert SCORM time format (hhhh:mm:ss.ss) to seconds"""

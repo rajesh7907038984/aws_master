@@ -379,15 +379,29 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                         # Check if SCORM is completed
                                         is_completed = attempt.lesson_status in ['completed', 'passed', 'failed']
                                         
-                                        # Only use scores from TopicProgress if SCORM is completed
+                                        # FIXED: Always show the most recent score from the most authoritative source
                                         score_value = None
-                                        if is_completed:
-                                            if topic_progress and topic_progress.last_score is not None:
-                                                score_value = float(topic_progress.last_score)
-                                            elif topic_progress and topic_progress.best_score is not None:
-                                                score_value = float(topic_progress.best_score)
-                                            elif attempt.score_raw is not None:
-                                                score_value = float(attempt.score_raw)
+                                        
+                                        # Priority 1: ScormAttempt.score_raw (most direct source)
+                                        if attempt.score_raw is not None:
+                                            score_value = float(attempt.score_raw)
+                                            logger.debug(f"GRADEBOOK: Using ScormAttempt.score_raw for attempt {attempt.id}: {score_value}")
+                                        
+                                        # Priority 2: TopicProgress.last_score (most recent)
+                                        elif topic_progress and topic_progress.last_score is not None:
+                                            score_value = float(topic_progress.last_score)
+                                            logger.debug(f"GRADEBOOK: Using TopicProgress.last_score: {score_value}")
+                                            
+                                        # Priority 3: TopicProgress.best_score (fallback)
+                                        elif topic_progress and topic_progress.best_score is not None:
+                                            score_value = float(topic_progress.best_score)
+                                            logger.debug(f"GRADEBOOK: Using TopicProgress.best_score: {score_value}")
+                                            
+                                        # If we have a score but SCORM isn't marked as completed, sync the data
+                                        if score_value is not None and not is_completed:
+                                            logger.warning(f"GRADEBOOK: Score {score_value} found but SCORM not completed for attempt {attempt.id}. This may indicate a sync issue.")
+                                            # Force completion status for scoring purposes
+                                            is_completed = True
                                         
                                         # Determine completion status
                                         if is_completed:

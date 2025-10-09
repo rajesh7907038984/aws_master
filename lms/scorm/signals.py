@@ -18,9 +18,9 @@ logger = logging.getLogger(__name__)
 @receiver(post_save, sender='scorm.ScormAttempt')
 def auto_extract_score_on_save(sender, instance, created, **kwargs):
     """
-    AUTOMATIC SCORE EXTRACTION - Runs every time SCORM attempt is saved
-    Extracts score from suspend_data even if SCORM content doesn't report it
-    NO USER ACTION REQUIRED - Completely automatic
+    AUTOMATIC SCORE EXTRACTION - Fallback only when API handler doesn't work
+    Extracts score from suspend_data as a last resort
+    Coordinates with the main API handler to prevent race conditions
     """
     # Skip if this is a new attempt creation
     if created:
@@ -34,8 +34,19 @@ def auto_extract_score_on_save(sender, instance, created, **kwargs):
     if not instance.suspend_data:
         return
     
+    # Skip if this save was triggered by the enhanced API handler
+    # (check if this is part of a transaction from the API handler)
+    if getattr(instance, '_updating_from_api_handler', False):
+        logger.info(f"🤖 AUTO-EXTRACT: Skipping signal for attempt {instance.id} - API handler is managing the update")
+        return
+    
     try:
-        logger.info(f"🤖 AUTO-EXTRACT: Checking attempt {instance.id} for unreported scores...")
+        # Use a flag to prevent recursive signal calls
+        if hasattr(instance, '_signal_processing'):
+            return
+        instance._signal_processing = True
+        
+        logger.info(f"🤖 AUTO-EXTRACT: Checking attempt {instance.id} for unreported scores (fallback mode)...")
         
         # Decode and decompress suspend_data
         decoded_data = _decode_suspend_data(instance.suspend_data)
@@ -47,37 +58,61 @@ def auto_extract_score_on_save(sender, instance, created, **kwargs):
         extracted_score = _extract_score_from_data(decoded_data)
         
         if extracted_score and extracted_score > 0:
-            logger.info(f"✅ AUTO-EXTRACT: Found score {extracted_score} in suspend_data for attempt {instance.id}")
+            logger.info(f"✅ AUTO-EXTRACT: Found score {extracted_score} in suspend_data for attempt {instance.id} (fallback extraction)")
             
-            # Update the score
-            instance.score_raw = Decimal(str(extracted_score))
+            # Use atomic transaction to prevent race conditions
+            from django.db import transaction
             
-            # Set status based on score
-            mastery_score = instance.scorm_package.mastery_score or 80
-            if extracted_score >= mastery_score:
-                instance.lesson_status = 'passed'
-            else:
-                instance.lesson_status = 'failed'
+            with transaction.atomic():
+                # Re-fetch the instance with select_for_update to prevent race conditions
+                updated_instance = sender.objects.select_for_update().get(id=instance.id)
+                
+                # Double-check that score is still not set (another process might have set it)
+                if updated_instance.score_raw and updated_instance.score_raw > 0:
+                    logger.info(f"ℹ️  AUTO-EXTRACT: Score already set by another process for attempt {instance.id}")
+                    return
+                
+                # Update the score
+                updated_instance.score_raw = Decimal(str(extracted_score))
+                
+                # Set status based on score
+                mastery_score = updated_instance.scorm_package.mastery_score or 80
+                if extracted_score >= mastery_score:
+                    updated_instance.lesson_status = 'passed'
+                else:
+                    updated_instance.lesson_status = 'failed'
+                
+                # Mark that this is being updated by signal to prevent recursion
+                updated_instance._updating_from_signal = True
+                
+                # Save without triggering this signal again
+                updated_instance.save(update_fields=['score_raw', 'lesson_status'])
+                
+                # CRITICAL FIX: Only update TopicProgress if SCORM is completed
+                # Check if lesson_status indicates completion
+                if updated_instance.lesson_status in ['passed', 'failed', 'completed']:
+                    # Update TopicProgress within the same transaction
+                    _update_topic_progress(updated_instance, extracted_score)
+                    logger.info(f"✅ AUTO-EXTRACT: SCORM completed - updated TopicProgress with score")
+                else:
+                    logger.info(f"ℹ️  AUTO-EXTRACT: SCORM in progress (status: {updated_instance.lesson_status}) - not updating TopicProgress yet")
+                
+                logger.info(f"✅ AUTO-EXTRACT: Successfully updated score to {extracted_score} for attempt {instance.id}")
             
-            # Save without triggering this signal again
-            instance.save(update_fields=['score_raw', 'lesson_status'])
-            
-            # CRITICAL FIX: Only update TopicProgress if SCORM is completed
-            # Check if lesson_status indicates completion
-            if instance.lesson_status in ['passed', 'failed', 'completed']:
-                # Update TopicProgress
-                _update_topic_progress(instance, extracted_score)
-                logger.info(f"✅ AUTO-EXTRACT: SCORM completed - updated TopicProgress with score")
-            else:
-                logger.info(f"ℹ️  AUTO-EXTRACT: SCORM in progress (status: {instance.lesson_status}) - not updating TopicProgress yet")
-            
-            # Clear caches
-            cache.clear()
-            
-            logger.info(f"✅ AUTO-EXTRACT: Successfully updated score to {extracted_score} for attempt {instance.id}")
+            # Clear relevant caches
+            cache.delete_many([
+                f'scorm_attempt_{instance.id}',
+                f'topic_progress_{instance.user.id}_{instance.scorm_package.topic.id}',
+            ])
         
     except Exception as e:
         logger.error(f"❌ AUTO-EXTRACT: Error extracting score for attempt {instance.id}: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+    finally:
+        # Clean up the flag
+        if hasattr(instance, '_signal_processing'):
+            delattr(instance, '_signal_processing')
 
 
 def _decode_suspend_data(suspend_data):

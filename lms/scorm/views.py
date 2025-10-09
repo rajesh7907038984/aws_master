@@ -18,7 +18,7 @@ from django.utils import timezone
 from django.conf import settings
 
 from .models import ScormPackage, ScormAttempt
-from .api_handler import ScormAPIHandler
+# from .api_handler import ScormAPIHandler  # DISABLED: Using enhanced handler only
 from .api_handler_enhanced import ScormAPIHandlerEnhanced
 from .preview_handler import ScormPreviewHandler
 from .s3_direct import scorm_s3
