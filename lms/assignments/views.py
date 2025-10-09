@@ -2424,6 +2424,70 @@ def delete_assignment(request, assignment_id):
     }
     return render(request, 'assignments/assignment_confirm_delete.html', context)
 
+
+@login_required
+def clone_assignment(request, assignment_id):
+    """View to clone an existing assignment"""
+    original_assignment = get_object_or_404(Assignment, id=assignment_id)
+    
+    # Check permissions
+    if not (request.user.is_superuser or request.user.role in ['instructor', 'admin', 'superadmin']):
+        messages.error(request, "You don't have permission to clone this assignment.")
+        return redirect('assignments:assignment_list')
+    
+    try:
+        with transaction.atomic():
+            # Clone the assignment
+            cloned_assignment = Assignment.objects.get(pk=original_assignment.pk)
+            cloned_assignment.pk = None
+            cloned_assignment.id = None
+            cloned_assignment.title = f"{original_assignment.title} (Copy)"
+            cloned_assignment.user = request.user
+            cloned_assignment.created_at = timezone.now()
+            cloned_assignment.updated_at = timezone.now()
+            cloned_assignment.attachment = original_assignment.attachment
+            cloned_assignment.save()
+            
+            # Clone text questions if any
+            for text_question in original_assignment.text_questions.all():
+                text_question.pk = None
+                text_question.id = None
+                text_question.assignment = cloned_assignment
+                text_question.save()
+            
+            # Clone assignment-course relationships
+            for assignment_course in AssignmentCourse.objects.filter(assignment=original_assignment):
+                AssignmentCourse.objects.create(
+                    assignment=cloned_assignment,
+                    course=assignment_course.course,
+                    topic=assignment_course.topic
+                )
+            
+            # Clone assignment-topic relationships
+            for topic_assignment in TopicAssignment.objects.filter(assignment=original_assignment):
+                TopicAssignment.objects.create(
+                    assignment=cloned_assignment,
+                    topic=topic_assignment.topic,
+                    course=topic_assignment.course
+                )
+            
+            # Clone assignment attachments
+            for attachment in AssignmentAttachment.objects.filter(assignment=original_assignment):
+                attachment.pk = None
+                attachment.id = None
+                attachment.assignment = cloned_assignment
+                attachment.save()
+            
+            messages.success(request, f"Assignment '{original_assignment.title}' has been successfully cloned as '{cloned_assignment.title}'")
+            return redirect('assignments:assignment_list')
+            
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error cloning assignment: {str(e)}", exc_info=True)
+        messages.error(request, f"An error occurred while cloning the assignment: {str(e)}")
+        return redirect('assignments:assignment_list')
+
+
 @login_required
 def submit_assignment(request, assignment_id):
     """Handle assignment submission"""

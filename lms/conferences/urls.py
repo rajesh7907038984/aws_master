@@ -11,6 +11,7 @@ urlpatterns = [
     path('new/<int:course_id>/', views.new_conference, name='new_conference_course'),
     path('<int:conference_id>/', views.conference_detail, name='conference_detail'),
     path('<int:conference_id>/edit/', views.edit_conference, name='edit_conference'),
+    path('<int:conference_id>/clone/', views.clone_conference, name='clone_conference'),
     path('<int:conference_id>/delete/', views.delete_conference, name='delete_conference'),
     path('<int:conference_id>/join/', views.join_conference, name='join_conference'),
     path('<int:conference_id>/public/', views.conference_public_access, name='conference_public_access'),

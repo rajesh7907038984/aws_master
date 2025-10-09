@@ -39,6 +39,7 @@ urlpatterns = [
     # ============================================================================
     path('<int:discussion_id>/', views.discussion_detail, name='discussion_detail'),        # View discussion
     path('<int:discussion_id>/edit/', views.edit_discussion, name='edit_discussion'),       # Edit discussion
+    path('<int:discussion_id>/clone/', views.clone_discussion, name='clone_discussion'),    # Clone discussion
     path('<int:discussion_id>/delete/', views.delete_discussion, name='delete_discussion'), # Delete discussion
     
     # ============================================================================

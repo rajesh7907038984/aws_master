@@ -838,6 +838,61 @@ def delete_quiz(request, quiz_id):
 
 
 @login_required
+def clone_quiz(request, quiz_id):
+    """View to clone an existing quiz"""
+    original_quiz = get_object_or_404(Quiz, id=quiz_id)
+    
+    # Check permissions
+    if not check_quiz_edit_permission(request.user, original_quiz):
+        messages.error(request, "You don't have permission to clone this quiz.")
+        return redirect('quiz:quiz_list')
+    
+    try:
+        with transaction.atomic():
+            # Clone the quiz
+            cloned_quiz = Quiz.objects.get(pk=original_quiz.pk)
+            cloned_quiz.pk = None
+            cloned_quiz.id = None
+            cloned_quiz.title = f"{original_quiz.title} (Copy)"
+            cloned_quiz.creator = request.user
+            cloned_quiz.created_at = timezone.now()
+            cloned_quiz.updated_at = timezone.now()
+            cloned_quiz.save()
+            
+            # Clone questions and their answers
+            for question in original_quiz.questions.all():
+                original_question_pk = question.pk
+                question.pk = None
+                question.id = None
+                question.quiz = cloned_quiz
+                question.save()
+                
+                # Clone answers for this question
+                original_question = Question.objects.get(pk=original_question_pk)
+                for answer in original_question.answers.all():
+                    answer.pk = None
+                    answer.id = None
+                    answer.question = question
+                    answer.save()
+                
+                # Clone matching pairs if any
+                for pair in original_question.matching_pairs.all():
+                    pair.pk = None
+                    pair.id = None
+                    pair.question = question
+                    pair.save()
+            
+            messages.success(request, f"Quiz '{original_quiz.title}' has been successfully cloned as '{cloned_quiz.title}'")
+            return redirect('quiz:quiz_list')
+            
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error cloning quiz: {str(e)}", exc_info=True)
+        messages.error(request, f"An error occurred while cloning the quiz: {str(e)}")
+        return redirect('quiz:quiz_list')
+
+
+@login_required
 def attempt_quiz(request, quiz_id):
     """View to attempt a quiz"""
     quiz = get_object_or_404(Quiz, id=quiz_id)

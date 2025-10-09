@@ -468,6 +468,57 @@ def delete_discussion(request, discussion_id):
         'breadcrumbs': breadcrumbs
     })
 
+
+@login_required
+def clone_discussion(request, discussion_id):
+    """View to clone an existing discussion"""
+    original_discussion = get_object_or_404(Discussion, id=discussion_id)
+    
+    # Check permissions
+    is_admin = request.user.role in ['superadmin', 'admin', 'instructor'] or request.user.is_superuser
+    is_creator = original_discussion.created_by == request.user
+    
+    if not (is_admin or is_creator):
+        messages.error(request, "You don't have permission to clone this discussion.")
+        return redirect('discussions:discussion_list')
+    
+    try:
+        with transaction.atomic():
+            # Clone the discussion
+            cloned_discussion = Discussion.objects.get(pk=original_discussion.pk)
+            cloned_discussion.pk = None
+            cloned_discussion.id = None
+            cloned_discussion.title = f"{original_discussion.title} (Copy)"
+            cloned_discussion.created_by = request.user
+            cloned_discussion.created_at = timezone.now()
+            cloned_discussion.updated_at = timezone.now()
+            cloned_discussion.save()
+            
+            # Clone discussion-course relationships
+            for discussion_course in DiscussionCourse.objects.filter(discussion=original_discussion):
+                DiscussionCourse.objects.create(
+                    discussion=cloned_discussion,
+                    course=discussion_course.course,
+                    topic=discussion_course.topic
+                )
+            
+            # Clone discussion-topic relationships
+            for topic_discussion in TopicDiscussion.objects.filter(discussion=original_discussion):
+                TopicDiscussion.objects.create(
+                    discussion=cloned_discussion,
+                    topic=topic_discussion.topic,
+                    course=topic_discussion.course
+                )
+            
+            messages.success(request, f"Discussion '{original_discussion.title}' has been successfully cloned as '{cloned_discussion.title}'")
+            return redirect('discussions:discussion_list')
+            
+    except Exception as e:
+        logger.error(f"Error cloning discussion: {str(e)}", exc_info=True)
+        messages.error(request, f"An error occurred while cloning the discussion: {str(e)}")
+        return redirect('discussions:discussion_list')
+
+
 @login_required
 @require_POST
 def toggle_discussion_like(request, discussion_id):

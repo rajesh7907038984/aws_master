@@ -500,6 +500,60 @@ def delete_conference(request, conference_id):
         'breadcrumbs': breadcrumbs
     })
 
+
+@login_required
+def clone_conference(request, conference_id):
+    """View to clone an existing conference"""
+    original_conference = get_object_or_404(Conference, id=conference_id)
+    
+    # Check permissions
+    if not (request.user.is_superuser or request.user.role in ['instructor', 'admin', 'superadmin'] or 
+            request.user == original_conference.created_by):
+        messages.error(request, "You don't have permission to clone this conference.")
+        return redirect('conferences:conference_list')
+    
+    try:
+        with transaction.atomic():
+            # Clone the conference
+            cloned_conference = Conference.objects.get(pk=original_conference.pk)
+            cloned_conference.pk = None
+            cloned_conference.id = None
+            cloned_conference.title = f"{original_conference.title} (Copy)"
+            cloned_conference.created_by = request.user
+            cloned_conference.created_at = timezone.now()
+            cloned_conference.updated_at = timezone.now()
+            # Clear meeting-specific fields as this will be a new meeting
+            cloned_conference.meeting_id = None
+            cloned_conference.meeting_password = None
+            cloned_conference.join_url = None
+            cloned_conference.start_url = None
+            cloned_conference.host_email = request.user.email
+            cloned_conference.save()
+            
+            # Clone conference-course relationships
+            for conference_course in ConferenceCourse.objects.filter(conference=original_conference):
+                ConferenceCourse.objects.create(
+                    conference=cloned_conference,
+                    course=conference_course.course,
+                    topic=conference_course.topic
+                )
+            
+            # Clone conference-topic relationships
+            for topic_conference in TopicConference.objects.filter(conference=original_conference):
+                TopicConference.objects.create(
+                    conference=cloned_conference,
+                    topic=topic_conference.topic,
+                    course=topic_conference.course
+                )
+            
+            messages.success(request, f"Conference '{original_conference.title}' has been successfully cloned as '{cloned_conference.title}'")
+            return redirect('conferences:conference_list')
+            
+    except Exception as e:
+        logger.error(f"Error cloning conference: {str(e)}", exc_info=True)
+        messages.error(request, f"An error occurred while cloning the conference: {str(e)}")
+        return redirect('conferences:conference_list')
+
 @login_required
 @csrf_protect
 def create_meeting_api(request):

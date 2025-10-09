@@ -836,22 +836,59 @@ class CourseForm(BaseModelFormWithTinyMCE):
                 
         return video
 
+class DisabledOptionWidget(forms.Select):
+    """Custom widget that can disable specific options and show which topic they're linked to"""
+    def __init__(self, disabled_choices=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.disabled_choices = disabled_choices or []
+        self.linked_to_topics = {}
+    
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex, attrs)
+        
+        # If this choice is linked to another topic, update the label and disable it
+        if value in self.disabled_choices:
+            option['attrs']['disabled'] = 'disabled'
+            option['attrs']['style'] = 'color: #9CA3AF; background-color: #F3F4F6;'
+            
+            # Add topic name to label if available
+            if hasattr(self, 'linked_to_topics') and value in self.linked_to_topics:
+                topic_name = self.linked_to_topics[value]
+                # Truncate topic name if too long
+                if len(topic_name) > 30:
+                    topic_name = topic_name[:27] + '...'
+                option['label'] = f"{label} [Used in: {topic_name}]"
+        
+        return option
+
 class TopicForm(BaseModelFormWithTinyMCE):
     quiz = forms.ModelChoiceField(
         queryset=Quiz.objects.all(),
-        required=False
+        required=False,
+        widget=DisabledOptionWidget(attrs={
+            'class': 'w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
+        })
     )
     assignment = forms.ModelChoiceField(
         queryset=Assignment.objects.all(),
-        required=False
+        required=False,
+        widget=DisabledOptionWidget(attrs={
+            'class': 'w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
+        })
     )
     conference = forms.ModelChoiceField(
         queryset=Conference.objects.all(),
-        required=False
+        required=False,
+        widget=DisabledOptionWidget(attrs={
+            'class': 'w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
+        })
     )
     discussion = forms.ModelChoiceField(
         queryset=Discussion.objects.all(),
-        required=False
+        required=False,
+        widget=DisabledOptionWidget(attrs={
+            'class': 'w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
+        })
     )
     order = forms.IntegerField(
         initial=0,
@@ -891,6 +928,31 @@ class TopicForm(BaseModelFormWithTinyMCE):
                             self.initial[field_name] = unescaped_value
                             logger.info(f"Unescaped HTML entities in field '{field_name}' for topic {self.instance.pk}")
         
+        # Find which quizzes, assignments, conferences, discussions are already linked to topics
+        # Exclude the current topic if editing
+        current_topic_id = self.instance.pk if self.instance and self.instance.pk else None
+        
+        # Get IDs of items already linked to OTHER topics
+        linked_quizzes = list(Topic.objects.filter(
+            quiz__isnull=False,
+            content_type='Quiz'
+        ).exclude(pk=current_topic_id).values_list('quiz_id', flat=True))
+        
+        linked_assignments = list(Topic.objects.filter(
+            assignment__isnull=False,
+            content_type='Assignment'
+        ).exclude(pk=current_topic_id).values_list('assignment_id', flat=True))
+        
+        linked_conferences = list(Topic.objects.filter(
+            conference__isnull=False,
+            content_type='Conference'
+        ).exclude(pk=current_topic_id).values_list('conference_id', flat=True))
+        
+        linked_discussions = list(Topic.objects.filter(
+            discussion__isnull=False,
+            content_type='Discussion'
+        ).exclude(pk=current_topic_id).values_list('discussion_id', flat=True))
+        
         if course:
             if filtered_content:
                 # Use properly filtered content based on user role and permissions
@@ -916,6 +978,49 @@ class TopicForm(BaseModelFormWithTinyMCE):
             # Filter restricted learners to only show enrolled learners
             enrolled_learners = course.enrolled_users.filter(role='learner')
             self.fields['restricted_learners'].queryset = enrolled_learners
+        
+        # Set disabled choices for the widgets to show already-linked items as disabled
+        self.fields['quiz'].widget.disabled_choices = linked_quizzes
+        self.fields['assignment'].widget.disabled_choices = linked_assignments
+        self.fields['conference'].widget.disabled_choices = linked_conferences
+        self.fields['discussion'].widget.disabled_choices = linked_discussions
+        
+        # Update choice labels to show which topic they're linked to
+        self._update_choice_labels_with_linked_info()
+
+    def _update_choice_labels_with_linked_info(self):
+        """Update choice labels to show which items are already linked to topics"""
+        current_topic_id = self.instance.pk if self.instance and self.instance.pk else None
+        
+        # Update quiz labels
+        quiz_topics = {}
+        for topic in Topic.objects.filter(quiz__isnull=False, content_type='Quiz').exclude(pk=current_topic_id).select_related('quiz'):
+            if topic.quiz_id:
+                quiz_topics[topic.quiz_id] = topic.title
+        
+        # Update assignment labels
+        assignment_topics = {}
+        for topic in Topic.objects.filter(assignment__isnull=False, content_type='Assignment').exclude(pk=current_topic_id).select_related('assignment'):
+            if topic.assignment_id:
+                assignment_topics[topic.assignment_id] = topic.title
+        
+        # Update conference labels
+        conference_topics = {}
+        for topic in Topic.objects.filter(conference__isnull=False, content_type='Conference').exclude(pk=current_topic_id).select_related('conference'):
+            if topic.conference_id:
+                conference_topics[topic.conference_id] = topic.title
+        
+        # Update discussion labels
+        discussion_topics = {}
+        for topic in Topic.objects.filter(discussion__isnull=False, content_type='Discussion').exclude(pk=current_topic_id).select_related('discussion'):
+            if topic.discussion_id:
+                discussion_topics[topic.discussion_id] = topic.title
+        
+        # Store these mappings for use in the widget
+        self.fields['quiz'].widget.linked_to_topics = quiz_topics
+        self.fields['assignment'].widget.linked_to_topics = assignment_topics
+        self.fields['conference'].widget.linked_to_topics = conference_topics
+        self.fields['discussion'].widget.linked_to_topics = discussion_topics
 
     class Meta:
         model = Topic
@@ -1228,28 +1333,69 @@ class TopicForm(BaseModelFormWithTinyMCE):
                     pass
             # If no file is provided, that's OK - direct upload to cloud is supported
         elif content_type_lower == 'quiz':
-            if not cleaned_data.get('quiz'):
+            quiz = cleaned_data.get('quiz')
+            if not quiz:
                 self.add_error('quiz', 'Quiz selection is required for quiz topics.')
             else:
-                # Quiz topics are now unlimited per course
-                # Instructors can create multiple quizzes across different courses
-                # Ensure the quiz field is valid
-                cleaned_data['quiz'] = cleaned_data.get('quiz')
+                # Check if this quiz is already linked to another topic
+                current_topic_id = self.instance.pk if self.instance and self.instance.pk else None
+                existing_topic = Topic.objects.filter(
+                    quiz=quiz,
+                    content_type='Quiz'
+                ).exclude(pk=current_topic_id).first()
+                
+                if existing_topic:
+                    self.add_error('quiz', f'This quiz is already used in topic "{existing_topic.title}". Each quiz can only be added to one topic.')
+                else:
+                    cleaned_data['quiz'] = quiz
         elif content_type_lower == 'assignment':
             assignment = cleaned_data.get('assignment')
             if not assignment:
                 self.add_error('assignment', 'Assignment selection is required for assignment topics.')
             else:
-                # Assignment topics are now unlimited per course
-                # Instructors can create multiple assignments across different courses
-                # Ensure the assignment field is valid
-                cleaned_data['assignment'] = assignment
+                # Check if this assignment is already linked to another topic
+                current_topic_id = self.instance.pk if self.instance and self.instance.pk else None
+                existing_topic = Topic.objects.filter(
+                    assignment=assignment,
+                    content_type='Assignment'
+                ).exclude(pk=current_topic_id).first()
+                
+                if existing_topic:
+                    self.add_error('assignment', f'This assignment is already used in topic "{existing_topic.title}". Each assignment can only be added to one topic.')
+                else:
+                    cleaned_data['assignment'] = assignment
         elif content_type_lower == 'conference':
-            if not cleaned_data.get('conference'):
+            conference = cleaned_data.get('conference')
+            if not conference:
                 self.add_error('conference', 'Conference selection is required for conference topics.')
+            else:
+                # Check if this conference is already linked to another topic
+                current_topic_id = self.instance.pk if self.instance and self.instance.pk else None
+                existing_topic = Topic.objects.filter(
+                    conference=conference,
+                    content_type='Conference'
+                ).exclude(pk=current_topic_id).first()
+                
+                if existing_topic:
+                    self.add_error('conference', f'This conference is already used in topic "{existing_topic.title}". Each conference can only be added to one topic.')
+                else:
+                    cleaned_data['conference'] = conference
         elif content_type_lower == 'discussion':
-            if not cleaned_data.get('discussion'):
+            discussion = cleaned_data.get('discussion')
+            if not discussion:
                 self.add_error('discussion', 'Discussion selection is required for discussion topics.')
+            else:
+                # Check if this discussion is already linked to another topic
+                current_topic_id = self.instance.pk if self.instance and self.instance.pk else None
+                existing_topic = Topic.objects.filter(
+                    discussion=discussion,
+                    content_type='Discussion'
+                ).exclude(pk=current_topic_id).first()
+                
+                if existing_topic:
+                    self.add_error('discussion', f'This discussion is already used in topic "{existing_topic.title}". Each discussion can only be added to one topic.')
+                else:
+                    cleaned_data['discussion'] = discussion
         
         # Store the standardized content type
         cleaned_data['content_type'] = content_type_upper

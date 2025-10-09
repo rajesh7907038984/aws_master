@@ -12,6 +12,7 @@ urlpatterns = [
     path('create/<int:course_id>/', views.create_quiz, name='create_quiz_for_course'),  # Create quiz for specific course
     
     path('<int:quiz_id>/edit/', views.edit_quiz, name='edit_quiz'),
+    path('<int:quiz_id>/clone/', views.clone_quiz, name='clone_quiz'),
     path('<int:quiz_id>/delete/', views.delete_quiz, name='delete_quiz'),
     path('<int:quiz_id>/attempt/', views.attempt_quiz, name='attempt_quiz'),
     path('<int:quiz_id>/clean-stale-attempts/', views.clean_stale_attempts, name='clean_stale_attempts'),
