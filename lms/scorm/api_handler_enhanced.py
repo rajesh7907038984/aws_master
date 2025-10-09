@@ -515,12 +515,32 @@ class ScormAPIHandlerEnhanced:
                         if value and str(value).strip():
                             self.attempt.score_raw = Decimal(value)
                             self.attempt.cmi_data['cmi.core.score.raw'] = str(value)
-                            logger.info("📊 SCORE: Set score_raw = %s for attempt %s (user: %s)", value, self.attempt.id, self.attempt.user.username)
+                            logger.info("SCORE: Set score_raw = %s for attempt %s (user: %s)", value, self.attempt.id, self.attempt.user.username)
+                            
+                            # Set lesson_status based on score if not already set
+                            mastery_score = self.attempt.scorm_package.mastery_score or 70
+                            if self.attempt.lesson_status == 'not_attempted' or self.attempt.lesson_status == 'incomplete':
+                                if self.attempt.score_raw >= mastery_score:
+                                    self.attempt.lesson_status = 'passed'
+                                    self.attempt.cmi_data['cmi.core.lesson_status'] = 'passed'
+                                    self._update_completion_from_status('passed')
+                                else:
+                                    self.attempt.lesson_status = 'failed'
+                                    self.attempt.cmi_data['cmi.core.lesson_status'] = 'failed'
+                                    self._update_completion_from_status('failed')
+                                logger.info("SCORE: Set lesson_status to %s based on score", self.attempt.lesson_status)
+                            
+                            # IMMEDIATE FIX: Save attempt and update TopicProgress right away
+                            # This ensures scores are reflected in gradebook even if SCORM content
+                            # doesn't call Commit/Terminate properly
+                            self.attempt.save()
+                            self._update_topic_progress()
+                            logger.info("SCORE: Immediately saved to database and updated TopicProgress")
                         else:
                             self.attempt.score_raw = None
                             self.attempt.cmi_data['cmi.core.score.raw'] = ''
                     except (ValueError, TypeError) as e:
-                        logger.error("❌ SCORE ERROR: Failed to set score_raw = %s for attempt %s: %s", value, self.attempt.id, str(e))
+                        logger.error("SCORE ERROR: Failed to set score_raw = %s for attempt %s: %s", value, self.attempt.id, str(e))
                         self.last_error = '405'
                         return 'false'
                 elif element == 'cmi.core.score.max':
@@ -573,12 +593,33 @@ class ScormAPIHandlerEnhanced:
                         if value and str(value).strip():
                             self.attempt.score_raw = Decimal(value)
                             self.attempt.cmi_data['cmi.score.raw'] = str(value)
-                            logger.info("📊 SCORE: Set score_raw = %s for attempt %s (user: %s)", value, self.attempt.id, self.attempt.user.username)
+                            logger.info("SCORE: Set score_raw = %s for attempt %s (user: %s)", value, self.attempt.id, self.attempt.user.username)
+                            
+                            # Set success_status based on score if not already set
+                            mastery_score = self.attempt.scorm_package.mastery_score or 70
+                            if self.attempt.success_status == 'unknown':
+                                if self.attempt.score_raw >= mastery_score:
+                                    self.attempt.success_status = 'passed'
+                                    self.attempt.cmi_data['cmi.success_status'] = 'passed'
+                                    if self.attempt.completion_status != 'completed':
+                                        self.attempt.completion_status = 'completed'
+                                        self.attempt.cmi_data['cmi.completion_status'] = 'completed'
+                                else:
+                                    self.attempt.success_status = 'failed'
+                                    self.attempt.cmi_data['cmi.success_status'] = 'failed'
+                                logger.info("SCORE: Set success_status to %s based on score", self.attempt.success_status)
+                            
+                            # IMMEDIATE FIX: Save attempt and update TopicProgress right away
+                            # This ensures scores are reflected in gradebook even if SCORM content
+                            # doesn't call Commit/Terminate properly
+                            self.attempt.save()
+                            self._update_topic_progress()
+                            logger.info("SCORE: Immediately saved to database and updated TopicProgress (SCORM 2004)")
                         else:
                             self.attempt.score_raw = None
                             self.attempt.cmi_data['cmi.score.raw'] = ''
                     except (ValueError, TypeError) as e:
-                        logger.error("❌ SCORE ERROR: Failed to set score_raw = %s for attempt %s: %s", value, self.attempt.id, str(e))
+                        logger.error("SCORE ERROR: Failed to set score_raw = %s for attempt %s: %s", value, self.attempt.id, str(e))
                         self.last_error = '405'
                         return 'false'
                 elif element == 'cmi.score.max':
