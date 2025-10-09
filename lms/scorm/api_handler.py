@@ -180,10 +180,16 @@ class ScormAPIHandler:
         else:
             self.attempt.cmi_data['cmi.exit'] = 'logout'
         
-        # CRITICAL FIX: Update lesson status based on score if available
+        # CRITICAL FIX: Update lesson status based on score if available AND user has substantial interaction
         if not self.attempt.lesson_status or self.attempt.lesson_status == 'not_attempted':
-            # If we have a valid score, determine pass/fail status
-            if self.attempt.score_raw is not None:
+            # If we have a valid score AND sufficient interaction, determine pass/fail status
+            has_substantial_interaction = (
+                self.attempt.time_spent_seconds > 60 or  # At least 1 minute
+                len(self.attempt.navigation_history) > 3 or  # Visited multiple slides/sections
+                self.attempt.progress_percentage > 20  # Made significant progress
+            )
+            
+            if self.attempt.score_raw is not None and has_substantial_interaction:
                 mastery_score = self.attempt.scorm_package.mastery_score or 70
                 if self.attempt.score_raw >= mastery_score:
                     self.attempt.lesson_status = 'passed'
@@ -193,10 +199,13 @@ class ScormAPIHandler:
                     status_to_set = 'failed'
                 logger.info(f"TERMINATE: Set lesson_status to {status_to_set} based on score {self.attempt.score_raw} (mastery: {mastery_score})")
             else:
-                # No score available, mark as incomplete
+                # No valid score or insufficient interaction, mark as incomplete
                 self.attempt.lesson_status = 'incomplete'
                 status_to_set = 'incomplete'
-                logger.info(f"TERMINATE: Set lesson_status to incomplete (no score available)")
+                if self.attempt.score_raw is not None:
+                    logger.info(f"TERMINATE: Set lesson_status to incomplete (score exists but insufficient interaction - time: {self.attempt.time_spent_seconds}s, nav: {len(self.attempt.navigation_history) if self.attempt.navigation_history else 0}, progress: {self.attempt.progress_percentage}%)")
+                else:
+                    logger.info(f"TERMINATE: Set lesson_status to incomplete (no score available)")
             
             # Update CMI data
             if self.version == '1.2':
@@ -610,9 +619,15 @@ class ScormAPIHandler:
                 progress.completion_method = 'scorm'
                 progress.completed_at = timezone.now()
             
-            # CRITICAL FIX: Always save score to TopicProgress when valid score exists
-            # This ensures scores are reflected in gradebook even if user exits early
-            if self.attempt.score_raw is not None:
+            # CRITICAL FIX: Only save score to TopicProgress when valid score exists AND user has substantial interaction
+            # This prevents false scores from early exits being reflected in gradebook
+            has_substantial_interaction = (
+                self.attempt.time_spent_seconds > 60 or  # At least 1 minute
+                len(self.attempt.navigation_history) > 3 or  # Visited multiple slides/sections
+                self.attempt.progress_percentage > 20  # Made significant progress
+            )
+            
+            if self.attempt.score_raw is not None and has_substantial_interaction:
                 score_value = float(self.attempt.score_raw)
                 progress.last_score = score_value
                 
@@ -623,7 +638,9 @@ class ScormAPIHandler:
                 if is_completed:
                     logger.info(f"SCORM completed - Score saved to TopicProgress: last_score={progress.last_score}, best_score={progress.best_score}")
                 else:
-                    logger.info(f"SCORM incomplete but score valid - Score saved to TopicProgress: last_score={progress.last_score}, best_score={progress.best_score}")
+                    logger.info(f"SCORM incomplete but score valid with substantial interaction - Score saved to TopicProgress: last_score={progress.last_score}, best_score={progress.best_score}")
+            elif self.attempt.score_raw is not None:
+                logger.info(f"Score exists ({self.attempt.score_raw}) but insufficient interaction - not updating gradebook (time: {self.attempt.time_spent_seconds}s, nav: {len(self.attempt.navigation_history) if self.attempt.navigation_history else 0}, progress: {self.attempt.progress_percentage}%)")
             else:
                 logger.info(f"No valid score to save (score_raw is None, status: {self.attempt.lesson_status})")
             
