@@ -846,95 +846,82 @@
             }
         }
         
-        // CRITICAL FIX: Force extract score from SCORM content before exit
+        // CRITICAL FIX: Force extract score from SCORM API state before exit (SECURE - no iframe access)
         function forceExtractScore() {
-            console.log('🔍 Attempting to force extract score from SCORM content...');
+            console.log('🔍 Attempting to force extract score from SCORM API...');
             
             try {
-                const iframe = document.getElementById('scormFrame');
-                if (!iframe || !iframe.contentWindow) {
-                    console.log('❌ Cannot access iframe');
-                    return null;
-                }
-                
-                const iframeDoc = iframe.contentWindow.document;
                 let extractedScore = null;
                 
-                // Method 1: Look for "Your score XX%" text in the content
-                const bodyText = iframeDoc.body ? iframeDoc.body.innerText : '';
-                const scoreMatch = bodyText.match(/your\s+score\s+(\d+)%/i);
-                if (scoreMatch) {
-                    extractedScore = parseInt(scoreMatch[1]);
-                    console.log(`✅ Found score in text: ${extractedScore}%`);
-                }
-                
-                // Method 2: Check for score in common DOM elements
-                if (!extractedScore) {
-                    const scoreElements = iframeDoc.querySelectorAll('[class*="score"], [id*="score"], [class*="result"], [id*="result"]');
-                    for (let elem of scoreElements) {
-                        const text = elem.textContent || elem.innerText;
-                        const match = text.match(/(\d+)%/);
-                        if (match) {
-                            extractedScore = parseInt(match[1]);
-                            console.log(`✅ Found score in element: ${extractedScore}%`);
-                            break;
-                        }
+                // SECURE Method 1: Read directly from SCORM API's internal cache (same-origin)
+                if (window.API && window.API._cache) {
+                    const scoreRaw = window.API._cache['cmi.core.score.raw'] || window.API._cache['cmi.score.raw'];
+                    if (scoreRaw && scoreRaw !== '') {
+                        extractedScore = parseFloat(scoreRaw);
+                        console.log(`✅ Found score in API cache: ${extractedScore}`);
                     }
                 }
                 
-                // Method 3: Try to read from Storyline's internal variables
-                if (!extractedScore && iframe.contentWindow.GetPlayer) {
+                // SECURE Method 2: Try GetValue from SCORM 1.2 API (same-origin)
+                if (!extractedScore && window.API && window.API.LMSGetValue) {
                     try {
-                        const player = iframe.contentWindow.GetPlayer();
-                        if (player && player.GetVar) {
-                            // Common Storyline variable names for scores
-                            const scoreVars = ['Results.ScorePercent', 'Quiz.ScorePercent', 'ScorePercent', 'score', 'QuizScore'];
-                            for (let varName of scoreVars) {
-                                try {
-                                    const value = player.GetVar(varName);
-                                    if (value !== undefined && value !== null) {
-                                        extractedScore = parseFloat(value);
-                                        console.log(`✅ Found score in Storyline variable ${varName}: ${extractedScore}`);
-                                        break;
-                                    }
-                                } catch (e) {
-                                    // Variable doesn't exist, continue
-                                }
-                            }
+                        const scoreRaw = window.API.LMSGetValue('cmi.core.score.raw');
+                        if (scoreRaw && scoreRaw !== '' && scoreRaw !== 'false') {
+                            extractedScore = parseFloat(scoreRaw);
+                            console.log(`✅ Found score via LMSGetValue: ${extractedScore}`);
                         }
                     } catch (e) {
-                        console.log('Cannot access Storyline player:', e.message);
+                        console.log('LMSGetValue failed:', e.message);
                     }
                 }
                 
-                // If we found a score, set it via SCORM API
-                if (extractedScore !== null && extractedScore >= 0 && extractedScore <= 100) {
-                    console.log(`🎯 Forcing SCORM score to: ${extractedScore}`);
-                    
-                    if (window.API && window.API._initialized) {
-                        // Set the score
-                        window.API.LMSSetValue('cmi.core.score.raw', extractedScore.toString());
-                        window.API.LMSSetValue('cmi.core.score.min', '0');
-                        window.API.LMSSetValue('cmi.core.score.max', '100');
-                        
-                        // Set pass/fail status based on mastery score (typically 80%)
-                        const masteryScore = 80;
-                        if (extractedScore >= masteryScore) {
-                            window.API.LMSSetValue('cmi.core.lesson_status', 'passed');
-                        } else {
-                            window.API.LMSSetValue('cmi.core.lesson_status', 'failed');
+                // SECURE Method 3: Try SCORM 2004 API (same-origin)
+                if (!extractedScore && window.API_1484_11 && window.API_1484_11.GetValue) {
+                    try {
+                        const scoreRaw = window.API_1484_11.GetValue('cmi.score.raw');
+                        if (scoreRaw && scoreRaw !== '' && scoreRaw !== 'false') {
+                            extractedScore = parseFloat(scoreRaw);
+                            console.log(`✅ Found score via SCORM 2004 API: ${extractedScore}`);
                         }
-                        
-                        // Commit immediately
-                        window.API.LMSCommit('');
-                        console.log('✅ Score forced and committed successfully');
-                        
-                        return extractedScore;
+                    } catch (e) {
+                        console.log('SCORM 2004 GetValue failed:', e.message);
                     }
                 }
                 
-                console.log('ℹ️ No score could be extracted');
-                return null;
+                // If score found, ensure it's committed to database
+                if (extractedScore !== null && extractedScore >= 0 && extractedScore <= 100) {
+                    console.log(`🎯 Extracted score from SCORM API: ${extractedScore}`);
+                    
+                    // Check if this is different from what's already stored
+                    let currentScore = null;
+                    if (window.API && window.API.LMSGetValue) {
+                        try {
+                            const stored = window.API.LMSGetValue('cmi.core.score.raw');
+                            if (stored && stored !== '' && stored !== 'false') {
+                                currentScore = parseFloat(stored);
+                            }
+                        } catch (e) {}
+                    }
+                    
+                    // Score is already in SCORM API, just make sure it's committed
+                    if (currentScore !== null && currentScore === extractedScore) {
+                        console.log(`✅ Score ${currentScore} is already set in SCORM API`);
+                        // Just commit to ensure it's saved
+                        if (window.API && window.API._initialized) {
+                            window.API.LMSCommit('');
+                            console.log('✅ Score committed to ensure database save');
+                        }
+                    }
+                    
+                    return extractedScore;
+                } else {
+                    console.log('ℹ️ No score found in SCORM API - content may not have reported score yet');
+                }
+                
+                // NOTE: Server-side auto-extraction from suspend_data will handle unreported scores
+                console.log('ℹ️ Relying on server-side score extraction from suspend_data');
+                
+                return extractedScore;
                 
             } catch (error) {
                 console.error('❌ Error extracting score:', error);
