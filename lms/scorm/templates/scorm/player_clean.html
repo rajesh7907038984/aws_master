@@ -782,12 +782,15 @@
             }
         }, 300); // Reduced from 1000ms to 300ms
         
-        // CRITICAL FIX: Handle page unload - ensure SCORM data is saved
+        // CRITICAL FIX: Handle page unload - extract score and save SCORM data
         window.addEventListener('beforeunload', function(e) {
             if (window.API && window.API._initialized) {
-                console.log('Page unloading - saving SCORM session data...');
+                console.log('Page unloading - extracting score and saving SCORM session data...');
                 
                 try {
+                    // CRITICAL: Try to force extract score before terminating
+                    forceExtractScore();
+                    
                     // First commit any pending data
                     window.API.LMSCommit('');
                     console.log('SCORM Commit called');
@@ -807,13 +810,19 @@
             }
         });
         
-        // CRITICAL FIX: Handle SCORM exit/terminate events
+        // CRITICAL FIX: Handle SCORM exit/terminate events (EXIT ASSESSMENT button)
         function handleScormExit() {
             console.log('SCORM Exit Assessment triggered');
+            
+            // CRITICAL: Try to force extract score before terminating
+            forceExtractScore();
             
             // Call SCORM terminate methods
             if (window.API && window.API._initialized) {
                 try {
+                    console.log('Calling SCORM Commit...');
+                    window.API.LMSCommit('');
+                    
                     console.log('Calling SCORM Terminate...');
                     const result = window.API.LMSFinish('');
                     console.log('SCORM Terminate result:', result);
@@ -837,7 +846,103 @@
             }
         }
         
-        // CRITICAL FIX: Handle "Back to Topic" button click - properly save SCORM data before navigating
+        // CRITICAL FIX: Force extract score from SCORM content before exit
+        function forceExtractScore() {
+            console.log('🔍 Attempting to force extract score from SCORM content...');
+            
+            try {
+                const iframe = document.getElementById('scormFrame');
+                if (!iframe || !iframe.contentWindow) {
+                    console.log('❌ Cannot access iframe');
+                    return null;
+                }
+                
+                const iframeDoc = iframe.contentWindow.document;
+                let extractedScore = null;
+                
+                // Method 1: Look for "Your score XX%" text in the content
+                const bodyText = iframeDoc.body ? iframeDoc.body.innerText : '';
+                const scoreMatch = bodyText.match(/your\s+score\s+(\d+)%/i);
+                if (scoreMatch) {
+                    extractedScore = parseInt(scoreMatch[1]);
+                    console.log(`✅ Found score in text: ${extractedScore}%`);
+                }
+                
+                // Method 2: Check for score in common DOM elements
+                if (!extractedScore) {
+                    const scoreElements = iframeDoc.querySelectorAll('[class*="score"], [id*="score"], [class*="result"], [id*="result"]');
+                    for (let elem of scoreElements) {
+                        const text = elem.textContent || elem.innerText;
+                        const match = text.match(/(\d+)%/);
+                        if (match) {
+                            extractedScore = parseInt(match[1]);
+                            console.log(`✅ Found score in element: ${extractedScore}%`);
+                            break;
+                        }
+                    }
+                }
+                
+                // Method 3: Try to read from Storyline's internal variables
+                if (!extractedScore && iframe.contentWindow.GetPlayer) {
+                    try {
+                        const player = iframe.contentWindow.GetPlayer();
+                        if (player && player.GetVar) {
+                            // Common Storyline variable names for scores
+                            const scoreVars = ['Results.ScorePercent', 'Quiz.ScorePercent', 'ScorePercent', 'score', 'QuizScore'];
+                            for (let varName of scoreVars) {
+                                try {
+                                    const value = player.GetVar(varName);
+                                    if (value !== undefined && value !== null) {
+                                        extractedScore = parseFloat(value);
+                                        console.log(`✅ Found score in Storyline variable ${varName}: ${extractedScore}`);
+                                        break;
+                                    }
+                                } catch (e) {
+                                    // Variable doesn't exist, continue
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.log('Cannot access Storyline player:', e.message);
+                    }
+                }
+                
+                // If we found a score, set it via SCORM API
+                if (extractedScore !== null && extractedScore >= 0 && extractedScore <= 100) {
+                    console.log(`🎯 Forcing SCORM score to: ${extractedScore}`);
+                    
+                    if (window.API && window.API._initialized) {
+                        // Set the score
+                        window.API.LMSSetValue('cmi.core.score.raw', extractedScore.toString());
+                        window.API.LMSSetValue('cmi.core.score.min', '0');
+                        window.API.LMSSetValue('cmi.core.score.max', '100');
+                        
+                        // Set pass/fail status based on mastery score (typically 80%)
+                        const masteryScore = 80;
+                        if (extractedScore >= masteryScore) {
+                            window.API.LMSSetValue('cmi.core.lesson_status', 'passed');
+                        } else {
+                            window.API.LMSSetValue('cmi.core.lesson_status', 'failed');
+                        }
+                        
+                        // Commit immediately
+                        window.API.LMSCommit('');
+                        console.log('✅ Score forced and committed successfully');
+                        
+                        return extractedScore;
+                    }
+                }
+                
+                console.log('ℹ️ No score could be extracted');
+                return null;
+                
+            } catch (error) {
+                console.error('❌ Error extracting score:', error);
+                return null;
+            }
+        }
+        
+        // CRITICAL FIX: Handle "Back to Topic" button click - extract score and save SCORM data
         function handleBackToTopic(event) {
             event.preventDefault();
             console.log('Back to Topic button clicked - saving SCORM data...');
@@ -848,6 +953,9 @@
                 backBtn.textContent = 'Saving progress...';
                 backBtn.classList.add('disabled');
             }
+            
+            // CRITICAL: Try to force extract score before terminating
+            forceExtractScore();
             
             // Call SCORM terminate methods to save all data
             if (window.API && window.API._initialized) {
@@ -912,6 +1020,9 @@
             
             if (shouldExit) {
                 console.log('Processing exit request from SCORM content...');
+                
+                // CRITICAL: Try to force extract score before terminating
+                forceExtractScore();
                 
                 // Ensure all SCORM data is saved before redirecting
                 if (window.API && window.API._initialized) {
