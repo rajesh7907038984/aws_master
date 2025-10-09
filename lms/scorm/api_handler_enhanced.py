@@ -568,9 +568,16 @@ class ScormAPIHandlerEnhanced:
                     try:
                         # CRITICAL FIX: Store score in both model field AND cmi_data for consistency
                         if value and str(value).strip():
-                            self.attempt.score_raw = Decimal(value)
-                            self.attempt.cmi_data['cmi.core.score.raw'] = str(value)
-                            logger.info("SCORE: Set score_raw = %s for attempt %s (user: %s)", value, self.attempt.id, self.attempt.user.username)
+                            score_value = Decimal(value)
+                            # FIX: Ensure score of 100 is handled properly
+                            if 0 <= score_value <= 100:
+                                self.attempt.score_raw = score_value
+                                self.attempt.cmi_data['cmi.core.score.raw'] = str(value)
+                                logger.info("SCORE: Set score_raw = %s for attempt %s (user: %s)", value, self.attempt.id, self.attempt.user.username)
+                            else:
+                                logger.warning("SCORE: Invalid score value %s (must be 0-100)", value)
+                                self.last_error = '405'
+                                return 'false'
                             
                             # Set lesson_status based on score if not already set
                             mastery_score = self.attempt.scorm_package.mastery_score or 70
@@ -672,9 +679,16 @@ class ScormAPIHandlerEnhanced:
                     try:
                         # CRITICAL FIX: Store score in both model field AND cmi_data for consistency
                         if value and str(value).strip():
-                            self.attempt.score_raw = Decimal(value)
-                            self.attempt.cmi_data['cmi.score.raw'] = str(value)
-                            logger.info("SCORE: Set score_raw = %s for attempt %s (user: %s)", value, self.attempt.id, self.attempt.user.username)
+                            score_value = Decimal(value)
+                            # FIX: Ensure score of 100 is handled properly
+                            if 0 <= score_value <= 100:
+                                self.attempt.score_raw = score_value
+                                self.attempt.cmi_data['cmi.score.raw'] = str(value)
+                                logger.info("SCORE: Set score_raw = %s for attempt %s (user: %s)", value, self.attempt.id, self.attempt.user.username)
+                            else:
+                                logger.warning("SCORE: Invalid score value %s (must be 0-100)", value)
+                                self.last_error = '405'
+                                return 'false'
                             
                             # Set success_status based on score if not already set
                             mastery_score = self.attempt.scorm_package.mastery_score or 70

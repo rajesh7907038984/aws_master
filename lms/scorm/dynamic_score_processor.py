@@ -128,7 +128,8 @@ class DynamicScormScoreProcessor:
             logger.info(f"Dynamic Processor: Detected SCORM format '{self.detected_format}' for attempt {self.attempt.id}")
             
             # Check for completion evidence first
-            if not self._has_completion_evidence(decoded_data):
+            has_completion = self._has_completion_evidence(decoded_data)
+            if not has_completion:
                 logger.info(f"Dynamic Processor: No completion evidence found for format '{self.detected_format}'")
                 return None
             
@@ -138,6 +139,12 @@ class DynamicScormScoreProcessor:
             if score is not None:
                 logger.info(f"Dynamic Processor: Extracted score {score} using '{self.detected_format}' format")
                 return score
+            
+            # CRITICAL FIX: Handle case where quiz is complete but score field is empty
+            # This happens when score is 100% in some SCORM packages (especially Articulate Storyline)
+            if has_completion and self._is_score_field_empty(decoded_data):
+                logger.info(f"Dynamic Processor: Quiz complete with empty score field - assuming 100% score")
+                return 100.0
             
             # Fallback: Try all formats if the detected one doesn't work
             for format_name, patterns in self.SCORE_PATTERNS.items():
@@ -221,6 +228,42 @@ class DynamicScormScoreProcessor:
                 return True
         
         return False
+    
+    def _is_score_field_empty(self, decoded_data):
+        """
+        Check if the score field exists but is empty
+        This is a specific issue with some SCORM packages when score is 100%
+        """
+        try:
+            # Check for empty score patterns
+            empty_patterns = [
+                r'scors"[\s]*[,}]',      # scors" followed by comma or closing brace
+                r'scor"[\s]*[,}]',       # scor" followed by comma or closing brace
+                r'"score"[\s]*:[\s]*""',  # "score": ""
+                r'"score"[\s]*:[\s]*[,}]', # "score": followed by comma or closing brace
+                r'quiz_score"[\s]*:[\s]*""', # "quiz_score": ""
+                r'user_score"[\s]*:[\s]*""', # "user_score": ""
+            ]
+            
+            for pattern in empty_patterns:
+                if re.search(pattern, decoded_data, re.IGNORECASE):
+                    logger.info(f"Dynamic Processor: Found empty score field with pattern: {pattern}")
+                    return True
+            
+            # Additional check for Storyline specific format
+            # Look for 'scor"' at the end of the string or followed by }
+            if 'scor"' in decoded_data:
+                pos = decoded_data.find('scor"')
+                # Check what comes after 'scor"'
+                next_chars = decoded_data[pos+5:pos+6] if pos+5 < len(decoded_data) else ''
+                if not next_chars or next_chars in ['}', ',', ']', ' ']:
+                    logger.info(f"Dynamic Processor: Found empty score field (scor\" with no value)")
+                    return True
+            
+            return False
+        except Exception as e:
+            logger.error(f"Dynamic Processor: Error checking for empty score field: {str(e)}")
+            return False
     
     def _extract_score_by_format(self, decoded_data, format_name):
         """Extract score using format-specific patterns"""
