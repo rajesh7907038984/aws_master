@@ -84,7 +84,7 @@ function initCourseProgress() {
     setInterval(loadProgressData, 30000);
     
     function loadProgressData() {
-        fetch(`/courses/${courseId}/progress/`)
+        fetch(`/courses/${courseId}/progress/api/`)
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Network response was not ok');

@@ -28,6 +28,7 @@ urlpatterns = [
     
     # API endpoints
     path('api/branch/<int:branch_id>/courses/', views.get_branch_courses, name='get_branch_courses'),
+    path('<int:course_id>/progress/api/', views.get_course_progress, name='get_course_progress_api'),
     
     # Claude AI proxy endpoint
     path('api/claude-ai-proxy/', views.claude_ai_proxy, name='claude_ai_proxy'),
@@ -96,7 +97,6 @@ urlpatterns = [
     # Category management - use categories app instead
     
     # Course progress and completion
-    path('courses/<int:course_id>/progress/', views.course_progress_view, name='course_progress_api'),
     path('courses/<int:course_id>/generate-certificate/', views.generate_certificate, name='generate_certificate'),
     
     # Certificate URLs
