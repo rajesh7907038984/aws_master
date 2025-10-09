@@ -589,9 +589,9 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                             success_status = 'failed'
                                     elif topic_progress.completed:
                                         success_status = 'passed'
-                                    elif (topic_progress.attempts > 0 or topic_progress.last_accessed) and not topic_progress.completed:
-                                        # Learner has attempted/accessed but not completed - consider as failed
-                                        success_status = 'failed'
+                                    elif topic_progress.last_accessed and not topic_progress.completed and score_value is None:
+                                        # Learner has accessed but not completed or scored - show as in progress
+                                        success_status = 'in_progress'
                                     
                                     student_scores[activity_id] = {
                                         'score': score_value,

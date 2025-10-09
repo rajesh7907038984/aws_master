@@ -1950,6 +1950,16 @@
                               VIEW
                             </a>
                           {% endif %}
+                        {% elif score_data.success_status == 'in_progress' %}
+                          <div class="submission-date">
+                            {{ score_data.date|date:"M d, Y" }}
+                          </div>
+                          <span class="grade-score grade-average">In Progress</span>
+                          {% if user.role == 'learner' %}
+                            <a href="{% url 'courses:topic_view' activity.object.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
+                              CONTINUE
+                            </a>
+                          {% endif %}
                         {% else %}
                           {% if score_data.success_status == 'failed' %}
                             <span class="grade-score grade-poor">Failed</span>
