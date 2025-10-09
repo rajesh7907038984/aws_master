@@ -214,7 +214,7 @@
             {% endif %}
         </div>
         <div class="scorm-actions">
-            <a href="{% url 'courses:topic_view' topic.id %}" class="btn btn-secondary">
+            <a href="#" id="backToTopicBtn" class="btn btn-secondary" onclick="handleBackToTopic(event); return false;">
                 ← Back to Topic
             </a>
         </div>
@@ -782,12 +782,28 @@
             }
         }, 300); // Reduced from 1000ms to 300ms
         
-        // Handle page unload
-        window.addEventListener('beforeunload', function() {
+        // CRITICAL FIX: Handle page unload - ensure SCORM data is saved
+        window.addEventListener('beforeunload', function(e) {
             if (window.API && window.API._initialized) {
-                console.log('Terminating SCORM session...');
-                window.API.LMSFinish('');
-                window.API_1484_11.Terminate('');
+                console.log('Page unloading - saving SCORM session data...');
+                
+                try {
+                    // First commit any pending data
+                    window.API.LMSCommit('');
+                    console.log('SCORM Commit called');
+                    
+                    // Then terminate the session
+                    window.API.LMSFinish('');
+                    console.log('SCORM LMSFinish called');
+                    
+                    // Also try SCORM 2004 API
+                    if (window.API_1484_11 && window.API_1484_11.Terminate) {
+                        window.API_1484_11.Terminate('');
+                        console.log('SCORM 2004 Terminate called');
+                    }
+                } catch (error) {
+                    console.error('Error during beforeunload SCORM save:', error);
+                }
             }
         });
         
@@ -814,6 +830,56 @@
                     setTimeout(() => {
                         window.location.href = '{% url "courses:topic_view" topic.id %}';
                     }, 1000);
+                }
+            } else {
+                console.log('SCORM API not initialized, redirecting anyway...');
+                window.location.href = '{% url "courses:topic_view" topic.id %}';
+            }
+        }
+        
+        // CRITICAL FIX: Handle "Back to Topic" button click - properly save SCORM data before navigating
+        function handleBackToTopic(event) {
+            event.preventDefault();
+            console.log('Back to Topic button clicked - saving SCORM data...');
+            
+            // Show user feedback
+            const backBtn = document.getElementById('backToTopicBtn');
+            if (backBtn) {
+                backBtn.textContent = 'Saving progress...';
+                backBtn.classList.add('disabled');
+            }
+            
+            // Call SCORM terminate methods to save all data
+            if (window.API && window.API._initialized) {
+                try {
+                    console.log('Calling SCORM Commit to save data...');
+                    // First commit any pending data
+                    window.API.LMSCommit('');
+                    
+                    console.log('Calling SCORM Terminate...');
+                    // Then terminate the session
+                    const result = window.API.LMSFinish('');
+                    console.log('SCORM LMSFinish result:', result);
+                    
+                    // Also try SCORM 2004 API
+                    if (window.API_1484_11 && window.API_1484_11.Terminate) {
+                        const result2 = window.API_1484_11.Terminate('');
+                        console.log('SCORM 2004 Terminate result:', result2);
+                    }
+                    
+                    console.log('SCORM data saved successfully');
+                    
+                    // Wait for the save to complete before redirecting
+                    setTimeout(() => {
+                        console.log('Redirecting to topic view...');
+                        window.location.href = '{% url "courses:topic_view" topic.id %}';
+                    }, 500);
+                } catch (error) {
+                    console.error('SCORM Terminate error:', error);
+                    // Still redirect even if terminate fails
+                    setTimeout(() => {
+                        window.location.href = '{% url "courses:topic_view" topic.id %}';
+                    }, 500);
                 }
             } else {
                 console.log('SCORM API not initialized, redirecting anyway...');
