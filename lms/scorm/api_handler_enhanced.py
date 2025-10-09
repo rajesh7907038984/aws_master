@@ -392,16 +392,16 @@ class ScormAPIHandlerEnhanced:
                     # CRITICAL FIX: Always return bookmark data from model fields
                     value = self.attempt.lesson_location or ''
                     if value:
-                        logger.info("RESUME: Returning lesson_location = '%s' for attempt %s", value[:100], self.attempt.id)
+                        logger.info("🔖 RESUME: Returning lesson_location = '%s' for attempt %s", value[:100], self.attempt.id)
                     else:
-                        logger.info("RESUME: No lesson_location found for attempt %s", self.attempt.id)
+                        logger.info("🔖 RESUME: No lesson_location found for attempt %s", self.attempt.id)
                 elif element == 'cmi.suspend_data':
                     # CRITICAL FIX: Always return suspend data from model fields
                     value = self.attempt.suspend_data or ''
                     if value:
-                        logger.info("RESUME: Returning suspend_data (%d chars) for attempt %s", len(value), self.attempt.id)
+                        logger.info("🔖 RESUME: Returning suspend_data (%d chars) for attempt %s", len(value), self.attempt.id)
                     else:
-                        logger.info("RESUME: No suspend_data found for attempt %s", self.attempt.id)
+                        logger.info("🔖 RESUME: No suspend_data found for attempt %s", self.attempt.id)
                 elif element == 'cmi.core.total_time':
                     value = self.attempt.total_time or ('0000:00:00.00' if self.version == '1.2' else 'PT00H00M00S')
                 
@@ -559,12 +559,27 @@ class ScormAPIHandlerEnhanced:
                     # CRITICAL FIX: Store bookmark data in both CMI data and model fields
                     self.attempt.lesson_location = value
                     self.attempt.cmi_data['cmi.core.lesson_location'] = value
-                    logger.info("RESUME: Saved lesson_location = '%s' for attempt %s", value[:100] if value else '', self.attempt.id)
+                    logger.info("💾 RESUME: Saved lesson_location = '%s' for attempt %s", value[:100] if value else '', self.attempt.id)
+                    
+                    # IMMEDIATE SAVE: Persist bookmark immediately to prevent data loss on unexpected exit
+                    try:
+                        self.attempt.save(update_fields=['lesson_location', 'cmi_data', 'last_accessed'])
+                        logger.info("💾 RESUME: Immediately persisted lesson_location to database")
+                    except Exception as e:
+                        logger.error("❌ RESUME: Failed to immediately save lesson_location: %s", str(e))
+                        
                 elif element == 'cmi.suspend_data':
                     # CRITICAL FIX: Store suspend data in both CMI data and model fields
                     self.attempt.suspend_data = value
                     self.attempt.cmi_data['cmi.suspend_data'] = value
-                    logger.info("RESUME: Saved suspend_data (%d chars) for attempt %s", len(value) if value else 0, self.attempt.id)
+                    logger.info("💾 RESUME: Saved suspend_data (%d chars) for attempt %s", len(value) if value else 0, self.attempt.id)
+                    
+                    # IMMEDIATE SAVE: Persist suspend_data immediately to prevent data loss on unexpected exit
+                    try:
+                        self.attempt.save(update_fields=['suspend_data', 'cmi_data', 'last_accessed'])
+                        logger.info("💾 RESUME: Immediately persisted suspend_data to database")
+                    except Exception as e:
+                        logger.error("❌ RESUME: Failed to immediately save suspend_data: %s", str(e))
                 elif element == 'cmi.core.session_time':
                     self.attempt.session_time = value
                     self._update_total_time(value)
@@ -649,12 +664,27 @@ class ScormAPIHandlerEnhanced:
                     # CRITICAL FIX: Store bookmark data in both CMI data and model fields
                     self.attempt.lesson_location = value
                     self.attempt.cmi_data['cmi.location'] = value
-                    logger.info("RESUME: Saved location = '%s' for attempt %s (SCORM 2004)", value[:100] if value else '', self.attempt.id)
+                    logger.info("💾 RESUME: Saved location = '%s' for attempt %s (SCORM 2004)", value[:100] if value else '', self.attempt.id)
+                    
+                    # IMMEDIATE SAVE: Persist bookmark immediately to prevent data loss on unexpected exit
+                    try:
+                        self.attempt.save(update_fields=['lesson_location', 'cmi_data', 'last_accessed'])
+                        logger.info("💾 RESUME: Immediately persisted location to database (SCORM 2004)")
+                    except Exception as e:
+                        logger.error("❌ RESUME: Failed to immediately save location: %s", str(e))
+                        
                 elif element == 'cmi.suspend_data':
                     # CRITICAL FIX: Store suspend data in both CMI data and model fields
                     self.attempt.suspend_data = value
                     self.attempt.cmi_data['cmi.suspend_data'] = value
-                    logger.info("RESUME: Saved suspend_data (%d chars) for attempt %s (SCORM 2004)", len(value) if value else 0, self.attempt.id)
+                    logger.info("💾 RESUME: Saved suspend_data (%d chars) for attempt %s (SCORM 2004)", len(value) if value else 0, self.attempt.id)
+                    
+                    # IMMEDIATE SAVE: Persist suspend_data immediately to prevent data loss on unexpected exit
+                    try:
+                        self.attempt.save(update_fields=['suspend_data', 'cmi_data', 'last_accessed'])
+                        logger.info("💾 RESUME: Immediately persisted suspend_data to database (SCORM 2004)")
+                    except Exception as e:
+                        logger.error("❌ RESUME: Failed to immediately save suspend_data: %s", str(e))
                 elif element == 'cmi.session_time':
                     self.attempt.session_time = value
                     self._update_total_time(value)
@@ -692,14 +722,14 @@ class ScormAPIHandlerEnhanced:
             return 'false'
         
         try:
-            logger.info("COMMIT: Starting commit for attempt %s (user: %s, score_raw: %s, lesson_status: %s)", 
+            logger.info("💾 COMMIT: Starting commit for attempt %s (user: %s, score_raw: %s, lesson_status: %s)", 
                        self.attempt.id, self.attempt.user.username, self.attempt.score_raw, self.attempt.lesson_status)
             self._commit_data()
-            logger.info("COMMIT: Successfully committed data for attempt %s", self.attempt.id)
+            logger.info("✅ COMMIT: Successfully committed data for attempt %s", self.attempt.id)
             self.last_error = '0'
             return 'true'
         except Exception as e:
-            logger.error("COMMIT ERROR: Failed to commit data for attempt %s: %s", self.attempt.id, str(e))
+            logger.error("❌ COMMIT ERROR: Failed to commit data for attempt %s: %s", self.attempt.id, str(e))
             self.last_error = '101'
             return 'false'
     
@@ -1230,33 +1260,49 @@ class ScormAPIHandlerEnhanced:
     
     def _commit_data(self):
         """Save attempt data to database"""
-        logger.info("_COMMIT_DATA: Starting (score_raw=%s, cmi_score=%s)", 
+        logger.info("💾 _COMMIT_DATA: Starting (score_raw=%s, cmi_score=%s, lesson_location=%s, suspend_data_len=%s)", 
                    self.attempt.score_raw, 
-                   self.attempt.cmi_data.get('cmi.core.score.raw') or self.attempt.cmi_data.get('cmi.score.raw'))
+                   self.attempt.cmi_data.get('cmi.core.score.raw') or self.attempt.cmi_data.get('cmi.score.raw'),
+                   self.attempt.lesson_location[:50] if self.attempt.lesson_location else 'None',
+                   len(self.attempt.suspend_data) if self.attempt.suspend_data else 0)
         
-        # CRITICAL: Store the score before any operations
+        # CRITICAL: Store the score and bookmark before any operations
         score_before = self.attempt.score_raw
         cmi_score_before = self.attempt.cmi_data.get('cmi.core.score.raw') or self.attempt.cmi_data.get('cmi.score.raw')
+        location_before = self.attempt.lesson_location
+        suspend_data_len_before = len(self.attempt.suspend_data) if self.attempt.suspend_data else 0
         
         self.attempt.last_accessed = timezone.now()
         
-        logger.info("_COMMIT_DATA: Before save (score_raw=%s, type=%s)", self.attempt.score_raw, type(self.attempt.score_raw))
+        logger.info("💾 _COMMIT_DATA: Before save (score_raw=%s, type=%s, bookmark=%s)", 
+                   self.attempt.score_raw, type(self.attempt.score_raw),
+                   self.attempt.lesson_location[:30] if self.attempt.lesson_location else 'None')
         
         try:
             self.attempt.save()
-            logger.info("_COMMIT_DATA: After save (score_raw=%s)", self.attempt.score_raw)
+            logger.info("💾 _COMMIT_DATA: After save (score_raw=%s, bookmark=%s)", 
+                       self.attempt.score_raw,
+                       self.attempt.lesson_location[:30] if self.attempt.lesson_location else 'None')
             
             # Verify the save actually worked
             from scorm.models import ScormAttempt
             saved_attempt = ScormAttempt.objects.get(id=self.attempt.id)
-            logger.info("_COMMIT_DATA: DB verification (score_raw=%s, cmi_score=%s)", 
+            logger.info("💾 _COMMIT_DATA: DB verification (score_raw=%s, cmi_score=%s, bookmark=%s, suspend_len=%s)", 
                        saved_attempt.score_raw,
-                       saved_attempt.cmi_data.get('cmi.core.score.raw') or saved_attempt.cmi_data.get('cmi.score.raw'))
+                       saved_attempt.cmi_data.get('cmi.core.score.raw') or saved_attempt.cmi_data.get('cmi.score.raw'),
+                       saved_attempt.lesson_location[:30] if saved_attempt.lesson_location else 'None',
+                       len(saved_attempt.suspend_data) if saved_attempt.suspend_data else 0)
             
             if score_before and not saved_attempt.score_raw:
-                logger.error("_COMMIT_DATA: SCORE LOST DURING SAVE! Before=%s, After=%s", score_before, saved_attempt.score_raw)
+                logger.error("❌ _COMMIT_DATA: SCORE LOST DURING SAVE! Before=%s, After=%s", score_before, saved_attempt.score_raw)
+            
+            if location_before and not saved_attempt.lesson_location:
+                logger.error("❌ _COMMIT_DATA: BOOKMARK LOST DURING SAVE! Before=%s, After=%s", location_before, saved_attempt.lesson_location)
+            
+            if suspend_data_len_before > 0 and not saved_attempt.suspend_data:
+                logger.error("❌ _COMMIT_DATA: SUSPEND_DATA LOST DURING SAVE! Before=%s chars, After=%s", suspend_data_len_before, len(saved_attempt.suspend_data) if saved_attempt.suspend_data else 0)
         except Exception as e:
-            logger.error("_COMMIT_DATA: Save failed: %s", str(e))
+            logger.error("❌ _COMMIT_DATA: Save failed: %s", str(e))
             raise
         
         # AUTOMATIC SCORE EXTRACTION: If SCORM content didn't report score, try to extract from suspend_data
@@ -1366,7 +1412,7 @@ class ScormAPIHandlerEnhanced:
                 topic=topic
             )
             
-            logger.info("TOPIC_PROGRESS: Updating for topic %s, user %s (created=%s)", 
+            logger.info("🔄 TOPIC_PROGRESS: Updating for topic %s, user %s (created=%s)", 
                        topic.id, self.attempt.user.username, created)
             
             # Parse time spent from SCORM format to seconds
@@ -1399,7 +1445,7 @@ class ScormAPIHandlerEnhanced:
                 progress.completed = True
                 progress.completion_method = 'scorm'
                 progress.completed_at = timezone.now()
-                logger.info("TOPIC_PROGRESS: Marked as completed")
+                logger.info("✅ TOPIC_PROGRESS: Marked as completed")
             
             # Update score fields - CRITICAL for gradebook!
             if self.attempt.score_raw is not None:
@@ -1413,19 +1459,19 @@ class ScormAPIHandlerEnhanced:
                 if progress.best_score is None or score_value > progress.best_score:
                     progress.best_score = score_value
                 
-                logger.info("TOPIC_PROGRESS: Updated scores - last_score: %s -> %s, best_score: %s -> %s", 
+                logger.info("📊 TOPIC_PROGRESS: Updated scores - last_score: %s -> %s, best_score: %s -> %s", 
                            old_last_score, progress.last_score, old_best_score, progress.best_score)
             else:
-                logger.warning("TOPIC_PROGRESS: No score to update (score_raw is None)")
+                logger.warning("⚠️  TOPIC_PROGRESS: No score to update (score_raw is None)")
             
             progress.save()
-            logger.info("TOPIC_PROGRESS: Successfully saved for topic %s", topic.id)
+            logger.info("✅ TOPIC_PROGRESS: Successfully saved for topic %s", topic.id)
             
             # CRITICAL: Update CourseEnrollment for accurate reporting
             self._update_course_enrollment(topic, progress, time_seconds)
             
         except Exception as e:
-            logger.error("TOPIC_PROGRESS ERROR: Failed to update topic progress: %s", str(e))
+            logger.error("❌ TOPIC_PROGRESS ERROR: Failed to update topic progress: %s", str(e))
             import traceback
             logger.error(traceback.format_exc())
     
@@ -1453,7 +1499,7 @@ class ScormAPIHandlerEnhanced:
             # Find the course this topic belongs to
             course_topic = CourseTopic.objects.filter(topic=topic).first()
             if not course_topic:
-                logger.warning("ENROLLMENT: Topic %s not linked to any course", topic.id)
+                logger.warning("⚠️  ENROLLMENT: Topic %s not linked to any course", topic.id)
                 return
             
             course = course_topic.course
@@ -1464,7 +1510,7 @@ class ScormAPIHandlerEnhanced:
                 course=course
             )
             
-            logger.info("ENROLLMENT: Updating for user %s, course %s (created=%s)",
+            logger.info("📋 ENROLLMENT: Updating for user %s, course %s (created=%s)",
                        self.attempt.user.username, course.id, created)
             
             # Get all SCORM topics in this course
@@ -1493,13 +1539,13 @@ class ScormAPIHandlerEnhanced:
                 if not enrollment.completed:
                     enrollment.completed = True
                     enrollment.completion_date = timezone.now()
-                    logger.info("ENROLLMENT: Course marked as completed!")
+                    logger.info("🎉 ENROLLMENT: Course marked as completed!")
             
             enrollment.save()
-            logger.info("ENROLLMENT: Updated - completed: %s/%s topics, time: %ss",
+            logger.info("✅ ENROLLMENT: Updated - completed: %s/%s topics, time: %ss",
                        completed_scorm_topics, total_scorm_topics, total_time_all_scorm)
             
         except Exception as e:
-            logger.error("ENROLLMENT ERROR: Failed to update enrollment: %s", str(e))
+            logger.error("❌ ENROLLMENT ERROR: Failed to update enrollment: %s", str(e))
             import traceback
             logger.error(traceback.format_exc())
