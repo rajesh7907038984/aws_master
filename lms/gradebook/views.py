@@ -375,12 +375,12 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                             user=student
                                         ).first() if topic else None
                                         
-                                        # Use TopicProgress best_score (highest score) if available, otherwise fallback to last_score, then attempt score
+                                        # Use TopicProgress last_score (most recent/live score) to match SCORM results page
                                         score_value = None
-                                        if topic_progress and topic_progress.best_score is not None:
-                                            score_value = float(topic_progress.best_score)
-                                        elif topic_progress and topic_progress.last_score is not None:
+                                        if topic_progress and topic_progress.last_score is not None:
                                             score_value = float(topic_progress.last_score)
+                                        elif topic_progress and topic_progress.best_score is not None:
+                                            score_value = float(topic_progress.best_score)
                                         elif attempt.score_raw is not None:
                                             score_value = float(attempt.score_raw)
                                         
@@ -435,12 +435,12 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                                 completion_status = 'completed' if topic_progress.completed else 'incomplete'
                                                 success_status = 'unknown'
                                                 
-                                                # Get score from best_score (highest) first, then last_score, or fallback to progress_data
+                                                # Get score from last_score (most recent/live) to match SCORM results page
                                                 score_value = None
-                                                if topic_progress.best_score is not None:
-                                                    score_value = float(topic_progress.best_score)
-                                                elif topic_progress.last_score is not None:
+                                                if topic_progress.last_score is not None:
                                                     score_value = float(topic_progress.last_score)
+                                                elif topic_progress.best_score is not None:
+                                                    score_value = float(topic_progress.best_score)
                                                 else:
                                                     # Fallback: check progress_data for SCORM score
                                                     progress_data = topic_progress.progress_data or {}
@@ -508,8 +508,8 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                             completion_status = 'completed' if topic_progress.completed else 'incomplete'
                                             success_status = 'unknown'
                                             
-                                            # Use best_score (highest) if available, otherwise use last_score
-                                            score_value = topic_progress.best_score if topic_progress.best_score is not None else topic_progress.last_score
+                                            # Use last_score (most recent/live) to match SCORM results page
+                                            score_value = topic_progress.last_score if topic_progress.last_score is not None else topic_progress.best_score
                                             
                                             if score_value is not None:
                                                 if float(score_value) >= 70:
@@ -563,12 +563,12 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                     # Calculate completion status
                                     completion_status = 'completed' if topic_progress.completed else 'incomplete'
                                     
-                                    # Get score from best_score (highest) first, then last_score, or fallback to progress_data
+                                    # Get score from last_score (most recent/live) to match SCORM results page
                                     score_value = None
-                                    if topic_progress.best_score is not None:
-                                        score_value = float(topic_progress.best_score)
-                                    elif topic_progress.last_score is not None:
+                                    if topic_progress.last_score is not None:
                                         score_value = float(topic_progress.last_score)
+                                    elif topic_progress.best_score is not None:
+                                        score_value = float(topic_progress.best_score)
                                     else:
                                         # Fallback: check progress_data for SCORM score
                                         progress_data = topic_progress.progress_data or {}
@@ -3040,16 +3040,16 @@ def export_gradebook_csv(request, course_id):
                 if topic_progress:
                     if topic_progress.completed:
                         row.append('Completed')
-                    elif topic_progress.best_score is not None:
-                        # Use best_score (highest) for grading - Check if passed or failed based on score
-                        if float(topic_progress.best_score) >= 70:
-                            row.append(f"Completed ({topic_progress.best_score}%)")
-                        else:
-                            row.append(f"Failed ({topic_progress.best_score}%)")
                     elif topic_progress.last_score is not None:
-                        # Fallback to last_score if best_score not available
+                        # Use last_score (most recent/live) to match SCORM results page
                         if float(topic_progress.last_score) >= 70:
                             row.append(f"Completed ({topic_progress.last_score}%)")
+                        else:
+                            row.append(f"Failed ({topic_progress.last_score}%)")
+                    elif topic_progress.best_score is not None:
+                        # Fallback to best_score if last_score not available
+                        if float(topic_progress.best_score) >= 70:
+                            row.append(f"Completed ({topic_progress.best_score}%)")
                         else:
                             row.append(f"Failed ({topic_progress.last_score}%)")
                     elif (topic_progress.attempts > 0 or topic_progress.last_accessed) and not topic_progress.completed:
