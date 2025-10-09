@@ -229,6 +229,31 @@ class DynamicScormScoreProcessor:
         
         return False
     
+    def _get_effective_mastery_score(self):
+        """
+        Get the effective mastery score with proper hierarchy:
+        1. SCORM package mastery score (from manifest)
+        2. Course-level passing score (if set)
+        3. System default (70%)
+        """
+        # First priority: SCORM package mastery score
+        if self.package.mastery_score is not None:
+            return float(self.package.mastery_score)
+        
+        # Second priority: Course-level passing score
+        try:
+            from courses.models import CourseTopic
+            course_topic = CourseTopic.objects.filter(topic=self.package.topic).first()
+            if course_topic and course_topic.course:
+                # Check if course has a default passing score
+                if hasattr(course_topic.course, 'default_passing_score'):
+                    return float(course_topic.course.default_passing_score)
+        except Exception as e:
+            logger.debug(f"Could not get course passing score: {str(e)}")
+        
+        # Third priority: System default
+        return 70.0
+    
     def _is_score_field_empty(self, decoded_data):
         """
         Check if the score field exists but is empty
@@ -315,7 +340,8 @@ class DynamicScormScoreProcessor:
                     self.attempt.score_raw = Decimal(str(extracted_score))
                     
                     # Set appropriate lesson status based on score and mastery
-                    mastery_score = self.package.mastery_score or 70
+                    # Priority: 1. Package mastery score, 2. Course passing score, 3. Default
+                    mastery_score = self._get_effective_mastery_score()
                     if extracted_score >= mastery_score:
                         self.attempt.lesson_status = 'passed'
                     else:

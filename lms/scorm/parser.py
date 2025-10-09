@@ -14,6 +14,7 @@ import logging
 import uuid
 import json
 from .validators import validate_scorm_package, ScormValidationError
+from .mastery_score_handler import MasteryScoreExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -260,13 +261,74 @@ class ScormParser:
                         
                         # Try to get mastery score
                         if self.version == '1.2':
+                            # SCORM 1.2: Look for adlcp:masteryscore
                             mastery_score = first_item.find('.//{http://www.adlnet.org/xsd/adlcp_rootv1p2}masteryscore') or \
-                                          first_item.find('.//masteryscore')
+                                          first_item.find('.//adlcp:masteryscore', namespaces={'adlcp': 'http://www.adlnet.org/xsd/adlcp_rootv1p2'}) or \
+                                          first_item.find('.//masteryscore') or \
+                                          first_item.find('.//{http://www.adlnet.org/xsd/adlcp_rootv1p2}mastery_score') or \
+                                          first_item.find('.//mastery_score')
                             if mastery_score is not None and mastery_score.text:
                                 try:
-                                    self.manifest_data['mastery_score'] = float(mastery_score.text)
+                                    score = float(mastery_score.text)
+                                    # Ensure it's in percentage (0-100) range
+                                    if 0 <= score <= 1:
+                                        score = score * 100  # Convert decimal to percentage
+                                    self.manifest_data['mastery_score'] = score
+                                    logger.info(f"Extracted SCORM 1.2 mastery score: {score}%")
                                 except ValueError:
                                     pass
+                        elif self.version == '2004':
+                            # SCORM 2004: Look for imsss:minNormalizedMeasure in sequencing rules
+                            sequencing = first_item.find('.//{http://www.imsglobal.org/xsd/imsss}sequencing') or \
+                                       first_item.find('.//imsss:sequencing', namespaces={'imsss': 'http://www.imsglobal.org/xsd/imsss'}) or \
+                                       first_item.find('.//sequencing')
+                            if sequencing is not None:
+                                # Look for completion threshold or objectives
+                                min_normalized = sequencing.find('.//{http://www.imsglobal.org/xsd/imsss}minNormalizedMeasure') or \
+                                               sequencing.find('.//imsss:minNormalizedMeasure', namespaces={'imsss': 'http://www.imsglobal.org/xsd/imsss'}) or \
+                                               sequencing.find('.//minNormalizedMeasure')
+                                
+                                if min_normalized is not None and min_normalized.text:
+                                    try:
+                                        score = float(min_normalized.text)
+                                        # SCORM 2004 uses 0-1 scale, convert to percentage
+                                        if 0 <= score <= 1:
+                                            score = score * 100
+                                        self.manifest_data['mastery_score'] = score
+                                        logger.info(f"Extracted SCORM 2004 mastery score: {score}%")
+                                    except ValueError:
+                                        pass
+                                
+                                # Alternative: Look for completion threshold
+                                if 'mastery_score' not in self.manifest_data:
+                                    completion_threshold = sequencing.find('.//{http://www.imsglobal.org/xsd/imsss}completionThreshold') or \
+                                                         sequencing.find('.//imsss:completionThreshold', namespaces={'imsss': 'http://www.imsglobal.org/xsd/imsss'}) or \
+                                                         sequencing.find('.//completionThreshold')
+                                    
+                                    if completion_threshold is not None:
+                                        min_progress = completion_threshold.get('minProgressMeasure') or completion_threshold.get('completedByMeasure')
+                                        if min_progress:
+                                            try:
+                                                score = float(min_progress)
+                                                if 0 <= score <= 1:
+                                                    score = score * 100
+                                                self.manifest_data['mastery_score'] = score
+                                                logger.info(f"Extracted SCORM 2004 completion threshold: {score}%")
+                                            except ValueError:
+                                                pass
+                        
+                        # Use the comprehensive mastery score extractor
+                        if 'mastery_score' not in self.manifest_data:
+                            package_filename = getattr(self.uploaded_file, 'name', '')
+                            mastery_score = MasteryScoreExtractor.extract_mastery_score(
+                                manifest_content, 
+                                package_filename
+                            )
+                            if mastery_score is not None:
+                                self.manifest_data['mastery_score'] = mastery_score
+                                logger.info(f"Extracted mastery score using comprehensive handler: {mastery_score}%")
+                            else:
+                                logger.info("No mastery score found in SCORM manifest - will use course default")
                         
                         # Find corresponding resource
                         if identifierref:
