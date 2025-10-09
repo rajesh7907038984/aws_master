@@ -1901,12 +1901,22 @@
                               <span class="grade-score grade-poor">{{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}</span>
                             {% endif %}
                           {% endif %}
+                          {% comment %}FIXED: Don't show action buttons for completed SCORM - it's done!{% endcomment %}
                           {% if user.role == 'learner' %}
                             {% get_scorm_topic activity.object as scorm_topic %}
                             {% if scorm_topic %}
-                              <a href="{% url 'courses:topic_view' scorm_topic.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
-                                {% if score_data.has_bookmark or score_data.has_toc_data %}RESUME{% else %}VIEW{% endif %}
-                              </a>
+                              {% if score_data.success_status == 'passed' or score_data.completed %}
+                                <!-- SCORM is completed/passed - show status instead of action button -->
+                                <div class="completion-status">
+                                  <i class="fas fa-check-circle" style="color: #28a745;"></i>
+                                  <span style="color: #28a745; font-weight: 600;">COMPLETED</span>
+                                </div>
+                              {% else %}
+                                <!-- SCORM not completed - show appropriate action button -->
+                                <a href="{% url 'courses:topic_view' scorm_topic.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
+                                  {% if score_data.show_resume %}RESUME{% elif score_data.in_progress %}CONTINUE{% else %}LAUNCH{% endif %}
+                                </a>
+                              {% endif %}
                             {% endif %}
                           {% endif %}
                         {% else %}
@@ -1915,7 +1925,7 @@
                             {% if user.role == 'learner' %}
                               {% get_scorm_topic activity.object as scorm_topic %}
                               {% if scorm_topic %}
-                                <a href="{% url 'courses:topic_view' scorm_topic.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
+                                <a href="{% url 'courses:topic_view' scorm_topic.id %}" class="view-btn" style="color: #dc3545; border-color: #dc3545; background: white;">
                                   RETRY
                                 </a>
                               {% endif %}
@@ -1957,10 +1967,20 @@
                               <span class="grade-score grade-poor">{{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}</span>
                             {% endif %}
                           {% endif %}
+                          {% comment %}FIXED: Show completion status for completed SCORM topics{% endcomment %}
                           {% if user.role == 'learner' %}
-                            <a href="{% url 'courses:topic_view' activity.object.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
-                              VIEW
-                            </a>
+                            {% if score_data.success_status == 'passed' or score_data.completed %}
+                              <!-- SCORM topic completed - show completion status -->
+                              <div class="completion-status" style="margin-top: 5px;">
+                                <i class="fas fa-award" style="color: #28a745; margin-right: 5px;"></i>
+                                <span style="color: #28a745; font-weight: 600; font-size: 0.9rem;">PASSED</span>
+                              </div>
+                            {% else %}
+                              <!-- SCORM topic not completed - show action button -->
+                              <a href="{% url 'courses:topic_view' activity.object.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
+                                VIEW
+                              </a>
+                            {% endif %}
                           {% endif %}
                         {% elif score_data.success_status == 'in_progress' %}
                           <div class="submission-date">
@@ -1968,7 +1988,7 @@
                           </div>
                           <span class="grade-score grade-average">In Progress</span>
                           {% if user.role == 'learner' %}
-                            <a href="{% url 'courses:topic_view' activity.object.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
+                            <a href="{% url 'courses:topic_view' activity.object.id %}" class="view-btn" style="color: #ffc107; border-color: #ffc107; background: white;">
                               CONTINUE
                             </a>
                           {% endif %}

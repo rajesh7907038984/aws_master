@@ -441,7 +441,9 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                         'success_status': success_status,
                                         'completed': completion_status in ['completed', 'passed'],
                                         'in_progress': not is_completed and has_attempt_data,  # New flag for in-progress state
-                                        'has_bookmark': bool(attempt.lesson_location or attempt.suspend_data)  # Has resume data
+                                        'has_bookmark': bool(attempt.lesson_location or attempt.suspend_data) and not is_completed,  # FIXED: Only show bookmark for incomplete
+                                        'show_resume': not is_completed and bool(attempt.lesson_location or attempt.suspend_data),  # FIXED: Only allow resume for incomplete
+                                        'is_passed': is_completed and (score_value is None or score_value >= 70)  # FIXED: Clear pass indicator
                                     }
                                 else:
                                     # Registration exists but has no meaningful data

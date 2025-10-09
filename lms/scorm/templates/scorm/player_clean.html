@@ -932,6 +932,7 @@
         // FIXED: Handle "Back to Topic" button click - save progress without forcing completion
         function handleBackToTopic(event) {
             event.preventDefault();
+            isExiting = true;  // Flag that user is exiting properly
             console.log('🔖 Back to Topic button clicked - saving bookmark data for resume...');
             
             // Show user feedback
@@ -984,6 +985,7 @@
                     }
                     
                     console.log('✅ SCORM bookmark data saved for resume');
+                    scormDataSaved = true;  // Mark that data has been saved
                     
                     // Redirect without calling Terminate/Finish (preserves incomplete state)
                     setTimeout(() => {
@@ -1076,6 +1078,74 @@
                     console.log('Redirecting to topic view after completion...');
                     window.location.href = '{% url "courses:topic_view" topic.id %}';
                 }, 1000);
+            }
+        });
+        
+        // CRITICAL FIX: Prevent window close without saving SCORM data
+        let scormDataSaved = false;
+        let isExiting = false;
+        
+        // Add beforeunload event to capture score even when users close browser
+        window.addEventListener('beforeunload', function(event) {
+            // If user is already exiting properly via Back to Topic, don't interfere
+            if (isExiting || scormDataSaved) {
+                return;
+            }
+            
+            console.log('🚨 User trying to close window - attempting to save SCORM data...');
+            
+            // Try to save SCORM data immediately
+            if (window.API && window.API._initialized) {
+                try {
+                    // Force extract and save any available score
+                    forceExtractScore();
+                    
+                    // Commit current data
+                    window.API.LMSCommit('');
+                    if (window.API_1484_11) {
+                        window.API_1484_11.Commit('');
+                    }
+                    
+                    console.log('✅ Emergency SCORM data save attempted');
+                    scormDataSaved = true;
+                    
+                    // Also try to force a synchronous API call to ensure data is sent
+                    navigator.sendBeacon && navigator.sendBeacon('/scorm/api/emergency-save/', JSON.stringify({
+                        attempt_id: '{{ attempt_id }}',
+                        action: 'emergency_save',
+                        timestamp: new Date().toISOString()
+                    }));
+                } catch (error) {
+                    console.error('❌ Emergency SCORM save failed:', error);
+                }
+            }
+            
+            // Show warning message to user  
+            const warningMessage = '⚠️ WARNING: Closing this window directly may cause your quiz score and progress to be lost!\\n\\nTo ensure your score is saved properly, please click the "← Back to Topic" button instead.\\n\\nDo you really want to close without saving?';
+            
+            // Set the beforeunload message (browsers will show their own dialog)
+            event.preventDefault();
+            event.returnValue = warningMessage;
+            return warningMessage;
+        });
+        
+        // Handle page visibility changes (when user switches tabs, etc.)
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden && !scormDataSaved && !isExiting) {
+                console.log('👁️ Page hidden - saving SCORM progress...');
+                
+                // Try to save current progress when page becomes hidden
+                if (window.API && window.API._initialized) {
+                    try {
+                        window.API.LMSCommit('');
+                        if (window.API_1484_11) {
+                            window.API_1484_11.Commit('');
+                        }
+                        console.log('✅ Progress saved on page hide');
+                    } catch (error) {
+                        console.error('❌ Failed to save on page hide:', error);
+                    }
+                }
             }
         });
         
