@@ -392,16 +392,16 @@ class ScormAPIHandlerEnhanced:
                     # CRITICAL FIX: Always return bookmark data from model fields
                     value = self.attempt.lesson_location or ''
                     if value:
-                        logger.info("🔖 RESUME: Returning lesson_location = '%s' for attempt %s", value[:100], self.attempt.id)
+                        logger.info("RESUME: Returning lesson_location = '%s' for attempt %s", value[:100], self.attempt.id)
                     else:
-                        logger.info("🔖 RESUME: No lesson_location found for attempt %s", self.attempt.id)
+                        logger.info("RESUME: No lesson_location found for attempt %s", self.attempt.id)
                 elif element == 'cmi.suspend_data':
                     # CRITICAL FIX: Always return suspend data from model fields
                     value = self.attempt.suspend_data or ''
                     if value:
-                        logger.info("🔖 RESUME: Returning suspend_data (%d chars) for attempt %s", len(value), self.attempt.id)
+                        logger.info("RESUME: Returning suspend_data (%d chars) for attempt %s", len(value), self.attempt.id)
                     else:
-                        logger.info("🔖 RESUME: No suspend_data found for attempt %s", self.attempt.id)
+                        logger.info("RESUME: No suspend_data found for attempt %s", self.attempt.id)
                 elif element == 'cmi.core.total_time':
                     value = self.attempt.total_time or ('0000:00:00.00' if self.version == '1.2' else 'PT00H00M00S')
                 
@@ -559,12 +559,12 @@ class ScormAPIHandlerEnhanced:
                     # CRITICAL FIX: Store bookmark data in both CMI data and model fields
                     self.attempt.lesson_location = value
                     self.attempt.cmi_data['cmi.core.lesson_location'] = value
-                    logger.info("💾 RESUME: Saved lesson_location = '%s' for attempt %s", value[:100] if value else '', self.attempt.id)
+                    logger.info("RESUME: Saved lesson_location = '%s' for attempt %s", value[:100] if value else '', self.attempt.id)
                 elif element == 'cmi.suspend_data':
                     # CRITICAL FIX: Store suspend data in both CMI data and model fields
                     self.attempt.suspend_data = value
                     self.attempt.cmi_data['cmi.suspend_data'] = value
-                    logger.info("💾 RESUME: Saved suspend_data (%d chars) for attempt %s", len(value) if value else 0, self.attempt.id)
+                    logger.info("RESUME: Saved suspend_data (%d chars) for attempt %s", len(value) if value else 0, self.attempt.id)
                 elif element == 'cmi.core.session_time':
                     self.attempt.session_time = value
                     self._update_total_time(value)
@@ -649,12 +649,12 @@ class ScormAPIHandlerEnhanced:
                     # CRITICAL FIX: Store bookmark data in both CMI data and model fields
                     self.attempt.lesson_location = value
                     self.attempt.cmi_data['cmi.location'] = value
-                    logger.info("💾 RESUME: Saved location = '%s' for attempt %s (SCORM 2004)", value[:100] if value else '', self.attempt.id)
+                    logger.info("RESUME: Saved location = '%s' for attempt %s (SCORM 2004)", value[:100] if value else '', self.attempt.id)
                 elif element == 'cmi.suspend_data':
                     # CRITICAL FIX: Store suspend data in both CMI data and model fields
                     self.attempt.suspend_data = value
                     self.attempt.cmi_data['cmi.suspend_data'] = value
-                    logger.info("💾 RESUME: Saved suspend_data (%d chars) for attempt %s (SCORM 2004)", len(value) if value else 0, self.attempt.id)
+                    logger.info("RESUME: Saved suspend_data (%d chars) for attempt %s (SCORM 2004)", len(value) if value else 0, self.attempt.id)
                 elif element == 'cmi.session_time':
                     self.attempt.session_time = value
                     self._update_total_time(value)
@@ -692,14 +692,14 @@ class ScormAPIHandlerEnhanced:
             return 'false'
         
         try:
-            logger.info("💾 COMMIT: Starting commit for attempt %s (user: %s, score_raw: %s, lesson_status: %s)", 
+            logger.info("COMMIT: Starting commit for attempt %s (user: %s, score_raw: %s, lesson_status: %s)", 
                        self.attempt.id, self.attempt.user.username, self.attempt.score_raw, self.attempt.lesson_status)
             self._commit_data()
-            logger.info("✅ COMMIT: Successfully committed data for attempt %s", self.attempt.id)
+            logger.info("COMMIT: Successfully committed data for attempt %s", self.attempt.id)
             self.last_error = '0'
             return 'true'
         except Exception as e:
-            logger.error("❌ COMMIT ERROR: Failed to commit data for attempt %s: %s", self.attempt.id, str(e))
+            logger.error("COMMIT ERROR: Failed to commit data for attempt %s: %s", self.attempt.id, str(e))
             self.last_error = '101'
             return 'false'
     
@@ -1091,16 +1091,15 @@ class ScormAPIHandlerEnhanced:
         import json
         import re
         
-        # Only try to extract if there's no score already
-        if self.attempt.score_raw is not None:
-            return
+        # FIXED: Always try to extract from suspend_data, not just when score is None
+        # This ensures we get the latest score even if SCORM content doesn't call SetValue
         
         # Check if we have suspend_data to parse
         if not self.attempt.suspend_data or len(self.attempt.suspend_data) < 10:
             return
         
         try:
-            logger.info("🔍 AUTO_EXTRACT: No score reported, analyzing suspend_data for embedded score...")
+            logger.info("AUTO_EXTRACT: Analyzing suspend_data for embedded score (current score: %s)", self.attempt.score_raw)
             
             # Try to parse suspend_data as JSON
             try:
@@ -1115,7 +1114,7 @@ class ScormAPIHandlerEnhanced:
                     score_match = re.search(r'"score"\s*:\s*(\d+\.?\d*)', decoded, re.IGNORECASE)
                     if score_match:
                         score = float(score_match.group(1))
-                        logger.info("✅ AUTO_EXTRACT: Found score in suspend_data pattern 1: %s", score)
+                        logger.info("AUTO_EXTRACT: Found score in suspend_data pattern 1: %s", score)
                         self._apply_extracted_score(score)
                         return
                     
@@ -1123,7 +1122,7 @@ class ScormAPIHandlerEnhanced:
                     percent_match = re.search(r'["\']?(?:score|p)["\']?\s*:\s*(\d+)["\']?%?', decoded, re.IGNORECASE)
                     if percent_match:
                         score = float(percent_match.group(1))
-                        logger.info("✅ AUTO_EXTRACT: Found score in suspend_data pattern 2: %s", score)
+                        logger.info("AUTO_EXTRACT: Found score in suspend_data pattern 2: %s", score)
                         self._apply_extracted_score(score)
                         return
                     
@@ -1131,7 +1130,7 @@ class ScormAPIHandlerEnhanced:
                     quiz_match = re.search(r'"qd"\s*:\s*true.*?"p"\s*:\s*(\d+)', decoded, re.IGNORECASE)
                     if quiz_match:
                         score = float(quiz_match.group(1))
-                        logger.info("✅ AUTO_EXTRACT: Found score in suspend_data pattern 3 (quiz done): %s", score)
+                        logger.info("AUTO_EXTRACT: Found score in suspend_data pattern 3 (quiz done): %s", score)
                         self._apply_extracted_score(score)
                         return
                     
@@ -1143,20 +1142,20 @@ class ScormAPIHandlerEnhanced:
                         for num_str in number_matches:
                             num = int(num_str)
                             if 0 <= num <= 100:  # Valid score range
-                                logger.info("✅ AUTO_EXTRACT: Found potential score in suspend_data pattern 4: %s", num)
+                                logger.info("AUTO_EXTRACT: Found potential score in suspend_data pattern 4: %s", num)
                                 self._apply_extracted_score(float(num))
                                 return
                 
                 # Method 2: Direct score field in JSON
                 if 'score' in data:
                     score = float(data['score'])
-                    logger.info("✅ AUTO_EXTRACT: Found score directly in suspend_data JSON: %s", score)
+                    logger.info("AUTO_EXTRACT: Found score directly in suspend_data JSON: %s", score)
                     self._apply_extracted_score(score)
                     return
                 
                 if 'quiz_score' in data:
                     score = float(data['quiz_score'])
-                    logger.info("✅ AUTO_EXTRACT: Found quiz_score in suspend_data JSON: %s", score)
+                    logger.info("AUTO_EXTRACT: Found quiz_score in suspend_data JSON: %s", score)
                     self._apply_extracted_score(score)
                     return
                     
@@ -1167,22 +1166,29 @@ class ScormAPIHandlerEnhanced:
                 score_match = re.search(r'score["\']?\s*:\s*(\d+\.?\d*)', self.attempt.suspend_data, re.IGNORECASE)
                 if score_match:
                     score = float(score_match.group(1))
-                    logger.info("✅ AUTO_EXTRACT: Found score in raw suspend_data: %s", score)
+                    logger.info("AUTO_EXTRACT: Found score in raw suspend_data: %s", score)
                     self._apply_extracted_score(score)
                     return
             
-            logger.debug("ℹ️  AUTO_EXTRACT: No score found in suspend_data")
+            logger.debug("AUTO_EXTRACT: No score found in suspend_data")
             
         except Exception as e:
-            logger.error("❌ AUTO_EXTRACT ERROR: Failed to extract score from suspend_data: %s", str(e))
+            logger.error("AUTO_EXTRACT ERROR: Failed to extract score from suspend_data: %s", str(e))
     
     def _apply_extracted_score(self, score):
         """Apply the automatically extracted score to the attempt"""
         try:
             # Validate score is in reasonable range
             if not (0 <= score <= 100):
-                logger.warning("⚠️  AUTO_EXTRACT: Score %s is out of valid range (0-100), ignoring", score)
+                logger.warning("AUTO_EXTRACT: Score %s is out of valid range (0-100), ignoring", score)
                 return
+            
+            # Only update if the extracted score is different from current score
+            if self.attempt.score_raw == Decimal(str(score)):
+                logger.debug("AUTO_EXTRACT: Score unchanged (%s), skipping update", score)
+                return
+            
+            logger.info("AUTO_EXTRACT: Updating score from %s to %s", self.attempt.score_raw, score)
             
             # Set the score
             self.attempt.score_raw = Decimal(str(score))
@@ -1213,15 +1219,18 @@ class ScormAPIHandlerEnhanced:
             # Save the updated attempt
             self.attempt.save()
             
-            logger.info("🎯 AUTO_EXTRACT: Successfully applied extracted score: %s (status: %s)", 
+            # Also update TopicProgress immediately
+            self._update_topic_progress()
+            
+            logger.info("AUTO_EXTRACT: Successfully applied extracted score: %s (status: %s)", 
                        score, self.attempt.lesson_status)
             
         except Exception as e:
-            logger.error("❌ AUTO_EXTRACT: Failed to apply extracted score: %s", str(e))
+            logger.error("AUTO_EXTRACT: Failed to apply extracted score: %s", str(e))
     
     def _commit_data(self):
         """Save attempt data to database"""
-        logger.info("💾 _COMMIT_DATA: Starting (score_raw=%s, cmi_score=%s)", 
+        logger.info("_COMMIT_DATA: Starting (score_raw=%s, cmi_score=%s)", 
                    self.attempt.score_raw, 
                    self.attempt.cmi_data.get('cmi.core.score.raw') or self.attempt.cmi_data.get('cmi.score.raw'))
         
@@ -1231,23 +1240,23 @@ class ScormAPIHandlerEnhanced:
         
         self.attempt.last_accessed = timezone.now()
         
-        logger.info("💾 _COMMIT_DATA: Before save (score_raw=%s, type=%s)", self.attempt.score_raw, type(self.attempt.score_raw))
+        logger.info("_COMMIT_DATA: Before save (score_raw=%s, type=%s)", self.attempt.score_raw, type(self.attempt.score_raw))
         
         try:
             self.attempt.save()
-            logger.info("💾 _COMMIT_DATA: After save (score_raw=%s)", self.attempt.score_raw)
+            logger.info("_COMMIT_DATA: After save (score_raw=%s)", self.attempt.score_raw)
             
             # Verify the save actually worked
             from scorm.models import ScormAttempt
             saved_attempt = ScormAttempt.objects.get(id=self.attempt.id)
-            logger.info("💾 _COMMIT_DATA: DB verification (score_raw=%s, cmi_score=%s)", 
+            logger.info("_COMMIT_DATA: DB verification (score_raw=%s, cmi_score=%s)", 
                        saved_attempt.score_raw,
                        saved_attempt.cmi_data.get('cmi.core.score.raw') or saved_attempt.cmi_data.get('cmi.score.raw'))
             
             if score_before and not saved_attempt.score_raw:
-                logger.error("❌ _COMMIT_DATA: SCORE LOST DURING SAVE! Before=%s, After=%s", score_before, saved_attempt.score_raw)
+                logger.error("_COMMIT_DATA: SCORE LOST DURING SAVE! Before=%s, After=%s", score_before, saved_attempt.score_raw)
         except Exception as e:
-            logger.error("❌ _COMMIT_DATA: Save failed: %s", str(e))
+            logger.error("_COMMIT_DATA: Save failed: %s", str(e))
             raise
         
         # AUTOMATIC SCORE EXTRACTION: If SCORM content didn't report score, try to extract from suspend_data
@@ -1357,7 +1366,7 @@ class ScormAPIHandlerEnhanced:
                 topic=topic
             )
             
-            logger.info("🔄 TOPIC_PROGRESS: Updating for topic %s, user %s (created=%s)", 
+            logger.info("TOPIC_PROGRESS: Updating for topic %s, user %s (created=%s)", 
                        topic.id, self.attempt.user.username, created)
             
             # Parse time spent from SCORM format to seconds
@@ -1390,7 +1399,7 @@ class ScormAPIHandlerEnhanced:
                 progress.completed = True
                 progress.completion_method = 'scorm'
                 progress.completed_at = timezone.now()
-                logger.info("✅ TOPIC_PROGRESS: Marked as completed")
+                logger.info("TOPIC_PROGRESS: Marked as completed")
             
             # Update score fields - CRITICAL for gradebook!
             if self.attempt.score_raw is not None:
@@ -1404,19 +1413,19 @@ class ScormAPIHandlerEnhanced:
                 if progress.best_score is None or score_value > progress.best_score:
                     progress.best_score = score_value
                 
-                logger.info("📊 TOPIC_PROGRESS: Updated scores - last_score: %s -> %s, best_score: %s -> %s", 
+                logger.info("TOPIC_PROGRESS: Updated scores - last_score: %s -> %s, best_score: %s -> %s", 
                            old_last_score, progress.last_score, old_best_score, progress.best_score)
             else:
-                logger.warning("⚠️  TOPIC_PROGRESS: No score to update (score_raw is None)")
+                logger.warning("TOPIC_PROGRESS: No score to update (score_raw is None)")
             
             progress.save()
-            logger.info("✅ TOPIC_PROGRESS: Successfully saved for topic %s", topic.id)
+            logger.info("TOPIC_PROGRESS: Successfully saved for topic %s", topic.id)
             
             # CRITICAL: Update CourseEnrollment for accurate reporting
             self._update_course_enrollment(topic, progress, time_seconds)
             
         except Exception as e:
-            logger.error("❌ TOPIC_PROGRESS ERROR: Failed to update topic progress: %s", str(e))
+            logger.error("TOPIC_PROGRESS ERROR: Failed to update topic progress: %s", str(e))
             import traceback
             logger.error(traceback.format_exc())
     
@@ -1444,7 +1453,7 @@ class ScormAPIHandlerEnhanced:
             # Find the course this topic belongs to
             course_topic = CourseTopic.objects.filter(topic=topic).first()
             if not course_topic:
-                logger.warning("⚠️  ENROLLMENT: Topic %s not linked to any course", topic.id)
+                logger.warning("ENROLLMENT: Topic %s not linked to any course", topic.id)
                 return
             
             course = course_topic.course
@@ -1455,7 +1464,7 @@ class ScormAPIHandlerEnhanced:
                 course=course
             )
             
-            logger.info("📋 ENROLLMENT: Updating for user %s, course %s (created=%s)",
+            logger.info("ENROLLMENT: Updating for user %s, course %s (created=%s)",
                        self.attempt.user.username, course.id, created)
             
             # Get all SCORM topics in this course
@@ -1484,13 +1493,13 @@ class ScormAPIHandlerEnhanced:
                 if not enrollment.completed:
                     enrollment.completed = True
                     enrollment.completion_date = timezone.now()
-                    logger.info("🎉 ENROLLMENT: Course marked as completed!")
+                    logger.info("ENROLLMENT: Course marked as completed!")
             
             enrollment.save()
-            logger.info("✅ ENROLLMENT: Updated - completed: %s/%s topics, time: %ss",
+            logger.info("ENROLLMENT: Updated - completed: %s/%s topics, time: %ss",
                        completed_scorm_topics, total_scorm_topics, total_time_all_scorm)
             
         except Exception as e:
-            logger.error("❌ ENROLLMENT ERROR: Failed to update enrollment: %s", str(e))
+            logger.error("ENROLLMENT ERROR: Failed to update enrollment: %s", str(e))
             import traceback
             logger.error(traceback.format_exc())
