@@ -180,13 +180,31 @@ class ScormAPIHandler:
         else:
             self.attempt.cmi_data['cmi.exit'] = 'logout'
         
-        # CRITICAL FIX: Update lesson status if not already set
+        # CRITICAL FIX: Update lesson status based on score if available
         if not self.attempt.lesson_status or self.attempt.lesson_status == 'not_attempted':
-            self.attempt.lesson_status = 'incomplete'
-            if self.version == '1.2':
-                self.attempt.cmi_data['cmi.core.lesson_status'] = 'incomplete'
+            # If we have a valid score, determine pass/fail status
+            if self.attempt.score_raw is not None:
+                mastery_score = self.attempt.scorm_package.mastery_score or 70
+                if self.attempt.score_raw >= mastery_score:
+                    self.attempt.lesson_status = 'passed'
+                    status_to_set = 'passed'
+                else:
+                    self.attempt.lesson_status = 'failed'  
+                    status_to_set = 'failed'
+                logger.info(f"TERMINATE: Set lesson_status to {status_to_set} based on score {self.attempt.score_raw} (mastery: {mastery_score})")
             else:
-                self.attempt.cmi_data['cmi.completion_status'] = 'incomplete'
+                # No score available, mark as incomplete
+                self.attempt.lesson_status = 'incomplete'
+                status_to_set = 'incomplete'
+                logger.info(f"TERMINATE: Set lesson_status to incomplete (no score available)")
+            
+            # Update CMI data
+            if self.version == '1.2':
+                self.attempt.cmi_data['cmi.core.lesson_status'] = status_to_set
+            else:
+                self.attempt.cmi_data['cmi.completion_status'] = status_to_set
+                if status_to_set in ['passed', 'failed']:
+                    self.attempt.cmi_data['cmi.success_status'] = status_to_set
         
         # Save all data
         self._commit_data()
@@ -592,9 +610,9 @@ class ScormAPIHandler:
                 progress.completion_method = 'scorm'
                 progress.completed_at = timezone.now()
             
-            # CRITICAL FIX: Only update score when SCORM is completed
-            # Don't save scores for in-progress attempts - only when all slides are finished
-            if is_completed and self.attempt.score_raw is not None:
+            # CRITICAL FIX: Always save score to TopicProgress when valid score exists
+            # This ensures scores are reflected in gradebook even if user exits early
+            if self.attempt.score_raw is not None:
                 score_value = float(self.attempt.score_raw)
                 progress.last_score = score_value
                 
@@ -602,10 +620,12 @@ class ScormAPIHandler:
                 if progress.best_score is None or score_value > progress.best_score:
                     progress.best_score = score_value
                 
-                logger.info(f"SCORM completed - Score saved to TopicProgress: last_score={progress.last_score}, best_score={progress.best_score}")
-            elif not is_completed:
-                # SCORM in progress - don't save final scores yet
-                logger.info(f"SCORM in progress (status: {self.attempt.lesson_status}) - Not saving score to TopicProgress yet")
+                if is_completed:
+                    logger.info(f"SCORM completed - Score saved to TopicProgress: last_score={progress.last_score}, best_score={progress.best_score}")
+                else:
+                    logger.info(f"SCORM incomplete but score valid - Score saved to TopicProgress: last_score={progress.last_score}, best_score={progress.best_score}")
+            else:
+                logger.info(f"No valid score to save (score_raw is None, status: {self.attempt.lesson_status})")
             
             # Update time spent
             try:

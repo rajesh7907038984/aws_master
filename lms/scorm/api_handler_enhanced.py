@@ -327,13 +327,31 @@ class ScormAPIHandlerEnhanced:
         else:
             self.attempt.cmi_data['cmi.exit'] = 'logout'
         
-        # CRITICAL FIX: Update lesson status if not already set
+        # CRITICAL FIX: Update lesson status based on score if available
         if not self.attempt.lesson_status or self.attempt.lesson_status == 'not_attempted':
-            self.attempt.lesson_status = 'incomplete'
-            if self.version == '1.2':
-                self.attempt.cmi_data['cmi.core.lesson_status'] = 'incomplete'
+            # If we have a valid score, determine pass/fail status
+            if self.attempt.score_raw is not None:
+                mastery_score = self.attempt.scorm_package.mastery_score or 70
+                if self.attempt.score_raw >= mastery_score:
+                    self.attempt.lesson_status = 'passed'
+                    status_to_set = 'passed'
+                else:
+                    self.attempt.lesson_status = 'failed'  
+                    status_to_set = 'failed'
+                logger.info("TERMINATE: Set lesson_status to %s based on score %s (mastery: %s)", status_to_set, self.attempt.score_raw, mastery_score)
             else:
-                self.attempt.cmi_data['cmi.completion_status'] = 'incomplete'
+                # No score available, mark as incomplete
+                self.attempt.lesson_status = 'incomplete'
+                status_to_set = 'incomplete'
+                logger.info("TERMINATE: Set lesson_status to incomplete (no score available)")
+            
+            # Update CMI data
+            if self.version == '1.2':
+                self.attempt.cmi_data['cmi.core.lesson_status'] = status_to_set
+            else:
+                self.attempt.cmi_data['cmi.completion_status'] = status_to_set
+                if status_to_set in ['passed', 'failed']:
+                    self.attempt.cmi_data['cmi.success_status'] = status_to_set
         
         # Save all data
         self._commit_data()
@@ -1448,6 +1466,7 @@ class ScormAPIHandlerEnhanced:
                 logger.info("✅ TOPIC_PROGRESS: Marked as completed")
             
             # Update score fields - CRITICAL for gradebook!
+            # CRITICAL FIX: Always save score when it exists, regardless of completion status
             if self.attempt.score_raw is not None:
                 score_value = float(self.attempt.score_raw)
                 old_last_score = progress.last_score
@@ -1459,8 +1478,9 @@ class ScormAPIHandlerEnhanced:
                 if progress.best_score is None or score_value > progress.best_score:
                     progress.best_score = score_value
                 
-                logger.info("📊 TOPIC_PROGRESS: Updated scores - last_score: %s -> %s, best_score: %s -> %s", 
-                           old_last_score, progress.last_score, old_best_score, progress.best_score)
+                completion_note = "completed" if is_completed else "incomplete but score valid"
+                logger.info("📊 TOPIC_PROGRESS: Updated scores (%s) - last_score: %s -> %s, best_score: %s -> %s", 
+                           completion_note, old_last_score, progress.last_score, old_best_score, progress.best_score)
             else:
                 logger.warning("⚠️  TOPIC_PROGRESS: No score to update (score_raw is None)")
             
