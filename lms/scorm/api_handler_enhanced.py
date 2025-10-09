@@ -758,13 +758,6 @@ class ScormAPIHandlerEnhanced:
                         logger.info("🔖 SUSPEND DATA SAVED (SCORM 2004): Immediately saved suspend_data and CMI data")
                     except Exception as save_error:
                         logger.error("❌ SUSPEND DATA SAVE ERROR (SCORM 2004): %s", str(save_error))
-                    
-                    # IMMEDIATE SAVE: Persist suspend_data immediately to prevent data loss on unexpected exit
-                    try:
-                        self.attempt.save(update_fields=['suspend_data', 'cmi_data', 'last_accessed'])
-                        logger.info("💾 RESUME: Immediately persisted suspend_data to database (SCORM 2004)")
-                    except Exception as e:
-                        logger.error("❌ RESUME: Failed to immediately save suspend_data: %s", str(e))
                 elif element == 'cmi.session_time':
                     self.attempt.session_time = value
                     self._update_total_time(value)

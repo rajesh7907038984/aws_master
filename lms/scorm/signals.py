@@ -1,7 +1,7 @@
 """
-SCORM Signals - Automatic Score Extraction
-Automatically extracts scores from suspend_data when SCORM attempts are saved
-Works WITHOUT any user interaction - runs in background
+SCORM Signals - Dynamic Score Processing
+Automatically detects and processes SCORM scores using adaptive patterns
+Works for all SCORM authoring tools and formats - fully dynamic
 """
 import logging
 import re
@@ -11,102 +11,54 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.core.cache import cache
 from django.utils import timezone
+from .dynamic_score_processor import auto_process_scorm_score
 
 logger = logging.getLogger(__name__)
 
 
 @receiver(post_save, sender='scorm.ScormAttempt')
-def auto_extract_score_on_save(sender, instance, created, **kwargs):
+def dynamic_score_processor(sender, instance, created, **kwargs):
     """
-    AUTOMATIC SCORE EXTRACTION - Fallback only when API handler doesn't work
-    Extracts score from suspend_data as a last resort
-    Coordinates with the main API handler to prevent race conditions
+    DYNAMIC SCORE PROCESSOR - Automatically handles all SCORM formats
+    Detects authoring tool type and applies appropriate score extraction patterns
+    Works for Articulate Storyline, Adobe Captivate, Lectora, and generic SCORM
     """
     # Skip if this is a new attempt creation
     if created:
         return
     
-    # Skip if score is already set and looks correct
-    if instance.score_raw and instance.score_raw > 0:
+    # Skip if score is already properly set and synced
+    if (instance.score_raw and instance.score_raw > 0 and 
+        instance.lesson_status in ['completed', 'passed', 'failed']):
         return
     
-    # Skip if no suspend_data
+    # Skip if no suspend_data to analyze
     if not instance.suspend_data:
         return
     
-    # Skip if this save was triggered by the enhanced API handler
-    # (check if this is part of a transaction from the API handler)
-    if getattr(instance, '_updating_from_api_handler', False):
-        logger.info(f"🤖 AUTO-EXTRACT: Skipping signal for attempt {instance.id} - API handler is managing the update")
+    # Skip if this save was triggered by the API handler or another signal
+    if (getattr(instance, '_updating_from_api_handler', False) or
+        getattr(instance, '_updating_from_signal', False) or
+        getattr(instance, '_signal_processing', False)):
+        logger.info(f"🤖 DYNAMIC: Skipping signal for attempt {instance.id} - update in progress by another component")
         return
     
     try:
         # Use a flag to prevent recursive signal calls
-        if hasattr(instance, '_signal_processing'):
-            return
         instance._signal_processing = True
         
-        logger.info(f"🤖 AUTO-EXTRACT: Checking attempt {instance.id} for unreported scores (fallback mode)...")
+        logger.info(f"🤖 DYNAMIC: Processing attempt {instance.id} with adaptive SCORM detection...")
         
-        # Decode and decompress suspend_data
-        decoded_data = _decode_suspend_data(instance.suspend_data)
+        # Use the dynamic processor
+        success = auto_process_scorm_score(instance)
         
-        if not decoded_data:
-            return
-        
-        # Extract score from decoded data
-        extracted_score = _extract_score_from_data(decoded_data)
-        
-        if extracted_score and extracted_score > 0:
-            logger.info(f"✅ AUTO-EXTRACT: Found score {extracted_score} in suspend_data for attempt {instance.id} (fallback extraction)")
-            
-            # Use atomic transaction to prevent race conditions
-            from django.db import transaction
-            
-            with transaction.atomic():
-                # Re-fetch the instance with select_for_update to prevent race conditions
-                updated_instance = sender.objects.select_for_update().get(id=instance.id)
-                
-                # Double-check that score is still not set (another process might have set it)
-                if updated_instance.score_raw and updated_instance.score_raw > 0:
-                    logger.info(f"ℹ️  AUTO-EXTRACT: Score already set by another process for attempt {instance.id}")
-                    return
-                
-                # Update the score
-                updated_instance.score_raw = Decimal(str(extracted_score))
-                
-                # Set status based on score
-                mastery_score = updated_instance.scorm_package.mastery_score or 80
-                if extracted_score >= mastery_score:
-                    updated_instance.lesson_status = 'passed'
-                else:
-                    updated_instance.lesson_status = 'failed'
-                
-                # Mark that this is being updated by signal to prevent recursion
-                updated_instance._updating_from_signal = True
-                
-                # Save without triggering this signal again
-                updated_instance.save(update_fields=['score_raw', 'lesson_status'])
-                
-                # CRITICAL FIX: Only update TopicProgress if SCORM is completed
-                # Check if lesson_status indicates completion
-                if updated_instance.lesson_status in ['passed', 'failed', 'completed']:
-                    # Update TopicProgress within the same transaction
-                    _update_topic_progress(updated_instance, extracted_score)
-                    logger.info(f"✅ AUTO-EXTRACT: SCORM completed - updated TopicProgress with score")
-                else:
-                    logger.info(f"ℹ️  AUTO-EXTRACT: SCORM in progress (status: {updated_instance.lesson_status}) - not updating TopicProgress yet")
-                
-                logger.info(f"✅ AUTO-EXTRACT: Successfully updated score to {extracted_score} for attempt {instance.id}")
-            
-            # Clear relevant caches
-            cache.delete_many([
-                f'scorm_attempt_{instance.id}',
-                f'topic_progress_{instance.user.id}_{instance.scorm_package.topic.id}',
-            ])
+        if success:
+            logger.info(f"✅ DYNAMIC: Successfully processed and synced score for attempt {instance.id}")
+        else:
+            logger.info(f"ℹ️  DYNAMIC: No actionable score data found for attempt {instance.id}")
         
     except Exception as e:
-        logger.error(f"❌ AUTO-EXTRACT: Error extracting score for attempt {instance.id}: {str(e)}")
+        logger.error(f"❌ DYNAMIC: Error processing attempt {instance.id}: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
     finally:
@@ -156,7 +108,9 @@ def _extract_score_from_data(decoded_data):
             'complete' in decoded_data.lower() or
             'finished' in decoded_data.lower() or
             'done' in decoded_data.lower() or
-            '"qd"true' in decoded_data or  # Quiz done = true
+            '"qd"true' in decoded_data or  # Quiz done = true (format 1)
+            'qd":true' in decoded_data or  # Quiz done = true (format 2)  
+            'qd"true' in decoded_data or   # Quiz done = true (format 3)
             'quiz_complete' in decoded_data.lower() or
             'assessment_complete' in decoded_data.lower() or
             'lesson_complete' in decoded_data.lower()
@@ -176,13 +130,43 @@ def _extract_score_from_data(decoded_data):
                 return score
         
         # Pattern 2: Storyline pattern but ONLY if quiz is marked as done
-        if '"qd"true' in decoded_data or 'quiz_done":true' in decoded_data:
-            # Look for actual score in completed quiz
+        if '"qd"true' in decoded_data or 'quiz_done":true' in decoded_data or '"qd":true' in decoded_data or 'qd"true' in decoded_data:
+            logger.info("Quiz marked as done - looking for actual earned score")
+            
+            # Pattern 2a: Look for score in various Storyline formats
+            # Format: 'scors88' or 'scor"88' or 'score:88'
+            scor_patterns = [
+                r'scors(\d+)',           # scors88
+                r'scor["\s]*(\d+)',      # scor"88 or scor 88
+                r'score["\s:]*(\d+)',    # score:88 or score"88
+            ]
+            
+            for pattern in scor_patterns:
+                scor_match = re.search(pattern, decoded_data)
+                if scor_match:
+                    score = float(scor_match.group(1))
+                    if 0 <= score <= 100:
+                        logger.info(f"Found Storyline quiz score (pattern: {pattern}): {score}")
+                        return score
+            
+            # Pattern 2b: Look for actual user score patterns in completed quiz
             storyline_pattern = re.search(r'(?:user_score|earned|result)"\s*:\s*(\d+)', decoded_data, re.IGNORECASE)
             if storyline_pattern:
                 score = float(storyline_pattern.group(1))
                 if 0 <= score <= 100:
                     logger.info(f"Found Storyline completed quiz score: {score}")
+                    return score
+            
+            # Pattern 2c: Look for embedded score in complex format like 's8' where 8 might be the score
+            # But be careful not to extract the passing score (ps80)
+            embedded_score = re.search(r'[^p]s(\d+)', decoded_data)  # 's' not preceded by 'p' (to avoid 'ps80')
+            if embedded_score:
+                score = float(embedded_score.group(1))
+                # For single digit scores, they might be out of 10, so multiply by 10
+                if score <= 10:
+                    score = score * 10
+                if 0 <= score <= 100:
+                    logger.info(f"Found embedded Storyline score: {score}")
                     return score
         
         # Pattern 3: Look for score with completion percentage
