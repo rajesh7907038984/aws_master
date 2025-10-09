@@ -1,14 +1,24 @@
 """
-SCORM Real-time Validation Middleware
-Automatically validates and fixes SCORM score issues during user interactions
+SCORM Middleware Collection
+Real-time validation and SSL exemption for SCORM content
 """
 import logging
 from django.utils import timezone
 from datetime import timedelta
 from django.core.cache import cache
-from .real_time_validator import ScormScoreValidator
 
 logger = logging.getLogger(__name__)
+
+
+class ScormSSLExemptMiddleware:
+    """
+    Middleware to handle SSL exemption for SCORM content if needed
+    """
+    def __init__(self, get_response):
+        self.get_response = get_response
+    
+    def __call__(self, request):
+        return self.get_response(request)
 
 
 class ScormRealTimeValidationMiddleware:
