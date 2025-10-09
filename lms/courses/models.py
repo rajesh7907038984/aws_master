@@ -2155,6 +2155,19 @@ class TopicProgress(models.Model):
             completion = safe_get_float(normalized_data, 'completion_percent')
             if completion is not None:
                 return round(min(completion, 100))
+            
+            # For SCORM content, check lesson_status
+            lesson_status = normalized_data.get('lesson_status', '').lower()
+            if lesson_status:
+                # SCORM 1.2 and 2004 lesson_status values
+                if lesson_status in ['completed', 'passed', 'failed']:
+                    # Activity was completed (even if failed)
+                    return 100
+                elif lesson_status in ['incomplete', 'browsed']:
+                    # Activity was started but not completed
+                    return 50
+                elif lesson_status == 'not attempted':
+                    return 0
         
         # For other content types, use attempts as indicator
         if self.attempts > 0:
@@ -2314,9 +2327,93 @@ class TopicProgress(models.Model):
         # Save if mark_complete wasn't called
         self.save()
 
+    def sync_scorm_score(self):
+        """
+        Sync SCORM score from ScormAttempt to TopicProgress
+        This ensures gradebook displays the correct score for SCORM content
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        # Only sync for SCORM topics
+        if not hasattr(self, 'topic') or not self.topic or self.topic.content_type != 'SCORM':
+            return False
+        
+        try:
+            # Check if topic has a SCORM package
+            if not hasattr(self.topic, 'scorm_package'):
+                logger.warning(f"SCORM_SYNC: Topic {self.topic.id} is SCORM type but has no scorm_package")
+                return False
+            
+            # Get the latest SCORM attempt for this user and topic
+            from scorm.models import ScormAttempt
+            latest_attempt = ScormAttempt.objects.filter(
+                user=self.user,
+                scorm_package=self.topic.scorm_package
+            ).order_by('-last_accessed').first()
+            
+            if not latest_attempt:
+                logger.info(f"SCORM_SYNC: No SCORM attempts found for user {self.user.username}, topic {self.topic.id}")
+                return False
+            
+            # Sync score if available
+            if latest_attempt.score_raw is not None:
+                score_value = float(latest_attempt.score_raw)
+                old_last_score = self.last_score
+                old_best_score = self.best_score
+                
+                # Update last score
+                self.last_score = score_value
+                
+                # Update best score if this is better
+                if self.best_score is None or score_value > self.best_score:
+                    self.best_score = score_value
+                
+                # Update progress_data with score information
+                if not self.progress_data:
+                    self.progress_data = {}
+                self.progress_data['score_raw'] = score_value
+                self.progress_data['scorm_attempt_id'] = latest_attempt.id
+                self.progress_data['lesson_status'] = latest_attempt.lesson_status
+                
+                # Update attempts count if not already set
+                # Count all SCORM attempts for this user/package
+                total_attempts = ScormAttempt.objects.filter(
+                    user=self.user,
+                    scorm_package=self.topic.scorm_package
+                ).count()
+                if total_attempts > self.attempts:
+                    self.attempts = total_attempts
+                
+                # Check if should be marked as completed based on lesson_status
+                lesson_status_lower = latest_attempt.lesson_status.lower() if latest_attempt.lesson_status else ''
+                if not self.completed and lesson_status_lower in ['completed', 'passed', 'failed']:
+                    # Mark as completed if lesson_status indicates the activity was finished
+                    # (even if failed - the learner completed the activity)
+                    self.completed = True
+                    if not self.completed_at:
+                        self.completed_at = latest_attempt.last_accessed or timezone.now()
+                    self.completion_method = 'scorm'
+                    logger.info(f"SCORM_SYNC: Marked topic {self.topic.id} as completed for user {self.user.username} (lesson_status: {latest_attempt.lesson_status})")
+                
+                logger.info(f"SCORM_SYNC: Updated scores for topic {self.topic.id}, user {self.user.username} - last_score: {old_last_score} -> {self.last_score}, best_score: {old_best_score} -> {self.best_score}, attempts: {self.attempts}")
+                return True
+            else:
+                logger.info(f"SCORM_SYNC: Latest attempt {latest_attempt.id} has no score_raw for user {self.user.username}, topic {self.topic.id}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"SCORM_SYNC ERROR: Failed to sync SCORM score for topic {self.topic.id}, user {self.user.username}: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return False
+    
     def mark_complete(self, method='auto'):
         """Mark topic as complete with the specified method"""
         from django.utils import timezone
+        import logging
+        logger = logging.getLogger(__name__)
+        
         current_time = timezone.now()
         
         self.completed = True
@@ -2346,6 +2443,14 @@ class TopicProgress(models.Model):
             self.progress_data['progress'] = 100.0
             self.progress_data['completed'] = True
             self.progress_data['completed_at'] = current_time.isoformat()
+        
+        # CRITICAL FIX: For SCORM content, sync the score from ScormAttempt before saving
+        if hasattr(self, 'topic') and self.topic and self.topic.content_type == 'SCORM':
+            score_synced = self.sync_scorm_score()
+            if score_synced:
+                logger.info(f"SCORM_COMPLETE: Score synced for topic {self.topic.id} when marking complete")
+            else:
+                logger.warning(f"SCORM_COMPLETE: No score synced for topic {self.topic.id} when marking complete")
         
         self.save()
         

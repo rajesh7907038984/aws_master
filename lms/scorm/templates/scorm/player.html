@@ -329,11 +329,63 @@
     
     // Exit player
     window.exitPlayer = function() {
-        if (confirm('Are you sure you want to exit?')) {
+        if (confirm('Are you sure you want to exit? Your progress will be saved.')) {
+            console.log('🚪 EXIT: User initiated exit');
+            
+            // Force the SCORM content to finish and save data
+            try {
+                // Try to get the SCORM API from the iframe
+                const iframe = document.getElementById('scorm-frame');
+                if (iframe && iframe.contentWindow && iframe.contentWindow.API) {
+                    const API = iframe.contentWindow.API;
+                    console.log('📝 EXIT: Calling LMSCommit to save pending data');
+                    API.LMSCommit('');
+                    console.log('🏁 EXIT: Calling LMSFinish to terminate session');
+                    API.LMSFinish('');
+                } else {
+                    // Call our API stub
+                    console.log('📝 EXIT: Using parent API to save data');
+                    if (window.API_1484_11 && window.API_1484_11.Commit) {
+                        window.API_1484_11.Commit('');
+                        window.API_1484_11.Terminate('');
+                    } else if (window.API && window.API.LMSCommit) {
+                        window.API.LMSCommit('');
+                        window.API.LMSFinish('');
+                    }
+                }
+            } catch (e) {
+                console.error('❌ EXIT: Error saving SCORM data:', e);
+            }
+            
             stopTimer();
-            window.location.href = '{% url "courses:topic_view" topic.id %}';
+            
+            // Small delay to ensure API calls complete
+            setTimeout(() => {
+                window.location.href = '{% url "courses:topic_view" topic.id %}';
+            }, 500);
         }
     };
+    
+    // Auto-save when page is about to unload (user closes tab, navigates away, etc)
+    window.addEventListener('beforeunload', function(e) {
+        console.log('⚠️ UNLOAD: Page is closing, attempting to save SCORM data');
+        
+        try {
+            // Try to commit any pending data
+            const iframe = document.getElementById('scorm-frame');
+            if (iframe && iframe.contentWindow && iframe.contentWindow.API) {
+                const API = iframe.contentWindow.API;
+                console.log('📝 UNLOAD: Calling LMSCommit');
+                API.LMSCommit('');
+            } else if (window.API_1484_11 && window.API_1484_11.Commit) {
+                window.API_1484_11.Commit('');
+            } else if (window.API && window.API.LMSCommit) {
+                window.API.LMSCommit('');
+            }
+        } catch (err) {
+            console.error('❌ UNLOAD: Error saving data:', err);
+        }
+    });
     
     // Handle iframe load
     const scormFrame = document.getElementById('scorm-frame');
@@ -376,6 +428,38 @@
     
     // Initial status
     updateStatus('Loading content...', true);
+    
+    // Auto-save mechanism: periodically commit SCORM data
+    // This ensures scores are saved even if SCORM content doesn't call Commit properly
+    let autoSaveInterval = setInterval(() => {
+        try {
+            // Try to commit any pending data from the iframe
+            const iframe = document.getElementById('scorm-frame');
+            if (iframe && iframe.contentWindow && iframe.contentWindow.API) {
+                const API = iframe.contentWindow.API;
+                // Check if there's an active session
+                if (API.initialized || (API.LMSGetValue && API.LMSGetValue('cmi.core.lesson_status'))) {
+                    console.log('💾 AUTO-SAVE: Committing SCORM data');
+                    API.LMSCommit('');
+                }
+            } else if (window.API && window.API.LMSCommit) {
+                console.log('💾 AUTO-SAVE: Committing via parent API');
+                window.API.LMSCommit('');
+            } else if (window.API_1484_11 && window.API_1484_11.Commit) {
+                console.log('💾 AUTO-SAVE: Committing via SCORM 2004 API');
+                window.API_1484_11.Commit('');
+            }
+        } catch (err) {
+            console.debug('AUTO-SAVE: No active session or error:', err.message);
+        }
+    }, 30000); // Auto-save every 30 seconds
+    
+    // Clear auto-save on unload
+    window.addEventListener('beforeunload', function() {
+        if (autoSaveInterval) {
+            clearInterval(autoSaveInterval);
+        }
+    });
     
 })();
 </script>

@@ -1196,6 +1196,160 @@
         }
         
         
+        // =================================================================
+        // ENHANCED CLIENT-SIDE TIME TRACKING
+        // Tracks time even when SCORM content doesn't report it
+        // =================================================================
+        
+        (function() {
+            let sessionStartTime = new Date();
+            let totalActiveSeconds = 0;
+            let lastHeartbeatTime = new Date();
+            let isPageVisible = !document.hidden;
+            let heartbeatInterval = null;
+            let lastSyncTime = null;
+            
+            console.log('⏱️ Client-side time tracking initialized');
+            
+            // Track page visibility changes
+            document.addEventListener('visibilitychange', function() {
+                if (document.hidden) {
+                    // Page became hidden - pause time tracking
+                    isPageVisible = false;
+                    
+                    const now = new Date();
+                    const activeSeconds = Math.floor((now - lastHeartbeatTime) / 1000);
+                    if (activeSeconds > 0 && activeSeconds < 300) { // Cap at 5 minutes
+                        totalActiveSeconds += activeSeconds;
+                    }
+                    
+                    console.log('⏸️ Time tracking paused (tab hidden). Active time: ' + formatTimeDisplay(totalActiveSeconds));
+                } else {
+                    // Page became visible - resume time tracking
+                    isPageVisible = true;
+                    lastHeartbeatTime = new Date();
+                    console.log('▶️ Time tracking resumed (tab visible)');
+                }
+            });
+            
+            // Heartbeat: Update time every 30 seconds
+            heartbeatInterval = setInterval(function() {
+                if (isPageVisible) {
+                    const now = new Date();
+                    const activeSeconds = Math.floor((now - lastHeartbeatTime) / 1000);
+                    
+                    if (activeSeconds > 0 && activeSeconds < 60) { // Only add reasonable increments
+                        totalActiveSeconds += activeSeconds;
+                        lastHeartbeatTime = now;
+                        
+                        console.log('⏱️ Time tracking heartbeat: ' + formatTimeDisplay(totalActiveSeconds));
+                        
+                        // Sync to server every 5 minutes
+                        if (!lastSyncTime || (now - lastSyncTime) > 300000) {
+                            syncTimeToServer();
+                            lastSyncTime = now;
+                        }
+                    } else if (activeSeconds >= 60) {
+                        // Large time gap detected - user probably idle
+                        lastHeartbeatTime = now;
+                    }
+                }
+            }, 30000); // Every 30 seconds
+            
+            // Sync time to server via custom endpoint
+            function syncTimeToServer() {
+                if (IS_PREVIEW) {
+                    console.log('⏱️ Preview mode - skipping time sync');
+                    return;
+                }
+                
+                const scormTime = formatScormTime(totalActiveSeconds);
+                console.log('⏱️ Syncing time to server: ' + scormTime);
+                
+                // Send time via SCORM API if not already set by content
+                try {
+                    // Check if SCORM content has set session_time
+                    const currentSessionTime = window.API ? window.API.GetValue('cmi.core.session_time') : '';
+                    
+                    if (!currentSessionTime || currentSessionTime === '' || currentSessionTime === '0000:00:00.00') {
+                        // SCORM content hasn't set time - use our tracking
+                        console.log('⏱️ SCORM content not reporting time - using client-side tracking');
+                        
+                        if (window.API && window.API._initialized) {
+                            // Set the session time
+                            window.API.SetValue('cmi.core.session_time', scormTime);
+                            window.API.LMSCommit('');
+                            
+                            console.log('✅ Time synced to SCORM: ' + scormTime);
+                        }
+                    } else {
+                        console.log('✓ SCORM content is reporting time: ' + currentSessionTime);
+                    }
+                } catch (error) {
+                    console.error('❌ Error syncing time:', error);
+                }
+            }
+            
+            // Format seconds into SCORM time format (hhhh:mm:ss.ss)
+            function formatScormTime(totalSeconds) {
+                const hours = Math.floor(totalSeconds / 3600);
+                const minutes = Math.floor((totalSeconds % 3600) / 60);
+                const seconds = totalSeconds % 60;
+                
+                return String(hours).padStart(4, '0') + ':' +
+                       String(minutes).padStart(2, '0') + ':' +
+                       String(seconds).padStart(2, '0') + '.00';
+            }
+            
+            // Format for display
+            function formatTimeDisplay(totalSeconds) {
+                const hours = Math.floor(totalSeconds / 3600);
+                const minutes = Math.floor((totalSeconds % 3600) / 60);
+                const seconds = totalSeconds % 60;
+                
+                if (hours > 0) {
+                    return hours + 'h ' + minutes + 'm ' + seconds + 's';
+                } else if (minutes > 0) {
+                    return minutes + 'm ' + seconds + 's';
+                } else {
+                    return seconds + 's';
+                }
+            }
+            
+            // Final sync on page unload
+            window.addEventListener('beforeunload', function() {
+                // Final time calculation
+                if (isPageVisible) {
+                    const now = new Date();
+                    const activeSeconds = Math.floor((now - lastHeartbeatTime) / 1000);
+                    if (activeSeconds > 0 && activeSeconds < 300) {
+                        totalActiveSeconds += activeSeconds;
+                    }
+                }
+                
+                console.log('⏱️ Final time sync on exit: ' + formatTimeDisplay(totalActiveSeconds));
+                syncTimeToServer();
+            });
+            
+            // Also sync when SCORM API terminates
+            const originalTerminate = window.API ? window.API.Terminate : null;
+            const originalLMSFinish = window.API ? window.API.LMSFinish : null;
+            
+            if (window.API) {
+                window.API.Terminate = function(param) {
+                    syncTimeToServer();
+                    return originalTerminate ? originalTerminate.call(this, param) : 'true';
+                };
+                
+                window.API.LMSFinish = function(param) {
+                    syncTimeToServer();
+                    return originalLMSFinish ? originalLMSFinish.call(this, param) : 'true';
+                };
+            }
+            
+            console.log('✅ Enhanced time tracking active - will sync every 5 minutes');
+        })();
+        
         // Debug info for instructors
         {% if is_instructor_or_admin %}
         console.log('SCORM Debug Info:');

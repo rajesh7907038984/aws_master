@@ -1898,13 +1898,25 @@
                             {% endif %}
                           {% endif %}
                         {% else %}
-                          <span class="grade-score grade-none">Not Started</span>
-                          {% if user.role == 'learner' %}
-                            {% get_scorm_topic activity.object as scorm_topic %}
-                            {% if scorm_topic %}
-                              <a href="{% url 'courses:topic_view' scorm_topic.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
-                                LAUNCH
-                              </a>
+                          {% if score_data.success_status == 'failed' %}
+                            <span class="grade-score grade-poor">Failed</span>
+                            {% if user.role == 'learner' %}
+                              {% get_scorm_topic activity.object as scorm_topic %}
+                              {% if scorm_topic %}
+                                <a href="{% url 'courses:topic_view' scorm_topic.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
+                                  RETRY
+                                </a>
+                              {% endif %}
+                            {% endif %}
+                          {% else %}
+                            <span class="grade-score grade-none">Not Started</span>
+                            {% if user.role == 'learner' %}
+                              {% get_scorm_topic activity.object as scorm_topic %}
+                              {% if scorm_topic %}
+                                <a href="{% url 'courses:topic_view' scorm_topic.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
+                                  LAUNCH
+                                </a>
+                              {% endif %}
                             {% endif %}
                           {% endif %}
                         {% endif %}
@@ -1939,11 +1951,20 @@
                             </a>
                           {% endif %}
                         {% else %}
-                          <span class="grade-score grade-none">Not Started</span>
-                          {% if user.role == 'learner' %}
-                            <a href="{% url 'courses:topic_view' activity.object.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
-                              LAUNCH
-                            </a>
+                          {% if score_data.success_status == 'failed' %}
+                            <span class="grade-score grade-poor">Failed</span>
+                            {% if user.role == 'learner' %}
+                              <a href="{% url 'courses:topic_view' activity.object.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
+                                RETRY
+                              </a>
+                            {% endif %}
+                          {% else %}
+                            <span class="grade-score grade-none">Not Started</span>
+                            {% if user.role == 'learner' %}
+                              <a href="{% url 'courses:topic_view' activity.object.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
+                                LAUNCH
+                              </a>
+                            {% endif %}
                           {% endif %}
                         {% endif %}
                         

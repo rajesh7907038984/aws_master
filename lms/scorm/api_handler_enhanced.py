@@ -1041,6 +1041,143 @@ class ScormAPIHandlerEnhanced:
         seconds = total_seconds % 60
         return "%04d:%02d:%05.2f" % (hours, minutes, seconds)
     
+    def _auto_extract_score_from_suspend_data(self):
+        """
+        AUTOMATIC FIX: Extract score from suspend_data when SCORM content doesn't report it properly
+        Some broken SCORM packages display scores but never call SetValue for cmi.core.score.raw
+        This method automatically detects and fixes that issue
+        """
+        import json
+        import re
+        
+        # Only try to extract if there's no score already
+        if self.attempt.score_raw is not None:
+            return
+        
+        # Check if we have suspend_data to parse
+        if not self.attempt.suspend_data or len(self.attempt.suspend_data) < 10:
+            return
+        
+        try:
+            logger.info("🔍 AUTO_EXTRACT: No score reported, analyzing suspend_data for embedded score...")
+            
+            # Try to parse suspend_data as JSON
+            try:
+                data = json.loads(self.attempt.suspend_data)
+                
+                # Method 1: Look in the decoded array
+                if 'd' in data and isinstance(data['d'], list):
+                    # Decode the array to string
+                    decoded = ''.join([chr(x) if x < 256 else '' for x in data['d']])
+                    
+                    # Pattern 1: Look for "score":value or "score": value
+                    score_match = re.search(r'"score"\s*:\s*(\d+\.?\d*)', decoded, re.IGNORECASE)
+                    if score_match:
+                        score = float(score_match.group(1))
+                        logger.info("✅ AUTO_EXTRACT: Found score in suspend_data pattern 1: %s", score)
+                        self._apply_extracted_score(score)
+                        return
+                    
+                    # Pattern 2: Look for percentage like "63%" or "p:63"
+                    percent_match = re.search(r'["\']?(?:score|p)["\']?\s*:\s*(\d+)["\']?%?', decoded, re.IGNORECASE)
+                    if percent_match:
+                        score = float(percent_match.group(1))
+                        logger.info("✅ AUTO_EXTRACT: Found score in suspend_data pattern 2: %s", score)
+                        self._apply_extracted_score(score)
+                        return
+                    
+                    # Pattern 3: Look for quiz done status with score
+                    quiz_match = re.search(r'"qd"\s*:\s*true.*?"p"\s*:\s*(\d+)', decoded, re.IGNORECASE)
+                    if quiz_match:
+                        score = float(quiz_match.group(1))
+                        logger.info("✅ AUTO_EXTRACT: Found score in suspend_data pattern 3 (quiz done): %s", score)
+                        self._apply_extracted_score(score)
+                        return
+                    
+                    # Pattern 4: Look for percentage anywhere in format like ,56, or ,38,
+                    # (common in some SCORM packages that encode score in array)
+                    if 'qd' in decoded and 'true' in decoded:  # Quiz done flag exists
+                        # Look for two-digit numbers that could be scores
+                        number_matches = re.findall(r',(\d{1,3}),', decoded)
+                        for num_str in number_matches:
+                            num = int(num_str)
+                            if 0 <= num <= 100:  # Valid score range
+                                logger.info("✅ AUTO_EXTRACT: Found potential score in suspend_data pattern 4: %s", num)
+                                self._apply_extracted_score(float(num))
+                                return
+                
+                # Method 2: Direct score field in JSON
+                if 'score' in data:
+                    score = float(data['score'])
+                    logger.info("✅ AUTO_EXTRACT: Found score directly in suspend_data JSON: %s", score)
+                    self._apply_extracted_score(score)
+                    return
+                
+                if 'quiz_score' in data:
+                    score = float(data['quiz_score'])
+                    logger.info("✅ AUTO_EXTRACT: Found quiz_score in suspend_data JSON: %s", score)
+                    self._apply_extracted_score(score)
+                    return
+                    
+            except (json.JSONDecodeError, ValueError) as e:
+                logger.debug("AUTO_EXTRACT: Suspend data is not JSON or parsing failed: %s", str(e))
+                
+                # Try direct regex on raw string
+                score_match = re.search(r'score["\']?\s*:\s*(\d+\.?\d*)', self.attempt.suspend_data, re.IGNORECASE)
+                if score_match:
+                    score = float(score_match.group(1))
+                    logger.info("✅ AUTO_EXTRACT: Found score in raw suspend_data: %s", score)
+                    self._apply_extracted_score(score)
+                    return
+            
+            logger.debug("ℹ️  AUTO_EXTRACT: No score found in suspend_data")
+            
+        except Exception as e:
+            logger.error("❌ AUTO_EXTRACT ERROR: Failed to extract score from suspend_data: %s", str(e))
+    
+    def _apply_extracted_score(self, score):
+        """Apply the automatically extracted score to the attempt"""
+        try:
+            # Validate score is in reasonable range
+            if not (0 <= score <= 100):
+                logger.warning("⚠️  AUTO_EXTRACT: Score %s is out of valid range (0-100), ignoring", score)
+                return
+            
+            # Set the score
+            self.attempt.score_raw = Decimal(str(score))
+            
+            # Set lesson status based on score
+            # Typically 70% is passing, but you can adjust this
+            if score >= 70:
+                self.attempt.lesson_status = 'passed'
+                if self.version == '1.2':
+                    self.attempt.cmi_data['cmi.core.lesson_status'] = 'passed'
+                else:
+                    self.attempt.success_status = 'passed'
+                    self.attempt.cmi_data['cmi.success_status'] = 'passed'
+            else:
+                self.attempt.lesson_status = 'failed'
+                if self.version == '1.2':
+                    self.attempt.cmi_data['cmi.core.lesson_status'] = 'failed'
+                else:
+                    self.attempt.success_status = 'failed'
+                    self.attempt.cmi_data['cmi.success_status'] = 'failed'
+            
+            # Update CMI data
+            if self.version == '1.2':
+                self.attempt.cmi_data['cmi.core.score.raw'] = str(score)
+            else:
+                self.attempt.cmi_data['cmi.score.raw'] = str(score)
+            
+            # Save the updated attempt
+            self.attempt.save()
+            
+            logger.info("🎯 AUTO_EXTRACT: Successfully applied extracted score: %s (status: %s)", 
+                       score, self.attempt.lesson_status)
+            
+        except Exception as e:
+            logger.error("❌ AUTO_EXTRACT: Failed to apply extracted score: %s", str(e))
+    
     def _commit_data(self):
         """Save attempt data to database"""
         logger.info("💾 _COMMIT_DATA: Starting (score_raw=%s, cmi_score=%s)", 
@@ -1071,6 +1208,9 @@ class ScormAPIHandlerEnhanced:
         except Exception as e:
             logger.error("❌ _COMMIT_DATA: Save failed: %s", str(e))
             raise
+        
+        # AUTOMATIC SCORE EXTRACTION: If SCORM content didn't report score, try to extract from suspend_data
+        self._auto_extract_score_from_suspend_data()
         
         # Update TopicProgress if applicable
         self._update_topic_progress()

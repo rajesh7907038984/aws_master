@@ -2328,6 +2328,15 @@ def mark_topic_complete(request, topic_id):
         progress.progress_data['completed'] = True
         progress.progress_data['completed_at'] = timezone.now().isoformat()
     
+    # CRITICAL FIX: For SCORM content, explicitly sync score before marking complete
+    # This ensures the gradebook reflects the learner's score
+    if topic.content_type == 'SCORM':
+        score_synced = progress.sync_scorm_score()
+        if score_synced:
+            logger.info(f"✅ SCORM Score synced for topic {topic_id} before marking complete (score: {progress.last_score})")
+        else:
+            logger.warning(f"⚠️  No SCORM score found to sync for topic {topic_id}")
+    
     # Use the mark_complete method instead of manually setting fields
     # This ensures all necessary fields and completion_data are updated
     progress.mark_complete(completion_method)

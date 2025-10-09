@@ -213,17 +213,23 @@ def scorm_view(request, topic_id):
         
         # Handle authenticated user logic
         if is_authenticated:
-            if last_attempt and last_attempt.lesson_status in ['completed', 'passed']:
-                # Create new attempt if last one was completed
+            # CRITICAL FIX: Create new attempt if last one was completed OR failed
+            # A failed attempt with completed_at means the user finished but didn't pass
+            # They should be able to start fresh, not resume the failed attempt
+            if last_attempt and (
+                last_attempt.lesson_status in ['completed', 'passed'] or 
+                (last_attempt.lesson_status == 'failed' and last_attempt.completed_at is not None)
+            ):
+                # Create new attempt for completed/passed/failed attempts
                 attempt_number = last_attempt.attempt_number + 1
                 attempt = ScormAttempt.objects.create(
                     user=request.user,
                     scorm_package=scorm_package,
                     attempt_number=attempt_number
                 )
-                logger.info(f"Created new attempt {attempt.id} for completed attempt")
+                logger.info(f"Created new attempt {attempt.id} (previous status: {last_attempt.lesson_status}, completed: {last_attempt.completed_at is not None})")
             elif last_attempt:
-                # Continue existing attempt - ensure resume data is loaded
+                # Continue existing incomplete attempt - ensure resume data is loaded
                 attempt = last_attempt
                 
                 # Load resume data into CMI data for proper resume functionality

@@ -480,7 +480,6 @@
                                 {% if topic.scorm_package %}
                                     <div class="w-full max-w-md">
                                         <a href="/scorm/view/{{ topic.id }}/?preview=true" 
-                                           target="_blank"
                                            class="btn btn-primary text-lg px-6 py-3 flex items-center justify-center">
                                             <i class="fas fa-eye mr-2"></i>Preview SCORM Content
                                         </a>
@@ -505,7 +504,6 @@
                                     <div class="flex flex-col gap-3">
                                         <!-- SCORM Launch Button - Direct to content -->
                                         <a href="/scorm/view/{{ topic.id }}/" 
-                                           target="_blank"
                                            class="btn btn-primary text-lg px-6 py-3 flex items-center justify-center">
                                             <i class="fas fa-play mr-2"></i>Launch SCORM Content
                                         </a>
@@ -883,6 +881,38 @@
             // If already completed, don't do anything
             if (isCompleted === true) return;
             
+            // CRITICAL FIX: For SCORM topics, ensure data is saved before marking complete
+            const topicType = $('meta[name="topic-type"]').attr('content');
+            if (topicType === 'SCORM') {
+                console.log('📊 SCORM: Ensuring SCORM data is saved before marking complete');
+                
+                // Try to trigger SCORM commit from opener window (if SCORM player is open)
+                try {
+                    // Check if there's a SCORM player window that opened this page
+                    if (window.opener && window.opener.API) {
+                        console.log('💾 SCORM: Calling LMSCommit via opener window');
+                        window.opener.API.LMSCommit('');
+                    } else if (window.opener && window.opener.API_1484_11) {
+                        console.log('💾 SCORM: Calling Commit via opener window (SCORM 2004)');
+                        window.opener.API_1484_11.Commit('');
+                    }
+                } catch (e) {
+                    console.log('ℹ️ SCORM: Could not access opener API (this is normal if player closed):', e.message);
+                }
+                
+                // Add a small delay to ensure SCORM commit completes
+                console.log('⏳ SCORM: Waiting for commit to complete...');
+                setTimeout(function() {
+                    markTopicComplete(topicId);
+                }, 1000);
+            } else {
+                // Non-SCORM content, mark complete immediately
+                markTopicComplete(topicId);
+            }
+        });
+        
+        // Function to mark topic complete (extracted for reuse)
+        function markTopicComplete(topicId) {
             $.ajax({
                 url: `/courses/topic/${topicId}/complete/`,
                 type: 'POST',
@@ -927,7 +957,7 @@
                     showNotification('error', 'Error marking topic as complete. Please try again.');
                 }
             });
-        });
+        }
         
         // Mark topic as incomplete
         function handleMarkIncomplete() {

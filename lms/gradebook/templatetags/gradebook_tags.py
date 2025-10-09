@@ -445,7 +445,7 @@ def get_activity_score(activity, student_id, grades, quiz_attempts, scorm_regist
                     user_id=student_id
                 ).first()
                 
-                if topic_progress and (topic_progress.last_score is not None or topic_progress.completed):
+                if topic_progress and (topic_progress.last_score is not None or topic_progress.completed or topic_progress.attempts > 0 or topic_progress.last_accessed):
                     # Calculate completion status
                     completion_status = 'completed' if topic_progress.completed else 'incomplete'
                     
@@ -459,6 +459,9 @@ def get_activity_score(activity, student_id, grades, quiz_attempts, scorm_regist
                             success_status = 'failed'
                     elif topic_progress.completed:
                         success_status = 'passed'
+                    elif (topic_progress.attempts > 0 or topic_progress.last_accessed) and not topic_progress.completed:
+                        # Learner has attempted/accessed but not completed - consider as failed
+                        success_status = 'failed'
                     
                     return {
                         'score': float(topic_progress.last_score) if topic_progress.last_score else None,
