@@ -327,31 +327,54 @@ class ScormAPIHandlerEnhanced:
         else:
             self.attempt.cmi_data['cmi.exit'] = 'logout'
         
-        # SIMPLIFIED: Update lesson status based on score if available (trust SCORM's native logic)
+        # CRITICAL FIX: Only mark as completed if SCORM content explicitly set completion status
+        # Don't automatically complete just because terminate was called (user might have navigated away)
+        
+        # Check if SCORM content explicitly set lesson_status via SetValue calls
+        explicit_status_set = hasattr(self.attempt, '_explicit_status_set') and self.attempt._explicit_status_set
+        
         if not self.attempt.lesson_status or self.attempt.lesson_status == 'not_attempted':
-            # If we have a valid score, determine pass/fail status
-            if self.attempt.score_raw is not None:
-                mastery_score = self.attempt.scorm_package.mastery_score or 70
-                if self.attempt.score_raw >= mastery_score:
-                    self.attempt.lesson_status = 'passed'
-                    status_to_set = 'passed'
+            if explicit_status_set:
+                # SCORM content explicitly set status - trust it
+                logger.info("TERMINATE: SCORM content explicitly set lesson_status - trusting content decision")
+            elif self.attempt.score_raw is not None and self.attempt.score_raw > 0:
+                # Only set completion status if we have a real score AND evidence of actual interaction
+                has_real_interaction = (
+                    self.attempt.lesson_location or  # Has bookmark data
+                    (self.attempt.suspend_data and len(self.attempt.suspend_data) > 100) or  # Has substantial progress data
+                    self.attempt.total_time != '0000:00:00.00'  # Has spent time
+                )
+                
+                if has_real_interaction:
+                    mastery_score = self.attempt.scorm_package.mastery_score or 70
+                    if self.attempt.score_raw >= mastery_score:
+                        self.attempt.lesson_status = 'passed'
+                        status_to_set = 'passed'
+                    else:
+                        self.attempt.lesson_status = 'failed'  
+                        status_to_set = 'failed'
+                    logger.info("TERMINATE: Set lesson_status to %s based on score %s with evidence of interaction (mastery: %s)", 
+                               status_to_set, self.attempt.score_raw, mastery_score)
                 else:
-                    self.attempt.lesson_status = 'failed'  
-                    status_to_set = 'failed'
-                logger.info("TERMINATE: Set lesson_status to %s based on score %s (mastery: %s)", status_to_set, self.attempt.score_raw, mastery_score)
+                    # Score found but no evidence of real interaction - mark as incomplete
+                    self.attempt.lesson_status = 'incomplete'
+                    status_to_set = 'incomplete'
+                    logger.warning("TERMINATE: Score %s found but no evidence of real interaction - marking as incomplete to prevent false completion", 
+                                 self.attempt.score_raw)
             else:
-                # No score available, mark as incomplete
+                # No score or insufficient interaction - mark as incomplete (user probably just navigated away)
                 self.attempt.lesson_status = 'incomplete'
                 status_to_set = 'incomplete'
-                logger.info("TERMINATE: Set lesson_status to incomplete (no score available)")
+                logger.info("TERMINATE: No score or insufficient interaction - marking as incomplete (user likely navigated away)")
             
-            # Update CMI data
-            if self.version == '1.2':
-                self.attempt.cmi_data['cmi.core.lesson_status'] = status_to_set
-            else:
-                self.attempt.cmi_data['cmi.completion_status'] = status_to_set
-                if status_to_set in ['passed', 'failed']:
-                    self.attempt.cmi_data['cmi.success_status'] = status_to_set
+            # Update CMI data only if status was determined
+            if 'status_to_set' in locals():
+                if self.version == '1.2':
+                    self.attempt.cmi_data['cmi.core.lesson_status'] = status_to_set
+                else:
+                    self.attempt.cmi_data['cmi.completion_status'] = status_to_set
+                    if status_to_set in ['passed', 'failed']:
+                        self.attempt.cmi_data['cmi.success_status'] = status_to_set
         
         # Save all data
         self._commit_data()
@@ -526,6 +549,8 @@ class ScormAPIHandlerEnhanced:
                 # SCORM 1.2 Core Elements
                 if element == 'cmi.core.lesson_status':
                     self.attempt.lesson_status = value
+                    # Mark that SCORM content explicitly set the status
+                    self.attempt._explicit_status_set = True
                     self._update_completion_from_status(value)
                 elif element == 'cmi.core.score.raw':
                     try:
@@ -616,10 +641,14 @@ class ScormAPIHandlerEnhanced:
                 # SCORM 2004 Core Elements
                 if element == 'cmi.completion_status':
                     self.attempt.completion_status = value
+                    # Mark that SCORM content explicitly set the status
+                    self.attempt._explicit_status_set = True
                     if value == 'completed':
                         self.attempt.completed_at = timezone.now()
                 elif element == 'cmi.success_status':
                     self.attempt.success_status = value
+                    # Mark that SCORM content explicitly set the status
+                    self.attempt._explicit_status_set = True
                 elif element == 'cmi.score.raw':
                     try:
                         # CRITICAL FIX: Store score in both model field AND cmi_data for consistency

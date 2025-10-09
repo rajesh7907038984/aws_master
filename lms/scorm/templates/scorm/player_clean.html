@@ -929,10 +929,10 @@
             }
         }
         
-        // CRITICAL FIX: Handle "Back to Topic" button click - extract score and save SCORM data
+        // FIXED: Handle "Back to Topic" button click - save progress without forcing completion
         function handleBackToTopic(event) {
             event.preventDefault();
-            console.log('Back to Topic button clicked - saving SCORM data...');
+            console.log('Back to Topic button clicked - saving progress (non-completion exit)...');
             
             // Show user feedback
             const backBtn = document.getElementById('backToTopicBtn');
@@ -941,40 +941,33 @@
                 backBtn.classList.add('disabled');
             }
             
-            // CRITICAL: Try to force extract score before terminating
-            forceExtractScore();
+            // FIXED: Don't force extract score - let SCORM content report score naturally
+            // Only save current state without forcing completion
             
-            // Call SCORM terminate methods to save all data
+            // Call SCORM commit (but NOT terminate) to save current progress
             if (window.API && window.API._initialized) {
                 try {
-                    console.log('Calling SCORM Commit to save data...');
-                    // First commit any pending data
+                    console.log('Committing current SCORM progress (without completion)...');
+                    // Only commit current data - don't terminate (which triggers completion logic)
                     window.API.LMSCommit('');
                     
-                    console.log('Calling SCORM Terminate...');
-                    // Then terminate the session
-                    const result = window.API.LMSFinish('');
-                    console.log('SCORM LMSFinish result:', result);
-                    
-                    // Also try SCORM 2004 API
-                    if (window.API_1484_11 && window.API_1484_11.Terminate) {
-                        const result2 = window.API_1484_11.Terminate('');
-                        console.log('SCORM 2004 Terminate result:', result2);
+                    if (window.API_1484_11 && window.API_1484_11.Commit) {
+                        window.API_1484_11.Commit('');
                     }
                     
-                    console.log('SCORM data saved successfully');
+                    console.log('SCORM progress saved (incomplete state preserved)');
                     
-                    // Wait for the save to complete before redirecting
+                    // Redirect without calling Terminate/Finish (which triggers false completion)
                     setTimeout(() => {
                         console.log('Redirecting to topic view...');
                         window.location.href = '{% url "courses:topic_view" topic.id %}';
-                    }, 500);
+                    }, 300);
                 } catch (error) {
-                    console.error('SCORM Terminate error:', error);
-                    // Still redirect even if terminate fails
+                    console.error('SCORM Commit error:', error);
+                    // Still redirect even if commit fails
                     setTimeout(() => {
                         window.location.href = '{% url "courses:topic_view" topic.id %}';
-                    }, 500);
+                    }, 300);
                 }
             } else {
                 console.log('SCORM API not initialized, redirecting anyway...');
@@ -991,30 +984,41 @@
             
             if (event.data && typeof event.data === 'string') {
                 const message = event.data.toLowerCase();
-                if (message.includes('exit') || message.includes('terminate') || message.includes('finish') || 
-                    message === 'scorm_exit' || message === 'exit_assessment' || message === 'complete_assessment') {
-                    console.log('Received string exit message from SCORM content:', event.data);
+                // FIXED: Only trigger completion for explicit completion messages, not general exit messages
+                if (message === 'complete_assessment' || message === 'lesson_complete' || 
+                    message === 'course_complete' || message.includes('quiz_complete') ||
+                    message === 'scorm_complete' || message.includes('assessment_complete')) {
+                    console.log('Received completion message from SCORM content:', event.data);
                     shouldExit = true;
+                } else if (message.includes('exit') || message.includes('terminate') || message.includes('finish')) {
+                    // Log exit messages but don't auto-complete unless explicitly marked as completion
+                    console.log('Received exit message (not completion) from SCORM content:', event.data);
+                    // Don't set shouldExit = true for general exit messages
                 }
             } else if (event.data && typeof event.data === 'object') {
-                // Handle structured messages
-                if (event.data.action === 'exit' || event.data.action === 'terminate' || event.data.action === 'finish' ||
-                    event.data.type === 'scorm_exit' || event.data.type === 'exit_assessment') {
-                    console.log('Received structured exit message from SCORM content:', event.data);
+                // Handle structured messages - only complete for explicit completion actions
+                if (event.data.action === 'complete' || event.data.action === 'course_complete' ||
+                    event.data.type === 'assessment_complete' || event.data.type === 'lesson_complete' ||
+                    event.data.status === 'completed' || event.data.completed === true) {
+                    console.log('Received structured completion message from SCORM content:', event.data);
                     shouldExit = true;
+                } else if (event.data.action === 'exit' || event.data.action === 'terminate' || event.data.action === 'finish') {
+                    console.log('Received structured exit message (not completion) from SCORM content:', event.data);
+                    // Don't set shouldExit = true for general exit messages without completion status
                 }
             }
             
             if (shouldExit) {
-                console.log('Processing exit request from SCORM content...');
+                console.log('Processing completion request from SCORM content...');
                 
-                // CRITICAL: Try to force extract score before terminating
-                forceExtractScore();
+                // FIXED: Don't force extract score - let SCORM content report score naturally
+                // For real completions, the SCORM content should have already set the score via SetValue
+                console.log('SCORM content reports completion - allowing natural score reporting');
                 
-                // Ensure all SCORM data is saved before redirecting
+                // Ensure all SCORM data is saved and properly terminated for completion
                 if (window.API && window.API._initialized) {
                     try {
-                        console.log('Saving SCORM data before exit...');
+                        console.log('Saving SCORM completion data...');
                         
                         // Force commit any pending data
                         if (window.API.LMSCommit) {
@@ -1024,7 +1028,7 @@
                             window.API_1484_11.Commit('');
                         }
                         
-                        // Terminate the session
+                        // Terminate the session (this should be safe now since it's explicit completion)
                         if (window.API.LMSFinish) {
                             const result = window.API.LMSFinish('');
                             console.log('SCORM LMSFinish result:', result);
@@ -1033,15 +1037,15 @@
                             window.API_1484_11.Terminate('');
                         }
                         
-                        console.log('SCORM data saved successfully');
+                        console.log('SCORM completion data saved successfully');
                     } catch (error) {
-                        console.error('Error saving SCORM data:', error);
+                        console.error('Error saving SCORM completion data:', error);
                     }
                 }
                 
                 // Redirect to topic view after a short delay to ensure data is saved
                 setTimeout(() => {
-                    console.log('Redirecting to topic view after exit...');
+                    console.log('Redirecting to topic view after completion...');
                     window.location.href = '{% url "courses:topic_view" topic.id %}';
                 }, 1000);
             }
