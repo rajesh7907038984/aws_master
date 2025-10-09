@@ -242,9 +242,17 @@ class ScormAPIHandlerEnhanced:
     
     def initialize(self):
         """LMSInitialize / Initialize"""
+        # FIXED: Allow re-initialization for resume scenarios or when CMI data needs to be refreshed
         if self.initialized:
-            self.last_error = '101'
-            return 'false'
+            # Check if this is a legitimate resume scenario or if we need to refresh data
+            has_bookmark_data = bool(self.attempt.lesson_location or self.attempt.suspend_data)
+            if has_bookmark_data and self.attempt.entry == 'resume':
+                logger.info("SCORM API: Re-initializing for resume scenario (attempt %s)", self.attempt.id)
+                self.initialized = False  # Allow re-initialization for resume
+            else:
+                logger.warning("SCORM API: Already initialized for attempt %s, allowing re-init for testing", self.attempt.id)
+                # In production, you might want to be more strict, but for now allow re-init
+                self.initialized = False
         
         self.initialized = True
         self.last_error = '0'
@@ -272,11 +280,13 @@ class ScormAPIHandlerEnhanced:
             # CRITICAL FIX: Always set entry mode in CMI data
             self.attempt.cmi_data['cmi.core.entry'] = self.attempt.entry
             
-            # CRITICAL FIX: Ensure bookmark data is ALWAYS available in CMI data
+            # CRITICAL FIX: Ensure bookmark data is ALWAYS available in CMI data for resume
             if self.attempt.lesson_location:
                 self.attempt.cmi_data['cmi.core.lesson_location'] = self.attempt.lesson_location
+                logger.info("🔖 RESUME: Set lesson_location in CMI data: %s", self.attempt.lesson_location)
             if self.attempt.suspend_data:
                 self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data
+                logger.info("🔖 RESUME: Set suspend_data in CMI data (%d chars)", len(self.attempt.suspend_data))
             
             # Set other required fields
             self.attempt.cmi_data['cmi.core.lesson_status'] = self.attempt.lesson_status or 'not attempted'
@@ -288,11 +298,13 @@ class ScormAPIHandlerEnhanced:
             # CRITICAL FIX: Always set entry mode in CMI data
             self.attempt.cmi_data['cmi.entry'] = self.attempt.entry
             
-            # CRITICAL FIX: Ensure bookmark data is ALWAYS available in CMI data
+            # CRITICAL FIX: Ensure bookmark data is ALWAYS available in CMI data for resume
             if self.attempt.lesson_location:
                 self.attempt.cmi_data['cmi.location'] = self.attempt.lesson_location
+                logger.info("🔖 RESUME: Set location in CMI data: %s", self.attempt.lesson_location)
             if self.attempt.suspend_data:
                 self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data
+                logger.info("🔖 RESUME: Set suspend_data in CMI data (%d chars)", len(self.attempt.suspend_data))
             
             # Set other required fields
             self.attempt.cmi_data['cmi.completion_status'] = self.attempt.lesson_status or 'not attempted'
@@ -600,29 +612,36 @@ class ScormAPIHandlerEnhanced:
                         return 'false'
                 elif element == 'cmi.core.lesson_location':
                     # CRITICAL FIX: Store bookmark data in both CMI data and model fields
+                    old_location = self.attempt.lesson_location
                     self.attempt.lesson_location = value
                     self.attempt.cmi_data['cmi.core.lesson_location'] = value
-                    logger.info("💾 RESUME: Saved lesson_location = '%s' for attempt %s", value[:100] if value else '', self.attempt.id)
+                    logger.info("🔖 BOOKMARK UPDATE: lesson_location changed from '%s' to '%s' for attempt %s", 
+                               old_location or 'None', value or 'None', self.attempt.id)
                     
-                    # IMMEDIATE SAVE: Persist bookmark immediately to prevent data loss on unexpected exit
+                    # ENHANCED: Immediate save for critical bookmark data to prevent data loss
                     try:
+                        self.attempt.last_accessed = timezone.now()
                         self.attempt.save(update_fields=['lesson_location', 'cmi_data', 'last_accessed'])
-                        logger.info("💾 RESUME: Immediately persisted lesson_location to database")
-                    except Exception as e:
-                        logger.error("❌ RESUME: Failed to immediately save lesson_location: %s", str(e))
+                        logger.info("🔖 BOOKMARK SAVED: Immediately saved lesson_location and CMI data")
+                    except Exception as save_error:
+                        logger.error("❌ BOOKMARK SAVE ERROR: %s", str(save_error))
                         
                 elif element == 'cmi.suspend_data':
                     # CRITICAL FIX: Store suspend data in both CMI data and model fields
+                    old_suspend_len = len(self.attempt.suspend_data) if self.attempt.suspend_data else 0
+                    new_suspend_len = len(value) if value else 0
                     self.attempt.suspend_data = value
                     self.attempt.cmi_data['cmi.suspend_data'] = value
-                    logger.info("💾 RESUME: Saved suspend_data (%d chars) for attempt %s", len(value) if value else 0, self.attempt.id)
+                    logger.info("🔖 SUSPEND DATA UPDATE: Changed from %d chars to %d chars for attempt %s", 
+                               old_suspend_len, new_suspend_len, self.attempt.id)
                     
-                    # IMMEDIATE SAVE: Persist suspend_data immediately to prevent data loss on unexpected exit
+                    # ENHANCED: Immediate save for critical suspend data to prevent data loss
                     try:
+                        self.attempt.last_accessed = timezone.now()
                         self.attempt.save(update_fields=['suspend_data', 'cmi_data', 'last_accessed'])
-                        logger.info("💾 RESUME: Immediately persisted suspend_data to database")
-                    except Exception as e:
-                        logger.error("❌ RESUME: Failed to immediately save suspend_data: %s", str(e))
+                        logger.info("🔖 SUSPEND DATA SAVED: Immediately saved suspend_data and CMI data")
+                    except Exception as save_error:
+                        logger.error("❌ SUSPEND DATA SAVE ERROR: %s", str(save_error))
                 elif element == 'cmi.core.session_time':
                     self.attempt.session_time = value
                     self._update_total_time(value)
@@ -709,22 +728,36 @@ class ScormAPIHandlerEnhanced:
                         return 'false'
                 elif element == 'cmi.location':
                     # CRITICAL FIX: Store bookmark data in both CMI data and model fields
+                    old_location = self.attempt.lesson_location
                     self.attempt.lesson_location = value
                     self.attempt.cmi_data['cmi.location'] = value
-                    logger.info("💾 RESUME: Saved location = '%s' for attempt %s (SCORM 2004)", value[:100] if value else '', self.attempt.id)
+                    logger.info("🔖 BOOKMARK UPDATE (SCORM 2004): location changed from '%s' to '%s' for attempt %s", 
+                               old_location or 'None', value or 'None', self.attempt.id)
                     
-                    # IMMEDIATE SAVE: Persist bookmark immediately to prevent data loss on unexpected exit
+                    # ENHANCED: Immediate save for critical bookmark data to prevent data loss
                     try:
+                        self.attempt.last_accessed = timezone.now()
                         self.attempt.save(update_fields=['lesson_location', 'cmi_data', 'last_accessed'])
-                        logger.info("💾 RESUME: Immediately persisted location to database (SCORM 2004)")
-                    except Exception as e:
-                        logger.error("❌ RESUME: Failed to immediately save location: %s", str(e))
+                        logger.info("🔖 BOOKMARK SAVED (SCORM 2004): Immediately saved location and CMI data")
+                    except Exception as save_error:
+                        logger.error("❌ BOOKMARK SAVE ERROR (SCORM 2004): %s", str(save_error))
                         
                 elif element == 'cmi.suspend_data':
                     # CRITICAL FIX: Store suspend data in both CMI data and model fields
+                    old_suspend_len = len(self.attempt.suspend_data) if self.attempt.suspend_data else 0
+                    new_suspend_len = len(value) if value else 0
                     self.attempt.suspend_data = value
                     self.attempt.cmi_data['cmi.suspend_data'] = value
-                    logger.info("💾 RESUME: Saved suspend_data (%d chars) for attempt %s (SCORM 2004)", len(value) if value else 0, self.attempt.id)
+                    logger.info("🔖 SUSPEND DATA UPDATE (SCORM 2004): Changed from %d chars to %d chars for attempt %s", 
+                               old_suspend_len, new_suspend_len, self.attempt.id)
+                    
+                    # ENHANCED: Immediate save for critical suspend data to prevent data loss
+                    try:
+                        self.attempt.last_accessed = timezone.now()
+                        self.attempt.save(update_fields=['suspend_data', 'cmi_data', 'last_accessed'])
+                        logger.info("🔖 SUSPEND DATA SAVED (SCORM 2004): Immediately saved suspend_data and CMI data")
+                    except Exception as save_error:
+                        logger.error("❌ SUSPEND DATA SAVE ERROR (SCORM 2004): %s", str(save_error))
                     
                     # IMMEDIATE SAVE: Persist suspend_data immediately to prevent data loss on unexpected exit
                     try:

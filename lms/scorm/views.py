@@ -260,7 +260,7 @@ def scorm_view(request, topic_id):
                 
                 # Save the updated attempt
                 attempt.save()
-                logger.info(f"Loaded resume data for attempt {attempt.id}: location='{attempt.lesson_location}', suspend_data='{attempt.suspend_data[:50]}...'")
+                logger.info(f"RESUME: Loaded resume data for attempt {attempt.id}: entry='{attempt.entry}', location='{attempt.lesson_location}', suspend_data='{attempt.suspend_data[:50] if attempt.suspend_data else 'None'}...'")
             else:
                 # Create first attempt
                 attempt = ScormAttempt.objects.create(

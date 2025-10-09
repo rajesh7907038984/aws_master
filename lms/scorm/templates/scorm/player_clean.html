@@ -932,7 +932,7 @@
         // FIXED: Handle "Back to Topic" button click - save progress without forcing completion
         function handleBackToTopic(event) {
             event.preventDefault();
-            console.log('Back to Topic button clicked - saving progress (non-completion exit)...');
+            console.log('🔖 Back to Topic button clicked - saving bookmark data for resume...');
             
             // Show user feedback
             const backBtn = document.getElementById('backToTopicBtn');
@@ -941,36 +941,64 @@
                 backBtn.classList.add('disabled');
             }
             
-            // FIXED: Don't force extract score - let SCORM content report score naturally
-            // Only save current state without forcing completion
+            // CRITICAL: Force save current navigation state for resume
+            try {
+                // Get current iframe location for bookmark
+                const iframe = document.getElementById('scormContent');
+                if (iframe && iframe.contentWindow) {
+                    try {
+                        // Try to get current location from iframe
+                        const currentUrl = iframe.contentWindow.location.href;
+                        const urlParts = currentUrl.split('#');
+                        if (urlParts.length > 1) {
+                            const bookmark = 'index.html#' + urlParts[1];
+                            console.log('🔖 Setting bookmark from iframe URL:', bookmark);
+                            
+                            // Set lesson location for resume
+                            if (window.API && window.API.LMSSetValue) {
+                                window.API.LMSSetValue('cmi.core.lesson_location', bookmark);
+                            }
+                            if (window.API_1484_11 && window.API_1484_11.SetValue) {
+                                window.API_1484_11.SetValue('cmi.location', bookmark);
+                            }
+                        }
+                    } catch (e) {
+                        console.log('Could not extract iframe location (cross-origin):', e.message);
+                    }
+                }
+            } catch (error) {
+                console.log('Bookmark extraction error:', error.message);
+            }
             
-            // Call SCORM commit (but NOT terminate) to save current progress
+            // Call SCORM commit (but NOT terminate) to save current progress for resume
             if (window.API && window.API._initialized) {
                 try {
-                    console.log('Committing current SCORM progress (without completion)...');
+                    console.log('🔖 Committing SCORM bookmark data for resume...');
                     // Only commit current data - don't terminate (which triggers completion logic)
-                    window.API.LMSCommit('');
+                    const commitResult = window.API.LMSCommit('');
+                    console.log('SCORM 1.2 Commit result:', commitResult);
                     
                     if (window.API_1484_11 && window.API_1484_11.Commit) {
-                        window.API_1484_11.Commit('');
+                        const commitResult2004 = window.API_1484_11.Commit('');
+                        console.log('SCORM 2004 Commit result:', commitResult2004);
                     }
                     
-                    console.log('SCORM progress saved (incomplete state preserved)');
+                    console.log('✅ SCORM bookmark data saved for resume');
                     
-                    // Redirect without calling Terminate/Finish (which triggers false completion)
+                    // Redirect without calling Terminate/Finish (preserves incomplete state)
                     setTimeout(() => {
-                        console.log('Redirecting to topic view...');
+                        console.log('🔖 Redirecting to topic view (resume data saved)...');
                         window.location.href = '{% url "courses:topic_view" topic.id %}';
-                    }, 300);
+                    }, 500);  // Increased delay to ensure commit completes
                 } catch (error) {
-                    console.error('SCORM Commit error:', error);
+                    console.error('❌ SCORM Commit error:', error);
                     // Still redirect even if commit fails
                     setTimeout(() => {
                         window.location.href = '{% url "courses:topic_view" topic.id %}';
                     }, 300);
                 }
             } else {
-                console.log('SCORM API not initialized, redirecting anyway...');
+                console.log('🔖 SCORM API not initialized, redirecting anyway...');
                 window.location.href = '{% url "courses:topic_view" topic.id %}';
             }
         }
