@@ -75,17 +75,23 @@
     <!-- Navigation Tabs -->
     <div class="border-b border-gray-200 mb-6">
         <nav class="-mb-px flex space-x-8">
-            <a href="?tab=overview" class="{% if request.GET.tab != 'users' %}border-primary-500 text-primary-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %} whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+            <a href="?tab=overview" class="{% if request.GET.tab != 'users' and request.GET.tab != 'courses' and request.GET.tab != 'timeline' %}border-primary-500 text-primary-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %} whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
                 Overview
             </a>
             <a href="?tab=users" class="{% if request.GET.tab == 'users' %}border-primary-500 text-primary-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %} whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
                 Users
             </a>
+            <a href="?tab=courses" class="{% if request.GET.tab == 'courses' %}border-primary-500 text-primary-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %} whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+                Courses
+            </a>
+            <a href="?tab=timeline" class="{% if request.GET.tab == 'timeline' %}border-primary-500 text-primary-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %} whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+                Timeline
+            </a>
         </nav>
     </div>
 
     <!-- Tab Content -->
-    {% if request.GET.tab != 'users' %}
+    {% if request.GET.tab != 'users' and request.GET.tab != 'courses' and request.GET.tab != 'timeline' %}
     <!-- Overview Tab -->
     <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
         <h3 class="text-lg font-semibold text-gray-900 mb-4">Overview</h3>
@@ -203,6 +209,38 @@
                     <p class="text-gray-600 mb-4">This group doesn't have any members yet</p>
                 </div>
             {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if request.GET.tab == 'courses' %}
+    <!-- Courses Tab -->
+    <div class="bg-white rounded-lg shadow-sm">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">Group Courses</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <div class="text-center py-12">
+                <div class="mb-4">
+                    <i class="fas fa-book text-4xl text-primary-500"></i>
+                </div>
+                <h4 class="text-lg font-medium text-gray-900 mb-2">Courses information</h4>
+                <p class="text-gray-600 mb-4">Course enrollment data for group members</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if request.GET.tab == 'timeline' %}
+    <!-- Timeline Tab -->
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Activity Timeline</h3>
+        <div class="text-center py-12">
+            <div class="mb-4">
+                <i class="fas fa-clock text-4xl text-primary-500"></i>
+            </div>
+            <h4 class="text-lg font-medium text-gray-900 mb-2">Timeline view</h4>
+            <p class="text-gray-600 mb-4">Activity timeline for group members</p>
         </div>
     </div>
     {% endif %}
