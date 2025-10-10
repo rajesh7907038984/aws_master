@@ -59,15 +59,15 @@
             </form>
         </div>
 
-        <!-- Mobile Search Toggle (Visible on mobile only) -->
-        <button id="mobile-search-toggle" class="md:hidden flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0">
-            <svg class="w-4 h-4 sm:w-4 sm:h-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
-            </svg>
-        </button>
-
         <!-- Right Section: Notifications and Profile -->
         <div class="flex items-center gap-1 sm:gap-2 md:gap-3 flex-shrink-0">
+            <!-- Mobile Search Toggle (Visible on mobile only) -->
+            <button id="mobile-search-toggle" class="md:hidden flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0">
+                <svg class="w-4 h-4 sm:w-4 sm:h-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+                </svg>
+            </button>
+
             <!-- Messages Button - Hidden on smallest screens -->
             <a href="{% url 'lms_messages:messages' %}" 
                class="header-icon discussion-icon hidden xs:flex relative items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0" 
