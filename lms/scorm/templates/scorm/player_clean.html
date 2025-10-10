@@ -458,133 +458,90 @@
         // CRITICAL FIX: Enhanced synchronous wrapper for SCORM API calls with proper resume support
         function makeApiCallSync(method, parameters) {
             try {
-                // For critical bookmark elements, we need to make actual API calls
-                if (method === 'GetValue' || method === 'LMSGetValue') {
-                    const element = parameters[0];
-                    
-                    // Check if we have cached data for this element
-                    const cacheKey = method + '_' + JSON.stringify(parameters);
-                    if (apiCache.has(cacheKey)) {
-                        const cached = apiCache.get(cacheKey);
-                        if (Date.now() - cached.timestamp < CACHE_DURATION) {
-                            console.log(`[SCORM API] ${method}(${element}) -> cached: ${cached.value}`);
-                            return cached.value;
+                // CRITICAL FIX: For ALL API methods that need to persist data, make actual API calls
+                // This includes: Initialize, Terminate, Commit, SetValue, GetValue
+                const methodsRequiringAPICall = [
+                    'Initialize', 'LMSInitialize',
+                    'Terminate', 'LMSFinish', 
+                    'Commit', 'LMSCommit',
+                    'SetValue', 'LMSSetValue',
+                    'GetValue', 'LMSGetValue'
+                ];
+                
+                if (methodsRequiringAPICall.includes(method)) {
+                    // For GetValue, check cache first
+                    if (method === 'GetValue' || method === 'LMSGetValue') {
+                        const element = parameters[0];
+                        const cacheKey = method + '_' + JSON.stringify(parameters);
+                        
+                        // Check cache for non-critical elements
+                        const resumeCriticalElements = [
+                            'cmi.core.lesson_location', 'cmi.location',
+                            'cmi.suspend_data', 'cmi.core.entry', 'cmi.entry',
+                            'cmi.core.lesson_status', 'cmi.completion_status',
+                            'cmi.core.score.raw', 'cmi.score.raw'
+                        ];
+                        
+                        if (!resumeCriticalElements.includes(element) && apiCache.has(cacheKey)) {
+                            const cached = apiCache.get(cacheKey);
+                            if (Date.now() - cached.timestamp < CACHE_DURATION) {
+                                console.log(`[SCORM API] ${method}(${element}) -> cached: ${cached.value}`);
+                                return cached.value;
+                            }
                         }
                     }
                     
-                    // CRITICAL FIX: For ALL bookmark-related elements, make actual API call
-                    if (element === 'cmi.core.lesson_location' || element === 'cmi.location' || 
-                        element === 'cmi.suspend_data' || element === 'cmi.core.entry' || 
-                        element === 'cmi.entry' || element === 'cmi.core.lesson_status' || 
-                        element === 'cmi.completion_status' || element === 'cmi.core.student_id' ||
-                        element === 'cmi.learner_id' || element === 'cmi.core.student_name' ||
-                        element === 'cmi.learner_name' || element === 'cmi.core.score.max' ||
-                        element === 'cmi.score.max' || element === 'cmi.core.score.min' ||
-                        element === 'cmi.score.min' || element === 'cmi.mode') {
+                    // Make synchronous API call using XMLHttpRequest
+                    try {
+                        const xhr = new XMLHttpRequest();
+                        xhr.open('POST', API_ENDPOINT, false); // Synchronous request
+                        xhr.setRequestHeader('Content-Type', 'application/json');
+                        xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
                         
-                        // Make synchronous API call using XMLHttpRequest
-                        try {
-                            const xhr = new XMLHttpRequest();
-                            xhr.open('POST', API_ENDPOINT, false); // Synchronous request
-                            xhr.setRequestHeader('Content-Type', 'application/json');
-                            xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
-                            
-                            xhr.send(JSON.stringify({
-                                method: method,
-                                parameters: parameters
-                            }));
-                            
-                            if (xhr.status === 200) {
-                                const response = JSON.parse(xhr.responseText);
-                                if (response.success) {
-                                    const result = response.result;
-                                    
-                                    // Cache the result
+                        xhr.send(JSON.stringify({
+                            method: method,
+                            parameters: parameters
+                        }));
+                        
+                        if (xhr.status === 200) {
+                            const response = JSON.parse(xhr.responseText);
+                            if (response.success) {
+                                const result = response.result;
+                                
+                                // Cache GetValue results
+                                if (method === 'GetValue' || method === 'LMSGetValue') {
+                                    const element = parameters[0];
+                                    const cacheKey = method + '_' + JSON.stringify(parameters);
                                     apiCache.set(cacheKey, {
                                         value: result,
                                         timestamp: Date.now()
                                     });
-                                    
                                     console.log(`[SCORM API] ${method}(${element}) -> ${result}`);
-                                    return result;
-                                } else {
-                                    console.error(`[SCORM API] ${method}(${element}) failed: ${response.error}`);
-                                }
-                            } else {
-                                console.error(`[SCORM API] ${method}(${element}) HTTP error: ${xhr.status}`);
-                            }
-                        } catch (e) {
-                            console.error(`[SCORM API] ${method} sync error:`, e);
-                        }
-                    }
-                }
-                
-                // CRITICAL FIX: For SetValue operations, always make actual API calls for bookmark data
-                if (method === 'SetValue' || method === 'LMSSetValue') {
-                    const element = parameters[0];
-                    const value = parameters[1];
-                    
-                    // For bookmark-related elements, make actual API call
-                    if (element === 'cmi.core.lesson_location' || element === 'cmi.location' || 
-                        element === 'cmi.suspend_data') {
-                        
-                        try {
-                            const xhr = new XMLHttpRequest();
-                            xhr.open('POST', API_ENDPOINT, false); // Synchronous request
-                            xhr.setRequestHeader('Content-Type', 'application/json');
-                            xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
-                            
-                            xhr.send(JSON.stringify({
-                                method: method,
-                                parameters: parameters
-                            }));
-                            
-                            if (xhr.status === 200) {
-                                const response = JSON.parse(xhr.responseText);
-                                if (response.success) {
+                                } else if (method === 'SetValue' || method === 'LMSSetValue') {
+                                    const element = parameters[0];
+                                    const value = parameters[1];
                                     console.log(`[SCORM API] ${method}(${element}, ${value}) -> stored successfully`);
-                                    return 'true';
                                 } else {
-                                    console.error(`[SCORM API] ${method}(${element}) failed: ${response.error}`);
+                                    console.log(`[SCORM API] ${method}() -> ${result}`);
                                 }
+                                
+                                return result;
                             } else {
-                                console.error(`[SCORM API] ${method}(${element}) HTTP error: ${xhr.status}`);
+                                console.error(`[SCORM API] ${method} failed: ${response.error}`);
+                                return 'false';
                             }
-                        } catch (e) {
-                            console.error(`[SCORM API] ${method} sync error:`, e);
+                        } else {
+                            console.error(`[SCORM API] ${method} HTTP error: ${xhr.status}`);
+                            return 'false';
                         }
+                    } catch (e) {
+                        console.error(`[SCORM API] ${method} sync error:`, e);
+                        return 'false';
                     }
                 }
                 
-                // For other methods, return appropriate default values
+                // For methods that don't need API calls, return appropriate default values
                 switch(method) {
-                    case 'Initialize':
-                    case 'LMSInitialize':
-                        return 'true';
-                    case 'GetValue':
-                    case 'LMSGetValue':
-                        const element = parameters[0];
-                        if (element === 'cmi.core.lesson_status' || element === 'cmi.completion_status') {
-                            return 'incomplete';
-                        } else if (element === 'cmi.core.student_id' || element === 'cmi.learner_id') {
-                            return 'student';
-                        } else if (element === 'cmi.core.student_name' || element === 'cmi.learner_name') {
-                            return 'Student';
-                        } else if (element === 'cmi.core.score.max' || element === 'cmi.score.max') {
-                            return '100';
-                        } else if (element === 'cmi.core.score.min' || element === 'cmi.score.min') {
-                            return '0';
-                        } else if (element === 'cmi.mode') {
-                            return 'normal';
-                        }
-                        return '';
-                    case 'SetValue':
-                    case 'LMSSetValue':
-                    case 'Commit':
-                    case 'LMSCommit':
-                    case 'Terminate':
-                    case 'LMSFinish':
-                        return 'true';
                     case 'GetLastError':
                     case 'LMSGetLastError':
                         return '0';
