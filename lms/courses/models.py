@@ -212,7 +212,7 @@ class CourseEnrollment(models.Model):
         total_seconds = TopicProgress.objects.filter(
             user=self.user,
             topic__coursetopic__course=self.course
-        ).aggregate(total=Sum('total_time_spent'))['total'] or 0
+        ).aggregate(total=Sum('total_time_spent', default=0))['total'] or 0
         
         hours = total_seconds // 3600
         minutes = (total_seconds % 3600) // 60
