@@ -1,6 +1,6 @@
 {% load static %}
 <!-- Include unified sidebar CSS -->
-<link rel="stylesheet" href="{% static 'css/sidebar-unified.css' %}?v=20250115120000">
+<link rel="stylesheet" href="{% static 'css/sidebar-unified.css' %}">
 
 <!-- Sticky Sidebar - Hidden on mobile -->
 <aside id="sidebar" class="fixed top-16 left-0 h-[calc(100vh-4rem)] w-64 z-30 transition-all duration-300 hidden md:block">
@@ -41,11 +41,11 @@
 
 <!-- Inline styles removed - now using unified CSS file -->
 <!-- Unified JavaScript - now using sidebar-unified.js -->
-<script src="{% static 'js/sidebar-unified.js' %}?v=20250115120000"></script>
+<script src="{% static 'js/sidebar-unified.js' %}"></script>
 
 <!-- Debug script for development -->
 {% if settings.DEBUG %}
-<script src="{% static 'js/sidebar-debug.js' %}?v=5.1"></script>
+<script src="{% static 'js/sidebar-debug.js' %}"></script>
 {% endif %}
 
 <!-- Enhanced initialization script -->
