@@ -4582,7 +4582,7 @@ def group_detail(request, group_id):
         return redirect('reports:overview')
     
     # Get group members and their statistics
-    members = CustomUser.objects.filter(
+    members = User.objects.filter(
         group_memberships__group=group,
         group_memberships__is_active=True
     ).select_related('branch').prefetch_related('courseenrollment_set')
@@ -5014,7 +5014,7 @@ def course_detail(request, course_id):
             average_score=Avg('user_progress__last_score', filter=Q(user_progress__user=current_user)),
             # Get total enrollments count for this topic (just for current user)
             total_enrollments=Count('user_progress', filter=Q(user_progress__user=current_user), distinct=True)
-        ).order_by('coursetopic__order')
+        ).order_by('order', 'coursetopic__order', 'created_at')
     else:
         # For non-learners: show all data (existing behavior)
         topics = Topic.objects.filter(coursetopic__course=course).annotate(
@@ -5029,7 +5029,7 @@ def course_detail(request, course_id):
             average_score=Avg('user_progress__last_score'),
             # Get total enrollments count for this topic
             total_enrollments=Count('user_progress', distinct=True)
-        ).order_by('coursetopic__order')
+        ).order_by('order', 'coursetopic__order', 'created_at')
     
     # Normalize average scores to handle basis points properly
     for topic in topics:
@@ -5342,7 +5342,7 @@ def _get_course_report_data(request, course_id):
             average_score=Avg('user_progress__last_score', filter=Q(user_progress__user=current_user)),
             # Get total enrollments count for this topic (just for current user)
             total_enrollments=Count('user_progress', filter=Q(user_progress__user=current_user), distinct=True)
-        ).order_by('coursetopic__order')
+        ).order_by('order', 'coursetopic__order', 'created_at')
     else:
         # For non-learners: show all data (existing behavior)
         topics = Topic.objects.filter(coursetopic__course=course).annotate(
@@ -5357,7 +5357,7 @@ def _get_course_report_data(request, course_id):
             average_score=Avg('user_progress__last_score'),
             # Get total enrollments count for this topic
             total_enrollments=Count('user_progress', distinct=True)
-        ).order_by('coursetopic__order')
+        ).order_by('order', 'coursetopic__order', 'created_at')
     
     # Normalize average scores to handle basis points properly
     for topic in topics:
