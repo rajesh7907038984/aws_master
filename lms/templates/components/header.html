@@ -61,12 +61,15 @@
 
         <!-- Right Section: Notifications and Profile -->
         <div class="flex items-center gap-1 sm:gap-2 md:gap-3 flex-shrink-0">
-            <!-- Mobile Search Toggle (Visible on mobile only) -->
-            <button id="mobile-search-toggle" class="md:hidden flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0">
+            <!-- Mobile Search Link (Visible on mobile only) -->
+            <a href="{% url 'users:search' %}" 
+               class="md:hidden flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0"
+               title="Search"
+               aria-label="Search">
                 <svg class="w-4 h-4 sm:w-4 sm:h-4" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
                 </svg>
-            </button>
+            </a>
 
             <!-- Messages Button - Hidden on smallest screens -->
             <a href="{% url 'lms_messages:messages' %}" 
@@ -221,41 +224,6 @@
         </div>
     </div>
 
-    <!-- Mobile Search Form - Hidden by default until toggle -->
-    <div id="mobile-search-container" class="md:hidden hidden border-t border-gray-200 bg-white">
-        <form class="flex w-full shadow-sm rounded-xl overflow-hidden bg-gray-50 ring-1 ring-gray-200 focus-within:ring-2 focus-within:ring-primary-500 transition-all" method="GET" action="{% url 'users:search' %}">
-            <!-- Category Selector -->
-            <div class="relative flex-shrink-0">
-                <select name="category" class="h-10 pl-3 pr-6 text-sm bg-transparent border-0 rounded-l-xl text-gray-600 focus:outline-none focus:ring-0 cursor-pointer appearance-none border-r border-gray-300" style="min-width: 80px;">
-                    <option value="all" selected>All</option>
-                    {% if user.is_authenticated and user.role in 'globaladmin,superadmin,admin,instructor' %}
-                    <option value="users">Users</option>
-                    {% endif %}
-                    {% for category in categories %}
-                    <option value="{{ category.slug }}" {% if request.GET.category == category.slug %}selected{% endif %}>{{ category.name }}</option>
-                    {% endfor %}
-                </select>
-                <div class="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                    <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                    </svg>
-                </div>
-            </div>
-            
-            <!-- Search Input -->
-            <div class="relative flex-1 flex items-center min-w-0">
-                <div class="absolute left-3 z-10">
-                    <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
-                    </svg>
-                </div>
-                <input type="text" 
-                       name="q"
-                       placeholder="Search..." 
-                       class="w-full h-10 pl-12 pr-4 bg-transparent border-0 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-0 rounded-r-xl">
-            </div>
-        </form>
-    </div>
 </header>
 
 <!-- Mobile Navigation Menu - Hidden by default -->
@@ -866,123 +834,6 @@
         display: flex;
     }
     
-    /* Mobile search visibility rules */
-    @media (max-width: 767px) {
-        /* Force hide desktop search on mobile devices */
-        .hidden.md\:flex {
-            display: none !important;
-            visibility: hidden !important;
-        }
-        
-        /* Specifically target the desktop search container */
-        .hidden.md\:flex.flex-1.max-w-3xl.px-6,
-        header .hidden.md\:flex {
-            display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
-            pointer-events: none !important;
-        }
-        
-        /* Ensure mobile search toggle is visible and properly positioned */
-        #mobile-search-toggle {
-            display: flex !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-            position: relative !important;
-            z-index: 10 !important;
-        }
-        
-        /* Prevent duplicate search icons/elements */
-        header .flex.items-center.gap-1 > button[class*="search"]:not(#mobile-search-toggle),
-        header .flex.items-center.gap-1 > .search-icon:not(#mobile-search-toggle *) {
-            display: none !important;
-        }
-        
-        /* Ensure only one mobile search container is visible */
-        #mobile-search-container ~ #mobile-search-container {
-            display: none !important;
-        }
-        
-        /* Prevent duplicate category dropdowns in mobile search */
-        #mobile-search-container .relative.flex-shrink-0 ~ .relative.flex-shrink-0 {
-            display: none !important;
-        }
-        
-        /* Ensure proper mobile search container positioning */
-        #mobile-search-container {
-            position: relative;
-            z-index: 10;
-            background: white;
-            border-top: 1px solid #e5e7eb;
-        }
-        
-        /* Fix mobile search container animations */
-        #mobile-search-container {
-            transition: all 0.3s ease-in-out;
-            transform: translateY(-10px);
-            opacity: 0;
-        }
-        
-        #mobile-search-container:not(.hidden) {
-            transform: translateY(0);
-            opacity: 1;
-        }
-        
-        /* Mobile search form improvements */
-        #mobile-search-container form {
-            border-radius: 0.75rem;
-            overflow: hidden;
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
-        }
-        
-        /* Fix mobile search input styling */
-        #mobile-search-container input[type="text"] {
-            padding-left: 2rem !important;
-            padding-right: 0.5rem !important;
-        }
-        
-        /* Fix mobile search select styling */
-        #mobile-search-container select {
-            border-right: 1px solid #d1d5db !important;
-            padding-right: 1.5rem !important;
-        }
-        
-        /* Ensure mobile search icon is properly positioned */
-        #mobile-search-container .absolute.left-2,
-        #mobile-search-container .absolute.left-3 {
-            z-index: 10 !important;
-            pointer-events: none !important;
-        }
-        
-        /* Fix mobile search placeholder text positioning */
-        #mobile-search-container input::placeholder {
-            color: #9ca3af !important;
-            opacity: 1 !important;
-        }
-        
-        /* Ensure mobile search form elements are properly aligned */
-        #mobile-search-container .flex {
-            align-items: stretch !important;
-        }
-        
-        /* Fix mobile search container height consistency */
-        #mobile-search-container .h-9,
-        #mobile-search-container .h-10 {
-            min-height: 2.25rem !important;
-        }
-    }
-    
-    /* Hide mobile search toggle on desktop */
-    @media (min-width: 768px) {
-        #mobile-search-toggle {
-            display: none !important;
-        }
-        
-        #mobile-search-container {
-            display: none !important;
-        }
-    }
     
     /* Profile dropdown fixes - Simple approach */
     #profile-container {
@@ -1528,115 +1379,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Mobile search toggle - with duplicate prevention
-    const mobileSearchToggle = document.getElementById('mobile-search-toggle');
-    const mobileSearchContainer = document.getElementById('mobile-search-container');
-    
-    // Ensure no duplicate search elements are visible on mobile
-    function preventDuplicateSearchElements() {
-        if (window.innerWidth < 768) {
-            // Ensure only one mobile search container exists
-            const mobileSearchContainers = document.querySelectorAll('#mobile-search-container');
-            if (mobileSearchContainers.length > 1) {
-                // Keep only the first one, remove duplicates
-                console.log('Removing duplicate mobile search containers:', mobileSearchContainers.length - 1);
-                for (let i = 1; i < mobileSearchContainers.length; i++) {
-                    mobileSearchContainers[i].remove();
-                }
-            }
-            
-            // Force hide desktop search on mobile
-            const desktopSearch = document.querySelector('header .hidden.md\\:flex.flex-1.max-w-3xl');
-            if (desktopSearch) {
-                desktopSearch.style.display = 'none';
-                desktopSearch.style.visibility = 'hidden';
-                desktopSearch.style.opacity = '0';
-            }
-            
-            // Ensure mobile search toggle is visible
-            if (mobileSearchToggle) {
-                mobileSearchToggle.style.display = 'flex';
-                mobileSearchToggle.style.visibility = 'visible';
-                mobileSearchToggle.style.opacity = '1';
-            }
-            
-            // Ensure mobile search container is initially hidden
-            if (mobileSearchContainer && mobileSearchContainer.classList.contains('hidden')) {
-                mobileSearchContainer.style.display = 'none';
-            }
-        } else {
-            // On desktop, ensure mobile search is completely hidden
-            if (mobileSearchContainer) {
-                mobileSearchContainer.classList.add('hidden');
-                mobileSearchContainer.style.display = 'none';
-            }
-            if (mobileSearchToggle) {
-                mobileSearchToggle.style.display = 'none';
-            }
-        }
-    }
-    
-    // Run on load
-    preventDuplicateSearchElements();
-    
-    if (mobileSearchToggle && mobileSearchContainer) {
-        // Ensure mobile search container is properly initialized
-        if (!mobileSearchContainer.hasAttribute('data-initialized')) {
-            mobileSearchContainer.setAttribute('data-initialized', 'true');
-        }
-        
-        // Check if event listener already exists to prevent duplicates
-        if (mobileSearchToggle.hasAttribute('data-listener-added')) {
-            return;
-        }
-        
-        // Mark as having listener to prevent duplicates
-        mobileSearchToggle.setAttribute('data-listener-added', 'true');
-        
-        mobileSearchToggle.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            console.log('Mobile search toggle clicked');
-            
-            // Toggle search container visibility
-            mobileSearchContainer.classList.toggle('hidden');
-            
-            // Toggle active state on button
-            this.classList.toggle('active');
-            
-            // Focus on search input when shown
-            if (!mobileSearchContainer.classList.contains('hidden')) {
-                const searchInput = mobileSearchContainer.querySelector('input[name="q"]');
-                if (searchInput) {
-                    setTimeout(() => {
-                        searchInput.focus();
-                    }, 100);
-                }
-                console.log('Mobile search opened');
-            } else {
-                console.log('Mobile search closed');
-            }
-        });
-        
-        // Close search when clicking outside
-        document.addEventListener('click', function(e) {
-            if (!mobileSearchContainer.classList.contains('hidden') && 
-                !mobileSearchContainer.contains(e.target) && 
-                !mobileSearchToggle.contains(e.target)) {
-                mobileSearchContainer.classList.add('hidden');
-                mobileSearchToggle.classList.remove('active');
-            }
-        });
-        
-        // Close search on escape key
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && !mobileSearchContainer.classList.contains('hidden')) {
-                mobileSearchContainer.classList.add('hidden');
-                mobileSearchToggle.classList.remove('active');
-            }
-        });
-    }
+    // Mobile search is now a direct link - no toggle functionality needed
     
     // Handle resize events to hide/show appropriate elements
     let resizeDebounceTimer;
@@ -1644,22 +1387,12 @@ document.addEventListener('DOMContentLoaded', function() {
         clearTimeout(resizeDebounceTimer);
         resizeDebounceTimer = setTimeout(function() {
             if (window.innerWidth >= 768) {
-                // Hide mobile menu and search container on larger screens
+                // Hide mobile menu on larger screens
                 if (mobileMenu && mobileMenu.classList.contains('open')) {
                     mobileMenu.classList.remove('open');
                     document.body.classList.remove('overflow-hidden');
                 }
-                
-                if (mobileSearchContainer && !mobileSearchContainer.classList.contains('hidden')) {
-                    mobileSearchContainer.classList.add('hidden');
-                    if (mobileSearchToggle) {
-                        mobileSearchToggle.classList.remove('active');
-                    }
-                }
             }
-            
-            // Prevent duplicate search elements on resize
-            preventDuplicateSearchElements();
         }, 100); // Debounce resize events
     });
 
