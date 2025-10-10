@@ -338,7 +338,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Handle quick date buttons
-    document.querySelectorAll('.report-quick-btn').forEach(button => {
+    document.querySelectorAll('button[data-days]').forEach(button => {
         button.addEventListener('click', function() {
             const days = parseInt(this.dataset.days);
             const toDate = new Date();
@@ -347,6 +347,9 @@ document.addEventListener('DOMContentLoaded', function() {
             
             document.querySelector('input[name="to_date"]').value = toDate.toISOString().split('T')[0];
             document.querySelector('input[name="from_date"]').value = fromDate.toISOString().split('T')[0];
+            
+            // Auto-submit the form
+            document.querySelector('#timeline-filters').submit();
         });
     });
 
