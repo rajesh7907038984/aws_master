@@ -123,93 +123,65 @@
             <h3 class="text-lg font-semibold text-gray-900">Group Members</h3>
         </div>
         
-        <div class="overflow-x-auto">
-            {% if members %}
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                User
-                            </th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Email
-                            </th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Branch
-                            </th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Role
-                            </th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Status
-                            </th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Enrollments
-                            </th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Completed
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        {% for member in members %}
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="flex items-center">
-                                    <div class="flex-shrink-0 h-10 w-10">
-                                        <div class="h-10 w-10 rounded-full bg-primary-600 flex items-center justify-center text-white font-semibold">
-                                            {{ member.get_full_name|first|default:member.username|first|upper }}
-                                        </div>
-                                    </div>
-                                    <div class="ml-4">
-                                        <div class="text-sm font-medium text-gray-900">
-                                            {{ member.get_full_name|default:member.username }}
-                                        </div>
+        {% if members %}
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            User
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Email
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Role
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Joined
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for member in members %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-10 w-10">
+                                    <div class="h-10 w-10 rounded-full bg-primary-600 flex items-center justify-center text-white font-semibold">
+                                        {{ member.get_full_name|first|default:member.username|first|upper }}
                                     </div>
                                 </div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="text-sm text-gray-500">{{ member.email }}</div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="text-sm text-gray-500">{{ member.branch.name|default:"-" }}</div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                    {{ member.role|capfirst }}
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                {% if member.is_active %}
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                        Active
-                                    </span>
-                                {% else %}
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                        Inactive
-                                    </span>
-                                {% endif %}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {{ member.courseenrollment_set.count }}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {{ member.courseenrollment_set.filter.completed.count }}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            {% else %}
-                <div class="text-center py-12">
-                    <div class="mb-4">
-                        <i class="fas fa-users text-4xl text-primary-500"></i>
-                    </div>
-                    <h4 class="text-lg font-medium text-gray-900 mb-2">No members to show</h4>
-                    <p class="text-gray-600 mb-4">This group doesn't have any members yet</p>
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-900">
+                                        {{ member.get_full_name|default:member.username }}
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm text-gray-500">{{ member.email }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                {{ member.role|capfirst }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-500">{{ member.date_joined|date:"M d, Y" }}</div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="text-center py-12">
+                <div class="mb-4">
+                    <i class="fas fa-users text-4xl text-primary-500"></i>
                 </div>
-            {% endif %}
-        </div>
+                <h4 class="text-lg font-medium text-gray-900 mb-2">No members to show</h4>
+                <p class="text-gray-600 mb-4">This group doesn't have any members yet</p>
+            </div>
+        {% endif %}
     </div>
     {% endif %}
 
@@ -220,13 +192,59 @@
             <h3 class="text-lg font-semibold text-gray-900">Group Courses</h3>
         </div>
         <div class="overflow-x-auto">
-            <div class="text-center py-12">
-                <div class="mb-4">
-                    <i class="fas fa-book text-4xl text-primary-500"></i>
-                </div>
-                <h4 class="text-lg font-medium text-gray-900 mb-2">Courses information</h4>
-                <p class="text-gray-600 mb-4">Course enrollment data for group members</p>
-            </div>
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Enrollments</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Completed</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Completion Rate</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for course in group_courses %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">{{ course.title }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-500">{{ course.enrollments_count|default:0 }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-500">{{ course.completed_count|default:0 }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div class="flex-grow mr-2 w-24">
+                                    <div class="w-full bg-gray-200 rounded-full h-2">
+                                        <div class="bg-primary-600 h-2 rounded-full" style="width: {{ course.completion_rate|default:0 }}%"></div>
+                                    </div>
+                                </div>
+                                <div class="text-sm text-gray-500 whitespace-nowrap">{{ course.completion_rate|default:0|floatformat:1 }}%</div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <a href="{% url 'reports:course_detail' course.id %}" class="text-primary-600 hover:text-primary-900">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">
+                            <div class="py-12">
+                                <div class="mb-4">
+                                    <i class="fas fa-book text-4xl text-primary-500"></i>
+                                </div>
+                                <h4 class="text-lg font-medium text-gray-900 mb-2">No courses found</h4>
+                                <p class="text-gray-600">No course enrollments for this group</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
     {% endif %}
@@ -234,14 +252,50 @@
     {% if request.GET.tab == 'timeline' %}
     <!-- Timeline Tab -->
     <div class="bg-white rounded-lg shadow-sm p-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Activity Timeline</h3>
+        <h3 class="text-2xl font-bold text-gray-900 mb-6">Events</h3>
+        
+        {% if timeline_events %}
+        <!-- Events List -->
+        <div class="space-y-4">
+            {% for event in timeline_events %}
+            <div class="flex items-center space-x-4 p-4 hover:bg-gray-50 rounded-lg transition-colors">
+                <!-- Icon -->
+                <div class="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-times text-red-600 text-lg"></i>
+                </div>
+                
+                <!-- Event Text -->
+                <div class="flex-grow">
+                    <p class="text-gray-900 font-medium">
+                        {% if event.type == 'COURSE_START' %}
+                            {{ event.user.get_full_name|default:event.user.username }} {% if event.user.branch %}{{ event.user.branch.name }}{% endif %} enrolled in {{ event.course.title }}
+                        {% elif event.type == 'COURSE_COMPLETE' %}
+                            {{ event.user.get_full_name|default:event.user.username }} {% if event.user.branch %}{{ event.user.branch.name }}{% endif %} completed {{ event.course.title }}
+                        {% elif event.type == 'LOGIN' %}
+                            {{ event.user.get_full_name|default:event.user.username }} logged in
+                        {% else %}
+                            {{ event.description|default:"Activity event" }}
+                        {% endif %}
+                    </p>
+                </div>
+                
+                <!-- Time -->
+                <div class="flex-shrink-0 text-sm text-gray-500">
+                    {{ event.created_at|timesince }} ago
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <!-- Empty State -->
         <div class="text-center py-12">
             <div class="mb-4">
                 <i class="fas fa-clock text-4xl text-primary-500"></i>
             </div>
-            <h4 class="text-lg font-medium text-gray-900 mb-2">Timeline view</h4>
-            <p class="text-gray-600 mb-4">Activity timeline for group members</p>
+            <h4 class="text-lg font-medium text-gray-900 mb-2">No recent events</h4>
+            <p class="text-gray-600 mb-4">No activities recorded in the last 30 days</p>
         </div>
+        {% endif %}
     </div>
     {% endif %}
 </div>

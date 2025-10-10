@@ -4570,7 +4570,7 @@ def load_more_activities(request, user_id):
 
 
 
-@login_required 
+@login_required
 @reports_access_required
 def group_detail(request, group_id):
     """View for displaying detailed statistics for a specific group."""
@@ -4597,6 +4597,31 @@ def group_detail(request, group_id):
     completed_enrollments = enrollments.filter(completed=True).count()
     completion_rate = (completed_enrollments / total_enrollments * 100) if total_enrollments > 0 else 0
     
+    # Get courses with enrollment statistics for group members
+    member_ids = list(members.values_list('id', flat=True))
+    group_courses = Course.objects.filter(
+        courseenrollment__user_id__in=member_ids
+    ).distinct().annotate(
+        enrollments_count=Count('courseenrollment', filter=Q(courseenrollment__user_id__in=member_ids), distinct=True),
+        completed_count=Count('courseenrollment', filter=Q(courseenrollment__completed=True, courseenrollment__user_id__in=member_ids), distinct=True)
+    ).annotate(
+        completion_rate=Case(
+            When(enrollments_count=0, then=Value(0.0)),
+            default=ExpressionWrapper(
+                (F('completed_count') * 100.0) / F('enrollments_count'),
+                output_field=FloatField()
+            ),
+            output_field=FloatField()
+        )
+    ).order_by('title')
+    
+    # Get timeline events for group members (last 30 days)
+    thirty_days_ago = timezone.now() - timedelta(days=30)
+    timeline_events = Event.objects.filter(
+        user_id__in=member_ids,
+        created_at__gte=thirty_days_ago
+    ).select_related('user', 'course').order_by('-created_at')[:50]
+    
     context = {
         'group': group,
         'members': members,
@@ -4605,6 +4630,8 @@ def group_detail(request, group_id):
         'total_enrollments': total_enrollments,
         'completed_enrollments': completed_enrollments,
         'completion_rate': round(completion_rate, 2),
+        'group_courses': group_courses,
+        'timeline_events': timeline_events,
         'breadcrumbs': [
             {'url': reverse('users:role_based_redirect'), 'label': 'Dashboard', 'icon': 'fa-home'},
             {'url': reverse('reports:overview'), 'label': 'Reports', 'icon': 'fa-chart-bar'},
