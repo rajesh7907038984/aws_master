@@ -5734,6 +5734,161 @@ def course_timeline_excel(request, course_id):
     wb.save(response)
     return response
 
+@login_required
+@reports_access_required
+def course_overview_excel(request, course_id):
+    """Export course overview data to Excel"""
+    import xlwt
+    from django.http import HttpResponse
+    from django.utils import timezone
+    from courses.models import Course
+    
+    # Get the course
+    course = get_object_or_404(Course, id=course_id)
+    
+    # Check access permissions
+    data = _get_course_report_data(request, course_id)
+    if data is None:
+        return HttpResponseForbidden("You don't have access to this course report.")
+    
+    # Create Excel workbook
+    wb = xlwt.Workbook(encoding='utf-8')
+    ws = wb.add_sheet('Course Overview')
+    
+    # Define styles
+    header_style = xlwt.easyxf('font: bold on; align: wrap on, vert centre, horiz center; pattern: pattern solid, fore_colour gray25')
+    bold_style = xlwt.easyxf('font: bold on')
+    
+    # Write course information
+    ws.write(0, 0, 'Course:', bold_style)
+    ws.write(0, 1, course.title)
+    ws.write(1, 0, 'Course Code:', bold_style)
+    ws.write(1, 1, course.code if hasattr(course, 'code') else '-')
+    
+    # Write overview statistics
+    ws.write(3, 0, 'Overview Statistics', header_style)
+    ws.write(4, 0, 'Metric', header_style)
+    ws.write(4, 1, 'Value', header_style)
+    
+    course_stats = data.get('course_stats')
+    completion_rate = data.get('completion_rate', 0)
+    
+    stats = [
+        ('Completion Rate', f"{completion_rate}%"),
+        ('Assigned Learners', course_stats.assigned_learners if course_stats else 0),
+        ('Completed Learners', course_stats.completed_learners if course_stats else 0),
+        ('Learners In Progress', course_stats.learners_in_progress if course_stats else 0),
+        ('Learners Not Started', course_stats.learners_not_started if course_stats else 0),
+        ('Learners Not Passed', course_stats.learners_not_passed if course_stats else 0),
+    ]
+    
+    for i, (metric, value) in enumerate(stats, start=5):
+        ws.write(i, 0, metric)
+        ws.write(i, 1, value)
+    
+    # Set column widths
+    ws.col(0).width = 6000
+    ws.col(1).width = 4000
+    
+    # Set response headers for Excel download
+    timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+    course_name = ''.join(c for c in course.title if c.isalnum() or c == ' ').replace(' ', '_')
+    filename = f"course_overview_{course_name}_{timestamp}.xls"
+    
+    response = HttpResponse(content_type='application/ms-excel')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    # Save workbook to response
+    wb.save(response)
+    return response
+
+@login_required
+@reports_access_required
+def course_users_excel(request, course_id):
+    """Export course users data to Excel"""
+    import xlwt
+    from django.http import HttpResponse
+    from django.utils import timezone
+    from courses.models import Course
+    
+    # Get the course
+    course = get_object_or_404(Course, id=course_id)
+    
+    # Check access permissions
+    data = _get_course_report_data(request, course_id)
+    if data is None:
+        return HttpResponseForbidden("You don't have access to this course report.")
+    
+    # Get learners data
+    learners = data.get('learners', [])
+    
+    # Create Excel workbook
+    wb = xlwt.Workbook(encoding='utf-8')
+    ws = wb.add_sheet('Course Users')
+    
+    # Define styles
+    header_style = xlwt.easyxf('font: bold on; align: wrap on, vert centre, horiz center; pattern: pattern solid, fore_colour gray25')
+    date_style = xlwt.easyxf('num_format_str: DD/MM/YYYY')
+    
+    # Write headers
+    headers = ['User', 'Email', 'Role', 'Branch', 'Progress Status', 'Progress %', 'Score', 'Time Spent', 'Enrolled Date', 'Last Accessed', 'Completion Date']
+    for col, header in enumerate(headers):
+        ws.write(0, col, header, header_style)
+    
+    # Set column widths
+    ws.col(0).width = 5000  # User
+    ws.col(1).width = 6000  # Email
+    ws.col(2).width = 3000  # Role
+    ws.col(3).width = 4000  # Branch
+    ws.col(4).width = 4000  # Progress Status
+    ws.col(5).width = 3000  # Progress %
+    ws.col(6).width = 2500  # Score
+    ws.col(7).width = 3000  # Time Spent
+    ws.col(8).width = 3500  # Enrolled Date
+    ws.col(9).width = 3500  # Last Accessed
+    ws.col(10).width = 3500  # Completion Date
+    
+    # Write data rows
+    for row, learner in enumerate(learners, start=1):
+        ws.write(row, 0, learner.get_full_name() if hasattr(learner, 'get_full_name') else learner.username)
+        ws.write(row, 1, learner.email if hasattr(learner, 'email') else '-')
+        ws.write(row, 2, learner.role.title() if hasattr(learner, 'role') else '-')
+        ws.write(row, 3, learner.branch.name if hasattr(learner, 'branch') and learner.branch else '-')
+        ws.write(row, 4, getattr(learner, 'status', '-'))
+        ws.write(row, 5, f"{getattr(learner, 'progress_percentage', 0)}%")
+        ws.write(row, 6, str(getattr(learner, 'score', '-')) if getattr(learner, 'score', None) is not None else '-')
+        ws.write(row, 7, getattr(learner, 'time_spent_formatted', '-'))
+        
+        # Enrolled date
+        if hasattr(learner, 'enrolled_date') and learner.enrolled_date:
+            ws.write(row, 8, learner.enrolled_date.strftime('%d/%m/%Y'), date_style)
+        else:
+            ws.write(row, 8, '-')
+        
+        # Last accessed
+        if hasattr(learner, 'last_accessed') and learner.last_accessed:
+            ws.write(row, 9, learner.last_accessed.strftime('%d/%m/%Y'), date_style)
+        else:
+            ws.write(row, 9, '-')
+        
+        # Completion date
+        if hasattr(learner, 'completion_date') and learner.completion_date:
+            ws.write(row, 10, learner.completion_date.strftime('%d/%m/%Y'), date_style)
+        else:
+            ws.write(row, 10, '-')
+    
+    # Set response headers for Excel download
+    timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+    course_name = ''.join(c for c in course.title if c.isalnum() or c == ' ').replace(' ', '_')
+    filename = f"course_users_{course_name}_{timestamp}.xls"
+    
+    response = HttpResponse(content_type='application/ms-excel')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    # Save workbook to response
+    wb.save(response)
+    return response
+
 class BranchReportView(LoginRequiredMixin, TemplateView):
     template_name = 'reports/branch_report.html'
     

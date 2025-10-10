@@ -106,9 +106,21 @@ function exportCourseTimeline() {
     button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Exporting...';
     button.disabled = true;
     
-    // Create the export URL
+    // Determine current section based on active tab
+    const currentSection = '{{ current_section }}';
     const courseId = {{ course.id }};
-    const exportUrl = `/reports/courses/${courseId}/timeline/excel/`;
+    
+    // Map sections to their export URLs
+    const exportUrls = {
+        'overview': `/reports/courses/${courseId}/overview/excel/`,
+        'users': `/reports/courses/${courseId}/users/excel/`,
+        'timeline': `/reports/courses/${courseId}/timeline/excel/`,
+        'learning-activities': `/reports/courses/${courseId}/timeline/excel/`,
+        'unit-matrix': `/reports/courses/${courseId}/timeline/excel/`
+    };
+    
+    // Get the export URL for the current section (default to timeline)
+    const exportUrl = exportUrls[currentSection] || `/reports/courses/${courseId}/timeline/excel/`;
     
     // Create a temporary link and trigger download
     const link = document.createElement('a');
