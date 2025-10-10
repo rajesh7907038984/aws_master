@@ -466,10 +466,24 @@
                 height: auto;
             }
             
-            /* Ensure header content doesn't overflow */
+            /* Ensure header content doesn't overflow but allow dropdowns */
             header .flex.items-center {
                 flex-wrap: nowrap;
-                overflow: hidden;
+                overflow: visible;
+            }
+            
+            /* Profile container must allow overflow for dropdown */
+            #profile-container {
+                position: relative !important;
+                overflow: visible !important;
+            }
+            
+            /* Profile dropdown positioning fix for mobile */
+            #profile-dropdown {
+                position: absolute !important;
+                top: 3rem !important;
+                right: 0 !important;
+                z-index: 9999 !important;
             }
             
             /* Make sure all header elements are properly sized */

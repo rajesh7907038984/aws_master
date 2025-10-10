@@ -232,6 +232,9 @@ select::-webkit-scrollbar-thumb {
     visibility: hidden;
     height: 0;
     overflow: hidden;
+    width: 100%;
+    position: relative;
+    z-index: 45;
 }
 
 #mobile-search-container:not(.hidden) {
@@ -240,9 +243,21 @@ select::-webkit-scrollbar-thumb {
     display: block !important;
     visibility: visible;
     height: auto;
+    padding: 0.75rem 1rem;
+}
+
+/* Prevent duplicate mobile search containers */
+#mobile-search-container ~ #mobile-search-container {
+    display: none !important;
+    visibility: hidden !important;
 }
 
 /* Mobile search toggle - hidden on desktop, shown on mobile */
+#mobile-search-toggle {
+    position: relative;
+    z-index: 10;
+}
+
 #mobile-search-toggle.active {
     background-color: #3b82f6;
     color: white;
@@ -265,6 +280,11 @@ header .flex-1.md\:hidden {
 }
 
 /* ===== Profile Dropdown ===== */
+#profile-container {
+    position: relative;
+    z-index: 60;
+}
+
 #profile-dropdown {
     position: absolute;
     top: 3.5rem;
@@ -282,6 +302,7 @@ header .flex-1.md\:hidden {
     max-height: calc(100vh - 5rem);
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
 }
 
 #profile-dropdown:not(.hidden) {
@@ -296,6 +317,12 @@ header .flex-1.md\:hidden {
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
     padding: 12px 16px;
+    transition: background-color 0.15s ease;
+}
+
+#profile-dropdown a:hover,
+#profile-dropdown button[type="submit"]:hover {
+    background-color: #f3f4f6;
 }
 
 #profile-dropdown a:active,
@@ -311,7 +338,8 @@ header .flex-1.md\:hidden {
     /* FORCE HIDE desktop search completely */
     header .hidden.md\:flex,
     header > div > .hidden.md\:flex,
-    .md\:flex.flex-1.max-w-3xl {
+    .md\:flex.flex-1.max-w-3xl,
+    header > div > div.hidden.md\:flex.flex-1.max-w-3xl.px-6 {
         display: none !important;
         visibility: hidden !important;
         opacity: 0 !important;
@@ -320,6 +348,7 @@ header .flex-1.md\:hidden {
         overflow: hidden !important;
         position: absolute !important;
         left: -9999px !important;
+        pointer-events: none !important;
     }
     
     /* Show mobile search toggle - ensure proper positioning */
@@ -328,14 +357,17 @@ header .flex-1.md\:hidden {
         visibility: visible !important;
         opacity: 1 !important;
         flex-shrink: 0;
-        margin-left: auto;
-        margin-right: 0.5rem;
+        position: relative !important;
+        z-index: 10 !important;
     }
     
     /* Mobile search container - keep hidden until toggled */
     #mobile-search-container {
         display: none !important;
         visibility: hidden;
+        position: relative;
+        width: 100%;
+        clear: both;
     }
     
     #mobile-search-container:not(.hidden) {
@@ -343,13 +375,70 @@ header .flex-1.md\:hidden {
         visibility: visible;
     }
     
+    /* Ensure mobile search form is properly styled */
+    #mobile-search-container form {
+        width: 100%;
+        max-width: 100%;
+    }
+    
     /* Header spacing adjustments for mobile */
+    header {
+        min-height: 4rem;
+        height: auto;
+    }
+    
     header .flex.items-center.justify-between {
         gap: 0.5rem;
+        overflow: visible !important;
+        flex-wrap: nowrap;
+        width: 100%;
     }
     
     header .flex.items-center.gap-1 {
         gap: 0.25rem;
+        flex-shrink: 0;
+    }
+    
+    /* Ensure proper spacing for left section */
+    header .flex.items-center.gap-1.sm\:gap-2.md\:gap-4.flex-shrink-0:first-child {
+        flex-shrink: 0;
+        min-width: auto;
+    }
+    
+    /* Ensure proper spacing for right section */
+    header .flex.items-center.gap-1.sm\:gap-2.md\:gap-3.flex-shrink-0:last-child {
+        flex-shrink: 0;
+        min-width: auto;
+        margin-left: auto;
+    }
+    
+    /* Profile dropdown mobile fixes */
+    #profile-container {
+        position: relative !important;
+        overflow: visible !important;
+    }
+    
+    #profile-button {
+        min-width: 44px !important;
+        min-height: 44px !important;
+        touch-action: manipulation !important;
+    }
+    
+    #profile-dropdown {
+        position: absolute !important;
+        top: 3rem !important;
+        right: -0.25rem !important;
+        left: auto !important;
+        max-width: calc(100vw - 1rem) !important;
+        width: max-content !important;
+        min-width: 12rem !important;
+        z-index: 9999 !important;
+    }
+    
+    #profile-dropdown a,
+    #profile-dropdown button[type="submit"] {
+        padding: 14px 16px !important;
+        min-height: 48px !important;
     }
     
     /* Mobile submenu improvements */
@@ -362,6 +451,24 @@ header .flex-1.md\:hidden {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+    }
+    
+    /* Fix for header overflow on small screens */
+    @media (max-width: 640px) {
+        header .flex.items-center.gap-1 {
+            gap: 0.125rem;
+        }
+        
+        header img {
+            max-height: 1.5rem;
+        }
+    }
+    
+    /* Extra small screens - hide messages icon if needed */
+    @media (max-width: 480px) {
+        .discussion-icon.hidden.xs\:flex {
+            display: none !important;
+        }
     }
 }
 
