@@ -37,14 +37,14 @@ def custom_403_view(request, exception=None):
     return HttpResponse('403 - Permission denied', status=403)
 
 def terms_of_service(request):
-    """Terms of service view - will be overridden by parent views.py"""
-    from django.http import HttpResponse
-    return HttpResponse('Terms of Service', status=200)
+    """Terms of service view - renders the terms template"""
+    from django.shortcuts import render
+    return render(request, 'core/terms_of_service.html')
 
 def privacy_policy(request):
-    """Privacy policy view - will be overridden by parent views.py"""
-    from django.http import HttpResponse
-    return HttpResponse('Privacy Policy', status=200)
+    """Privacy policy view - renders the privacy template"""
+    from django.shortcuts import render
+    return render(request, 'core/privacy_policy.html')
 
 def error_log(request):
     """Error log view - will be overridden by parent views.py"""
