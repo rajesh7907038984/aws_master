@@ -3260,6 +3260,11 @@ class GroupReportView(LoginRequiredMixin, TemplateView):
         else:
             overall_completion_rate = 0
         
+        # Round completion rates to avoid floating point precision issues
+        for group in groups:
+            if group.completion_rate is not None:
+                group.completion_rate = round(group.completion_rate, 1)
+        
         # Pagination
         paginator = Paginator(groups, per_page)
         page_obj = paginator.get_page(page)
@@ -3275,10 +3280,11 @@ class GroupReportView(LoginRequiredMixin, TemplateView):
             'groups': page_obj,
             'total_groups': groups.count(),
             'total_courses': total_courses,
-            'completed': completed,
-            'in_progress': in_progress,
-            'not_passed': not_passed,
-            'not_started': not_started,
+            'completed_courses': completed,
+            'courses_in_progress': in_progress,
+            'courses_not_passed': not_passed,
+            'courses_not_started': not_started,
+            'completion_rate': round(overall_completion_rate, 1),
             'overall_completion_rate': round(overall_completion_rate, 1),
             'page_obj': page_obj,
             'search_query': search_query,
