@@ -3838,20 +3838,18 @@ def _get_user_report_data(request, user_id):
         
         # Calculate total time spent on course (sum of all topic time)
         course_stats = course_topic_progress.aggregate(
-            total_time=Sum('total_time_spent'),
-            total_attempts=Sum('attempts')
+            total_time=Sum('total_time_spent', default=0),
+            total_attempts=Sum('attempts', default=0)
         )
         
         enrollment.course_time_spent = course_stats['total_time'] or 0
         enrollment.course_attempts = course_stats['total_attempts'] or 0
         
         # Format time spent for display
-        if enrollment.course_time_spent:
-            hours = enrollment.course_time_spent // 3600
-            minutes = (enrollment.course_time_spent % 3600) // 60
-            enrollment.formatted_time_spent = f"{hours}h {minutes}m"
-        else:
-            enrollment.formatted_time_spent = "0h 0m"
+        total_seconds = enrollment.course_time_spent
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        enrollment.formatted_time_spent = f"{hours}h {minutes}m"
     
     # Recalculate user stats after syncing completion status
     thirty_days_ago = timezone.now() - timedelta(days=30)
