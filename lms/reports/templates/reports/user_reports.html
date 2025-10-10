@@ -109,7 +109,13 @@
         </div>
     </div>
 
-
+    <!-- Export Button -->
+    <div class="flex justify-end mb-4">
+        <a href="{% url 'reports:user_reports' %}?export=excel" class="inline-flex items-center px-4 py-2 text-white rounded-lg hover:opacity-90 transition-opacity" style="background-color: #191f56;">
+            <i class="fas fa-file-excel mr-2"></i>
+            Export in Excel
+        </a>
+    </div>
 
     <!-- Users Table -->
     <div class="bg-white rounded-lg shadow overflow-hidden">
