@@ -48,15 +48,15 @@
     }
     
     #main-content.sidebar-collapsed {
-        margin-left: 3.5rem !important;
-        width: calc(100% - 3.5rem) !important;
+        margin-left: 4.5rem !important;
+        width: calc(100% - 4.5rem) !important;
         transition: margin-left 0.3s ease, width 0.3s ease !important;
     }
 }
 
 /* ===== COLLAPSED STATE ===== */
 #sidebar.collapsed {
-    width: 3.5rem !important; /* 56px - reduced for better UX */
+    width: 4.5rem !important;
 }
 
 #sidebar.collapsed .menu-text {
