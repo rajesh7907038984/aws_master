@@ -29,8 +29,7 @@
                 <!-- Category Selector -->
                 <div class="relative">
                     <select name="category" class="h-10 pl-4 pr-8 text-sm bg-transparent border-0 rounded-l-xl text-gray-600 focus:outline-none focus:ring-0 cursor-pointer appearance-none border-r border-gray-300">
-                        <option value="all" selected>Select Option</option>
-                        <option value="courses">Courses</option>
+                        <option value="all" selected>All</option>
                         {% if user.is_authenticated and user.role in 'globaladmin,superadmin,admin,instructor' %}
                         <option value="users">Users</option>
                         {% endif %}
@@ -229,7 +228,6 @@
             <div class="relative flex-shrink-0">
                 <select name="category" class="h-10 pl-3 pr-6 text-sm bg-transparent border-0 rounded-l-xl text-gray-600 focus:outline-none focus:ring-0 cursor-pointer appearance-none border-r border-gray-300" style="min-width: 80px;">
                     <option value="all" selected>All</option>
-                    <option value="courses">Courses</option>
                     {% if user.is_authenticated and user.role in 'globaladmin,superadmin,admin,instructor' %}
                     <option value="users">Users</option>
                     {% endif %}
