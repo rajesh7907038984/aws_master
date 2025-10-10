@@ -3842,13 +3842,13 @@ def _get_user_report_data(request, user_id):
             total_attempts=Sum('attempts')
         )
         
-        enrollment.total_time_spent = course_stats['total_time'] or 0
-        enrollment.total_attempts = course_stats['total_attempts'] or 0
+        enrollment.course_time_spent = course_stats['total_time'] or 0
+        enrollment.course_attempts = course_stats['total_attempts'] or 0
         
         # Format time spent for display
-        if enrollment.total_time_spent:
-            hours = enrollment.total_time_spent // 3600
-            minutes = (enrollment.total_time_spent % 3600) // 60
+        if enrollment.course_time_spent:
+            hours = enrollment.course_time_spent // 3600
+            minutes = (enrollment.course_time_spent % 3600) // 60
             enrollment.formatted_time_spent = f"{hours}h {minutes}m"
         else:
             enrollment.formatted_time_spent = "0h 0m"
