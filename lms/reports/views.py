@@ -3818,10 +3818,14 @@ def _get_user_report_data(request, user_id):
         # Calculate progress percentage
         enrollment.calculated_progress = enrollment.progress_percentage
         
-        # Calculate average score from completed topics
-        completed_topic_progress = TopicProgress.objects.filter(
+        # Get all topic progress for this course
+        course_topic_progress = TopicProgress.objects.filter(
             user=user,
-            topic__courses=enrollment.course,
+            topic__courses=enrollment.course
+        )
+        
+        # Calculate average score from completed topics
+        completed_topic_progress = course_topic_progress.filter(
             completed=True,
             last_score__isnull=False
         )
@@ -3831,6 +3835,23 @@ def _get_user_report_data(request, user_id):
             )['avg_score'] or 0)
         else:
             enrollment.calculated_score = None
+        
+        # Calculate total time spent on course (sum of all topic time)
+        course_stats = course_topic_progress.aggregate(
+            total_time=Sum('total_time_spent'),
+            total_attempts=Sum('attempts')
+        )
+        
+        enrollment.total_time_spent = course_stats['total_time'] or 0
+        enrollment.total_attempts = course_stats['total_attempts'] or 0
+        
+        # Format time spent for display
+        if enrollment.total_time_spent:
+            hours = enrollment.total_time_spent // 3600
+            minutes = (enrollment.total_time_spent % 3600) // 60
+            enrollment.formatted_time_spent = f"{hours}h {minutes}m"
+        else:
+            enrollment.formatted_time_spent = "0h 0m"
     
     # Recalculate user stats after syncing completion status
     thirty_days_ago = timezone.now() - timedelta(days=30)
