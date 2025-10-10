@@ -975,6 +975,28 @@
             if (window.API && window.API._initialized) {
                 try {
                     console.log('🔖 Committing SCORM bookmark data for resume...');
+                    // CRITICAL: Force extract current score before committing
+                    try {
+                        // Try to get current score from SCORM API
+                        const scoreRaw12 = window.API.LMSGetValue ? window.API.LMSGetValue('cmi.core.score.raw') : '';
+                        const scoreRaw2004 = window.API_1484_11 && window.API_1484_11.GetValue ? 
+                            window.API_1484_11.GetValue('cmi.score.raw') : '';
+                        const currentScore = scoreRaw12 || scoreRaw2004;
+                        
+                        if (currentScore && currentScore !== '' && currentScore !== 'false') {
+                            console.log('📊 Current score before exit:', currentScore);
+                            // Force set the score to ensure it's saved
+                            if (window.API.LMSSetValue) {
+                                window.API.LMSSetValue('cmi.core.score.raw', currentScore);
+                            }
+                            if (window.API_1484_11 && window.API_1484_11.SetValue) {
+                                window.API_1484_11.SetValue('cmi.score.raw', currentScore);
+                            }
+                        }
+                    } catch (e) {
+                        console.log('Could not extract score:', e.message);
+                    }
+                    
                     // Only commit current data - don't terminate (which triggers completion logic)
                     const commitResult = window.API.LMSCommit('');
                     console.log('SCORM 1.2 Commit result:', commitResult);
@@ -1110,11 +1132,13 @@
                     scormDataSaved = true;
                     
                     // Also try to force a synchronous API call to ensure data is sent
-                    navigator.sendBeacon && navigator.sendBeacon('/scorm/api/emergency-save/', JSON.stringify({
-                        attempt_id: '{{ attempt_id }}',
-                        action: 'emergency_save',
-                        timestamp: new Date().toISOString()
-                    }));
+                    if (navigator.sendBeacon) {
+                        navigator.sendBeacon('{% url "scorm:emergency_save" %}', JSON.stringify({
+                            attempt_id: '{{ attempt_id }}',
+                            action: 'emergency_save',
+                            timestamp: new Date().toISOString()
+                        }));
+                    }
                 } catch (error) {
                     console.error('❌ Emergency SCORM save failed:', error);
                 }

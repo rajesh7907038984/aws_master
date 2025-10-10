@@ -142,22 +142,28 @@ class ScormScoreSyncService:
         if attempt.lesson_status in ['completed', 'passed', 'failed']:
             return True
         
-        # Sync if there's a valid score
-        if attempt.score_raw is not None and attempt.score_raw > 0:
+        # CRITICAL FIX: Sync if there's ANY valid score (including 0)
+        if attempt.score_raw is not None:
             return True
         
-        # Check for score in CMI data
+        # Check for score in CMI data (including scores of 0)
         if attempt.cmi_data:
             cmi_score = attempt.cmi_data.get('cmi.score.raw') or attempt.cmi_data.get('cmi.core.score.raw')
-            if cmi_score is not None:
+            if cmi_score is not None and cmi_score != '':
                 try:
                     score_val = float(cmi_score)
-                    if score_val > 0:
+                    # CRITICAL FIX: Accept any valid score >= 0 (not just > 0)
+                    if score_val >= 0:
                         return True
                 except:
                     pass
         
-        # Don't sync incomplete attempts with no score
+        # CRITICAL FIX: Also check for any score data in attempt even if incomplete
+        # This ensures first visit scores are synced
+        if hasattr(attempt, 'score_raw') and attempt.score_raw is not None:
+            return True
+            
+        # Don't sync only if there's truly no score data at all
         return False
     
     @staticmethod

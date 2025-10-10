@@ -848,6 +848,46 @@ def scorm_debug(request, attempt_id):
         }, status=500)
 
 
+@csrf_exempt
+@require_http_methods(["POST"])
+def scorm_emergency_save(request):
+    """
+    Emergency save endpoint for SCORM data
+    Used when browser is closing or user navigates away
+    """
+    try:
+        data = json.loads(request.body)
+        attempt_id = data.get('attempt_id')
+        
+        if not attempt_id:
+            return JsonResponse({'error': 'No attempt_id provided'}, status=400)
+        
+        attempt = get_object_or_404(ScormAttempt, id=attempt_id)
+        
+        # Verify user owns this attempt
+        if request.user.is_authenticated and attempt.user != request.user:
+            return JsonResponse({'error': 'Unauthorized'}, status=403)
+        
+        # Force score sync
+        from .score_sync_service import ScormScoreSyncService
+        sync_result = ScormScoreSyncService.sync_score(attempt, force=True)
+        
+        logger.info(f"Emergency save for attempt {attempt_id}: sync_result={sync_result}")
+        
+        return JsonResponse({
+            'success': True,
+            'synced': sync_result,
+            'message': 'Emergency save completed'
+        })
+        
+    except Exception as e:
+        logger.error(f"Emergency save error: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
 @login_required
 @require_http_methods(["GET"])
 def scorm_tracking_report(request, attempt_id):

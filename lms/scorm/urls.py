@@ -17,6 +17,7 @@ urlpatterns = [
     
     # SCORM API (for tracking)
     path('api/<int:attempt_id>/', views.scorm_api, name='api'),
+    path('api/emergency-save/', views.scorm_emergency_save, name='emergency_save'),
     path('status/<int:attempt_id>/', views.scorm_status, name='status'),
     path('debug/<int:attempt_id>/', views.scorm_debug, name='debug'),
     path('tracking-report/<int:attempt_id>/', views.scorm_tracking_report, name='tracking_report'),
