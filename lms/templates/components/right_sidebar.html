@@ -108,12 +108,31 @@
                     <h4 class="recent-title">Recent Tasks</h4>
                     <div class="todo-list">
                         {% for task in recent_todos|slice:":5" %}
-                        <div class="todo-item">
+                        <div class="todo-item {% if task.type == 'message' or task.type == 'feedback' or task.type == 'conference' or task.metadata.has_notification %}has-notification{% endif %}">
                             <div class="todo-priority priority-{{ task.priority|default:'low' }}"></div>
                             <div class="todo-content">
-                                <div class="todo-title">{{ task.title|truncatechars:22 }}</div>
+                                <div class="todo-title">
+                                    {{ task.title|truncatechars:22 }}
+                                    {% if task.type == 'message' or task.type == 'feedback' or task.type == 'conference' or task.metadata.has_notification %}
+                                        <span class="sidebar-notification-dot">
+                                            <i class="fas fa-bell"></i>
+                                        </span>
+                                    {% endif %}
+                                </div>
                                 <div class="todo-meta">
-                                    <span class="todo-type">{{ task.type|default:'Task' }}</span>
+                                    <span class="todo-type {% if task.type == 'message' or task.type == 'feedback' or task.type == 'conference' %}notification-type{% endif %}">
+                                        {% if task.type == 'message' %}
+                                            <i class="fas fa-envelope"></i> Message
+                                        {% elif task.type == 'feedback' %}
+                                            <i class="fas fa-comment-alt"></i> Feedback
+                                        {% elif task.type == 'conference' %}
+                                            <i class="fas fa-video"></i> Conference
+                                        {% elif task.type == 'assignment' %}
+                                            <i class="fas fa-file-alt"></i> Deadline
+                                        {% else %}
+                                            {{ task.type|default:'Task' }}
+                                        {% endif %}
+                                    </span>
                                     <span class="todo-due">{{ task.due_date|date:"M d"|default:'No due date' }}</span>
                                 </div>
                             </div>
@@ -376,11 +395,21 @@
         border-radius: 6px;
         transition: all 0.2s ease;
         margin-bottom: 0.5rem;
+        position: relative;
     }
     
     .todo-item:hover {
         background: #f1f5f9;
         transform: translateX(2px);
+    }
+    
+    .todo-item.has-notification {
+        background: linear-gradient(135deg, #fef2f2 0%, #fef3f2 100%);
+        border-left: 3px solid #ef4444;
+    }
+    
+    .todo-item.has-notification:hover {
+        background: linear-gradient(135deg, #fee2e2 0%, #fed7d7 100%);
     }
     
     .todo-priority {
@@ -413,6 +442,34 @@
         font-weight: 500;
         color: #1e293b;
         margin-bottom: 0.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+    }
+    
+    .sidebar-notification-dot {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 14px;
+        height: 14px;
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        border-radius: 50%;
+        font-size: 7px;
+        color: white;
+        animation: sidebar-notification-pulse 2s infinite;
+        box-shadow: 0 2px 4px rgba(239, 68, 68, 0.5);
+    }
+    
+    @keyframes sidebar-notification-pulse {
+        0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 2px 4px rgba(239, 68, 68, 0.5);
+        }
+        50% {
+            transform: scale(1.15);
+            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.8);
+        }
     }
     
     .todo-meta {
@@ -428,6 +485,15 @@
         padding: 0.125rem 0.375rem;
         border-radius: 10px;
         font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    
+    .todo-type.notification-type {
+        color: #ef4444;
+        background: #fee2e2;
+        font-weight: 600;
     }
     
     .todo-due {

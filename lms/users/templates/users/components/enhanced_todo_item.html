@@ -17,6 +17,12 @@
                         <i class="fas fa-{{ todo.icon|default:'tasks' }}"></i>
                     {% endif %}
                 </div>
+                <!-- Notification Badge for specific types -->
+                {% if todo.type == 'message' or todo.type == 'feedback' or todo.type == 'conference' or todo.metadata.has_notification %}
+                    <span class="notification-badge">
+                        <i class="fas fa-bell"></i>
+                    </span>
+                {% endif %}
             </div>
             
             <!-- Content Section -->
@@ -61,7 +67,17 @@
                     </div>
                     
                     <!-- Type-specific info -->
-                    {% if todo.type == 'assignment' and user.role == 'learner' %}
+                    {% if todo.type == 'message' %}
+                        <div class="todo-action-hint notification-type">
+                            <i class="fas fa-envelope"></i>
+                            <span>Read Message</span>
+                        </div>
+                    {% elif todo.type == 'feedback' %}
+                        <div class="todo-action-hint notification-type">
+                            <i class="fas fa-comment-alt"></i>
+                            <span>View Feedback</span>
+                        </div>
+                    {% elif todo.type == 'assignment' and user.role == 'learner' %}
                         <div class="todo-action-hint">
                             <i class="fas fa-upload"></i>
                             <span>Submit Assignment</span>
@@ -72,7 +88,7 @@
                             <span>Grade Submission</span>
                         </div>
                     {% elif todo.type == 'conference' %}
-                        <div class="todo-action-hint">
+                        <div class="todo-action-hint notification-type">
                             <i class="fas fa-video"></i>
                             <span>{% if user.role == 'learner' %}Join{% else %}Host{% endif %} Meeting</span>
                         </div>
@@ -167,6 +183,7 @@
 .todo-icon {
     margin-right: 12px;
     margin-left: 6px;
+    position: relative;
 }
 
 .icon-wrapper {
@@ -178,6 +195,36 @@
     justify-content: center;
     font-size: 14px;
     color: white;
+}
+
+/* Notification Badge */
+.notification-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 16px;
+    height: 16px;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    color: white;
+    border: 2px solid white;
+    animation: notification-pulse 2s infinite;
+    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.5);
+}
+
+@keyframes notification-pulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 2px 4px rgba(239, 68, 68, 0.5);
+    }
+    50% {
+        transform: scale(1.1);
+        box-shadow: 0 2px 8px rgba(239, 68, 68, 0.8);
+    }
 }
 
 .icon-wrapper.priority-critical {
@@ -296,6 +343,12 @@
     gap: 3px;
     color: #9ca3af;
     font-style: italic;
+}
+
+.todo-action-hint.notification-type {
+    color: #ef4444;
+    font-weight: 600;
+    font-style: normal;
 }
 
 /* Arrow */

@@ -223,11 +223,11 @@
     </div>
 
     <!-- Mobile Search Form - Hidden by default until toggle -->
-    <div id="mobile-search-container" class="md:hidden hidden px-2 sm:px-4 py-3 border-t border-gray-200 bg-white shadow-sm">
+    <div id="mobile-search-container" class="md:hidden hidden border-t border-gray-200 bg-white">
         <form class="flex w-full shadow-sm rounded-xl overflow-hidden bg-gray-50 ring-1 ring-gray-200 focus-within:ring-2 focus-within:ring-primary-500 transition-all" method="GET" action="{% url 'users:search' %}">
             <!-- Category Selector -->
             <div class="relative flex-shrink-0">
-                <select name="category" class="h-9 sm:h-10 pl-2 sm:pl-3 pr-5 sm:pr-6 text-xs sm:text-sm bg-transparent border-0 rounded-l-xl text-gray-600 focus:outline-none focus:ring-0 cursor-pointer appearance-none border-r border-gray-300">
+                <select name="category" class="h-10 pl-3 pr-6 text-sm bg-transparent border-0 rounded-l-xl text-gray-600 focus:outline-none focus:ring-0 cursor-pointer appearance-none border-r border-gray-300" style="min-width: 80px;">
                     <option value="all" selected>All</option>
                     <option value="courses">Courses</option>
                     {% if user.is_authenticated and user.role in 'globaladmin,superadmin,admin,instructor' %}
@@ -237,8 +237,8 @@
                     <option value="{{ category.slug }}" {% if request.GET.category == category.slug %}selected{% endif %}>{{ category.name }}</option>
                     {% endfor %}
                 </select>
-                <div class="absolute right-1 sm:right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                    <svg class="h-3 w-3 sm:h-4 sm:w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                    <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                     </svg>
                 </div>
@@ -246,15 +246,15 @@
             
             <!-- Search Input -->
             <div class="relative flex-1 flex items-center min-w-0">
-                <div class="absolute left-2 sm:left-3 z-10">
-                    <svg class="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                <div class="absolute left-3 z-10">
+                    <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
                     </svg>
                 </div>
                 <input type="text" 
                        name="q"
                        placeholder="Search..." 
-                       class="w-full h-9 sm:h-10 pl-8 sm:pl-12 pr-2 sm:pr-4 bg-transparent border-0 text-xs sm:text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-0 rounded-r-xl">
+                       class="w-full h-10 pl-12 pr-4 bg-transparent border-0 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-0 rounded-r-xl">
             </div>
         </form>
     </div>
@@ -1537,21 +1537,22 @@ document.addEventListener('DOMContentLoaded', function() {
     // Ensure no duplicate search elements are visible on mobile
     function preventDuplicateSearchElements() {
         if (window.innerWidth < 768) {
-            // Hide any duplicate search icons/buttons that might be visible
-            const allSearchButtons = document.querySelectorAll('button[class*="search"], .search-icon');
-            allSearchButtons.forEach(btn => {
-                if (btn.id !== 'mobile-search-toggle' && btn.closest('#mobile-search-container') === null) {
-                    btn.style.display = 'none';
-                }
-            });
-            
             // Ensure only one mobile search container exists
             const mobileSearchContainers = document.querySelectorAll('#mobile-search-container');
             if (mobileSearchContainers.length > 1) {
                 // Keep only the first one, remove duplicates
+                console.log('Removing duplicate mobile search containers:', mobileSearchContainers.length - 1);
                 for (let i = 1; i < mobileSearchContainers.length; i++) {
                     mobileSearchContainers[i].remove();
                 }
+            }
+            
+            // Force hide desktop search on mobile
+            const desktopSearch = document.querySelector('header .hidden.md\\:flex.flex-1.max-w-3xl');
+            if (desktopSearch) {
+                desktopSearch.style.display = 'none';
+                desktopSearch.style.visibility = 'hidden';
+                desktopSearch.style.opacity = '0';
             }
             
             // Ensure mobile search toggle is visible
@@ -1560,10 +1561,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 mobileSearchToggle.style.visibility = 'visible';
                 mobileSearchToggle.style.opacity = '1';
             }
+            
+            // Ensure mobile search container is initially hidden
+            if (mobileSearchContainer && mobileSearchContainer.classList.contains('hidden')) {
+                mobileSearchContainer.style.display = 'none';
+            }
+        } else {
+            // On desktop, ensure mobile search is completely hidden
+            if (mobileSearchContainer) {
+                mobileSearchContainer.classList.add('hidden');
+                mobileSearchContainer.style.display = 'none';
+            }
+            if (mobileSearchToggle) {
+                mobileSearchToggle.style.display = 'none';
+            }
         }
     }
     
-    // Run on load and resize
+    // Run on load
     preventDuplicateSearchElements();
     
     if (mobileSearchToggle && mobileSearchContainer) {
@@ -1626,22 +1641,28 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Handle resize events to hide/show appropriate elements
+    let resizeDebounceTimer;
     window.addEventListener('resize', function() {
-        if (window.innerWidth >= 768) {
-            // Hide mobile menu and search container on larger screens
-            if (mobileMenu && mobileMenu.classList.contains('open')) {
-                mobileMenu.classList.remove('open');
-                document.body.classList.remove('overflow-hidden');
+        clearTimeout(resizeDebounceTimer);
+        resizeDebounceTimer = setTimeout(function() {
+            if (window.innerWidth >= 768) {
+                // Hide mobile menu and search container on larger screens
+                if (mobileMenu && mobileMenu.classList.contains('open')) {
+                    mobileMenu.classList.remove('open');
+                    document.body.classList.remove('overflow-hidden');
+                }
+                
+                if (mobileSearchContainer && !mobileSearchContainer.classList.contains('hidden')) {
+                    mobileSearchContainer.classList.add('hidden');
+                    if (mobileSearchToggle) {
+                        mobileSearchToggle.classList.remove('active');
+                    }
+                }
             }
             
-            if (mobileSearchContainer && !mobileSearchContainer.classList.contains('hidden')) {
-                mobileSearchContainer.classList.add('hidden');
-                mobileSearchToggle.classList.remove('active');
-            }
-        }
-        
-        // Prevent duplicate search elements on resize
-        preventDuplicateSearchElements();
+            // Prevent duplicate search elements on resize
+            preventDuplicateSearchElements();
+        }, 100); // Debounce resize events
     });
 
     // Global fetch interceptor to handle undefined status issues
