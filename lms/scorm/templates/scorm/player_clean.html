@@ -1009,11 +1009,29 @@
                     console.log('✅ SCORM bookmark data saved for resume');
                     scormDataSaved = true;  // Mark that data has been saved
                     
-                    // Redirect without calling Terminate/Finish (preserves incomplete state)
-                    setTimeout(() => {
-                        console.log('🔖 Redirecting to topic view (resume data saved)...');
-                        window.location.href = '{% url "courses:topic_view" topic.id %}';
-                    }, 500);  // Increased delay to ensure commit completes
+                    // CRITICAL: Trigger backend sync to update TopicProgress with time/attempts
+                    fetch('{% url "scorm:sync_on_exit" %}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        },
+                        body: 'attempt_id={{ attempt.id }}'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('🔄 Backend sync result:', data);
+                    })
+                    .catch(error => {
+                        console.error('❌ Backend sync error:', error);
+                    })
+                    .finally(() => {
+                        // Redirect after sync attempt (success or failure)
+                        setTimeout(() => {
+                            console.log('🔖 Redirecting to topic view...');
+                            window.location.href = '{% url "courses:topic_view" topic.id %}';
+                        }, 300);
+                    });
                 } catch (error) {
                     console.error('❌ SCORM Commit error:', error);
                     // Still redirect even if commit fails
@@ -1022,8 +1040,27 @@
                     }, 300);
                 }
             } else {
-                console.log('🔖 SCORM API not initialized, redirecting anyway...');
-                window.location.href = '{% url "courses:topic_view" topic.id %}';
+                console.log('🔖 SCORM API not initialized, triggering backend sync anyway...');
+                
+                // Still trigger backend sync even if SCORM API wasn't initialized
+                fetch('{% url "scorm:sync_on_exit" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: 'attempt_id={{ attempt.id }}'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('🔄 Backend sync result:', data);
+                })
+                .catch(error => {
+                    console.error('❌ Backend sync error:', error);
+                })
+                .finally(() => {
+                    window.location.href = '{% url "courses:topic_view" topic.id %}';
+                });
             }
         }
         

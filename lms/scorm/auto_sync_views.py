@@ -3,6 +3,7 @@ Auto-sync Views for SCORM
 Dynamic API endpoints that trigger automatic score synchronization
 """
 import logging
+from datetime import timedelta
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
@@ -11,6 +12,7 @@ from django.utils import timezone
 from .dynamic_score_processor import auto_process_scorm_score
 from .real_time_validator import ScormScoreValidator
 from .models import ScormAttempt
+from .score_sync_service import ScormScoreSyncService
 from courses.models import TopicProgress, CourseTopic
 
 logger = logging.getLogger(__name__)
@@ -116,6 +118,54 @@ def check_scorm_health(request):
         
     except Exception as e:
         logger.error(f"SCORM health check error: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def sync_on_exit(request):
+    """
+    Sync SCORM data to TopicProgress when user exits SCORM content
+    Called by the "Back to Topic" button to ensure time/attempts are saved
+    """
+    try:
+        attempt_id = request.POST.get('attempt_id')
+        
+        if not attempt_id:
+            return JsonResponse({
+                'success': False,
+                'error': 'No attempt_id provided'
+            }, status=400)
+        
+        # Get the attempt
+        attempt = ScormAttempt.objects.filter(
+            id=attempt_id,
+            user=request.user
+        ).select_related('scorm_package__topic').first()
+        
+        if not attempt:
+            return JsonResponse({
+                'success': False,
+                'error': 'Attempt not found or unauthorized'
+            }, status=404)
+        
+        # Sync the attempt data to TopicProgress
+        sync_result = ScormScoreSyncService.sync_score(attempt, force=True)
+        
+        logger.info(f"Exit sync for attempt {attempt_id}: {'success' if sync_result else 'skipped'}")
+        
+        return JsonResponse({
+            'success': True,
+            'synced': sync_result,
+            'message': 'SCORM data synchronized successfully' if sync_result else 'No sync needed',
+            'attempt_id': attempt_id
+        })
+        
+    except Exception as e:
+        logger.error(f"Exit sync error: {str(e)}")
         return JsonResponse({
             'success': False,
             'error': str(e)

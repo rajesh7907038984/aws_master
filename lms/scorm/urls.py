@@ -31,5 +31,6 @@ urlpatterns = [
     path('auto-sync/trigger/', auto_sync_views.trigger_score_sync, name='trigger_sync'),
     path('auto-sync/health/', auto_sync_views.check_scorm_health, name='health_check'),
     path('auto-sync/fix-course/<int:course_id>/', auto_sync_views.auto_fix_course_scores, name='fix_course'),
+    path('auto-sync/exit/', auto_sync_views.sync_on_exit, name='sync_on_exit'),
 ]
 

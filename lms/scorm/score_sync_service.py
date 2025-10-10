@@ -88,7 +88,19 @@ class ScormScoreSyncService:
                 topic_progress.completed_at = timezone.now()
             
             # Update attempts count
-            topic_progress.attempts = max(topic_progress.attempts, scorm_attempt.attempt_number)
+            topic_progress.attempts = max(topic_progress.attempts or 0, scorm_attempt.attempt_number)
+            
+            # Update total time spent from SCORM attempt
+            if scorm_attempt.total_time:
+                try:
+                    # Parse SCORM time format (hhhh:mm:ss.ss or PT1H30M45S)
+                    time_seconds = ScormScoreSyncService._parse_scorm_time(scorm_attempt.total_time)
+                    if time_seconds > 0:
+                        # Update with the latest time value (don't add, as total_time is cumulative)
+                        topic_progress.total_time_spent = max(topic_progress.total_time_spent or 0, int(time_seconds))
+                        logger.info(f"Updated time for attempt {scorm_attempt.id}: {time_seconds}s")
+                except Exception as e:
+                    logger.warning(f"Could not parse time from attempt {scorm_attempt.id}: {e}")
             
             # Update last accessed
             topic_progress.last_accessed = scorm_attempt.last_accessed
@@ -102,7 +114,8 @@ class ScormScoreSyncService:
                 'success_status': scorm_attempt.success_status,
                 'last_sync': timezone.now().isoformat(),
                 'sync_source': 'ScormScoreSyncService',
-                'attempt_id': scorm_attempt.id
+                'attempt_id': scorm_attempt.id,
+                'total_time': scorm_attempt.total_time
             })
             
             # Save the changes
@@ -210,6 +223,63 @@ class ScormScoreSyncService:
         
         # Return the highest score found
         return max(scores) if scores else None
+    
+    @staticmethod
+    def _parse_scorm_time(time_str: str) -> int:
+        """
+        Parse SCORM time format to seconds
+        Supports both SCORM 1.2 (hhhh:mm:ss.ss) and SCORM 2004 (PT1H30M45S) formats
+        
+        Args:
+            time_str: Time string in SCORM format
+            
+        Returns:
+            int: Total seconds
+        """
+        try:
+            if not time_str or time_str == '':
+                return 0
+            
+            # Check if it's SCORM 2004 ISO 8601 duration format (PT1H30M45S)
+            if time_str.startswith('PT'):
+                # Remove PT prefix
+                duration_str = time_str[2:]
+                
+                hours = 0
+                minutes = 0
+                seconds = 0
+                
+                # Parse hours
+                if 'H' in duration_str:
+                    h_index = duration_str.index('H')
+                    hours = int(duration_str[:h_index])
+                    duration_str = duration_str[h_index+1:]
+                
+                # Parse minutes
+                if 'M' in duration_str:
+                    m_index = duration_str.index('M')
+                    minutes = int(duration_str[:m_index])
+                    duration_str = duration_str[m_index+1:]
+                
+                # Parse seconds
+                if 'S' in duration_str:
+                    s_index = duration_str.index('S')
+                    seconds = float(duration_str[:s_index])
+                
+                return int(hours * 3600 + minutes * 60 + seconds)
+            
+            # SCORM 1.2 time format (hhhh:mm:ss.ss)
+            parts = time_str.split(':')
+            if len(parts) == 3:
+                hours = int(parts[0])
+                minutes = int(parts[1])
+                seconds = float(parts[2])
+                return int(hours * 3600 + minutes * 60 + seconds)
+            
+            return 0
+        except (ValueError, IndexError, TypeError) as e:
+            logger.warning(f"Could not parse SCORM time '{time_str}': {e}")
+            return 0
     
     @staticmethod
     def batch_sync_course_scores(course_id: int) -> Dict[str, Any]:
