@@ -73,12 +73,14 @@ class ScormScoreSyncService:
             old_last_score = topic_progress.last_score
             old_best_score = topic_progress.best_score
             
-            # Always update last_score with the current score
-            topic_progress.last_score = Decimal(str(score_value))
-            
             # Update best_score if this is better
             if topic_progress.best_score is None or score_value > float(topic_progress.best_score):
                 topic_progress.best_score = Decimal(str(score_value))
+            
+            # CRITICAL FIX: For SCORM content, always use best_score as last_score
+            # This prevents score downgrade when users retake content
+            # Gradebook displays last_score, so it should show their best achievement
+            topic_progress.last_score = topic_progress.best_score if topic_progress.best_score is not None else Decimal(str(score_value))
             
             # Update completion status
             is_completed = scorm_attempt.lesson_status in ['completed', 'passed', 'failed']
