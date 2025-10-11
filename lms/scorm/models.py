@@ -195,6 +195,7 @@ class ScormAttempt(models.Model):
     )
     completed_slides = models.JSONField(
         default=list,
+        blank=True,
         help_text="List of completed slide identifiers"
     )
     total_slides = models.IntegerField(
@@ -203,6 +204,7 @@ class ScormAttempt(models.Model):
     )
     navigation_history = models.JSONField(
         default=list,
+        blank=True,
         help_text="History of slide navigation with timestamps"
     )
     
@@ -217,15 +219,18 @@ class ScormAttempt(models.Model):
     # Enhanced SCORM data storage
     cmi_data = models.JSONField(
         default=dict,
+        blank=True,
         help_text="Complete CMI data model storage"
     )
     # Additional tracking data
     detailed_tracking = models.JSONField(
         default=dict,
+        blank=True,
         help_text="Detailed tracking data including slide visits, time per slide, etc."
     )
     session_data = models.JSONField(
         default=dict,
+        blank=True,
         help_text="Current session data including start time, current slide, etc."
     )
     
