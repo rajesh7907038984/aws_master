@@ -1072,7 +1072,7 @@
                 try {
                     console.log('🔖 Committing SCORM bookmark data for resume...');
                     
-                    // CRITICAL FIX: Calculate and set score for slide-based SCORM content
+                    // CRITICAL FIX: Calculate and set score for both quiz-based and slide-based SCORM content
                     try {
                         // Try to get current score from SCORM API
                         const scoreRaw12 = window.API.LMSGetValue ? window.API.LMSGetValue('cmi.core.score.raw') : '';
@@ -1091,22 +1091,73 @@
                             const suspendData = suspendData12 || suspendData2004;
                             
                             if (suspendData && suspendData.length > 10) {
-                                // Check for progress percentage in suspend_data
-                                const progressMatch = suspendData.match(/progress[=:](\d+)/i);
-                                if (progressMatch) {
-                                    currentScore = progressMatch[1];
-                                    console.log('📊 Calculated score from progress in suspend_data:', currentScore);
-                                } else {
-                                    // Check for completed_slides tracking
-                                    const completedMatch = suspendData.match(/completed_slides[=:]([^&]+)/i);
-                                    const totalMatch = suspendData.match(/total_slides[=:](\d+)/i);
+                                // Try to decode JSON-encoded suspend_data first
+                                let decodedData = null;
+                                try {
+                                    const suspendJson = JSON.parse(suspendData);
+                                    if (suspendJson.d && Array.isArray(suspendJson.d)) {
+                                        // Decode the data array to string
+                                        decodedData = String.fromCharCode(...suspendJson.d.filter(x => x < 256));
+                                        console.log('📊 Decoded JSON suspend_data, length:', decodedData.length);
+                                    }
+                                } catch (e) {
+                                    // If not JSON, use raw suspend_data
+                                    decodedData = suspendData;
+                                }
+                                
+                                if (decodedData) {
+                                    // Look for progress patterns in decoded data
+                                    const progressPatterns = [
+                                        /progress[=:](\d+)/i,
+                                        /"progress":\s*(\d+)/i,
+                                        /progress["\']?\s*:\s*(\d+)/i,
+                                        /completion[=:](\d+)/i,
+                                        /completion["\']?\s*:\s*(\d+)/i
+                                    ];
                                     
-                                    if (completedMatch && totalMatch) {
-                                        const completedSlides = completedMatch[1].split(',').filter(s => s.trim()).length;
-                                        const totalSlides = parseInt(totalMatch[1]);
-                                        if (totalSlides > 0) {
-                                            currentScore = Math.round((completedSlides / totalSlides) * 100);
-                                            console.log('📊 Calculated score from slides:', completedSlides, '/', totalSlides, '=', currentScore + '%');
+                                    for (const pattern of progressPatterns) {
+                                        const progressMatch = decodedData.match(pattern);
+                                        if (progressMatch) {
+                                            currentScore = progressMatch[1];
+                                            console.log('📊 Calculated score from progress in suspend_data:', currentScore);
+                                            break;
+                                        }
+                                    }
+                                    
+                                    // If no progress found, look for slide completion patterns
+                                    if (!currentScore || currentScore === '') {
+                                        const slidePatterns = [
+                                            /completed_slides[=:]([^&]+).*?total_slides[=:](\d+)/i,
+                                            /"completed_slides":\s*"([^"]+)".*?"total_slides":\s*(\d+)/i,
+                                            /completed[=:]([^&]+).*?total[=:](\d+)/i,
+                                            /slides_completed[=:]([^&]+).*?slides_total[=:](\d+)/i
+                                        ];
+                                        
+                                        for (const pattern of slidePatterns) {
+                                            const slideMatch = decodedData.match(pattern);
+                                            if (slideMatch) {
+                                                try {
+                                                    const completedStr = slideMatch[1];
+                                                    const total = parseInt(slideMatch[2]);
+                                                    
+                                                    // Parse completed slides
+                                                    let completed = 0;
+                                                    if (completedStr.includes(',')) {
+                                                        completed = completedStr.split(',').filter(s => s.trim()).length;
+                                                    } else {
+                                                        completed = completedStr.trim() ? 1 : 0;
+                                                    }
+                                                    
+                                                    if (total > 0) {
+                                                        currentScore = Math.round((completed / total) * 100);
+                                                        console.log('📊 Calculated score from slides:', completed, '/', total, '=', currentScore + '%');
+                                                        break;
+                                                    }
+                                                } catch (e) {
+                                                    console.warning('Error parsing slide pattern:', e);
+                                                    continue;
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -1120,6 +1171,23 @@
                                     if (!isNaN(progressValue) && progressValue >= 0 && progressValue <= 1) {
                                         currentScore = Math.round(progressValue * 100);
                                         console.log('📊 Calculated score from progress_measure:', currentScore);
+                                    }
+                                }
+                            }
+                            
+                            // Method 3: Check lesson_location for slide information
+                            if ((!currentScore || currentScore === '') && window.API && window.API.LMSGetValue) {
+                                const lessonLocation = window.API.LMSGetValue('cmi.core.lesson_location');
+                                if (lessonLocation) {
+                                    const locationMatch = lessonLocation.match(/slide[=:](\d+)/i);
+                                    if (locationMatch) {
+                                        const currentSlide = parseInt(locationMatch[1]);
+                                        if (currentSlide > 0) {
+                                            // Estimate progress based on current slide (this is approximate)
+                                            const estimatedTotal = 10; // Assume 10 slides total if we can't determine total
+                                            currentScore = Math.min(Math.round((currentSlide / estimatedTotal) * 100), 100);
+                                            console.log('📊 Estimated score from lesson_location slide', currentSlide + ':', currentScore + '%');
+                                        }
                                     }
                                 }
                             }

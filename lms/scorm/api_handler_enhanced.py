@@ -1359,6 +1359,7 @@ class ScormAPIHandlerEnhanced:
         """
         Calculate score based on slide completion for slide-based SCORM content
         This handles SCORM packages that track progress by slide completion rather than quiz scores
+        Supports multiple SCORM package types and data formats
         """
         try:
             # Skip if we already have a valid score
@@ -1397,29 +1398,209 @@ class ScormAPIHandlerEnhanced:
                 except Exception as e:
                     logger.warning("SLIDE_SCORE: Could not calculate from slides: %s", str(e))
             
-            # Method 3: Parse from suspend_data
+            # Method 3: Parse from suspend_data (enhanced for multiple SCORM package types)
             if calculated_score is None and self.attempt.suspend_data and len(self.attempt.suspend_data) > 10:
                 try:
                     import re
+                    import json
+                    import base64
                     
-                    # Look for progress in suspend_data
-                    progress_match = re.search(r'progress[=:](\d+)', self.attempt.suspend_data, re.IGNORECASE)
-                    if progress_match:
-                        calculated_score = float(progress_match.group(1))
-                        logger.info("SLIDE_SCORE: Extracted from suspend_data: %s%%", calculated_score)
-                    else:
-                        # Look for completed/total pattern
-                        slide_match = re.search(r'completed_slides[=:]([^&]+).*?total_slides[=:](\d+)', 
-                                              self.attempt.suspend_data, re.IGNORECASE | re.DOTALL)
-                        if slide_match:
-                            completed = len([s for s in slide_match.group(1).split(',') if s.strip()])
-                            total = int(slide_match.group(2))
-                            if total > 0:
-                                calculated_score = round((completed / total) * 100, 2)
-                                logger.info("SLIDE_SCORE: Calculated from suspend_data: %s/%s = %s%%", 
-                                           completed, total, calculated_score)
+                    # Try multiple decoding methods for different SCORM package types
+                    decoded_data = None
+                    
+                    # Method 3a: Try to decode JSON-encoded suspend_data (Articulate Storyline, etc.)
+                    try:
+                        suspend_json = json.loads(self.attempt.suspend_data)
+                        if 'd' in suspend_json and isinstance(suspend_json['d'], list):
+                            # Handle different encoding methods
+                            data_array = suspend_json['d']
+                            
+                            # Try standard ASCII decoding first
+                            try:
+                                decoded_data = ''.join([chr(x) for x in data_array if x < 256])
+                                logger.info("SLIDE_SCORE: Decoded JSON suspend_data (ASCII), length: %s", len(decoded_data))
+                            except:
+                                # Try base64 decoding if ASCII fails
+                                try:
+                                    # Some SCORM packages use base64 encoding
+                                    base64_data = ''.join([chr(x) for x in data_array])
+                                    decoded_data = base64.b64decode(base64_data).decode('utf-8')
+                                    logger.info("SLIDE_SCORE: Decoded JSON suspend_data (Base64), length: %s", len(decoded_data))
+                                except:
+                                    # Try custom decoding for Articulate packages
+                                    try:
+                                        # Articulate packages often use custom encoding
+                                        decoded_data = ''.join([chr(x & 0xFF) for x in data_array])
+                                        logger.info("SLIDE_SCORE: Decoded JSON suspend_data (Custom), length: %s", len(decoded_data))
+                                    except:
+                                        logger.warning("SLIDE_SCORE: Could not decode JSON suspend_data")
+                    except:
+                        # If not JSON, use raw suspend_data
+                        decoded_data = self.attempt.suspend_data
+                        logger.info("SLIDE_SCORE: Using raw suspend_data, length: %s", len(decoded_data))
+                    
+                    if decoded_data:
+                        # Look for progress patterns in decoded data
+                        progress_patterns = [
+                            r'progress[=:](\d+)',
+                            r'"progress":\s*(\d+)',
+                            r'progress["\']?\s*:\s*(\d+)',
+                            r'completion[=:](\d+)',
+                            r'completion["\']?\s*:\s*(\d+)',
+                            r'score[=:](\d+)',
+                            r'"score":\s*(\d+)',
+                            r'percentage[=:](\d+)',
+                            r'"percentage":\s*(\d+)'
+                        ]
+                        
+                        for pattern in progress_patterns:
+                            progress_match = re.search(pattern, decoded_data, re.IGNORECASE)
+                            if progress_match:
+                                calculated_score = float(progress_match.group(1))
+                                logger.info("SLIDE_SCORE: Extracted from suspend_data pattern '%s': %s%%", pattern, calculated_score)
+                                break
+                        
+                        # If no progress found, look for slide completion patterns
+                        if calculated_score is None:
+                            slide_patterns = [
+                                r'completed_slides[=:]([^&]+).*?total_slides[=:](\d+)',
+                                r'"completed_slides":\s*"([^"]+)".*?"total_slides":\s*(\d+)',
+                                r'completed[=:]([^&]+).*?total[=:](\d+)',
+                                r'slides_completed[=:]([^&]+).*?slides_total[=:](\d+)',
+                                r'slide[=:](\d+).*?total[=:](\d+)',
+                                r'current_slide[=:](\d+).*?total_slides[=:](\d+)'
+                            ]
+                            
+                            for pattern in slide_patterns:
+                                slide_match = re.search(pattern, decoded_data, re.IGNORECASE | re.DOTALL)
+                                if slide_match:
+                                    try:
+                                        completed_str = slide_match.group(1)
+                                        total = int(slide_match.group(2))
+                                        
+                                        # Parse completed slides
+                                        if ',' in completed_str:
+                                            completed = len([s for s in completed_str.split(',') if s.strip()])
+                                        else:
+                                            completed = 1 if completed_str.strip() else 0
+                                        
+                                        if total > 0:
+                                            calculated_score = round((completed / total) * 100, 2)
+                                            logger.info("SLIDE_SCORE: Calculated from suspend_data pattern '%s': %s/%s = %s%%", 
+                                                       pattern, completed, total, calculated_score)
+                                            break
+                                    except Exception as e:
+                                        logger.warning("SLIDE_SCORE: Error parsing slide pattern '%s': %s", pattern, str(e))
+                                        continue
+                        
+                        # If still no score, try to extract from lesson_location or other fields
+                        if calculated_score is None:
+                            # Check if lesson_location contains slide information
+                            if self.attempt.lesson_location:
+                                location_patterns = [
+                                    r'slide[=:](\d+)',
+                                    r'page[=:](\d+)',
+                                    r'step[=:](\d+)',
+                                    r'lesson[=:](\d+)',
+                                    r'#slide(\d+)',
+                                    r'#page(\d+)',
+                                    r'#step(\d+)'
+                                ]
+                                
+                                for pattern in location_patterns:
+                                    location_match = re.search(pattern, self.attempt.lesson_location, re.IGNORECASE)
+                                    if location_match:
+                                        current_slide = int(location_match.group(1))
+                                        # Estimate progress based on current slide (this is approximate)
+                                        if current_slide > 0:
+                                            # Assume 10 slides total if we can't determine total
+                                            estimated_total = 10
+                                            calculated_score = min(round((current_slide / estimated_total) * 100, 2), 100)
+                                            logger.info("SLIDE_SCORE: Estimated from lesson_location pattern '%s' slide %s: %s%%", pattern, current_slide, calculated_score)
+                                            break
+                
                 except Exception as e:
                     logger.warning("SLIDE_SCORE: Could not parse suspend_data: %s", str(e))
+            
+            # Method 4: Check CMI data for progress information
+            if calculated_score is None and self.attempt.cmi_data:
+                try:
+                    # Check for progress in CMI data
+                    progress_keys = [
+                        'cmi.progress_measure',
+                        'cmi.core.progress_measure', 
+                        'cmi.completion_threshold',
+                        'cmi.core.completion_threshold'
+                    ]
+                    
+                    for key in progress_keys:
+                        if key in self.attempt.cmi_data:
+                            progress_value = self.attempt.cmi_data[key]
+                            if progress_value and progress_value != '':
+                                try:
+                                    progress_float = float(progress_value)
+                                    if 0 <= progress_float <= 1:
+                                        calculated_score = round(progress_float * 100, 2)
+                                        logger.info("SLIDE_SCORE: Using CMI %s: %s%%", key, calculated_score)
+                                        break
+                                    elif 0 <= progress_float <= 100:
+                                        calculated_score = round(progress_float, 2)
+                                        logger.info("SLIDE_SCORE: Using CMI %s: %s%%", key, calculated_score)
+                                        break
+                                except:
+                                    continue
+                except Exception as e:
+                    logger.warning("SLIDE_SCORE: Could not extract from CMI data: %s", str(e))
+            
+            # Method 5: Fallback - Estimate progress based on lesson_location for packages that don't report scores
+            if calculated_score is None and self.attempt.lesson_location:
+                try:
+                    # Check if lesson_location contains any navigation information
+                    location_indicators = [
+                        r'#slide(\d+)',
+                        r'#page(\d+)',
+                        r'#step(\d+)',
+                        r'#lesson(\d+)',
+                        r'slide[=:](\d+)',
+                        r'page[=:](\d+)',
+                        r'step[=:](\d+)',
+                        r'lesson[=:](\d+)',
+                        r'index\.html#/(\d+)',
+                        r'story\.html#/(\d+)',
+                        r'lessons/ix-([a-zA-Z0-9]+)',
+                        r'chapter(\d+)',
+                        r'section(\d+)'
+                    ]
+                    
+                    for pattern in location_indicators:
+                        location_match = re.search(pattern, self.attempt.lesson_location, re.IGNORECASE)
+                        if location_match:
+                            try:
+                                current_position = int(location_match.group(1))
+                                if current_position > 0:
+                                    # Estimate progress based on current position
+                                    # This is a fallback for packages that don't report explicit scores
+                                    estimated_total = 10  # Assume 10 slides/pages by default
+                                    calculated_score = min(round((current_position / estimated_total) * 100, 2), 100)
+                                    logger.info("SLIDE_SCORE: Fallback estimation from lesson_location pattern '%s' position %s: %s%%", pattern, current_position, calculated_score)
+                                    break
+                            except ValueError:
+                                # If it's not a number, try to extract meaningful progress
+                                position_str = location_match.group(1)
+                                if len(position_str) > 3:  # Likely a meaningful identifier
+                                    # Estimate 50% progress for packages with complex navigation
+                                    calculated_score = 50.0
+                                    logger.info("SLIDE_SCORE: Fallback estimation from lesson_location complex navigation: %s%%", calculated_score)
+                                    break
+                except Exception as e:
+                    logger.warning("SLIDE_SCORE: Error in fallback estimation: %s", str(e))
+            
+            # Method 6: Final fallback - If user has spent time and has suspend_data, assume some progress
+            if calculated_score is None and self.attempt.suspend_data and len(self.attempt.suspend_data) > 50:
+                # If there's substantial suspend_data, assume the user has made some progress
+                # This is a last resort for packages that don't report any progress information
+                calculated_score = 25.0  # Assume 25% progress for packages with data but no explicit scoring
+                logger.info("SLIDE_SCORE: Final fallback - assuming 25%% progress based on suspend_data presence")
             
             # Apply the calculated score if we found one
             if calculated_score is not None and 0 <= calculated_score <= 100:
