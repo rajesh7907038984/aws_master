@@ -6,7 +6,7 @@ from django.db.models import Q, Max, Count, F, Sum, Avg, Exists, OuterRef, Prefe
 from django.urls import reverse, NoReverseMatch
 from django.core.exceptions import ValidationError
 from django.template.exceptions import TemplateDoesNotExist
-# from django.views.decorators.csrf import ensure_csrf_cookie, csrf_protect, csrf_exempt  # COMMENTED OUT TO FIX ERRORS
+from django.views.decorators.csrf import ensure_csrf_cookie, csrf_protect, csrf_exempt
 from django.views.decorators.http import require_POST, require_http_methods, require_GET
 from django.utils.decorators import method_decorator
 from django.utils import timezone
@@ -96,8 +96,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 @login_required
-# @ensure_csrf_cookie  # COMMENTED OUT TO FIX ERRORS
-# @csrf_protect  # COMMENTED OUT TO FIX ERRORS
+@ensure_csrf_cookie
+@csrf_protect
 def course_manage(request: HttpRequest) -> HttpResponse:
     """Handle course creation for all roles."""
     # Generate a sequential course code
@@ -710,7 +710,7 @@ def course_list(request):
     return render(request, 'courses/list/course_list.html', context)
 
 @login_required
-# @ensure_csrf_cookie  # COMMENTED OUT TO FIX ERRORS
+@ensure_csrf_cookie
 def admin_manage_courses(request):
     """Admin course management view."""
     if request.user.role != 'admin':
@@ -1403,7 +1403,7 @@ def debug_course_permissions(request, course_id):
     
     return JsonResponse(debug_info)
 
-# @ensure_csrf_cookie  # COMMENTED OUT TO FIX ERRORS
+@ensure_csrf_cookie
 @login_required(login_url='/login/')
 def course_edit(request, course_id):
     """Edit an existing course."""
@@ -6362,7 +6362,7 @@ def generate_certificate(request, course_id):
 
 @login_required
 @require_POST
-# @ensure_csrf_cookie  # COMMENTED OUT TO FIX ERRORS
+@ensure_csrf_cookie
 @api_error_handler
 @safe_file_operation
 def upload_editor_image(request):
@@ -6480,7 +6480,7 @@ def upload_editor_image(request):
 
 @login_required
 @require_POST
-# @ensure_csrf_cookie  # COMMENTED OUT TO FIX ERRORS
+@ensure_csrf_cookie
 def upload_editor_video(request):
     if request.FILES.get('video'):
         video = request.FILES['video']
@@ -6664,7 +6664,7 @@ def get_branch_courses(request, branch_id):
 # Claude AI proxy endpoint
 @login_required
 @require_POST
-# @csrf_protect  # COMMENTED OUT TO FIX ERRORS
+@csrf_protect
 def claude_ai_proxy(request):
     """Proxy requests to Claude AI API to avoid CORS issues"""
     try:

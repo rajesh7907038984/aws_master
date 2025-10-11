@@ -4979,7 +4979,7 @@ def download_detailed_report(request, assignment_id):
 
 @login_required
 @require_POST
-# @ensure_csrf_cookie  # COMMENTED OUT TO FIX ERRORS
+@ensure_csrf_cookie
 def upload_editor_image(request):
     """Handle image uploads from the rich text editor for assignments."""
     if request.method == 'POST' and request.FILES.get('image'):

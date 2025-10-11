@@ -31,7 +31,7 @@ from django import forms
 import os
 import time
 from django.conf import settings
-# from django.views.decorators.csrf import csrf_exempt, csrf_protect  # COMMENTED OUT TO FIX ERRORS
+from django.views.decorators.csrf import csrf_exempt, csrf_protect
 from django.contrib.admin.models import LogEntry
 from django.db.models import Count, Q, F, Sum, Avg, ExpressionWrapper, DurationField
 from django.db.models.functions import ExtractHour, TruncDate, TruncDay, ExtractWeekDay
@@ -69,7 +69,7 @@ from core.utils.type_guards import (
 if TYPE_CHECKING:
     from django.db.models import QuerySet
 
-# @csrf_protect  # COMMENTED OUT TO FIX ERRORS
+@csrf_protect
 @require_http_methods(["POST"])
 def timezone_update(request: HttpRequest) -> JsonResponse:
     """Update user timezone"""
@@ -8041,21 +8041,21 @@ def extract_cv_data(request):
 
 @login_required
 @require_POST
-# @csrf_protect  # COMMENTED OUT TO FIX ERRORS
+@csrf_protect
 def lookup_postcode(request):
     """Basic postcode lookup - redirects to addresses lookup"""
     return lookup_postcode_addresses(request)
 
 @login_required
 @require_POST
-# @csrf_protect  # COMMENTED OUT TO FIX ERRORS
+@csrf_protect
 def lookup_postcode_public(request):
     """Public postcode lookup - redirects to addresses lookup"""
     return lookup_postcode_addresses(request)
 
 @login_required
 @require_POST
-# @csrf_protect  # COMMENTED OUT TO FIX ERRORS
+@csrf_protect
 def lookup_postcode_addresses(request):
     """
     API endpoint to lookup all addresses for a UK postcode and return them for user selection.
@@ -9953,7 +9953,7 @@ def password_reset_success(request, branch_slug=None):
 
 @login_required
 @require_http_methods(["POST"])
-# @csrf_protect  # COMMENTED OUT TO FIX ERRORS
+@csrf_protect
 def check_duplicate_user_role(request):
     """AJAX endpoint to check for duplicate user role accounts."""
     try:
@@ -10298,7 +10298,7 @@ def auto_timezone_status(request):
     """Wrapper for auto timezone status"""
     return get_user_timezone_status(request)
 
-# @csrf_protect  # COMMENTED OUT TO FIX ERRORS
+@csrf_protect
 @login_required
 def keep_alive_view(request):
     """Simple keep-alive endpoint to maintain session"""
@@ -10312,7 +10312,7 @@ def keep_alive_view(request):
         })
     return JsonResponse({'status': 'error', 'message': 'POST required'})
 
-# @csrf_exempt  # COMMENTED OUT TO FIX ERRORS
+@csrf_exempt
 def ping_view(request):
     """Simple ping endpoint for health checks"""
     return JsonResponse({

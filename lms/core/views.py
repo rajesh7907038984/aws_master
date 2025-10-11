@@ -7,7 +7,7 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
-# from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie  # COMMENTED OUT TO FIX ERRORS
+from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods, require_POST
 from django.conf import settings
 from django.urls import reverse
@@ -47,7 +47,7 @@ logger = logging.getLogger(__name__)
 #         'user': request.user
 #     }, status=403)
 
-# @csrf_exempt  # COMMENTED OUT TO FIX ERRORS
+@csrf_exempt
 def ping_view(request):
     """Simple ping endpoint for health checks"""
     return JsonResponse({
@@ -56,7 +56,7 @@ def ping_view(request):
         'authenticated': request.user.is_authenticated if hasattr(request, 'user') else False
     })
 
-# @csrf_protect  # COMMENTED OUT TO FIX ERRORS
+@csrf_protect
 @require_http_methods(["POST"])
 def error_log(request):
     """Log client-side errors"""
@@ -93,7 +93,7 @@ def calendar_activities(request):
         }, status=500)
 
 @require_http_methods(["GET"])
-# @csrf_exempt  # COMMENTED OUT TO FIX ERRORS
+@csrf_exempt
 def health_check(request):
     """Comprehensive health check endpoint for deployment monitoring"""
     try:
@@ -228,7 +228,7 @@ def ai_content_demo(request):
 #     }, status=403)
 
 
-# @csrf_protect  # COMMENTED OUT TO FIX ERRORS
+@csrf_protect
 @require_http_methods(["POST"])
 def log_client_error(request):
     """Log JavaScript errors from client side"""
@@ -272,7 +272,7 @@ def debug_media_info(request):
 
 @login_required
 @require_POST
-# @ensure_csrf_cookie  # COMMENTED OUT TO FIX ERRORS
+@ensure_csrf_cookie
 def editor_image_upload(request):
     """TinyMCE image upload handler"""
     if request.method != 'POST':
@@ -290,7 +290,7 @@ def editor_image_upload(request):
 
 @login_required
 @require_POST
-# @ensure_csrf_cookie  # COMMENTED OUT TO FIX ERRORS
+@ensure_csrf_cookie
 def editor_video_upload(request):
     """TinyMCE video upload handler"""
     if request.method != 'POST':
@@ -667,7 +667,7 @@ def minimal_chart_test(request):
 #     return render(request, 'core/csrf_failure.html', context, status=403)
 
 
-# @csrf_protect  # COMMENTED OUT TO FIX ERRORS
+@csrf_protect
 @require_http_methods(["POST"])
 def sync_device_time(request):
     """
@@ -730,7 +730,7 @@ def sync_device_time(request):
         }, status=500)
 
 
-# @csrf_protect  # COMMENTED OUT TO FIX ERRORS
+@csrf_protect
 @require_http_methods(["GET", "POST"])
 def remote_login(request):
     """
