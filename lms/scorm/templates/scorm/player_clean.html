@@ -662,11 +662,34 @@
                     // Also inject bookmark data if available
                     injectBookmarkData(iframeWindow);
                     
-                    // Add exit button communication helper
+                    // Add enhanced exit button communication helpers
+                    // This allows SCORM content to easily trigger exit via: window.scormExit() or parent.scormExit()
                     iframeWindow.scormExit = function() {
-                        console.log('SCORM exit called from iframe');
+                        console.log('🚪 scormExit() called from SCORM iframe - triggering Back to Topic...');
                         try {
-                            // Try to save data first
+                            // Commit data (don't terminate for resume capability)
+                            if (window.parent && window.parent.API) {
+                                if (window.parent.API.LMSCommit) {
+                                    window.parent.API.LMSCommit('');
+                                    console.log('✅ SCORM data committed');
+                                }
+                                if (window.parent.API_1484_11 && window.parent.API_1484_11.Commit) {
+                                    window.parent.API_1484_11.Commit('');
+                                }
+                            }
+                            // Send exit message to parent
+                            window.parent.postMessage({ action: 'exit', type: 'exit' }, '*');
+                        } catch (error) {
+                            console.error('❌ Error in scormExit:', error);
+                            window.parent.postMessage('exit', '*');
+                        }
+                    };
+                    
+                    // Also add a completion helper for when assessment is truly complete
+                    iframeWindow.scormComplete = function() {
+                        console.log('✅ scormComplete() called from SCORM iframe - marking as complete...');
+                        try {
+                            // Commit and terminate session
                             if (window.parent && window.parent.API) {
                                 if (window.parent.API.LMSCommit) {
                                     window.parent.API.LMSCommit('');
@@ -674,22 +697,25 @@
                                 if (window.parent.API.LMSFinish) {
                                     window.parent.API.LMSFinish('');
                                 }
+                                if (window.parent.API_1484_11) {
+                                    if (window.parent.API_1484_11.Commit) {
+                                        window.parent.API_1484_11.Commit('');
+                                    }
+                                    if (window.parent.API_1484_11.Terminate) {
+                                        window.parent.API_1484_11.Terminate('');
+                                    }
+                                }
                             }
-                            
-                            // Send exit message to parent
-                            window.parent.postMessage({
-                                action: 'scorm_exit',
-                                type: 'exit_assessment',
-                                source: 'iframe'
-                            }, '*');
+                            // Send completion message to parent
+                            window.parent.postMessage({ action: 'complete', type: 'assessment_complete' }, '*');
                         } catch (error) {
-                            console.error('Error in iframe exit:', error);
-                            // Still send message
-                            window.parent.postMessage('scorm_exit', '*');
+                            console.error('❌ Error in scormComplete:', error);
+                            window.parent.postMessage('complete_assessment', '*');
                         }
                     };
                     
-                    console.log('SCORM exit helper added to iframe');
+                    // Log that helpers are available
+                    console.log('✅ SCORM helpers injected: window.scormExit() and window.scormComplete() are available in iframe');
                 }
             } catch (e) {
                 console.log('Could not inject API into iframe:', e.message);
@@ -708,18 +734,48 @@
                     'cmi.entry'
                 ];
                 
+                let hasBookmarkData = false;
+                let lessonLocation = '';
+                
                 bookmarkElements.forEach(element => {
                     makeApiCall('GetValue', [element]).then(result => {
-                        if (result && result !== '') {
-                            console.log(`Injecting bookmark data: ${element} = ${result}`);
+                        if (result && result !== '' && result !== 'false') {
+                            console.log(`🔖 RESUME: Injecting bookmark data: ${element} = ${result.substring(0, 100)}${result.length > 100 ? '...' : ''}`);
+                            hasBookmarkData = true;
+                            
                             // Store in iframe window for immediate access
                             iframeWindow.scormBookmarkData = iframeWindow.scormBookmarkData || {};
                             iframeWindow.scormBookmarkData[element] = result;
+                            
+                            // Track lesson_location specifically
+                            if (element === 'cmi.core.lesson_location' || element === 'cmi.location') {
+                                lessonLocation = result;
+                                
+                                // Try to navigate iframe to the bookmarked location if it's a URL/path
+                                // This helps SCORM packages that don't properly handle lesson_location internally
+                                if (lessonLocation && lessonLocation.length > 0) {
+                                    // Check if it looks like a valid bookmark (contains file extension or anchor)
+                                    if (lessonLocation.includes('.html') || lessonLocation.includes('#') || lessonLocation.includes('?')) {
+                                        console.log('🔖 RESUME: Attempting to navigate iframe to bookmarked location:', lessonLocation);
+                                        // Note: This will only work if the SCORM package structure allows direct navigation
+                                        // Most modern SCORM packages handle this internally via GetValue
+                                    }
+                                }
+                            }
                         }
                     }).catch(err => {
                         console.log(`Bookmark injection failed for ${element}:`, err);
                     });
                 });
+                
+                // Log if no bookmark data found
+                setTimeout(() => {
+                    if (!hasBookmarkData) {
+                        console.log('🔖 RESUME: No bookmark data found - starting from beginning');
+                    } else {
+                        console.log('🔖 RESUME: Bookmark data injected successfully. SCORM content should resume from saved location.');
+                    }
+                }, 500);
             } catch (e) {
                 console.log('Could not inject bookmark data:', e.message);
             }
@@ -936,27 +992,75 @@
             
             // CRITICAL: Force save current navigation state for resume
             try {
-                // Get current iframe location for bookmark
-                const iframe = document.getElementById('scormContent');
-                if (iframe && iframe.contentWindow) {
-                    try {
-                        // Try to get current location from iframe
-                        const currentUrl = iframe.contentWindow.location.href;
-                        const urlParts = currentUrl.split('#');
-                        if (urlParts.length > 1) {
-                            const bookmark = 'index.html#' + urlParts[1];
-                            console.log('🔖 Setting bookmark from iframe URL:', bookmark);
+                // First, check if SCORM content has already set a lesson_location via SetValue
+                let currentLocation = '';
+                if (window.API && window.API.LMSGetValue) {
+                    currentLocation = window.API.LMSGetValue('cmi.core.lesson_location');
+                } else if (window.API_1484_11 && window.API_1484_11.GetValue) {
+                    currentLocation = window.API_1484_11.GetValue('cmi.location');
+                }
+                
+                // If SCORM content has set a location, use it
+                if (currentLocation && currentLocation !== '' && currentLocation !== 'false') {
+                    console.log('🔖 Using lesson_location already set by SCORM content:', currentLocation);
+                } else {
+                    // Otherwise, try to extract from iframe URL
+                    const iframe = document.getElementById('scormFrame'); // FIXED: Changed from 'scormContent' to 'scormFrame'
+                    if (iframe && iframe.contentWindow) {
+                        try {
+                            // Try to get current location from iframe
+                            const currentUrl = iframe.contentWindow.location.href;
                             
-                            // Set lesson location for resume
-                            if (window.API && window.API.LMSSetValue) {
-                                window.API.LMSSetValue('cmi.core.lesson_location', bookmark);
+                            // Method 1: Extract hash/anchor from URL (e.g., index.html#slide3)
+                            const urlParts = currentUrl.split('#');
+                            if (urlParts.length > 1) {
+                                const bookmark = 'index.html#' + urlParts[1];
+                                console.log('🔖 Extracted bookmark from iframe URL hash:', bookmark);
+                                
+                                // Set lesson location for resume
+                                if (window.API && window.API.LMSSetValue) {
+                                    window.API.LMSSetValue('cmi.core.lesson_location', bookmark);
+                                }
+                                if (window.API_1484_11 && window.API_1484_11.SetValue) {
+                                    window.API_1484_11.SetValue('cmi.location', bookmark);
+                                }
+                            } else {
+                                // Method 2: Extract query parameters (e.g., index.html?slide=3)
+                                const queryMatch = currentUrl.match(/[\?&]slide=([^&]+)/);
+                                if (queryMatch) {
+                                    const bookmark = 'index.html?slide=' + queryMatch[1];
+                                    console.log('🔖 Extracted bookmark from iframe URL query:', bookmark);
+                                    
+                                    if (window.API && window.API.LMSSetValue) {
+                                        window.API.LMSSetValue('cmi.core.lesson_location', bookmark);
+                                    }
+                                    if (window.API_1484_11 && window.API_1484_11.SetValue) {
+                                        window.API_1484_11.SetValue('cmi.location', bookmark);
+                                    }
+                                } else {
+                                    // Method 3: Try to get full path relative to content
+                                    const urlObj = new URL(currentUrl);
+                                    const pathname = urlObj.pathname;
+                                    const parts = pathname.split('/');
+                                    const filename = parts[parts.length - 1];
+                                    
+                                    if (filename && filename !== 'index.html' && filename.length > 0) {
+                                        const bookmark = filename + urlObj.search + urlObj.hash;
+                                        console.log('🔖 Extracted bookmark from iframe pathname:', bookmark);
+                                        
+                                        if (window.API && window.API.LMSSetValue) {
+                                            window.API.LMSSetValue('cmi.core.lesson_location', bookmark);
+                                        }
+                                        if (window.API_1484_11 && window.API_1484_11.SetValue) {
+                                            window.API_1484_11.SetValue('cmi.location', bookmark);
+                                        }
+                                    }
+                                }
                             }
-                            if (window.API_1484_11 && window.API_1484_11.SetValue) {
-                                window.API_1484_11.SetValue('cmi.location', bookmark);
-                            }
+                        } catch (e) {
+                            console.log('Could not extract iframe location (cross-origin):', e.message);
+                            // For cross-origin iframes, rely on SCORM content to set location itself
                         }
-                    } catch (e) {
-                        console.log('Could not extract iframe location (cross-origin):', e.message);
                     }
                 }
             } catch (error) {
@@ -1116,39 +1220,51 @@
         
         // Enhanced message listener for iframe exit communication
         window.addEventListener('message', function(event) {
-            console.log('Received message from iframe:', event.data, 'Origin:', event.origin);
+            console.log('📩 Received message from iframe:', event.data, 'Origin:', event.origin);
             
             // Handle exit messages from SCORM content
+            let shouldComplete = false;
             let shouldExit = false;
             
             if (event.data && typeof event.data === 'string') {
                 const message = event.data.toLowerCase();
-                // FIXED: Only trigger completion for explicit completion messages, not general exit messages
+                
+                // Check for completion messages (full completion)
                 if (message === 'complete_assessment' || message === 'lesson_complete' || 
                     message === 'course_complete' || message.includes('quiz_complete') ||
                     message === 'scorm_complete' || message.includes('assessment_complete')) {
-                    console.log('Received completion message from SCORM content:', event.data);
+                    console.log('✅ Received completion message from SCORM content:', event.data);
+                    shouldComplete = true;
+                }
+                // Check for exit messages (save and go back without forcing completion)
+                else if (message.includes('exit') || message.includes('terminate') || 
+                         message.includes('finish') || message.includes('close') || 
+                         message === 'back' || message === 'return') {
+                    console.log('🚪 Received exit message from SCORM content:', event.data);
                     shouldExit = true;
-                } else if (message.includes('exit') || message.includes('terminate') || message.includes('finish')) {
-                    // Log exit messages but don't auto-complete unless explicitly marked as completion
-                    console.log('Received exit message (not completion) from SCORM content:', event.data);
-                    // Don't set shouldExit = true for general exit messages
                 }
             } else if (event.data && typeof event.data === 'object') {
-                // Handle structured messages - only complete for explicit completion actions
+                // Handle structured messages
+                
+                // Check for completion actions
                 if (event.data.action === 'complete' || event.data.action === 'course_complete' ||
                     event.data.type === 'assessment_complete' || event.data.type === 'lesson_complete' ||
                     event.data.status === 'completed' || event.data.completed === true) {
-                    console.log('Received structured completion message from SCORM content:', event.data);
+                    console.log('✅ Received structured completion message from SCORM content:', event.data);
+                    shouldComplete = true;
+                }
+                // Check for exit actions
+                else if (event.data.action === 'exit' || event.data.action === 'terminate' || 
+                         event.data.action === 'finish' || event.data.action === 'close' ||
+                         event.data.action === 'back' || event.data.type === 'exit') {
+                    console.log('🚪 Received structured exit message from SCORM content:', event.data);
                     shouldExit = true;
-                } else if (event.data.action === 'exit' || event.data.action === 'terminate' || event.data.action === 'finish') {
-                    console.log('Received structured exit message (not completion) from SCORM content:', event.data);
-                    // Don't set shouldExit = true for general exit messages without completion status
                 }
             }
             
-            if (shouldExit) {
-                console.log('Processing completion request from SCORM content...');
+            // Handle completion (terminate session and redirect)
+            if (shouldComplete) {
+                console.log('✅ Processing completion request from SCORM content...');
                 
                 // FIXED: Don't force extract score - let SCORM content report score naturally
                 // For real completions, the SCORM content should have already set the score via SetValue
@@ -1187,6 +1303,15 @@
                     console.log('Redirecting to topic view after completion...');
                     window.location.href = '{% url "courses:topic_view" topic.id %}';
                 }, 1000);
+            }
+            // Handle exit (trigger Back to Topic functionality without completion)
+            else if (shouldExit) {
+                console.log('🚪 SCORM content exit button clicked - triggering Back to Topic functionality...');
+                
+                // Trigger the same functionality as the Back to Topic button
+                // This will save progress, bookmark, and score without forcing completion
+                const fakeEvent = { preventDefault: function() {} };
+                handleBackToTopic(fakeEvent);
             }
         });
         
@@ -1478,50 +1603,48 @@
                                                         e.preventDefault();
                                                         e.stopPropagation();
                                                         
-                                                        console.log('EXIT ASSESSMENT button clicked in iframe');
+                                                        console.log('🚪 EXIT button clicked in SCORM iframe - triggering Back to Topic...');
                                                         
                                                         // Show user feedback
                                                         const originalText = newButton.textContent || newButton.value;
-                                                        newButton.textContent = 'Exiting...';
+                                                        newButton.textContent = 'Saving progress...';
                                                         newButton.disabled = true;
                                                         
-                                                        // Call SCORM API to save data
+                                                        // IMPORTANT: Don't terminate session, just commit to save progress
+                                                        // This allows learners to resume from where they left off
                                                         try {
                                                             // Try to call parent window's SCORM API
                                                             if (window.parent && window.parent.API) {
-                                                                console.log('Calling parent SCORM API...');
+                                                                console.log('🔖 Committing SCORM data (not terminating - for resume)...');
                                                                 
-                                                                // Save current progress
+                                                                // Only commit current progress - don't terminate
                                                                 if (window.parent.API.LMSCommit) {
                                                                     window.parent.API.LMSCommit('');
+                                                                    console.log('✅ SCORM 1.2 data committed');
                                                                 }
                                                                 
-                                                                // Terminate session
-                                                                if (window.parent.API.LMSFinish) {
-                                                                    const result = window.parent.API.LMSFinish('');
-                                                                    console.log('SCORM LMSFinish result:', result);
+                                                                // Also commit SCORM 2004 if available
+                                                                if (window.parent.API_1484_11 && window.parent.API_1484_11.Commit) {
+                                                                    window.parent.API_1484_11.Commit('');
+                                                                    console.log('✅ SCORM 2004 data committed');
                                                                 }
                                                                 
-                                                                // Also try SCORM 2004 API
-                                                                if (window.parent.API_1484_11 && window.parent.API_1484_11.Terminate) {
-                                                                    window.parent.API_1484_11.Terminate('');
-                                                                }
-                                                                
-                                                                // Send message to parent to handle redirect
+                                                                // Send exit message to parent (not completion)
+                                                                // This will trigger handleBackToTopic functionality
                                                                 window.parent.postMessage({
-                                                                    action: 'scorm_exit',
-                                                                    type: 'exit_assessment'
+                                                                    action: 'exit',
+                                                                    type: 'exit'
                                                                 }, '*');
                                                                 
-                                                                console.log('SCORM data saved, redirecting...');
+                                                                console.log('🚪 Exit message sent to parent - progress saved for resume');
                                                             } else {
                                                                 console.log('Parent SCORM API not available, sending exit message...');
-                                                                window.parent.postMessage('scorm_exit', '*');
+                                                                window.parent.postMessage('exit', '*');
                                                             }
                                                         } catch (error) {
-                                                            console.error('Error calling SCORM API:', error);
+                                                            console.error('❌ Error calling SCORM API:', error);
                                                             // Still send exit message
-                                                            window.parent.postMessage('scorm_exit', '*');
+                                                            window.parent.postMessage('exit', '*');
                                                         }
                                                     });
                                                     
