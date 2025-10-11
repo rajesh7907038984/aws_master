@@ -379,23 +379,23 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                         # Check if SCORM is completed
                                         is_completed = attempt.lesson_status in ['completed', 'passed', 'failed']
                                         
-                                        # FIXED: Always show the most recent score from the most authoritative source
+                                        # FIXED: Always show BEST score for SCORM content (not latest attempt)
                                         score_value = None
                                         
-                                        # Priority 1: ScormAttempt.score_raw (most direct source)
-                                        if attempt.score_raw is not None:
-                                            score_value = float(attempt.score_raw)
-                                            logger.debug(f"GRADEBOOK: Using ScormAttempt.score_raw for attempt {attempt.id}: {score_value}")
+                                        # Priority 1: TopicProgress.best_score (best achievement - UX priority)
+                                        if topic_progress and topic_progress.best_score is not None:
+                                            score_value = float(topic_progress.best_score)
+                                            logger.debug(f"GRADEBOOK: Using TopicProgress.best_score: {score_value}")
                                         
-                                        # Priority 2: TopicProgress.last_score (most recent)
+                                        # Priority 2: TopicProgress.last_score (most recent if no best)
                                         elif topic_progress and topic_progress.last_score is not None:
                                             score_value = float(topic_progress.last_score)
                                             logger.debug(f"GRADEBOOK: Using TopicProgress.last_score: {score_value}")
                                             
-                                        # Priority 3: TopicProgress.best_score (fallback)
-                                        elif topic_progress and topic_progress.best_score is not None:
-                                            score_value = float(topic_progress.best_score)
-                                            logger.debug(f"GRADEBOOK: Using TopicProgress.best_score: {score_value}")
+                                        # Priority 3: ScormAttempt.score_raw (fallback if TopicProgress not synced)
+                                        elif attempt.score_raw is not None:
+                                            score_value = float(attempt.score_raw)
+                                            logger.debug(f"GRADEBOOK: Using ScormAttempt.score_raw for attempt {attempt.id}: {score_value}")
                                             
                                         # If we have a score but SCORM isn't marked as completed, sync the data
                                         if score_value is not None and not is_completed:
@@ -466,12 +466,12 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                                 completion_status = 'completed' if topic_progress.completed else 'incomplete'
                                                 success_status = 'unknown'
                                                 
-                                                # Get score from last_score (most recent/live) to match SCORM results page
+                                                # FIXED: Get score from best_score (best achievement - UX priority)
                                                 score_value = None
-                                                if topic_progress.last_score is not None:
-                                                    score_value = float(topic_progress.last_score)
-                                                elif topic_progress.best_score is not None:
+                                                if topic_progress.best_score is not None:
                                                     score_value = float(topic_progress.best_score)
+                                                elif topic_progress.last_score is not None:
+                                                    score_value = float(topic_progress.last_score)
                                                 else:
                                                     # Fallback: check progress_data for SCORM score
                                                     progress_data = topic_progress.progress_data or {}
