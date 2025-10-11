@@ -13,6 +13,12 @@
         padding: 30px;
         margin-bottom: 30px;
         box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    
+    .dashboard-header h1 {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
     }
     
     .metric-card {
@@ -108,6 +114,7 @@
         box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         transition: transform 0.3s ease;
         cursor: pointer;
+        overflow: hidden;
     }
     
     .business-card:hover {
@@ -120,6 +127,10 @@
         font-weight: 600;
         color: #333;
         margin-bottom: 10px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        word-wrap: break-word;
     }
     
     .business-stats {
@@ -127,6 +138,14 @@
         justify-content: space-between;
         font-size: 0.9rem;
         color: #666;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .business-stats span {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 </style>
 {% endblock %}
@@ -273,11 +292,11 @@
                 <div class="row">
                     {% for business in business_comparison.businesses %}
                     <div class="col-md-4 mb-3">
-                        <div class="business-card" onclick="viewBusinessDetail({{ business.business_id }})">
-                            <div class="business-name">{{ business.business_name }}</div>
+                        <div class="business-card" onclick="viewBusinessDetail({{ business.business_id }})" title="{{ business.business_name }}">
+                            <div class="business-name" title="{{ business.business_name }}">{{ business.business_name }}</div>
                             <div class="business-stats">
-                                <span>Users: {{ business.total_users }}</span>
-                                <span>Rate: {{ business.completion_rate }}%</span>
+                                <span title="Total Users: {{ business.total_users }}">Users: {{ business.total_users }}</span>
+                                <span title="Completion Rate: {{ business.completion_rate }}%">Rate: {{ business.completion_rate }}%</span>
                             </div>
                         </div>
                     </div>
