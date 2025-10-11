@@ -1658,6 +1658,19 @@ class ScormAPIHandlerEnhanced:
                         # Mark that this is being updated by the API handler to prevent signal conflicts
                         self.attempt._updating_from_api_handler = True
                         
+                        # CRITICAL FIX: Ensure JSON fields are valid RIGHT BEFORE validation
+                        # Must be done immediately before full_clean() to ensure validation passes
+                        if self.attempt.completed_slides is None:
+                            self.attempt.completed_slides = []
+                        if self.attempt.navigation_history is None:
+                            self.attempt.navigation_history = []
+                        if self.attempt.detailed_tracking is None:
+                            self.attempt.detailed_tracking = {}
+                        if self.attempt.session_data is None:
+                            self.attempt.session_data = {}
+                        if self.attempt.cmi_data is None:
+                            self.attempt.cmi_data = {}
+                        
                         self.attempt.full_clean()
                         self.attempt.save()
                         logger.info("💾 _COMMIT_DATA: ScormAttempt saved successfully")
