@@ -217,9 +217,45 @@ class ScormScoreSyncService:
                 except:
                     pass
         
-        # Priority 3: Progress percentage (if completed)
-        if attempt.lesson_status in ['completed', 'passed'] and attempt.progress_percentage:
-            scores.append(float(attempt.progress_percentage))
+        # Priority 3: Progress percentage (for both completed and in-progress)
+        # This handles slide-based SCORM content that tracks completion by slides
+        if attempt.progress_percentage:
+            progress_score = float(attempt.progress_percentage)
+            # Only use progress as score if it's reasonable (0-100)
+            if 0 <= progress_score <= 100:
+                scores.append(progress_score)
+                logger.info(f"Using progress_percentage as score: {progress_score}% for attempt {attempt.id}")
+        
+        # Priority 4: Calculate from slide completion (for slide-based SCORM)
+        if not scores and attempt.completed_slides and attempt.total_slides:
+            try:
+                # Extract completed slides count
+                if isinstance(attempt.completed_slides, list):
+                    completed_count = len(attempt.completed_slides)
+                else:
+                    completed_count = len(attempt.completed_slides.split(',')) if attempt.completed_slides else 0
+                
+                total_slides = int(attempt.total_slides)
+                if total_slides > 0:
+                    slide_completion_score = (completed_count / total_slides) * 100
+                    scores.append(slide_completion_score)
+                    logger.info(f"Calculated score from slides: {completed_count}/{total_slides} = {slide_completion_score}% for attempt {attempt.id}")
+            except Exception as e:
+                logger.warning(f"Could not calculate score from slides for attempt {attempt.id}: {e}")
+        
+        # Priority 5: Extract from suspend_data (for slide-based SCORM)
+        if not scores and attempt.suspend_data and len(attempt.suspend_data) > 10:
+            try:
+                import re
+                # Look for progress in suspend_data
+                progress_match = re.search(r'progress[=:](\d+)', attempt.suspend_data, re.IGNORECASE)
+                if progress_match:
+                    suspend_score = float(progress_match.group(1))
+                    if 0 <= suspend_score <= 100:
+                        scores.append(suspend_score)
+                        logger.info(f"Extracted score from suspend_data: {suspend_score}% for attempt {attempt.id}")
+            except Exception as e:
+                logger.warning(f"Could not extract score from suspend_data for attempt {attempt.id}: {e}")
         
         # Return the highest score found
         return max(scores) if scores else None

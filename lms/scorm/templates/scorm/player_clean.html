@@ -967,26 +967,84 @@
             if (window.API && window.API._initialized) {
                 try {
                     console.log('🔖 Committing SCORM bookmark data for resume...');
-                    // CRITICAL: Force extract current score before committing
+                    
+                    // CRITICAL FIX: Calculate and set score for slide-based SCORM content
                     try {
                         // Try to get current score from SCORM API
                         const scoreRaw12 = window.API.LMSGetValue ? window.API.LMSGetValue('cmi.core.score.raw') : '';
                         const scoreRaw2004 = window.API_1484_11 && window.API_1484_11.GetValue ? 
                             window.API_1484_11.GetValue('cmi.score.raw') : '';
-                        const currentScore = scoreRaw12 || scoreRaw2004;
+                        let currentScore = scoreRaw12 || scoreRaw2004;
                         
-                        if (currentScore && currentScore !== '' && currentScore !== 'false') {
-                            console.log('📊 Current score before exit:', currentScore);
-                            // Force set the score to ensure it's saved
-                            if (window.API.LMSSetValue) {
-                                window.API.LMSSetValue('cmi.core.score.raw', currentScore);
+                        // If no explicit score is set, try to calculate from slide completion or progress data
+                        if (!currentScore || currentScore === '' || currentScore === 'false') {
+                            console.log('📊 No explicit score found, checking for slide completion data...');
+                            
+                            // Method 1: Try to extract from suspend_data (slide completion tracking)
+                            const suspendData12 = window.API.LMSGetValue ? window.API.LMSGetValue('cmi.core.suspend_data') : '';
+                            const suspendData2004 = window.API_1484_11 && window.API_1484_11.GetValue ? 
+                                window.API_1484_11.GetValue('cmi.suspend_data') : '';
+                            const suspendData = suspendData12 || suspendData2004;
+                            
+                            if (suspendData && suspendData.length > 10) {
+                                // Check for progress percentage in suspend_data
+                                const progressMatch = suspendData.match(/progress[=:](\d+)/i);
+                                if (progressMatch) {
+                                    currentScore = progressMatch[1];
+                                    console.log('📊 Calculated score from progress in suspend_data:', currentScore);
+                                } else {
+                                    // Check for completed_slides tracking
+                                    const completedMatch = suspendData.match(/completed_slides[=:]([^&]+)/i);
+                                    const totalMatch = suspendData.match(/total_slides[=:](\d+)/i);
+                                    
+                                    if (completedMatch && totalMatch) {
+                                        const completedSlides = completedMatch[1].split(',').filter(s => s.trim()).length;
+                                        const totalSlides = parseInt(totalMatch[1]);
+                                        if (totalSlides > 0) {
+                                            currentScore = Math.round((completedSlides / totalSlides) * 100);
+                                            console.log('📊 Calculated score from slides:', completedSlides, '/', totalSlides, '=', currentScore + '%');
+                                        }
+                                    }
+                                }
                             }
-                            if (window.API_1484_11 && window.API_1484_11.SetValue) {
-                                window.API_1484_11.SetValue('cmi.score.raw', currentScore);
+                            
+                            // Method 2: Check progress_measure (SCORM 2004)
+                            if ((!currentScore || currentScore === '') && window.API_1484_11 && window.API_1484_11.GetValue) {
+                                const progressMeasure = window.API_1484_11.GetValue('cmi.progress_measure');
+                                if (progressMeasure && progressMeasure !== '' && progressMeasure !== 'false') {
+                                    const progressValue = parseFloat(progressMeasure);
+                                    if (!isNaN(progressValue) && progressValue >= 0 && progressValue <= 1) {
+                                        currentScore = Math.round(progressValue * 100);
+                                        console.log('📊 Calculated score from progress_measure:', currentScore);
+                                    }
+                                }
                             }
                         }
+                        
+                        // Set the score if we have one
+                        if (currentScore && currentScore !== '' && currentScore !== 'false') {
+                            const scoreValue = parseFloat(currentScore);
+                            if (!isNaN(scoreValue) && scoreValue >= 0 && scoreValue <= 100) {
+                                console.log('📊 Setting score before exit:', scoreValue);
+                                
+                                // Force set the score to ensure it's saved
+                                if (window.API && window.API.LMSSetValue) {
+                                    window.API.LMSSetValue('cmi.core.score.raw', scoreValue.toString());
+                                }
+                                if (window.API_1484_11 && window.API_1484_11.SetValue) {
+                                    window.API_1484_11.SetValue('cmi.score.raw', scoreValue.toString());
+                                    // Also set scaled score
+                                    window.API_1484_11.SetValue('cmi.score.scaled', (scoreValue / 100).toString());
+                                }
+                                console.log('✅ Score set successfully');
+                            } else {
+                                console.log('⚠️ Invalid score value:', scoreValue);
+                            }
+                        } else {
+                            console.log('📊 No score available to save');
+                        }
                     } catch (e) {
-                        console.log('Could not extract score:', e.message);
+                        console.error('❌ Error calculating/setting score:', e);
                     }
                     
                     // Only commit current data - don't terminate (which triggers completion logic)

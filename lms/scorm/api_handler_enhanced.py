@@ -1355,6 +1355,82 @@ class ScormAPIHandlerEnhanced:
         except Exception as e:
             logger.error("AUTO_EXTRACT: Failed to apply extracted score: %s", str(e))
     
+    def _calculate_slide_completion_score(self):
+        """
+        Calculate score based on slide completion for slide-based SCORM content
+        This handles SCORM packages that track progress by slide completion rather than quiz scores
+        """
+        try:
+            # Skip if we already have a valid score
+            if self.attempt.score_raw is not None and self.attempt.score_raw > 0:
+                logger.debug("SLIDE_SCORE: Score already set (%s), skipping slide calculation", self.attempt.score_raw)
+                return
+            
+            logger.info("SLIDE_SCORE: Checking for slide completion data (progress_percentage: %s, completed_slides: %s, total_slides: %s)", 
+                       self.attempt.progress_percentage, self.attempt.completed_slides, self.attempt.total_slides)
+            
+            calculated_score = None
+            
+            # Method 1: Use progress_percentage directly if available
+            if self.attempt.progress_percentage:
+                progress_value = float(self.attempt.progress_percentage)
+                if 0 <= progress_value <= 100:
+                    calculated_score = progress_value
+                    logger.info("SLIDE_SCORE: Using progress_percentage: %s%%", calculated_score)
+            
+            # Method 2: Calculate from completed_slides / total_slides
+            if calculated_score is None and self.attempt.completed_slides and self.attempt.total_slides:
+                try:
+                    # Extract completed slides count
+                    if isinstance(self.attempt.completed_slides, list):
+                        completed_count = len(self.attempt.completed_slides)
+                    elif isinstance(self.attempt.completed_slides, str):
+                        completed_count = len([s for s in self.attempt.completed_slides.split(',') if s.strip()])
+                    else:
+                        completed_count = 0
+                    
+                    total_slides = int(self.attempt.total_slides)
+                    if total_slides > 0:
+                        calculated_score = round((completed_count / total_slides) * 100, 2)
+                        logger.info("SLIDE_SCORE: Calculated from slides: %s/%s = %s%%", 
+                                   completed_count, total_slides, calculated_score)
+                except Exception as e:
+                    logger.warning("SLIDE_SCORE: Could not calculate from slides: %s", str(e))
+            
+            # Method 3: Parse from suspend_data
+            if calculated_score is None and self.attempt.suspend_data and len(self.attempt.suspend_data) > 10:
+                try:
+                    import re
+                    
+                    # Look for progress in suspend_data
+                    progress_match = re.search(r'progress[=:](\d+)', self.attempt.suspend_data, re.IGNORECASE)
+                    if progress_match:
+                        calculated_score = float(progress_match.group(1))
+                        logger.info("SLIDE_SCORE: Extracted from suspend_data: %s%%", calculated_score)
+                    else:
+                        # Look for completed/total pattern
+                        slide_match = re.search(r'completed_slides[=:]([^&]+).*?total_slides[=:](\d+)', 
+                                              self.attempt.suspend_data, re.IGNORECASE | re.DOTALL)
+                        if slide_match:
+                            completed = len([s for s in slide_match.group(1).split(',') if s.strip()])
+                            total = int(slide_match.group(2))
+                            if total > 0:
+                                calculated_score = round((completed / total) * 100, 2)
+                                logger.info("SLIDE_SCORE: Calculated from suspend_data: %s/%s = %s%%", 
+                                           completed, total, calculated_score)
+                except Exception as e:
+                    logger.warning("SLIDE_SCORE: Could not parse suspend_data: %s", str(e))
+            
+            # Apply the calculated score if we found one
+            if calculated_score is not None and 0 <= calculated_score <= 100:
+                logger.info("SLIDE_SCORE: Applying calculated score: %s%%", calculated_score)
+                self._apply_extracted_score(calculated_score)
+            else:
+                logger.debug("SLIDE_SCORE: No valid slide completion score found")
+                
+        except Exception as e:
+            logger.error("SLIDE_SCORE ERROR: Failed to calculate slide completion score: %s", str(e))
+    
     def _commit_data(self):
         """Save attempt data to database with atomic transactions"""
         from django.db import transaction
@@ -1425,6 +1501,9 @@ class ScormAPIHandlerEnhanced:
                     
                     # AUTOMATIC SCORE EXTRACTION: If SCORM content didn't report score, try to extract from suspend_data
                     self._auto_extract_score_from_suspend_data()
+                    
+                    # SLIDE-BASED SCORE CALCULATION: Calculate score from slide completion if no explicit score
+                    self._calculate_slide_completion_score()
                     
                     # Update TopicProgress (within same transaction for consistency)
                     self._update_topic_progress()
