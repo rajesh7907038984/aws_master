@@ -1625,6 +1625,19 @@ class ScormAPIHandlerEnhanced:
         # Only save to database if not a preview attempt
         if not getattr(self.attempt, 'is_preview', False):
             try:
+                # CRITICAL FIX: Ensure JSON fields have valid default values
+                # These fields must NEVER be None - they should be empty list/dict at minimum
+                if self.attempt.completed_slides is None:
+                    self.attempt.completed_slides = []
+                if self.attempt.navigation_history is None:
+                    self.attempt.navigation_history = []
+                if self.attempt.detailed_tracking is None:
+                    self.attempt.detailed_tracking = {}
+                if self.attempt.session_data is None:
+                    self.attempt.session_data = {}
+                if self.attempt.cmi_data is None:
+                    self.attempt.cmi_data = {}
+                
                 # Use atomic transaction for data consistency
                 with transaction.atomic():
                     # CRITICAL: Store the score and bookmark before any operations

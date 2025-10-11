@@ -242,6 +242,23 @@ class ScormAttempt(models.Model):
         unique_together = ['user', 'scorm_package', 'attempt_number']
         ordering = ['-started_at']
     
+    def save(self, *args, **kwargs):
+        """Override save to ensure JSON fields are never None"""
+        # CRITICAL FIX: Ensure JSON fields always have valid default values
+        # These fields must NEVER be None - they should be empty list/dict at minimum
+        if self.completed_slides is None:
+            self.completed_slides = []
+        if self.navigation_history is None:
+            self.navigation_history = []
+        if self.detailed_tracking is None:
+            self.detailed_tracking = {}
+        if self.session_data is None:
+            self.session_data = {}
+        if self.cmi_data is None:
+            self.cmi_data = {}
+        
+        super().save(*args, **kwargs)
+    
     def __str__(self):
         return f"{self.user.username} - {self.scorm_package.title} - Attempt {self.attempt_number}"
     
