@@ -1319,12 +1319,24 @@ def course_gradebook_detail(request, course_id):
             raise PermissionDenied("You don't have permission to view this gradebook.")
         
         # Get students for this course with proper optimization
+        # IMPORTANT: Only show learner role users in gradebook
         if user.role == 'learner':
-            students = User.objects.filter(id=user.id).select_related('branch')
+            # Learner can only see their own data (and they must be a learner)
+            students = User.objects.filter(id=user.id, role='learner').select_related('branch')
         else:
+            # Instructors/admins can see all learners enrolled in the course
+            # Explicitly filter for ONLY learner role users
             students = User.objects.filter(
-                Q(enrolled_courses__id=course_id) & Q(role='learner')
+                enrolled_courses__id=course_id,
+                role='learner'  # ONLY learner role users
             ).distinct().select_related('branch').prefetch_related('enrolled_courses')
+        
+        # Additional validation: Ensure ONLY learner role users are included
+        # This is a safeguard to prevent any non-learner users from appearing
+        students = students.filter(role='learner')
+        
+        # Log student count for debugging
+        logger.info(f"Gradebook for course {course_id}: Found {students.count()} learner role users")
         
         # Add pagination for better performance with large student lists
         page_size = 50  # Configurable page size
