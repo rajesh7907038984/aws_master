@@ -63,9 +63,11 @@ class BusinessStatisticsManager:
         user_ct = ContentType.objects.get_for_model(CustomUser)
         
         # Get base queryset for logins
+        # Note: Using LogEntry as a proxy for login tracking. For more accurate tracking,
+        # consider implementing a dedicated UserLoginHistory model
         login_queryset = LogEntry.objects.filter(
             content_type=user_ct,
-            action_flag=1  # ADDITION flag for user creation/login
+            action_flag=1  # ADDITION flag - tracks admin actions as proxy for activity
         )
         
         # Filter by business if specified
@@ -117,13 +119,20 @@ class BusinessStatisticsManager:
             labels = []
             login_counts = []
             
-            for i in range(12):
-                month_start = (now.replace(day=1) - timedelta(days=32*i)).replace(day=1)
+            # Calculate months from oldest to newest (last 12 months)
+            for i in range(11, -1, -1):
+                # Get the first day of the month (going backwards from current month)
+                month_start = (now.replace(day=1) - timedelta(days=32*i)).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                
+                # Calculate the last moment of the month
                 if i == 0:
+                    # Current month - use current time
                     month_end = now
                 else:
-                    next_month = (now.replace(day=1) - timedelta(days=32*(i-1))).replace(day=1)
-                    month_end = next_month - timedelta(days=1)
+                    # Get next month's first day and subtract 1 microsecond
+                    next_month_start = (now.replace(day=1) - timedelta(days=32*(i-1))).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                    month_end = next_month_start - timedelta(microseconds=1)
+                
                 labels.append(month_start.strftime('%b %Y'))
                 
                 count = login_queryset.filter(
@@ -248,13 +257,20 @@ class BusinessStatisticsManager:
             labels = []
             completion_counts = []
             
-            for i in range(12):
-                month_start = (now.replace(day=1) - timedelta(days=32*i)).replace(day=1)
+            # Calculate months from oldest to newest (last 12 months)
+            for i in range(11, -1, -1):
+                # Get the first day of the month (going backwards from current month)
+                month_start = (now.replace(day=1) - timedelta(days=32*i)).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                
+                # Calculate the last moment of the month
                 if i == 0:
+                    # Current month - use current time
                     month_end = now
                 else:
-                    next_month = (now.replace(day=1) - timedelta(days=32*(i-1))).replace(day=1)
-                    month_end = next_month - timedelta(days=1)
+                    # Get next month's first day and subtract 1 microsecond
+                    next_month_start = (now.replace(day=1) - timedelta(days=32*(i-1))).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                    month_end = next_month_start - timedelta(microseconds=1)
+                
                 labels.append(month_start.strftime('%b %Y'))
                 
                 count = completion_queryset.filter(
