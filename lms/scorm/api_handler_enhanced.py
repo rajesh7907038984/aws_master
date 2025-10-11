@@ -1884,12 +1884,14 @@ class ScormAPIHandlerEnhanced:
                     old_last_score = progress.last_score
                     old_best_score = progress.best_score
                     
-                    # Always update last_score to reflect the most recent score
-                    progress.last_score = score_value
-                    
                     # Update best_score if this is better
                     if progress.best_score is None or score_value > progress.best_score:
                         progress.best_score = score_value
+                    
+                    # CRITICAL FIX: For SCORM content, always use best_score as last_score
+                    # This prevents score downgrade when users retake content
+                    # Gradebook displays last_score, so it should show their best achievement
+                    progress.last_score = progress.best_score if progress.best_score is not None else score_value
                     
                     # Update attempts counter
                     progress.attempts = max(progress.attempts or 0, self.attempt.attempt_number)
