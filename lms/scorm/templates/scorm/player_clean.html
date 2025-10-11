@@ -899,6 +899,41 @@
                 backBtn.classList.add('disabled');
             }
             
+            // CRITICAL FIX: Capture and sync client-side tracked time BEFORE commit
+            try {
+                // Get the current session time from client-side tracker
+                if (typeof totalActiveSeconds !== 'undefined' && totalActiveSeconds > 0) {
+                    // Add any time since last heartbeat
+                    if (isPageVisible && typeof lastHeartbeatTime !== 'undefined') {
+                        const now = new Date();
+                        const additionalSeconds = Math.floor((now - lastHeartbeatTime) / 1000);
+                        if (additionalSeconds > 0 && additionalSeconds < 300) {
+                            totalActiveSeconds += additionalSeconds;
+                        }
+                    }
+                    
+                    // Format as SCORM time
+                    const sessionTime = formatScormTime(totalActiveSeconds);
+                    console.log('⏱️ Setting session_time from client-side tracker:', sessionTime, '(', totalActiveSeconds, 'seconds)');
+                    
+                    // Set session_time via SCORM API - this will trigger _update_total_time on commit
+                    if (window.API && window.API.LMSSetValue) {
+                        window.API.LMSSetValue('cmi.core.session_time', sessionTime);
+                        console.log('✅ Set SCORM 1.2 session_time:', sessionTime);
+                    }
+                    if (window.API_1484_11 && window.API_1484_11.SetValue) {
+                        window.API_1484_11.SetValue('cmi.session_time', 'PT' + Math.floor(totalActiveSeconds / 3600) + 'H' + 
+                                                    Math.floor((totalActiveSeconds % 3600) / 60) + 'M' + 
+                                                    (totalActiveSeconds % 60) + 'S');
+                        console.log('✅ Set SCORM 2004 session_time');
+                    }
+                } else {
+                    console.log('⏱️ No client-side time to sync (totalActiveSeconds:', typeof totalActiveSeconds !== 'undefined' ? totalActiveSeconds : 'undefined', ')');
+                }
+            } catch (error) {
+                console.error('❌ Error setting session_time:', error);
+            }
+            
             // CRITICAL: Force save current navigation state for resume
             try {
                 // Get current iframe location for bookmark
@@ -1485,14 +1520,26 @@
         // Tracks time even when SCORM content doesn't report it
         // =================================================================
         
-        (function() {
-            let sessionStartTime = new Date();
-            let totalActiveSeconds = 0;
-            let lastHeartbeatTime = new Date();
-            let isPageVisible = !document.hidden;
-            let heartbeatInterval = null;
-            let lastSyncTime = null;
+        // CRITICAL FIX: Make time tracking variables and functions global so handleBackToTopic can access them
+        let sessionStartTime = new Date();
+        let totalActiveSeconds = 0;
+        let lastHeartbeatTime = new Date();
+        let isPageVisible = !document.hidden;
+        let heartbeatInterval = null;
+        let lastSyncTime = null;
+        
+        // Format seconds into SCORM time format (hhhh:mm:ss.ss)
+        function formatScormTime(totalSeconds) {
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
             
+            return String(hours).padStart(4, '0') + ':' +
+                   String(minutes).padStart(2, '0') + ':' +
+                   String(seconds).padStart(2, '0') + '.00';
+        }
+        
+        (function() {
             console.log('⏱️ Client-side time tracking initialized');
             
             // Track page visibility changes
@@ -1572,17 +1619,6 @@
                 } catch (error) {
                     console.error('❌ Error syncing time:', error);
                 }
-            }
-            
-            // Format seconds into SCORM time format (hhhh:mm:ss.ss)
-            function formatScormTime(totalSeconds) {
-                const hours = Math.floor(totalSeconds / 3600);
-                const minutes = Math.floor((totalSeconds % 3600) / 60);
-                const seconds = totalSeconds % 60;
-                
-                return String(hours).padStart(4, '0') + ':' +
-                       String(minutes).padStart(2, '0') + ':' +
-                       String(seconds).padStart(2, '0') + '.00';
             }
             
             // Format for display
