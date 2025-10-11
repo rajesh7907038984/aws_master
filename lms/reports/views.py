@@ -1379,6 +1379,22 @@ def upload_attachment(request):
         if upload.size > max_file_size:
             return JsonResponse({'error': 'File size exceeds 10MB limit'}, status=400)
         
+        # Check storage permission before upload
+        try:
+            from core.utils.storage_manager import StorageManager
+            can_upload, error_message = StorageManager.check_upload_permission(
+                request.user, 
+                upload.size
+            )
+            if not can_upload:
+                logger.warning(f"Upload rejected due to storage limit: {error_message}")
+                return JsonResponse({
+                    'error': error_message
+                }, status=403)
+        except Exception as e:
+            logger.error(f"Error checking storage permission: {str(e)}")
+            # Continue with upload if storage check fails (graceful degradation)
+        
         # Session validation: Allowed file extensions
         allowed_extensions = {'.pdf', '.doc', '.docx', '.xls', '.xlsx', '.txt', '.png', '.jpg', '.jpeg', '.gif'}
         ext = os.path.splitext(upload.name)[1].lower()
@@ -1419,6 +1435,21 @@ def upload_attachment(request):
             )
         except Exception as e:
             logger.error(f"Error registering report attachment in media database: {str(e)}")
+        
+        # Register file in storage tracking system
+        try:
+            from core.utils.storage_manager import StorageManager
+            StorageManager.register_file_upload(
+                user=request.user,
+                file_path=saved_path,
+                original_filename=upload.name,
+                file_size_bytes=upload.size,
+                content_type=upload.content_type,
+                source_app='reports',
+                source_model='ReportAttachment'
+            )
+        except Exception as e:
+            logger.error(f"Error registering file in storage tracking: {str(e)}")
         
         # Return the URL for the uploaded file using default storage
         file_url = default_storage.url(saved_path)

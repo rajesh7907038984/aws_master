@@ -5031,6 +5031,23 @@ def upload_conference_file(request, conference_id):
             file = form.cleaned_data['file']
             description = form.cleaned_data.get('description', '')
             
+            # Check storage permission before upload
+            try:
+                from core.utils.storage_manager import StorageManager
+                can_upload, error_message = StorageManager.check_upload_permission(
+                    request.user, 
+                    file.size
+                )
+                if not can_upload:
+                    logger.warning(f"Upload rejected due to storage limit: {error_message}")
+                    return JsonResponse({
+                        'success': False,
+                        'error': error_message
+                    }, status=403)
+            except Exception as e:
+                logger.error(f"Error checking storage permission: {str(e)}")
+                # Continue with upload if storage check fails (graceful degradation)
+            
             # Create ConferenceFile record
             import os
             from django.core.files.storage import default_storage
@@ -5077,6 +5094,22 @@ def upload_conference_file(request, conference_id):
                 )
             except Exception as e:
                 logger.error(f"Error registering conference file in media database: {str(e)}")
+            
+            # Register file in storage tracking system
+            try:
+                from core.utils.storage_manager import StorageManager
+                StorageManager.register_file_upload(
+                    user=request.user,
+                    file_path=saved_path,
+                    original_filename=file.name,
+                    file_size_bytes=file.size,
+                    content_type=file.content_type,
+                    source_app='conferences',
+                    source_model='ConferenceFile',
+                    source_object_id=conference_file.id
+                )
+            except Exception as e:
+                logger.error(f"Error registering file in storage tracking: {str(e)}")
             
             # Return success response
             return JsonResponse({

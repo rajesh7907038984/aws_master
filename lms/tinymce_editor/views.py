@@ -72,6 +72,22 @@ def upload_image(request):
             'error': 'File too large. Maximum size is 10MB.'
         }, status=400)
     
+    # Check storage permission before upload
+    try:
+        from core.utils.storage_manager import StorageManager
+        can_upload, error_message = StorageManager.check_upload_permission(
+            request.user, 
+            uploaded_file.size
+        )
+        if not can_upload:
+            logger.warning(f"Upload rejected due to storage limit: {error_message}")
+            return JsonResponse({
+                'error': error_message
+            }, status=403)
+    except Exception as e:
+        logger.error(f"Error checking storage permission: {str(e)}")
+        # Continue with upload if storage check fails (graceful degradation)
+    
     # Preserve original extension but sanitize filename
     original_name = uploaded_file.name
     file_ext = os.path.splitext(original_name)[1].lower()
@@ -231,6 +247,22 @@ def upload_media_file(request):
         return JsonResponse({
             'error': f'File too large. Maximum size is {size_description}.'
         }, status=400)
+    
+    # Check storage permission before upload
+    try:
+        from core.utils.storage_manager import StorageManager
+        can_upload, error_message = StorageManager.check_upload_permission(
+            request.user, 
+            uploaded_file.size
+        )
+        if not can_upload:
+            logger.warning(f"Upload rejected due to storage limit: {error_message}")
+            return JsonResponse({
+                'error': error_message
+            }, status=403)
+    except Exception as e:
+        logger.error(f"Error checking storage permission: {str(e)}")
+        # Continue with upload if storage check fails (graceful degradation)
     
     # Preserve original extension but sanitize filename
     original_name = uploaded_file.name

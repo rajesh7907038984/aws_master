@@ -6370,6 +6370,23 @@ def upload_editor_image(request):
     if request.FILES.get('image'):
         image = request.FILES['image']
         
+        # Check storage permission before upload
+        try:
+            from core.utils.storage_manager import StorageManager
+            can_upload, error_message = StorageManager.check_upload_permission(
+                request.user, 
+                image.size
+            )
+            if not can_upload:
+                logger.warning(f"Upload rejected due to storage limit: {error_message}")
+                return JsonResponse({
+                    'success': False,
+                    'error': error_message
+                }, status=403)
+        except Exception as e:
+            logger.error(f"Error checking storage permission: {str(e)}")
+            # Continue with upload if storage check fails (graceful degradation)
+        
         # Use enhanced file Session validation
         # is_valid, error_message = FileSessionValidator.validate_file(image, 'image')
         # if not is_valid:
@@ -6434,6 +6451,22 @@ def upload_editor_image(request):
         except Exception as e:
             logger.error(f"Error registering editor image in media database: {str(e)}")
         
+        # Register file in storage tracking system
+        try:
+            from core.utils.storage_manager import StorageManager
+            StorageManager.register_file_upload(
+                user=request.user,
+                file_path=saved_path,
+                original_filename=image.name,
+                file_size_bytes=image.size,
+                content_type=image.content_type,
+                source_app='courses',
+                source_model='Course',
+                source_object_id=course_id
+            )
+        except Exception as e:
+            logger.error(f"Error registering file in storage tracking: {str(e)}")
+        
         return JsonResponse({
             'success': True,
             'url': uploaded_file_url,
@@ -6472,6 +6505,23 @@ def upload_editor_video(request):
         # Validate file size (max 500MB to match frontend validation)
         if video.size > 500 * 1024 * 1024:
             return JsonResponse({'success': False, 'error': 'File too large. Maximum size is 500MB.'})
+        
+        # Check storage permission before upload
+        try:
+            from core.utils.storage_manager import StorageManager
+            can_upload, error_message = StorageManager.check_upload_permission(
+                request.user, 
+                video.size
+            )
+            if not can_upload:
+                logger.warning(f"Upload rejected due to storage limit: {error_message}")
+                return JsonResponse({
+                    'success': False,
+                    'error': error_message
+                }, status=403)
+        except Exception as e:
+            logger.error(f"Error checking storage permission: {str(e)}")
+            # Continue with upload if storage check fails (graceful degradation)
         
         # Get course ID from the referrer URL or a hidden field
         course_id = None
@@ -6530,6 +6580,22 @@ def upload_editor_video(request):
             )
         except Exception as e:
             logger.error(f"Error registering editor video in media database: {str(e)}")
+        
+        # Register file in storage tracking system
+        try:
+            from core.utils.storage_manager import StorageManager
+            StorageManager.register_file_upload(
+                user=request.user,
+                file_path=saved_path,
+                original_filename=video.name,
+                file_size_bytes=video.size,
+                content_type=video.content_type,
+                source_app='courses',
+                source_model='Video',
+                source_object_id=course_id
+            )
+        except Exception as e:
+            logger.error(f"Error registering file in storage tracking: {str(e)}")
         
         return JsonResponse({
             'success': True,

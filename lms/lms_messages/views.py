@@ -290,6 +290,23 @@ def upload_image(request):
     # Get the uploaded file
     upload = request.FILES['upload']
     
+    # Check storage permission before upload
+    try:
+        from core.utils.storage_manager import StorageManager
+        can_upload, error_message = StorageManager.check_upload_permission(
+            request.user, 
+            upload.size
+        )
+        if not can_upload:
+            logger.warning(f"Upload rejected due to storage limit: {error_message}")
+            return JsonResponse({
+                'error': error_message,
+                'uploaded': '0'
+            }, status=403)
+    except Exception as e:
+        logger.error(f"Error checking storage permission: {str(e)}")
+        # Continue with upload if storage check fails (graceful degradation)
+    
     # Check if the uploaded file is an image
     if not upload.name.endswith(('.jpg', '.jpeg', '.png', '.gif')):
         return HttpResponseBadRequest("File type not supported")
@@ -302,6 +319,21 @@ def upload_image(request):
     # Define path to save the image (inside media)
     path = os.path.join('messages', 'uploads', upload.name)
     path = default_storage.save(path, ContentFile(upload.read()))
+    
+    # Register file in storage tracking system
+    try:
+        from core.utils.storage_manager import StorageManager
+        StorageManager.register_file_upload(
+            user=request.user,
+            file_path=path,
+            original_filename=upload.name,
+            file_size_bytes=upload.size,
+            content_type=upload.content_type,
+            source_app='lms_messages',
+            source_model='MessageImage'
+        )
+    except Exception as e:
+        logger.error(f"Error registering file in storage tracking: {str(e)}")
     
     # Return the URL for the uploaded image in standard format for rich text editors
     file_url = default_storage.url(path)
@@ -349,6 +381,25 @@ def send_message(request):
         
         # Handle file uploads
         files = request.FILES.getlist('files[]')
+        
+        # Check storage permission for all files first
+        if files:
+            total_size = sum(file.size for file in files)
+            try:
+                from core.utils.storage_manager import StorageManager
+                can_upload, error_message = StorageManager.check_upload_permission(
+                    request.user, 
+                    total_size
+                )
+                if not can_upload:
+                    return JsonResponse({
+                        'status': 'error',
+                        'message': error_message
+                    })
+            except Exception as e:
+                logger.error(f"Error checking storage permission: {str(e)}")
+                # Continue with upload if storage check fails (graceful degradation)
+        
         for file in files:
             # Get the file extension
             _, ext = os.path.splitext(file.name)
@@ -360,6 +411,22 @@ def send_message(request):
                 filename=file.name,
                 file_type=ext.lstrip('.').lower()
             )
+            
+            # Register file in storage tracking system
+            try:
+                from core.utils.storage_manager import StorageManager
+                StorageManager.register_file_upload(
+                    user=request.user,
+                    file_path=attachment.file.name,
+                    original_filename=file.name,
+                    file_size_bytes=file.size,
+                    content_type=file.content_type,
+                    source_app='lms_messages',
+                    source_model='MessageAttachment',
+                    source_object_id=attachment.id
+                )
+            except Exception as e:
+                logger.error(f"Error registering file in storage tracking: {str(e)}")
         
         return JsonResponse({
             'status': 'success',

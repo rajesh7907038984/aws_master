@@ -1590,8 +1590,35 @@ class Topic(models.Model):
         except ValidationError as e:
             # Log validation errors but continue with save
             logger.error(f"Validation error in Topic.save: {str(e)}")
-            
+        
+        # Track if this is a new instance
+        is_new = self.pk is None
+        
         super().save(*args, **kwargs)
+        
+        # Register SCORM package upload in storage tracking system
+        if self.content_type == 'scorm' and self.content_file and is_new:
+            try:
+                from core.utils.storage_manager import StorageManager
+                # Get the user who created this topic (if available from request context)
+                # For now, try to get from course creator or skip if not available
+                course = self.course
+                user = course.created_by if course and hasattr(course, 'created_by') else None
+                
+                if user and hasattr(self.content_file, 'size'):
+                    StorageManager.register_file_upload(
+                        user=user,
+                        file_path=self.content_file.name,
+                        original_filename=self.content_file.name.split('/')[-1],
+                        file_size_bytes=self.content_file.size,
+                        content_type='application/zip',
+                        source_app='courses',
+                        source_model='Topic',
+                        source_object_id=self.pk
+                    )
+                    logger.info(f"Registered SCORM package upload for topic {self.pk}")
+            except Exception as e:
+                logger.error(f"Error registering SCORM package in storage tracking: {str(e)}")
         
     @property
     def course(self):

@@ -323,6 +323,10 @@ class AssignmentSubmission(models.Model):
             raise ValidationError("Either file or text submission is required")
 
     def save(self, *args, **kwargs):
+        # Track if this is a new submission with a file
+        is_new = self.pk is None
+        has_new_file = is_new and self.submission_file
+        
         if self.pk:  # If this is an update
             old_instance = AssignmentSubmission.objects.get(pk=self.pk)
             if (old_instance.grade != self.grade or old_instance.status != self.status):
@@ -335,7 +339,32 @@ class AssignmentSubmission(models.Model):
                     changed_by=self.graded_by,
                     comment=f"Grade changed from {old_instance.grade} to {self.grade}"
                 )
+        
         super().save(*args, **kwargs)
+        
+        # Register submission file in storage tracking system
+        if has_new_file and self.user:
+            try:
+                from core.utils.storage_manager import StorageManager
+                import logging
+                logger = logging.getLogger(__name__)
+                
+                if hasattr(self.submission_file, 'size'):
+                    StorageManager.register_file_upload(
+                        user=self.user,
+                        file_path=self.submission_file.name,
+                        original_filename=self.submission_file.name.split('/')[-1],
+                        file_size_bytes=self.submission_file.size,
+                        content_type=getattr(self.submission_file, 'content_type', 'application/octet-stream'),
+                        source_app='assignments',
+                        source_model='AssignmentSubmission',
+                        source_object_id=self.pk
+                    )
+                    logger.info(f"Registered assignment submission file for submission {self.pk}")
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error registering submission file in storage tracking: {str(e)}")
 
     def can_be_edited_by_student(self):
         """
