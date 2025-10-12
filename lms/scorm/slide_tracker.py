@@ -56,6 +56,39 @@ class SlideTracker:
             if section_match:
                 result['current_section'] = f"scene_{section_match.group(1)}"
                 result['structure_type'] = 'hierarchical'
+            
+            # CRITICAL FIX: Detect button interactions from lesson location changes
+            # If lesson location has changed, it indicates user interaction with buttons
+            if lesson_location and lesson_location != 'index.html':
+                # Extract slide ID from lesson location
+                slide_id = lesson_location.split('/')[-1] if '/' in lesson_location else lesson_location
+                if slide_id and slide_id not in result['visited_slides']:
+                    result['visited_slides'].append(slide_id)
+                    logger.info(f"Detected slide interaction: {slide_id}")
+                    
+                    # If user has visited multiple slides, estimate completion
+                    if len(result['visited_slides']) > 1:
+                        result['progress_percentage'] = min(100.0, len(result['visited_slides']) * 25.0)  # 25% per slide
+                        result['total_slides'] = max(result['total_slides'], len(result['visited_slides']))
+                        logger.info(f"Estimated progress from slide interactions: {result['progress_percentage']}%")
+        
+        # CRITICAL FIX: Detect button interactions from CMI data
+        if cmi_data:
+            # Check for lesson status changes that indicate button interactions
+            lesson_status = cmi_data.get('cmi.core.lesson_status', '')
+            if lesson_status in ['incomplete', 'browsed']:
+                # User has interacted but not completed
+                if result['current_slide'] and result['current_slide'] not in result['visited_slides']:
+                    result['visited_slides'].append(result['current_slide'])
+                    logger.info(f"Detected interaction from lesson status: {lesson_status}")
+            
+            # Check for score changes that indicate button interactions
+            score_raw = cmi_data.get('cmi.core.score.raw', '')
+            if score_raw and score_raw != '0':
+                # User has interacted and got a score
+                if result['current_slide'] and result['current_slide'] not in result['completed_slides']:
+                    result['completed_slides'].append(result['current_slide'])
+                    logger.info(f"Detected completion from score: {score_raw}")
         
         # Parse suspend_data for slide tracking
         if suspend_data:
@@ -92,6 +125,69 @@ class SlideTracker:
             result['completed_slides'] = result['visited_slides']
             result['progress_percentage'] = 100.0
         
+        # CRITICAL FIX: If no slide data but have time data, use time-based progress
+        # Also check if we have minimal slide data (just placeholder) but no real progress
+        has_real_slide_data = (result['total_slides'] > 0 and 
+                              result['completed_slides'] and 
+                              result['progress_percentage'] > 0)
+        
+        if ((result['total_slides'] == 0 and 
+             result['completed_slides'] == [] and 
+             result['visited_slides'] == [] and
+             result['progress_percentage'] == 0.0) or
+            (not has_real_slide_data and result['progress_percentage'] == 0.0)):
+            
+            # Try to extract time from suspend_data or CMI data
+            time_seconds = 0
+            if suspend_data:
+                try:
+                    suspend_json = json.loads(suspend_data)
+                    time_seconds = suspend_json.get('totalTime', 0)
+                except:
+                    pass
+            
+            # If no time from suspend_data, try to extract from CMI data
+            if time_seconds == 0 and cmi_data:
+                cmi_total_time = cmi_data.get('cmi.core.total_time', '0000:00:00.00')
+                if cmi_total_time and cmi_total_time != '0000:00:00.00':
+                    try:
+                        # Parse time string (HH:MM:SS format)
+                        time_parts = str(cmi_total_time).split(':')
+                        if len(time_parts) == 3:
+                            hours, minutes, seconds = map(float, time_parts)
+                            time_seconds = int(hours * 3600 + minutes * 60 + seconds)
+                    except:
+                        pass
+            
+            if time_seconds > 0:
+                # Use time-based progress calculation with more realistic thresholds
+                if time_seconds >= 180:  # 3+ minutes = likely completed
+                    result['progress_percentage'] = 100.0
+                    result['completed_slides'] = ['slide_1']
+                    result['total_slides'] = 1
+                elif time_seconds >= 120:  # 2+ minutes = mostly completed
+                    result['progress_percentage'] = 80.0
+                    result['visited_slides'] = ['slide_1']
+                    result['total_slides'] = 1
+                elif time_seconds >= 90:  # 1.5+ minutes = partially completed
+                    result['progress_percentage'] = 60.0
+                    result['visited_slides'] = ['slide_1']
+                    result['total_slides'] = 1
+                elif time_seconds >= 60:  # 1+ minute = started
+                    result['progress_percentage'] = 40.0
+                    result['visited_slides'] = ['slide_1']
+                    result['total_slides'] = 1
+                elif time_seconds >= 30:  # 30+ seconds = barely started
+                    result['progress_percentage'] = 20.0
+                    result['visited_slides'] = ['slide_1']
+                    result['total_slides'] = 1
+                else:  # Less than 30 seconds = just opened
+                    result['progress_percentage'] = 5.0
+                    result['visited_slides'] = ['slide_1']
+                    result['total_slides'] = 1
+                
+                logger.info(f"Time-based progress calculation: {time_seconds}s = {result['progress_percentage']}%")
+        
         return result
     
     @staticmethod
@@ -124,6 +220,44 @@ class SlideTracker:
             result['total_slides'] = int(data['totalSlides'])
         elif 'slideCount' in data:
             result['total_slides'] = int(data['slideCount'])
+        
+        # CRITICAL FIX: Handle empty slide tracking data
+        # If SCORM package is not tracking slides properly, use time-based progress percentage
+        if (result['total_slides'] == 0 and 
+            result['completed_slides'] == [] and 
+            result['visited_slides'] == [] and
+            'totalTime' in data and data['totalTime'] > 0):
+            
+            # Calculate progress percentage based on time spent
+            total_time = data['totalTime']
+            
+            # Estimate progress based on time thresholds (more realistic)
+            if total_time >= 180:  # 3+ minutes = likely completed
+                result['progress_percentage'] = 100.0
+                result['completed_slides'] = ['slide_1']
+                result['total_slides'] = 1
+            elif total_time >= 120:  # 2+ minutes = mostly completed
+                result['progress_percentage'] = 80.0
+                result['visited_slides'] = ['slide_1']
+                result['total_slides'] = 1
+            elif total_time >= 90:  # 1.5+ minutes = partially completed
+                result['progress_percentage'] = 60.0
+                result['visited_slides'] = ['slide_1']
+                result['total_slides'] = 1
+            elif total_time >= 60:  # 1+ minute = started
+                result['progress_percentage'] = 40.0
+                result['visited_slides'] = ['slide_1']
+                result['total_slides'] = 1
+            elif total_time >= 30:  # 30+ seconds = barely started
+                result['progress_percentage'] = 20.0
+                result['visited_slides'] = ['slide_1']
+                result['total_slides'] = 1
+            else:  # Less than 30 seconds = just opened
+                result['progress_percentage'] = 5.0
+                result['visited_slides'] = ['slide_1']
+                result['total_slides'] = 1
+            
+            logger.info(f"Time-based progress calculation: {total_time}s = {result['progress_percentage']}%")
         
         return result
     
