@@ -58,13 +58,20 @@ class ScormPackage(models.Model):
         help_text="Parsed manifest.xml data"
     )
     
+    # Package type and scoring metadata - DYNAMIC DETECTION
+    package_metadata = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Dynamic package characteristics: scoring_method, completion_method, package_type, etc."
+    )
+    
     # Tracking settings
     mastery_score = models.DecimalField(
         max_digits=5,
         decimal_places=2,
         null=True,
         blank=True,
-        help_text="Mastery score from manifest"
+        help_text="Mastery score from manifest (pass/fail threshold, NOT max score)"
     )
     
     # Timestamps

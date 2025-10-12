@@ -431,13 +431,13 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                         completion_status = attempt.lesson_status
                                         success_status = attempt.success_status
                                     
-                                    # Get mastery score from package
-                                    mastery_score = float(attempt.scorm_package.mastery_score) if attempt.scorm_package.mastery_score else 100
+                                    # CRITICAL FIX: For SCORM, max_score should ALWAYS be 100 (score_raw is a percentage 0-100)
+                                    # mastery_score is only used for pass/fail threshold, NOT as max_score
                                     passing_threshold = float(attempt.scorm_package.mastery_score) if attempt.scorm_package.mastery_score else 70
                                     
                                     student_scores[activity_id] = {
                                         'score': score_value,
-                                        'max_score': mastery_score,
+                                        'max_score': 100,  # SCORM scores are always 0-100 percentages
                                         'date': attempt.last_accessed,
                                         'type': 'scorm',
                                         'attempt': attempt,
@@ -494,13 +494,13 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                                 elif topic_progress.completed:
                                                     success_status = 'passed'
                                                 
-                                                # Get mastery score from package
+                                                # CRITICAL FIX: For SCORM, max_score should ALWAYS be 100
+                                                # mastery_score is only used for pass/fail threshold
                                                 scorm_package = activity['object']
-                                                mastery_score = float(scorm_package.mastery_score) if scorm_package.mastery_score else 100
                                                 
                                                 student_scores[activity_id] = {
                                                     'score': score_value,
-                                                    'max_score': mastery_score,
+                                                    'max_score': 100,  # SCORM scores are always 0-100 percentages
                                                     'date': topic_progress.last_accessed,
                                                     'type': 'scorm',
                                                     'topic_progress': topic_progress,
@@ -510,27 +510,24 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                                 }
                                             else:
                                                 scorm_package = activity['object']
-                                                mastery_score = float(scorm_package.mastery_score) if scorm_package.mastery_score else 100
                                                 student_scores[activity_id] = {
                                                     'score': None,
-                                                    'max_score': mastery_score,
+                                                    'max_score': 100,  # SCORM scores are always 0-100 percentages
                                                     'type': 'scorm'
                                                 }
                                         else:
                                             scorm_package = activity['object']
-                                            mastery_score = float(scorm_package.mastery_score) if scorm_package.mastery_score else 100
                                             student_scores[activity_id] = {
                                                 'score': None,
-                                                'max_score': mastery_score,
+                                                'max_score': 100,  # SCORM scores are always 0-100 percentages
                                                 'type': 'scorm'
                                             }
                                     except Exception as e:
                                         logger.error(f"Error checking TopicProgress for scorm {activity_id}, student {student.id}: {str(e)}")
                                         scorm_package = activity['object']
-                                        mastery_score = float(scorm_package.mastery_score) if scorm_package.mastery_score else 100
                                         student_scores[activity_id] = {
                                             'score': None,
-                                            'max_score': mastery_score,
+                                            'max_score': 100,  # SCORM scores are always 0-100 percentages
                                             'type': 'scorm'
                                         }
                             else:
@@ -542,7 +539,7 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                     # SCORM packages are directly linked to topics
                                     topic = activity['object'].topic if hasattr(activity['object'], 'topic') else None
                                     scorm_package = activity['object']
-                                    mastery_score = float(scorm_package.mastery_score) if scorm_package.mastery_score else 100
+                                    # mastery_score is used only for pass/fail threshold, NOT as max_score
                                     passing_threshold = float(scorm_package.mastery_score) if scorm_package.mastery_score else 70
                                     
                                     if topic:
@@ -569,7 +566,7 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                             
                                             student_scores[activity_id] = {
                                                 'score': float(score_value) if score_value else None,
-                                                'max_score': mastery_score,
+                                                'max_score': 100,  # SCORM scores are always 0-100 percentages
                                                 'date': topic_progress.last_accessed,
                                                 'type': 'scorm',
                                                 'topic_progress': topic_progress,
@@ -580,22 +577,21 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                         else:
                                             student_scores[activity_id] = {
                                                 'score': None,
-                                                'max_score': mastery_score,
+                                                'max_score': 100,  # SCORM scores are always 0-100 percentages
                                                 'type': 'scorm'
                                             }
                                     else:
                                         student_scores[activity_id] = {
                                             'score': None,
-                                            'max_score': mastery_score,
+                                            'max_score': 100,  # SCORM scores are always 0-100 percentages
                                             'type': 'scorm'
                                         }
                                 except Exception as e:
                                     logger.error(f"Error checking TopicProgress for scorm {activity_id}, student {student.id}: {str(e)}")
                                     scorm_package = activity['object']
-                                    mastery_score = float(scorm_package.mastery_score) if scorm_package.mastery_score else 100
                                     student_scores[activity_id] = {
                                         'score': None,
-                                        'max_score': mastery_score,
+                                        'max_score': 100,  # SCORM scores are always 0-100 percentages
                                         'type': 'scorm'
                                     }
                         

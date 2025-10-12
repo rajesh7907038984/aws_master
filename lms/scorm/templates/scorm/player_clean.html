@@ -215,11 +215,14 @@
         </div>
         <div class="scorm-actions">
             <a href="#" id="backToTopicBtn" class="btn btn-secondary" onclick="handleBackToTopic(event); return false;">
-                ← Back to Topic
+                Save & Exit
             </a>
         </div>
     </div>
     
+    <div class="scorm-note" style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 20px; margin: 0; font-size: 13px; color: #92400e;">
+        <strong>Note:</strong> Please use the "Save & Exit" button above to accurately save your progress. In some cases, the "Exit" option inside your course window may not work.
+    </div>
 
     <div class="scorm-container">
         <div class="loading" id="loading">⏳ Loading SCORM content...</div>
@@ -744,7 +747,7 @@
                                                 btn.onclick = function(e) {
                                                     e.preventDefault();
                                                     e.stopPropagation();
-                                                    console.log('🚪 Exit button clicked - triggering Back to Topic');
+                                                    console.log('🚪 Exit button clicked - triggering Save & Exit');
                                                     handleBackToTopic({ preventDefault: function() {} });
                                                     return false;
                                                 };
@@ -827,7 +830,7 @@
                     // Add enhanced exit button communication helpers
                     // This allows SCORM content to easily trigger exit via: window.scormExit() or parent.scormExit()
                     iframeWindow.scormExit = function() {
-                        console.log('🚪 scormExit() called from SCORM iframe - triggering Back to Topic...');
+                        console.log('🚪 scormExit() called from SCORM iframe - triggering Save & Exit...');
                         try {
                             // Commit data (don't terminate for resume capability)
                             if (window.parent && window.parent.API) {
@@ -1104,11 +1107,11 @@
             }
         }
         
-        // FIXED: Handle "Back to Topic" button click - save progress without forcing completion
+        // FIXED: Handle "Save & Exit" button click - save progress without forcing completion
         function handleBackToTopic(event) {
             event.preventDefault();
             isExiting = true;  // Flag that user is exiting properly
-            console.log('🔖 Back to Topic button clicked - saving bookmark data for resume...');
+            console.log('🔖 Save & Exit button clicked - saving bookmark data for resume...');
             
             // Show user feedback
             const backBtn = document.getElementById('backToTopicBtn');
@@ -1597,11 +1600,11 @@
                     window.location.href = '{% url "courses:topic_view" topic.id %}';
                 }, 1000);
             }
-            // Handle exit (trigger Back to Topic functionality without completion)
+            // Handle exit (trigger Save & Exit functionality without completion)
             else if (shouldExit) {
-                console.log('🚪 SCORM content exit button clicked - triggering Back to Topic functionality...');
+                console.log('🚪 SCORM content exit button clicked - triggering Save & Exit functionality...');
                 
-                // Trigger the same functionality as the Back to Topic button
+                // Trigger the same functionality as the Save & Exit button
                 // This will save progress, bookmark, and score without forcing completion
                 const fakeEvent = { preventDefault: function() {} };
                 handleBackToTopic(fakeEvent);
@@ -1614,7 +1617,7 @@
         
         // Add beforeunload event to capture score even when users close browser
         window.addEventListener('beforeunload', function(event) {
-            // If user is already exiting properly via Back to Topic, don't interfere
+            // If user is already exiting properly via Save & Exit, don't interfere
             if (isExiting || scormDataSaved) {
                 return;
             }
@@ -1650,7 +1653,7 @@
             }
             
             // Show warning message to user  
-            const warningMessage = 'Note: Please use the "← Back to Topic" button above to accurately save your progress. In some cases, the "Exit" option inside your course window may not work';
+            const warningMessage = 'Note: Please use the "Save & Exit" button above to accurately save your progress. In some cases, the "Exit" option inside your course window may not work';
             
             // Set the beforeunload message (browsers will show their own dialog)
             event.preventDefault();
@@ -1909,7 +1912,7 @@
                                                         e.preventDefault();
                                                         e.stopPropagation();
                                                         
-                                                        console.log('🚪 EXIT button clicked in SCORM iframe - triggering Back to Topic...');
+                                                        console.log('🚪 EXIT button clicked in SCORM iframe - triggering Save & Exit...');
                                                         
                                                         // Show user feedback
                                                         const originalText = newButton.textContent || newButton.value;

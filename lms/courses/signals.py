@@ -296,7 +296,8 @@ def process_scorm_package(sender, instance, created, **kwargs):
                 extracted_path=package_data['extracted_path'],
                 launch_url=package_data['launch_url'],
                 manifest_data=package_data['manifest_data'],
-                mastery_score=package_data.get('mastery_score')
+                mastery_score=package_data.get('mastery_score'),
+                package_metadata=package_data.get('package_metadata', {})  # DYNAMIC package analysis
             )
             
             logger.info(f" SCORM package created successfully for topic {instance.id}")
