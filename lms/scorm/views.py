@@ -366,49 +366,50 @@ window.API = window.API_1484_11 = {{
     _apiEndpoint: '{api_endpoint}',
     _lastError: '0',
     
-    _makeAPICall: function(method, parameters) {{
+    _makeAPICall: async function(method, parameters) {{
         try {{
-            const response = fetch(this._apiEndpoint, {{
+            const response = await fetch(this._apiEndpoint, {{
                 method: 'POST',
                 headers: {{ 'Content-Type': 'application/json' }},
                 body: JSON.stringify({{ method: method, parameters: parameters || [] }})
             }});
-            return response.then(r => r.json()).then(data => data.result);
+            const data = await response.json();
+            return data.result;
         }} catch (e) {{
             console.error('SCORM API call failed:', e);
             return 'false';
         }}
     }},
     
-    Initialize: function(param) {{ 
-        return this._makeAPICall('Initialize', [param]); 
+    Initialize: async function(param) {{ 
+        return await this._makeAPICall('Initialize', [param]); 
     }},
-    LMSInitialize: function(param) {{ 
-        return this._makeAPICall('Initialize', [param]); 
+    LMSInitialize: async function(param) {{ 
+        return await this._makeAPICall('Initialize', [param]); 
     }},
-    Terminate: function(param) {{ 
-        return this._makeAPICall('Terminate', [param]); 
+    Terminate: async function(param) {{ 
+        return await this._makeAPICall('Terminate', [param]); 
     }},
-    LMSFinish: function(param) {{ 
-        return this._makeAPICall('Terminate', [param]); 
+    LMSFinish: async function(param) {{ 
+        return await this._makeAPICall('Terminate', [param]); 
     }},
-    GetValue: function(element) {{ 
-        return this._makeAPICall('GetValue', [element]); 
+    GetValue: async function(element) {{ 
+        return await this._makeAPICall('GetValue', [element]); 
     }},
-    LMSGetValue: function(element) {{ 
-        return this._makeAPICall('GetValue', [element]); 
+    LMSGetValue: async function(element) {{ 
+        return await this._makeAPICall('GetValue', [element]); 
     }},
-    SetValue: function(element, value) {{ 
-        return this._makeAPICall('SetValue', [element, value]); 
+    SetValue: async function(element, value) {{ 
+        return await this._makeAPICall('SetValue', [element, value]); 
     }},
-    LMSSetValue: function(element, value) {{ 
-        return this._makeAPICall('SetValue', [element, value]); 
+    LMSSetValue: async function(element, value) {{ 
+        return await this._makeAPICall('SetValue', [element, value]); 
     }},
-    Commit: function(param) {{ 
-        return this._makeAPICall('Commit', [param]); 
+    Commit: async function(param) {{ 
+        return await this._makeAPICall('Commit', [param]); 
     }},
-    LMSCommit: function(param) {{ 
-        return this._makeAPICall('Commit', [param]); 
+    LMSCommit: async function(param) {{ 
+        return await this._makeAPICall('Commit', [param]); 
     }},
     GetLastError: function() {{ 
         return this._lastError; 
@@ -416,17 +417,17 @@ window.API = window.API_1484_11 = {{
     LMSGetLastError: function() {{ 
         return this._lastError; 
     }},
-    GetErrorString: function(code) {{ 
-        return this._makeAPICall('GetErrorString', [code]); 
+    GetErrorString: async function(code) {{ 
+        return await this._makeAPICall('GetErrorString', [code]); 
     }},
-    LMSGetErrorString: function(code) {{ 
-        return this._makeAPICall('GetErrorString', [code]); 
+    LMSGetErrorString: async function(code) {{ 
+        return await this._makeAPICall('GetErrorString', [code]); 
     }},
-    GetDiagnostic: function(code) {{ 
-        return this._makeAPICall('GetDiagnostic', [code]); 
+    GetDiagnostic: async function(code) {{ 
+        return await this._makeAPICall('GetDiagnostic', [code]); 
     }},
-    LMSGetDiagnostic: function(code) {{ 
-        return this._makeAPICall('GetDiagnostic', [code]); 
+    LMSGetDiagnostic: async function(code) {{ 
+        return await this._makeAPICall('GetDiagnostic', [code]); 
     }}
 }};
 </script>
