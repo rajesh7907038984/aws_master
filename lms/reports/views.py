@@ -2178,6 +2178,10 @@ def timeline(request):
     
     # Apply branch filtering based on user permissions
     events = BranchFilterManager.filter_queryset_by_branch(request.user, events)
+    
+    # For learners, only show their own events
+    if request.user.role == 'learner':
+        events = events.filter(user=request.user)
 
     # Apply filters
     # Use consistent date parsing
