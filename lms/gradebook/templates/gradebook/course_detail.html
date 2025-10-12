@@ -1894,7 +1894,15 @@
                                     {{ score_data.raw_score|floatformat:0 }}/100
                                   {% endif %}
                                 {% else %}
+                                  {% if score_data.raw_score %}
+                                    {{ score_data.raw_score|floatformat:0 }}/100
+                                  {% else %}
+                                    {% if score_data.raw_score %}
+                                  {{ score_data.raw_score|floatformat:0 }}/100
+                                {% else %}
                                   {{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}
+                                {% endif %}
+                                  {% endif %}
                                 {% endif %}
                               {% else %}
                                 Completed
@@ -1905,7 +1913,11 @@
                               {% if score_data.achievement_status == 'failed' %}
                                 {{ score_data.raw_score|floatformat:0 }}/{{ score_data.mastery_threshold|floatformat:0 }}
                               {% else %}
-                                {{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}
+                                {% if score_data.raw_score %}
+                                  {{ score_data.raw_score|floatformat:0 }}/100
+                                {% else %}
+                                  {{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}
+                                {% endif %}
                               {% endif %}
                             </span>
                           {% endif %}
@@ -1968,7 +1980,15 @@
                                     {{ score_data.raw_score|floatformat:0 }}/100
                                   {% endif %}
                                 {% else %}
+                                  {% if score_data.raw_score %}
+                                    {{ score_data.raw_score|floatformat:0 }}/100
+                                  {% else %}
+                                    {% if score_data.raw_score %}
+                                  {{ score_data.raw_score|floatformat:0 }}/100
+                                {% else %}
                                   {{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}
+                                {% endif %}
+                                  {% endif %}
                                 {% endif %}
                               {% else %}
                                 Completed
@@ -1979,7 +1999,11 @@
                               {% if score_data.achievement_status == 'failed' %}
                                 {{ score_data.raw_score|floatformat:0 }}/{{ score_data.mastery_threshold|floatformat:0 }}
                               {% else %}
-                                {{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}
+                                {% if score_data.raw_score %}
+                                  {{ score_data.raw_score|floatformat:0 }}/100
+                                {% else %}
+                                  {{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}
+                                {% endif %}
                               {% endif %}
                             </span>
                           {% endif %}
