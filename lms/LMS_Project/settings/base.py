@@ -556,7 +556,7 @@ env_trusted_ips = get_list_env('TRUSTED_IPS', default=[])
 TRUSTED_IPS = DEFAULT_TRUSTED_IPS + env_trusted_ips
 
 # Content Session Settings
-X_FRAME_OPTIONS = 'DENY'  # Enhanced security - SCORM content handled via CSP
+X_FRAME_OPTIONS = 'SAMEORIGIN'  # Allow SCORM content while maintaining security
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
@@ -569,9 +569,9 @@ CSP_IMG_SRC = ("'self'", "data:", "*.amazonaws.com")
 CSP_FONT_SRC = ("'self'", "*.amazonaws.com")
 CSP_CONNECT_SRC = ("'self'", "*.amazonaws.com")
 CSP_FRAME_SRC = ("'self'", "*.amazonaws.com")  # Allow SCORM content from S3
-CSP_OBJECT_SRC = ("'none'",)
+CSP_OBJECT_SRC = ("'self'", "*.amazonaws.com")  # Allow SCORM objects
 CSP_BASE_URI = ("'self'",)
-CSP_FRAME_ANCESTORS = ("'none'",)  # Prevent clickjacking
+CSP_FRAME_ANCESTORS = ("'self'", "*.amazonaws.com")  # Allow SCORM content embedding
 
 
 # Content Security Policy - Allow S3 content for SCORM
