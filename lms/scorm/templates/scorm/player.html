@@ -1725,17 +1725,13 @@
             // Set exiting flag
             isExiting = true;
             
-            // CRITICAL FIX: Ensure redirect ALWAYS happens - set primary fallback early
-            const primaryFallbackTimeout = setTimeout(() => {
-                console.log('⏰ Primary fallback (2s) - redirecting now');
+            // IMPROVED: Set reasonable fallback timeout (only as last resort)
+            // Give enough time for backend to save all tracking data
+            const emergencyFallbackTimeout = setTimeout(() => {
+                console.log('⏰ Emergency fallback (15s) - forcing redirect after timeout');
+                console.warn('⚠️ Data save timeout - redirecting anyway');
                 window.location.href = '{% url "courses:topic_view" topic.id %}';
-            }, 2000); // 2 second primary fallback (faster response)
-            
-            // Also set a backup fallback
-            const backupFallbackTimeout = setTimeout(() => {
-                console.log('⏰ Backup fallback (5s) - forcing redirect');
-                window.location.href = '{% url "courses:topic_view" topic.id %}';
-            }, 5000); // 5 second backup fallback
+            }, 15000); // 15 second emergency fallback only
             
             // CRITICAL FIX: Capture and sync client-side tracked time BEFORE commit
             try {
@@ -2119,7 +2115,9 @@
                     scormDataSaved = true;  // Mark that data has been saved
                     
                     // CRITICAL: Trigger backend sync to update TopicProgress with time/attempts
-                    // Use fire-and-forget approach - don't wait for response
+                    // Wait for response to ensure all data is saved before redirecting
+                    console.log('🔄 Syncing tracking data to database...');
+                    
                     fetch('{% url "scorm:sync_on_exit" %}', {
                         method: 'POST',
                         headers: {
@@ -2128,20 +2126,44 @@
                         },
                         body: 'attempt_id={{ attempt.id|default:attempt_id }}'
                     })
-                    .then(response => response.json())
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Backend sync failed with status: ' + response.status);
+                        }
+                        return response.json();
+                    })
                     .then(data => {
-                        console.log('✅ Backend sync result:', data);
-                        // Clear the primary timeout and redirect immediately on success
-                        clearTimeout(primaryFallbackTimeout);
-                        console.log('🔄 Data saved successfully, redirecting...');
-                        window.location.href = '{% url "courses:topic_view" topic.id %}';
+                        console.log('✅ Backend sync successful:', data);
+                        console.log('✅ All tracking data saved to database');
+                        
+                        // Clear the emergency timeout
+                        clearTimeout(emergencyFallbackTimeout);
+                        
+                        // Update button text
+                        if (backBtn) {
+                            backBtn.textContent = 'Saved! Redirecting...';
+                        }
+                        
+                        // Brief delay to show success message, then redirect
+                        setTimeout(() => {
+                            console.log('🔄 Redirecting to topic page...');
+                            window.location.href = '{% url "courses:topic_view" topic.id %}';
+                        }, 500);
                     })
                     .catch(error => {
-                        console.error('❌ Backend sync error (will still redirect):', error);
-                        // Don't block redirect on error - fallback timers will handle it
+                        console.error('❌ Backend sync error:', error);
+                        console.warn('⚠️ Will redirect using emergency fallback');
+                        
+                        // Update button to show error but still allow redirect
+                        if (backBtn) {
+                            backBtn.textContent = 'Save error - redirecting...';
+                        }
+                        
+                        // Emergency fallback will handle redirect after timeout
                     });
                 } else {
                     console.log('ℹ️ SCORM API not initialized, triggering backend sync anyway...');
+                    console.log('🔄 Syncing tracking data to database...');
                     
                     // Still trigger backend sync even if SCORM API wasn't initialized
                     fetch('{% url "scorm:sync_on_exit" %}', {
@@ -2152,24 +2174,53 @@
                         },
                         body: 'attempt_id={{ attempt.id|default:attempt_id }}'
                     })
-                    .then(response => response.json())
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Backend sync failed with status: ' + response.status);
+                        }
+                        return response.json();
+                    })
                     .then(data => {
-                        console.log('✅ Backend sync result:', data);
-                        // Clear the primary timeout and redirect immediately on success
-                        clearTimeout(primaryFallbackTimeout);
-                        console.log('🔄 Data saved successfully, redirecting...');
-                        window.location.href = '{% url "courses:topic_view" topic.id %}';
+                        console.log('✅ Backend sync successful:', data);
+                        console.log('✅ All tracking data saved to database');
+                        
+                        // Clear the emergency timeout
+                        clearTimeout(emergencyFallbackTimeout);
+                        
+                        // Update button text
+                        if (backBtn) {
+                            backBtn.textContent = 'Saved! Redirecting...';
+                        }
+                        
+                        // Brief delay to show success message, then redirect
+                        setTimeout(() => {
+                            console.log('🔄 Redirecting to topic page...');
+                            window.location.href = '{% url "courses:topic_view" topic.id %}';
+                        }, 500);
                     })
                     .catch(error => {
-                        console.error('❌ Backend sync error (will still redirect):', error);
-                        // Don't block redirect on error - fallback timers will handle it
+                        console.error('❌ Backend sync error:', error);
+                        console.warn('⚠️ Will redirect using emergency fallback');
+                        
+                        // Update button to show error but still allow redirect
+                        if (backBtn) {
+                            backBtn.textContent = 'Save error - redirecting...';
+                        }
+                        
+                        // Emergency fallback will handle redirect after timeout
                     });
                 }
             } catch (error) {
                 // CRITICAL: If any error occurs in SCORM save logic, don't block redirect
                 console.error('❌ Error in Save & Exit logic:', error);
-                console.log('⚠️ Continuing with redirect despite error...');
-                // Fallback timers will handle the redirect
+                console.warn('⚠️ Continuing with redirect despite error...');
+                
+                // Update button to show error
+                if (backBtn) {
+                    backBtn.textContent = 'Error - redirecting...';
+                }
+                
+                // Emergency fallback timer will handle the redirect
             }
         }
         
