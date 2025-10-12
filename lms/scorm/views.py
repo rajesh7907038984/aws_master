@@ -8,7 +8,7 @@ import os
 import uuid
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse, HttpResponse, HttpResponseRedirect
+from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.clickjacking import xframe_options_exempt
@@ -16,14 +16,11 @@ from django.core.files.storage import default_storage
 from django.contrib import messages
 from django.utils import timezone
 from django.conf import settings
-from django.urls import reverse
 
 from .models import ScormPackage, ScormAttempt
-# from .api_handler import ScormAPIHandler  # DISABLED: Using enhanced handler only
-from .api_handler_enhanced import ScormAPIHandlerEnhanced
+from .api_handler import ScormAPIHandler
 from .preview_handler import ScormPreviewHandler
 from .s3_direct import scorm_s3
-from .universal_scorm_handler import UniversalSCORMHandler
 from courses.models import Topic
 
 logger = logging.getLogger(__name__)
@@ -32,60 +29,33 @@ logger = logging.getLogger(__name__)
 @login_required
 def scorm_view(request, topic_id):
     """
-    Main SCORM content viewer - SECURE ACCESS ONLY
-    Requires authentication for all SCORM content access
+    Main SCORM content viewer
+    Supports both simple and advanced tracking modes
     """
-    # SECURITY FIX: Require authentication for all SCORM content
-    if not request.user.is_authenticated:
-        messages.error(request, "You must be logged in to access SCORM content.")
-        # Preserve the next parameter for proper redirect after login
-        next_url = request.get_full_path()
-        return redirect(f'/login/?next={next_url}')
+    topic = get_object_or_404(Topic, id=topic_id)
     
-    is_authenticated = True
+    # Check if user has permission to access this topic's course
+    if not topic.user_has_access(request.user):
+        messages.error(request, "You need to be enrolled in this course to access the SCORM content.")
+        try:
+            from courses.models import CourseTopic
+            course_topic = CourseTopic.objects.filter(topic=topic).first()
+            if course_topic:
+                return redirect('courses:course_view', course_id=course_topic.course.id)
+        except Exception:
+            pass
+        return redirect('courses:course_list')
     
-    # OPTIMIZATION: Optimize database queries with select_related
-    topic = get_object_or_404(
-        Topic.objects.select_related('scorm_package'),
-        id=topic_id
-    )
-    
-    # CRITICAL FIX: Handle permission check for both authenticated and non-authenticated users
-    if is_authenticated:
-        # Check if user has permission to access this topic's course
-        if not topic.user_has_access(request.user):
-            messages.error(request, "You need to be enrolled in this course to access the SCORM content.")
-            try:
-                from courses.models import CourseTopic
-                course_topic = CourseTopic.objects.filter(topic=topic).first()
-                if course_topic:
-                    messages.info(request, f"Please enroll in the course '{course_topic.course.title}' to access this SCORM content.")
-                    return redirect('courses:course_view', course_id=course_topic.course.id)
-            except Exception as e:
-                logger.error(f"Error getting course for topic {topic_id}: {e}")
-                pass
-            return redirect('courses:course_list')
-    else:
-        # For non-authenticated users, check if this is a public course or embedded content
-        # Allow access if it's a public course or if it's being accessed via embedded URL
-        if hasattr(topic.course, 'is_public') and not topic.course.is_public:
-            # If it's not a public course, redirect to login
-            messages.info(request, "Please log in to access this SCORM content.")
-            return redirect('users:login')
-    
-    # Check if topic has SCORM package (already loaded with select_related)
-    if not hasattr(topic, 'scorm_package') or not topic.scorm_package:
+    # Check if topic has SCORM package
+    try:
+        scorm_package = topic.scorm_package
+    except ScormPackage.DoesNotExist:
         messages.error(request, "SCORM package not found for this topic")
-        logger.warning(f"SCORM package not found for topic {topic_id}")
         return redirect('courses:topic_view', topic_id=topic_id)
     
-    scorm_package = topic.scorm_package
-    
-    # Check for preview mode and retake mode
+    # Check for preview mode
     preview_mode = request.GET.get('preview', '').lower() == 'true'
-    retake_mode = request.GET.get('retake', '').lower() == 'true'
-    is_instructor_or_admin = (hasattr(request.user, 'role') and 
-                             request.user.role in ['instructor', 'admin', 'superadmin', 'globaladmin'])
+    is_instructor_or_admin = request.user.role in ['instructor', 'admin', 'superadmin', 'globaladmin']
     
     # Allow preview mode only for instructors/admins
     if preview_mode and not is_instructor_or_admin:
@@ -99,50 +69,6 @@ def scorm_view(request, topic_id):
     if preview_mode:
         # Preview mode: Create temporary attempt object
         attempt_id = f"preview_{uuid.uuid4()}"
-        
-        # Initialize CMI data for preview
-        cmi_data = {}
-        if scorm_package.version == '1.2':
-            cmi_data = {
-                'cmi.core.student_id': str(request.user.id) if is_authenticated else 'guest',
-                'cmi.core.student_name': (request.user.get_full_name() or request.user.username) if is_authenticated else 'Guest User',
-                'cmi.core.lesson_location': '',
-                'cmi.core.credit': 'credit',
-                'cmi.core.lesson_status': 'not attempted',
-                'cmi.core.entry': 'ab-initio',
-                'cmi.core.score.raw': '',
-                'cmi.core.score.max': '100',
-                'cmi.core.score.min': '0',
-                'cmi.core.total_time': '0000:00:00.00',
-                'cmi.core.lesson_mode': 'normal',
-                'cmi.core.exit': '',
-                'cmi.core.session_time': '',
-                'cmi.suspend_data': '',
-                'cmi.launch_data': '',
-                'cmi.comments': '',
-                'cmi.comments_from_lms': '',
-            }
-        else:  # SCORM 2004
-            cmi_data = {
-                'cmi.learner_id': str(request.user.id) if is_authenticated else 'guest',
-                'cmi.learner_name': (request.user.get_full_name() or request.user.username) if is_authenticated else 'Guest User',
-                'cmi.location': '',
-                'cmi.credit': 'credit',
-                'cmi.completion_status': 'incomplete',
-                'cmi.success_status': 'unknown',
-                'cmi.entry': 'ab-initio',
-                'cmi.score.raw': '',
-                'cmi.score.max': '100',
-                'cmi.score.min': '0',
-                'cmi.score.scaled': '',
-                'cmi.total_time': '0000:00:00.00',
-                'cmi.mode': 'normal',
-                'cmi.exit': '',
-                'cmi.session_time': '',
-                'cmi.suspend_data': '',
-                'cmi.launch_data': '',
-            }
-        
         attempt = type('PreviewAttempt', (), {
             'id': attempt_id,
             'user': request.user,
@@ -161,7 +87,7 @@ def scorm_view(request, topic_id):
             'suspend_data': '',
             'entry': 'ab-initio',
             'exit_mode': '',
-            'cmi_data': cmi_data,
+            'cmi_data': {},
             'started_at': timezone.now(),
             'last_accessed': timezone.now(),
             'completed_at': None,
@@ -171,162 +97,43 @@ def scorm_view(request, topic_id):
         # Store preview attempt in session for API access
         request.session[f'scorm_preview_{attempt_id}'] = {
             'id': attempt_id,
-            'user_id': request.user.id if is_authenticated else None,
+            'user_id': request.user.id,
             'scorm_package_id': scorm_package.id,
             'is_preview': True,
             'created_at': timezone.now().isoformat(),
         }
         
-        user_name = request.user.username if is_authenticated else 'guest'
-        logger.info(f"Created preview attempt {attempt_id} for user {user_name} on topic {topic_id}")
+        logger.info(f"Created preview attempt {attempt_id} for user {request.user.username} on topic {topic_id}")
     else:
-        # CRITICAL FIX: Handle both authenticated and non-authenticated users
-        if is_authenticated:
-            # Normal mode: Get or create actual database attempt for user tracking
-            # Use select_related to optimize database queries
-            last_attempt = ScormAttempt.objects.select_related('scorm_package').filter(
+        # Normal mode: Get or create actual database attempt for user tracking
+        last_attempt = ScormAttempt.objects.filter(
+            user=request.user,
+            scorm_package=scorm_package
+        ).order_by('-attempt_number').first()
+        
+        if last_attempt and last_attempt.lesson_status in ['completed', 'passed']:
+            # Create new attempt if last one was completed
+            attempt_number = last_attempt.attempt_number + 1
+            attempt = ScormAttempt.objects.create(
                 user=request.user,
-                scorm_package=scorm_package
-            ).order_by('-attempt_number').first()
+                scorm_package=scorm_package,
+                attempt_number=attempt_number
+            )
+        elif last_attempt:
+            # Continue existing attempt
+            attempt = last_attempt
         else:
-            # For non-authenticated users, create a temporary attempt
-            attempt_id = f"guest_{uuid.uuid4()}"
-            attempt = type('ScormAttempt', (), {
-                'id': attempt_id,
-                'user': None,
-                'scorm_package': scorm_package,
-                'attempt_number': 1,
-                'lesson_status': 'not_attempted',
-                'lesson_location': '',
-                'suspend_data': '',
-                'entry': 'ab-initio',
-                'exit_mode': '',
-                'cmi_data': {},
-                'started_at': timezone.now(),
-                'last_accessed': timezone.now(),
-                'completed_at': None,
-                'is_preview': False,
-            })()
-            
-            # Store guest attempt in session for API access
-            request.session[f'scorm_guest_{attempt_id}'] = {
-                'id': attempt_id,
-                'user_id': None,
-                'scorm_package_id': scorm_package.id,
-                'is_preview': False,
-                'created_at': timezone.now().isoformat(),
-            }
-            
-            logger.info(f"Created guest attempt {attempt_id} for topic {topic_id}")
-            attempt_id = attempt.id
-        
-        # Handle authenticated user logic
-        if is_authenticated:
-            # CRITICAL FIX: Resume the last attempt UNLESS user explicitly clicked "Retake"
-            # This fixes the bug where 'passed' status creates new attempts on every visit
-            # Resume functionality should work for ALL statuses (incomplete, passed, failed)
-            if last_attempt and not retake_mode:
-                # Continue existing incomplete attempt - ensure resume data is loaded
-                attempt = last_attempt
-                
-                # Load resume data into CMI data for proper resume functionality
-                if attempt.lesson_location or attempt.suspend_data:
-                    # Ensure CMI data is properly initialized with resume data
-                    if not attempt.cmi_data:
-                        attempt.cmi_data = {}
-                    
-                    # ENHANCED: Load resume data into CMI data with progress tracking
-                    if attempt.lesson_location:
-                        if scorm_package.version == '1.2':
-                            attempt.cmi_data['cmi.core.lesson_location'] = attempt.lesson_location
-                        else:  # SCORM 2004
-                            attempt.cmi_data['cmi.location'] = attempt.lesson_location
-                    
-                    if attempt.suspend_data:
-                        if scorm_package.version == '1.2':
-                            attempt.cmi_data['cmi.suspend_data'] = attempt.suspend_data
-                        else:  # SCORM 2004
-                            attempt.cmi_data['cmi.suspend_data'] = attempt.suspend_data
-                        
-                        # ENHANCED: Parse suspend data for progress information
-                        try:
-                            import json
-                            suspend_data = json.loads(attempt.suspend_data)
-                            
-                            # Calculate progress percentage from suspend data
-                            if 'totalTime' in suspend_data:
-                                total_time = suspend_data.get('totalTime', 0)
-                                # Estimate progress based on time spent (rough calculation)
-                                if total_time > 0:
-                                    # Assume 5 minutes = 100% completion for estimation
-                                    estimated_progress = min(100, (total_time / 300) * 100)
-                                    attempt.progress_percentage = estimated_progress
-                                    
-                                    # Update CMI data with progress
-                                    if scorm_package.version == '1.2':
-                                        attempt.cmi_data['cmi.core.lesson_status'] = 'incomplete'
-                                    else:  # SCORM 2004
-                                        attempt.cmi_data['cmi.completion_status'] = 'incomplete'
-                        except:
-                            pass
-                    
-                    # Set entry mode to resume
-                    attempt.entry = 'resume'
-                    if scorm_package.version == '1.2':
-                        attempt.cmi_data['cmi.core.entry'] = 'resume'
-                    else:  # SCORM 2004
-                        attempt.cmi_data['cmi.entry'] = 'resume'
-                
-                # Save the updated attempt
-                attempt.save()
-                suspend_data_preview = attempt.suspend_data[:50] if attempt.suspend_data else "None"
-                logger.info(f"RESUME: Loaded resume data for attempt {attempt.id}: entry='{attempt.entry}', location='{attempt.lesson_location}', suspend_data='{suspend_data_preview}...'")
-            elif retake_mode and last_attempt:
-                # Create new attempt for retake
-                new_attempt_number = last_attempt.attempt_number + 1
-                attempt = ScormAttempt.objects.create(
-                    user=request.user,
-                    scorm_package=scorm_package,
-                    attempt_number=new_attempt_number
-                )
-                logger.info(f"RETAKE: Created new attempt {attempt.id} (attempt #{new_attempt_number}) for user {request.user.username}")
-            else:
-                # Create first attempt
-                attempt = ScormAttempt.objects.create(
-                    user=request.user,
-                    scorm_package=scorm_package,
-                    attempt_number=1
-                )
-                logger.info(f"Created first attempt {attempt.id} for user {request.user.username}")
-            
-            # Standard SCORM bookmark - lesson_location is automatically handled
-            suspend_data_preview = attempt.suspend_data[:50] if attempt.suspend_data else "None"
-            logger.info(f"SCORM bookmark: lesson_location='{attempt.lesson_location}', suspend_data='{suspend_data_preview}...'")
-        
+            # Create first attempt
+            attempt = ScormAttempt.objects.create(
+                user=request.user,
+                scorm_package=scorm_package,
+                attempt_number=1
+            )
         attempt_id = attempt.id
         attempt.is_preview = False  # Mark as real attempt
     
     # Generate content URL using S3 direct access
-    # Use Django proxy URL for iframe content
-    try:
-        # Ensure launch_url is properly formatted
-        launch_url = scorm_package.launch_url or 'index.html'
-        if not launch_url.startswith('/'):
-            launch_url = '/' + launch_url
-        content_url = f"/scorm/content/{topic_id}{launch_url}"
-        logger.info(f"Generated content URL: {content_url}")
-    except Exception as e:
-        logger.error(f"Error generating content URL: {str(e)}")
-        # Use the actual launch URL from the package as fallback
-        fallback_launch_url = scorm_package.launch_url if hasattr(scorm_package, 'launch_url') else 'index.html'
-        content_url = f"/scorm/content/{topic_id}/{fallback_launch_url}"
-    
-    # CRITICAL FIX: Ensure attempt is never None when passed to template
-    if attempt is None:
-        user_name = request.user.username if request.user.is_authenticated else 'guest'
-        logger.error(f"CRITICAL: attempt is None for topic {topic_id}, user {user_name}")
-        messages.error(request, "Error initializing SCORM attempt. Please try again.")
-        return redirect('courses:topic_view', topic_id=topic_id)
+    content_url = scorm_s3.generate_launch_url(scorm_package)
     
     context = {
         'topic': topic,
@@ -369,72 +176,17 @@ def scorm_api(request, attempt_id):
     Handles all SCORM API calls from content
     Supports both regular attempts and preview mode
     """
-    # For SCORM API calls, we need to handle authentication differently
-    # since the calls come from iframe content. We'll check if the attempt exists
-    # and belongs to the current user through the attempt_id
-    try:
-        attempt = ScormAttempt.objects.get(id=attempt_id)
-        # For now, allow API calls if the attempt exists (we'll add proper auth later)
-        # if not request.user.is_authenticated or attempt.user != request.user:
-        #     return JsonResponse({'error': 'Unauthorized'}, status=401)
-    except ScormAttempt.DoesNotExist:
-        return JsonResponse({'error': 'Attempt not found'}, status=404)
-    
     try:
         # Check if this is a preview attempt first
         session_key = f'scorm_preview_{attempt_id}'
-        is_preview = hasattr(request, 'session') and session_key in request.session
+        is_preview = session_key in request.session
         
         if is_preview:
             # Preview mode: Create temporary attempt from session data
-            preview_data = request.session.get(session_key, {})
+            preview_data = request.session[session_key]
             
             # Reconstruct the attempt object for preview
             scorm_package = get_object_or_404(ScormPackage, id=preview_data['scorm_package_id'])
-            
-            # Initialize CMI data for preview
-            cmi_data = {}
-            if scorm_package.version == '1.2':
-                cmi_data = {
-                    'cmi.core.student_id': str(request.user.id),
-                    'cmi.core.student_name': request.user.get_full_name() or request.user.username,
-                    'cmi.core.lesson_location': '',
-                    'cmi.core.credit': 'credit',
-                    'cmi.core.lesson_status': 'not attempted',
-                    'cmi.core.entry': 'ab-initio',
-                    'cmi.core.score.raw': '',
-                    'cmi.core.score.max': '100',
-                    'cmi.core.score.min': '0',
-                    'cmi.core.total_time': '0000:00:00.00',
-                    'cmi.core.lesson_mode': 'normal',
-                    'cmi.core.exit': '',
-                    'cmi.core.session_time': '',
-                    'cmi.suspend_data': '',
-                    'cmi.launch_data': '',
-                    'cmi.comments': '',
-                    'cmi.comments_from_lms': '',
-                }
-            else:  # SCORM 2004
-                cmi_data = {
-                    'cmi.learner_id': str(request.user.id),
-                    'cmi.learner_name': request.user.get_full_name() or request.user.username,
-                    'cmi.location': '',
-                    'cmi.credit': 'credit',
-                    'cmi.completion_status': 'incomplete',
-                    'cmi.success_status': 'unknown',
-                    'cmi.entry': 'ab-initio',
-                    'cmi.score.raw': '',
-                    'cmi.score.max': '100',
-                    'cmi.score.min': '0',
-                    'cmi.score.scaled': '',
-                    'cmi.total_time': '0000:00:00.00',
-                    'cmi.mode': 'normal',
-                    'cmi.exit': '',
-                    'cmi.session_time': '',
-                    'cmi.suspend_data': '',
-                    'cmi.launch_data': '',
-                }
-            
             attempt = type('PreviewAttempt', (), {
                 'id': attempt_id,
                 'user': request.user,
@@ -453,7 +205,7 @@ def scorm_api(request, attempt_id):
                 'suspend_data': '',
                 'entry': 'ab-initio',
                 'exit_mode': '',
-                'cmi_data': cmi_data,
+                'cmi_data': {},
                 'started_at': timezone.now(),
                 'last_accessed': timezone.now(),
                 'completed_at': None,
@@ -461,43 +213,29 @@ def scorm_api(request, attempt_id):
             })()
             
             # Verify user owns this preview attempt
-            # if preview_data['user_id'] != request.user.id:
-            #     return JsonResponse({'error': 'Unauthorized'}, status=403)
+            if preview_data['user_id'] != request.user.id:
+                return JsonResponse({'error': 'Unauthorized'}, status=403)
                 
         else:
             # Regular mode: Get database attempt
             attempt = get_object_or_404(ScormAttempt, id=attempt_id)
             
             # Verify user owns this attempt
-            # if attempt.user != request.user:
-            #     return JsonResponse({'error': 'Unauthorized'}, status=403)
+            if attempt.user != request.user:
+                return JsonResponse({'error': 'Unauthorized'}, status=403)
         
         # Parse request
         data = json.loads(request.body)
         method = data.get('method')
         parameters = data.get('parameters', [])
         
-        # Log all API calls
-        params_preview = parameters[:2] if len(parameters) > 2 else parameters
-        logger.info(f"SCORM API CALL: method={method}, parameters={params_preview}, attempt_id={attempt_id}")
-        
-        # Initialize appropriate API handler WITHOUT caching to ensure fresh data
+        # Initialize appropriate API handler
         if is_preview:
             handler = ScormPreviewHandler(attempt)
             logger.info(f"Using preview handler for attempt {attempt_id}")
         else:
-            # CRITICAL FIX: Removed handler caching to prevent stale data issues
-            # Each request gets a fresh handler with current database state
-            # This ensures:
-            # 1. Accurate score tracking
-            # 2. Proper progress updates
-            # 3. Working resume functionality with correct bookmark/suspend data
-            
-            # IMPORTANT: Refresh attempt from database to get latest data
-            attempt.refresh_from_db()
-            
-            handler = ScormAPIHandlerEnhanced(attempt)
-            logger.info(f"Created fresh enhanced handler for attempt {attempt_id} with latest database state")
+            handler = ScormAPIHandler(attempt)
+            logger.info(f"Using regular handler for attempt {attempt_id}")
         
         # Route to appropriate API method
         if method == 'Initialize' or method == 'LMSInitialize':
@@ -510,25 +248,14 @@ def scorm_api(request, attempt_id):
         elif method == 'SetValue' or method == 'LMSSetValue':
             element = parameters[0] if len(parameters) > 0 else ''
             value = parameters[1] if len(parameters) > 1 else ''
-            logger.info(f"SetValue called: element={element}, value={value}")
             result = handler.set_value(element, value)
-            logger.info(f"SetValue result: {result}")
         elif method == 'Commit' or method == 'LMSCommit':
-            logger.info(f"Commit called for attempt {attempt_id}")
             result = handler.commit()
-            logger.info(f"Commit result: {result}")
         elif method == 'GetLastError' or method == 'LMSGetLastError':
             result = handler.get_last_error()
         elif method == 'GetErrorString' or method == 'LMSGetErrorString':
             error_code = parameters[0] if parameters else '0'
-            # Ensure error_code is properly handled
-            try:
-                if isinstance(error_code, str) and error_code.isdigit():
-                    error_code = int(error_code)
-                result = handler.get_error_string(error_code)
-            except Exception as e:
-                logger.error(f"Error handling GetErrorString: {str(e)}")
-                result = 'Unknown error'
+            result = handler.get_error_string(error_code)
         elif method == 'GetDiagnostic' or method == 'LMSGetDiagnostic':
             error_code = parameters[0] if parameters else '0'
             result = handler.get_diagnostic(error_code)
@@ -552,47 +279,13 @@ def scorm_api(request, attempt_id):
         }, status=500)
 
 
-def scorm_content(request, topic_id=None, path=None, attempt_id=None):
+def scorm_content(request, topic_id, path):
     """
-    Serve SCORM content files from S3 with optimized loading
-    Note: Removed @login_required to allow SCORM content to be embedded in iframes
-    Uses direct S3 URLs for maximum performance
-    Handles both topic_id and attempt_id parameters for backward compatibility
+    Serve SCORM content files from S3
+    Proxies content to maintain same-origin policy for API access
     """
     try:
-        # Note: Authentication removed to allow SCORM content to be embedded in iframes
-        # SCORM content should be publicly accessible for proper iframe functionality
-        # Handle both topic_id and attempt_id parameters for backward compatibility
-        current_attempt_id = None
-        if attempt_id is not None and topic_id is None:
-            # If attempt_id is provided, get the topic from the attempt
-            from .models import ScormAttempt
-            try:
-                attempt = get_object_or_404(ScormAttempt, id=attempt_id)
-                topic = attempt.scorm_package.topic
-                topic_id = topic.id
-                current_attempt_id = attempt_id
-            except Exception as e:
-                logger.error(f"Error getting topic from attempt {attempt_id}: {str(e)}")
-                return HttpResponse('Invalid attempt ID', status=404)
-        else:
-            # Use topic_id directly - need to get the current attempt for this user
-            topic = get_object_or_404(Topic.objects.select_related('scorm_package'), id=topic_id)
-            
-            # Note: For public SCORM content access, we skip user permission checks
-            # This allows SCORM content to be embedded in iframes without authentication
-            # Get the current attempt for this user and topic (only if authenticated)
-            from .models import ScormAttempt
-            try:
-                if hasattr(request, 'user') and request.user.is_authenticated:
-                    current_attempt = ScormAttempt.objects.filter(
-                        user=request.user,
-                        scorm_package__topic=topic
-                    ).order_by('-attempt_number').first()
-                    if current_attempt:
-                        current_attempt_id = current_attempt.id
-            except Exception as e:
-                logger.error(f"Error getting current attempt for topic {topic_id}: {str(e)}")
+        topic = get_object_or_404(Topic, id=topic_id)
         
         # Check if topic has SCORM package
         try:
@@ -600,214 +293,95 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
         except ScormPackage.DoesNotExist:
             return HttpResponse('SCORM package not found', status=404)
         
-        # Handle directory requests by using the correct launch URL from the package
-        if path.endswith('/'):
-            # Use the actual launch URL from the SCORM package instead of hardcoded index.html
-            path = path + scorm_package.launch_url
-            logger.info(f"Directory request redirected to launch URL: {path}")
+        # Generate direct S3 URL
+        s3_url = scorm_s3.generate_direct_url(scorm_package, path)
         
-        # CRITICAL FIX: For SCORM content HTML files, serve them directly with SCORM API injection
-        # This ensures the SCORM content can access the API without redirecting to the player
-        if path.endswith(('.html', '.htm')) and ('scormcontent' in path or 'scormdriver' in path or path.endswith(('.html', '.htm'))):
-            logger.info(f"Serving SCORM HTML content directly: {path}")
-            # Serve the HTML content directly with SCORM API injection instead of redirecting
-        
-        # Generate S3 key for authenticated access
-        try:
-            s3_key = scorm_s3.generate_direct_url(scorm_package, path)
-            if not s3_key:
-                logger.error(f"Failed to generate S3 key for path: {path}")
-                return HttpResponse('Content not found', status=404)
-            logger.info(f"Generated S3 key: {s3_key}")
-        except Exception as e:
-            logger.error(f"Error generating S3 key: {str(e)}")
-            return HttpResponse('Error generating content key', status=500)
-        
-        # CRITICAL FIX: Always proxy content through Django to maintain authentication
-        # This ensures SCORM content works for logged-in users without making S3 public
-        
-        # For HTML files, inject minimal SCORM API reference
-        try:
-            import requests
-            from django.core.cache import cache
-            
-            # CRITICAL FIX: Ensure we have a valid attempt_id for SCORM API
-            if not current_attempt_id:
-                # Create a temporary attempt_id for unauthenticated users
-                import uuid
-                current_attempt_id = f"temp_{uuid.uuid4()}"
-                logger.info(f"Created temporary attempt_id for SCORM content: {current_attempt_id}")
-            
-            # CRITICAL FIX: Ensure attempt_id is not None or empty
-            if not current_attempt_id or current_attempt_id == 'None':
-                current_attempt_id = f"fallback_{uuid.uuid4()}"
-                logger.warning(f"CRITICAL: attempt_id was None, created fallback: {current_attempt_id}")
-            
-            # Create cache key for this content with version
-            package_timestamp = scorm_package.updated_at.timestamp()
-            cache_key = f"scorm_content_v4_{scorm_package.id}_{path}_{package_timestamp}_{current_attempt_id}"
-            cached_content = cache.get(cache_key)
-            
-            if cached_content:
-                logger.info(f"Serving cached content for {path}")
-                response_obj = HttpResponse(cached_content, content_type='text/html; charset=utf-8')
-                response_obj['Access-Control-Allow-Origin'] = '*'
-                response_obj['X-Frame-Options'] = 'SAMEORIGIN'
-                response_obj['Cache-Control'] = 'public, max-age=3600'  # Cache for 1 hour
-                return response_obj
-            
-            # Fetch content directly from S3 using authenticated client
+        # For HTML files, we need to proxy to inject API
+        if path.endswith(('.html', '.htm')):
             try:
-                s3_response = scorm_s3.s3_client.get_object(Bucket=scorm_s3.bucket_name, Key=s3_key)
-                content = s3_response['Body'].read()
-                content_type = s3_response.get('ContentType', 'text/html; charset=utf-8')
-                logger.info(f"Successfully fetched content from S3: {s3_key}")
-            except Exception as s3_error:
-                logger.error(f"Failed to fetch content from S3: {s3_error}")
-                return HttpResponse('Content not found in S3', status=404)
-            
-            # Inject lightweight SCORM API for HTML files
-            if 'text/html' in content_type:
-                html_content = content.decode('utf-8')
+                import requests
+                response = requests.get(s3_url, timeout=10)
+                response.raise_for_status()
                 
-                # UNIVERSAL SCORM HANDLER: Automatically fix all SCORM package types
-                html_content = UniversalSCORMHandler.fix_relative_paths(html_content, topic_id)
+                content = response.content
+                content_type = response.headers.get('content-type', 'text/html; charset=utf-8')
                 
-                # CRITICAL FIX: For xAPI/Tin Can packages (Articulate Storyline), 
-                # don't inject complex SCORM code - just provide parent API reference
-                if scorm_package.version == 'xapi':
-                    # Minimal API bridge for xAPI content - doesn't interfere with Storyline
+                # Inject SCORM API for HTML files
+                if 'text/html' in content_type:
+                    html_content = content.decode('utf-8')
+                    
+                    # Inject SCORM API stub
                     api_injection = '''
 <script>
-// Minimal API bridge for Tin Can/xAPI content
-// Version: 4.0 - Non-intrusive for Articulate Storyline
-console.log('[xAPI] Minimal API bridge loaded');
-
-// Only provide parent window API reference if needed
-if (window.parent && window.parent !== window) {
-    if (window.parent.API && !window.API) {
-        window.API = window.parent.API;
-        console.log('[xAPI] Parent SCORM API available');
-    }
-    if (window.parent.API_1484_11 && !window.API_1484_11) {
-        window.API_1484_11 = window.parent.API_1484_11;
-        console.log('[xAPI] Parent SCORM 2004 API available');
-    }
-}
-
-// Minimal fallback API stub (only if no API exists)
-if (!window.API && !window.API_1484_11) {
-    window.API = window.API_1484_11 = {
-        LMSInitialize: function() { return 'true'; },
-        Initialize: function() { return 'true'; },
-        LMSFinish: function() { return 'true'; },
-        Terminate: function() { return 'true'; },
-        LMSGetValue: function(e) { return ''; },
-        GetValue: function(e) { return ''; },
-        LMSSetValue: function(e,v) { return 'true'; },
-        SetValue: function(e,v) { return 'true'; },
-        LMSCommit: function() { return 'true'; },
-        Commit: function() { return 'true'; },
-        LMSGetLastError: function() { return '0'; },
-        GetLastError: function() { return '0'; },
-        LMSGetErrorString: function(c) { return ''; },
-        GetErrorString: function(c) { return ''; },
-        LMSGetDiagnostic: function(c) { return ''; },
-        GetDiagnostic: function(c) { return ''; }
-    };
-    console.log('[xAPI] Minimal fallback API created');
-}
-</script>'''
-                else:
-                    # For SCORM 1.2 and 2004 packages, also use minimal injection
-                    # The heavy tracking code is handled in the player template
-                    api_injection = f'''
-<script>
-// Lightweight SCORM API - Points to parent window API
-// Version: 4.0 - Simplified for all SCORM types
-console.log('[SCORM] API bridge loaded for content');
-
-// CRITICAL FIX: Ensure attempt_id is available for SCORM content
-const SCORM_ATTEMPT_ID = '{current_attempt_id}';
-const SCORM_API_ENDPOINT = '/scorm/api/{current_attempt_id}/';
-console.log('[SCORM] Attempt ID:', SCORM_ATTEMPT_ID);
-console.log('[SCORM] API Endpoint:', SCORM_API_ENDPOINT);
-
-// Try to use parent window's API if available (iframe scenario)
-if (window.parent && window.parent !== window) {{
-    if (window.parent.API && !window.API) {{
-        window.API = window.parent.API;
-        console.log('[SCORM] Using parent SCORM 1.2 API');
-    }}
-    if (window.parent.API_1484_11 && !window.API_1484_11) {{
-        window.API_1484_11 = window.parent.API_1484_11;
-        console.log('[SCORM] Using parent SCORM 2004 API');
-    }}
-}}
-
-// Minimal fallback API stub (only if no API exists)
-if (!window.API) {{
-    window.API = {{
-        LMSInitialize: function() {{ return 'true'; }},
-        LMSFinish: function() {{ return 'true'; }},
-        LMSGetValue: function(e) {{ return ''; }},
-        LMSSetValue: function(e,v) {{ return 'true'; }},
-        LMSCommit: function() {{ return 'true'; }},
-        LMSGetLastError: function() {{ return '0'; }},
-        LMSGetErrorString: function(c) {{ return ''; }},
-        LMSGetDiagnostic: function(c) {{ return ''; }}
-    }};
-    console.log('[SCORM] Minimal SCORM 1.2 fallback API created');
-}}
-
-if (!window.API_1484_11) {{
-    window.API_1484_11 = {{
-        Initialize: function() {{ return 'true'; }},
-        Terminate: function() {{ return 'true'; }},
-        GetValue: function(e) {{ return ''; }},
-        SetValue: function(e,v) {{ return 'true'; }},
-        Commit: function() {{ return 'true'; }},
-        GetLastError: function() {{ return '0'; }},
-        GetErrorString: function(c) {{ return ''; }},
-        GetDiagnostic: function(c) {{ return ''; }}
-    }};
-    console.log('[SCORM] Minimal SCORM 2004 fallback API created');
-}}
-</script>'''
+// SCORM API Stub for Content
+window.API = window.API_1484_11 = {
+    Initialize: function(param) { return "true"; },
+    LMSInitialize: function(param) { return "true"; },
+    Terminate: function(param) { return "true"; },
+    LMSFinish: function(param) { return "true"; },
+    GetValue: function(element) {
+        switch(element) {
+            case 'cmi.core.lesson_status':
+            case 'cmi.completion_status':
+                return 'incomplete';
+            case 'cmi.core.student_id':
+            case 'cmi.learner_id':
+                return 'student';
+            case 'cmi.core.student_name':
+            case 'cmi.learner_name':
+                return 'Student';
+            case 'cmi.core.score.max':
+            case 'cmi.score.max':
+                return '100';
+            case 'cmi.core.score.min':
+            case 'cmi.score.min':
+                return '0';
+            case 'cmi.mode':
+                return 'normal';
+            default:
+                return '';
+        }
+    },
+    LMSGetValue: function(element) { return this.GetValue(element); },
+    SetValue: function(element, value) { return "true"; },
+    LMSSetValue: function(element, value) { return this.SetValue(element, value); },
+    Commit: function(param) { return "true"; },
+    LMSCommit: function(param) { return "true"; },
+    GetLastError: function() { return "0"; },
+    LMSGetLastError: function() { return "0"; },
+    GetErrorString: function(code) { return "No error"; },
+    LMSGetErrorString: function(code) { return "No error"; },
+    GetDiagnostic: function(code) { return "No error"; },
+    LMSGetDiagnostic: function(code) { return "No error"; }
+};
+</script>
+'''
+                    
+                    # Inject before </head> or at beginning of <body>
+                    if '</head>' in html_content:
+                        html_content = html_content.replace('</head>', api_injection + '</head>')
+                    elif '<body' in html_content:
+                        import re
+                        html_content = re.sub(r'(<body[^>]*>)', r'\1' + api_injection, html_content)
+                    else:
+                        html_content = api_injection + html_content
+                    
+                    content = html_content.encode('utf-8')
+                    content_type = 'text/html; charset=utf-8'
+                    
+                    logger.info(f" Injected SCORM API into {path}")
                 
-                # Inject before </head> or at beginning of <body>
-                if '</head>' in html_content:
-                    html_content = html_content.replace('</head>', api_injection + '</head>')
-                elif '<body' in html_content:
-                    # Find body tag and inject after it
-                    body_pos = html_content.find('<body')
-                    body_end = html_content.find('>', body_pos)
-                    if body_end != -1:
-                        html_content = html_content[:body_end+1] + api_injection + html_content[body_end+1:]
-                else:
-                    # As last resort, prepend to the content
-                    html_content = api_injection + html_content
+                response_obj = HttpResponse(content, content_type=content_type)
+                response_obj['Access-Control-Allow-Origin'] = '*'
+                response_obj['X-Frame-Options'] = 'SAMEORIGIN'
+                return response_obj
                 
-                content = html_content.encode('utf-8')
-                content_type = 'text/html; charset=utf-8'
-                
-                # Cache the processed content for 1 hour
-                cache.set(cache_key, content, 3600)
-                logger.info(f"Injected minimal SCORM API into {path} and cached")
-            
-            response_obj = HttpResponse(content, content_type=content_type)
-            response_obj['Access-Control-Allow-Origin'] = '*'
-            response_obj['X-Frame-Options'] = 'SAMEORIGIN'
-            # OPTIMIZATION: Enable browser caching for better performance
-            response_obj['Cache-Control'] = 'public, max-age=3600'  # Cache for 1 hour
-            # SECURITY HEADERS
-            response_obj['X-Content-Type-Options'] = 'nosniff'
-            response_obj['X-XSS-Protection'] = '1; mode=block'
-            return response_obj
-            
-        except requests.RequestException as e:
-            logger.error(f"Failed to fetch S3 content: {str(e)}")
-            return HttpResponse(f'Failed to load content: {str(e)}', status=502)
+            except requests.RequestException as e:
+                logger.error(f"Failed to fetch S3 content: {str(e)}")
+                return HttpResponse(f'Failed to load content: {str(e)}', status=502)
+        else:
+            # For non-HTML files, redirect to S3
+            return redirect(s3_url)
             
     except Exception as e:
         logger.error(f"Error serving SCORM content: {str(e)}")
@@ -818,7 +392,7 @@ if (!window.API_1484_11) {{
 @require_http_methods(["GET"])
 def scorm_status(request, attempt_id):
     """
-    Get current SCORM attempt status with comprehensive progress tracking
+    Get current SCORM attempt status
     """
     try:
         attempt = get_object_or_404(ScormAttempt, id=attempt_id)
@@ -832,27 +406,9 @@ def scorm_status(request, attempt_id):
             'status': {
                 'lesson_status': attempt.lesson_status,
                 'completion_status': attempt.completion_status,
-                'success_status': attempt.success_status,
                 'score_raw': float(attempt.score_raw) if attempt.score_raw else None,
                 'total_time': attempt.total_time,
-                'session_time': attempt.session_time,
-                'lesson_location': attempt.lesson_location,
-                'suspend_data': attempt.suspend_data,
-                'entry': attempt.entry,
-                'exit_mode': attempt.exit_mode,
                 'last_accessed': attempt.last_accessed.isoformat() if attempt.last_accessed else None,
-                'completed_at': attempt.completed_at.isoformat() if attempt.completed_at else None,
-                # Enhanced tracking data
-                'time_spent_seconds': attempt.time_spent_seconds,
-                'last_visited_slide': attempt.last_visited_slide,
-                'progress_percentage': float(attempt.progress_percentage) if attempt.progress_percentage else 0,
-                'completed_slides': attempt.completed_slides,
-                'total_slides': attempt.total_slides,
-                'session_start_time': attempt.session_start_time.isoformat() if attempt.session_start_time else None,
-                'session_end_time': attempt.session_end_time.isoformat() if attempt.session_end_time else None,
-                'detailed_tracking': attempt.detailed_tracking,
-                'session_data': attempt.session_data,
-                'navigation_history': attempt.navigation_history[-10:] if attempt.navigation_history else [],  # Last 10 navigation entries
             }
         })
         
@@ -862,8 +418,6 @@ def scorm_status(request, attempt_id):
             'success': False,
             'error': str(e)
         }, status=500)
-
-
 
 
 @login_required
@@ -876,8 +430,7 @@ def scorm_debug(request, attempt_id):
         attempt = get_object_or_404(ScormAttempt, id=attempt_id)
         
         # Verify user owns this attempt or is instructor/admin
-        if (attempt.user != request.user and 
-            not (hasattr(request.user, 'role') and request.user.role in ['instructor', 'admin', 'superadmin', 'globaladmin'])):
+        if attempt.user != request.user and not request.user.role in ['instructor', 'admin', 'superadmin', 'globaladmin']:
             return JsonResponse({'error': 'Unauthorized'}, status=403)
         
         debug_info = {
@@ -913,12 +466,12 @@ def scorm_debug(request, attempt_id):
 
 
 @csrf_exempt
-@require_http_methods(["POST"])
+@require_http_methods(['POST'])
 def scorm_emergency_save(request):
-    """
+    '''
     Emergency save endpoint for SCORM data
     Used when browser is closing or user navigates away
-    """
+    '''
     try:
         data = json.loads(request.body)
         attempt_id = data.get('attempt_id')
@@ -936,7 +489,7 @@ def scorm_emergency_save(request):
         from .score_sync_service import ScormScoreSyncService
         sync_result = ScormScoreSyncService.sync_score(attempt, force=True)
         
-        logger.info(f"Emergency save for attempt {attempt_id}: sync_result={sync_result}")
+        logger.info(f'Emergency save for attempt {attempt_id}: sync_result={sync_result}')
         
         return JsonResponse({
             'success': True,
@@ -945,7 +498,7 @@ def scorm_emergency_save(request):
         })
         
     except Exception as e:
-        logger.error(f"Emergency save error: {str(e)}")
+        logger.error(f'Emergency save error: {str(e)}')
         return JsonResponse({
             'success': False,
             'error': str(e)
@@ -953,11 +506,11 @@ def scorm_emergency_save(request):
 
 
 @login_required
-@require_http_methods(["GET"])
+@require_http_methods(['GET'])
 def scorm_tracking_report(request, attempt_id):
-    """
+    '''
     Comprehensive SCORM tracking report with all detailed data
-    """
+    '''
     try:
         attempt = get_object_or_404(ScormAttempt, id=attempt_id)
         
@@ -1040,8 +593,9 @@ def scorm_tracking_report(request, attempt_id):
         })
         
     except Exception as e:
-        logger.error(f"Error generating SCORM tracking report: {str(e)}")
+        logger.error(f'Error generating SCORM tracking report: {str(e)}')
         return JsonResponse({
             'success': False,
             'error': str(e)
         }, status=500)
+
