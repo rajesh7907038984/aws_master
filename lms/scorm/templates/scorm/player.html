@@ -2759,14 +2759,42 @@
                     const iframeDoc = iframe.contentDocument;
                     const iframeWindow = iframe.contentWindow;
                     
-                    // ✅ CRITICAL FIX: Skip exit button injection for Rise packages
-                    // Rise video packages manage their own navigation and our injection breaks their JavaScript
+                    // ✅ SAFE APPROACH: For Rise, use event delegation (no DOM modification)
                     const iframeSrc = iframe.src || '';
                     const isRisePackage = iframeSrc.includes('scormcontent/index.html');
                     
                     if (isRisePackage) {
-                        console.log('⚠️ Skipping exit button injection for Rise package (manages own navigation)');
-                        return; // Don't inject anything for Rise
+                        console.log('✅ Rise package detected - using safe event delegation for exit button');
+                        try {
+                            // Add click listener to iframe document (event delegation)
+                            // This won't break Rise's JavaScript because we're not modifying elements
+                            iframeDoc.addEventListener('click', function(e) {
+                                const target = e.target;
+                                const targetText = target.textContent || target.value || '';
+                                const targetClass = target.className || '';
+                                const targetAriaLabel = target.getAttribute('aria-label') || '';
+                                
+                                // Detect Rise exit button by text/class
+                                if (targetText.toLowerCase().includes('exit') || 
+                                    targetClass.toLowerCase().includes('exit') ||
+                                    targetAriaLabel.toLowerCase().includes('exit')) {
+                                    
+                                    console.log('🚪 Rise exit button clicked - triggering Save & Exit');
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    
+                                    // Call our Save & Exit functionality
+                                    if (window.handleBackToTopic) {
+                                        window.handleBackToTopic();
+                                    }
+                                }
+                            }, true); // Use capture phase
+                            
+                            console.log('✅ Rise exit button event delegation active');
+                        } catch (e) {
+                            console.log('Could not set up Rise exit handler:', e.message);
+                        }
+                        return; // Don't run Storyline-specific injection
                     }
                     
                     // Only inject if not cross-origin and iframe is accessible
