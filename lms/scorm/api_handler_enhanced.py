@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from django.utils import timezone
 from .models import ScormInteraction, ScormObjective, ScormComment
+from .slide_tracker import SlideTracker
 
 logger = logging.getLogger(__name__)
 
@@ -635,11 +636,19 @@ class ScormAPIHandlerEnhanced:
                     logger.info("🔖 BOOKMARK UPDATE: lesson_location changed from '%s' to '%s' for attempt %s", 
                                old_location or 'None', value or 'None', self.attempt.id)
                     
+                    # ENHANCED: Update slide/section tracking
+                    try:
+                        SlideTracker.update_slide_progress(self.attempt)
+                    except Exception as tracker_error:
+                        logger.warning("⚠️ Slide tracker error: %s", str(tracker_error))
+                    
                     # ENHANCED: Immediate save for critical bookmark data to prevent data loss
                     try:
                         self.attempt.last_accessed = timezone.now()
-                        self.attempt.save(update_fields=['lesson_location', 'cmi_data', 'last_accessed'])
-                        logger.info("🔖 BOOKMARK SAVED: Immediately saved lesson_location and CMI data")
+                        self.attempt.save(update_fields=['lesson_location', 'cmi_data', 'last_accessed', 
+                                                         'last_visited_slide', 'progress_percentage', 
+                                                         'total_slides', 'completed_slides', 'detailed_tracking'])
+                        logger.info("🔖 BOOKMARK SAVED: Immediately saved lesson_location, slide progress, and CMI data")
                     except Exception as save_error:
                         logger.error("❌ BOOKMARK SAVE ERROR: %s", str(save_error))
                         
@@ -652,11 +661,19 @@ class ScormAPIHandlerEnhanced:
                     logger.info("🔖 SUSPEND DATA UPDATE: Changed from %d chars to %d chars for attempt %s", 
                                old_suspend_len, new_suspend_len, self.attempt.id)
                     
+                    # ENHANCED: Update slide/section tracking from suspend_data
+                    try:
+                        SlideTracker.update_slide_progress(self.attempt)
+                    except Exception as tracker_error:
+                        logger.warning("⚠️ Slide tracker error: %s", str(tracker_error))
+                    
                     # ENHANCED: Immediate save for critical suspend data to prevent data loss
                     try:
                         self.attempt.last_accessed = timezone.now()
-                        self.attempt.save(update_fields=['suspend_data', 'cmi_data', 'last_accessed'])
-                        logger.info("🔖 SUSPEND DATA SAVED: Immediately saved suspend_data and CMI data")
+                        self.attempt.save(update_fields=['suspend_data', 'cmi_data', 'last_accessed',
+                                                         'last_visited_slide', 'progress_percentage',
+                                                         'total_slides', 'completed_slides', 'detailed_tracking'])
+                        logger.info("🔖 SUSPEND DATA SAVED: Immediately saved suspend_data, slide progress, and CMI data")
                     except Exception as save_error:
                         logger.error("❌ SUSPEND DATA SAVE ERROR: %s", str(save_error))
                 elif element == 'cmi.core.session_time':
