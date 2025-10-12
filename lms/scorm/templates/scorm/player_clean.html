@@ -254,52 +254,132 @@
         function createScormAPI() {
             return {
                 Initialize: function(param) {
-                    return makeApiCallSync('Initialize', [param]);
+                    try {
+                        return makeApiCallSync('Initialize', [param]);
+                    } catch (error) {
+                        console.error('SCORM Initialize error:', error);
+                        return 'false';
+                    }
                 },
                 LMSInitialize: function(param) {
-                    return makeApiCallSync('LMSInitialize', [param]);
+                    try {
+                        return makeApiCallSync('LMSInitialize', [param]);
+                    } catch (error) {
+                        console.error('SCORM LMSInitialize error:', error);
+                        return 'false';
+                    }
                 },
                 Terminate: function(param) {
-                    return makeApiCallSync('Terminate', [param]);
+                    try {
+                        return makeApiCallSync('Terminate', [param]);
+                    } catch (error) {
+                        console.error('SCORM Terminate error:', error);
+                        return 'false';
+                    }
                 },
                 LMSFinish: function(param) {
-                    return makeApiCallSync('LMSFinish', [param]);
+                    try {
+                        return makeApiCallSync('LMSFinish', [param]);
+                    } catch (error) {
+                        console.error('SCORM LMSFinish error:', error);
+                        return 'false';
+                    }
                 },
                 GetValue: function(element) {
-                    return makeApiCallWithCache('GetValue', [element]);
+                    try {
+                        return makeApiCallWithCache('GetValue', [element]);
+                    } catch (error) {
+                        console.error('SCORM GetValue error:', error);
+                        return '';
+                    }
                 },
                 LMSGetValue: function(element) {
-                    return makeApiCallWithCache('LMSGetValue', [element]);
+                    try {
+                        return makeApiCallWithCache('LMSGetValue', [element]);
+                    } catch (error) {
+                        console.error('SCORM LMSGetValue error:', error);
+                        return '';
+                    }
                 },
                 SetValue: function(element, value) {
-                    return makeApiCallSync('SetValue', [element, value]);
+                    try {
+                        return makeApiCallSync('SetValue', [element, value]);
+                    } catch (error) {
+                        console.error('SCORM SetValue error:', error);
+                        return 'false';
+                    }
                 },
                 LMSSetValue: function(element, value) {
-                    return makeApiCallSync('LMSSetValue', [element, value]);
+                    try {
+                        return makeApiCallSync('LMSSetValue', [element, value]);
+                    } catch (error) {
+                        console.error('SCORM LMSSetValue error:', error);
+                        return 'false';
+                    }
                 },
                 Commit: function(param) {
-                    return makeApiCallSync('Commit', [param]);
+                    try {
+                        return makeApiCallSync('Commit', [param]);
+                    } catch (error) {
+                        console.error('SCORM Commit error:', error);
+                        return 'false';
+                    }
                 },
                 LMSCommit: function(param) {
-                    return makeApiCallSync('LMSCommit', [param]);
+                    try {
+                        return makeApiCallSync('LMSCommit', [param]);
+                    } catch (error) {
+                        console.error('SCORM LMSCommit error:', error);
+                        return 'false';
+                    }
                 },
                 GetLastError: function() {
-                    return makeApiCallWithCache('GetLastError', []);
+                    try {
+                        return makeApiCallWithCache('GetLastError', []);
+                    } catch (error) {
+                        console.error('SCORM GetLastError error:', error);
+                        return '0';
+                    }
                 },
                 LMSGetLastError: function() {
-                    return makeApiCallWithCache('LMSGetLastError', []);
+                    try {
+                        return makeApiCallWithCache('LMSGetLastError', []);
+                    } catch (error) {
+                        console.error('SCORM LMSGetLastError error:', error);
+                        return '0';
+                    }
                 },
                 GetErrorString: function(errorCode) {
-                    return makeApiCallSync('GetErrorString', [errorCode]);
+                    try {
+                        return makeApiCallSync('GetErrorString', [errorCode]);
+                    } catch (error) {
+                        console.error('SCORM GetErrorString error:', error);
+                        return 'No error';
+                    }
                 },
                 LMSGetErrorString: function(errorCode) {
-                    return makeApiCallSync('LMSGetErrorString', [errorCode]);
+                    try {
+                        return makeApiCallSync('LMSGetErrorString', [errorCode]);
+                    } catch (error) {
+                        console.error('SCORM LMSGetErrorString error:', error);
+                        return 'No error';
+                    }
                 },
                 GetDiagnostic: function(errorCode) {
-                    return makeApiCallSync('GetDiagnostic', [errorCode]);
+                    try {
+                        return makeApiCallSync('GetDiagnostic', [errorCode]);
+                    } catch (error) {
+                        console.error('SCORM GetDiagnostic error:', error);
+                        return 'No error';
+                    }
                 },
                 LMSGetDiagnostic: function(errorCode) {
-                    return makeApiCallSync('LMSGetDiagnostic', [errorCode]);
+                    try {
+                        return makeApiCallSync('LMSGetDiagnostic', [errorCode]);
+                    } catch (error) {
+                        console.error('SCORM LMSGetDiagnostic error:', error);
+                        return 'No error';
+                    }
                 }
             };
         }
@@ -1294,13 +1374,29 @@
         window.API = createScormAPI();
         window.API_1484_11 = createScormAPI();
         
-        // OPTIMIZATION: Faster API initialization
+        // Add defensive programming to handle null object errors
+        window.API._initialized = false;
+        window.API_1484_11._initialized = false;
+        
+        // OPTIMIZATION: Faster API initialization with better error handling
         setTimeout(() => {
             if (window.API && !window.API._initialized) {
                 console.log('Auto-initializing SCORM API...');
-                window.API.LMSInitialize('');
-                window.API_1484_11.Initialize('');
-                window.API._initialized = true;
+                try {
+                    const initResult = window.API.LMSInitialize('');
+                    console.log('SCORM 1.2 Initialize result:', initResult);
+                    window.API._initialized = true;
+                } catch (error) {
+                    console.error('SCORM 1.2 Initialize error:', error);
+                }
+                
+                try {
+                    const initResult2004 = window.API_1484_11.Initialize('');
+                    console.log('SCORM 2004 Initialize result:', initResult2004);
+                    window.API_1484_11._initialized = true;
+                } catch (error) {
+                    console.error('SCORM 2004 Initialize error:', error);
+                }
             }
         }, 300); // Reduced from 1000ms to 300ms
         
