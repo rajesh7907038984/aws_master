@@ -628,6 +628,9 @@
         
         // ENHANCED: Detect package type and set up specific monitoring based on metadata
         detectAndSetupPackageSpecificMonitoring();
+        
+        // ENHANCED: Load existing section progress for sidebar indicators
+        loadExistingSectionProgress();
             
             // Add instant sync on user interaction
             document.addEventListener('click', function() {
@@ -720,15 +723,16 @@
             }
         }
         
-        // ENHANCED: Monitor slide progress for better tracking
+        // ENHANCED: Monitor slide progress and section completion for better tracking
         function monitorSlideProgress() {
-            console.log('📊 Monitoring slide progress for better tracking...');
+            console.log('📊 Monitoring slide progress and section completion...');
             
             const iframe = document.getElementById('scormFrame');
             if (!iframe) return;
             
             let lastSlideId = '';
             let slideStartTime = Date.now();
+            let sectionProgress = {};
             
             // Monitor slide changes every 2 seconds
             setInterval(() => {
@@ -756,6 +760,35 @@
                                            'slide_' + 0;
                         }
                     }
+                    
+                    // ENHANCED: Look for section completion indicators
+                    const sectionElements = iframeDoc.querySelectorAll('[data-section], .section, .lesson, [class*="section"], [class*="lesson"]');
+                    sectionElements.forEach(section => {
+                        const sectionId = section.getAttribute('data-section') || 
+                                        section.getAttribute('id') || 
+                                        section.className || 
+                                        'section_' + Array.from(sectionElements).indexOf(section);
+                        
+                        // Check if section is completed
+                        const isCompleted = section.classList.contains('completed') || 
+                                          section.classList.contains('finished') || 
+                                          section.classList.contains('passed') ||
+                                          section.getAttribute('data-completed') === 'true' ||
+                                          section.querySelector('.completed, .finished, .passed');
+                        
+                        if (isCompleted && !sectionProgress[sectionId]) {
+                            sectionProgress[sectionId] = {
+                                completed: true,
+                                timestamp: new Date().toISOString(),
+                                timeSpent: Math.round((Date.now() - slideStartTime) / 1000)
+                            };
+                            
+                            console.log(`✅ Section completed: ${sectionId}`);
+                            
+                            // Update sidebar progress indicators
+                            updateSidebarProgress(sectionId, true);
+                        }
+                    });
                     
                     // If slide changed, track the time spent on previous slide
                     if (currentSlideId && currentSlideId !== lastSlideId) {
@@ -787,10 +820,111 @@
                         }
                     }
                     
+                    // ENHANCED: Save section progress to suspend data
+                    if (Object.keys(sectionProgress).length > 0) {
+                        saveSectionProgress(sectionProgress);
+                    }
+                    
                 } catch (error) {
                     console.log('Slide progress monitoring error:', error.message);
                 }
             }, 2000);
+        }
+        
+        // ENHANCED: Update sidebar progress indicators
+        function updateSidebarProgress(sectionId, isCompleted) {
+            try {
+                // Look for sidebar elements that match the section
+                const sidebarElements = document.querySelectorAll('.sidebar-item, .nav-item, .section-item, [data-section-id]');
+                sidebarElements.forEach(element => {
+                    const elementId = element.getAttribute('data-section-id') || 
+                                    element.getAttribute('id') || 
+                                    element.textContent.toLowerCase().trim();
+                    
+                    if (elementId.includes(sectionId.toLowerCase()) || 
+                        sectionId.toLowerCase().includes(elementId)) {
+                        
+                        if (isCompleted) {
+                            // Add completed indicator
+                            element.classList.add('completed', 'section-completed');
+                            
+                            // Add blue tick or checkmark
+                            let indicator = element.querySelector('.progress-indicator, .completion-indicator');
+                            if (!indicator) {
+                                indicator = document.createElement('span');
+                                indicator.className = 'progress-indicator completed';
+                                indicator.innerHTML = '✓';
+                                indicator.style.color = '#007bff';
+                                indicator.style.fontWeight = 'bold';
+                                element.appendChild(indicator);
+                            }
+                            
+                            console.log(`✅ Updated sidebar for section: ${sectionId}`);
+                        }
+                    }
+                });
+            } catch (error) {
+                console.log('Error updating sidebar progress:', error.message);
+            }
+        }
+        
+        // ENHANCED: Save section progress to SCORM data
+        function saveSectionProgress(sectionProgress) {
+            try {
+                if (window.API && window.API.LMSGetValue && window.API.LMSSetValue) {
+                    // Get current suspend data
+                    let suspendData = {};
+                    try {
+                        const currentSuspendData = window.API.LMSGetValue('cmi.suspend_data');
+                        if (currentSuspendData) {
+                            suspendData = JSON.parse(currentSuspendData);
+                        }
+                    } catch (e) {
+                        console.log('Could not parse current suspend data');
+                    }
+                    
+                    // Add section progress
+                    suspendData.sections = sectionProgress;
+                    suspendData.lastUpdated = new Date().toISOString();
+                    
+                    // Save back to SCORM
+                    window.API.LMSSetValue('cmi.suspend_data', JSON.stringify(suspendData));
+                    
+                    console.log('💾 Saved section progress to SCORM:', sectionProgress);
+                }
+            } catch (error) {
+                console.log('Error saving section progress:', error.message);
+            }
+        }
+        
+        // ENHANCED: Load existing section progress for sidebar indicators
+        function loadExistingSectionProgress() {
+            console.log('📊 Loading existing section progress...');
+            
+            try {
+                if (window.API && window.API.LMSGetValue) {
+                    // Get suspend data with section progress
+                    const suspendData = window.API.LMSGetValue('cmi.suspend_data');
+                    if (suspendData) {
+                        const parsedData = JSON.parse(suspendData);
+                        
+                        if (parsedData.sections) {
+                            console.log('📊 Found existing section progress:', parsedData.sections);
+                            
+                            // Update sidebar for each completed section
+                            Object.keys(parsedData.sections).forEach(sectionId => {
+                                const sectionData = parsedData.sections[sectionId];
+                                if (sectionData.completed) {
+                                    updateSidebarProgress(sectionId, true);
+                                    console.log(`✅ Restored progress for section: ${sectionId}`);
+                                }
+                            });
+                        }
+                    }
+                }
+            } catch (error) {
+                console.log('Error loading existing section progress:', error.message);
+            }
         }
         
         // ENHANCED: Detect and setup package-specific monitoring based on metadata
