@@ -1518,7 +1518,7 @@
             // ✅ CONFLICT FIX: Use named function to prevent duplicate listeners
             if (!window.completionCheckOnLoad) {
                 window.completionCheckOnLoad = () => {
-                    setTimeout(checkCompletion, 500);
+                setTimeout(checkCompletion, 500);
                 };
                 iframe.addEventListener('load', window.completionCheckOnLoad);
             }
@@ -1740,8 +1740,8 @@
                 } catch (error) {
                     console.error('❌ SCORM 1.2 Initialize error:', error);
                 }
-            }
-            
+                }
+                
             if (window.API_1484_11 && !window.API_1484_11._initialized) {
                 try {
                     const initResult2004 = window.API_1484_11.Initialize('');
@@ -2858,84 +2858,84 @@
                                     // Process all collected elements
                                     allElements.forEach(button => {
                                         try {
-                                            const buttonText = button.textContent || button.value || '';
-                                            const buttonTitle = button.getAttribute('title') || '';
-                                            const buttonAriaLabel = button.getAttribute('aria-label') || '';
-                                            const buttonClass = button.className || '';
-                                            
-                                            // ENHANCED: More comprehensive exit button detection
-                                            if (buttonText.toLowerCase().includes('exit') || 
-                                                buttonTitle.toLowerCase().includes('exit') ||
-                                                buttonAriaLabel.toLowerCase().includes('exit') ||
-                                                buttonClass.toLowerCase().includes('exit') ||
-                                                button.classList.contains('courseExit') ||
-                                                button.classList.contains('courseExit--standard') ||
-                                                button.getAttribute('data-action') === 'exit' ||
-                                                button.getAttribute('data-exit') === 'true' ||
-                                                // Check for completion page patterns
-                                                buttonText.toLowerCase().includes('move on') ||
-                                                buttonText.toLowerCase().includes('final assessment') ||
-                                                buttonText.toLowerCase().includes('complete') ||
-                                                buttonText.toLowerCase().includes('finish')) {
+                                                const buttonText = button.textContent || button.value || '';
+                                                const buttonTitle = button.getAttribute('title') || '';
+                                                const buttonAriaLabel = button.getAttribute('aria-label') || '';
+                                                const buttonClass = button.className || '';
                                                 
-                                                console.log('Found exit button in iframe:', button);
-                                                buttonsFound++;
-                                                
-                                                // Remove existing handlers and add new one
-                                                const newButton = button.cloneNode(true);
-                                                button.parentNode.replaceChild(newButton, button);
-                                                
-                                                newButton.addEventListener('click', function(e) {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
+                                                // ENHANCED: More comprehensive exit button detection
+                                                if (buttonText.toLowerCase().includes('exit') || 
+                                                    buttonTitle.toLowerCase().includes('exit') ||
+                                                    buttonAriaLabel.toLowerCase().includes('exit') ||
+                                                    buttonClass.toLowerCase().includes('exit') ||
+                                                    button.classList.contains('courseExit') ||
+                                                    button.classList.contains('courseExit--standard') ||
+                                                    button.getAttribute('data-action') === 'exit' ||
+                                                    button.getAttribute('data-exit') === 'true' ||
+                                                    // Check for completion page patterns
+                                                    buttonText.toLowerCase().includes('move on') ||
+                                                    buttonText.toLowerCase().includes('final assessment') ||
+                                                    buttonText.toLowerCase().includes('complete') ||
+                                                    buttonText.toLowerCase().includes('finish')) {
                                                     
-                                                    console.log(' EXIT button clicked in SCORM iframe - triggering Save & Exit...');
+                                                    console.log('Found exit button in iframe:', button);
+                                                    buttonsFound++;
                                                     
-                                                    // Show user feedback
-                                                    const originalText = newButton.textContent || newButton.value;
-                                                    newButton.textContent = 'Saving progress...';
-                                                    newButton.disabled = true;
+                                                    // Remove existing handlers and add new one
+                                                    const newButton = button.cloneNode(true);
+                                                    button.parentNode.replaceChild(newButton, button);
                                                     
-                                                    // IMPORTANT: Don't terminate session, just commit to save progress
-                                                    // This allows learners to resume from where they left off
-                                                    try {
-                                                        // Try to call parent window's SCORM API
-                                                        if (window.parent && window.parent.API) {
-                                                            console.log(' Committing SCORM data (not terminating - for resume)...');
-                                                            
-                                                            // Only commit current progress - don't terminate
-                                                            if (window.parent.API.LMSCommit) {
-                                                                window.parent.API.LMSCommit('');
-                                                                console.log(' SCORM 1.2 data committed');
+                                                    newButton.addEventListener('click', function(e) {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        
+                                                        console.log(' EXIT button clicked in SCORM iframe - triggering Save & Exit...');
+                                                        
+                                                        // Show user feedback
+                                                        const originalText = newButton.textContent || newButton.value;
+                                                        newButton.textContent = 'Saving progress...';
+                                                        newButton.disabled = true;
+                                                        
+                                                        // IMPORTANT: Don't terminate session, just commit to save progress
+                                                        // This allows learners to resume from where they left off
+                                                        try {
+                                                            // Try to call parent window's SCORM API
+                                                            if (window.parent && window.parent.API) {
+                                                                console.log(' Committing SCORM data (not terminating - for resume)...');
+                                                                
+                                                                // Only commit current progress - don't terminate
+                                                                if (window.parent.API.LMSCommit) {
+                                                                    window.parent.API.LMSCommit('');
+                                                                    console.log(' SCORM 1.2 data committed');
+                                                                }
+                                                                
+                                                                // Also commit SCORM 2004 if available
+                                                                if (window.parent.API_1484_11 && window.parent.API_1484_11.Commit) {
+                                                                    window.parent.API_1484_11.Commit('');
+                                                                    console.log(' SCORM 2004 data committed');
+                                                                }
+                                                                
+                                                                // Send exit message to parent (not completion)
+                                                                // This will trigger handleBackToTopic functionality
+                                                                window.parent.postMessage({
+                                                                    action: 'exit',
+                                                                    type: 'exit'
+                                                                }, '*');
+                                                                
+                                                                console.log(' Exit message sent to parent - progress saved for resume');
+                                                            } else {
+                                                                console.log('Parent SCORM API not available, sending exit message...');
+                                                                window.parent.postMessage('exit', '*');
                                                             }
-                                                            
-                                                            // Also commit SCORM 2004 if available
-                                                            if (window.parent.API_1484_11 && window.parent.API_1484_11.Commit) {
-                                                                window.parent.API_1484_11.Commit('');
-                                                                console.log(' SCORM 2004 data committed');
-                                                            }
-                                                            
-                                                            // Send exit message to parent (not completion)
-                                                            // This will trigger handleBackToTopic functionality
-                                                            window.parent.postMessage({
-                                                                action: 'exit',
-                                                                type: 'exit'
-                                                            }, '*');
-                                                            
-                                                            console.log(' Exit message sent to parent - progress saved for resume');
-                                                        } else {
-                                                            console.log('Parent SCORM API not available, sending exit message...');
+                                                        } catch (error) {
+                                                            console.error(' Error calling SCORM API:', error);
+                                                            // Still send exit message
                                                             window.parent.postMessage('exit', '*');
                                                         }
-                                                    } catch (error) {
-                                                        console.error(' Error calling SCORM API:', error);
-                                                        // Still send exit message
-                                                        window.parent.postMessage('exit', '*');
-                                                    }
-                                                });
-                                                
-                                                console.log('Exit button handler attached in iframe');
-                                            }
+                                                    });
+                                                    
+                                                    console.log('Exit button handler attached in iframe');
+                                                }
                                         } catch (e) {
                                             // Ignore selector errors
                                         }
@@ -2971,7 +2971,7 @@
                             handleExitButtons();
                         })();
                     `;
-                            
+                    
                             iframeDoc.head.appendChild(script);
                             console.log('✅ Enhanced exit button handler injected into iframe');
                         } else {
@@ -3255,40 +3255,40 @@
                         console.log(`   ${contentType} will report its own score when quiz is complete`);
                     } else {
                         // Fallback to slide completion logic (for Rise, generic SCORM only)
-                        const totalSlides = Object.keys(slideTimeTracker).length;
-                        const slidesWithTime = Object.values(slideTimeTracker).filter(time => time > 10).length;
+                    const totalSlides = Object.keys(slideTimeTracker).length;
+                    const slidesWithTime = Object.values(slideTimeTracker).filter(time => time > 10).length;
+                    
+                    if (totalSlides > 0) {
+                        const completionPercentage = Math.round((slidesWithTime / totalSlides) * 100);
                         
-                        if (totalSlides > 0) {
-                            const completionPercentage = Math.round((slidesWithTime / totalSlides) * 100);
-                            
-                            if (slidesWithTime >= totalSlides) {
+                        if (slidesWithTime >= totalSlides) {
                                 // All slides completed - mark as passed (NON-STORYLINE ONLY)
-                                console.log(' All slides completed! Marking as PASSED (100%)');
-                                
-                                // Set score to 100%
-                                if (window.API && window.API.LMSSetValue) {
-                                    window.API.LMSSetValue('cmi.core.score.raw', '100');
-                                    window.API.LMSSetValue('cmi.core.lesson_status', 'passed');
-                                    console.log(' Set SCORM 1.2: score=100, status=passed');
-                                }
-                                
-                                if (window.API_1484_11 && window.API_1484_11.SetValue) {
-                                    window.API_1484_11.SetValue('cmi.score.raw', '100');
-                                    window.API_1484_11.SetValue('cmi.completion_status', 'completed');
-                                    window.API_1484_11.SetValue('cmi.success_status', 'passed');
-                                    console.log(' Set SCORM 2004: score=100, completion=completed, success=passed');
-                                }
-                                
-                                // Commit the changes
-                                if (window.API && window.API.LMSCommit) {
-                                    window.API.LMSCommit('');
-                                }
-                                if (window.API_1484_11 && window.API_1484_11.Commit) {
-                                    window.API_1484_11.Commit('');
-                                }
-                                
-                                console.log(' SCORM content automatically marked as PASSED (100%)');
-                            } else {
+                            console.log(' All slides completed! Marking as PASSED (100%)');
+                            
+                            // Set score to 100%
+                            if (window.API && window.API.LMSSetValue) {
+                                window.API.LMSSetValue('cmi.core.score.raw', '100');
+                                window.API.LMSSetValue('cmi.core.lesson_status', 'passed');
+                                console.log(' Set SCORM 1.2: score=100, status=passed');
+                            }
+                            
+                            if (window.API_1484_11 && window.API_1484_11.SetValue) {
+                                window.API_1484_11.SetValue('cmi.score.raw', '100');
+                                window.API_1484_11.SetValue('cmi.completion_status', 'completed');
+                                window.API_1484_11.SetValue('cmi.success_status', 'passed');
+                                console.log(' Set SCORM 2004: score=100, completion=completed, success=passed');
+                            }
+                            
+                            // Commit the changes
+                            if (window.API && window.API.LMSCommit) {
+                                window.API.LMSCommit('');
+                            }
+                            if (window.API_1484_11 && window.API_1484_11.Commit) {
+                                window.API_1484_11.Commit('');
+                            }
+                            
+                            console.log(' SCORM content automatically marked as PASSED (100%)');
+                        } else {
                             // Partial completion - don't set final score
                             console.log(' Partial completion: ' + completionPercentage + '% (' + slidesWithTime + ' slides completed out of ' + totalSlides + ')');
                             console.log('⚠️ Not setting final score for partial completion');
@@ -3312,13 +3312,13 @@
                             
                             if (!isStoryline && !isRise && !hasOwnSuspendData && window.API && window.API.LMSSetValue) {
                                 // Only save our progress data for non-Storyline packages
-                                const progressData = {
-                                    totalSlides: totalSlides,
-                                    completedSlides: slidesWithTime,
-                                    progressPercentage: completionPercentage,
-                                    timestamp: new Date().toISOString(),
-                                    status: 'in_progress'
-                                };
+                            const progressData = {
+                                                totalSlides: totalSlides,
+                                                completedSlides: slidesWithTime,
+                                                progressPercentage: completionPercentage,
+                                                timestamp: new Date().toISOString(),
+                                                status: 'in_progress'
+                                            };
                                 window.API.LMSSetValue('cmi.suspend_data', JSON.stringify(progressData));
                                 window.API.LMSSetValue('cmi.core.lesson_status', 'incomplete');
                                 console.log(' Saved progress for resume (no final score)');
@@ -3328,8 +3328,8 @@
                                 const contentType = isStoryline ? 'Storyline' : isRise ? 'Rise' : 'Self-managed content';
                                 console.log(`⚠️ ${contentType} detected - preserved its suspend_data`);
                             }
-                            }
                         }
+                    }
                     } // End of Storyline check
                 } catch (error) {
                     console.error(' Error checking slide completion:', error);
@@ -3375,19 +3375,19 @@
                             
                             if (!isStoryline && !isRise) {
                                 // Only for generic SCORM packages (not Storyline/Rise)
-                                // Set lesson location for slide-based content
-                                if (currentSlide) {
-                                    window.API.SetValue('cmi.core.lesson_location', currentSlide);
-                                }
-                                
-                                // Set suspend data with slide tracking info
-                                const slideData = {
-                                    slides: slideTimeTracker,
-                                    currentSlide: currentSlide,
-                                    totalTime: totalActiveSeconds,
-                                    timestamp: new Date().toISOString()
-                                };
-                                window.API.SetValue('cmi.suspend_data', JSON.stringify(slideData));
+                            // Set lesson location for slide-based content
+                            if (currentSlide) {
+                                window.API.SetValue('cmi.core.lesson_location', currentSlide);
+                            }
+                            
+                            // Set suspend data with slide tracking info
+                            const slideData = {
+                                slides: slideTimeTracker,
+                                currentSlide: currentSlide,
+                                totalTime: totalActiveSeconds,
+                                timestamp: new Date().toISOString()
+                            };
+                            window.API.SetValue('cmi.suspend_data', JSON.stringify(slideData));
                                 
                                 console.log(' Time synced with slide data');
                             } else {
