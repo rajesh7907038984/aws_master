@@ -927,6 +927,21 @@ class LearningActivitiesView(LoginRequiredMixin, TemplateView):
             # Check if this is SCORM content
             is_scorm = hasattr(topic, 'scorm_content') and topic.scorm_content is not None
             
+            # Filter: Only show scenarios when learner has passed them
+            # For SCORM content, check if user has passed status
+            if is_scorm:
+                from scorm.models import ScormAttempt
+                # Check if current user has passed this SCORM scenario
+                user_passed = ScormAttempt.objects.filter(
+                    user=user,
+                    scorm_package__topic=topic,
+                    lesson_status='passed'
+                ).exists()
+                
+                # Skip this activity if user hasn't passed it
+                if not user_passed:
+                    continue
+            
             # Calculate progress statistics
             total_progress = topic_progress.count()
             completed = topic_progress.filter(completed=True).count()
