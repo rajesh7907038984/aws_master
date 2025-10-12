@@ -440,14 +440,19 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                     # Some SCORM packages don't properly calculate scores based on completion
                                     if score_value is not None:
                                         # Check if this is a completion-based SCORM package issue
-                                        # If user completed all sections but has low score, treat as completion-based
+                                        # CRITICAL FIX: Only treat as completion-based if user actually completed content
+                                        # Must have meaningful progress indicators, not just time spent
                                         is_completion_based = (
                                             attempt.lesson_status in ['completed', 'passed'] or
                                             (attempt.lesson_status == 'failed' and 
                                              attempt.total_time and 
                                              attempt.total_time != '0000:00:00.00' and
                                              attempt.lesson_location and
-                                             score_value < passing_threshold)
+                                             score_value < passing_threshold and
+                                             # ADDITIONAL CHECKS: Ensure meaningful completion
+                                             (attempt.progress_percentage and attempt.progress_percentage > 50) or  # At least 50% progress
+                                             (attempt.completed_slides and len(attempt.completed_slides) > 0) or  # Has completed slides
+                                             (attempt.total_time and attempt.total_time > '0000:02:00.00'))  # At least 2 minutes spent
                                         )
                                         
                                         if is_completion_based or score_value >= passing_threshold:
