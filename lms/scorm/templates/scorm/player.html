@@ -220,9 +220,9 @@
             {% endif %}
         </div>
         <div class="scorm-actions">
-            <a href="#" id="backToTopicBtn" class="btn btn-secondary" onclick="handleBackToTopic(event); return false;">
+            <button type="button" id="backToTopicBtn" class="btn btn-secondary">
                 Save & Exit
-            </a>
+            </button>
         </div>
     </div>
     
@@ -3298,6 +3298,18 @@
         // Initialize loading timeout when page loads
         document.addEventListener('DOMContentLoaded', function() {
             initializeLoadingTimeout();
+            
+            // Attach event listener to Save & Exit button
+            const saveExitBtn = document.getElementById('backToTopicBtn');
+            if (saveExitBtn) {
+                saveExitBtn.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    handleBackToTopic(event);
+                });
+                console.log('✅ Save & Exit button event listener attached');
+            } else {
+                console.error('❌ Save & Exit button not found!');
+            }
             
             // Initialize exit button handlers
             handleExitButtonClicks();
