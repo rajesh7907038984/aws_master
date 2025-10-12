@@ -1649,11 +1649,18 @@ def course_gradebook_detail(request, course_id):
     # Add SCORM packages with numbering
     scorm_counter = 1
     for scorm_package in scorm_packages:
+        # FIXED: Use the actual topic title instead of generic "SCORM Course"
+        scorm_title = 'SCORM Content'  # Default fallback
+        if hasattr(scorm_package, 'topic') and scorm_package.topic:
+            scorm_title = scorm_package.topic.title
+        elif hasattr(scorm_package, 'title') and scorm_package.title:
+            scorm_title = scorm_package.title
+        
         activities.append({
             'object': scorm_package,
             'type': 'scorm',
             'created_at': scorm_package.upload_date if hasattr(scorm_package, 'upload_date') else timezone.now(),
-            'title': scorm_package.title if hasattr(scorm_package, 'title') else 'SCORM Content',
+            'title': scorm_title,
             'max_score': 100,  # SCORM scores are typically on a 0-100 scale
             'activity_number': scorm_counter,
             'activity_name': f"SCORM {scorm_counter}"
@@ -2964,9 +2971,10 @@ def export_gradebook_csv(request, course_id):
         for conference in conferences.filter(rubric__isnull=False):
             headers.append(f'Conference: {conference.title}')
         
-        # Add SCORM columns
+        # Add SCORM columns - FIXED: Use actual topic title
         for package in scorm_packages:
-            headers.append(f'SCORM: {package.title}')
+            scorm_title = package.topic.title if hasattr(package, 'topic') and package.topic else package.title
+            headers.append(f'SCORM: {scorm_title}')
         
         for topic in scorm_topics_without_packages:
             headers.append(f'SCORM Topic: {topic.title}')
