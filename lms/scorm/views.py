@@ -8,7 +8,7 @@ import os
 import uuid
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse, HttpResponse, HttpResponseRedirect
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.clickjacking import xframe_options_exempt
@@ -16,6 +16,7 @@ from django.core.files.storage import default_storage
 from django.contrib import messages
 from django.utils import timezone
 from django.conf import settings
+from django.urls import reverse
 
 from .models import ScormPackage, ScormAttempt
 # from .api_handler import ScormAPIHandler  # DISABLED: Using enhanced handler only
@@ -583,6 +584,13 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
         # Handle directory requests by redirecting to index.html
         if path.endswith('/'):
             path = path + 'index.html'
+        
+        # CRITICAL FIX: For SCORM content HTML files, redirect to the proper SCORM player
+        # This ensures the "Save & Exit" button functionality is available
+        if path.endswith(('.html', '.htm')) and ('scormcontent' in path or path.endswith('index.html')):
+            logger.info(f"Redirecting SCORM HTML content to player: /scorm/view/{topic_id}/")
+            from django.http import HttpResponseRedirect
+            return HttpResponseRedirect(reverse('scorm:view', kwargs={'topic_id': topic_id}))
         
         # Generate direct S3 URL with proper error handling
         try:
