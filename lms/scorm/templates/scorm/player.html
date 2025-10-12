@@ -334,6 +334,10 @@
         const API_ENDPOINT = '{{ api_endpoint }}';
         const ATTEMPT_ID = '{{ attempt.id|default:attempt_id }}';
         const IS_PREVIEW = {% if preview_mode %}true{% else %}false{% endif %};
+        const CONTENT_URL = '{{ content_url }}';  // ✅ Detect package type from URL
+        const IS_RISE_PACKAGE = CONTENT_URL.includes('scormcontent/index.html');
+        const IS_STORYLINE_PACKAGE = CONTENT_URL.includes('story.html');
+        const IS_SELF_MANAGING = IS_RISE_PACKAGE || IS_STORYLINE_PACKAGE;
         
         // Safety check for attempt ID
         if (!ATTEMPT_ID || ATTEMPT_ID === 'None') {
@@ -820,13 +824,9 @@
         
         // ✅ SCORM BEST PRACTICE: Only monitor generic SCORM content
         // Rise and Storyline manage their own tracking completely
-        const iframe = document.getElementById('scormFrame');
-        const isRisePackage = iframe && iframe.src && iframe.src.includes('scormcontent/index.html');
-        const isStorylinePackage = iframe && iframe.src && iframe.src.includes('story.html');
-        
-        if (isRisePackage || isStorylinePackage) {
-            console.log('✅ SCORM content managing its own tracking - NO client-side monitoring');
-            const contentType = isRisePackage ? 'Rise' : 'Storyline';
+        if (IS_SELF_MANAGING) {
+            const contentType = IS_RISE_PACKAGE ? 'Rise' : 'Storyline';
+            console.log(`✅ ${contentType} package - NO client-side monitoring`);
             console.log(`   ${contentType} will call API methods on its own schedule`);
             console.log('   LMS provides API only - no interference');
         } else {
@@ -852,7 +852,7 @@
         }
         
         // Add instant sync on user interaction (only for generic SCORM)
-        if (!isRisePackage && !isStorylinePackage) {
+        if (!IS_SELF_MANAGING) {
             document.addEventListener('click', function() {
                 if (totalActiveSeconds > 0 && typeof syncTimeToServer === 'function') {
                     syncTimeToServer();
@@ -861,7 +861,7 @@
         }
         
         // Add keydown sync (only for generic SCORM)
-        if (!isRisePackage && !isStorylinePackage) {
+        if (!IS_SELF_MANAGING) {
             document.addEventListener('keydown', function() {
                 if (totalActiveSeconds > 0 && typeof syncTimeToServer === 'function') {
                     syncTimeToServer();
@@ -870,7 +870,8 @@
         }
         
         // Also sync when iframe content changes (only for generic SCORM)
-        if (!isRisePackage && !isStorylinePackage && iframe) {
+        const iframe = document.getElementById('scormFrame');
+        if (!IS_SELF_MANAGING && iframe) {
             iframe.addEventListener('load', function() {
                 setTimeout(() => {
                     if (typeof syncTimeToServer === 'function') {
@@ -1948,13 +1949,8 @@
             }, 15000); // 15 second emergency fallback only
             
             // ✅ SCORM BEST PRACTICE: Check if Rise/Storyline (self-managing)
-            const iframe = document.getElementById('scormFrame');
-            const isRisePackage = iframe && iframe.src && iframe.src.includes('scormcontent/index.html');
-            const isStorylinePackage = iframe && iframe.src && iframe.src.includes('story.html');
-            const isSelfManaging = isRisePackage || isStorylinePackage;
-            
-            if (isSelfManaging) {
-                const contentType = isRisePackage ? 'Rise' : 'Storyline';
+            if (IS_SELF_MANAGING) {
+                const contentType = IS_RISE_PACKAGE ? 'Rise' : 'Storyline';
                 console.log(`✅ ${contentType} detected - Save & Exit will only commit (no interference)`);
                 console.log(`   ${contentType} has already set all tracking data via its own API calls`);
                 
@@ -3077,16 +3073,12 @@
         
         (function() {
             // ✅ SCORM BEST PRACTICE: Let SCORM content handle its own tracking
-            // Check if this is a Rise/Storyline package that manages its own tracking
-            const iframe = document.getElementById('scormFrame');
-            const isRisePackage = iframe && iframe.src && iframe.src.includes('scormcontent/index.html');
-            const isStorylinePackage = iframe && iframe.src && iframe.src.includes('story.html');
-            
-            if (isRisePackage || isStorylinePackage) {
-                console.log('✅ SCORM content will manage its own tracking (no client-side interference)');
-                const contentType = isRisePackage ? 'Rise' : 'Storyline';
+            // Use package type detected from content URL (available immediately)
+            if (IS_SELF_MANAGING) {
+                const contentType = IS_RISE_PACKAGE ? 'Rise' : 'Storyline';
+                console.log(`✅ ${contentType} package detected - NO client-side time tracking`);
                 console.log(`   ${contentType} will call LMSSetValue, LMSCommit on its own schedule`);
-                console.log('   LMS will respond to API calls and save data to database');
+                console.log('   LMS provides API only - no interference');
                 return; // Don't run client-side tracking
             }
             
