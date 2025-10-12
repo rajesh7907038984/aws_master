@@ -1245,6 +1245,13 @@
             
             // Get package metadata from server
             const packageMetadata = {% if scorm_package.package_metadata %}{{ scorm_package.package_metadata|safe }}{% else %}{}{% endif %};
+            // Convert Python boolean values to JavaScript boolean values
+            if (packageMetadata && typeof packageMetadata === 'object') {
+                Object.keys(packageMetadata).forEach(key => {
+                    if (packageMetadata[key] === 'False') packageMetadata[key] = false;
+                    if (packageMetadata[key] === 'True') packageMetadata[key] = true;
+                });
+            }
             const packageType = packageMetadata.package_type || 'unknown';
             const scoringMethod = packageMetadata.scoring_method || 'unknown';
             
@@ -2021,6 +2028,13 @@
                                         // ENHANCED: Handle different SCORM package types for completion
                                         // Use package metadata to determine the correct behavior
                                         const packageMetadata = {% if scorm_package.package_metadata %}{{ scorm_package.package_metadata|safe }}{% else %}{}{% endif %};
+            // Convert Python boolean values to JavaScript boolean values
+            if (packageMetadata && typeof packageMetadata === 'object') {
+                Object.keys(packageMetadata).forEach(key => {
+                    if (packageMetadata[key] === 'False') packageMetadata[key] = false;
+                    if (packageMetadata[key] === 'True') packageMetadata[key] = true;
+                });
+            }
                                         const packageType = packageMetadata.package_type || 'unknown';
                                         const scoringMethod = packageMetadata.scoring_method || 'unknown';
                                         
