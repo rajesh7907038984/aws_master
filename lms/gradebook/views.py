@@ -1520,7 +1520,8 @@ def course_gradebook_detail(request, course_id):
         pass
     
     # Calculate overview metrics
-    students_count = total_students  # Use total count, not paginated count
+    # Use paginated students count for accurate overview metrics
+    students_count = len(students)  # Use paginated count for overview accuracy
     # Count only discussions and conferences that have rubrics
     discussions_with_rubrics = discussions.filter(rubric__isnull=False).count()
     conferences_with_rubrics = conferences.filter(rubric__isnull=False).count()
@@ -1612,7 +1613,7 @@ def course_gradebook_detail(request, course_id):
     total_not_started = max(0, total_not_started)
     
     overview_metrics = {
-        'students_count': students_count,
+        'students_count': students_count,  # Paginated students count for current view
         'total_activities': total_activities,
         'total_not_started': total_not_started,
         'total_submitted': total_submitted,
@@ -2017,6 +2018,7 @@ def course_gradebook_detail(request, course_id):
         'total_possible_points': total_possible_points,
         'breadcrumbs': breadcrumbs,
         'overview_metrics': overview_metrics,
+        'total_students_count': total_students,  # Total students in course for reference
         # Pagination context
         'students_page': students_page,
         'total_students': total_students,
