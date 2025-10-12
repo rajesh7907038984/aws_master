@@ -770,45 +770,44 @@
                             '.slide', '.slide-container', '.slide-wrapper',
                             '.story-slide', '.story-slide-container',
                             '[data-slide]', '[data-slide-id]',
-                                '.current-slide', '.active-slide'
-                            ];
-                            
-                            let newSlide = '';
-                            for (const selector of slideIndicators) {
-                                const element = iframeDoc.querySelector(selector);
-                                if (element) {
-                                    newSlide = element.getAttribute('data-slide') || 
-                                              element.getAttribute('data-slide-id') ||
-                                              element.className ||
-                                              selector;
-                                    break;
-                                }
+                            '.current-slide', '.active-slide'
+                        ];
+                        
+                        let newSlide = '';
+                        for (const selector of slideIndicators) {
+                            const element = iframeDoc.querySelector(selector);
+                            if (element) {
+                                newSlide = element.getAttribute('data-slide') || 
+                                          element.getAttribute('data-slide-id') ||
+                                          element.className ||
+                                          selector;
+                                break;
+                            }
+                        }
+                        
+                        // Also check URL hash changes
+                        if (!newSlide && iframe.contentWindow.location) {
+                            const hash = iframe.contentWindow.location.hash;
+                            if (hash && hash !== currentSlide) {
+                                newSlide = hash;
+                            }
+                        }
+                        
+                        if (newSlide && newSlide !== currentSlide) {
+                            // Slide changed - track time spent on previous slide
+                            if (currentSlide && slideTimeTracker[currentSlide]) {
+                                console.log(' Slide "' + currentSlide + '" completed in ' + slideTimeTracker[currentSlide] + 's');
                             }
                             
-                            // Also check URL hash changes
-                            if (!newSlide && iframe.contentWindow.location) {
-                                const hash = iframe.contentWindow.location.hash;
-                                if (hash && hash !== currentSlide) {
-                                    newSlide = hash;
-                                }
-                            }
+                            currentSlide = newSlide;
+                            slideStartTime = new Date();
+                            console.log(' New slide detected: ' + currentSlide);
                             
-                            if (newSlide && newSlide !== currentSlide) {
-                                // Slide changed - track time spent on previous slide
-                                if (currentSlide && slideTimeTracker[currentSlide]) {
-                                    console.log(' Slide "' + currentSlide + '" completed in ' + slideTimeTracker[currentSlide] + 's');
-                                }
-                                
-                                currentSlide = newSlide;
-                                slideStartTime = new Date();
-                                console.log(' New slide detected: ' + currentSlide);
-                                
-                                // Sync immediately when slide changes
-                                syncTimeToServer();
-                                
-                                // Check if all slides are completed (for slide-based content)
-                                checkSlideCompletion();
-                            }
+                            // Sync immediately when slide changes
+                            syncTimeToServer();
+                            
+                            // Check if all slides are completed (for slide-based content)
+                            checkSlideCompletion();
                         }
                     }
                 }
