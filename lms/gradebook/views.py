@@ -502,8 +502,8 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                         'success_status': success_status,
                                         'completed': completion_status in ['completed', 'passed'],
                                         'in_progress': not is_completed and has_attempt_data,  # New flag for in-progress state
-                                        'has_bookmark': bool(attempt.lesson_location or attempt.suspend_data) and not is_completed,  # FIXED: Only show bookmark for incomplete
-                                        'show_resume': not is_completed and bool(attempt.lesson_location or attempt.suspend_data),  # FIXED: Only allow resume for incomplete
+                                        'has_bookmark': bool(attempt.lesson_location or attempt.suspend_data),  # Show bookmark if resume data exists
+                                        'show_resume': bool(attempt.lesson_location or attempt.suspend_data),  # Allow resume if resume data exists
                                         'is_passed': is_completed and (score_value is None or score_value >= passing_threshold)  # Use package mastery score
                                     }
                                 else:

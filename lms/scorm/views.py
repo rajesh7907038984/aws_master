@@ -74,8 +74,9 @@ def scorm_view(request, topic_id):
     
     scorm_package = topic.scorm_package
     
-    # Check for preview mode
+    # Check for preview mode and retake mode
     preview_mode = request.GET.get('preview', '').lower() == 'true'
+    retake_mode = request.GET.get('retake', '').lower() == 'true'
     is_instructor_or_admin = (hasattr(request.user, 'role') and 
                              request.user.role in ['instructor', 'admin', 'superadmin', 'globaladmin'])
     
@@ -213,10 +214,10 @@ def scorm_view(request, topic_id):
         
         # Handle authenticated user logic
         if is_authenticated:
-            # CRITICAL FIX: ALWAYS resume the last attempt UNLESS user explicitly clicked "Retake"
+            # CRITICAL FIX: Resume the last attempt UNLESS user explicitly clicked "Retake"
             # This fixes the bug where 'passed' status creates new attempts on every visit
             # Resume functionality should work for ALL statuses (incomplete, passed, failed)
-            if last_attempt:
+            if last_attempt and not retake_mode:
                 # Continue existing incomplete attempt - ensure resume data is loaded
                 attempt = last_attempt
                 
@@ -249,6 +250,15 @@ def scorm_view(request, topic_id):
                 # Save the updated attempt
                 attempt.save()
                 logger.info(f"RESUME: Loaded resume data for attempt {attempt.id}: entry='{attempt.entry}', location='{attempt.lesson_location}', suspend_data='{attempt.suspend_data[:50] if attempt.suspend_data else 'None'}...'")
+            elif retake_mode and last_attempt:
+                # Create new attempt for retake
+                new_attempt_number = last_attempt.attempt_number + 1
+                attempt = ScormAttempt.objects.create(
+                    user=request.user,
+                    scorm_package=scorm_package,
+                    attempt_number=new_attempt_number
+                )
+                logger.info(f"RETAKE: Created new attempt {attempt.id} (attempt #{new_attempt_number}) for user {request.user.username}")
             else:
                 # Create first attempt
                 attempt = ScormAttempt.objects.create(

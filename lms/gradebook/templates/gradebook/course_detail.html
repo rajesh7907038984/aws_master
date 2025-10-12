@@ -1908,11 +1908,19 @@
                             {% get_scorm_topic activity.object as scorm_topic %}
                             {% if scorm_topic %}
                               {% if score_data.success_status == 'passed' or score_data.completed %}
-                                <!-- SCORM is completed/passed - show status instead of action button -->
+                                <!-- SCORM is completed/passed - show resume and retake options -->
                                 <div class="completion-status">
                                   <i class="fas fa-check-circle" style="color: #28a745;"></i>
                                   <span style="color: #28a745; font-weight: 600;">COMPLETED</span>
                                 </div>
+                                {% if score_data.show_resume %}
+                                  <a href="{% url 'courses:topic_view' scorm_topic.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white; margin-top: 5px;">
+                                    RESUME
+                                  </a>
+                                {% endif %}
+                                <a href="{% url 'courses:topic_view' scorm_topic.id %}?retake=true" class="view-btn" style="color: #6c757d; border-color: #6c757d; background: white; margin-top: 5px;">
+                                  RETAKE
+                                </a>
                               {% else %}
                                 <!-- SCORM not completed - show appropriate action button -->
                                 <a href="{% url 'courses:topic_view' scorm_topic.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
