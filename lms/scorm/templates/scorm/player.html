@@ -833,29 +833,28 @@
         
         // ENHANCED: Load existing section progress for sidebar indicators
         loadExistingSectionProgress();
-            
-            // Add instant sync on user interaction
-            document.addEventListener('click', function() {
-                if (totalActiveSeconds > 0) {
-                    syncTimeToServer();
-                }
-            });
-            
-            document.addEventListener('keydown', function() {
-                if (totalActiveSeconds > 0) {
-                    syncTimeToServer();
-                }
-            });
-            
-            // Also sync when iframe content changes
-            const iframe = document.getElementById('scormFrame');
-            if (iframe) {
-                iframe.addEventListener('load', function() {
-                    setTimeout(() => {
-                        syncTimeToServer();
-                    }, 500);
-                });
+        
+        // Add instant sync on user interaction
+        document.addEventListener('click', function() {
+            if (totalActiveSeconds > 0) {
+                syncTimeToServer();
             }
+        });
+        
+        document.addEventListener('keydown', function() {
+            if (totalActiveSeconds > 0) {
+                syncTimeToServer();
+            }
+        });
+        
+        // Also sync when iframe content changes
+        const iframe = document.getElementById('scormFrame');
+        if (iframe) {
+            iframe.addEventListener('load', function() {
+                setTimeout(() => {
+                    syncTimeToServer();
+                }, 500);
+            });
         }
         
         // ENHANCED: Cross-origin exit handling for SCORM content
