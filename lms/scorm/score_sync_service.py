@@ -227,12 +227,30 @@ class ScormScoreSyncService:
         
         # Priority 3: Progress percentage (for both completed and in-progress)
         # This handles slide-based SCORM content that tracks completion by slides
+        # CRITICAL FIX: Only use progress_percentage if it's reasonable and not suspiciously high
         if attempt.progress_percentage:
             progress_score = float(attempt.progress_percentage)
             # Only use progress as score if it's reasonable (0-100)
             if 0 <= progress_score <= 100:
-                scores.append(progress_score)
-                logger.info(f"Using progress_percentage as score: {progress_score}% for attempt {attempt.id}")
+                # CRITICAL FIX: Only trust 100% progress if we have evidence of actual completion
+                if progress_score == 100:
+                    has_evidence_of_completion = (
+                        attempt.lesson_status in ['completed', 'passed'] or
+                        (attempt.completed_slides and attempt.total_slides and 
+                         len(attempt.completed_slides) >= attempt.total_slides) or
+                        (attempt.suspend_data and 'completed=true' in attempt.suspend_data.lower())
+                    )
+                    
+                    if has_evidence_of_completion:
+                        scores.append(progress_score)
+                        logger.info(f"Using progress_percentage as score with completion evidence: {progress_score}% for attempt {attempt.id}")
+                    else:
+                        logger.warning(f"Progress shows 100% but no evidence of actual completion for attempt {attempt.id} - ignoring")
+                        # Don't use the 100% progress if there's no evidence of completion
+                else:
+                    # For non-100% progress, trust it
+                    scores.append(progress_score)
+                    logger.info(f"Using progress_percentage as score: {progress_score}% for attempt {attempt.id}")
         
         # Priority 4: Calculate from slide completion (for slide-based SCORM)
         if not scores and attempt.completed_slides and attempt.total_slides:
@@ -246,8 +264,26 @@ class ScormScoreSyncService:
                 total_slides = int(attempt.total_slides)
                 if total_slides > 0:
                     slide_completion_score = (completed_count / total_slides) * 100
-                    scores.append(slide_completion_score)
-                    logger.info(f"Calculated score from slides: {completed_count}/{total_slides} = {slide_completion_score}% for attempt {attempt.id}")
+                    
+                    # CRITICAL FIX: Only trust 100% completion if we have evidence of actual completion
+                    if slide_completion_score == 100:
+                        has_evidence_of_completion = (
+                            attempt.lesson_status in ['completed', 'passed'] or
+                            (attempt.suspend_data and 'completed=true' in attempt.suspend_data.lower())
+                        )
+                        
+                        if has_evidence_of_completion:
+                            scores.append(slide_completion_score)
+                            logger.info(f"Calculated score from slides with completion evidence: {completed_count}/{total_slides} = {slide_completion_score}% for attempt {attempt.id}")
+                        else:
+                            logger.warning(f"Slide completion shows 100% but no evidence of actual completion for attempt {attempt.id} - using conservative score")
+                            # Use a more conservative score
+                            conservative_score = min(slide_completion_score, 75)  # Cap at 75% if no evidence of completion
+                            scores.append(conservative_score)
+                            logger.info(f"Using conservative score from slides: {conservative_score}% for attempt {attempt.id}")
+                    else:
+                        scores.append(slide_completion_score)
+                        logger.info(f"Calculated score from slides: {completed_count}/{total_slides} = {slide_completion_score}% for attempt {attempt.id}")
             except Exception as e:
                 logger.warning(f"Could not calculate score from slides for attempt {attempt.id}: {e}")
         
@@ -284,8 +320,23 @@ class ScormScoreSyncService:
                         if progress_match:
                             suspend_score = float(progress_match.group(1))
                             if 0 <= suspend_score <= 100:
-                                scores.append(suspend_score)
-                                logger.info(f"Extracted score from suspend_data pattern '{pattern}': {suspend_score}% for attempt {attempt.id}")
+                                # CRITICAL FIX: Only trust 100% completion if we have evidence of actual completion
+                                if suspend_score == 100:
+                                    has_evidence_of_completion = (
+                                        attempt.lesson_status in ['completed', 'passed'] or
+                                        (attempt.suspend_data and 'completed=true' in attempt.suspend_data.lower())
+                                    )
+                                    
+                                    if has_evidence_of_completion:
+                                        scores.append(suspend_score)
+                                        logger.info(f"Extracted score from suspend_data pattern '{pattern}' with completion evidence: {suspend_score}% for attempt {attempt.id}")
+                                    else:
+                                        logger.warning(f"Suspend_data shows 100% progress but no evidence of actual completion for attempt {attempt.id} - ignoring")
+                                        # Don't use the 100% progress if there's no evidence of completion
+                                else:
+                                    # For non-100% progress, trust it
+                                    scores.append(suspend_score)
+                                    logger.info(f"Extracted score from suspend_data pattern '{pattern}': {suspend_score}% for attempt {attempt.id}")
                                 break
                     
                     # If no progress found, look for slide completion patterns
@@ -311,9 +362,29 @@ class ScormScoreSyncService:
                                         completed = 1 if completed_str.strip() else 0
                                     
                                     if total > 0:
-                                        slide_score = round((completed / total) * 100, 2)
-                                        scores.append(slide_score)
-                                        logger.info(f"Calculated score from suspend_data pattern '{pattern}': {completed}/{total} = {slide_score}% for attempt {attempt.id}")
+                                        slide_completion_percentage = (completed / total) * 100
+                                        
+                                        # CRITICAL FIX: Only trust 100% completion if we have evidence of actual completion
+                                        if slide_completion_percentage == 100:
+                                            has_evidence_of_completion = (
+                                                attempt.lesson_status in ['completed', 'passed'] or
+                                                (attempt.suspend_data and 'completed=true' in attempt.suspend_data.lower())
+                                            )
+                                            
+                                            if has_evidence_of_completion:
+                                                slide_score = round(slide_completion_percentage, 2)
+                                                scores.append(slide_score)
+                                                logger.info(f"Calculated score from suspend_data pattern '{pattern}' with completion evidence: {completed}/{total} = {slide_score}% for attempt {attempt.id}")
+                                            else:
+                                                logger.warning(f"Suspend_data slide completion shows 100% but no evidence of actual completion for attempt {attempt.id} - using conservative score")
+                                                # Use a more conservative score
+                                                conservative_score = min(slide_completion_percentage, 75)  # Cap at 75% if no evidence of completion
+                                                scores.append(conservative_score)
+                                                logger.info(f"Using conservative score from suspend_data: {conservative_score}% for attempt {attempt.id}")
+                                        else:
+                                            slide_score = round(slide_completion_percentage, 2)
+                                            scores.append(slide_score)
+                                            logger.info(f"Calculated score from suspend_data pattern '{pattern}': {completed}/{total} = {slide_score}% for attempt {attempt.id}")
                                         break
                                 except Exception as e:
                                     logger.warning(f"Error parsing slide pattern '{pattern}' for attempt {attempt.id}: {e}")

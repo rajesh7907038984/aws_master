@@ -1487,6 +1487,9 @@ class ScormAPIHandlerEnhanced:
         Calculate score based on slide completion for slide-based SCORM content
         This handles SCORM packages that track progress by slide completion rather than quiz scores
         Supports multiple SCORM package types and data formats
+        
+        CRITICAL FIX: Only calculate completion based on actual evidence of completion,
+        not just progress data. This prevents false 100% completion when users only complete a few slides.
         """
         try:
             # Skip if we already have a valid score
@@ -1499,12 +1502,32 @@ class ScormAPIHandlerEnhanced:
             
             calculated_score = None
             
-            # Method 1: Use progress_percentage directly if available
+            # CRITICAL FIX: Only use progress_percentage if it's reasonable and not suspiciously high
+            # This prevents false 100% completion when users only complete a few slides
             if self.attempt.progress_percentage:
                 progress_value = float(self.attempt.progress_percentage)
                 if 0 <= progress_value <= 100:
-                    calculated_score = progress_value
-                    logger.info("SLIDE_SCORE: Using progress_percentage: %s%%", calculated_score)
+                    # CRITICAL FIX: Only trust progress_percentage if it's reasonable
+                    # If progress is 100% but we don't have evidence of actual completion, be suspicious
+                    if progress_value == 100:
+                        # Check if we have evidence of actual completion
+                        has_evidence_of_completion = (
+                            self.attempt.lesson_status in ['completed', 'passed'] or
+                            (self.attempt.completed_slides and self.attempt.total_slides and 
+                             len(self.attempt.completed_slides) >= self.attempt.total_slides) or
+                            (self.attempt.suspend_data and 'completed=true' in self.attempt.suspend_data.lower())
+                        )
+                        
+                        if has_evidence_of_completion:
+                            calculated_score = progress_value
+                            logger.info("SLIDE_SCORE: Using progress_percentage with completion evidence: %s%%", calculated_score)
+                        else:
+                            logger.warning("SLIDE_SCORE: Progress shows 100%% but no evidence of actual completion - ignoring")
+                            # Don't use the 100% progress if there's no evidence of completion
+                    else:
+                        # For non-100% progress, trust it
+                        calculated_score = progress_value
+                        logger.info("SLIDE_SCORE: Using progress_percentage: %s%%", calculated_score)
             
             # Method 2: Calculate from completed_slides / total_slides
             if calculated_score is None and self.attempt.completed_slides and self.attempt.total_slides:
@@ -1519,9 +1542,30 @@ class ScormAPIHandlerEnhanced:
                     
                     total_slides = int(self.attempt.total_slides)
                     if total_slides > 0:
-                        calculated_score = round((completed_count / total_slides) * 100, 2)
-                        logger.info("SLIDE_SCORE: Calculated from slides: %s/%s = %s%%", 
-                                   completed_count, total_slides, calculated_score)
+                        # CRITICAL FIX: Only calculate score if we have reasonable data
+                        # Don't allow 100% completion unless we have evidence of actual completion
+                        slide_completion_percentage = (completed_count / total_slides) * 100
+                        
+                        # If slide completion shows 100%, verify with other evidence
+                        if slide_completion_percentage == 100:
+                            has_evidence_of_completion = (
+                                self.attempt.lesson_status in ['completed', 'passed'] or
+                                (self.attempt.suspend_data and 'completed=true' in self.attempt.suspend_data.lower())
+                            )
+                            
+                            if has_evidence_of_completion:
+                                calculated_score = round(slide_completion_percentage, 2)
+                                logger.info("SLIDE_SCORE: Calculated from slides with completion evidence: %s/%s = %s%%", 
+                                           completed_count, total_slides, calculated_score)
+                            else:
+                                logger.warning("SLIDE_SCORE: Slide completion shows 100%% but no evidence of actual completion - using partial score")
+                                # Use a more conservative score based on actual progress
+                                calculated_score = min(slide_completion_percentage, 75)  # Cap at 75% if no evidence of completion
+                                logger.info("SLIDE_SCORE: Using conservative score: %s%%", calculated_score)
+                        else:
+                            calculated_score = round(slide_completion_percentage, 2)
+                            logger.info("SLIDE_SCORE: Calculated from slides: %s/%s = %s%%", 
+                                       completed_count, total_slides, calculated_score)
                 except Exception as e:
                     logger.warning("SLIDE_SCORE: Could not calculate from slides: %s", str(e))
             
@@ -1583,8 +1627,26 @@ class ScormAPIHandlerEnhanced:
                         for pattern in progress_patterns:
                             progress_match = re.search(pattern, decoded_data, re.IGNORECASE)
                             if progress_match:
-                                calculated_score = float(progress_match.group(1))
-                                logger.info("SLIDE_SCORE: Extracted from suspend_data pattern '%s': %s%%", pattern, calculated_score)
+                                progress_value = float(progress_match.group(1))
+                                
+                                # CRITICAL FIX: Only trust progress from suspend_data if it's reasonable
+                                # If progress is 100% but we don't have evidence of actual completion, be suspicious
+                                if progress_value == 100:
+                                    has_evidence_of_completion = (
+                                        self.attempt.lesson_status in ['completed', 'passed'] or
+                                        (self.attempt.suspend_data and 'completed=true' in self.attempt.suspend_data.lower())
+                                    )
+                                    
+                                    if has_evidence_of_completion:
+                                        calculated_score = progress_value
+                                        logger.info("SLIDE_SCORE: Extracted from suspend_data pattern '%s' with completion evidence: %s%%", pattern, calculated_score)
+                                    else:
+                                        logger.warning("SLIDE_SCORE: Suspend_data shows 100%% progress but no evidence of actual completion - ignoring")
+                                        # Don't use the 100% progress if there's no evidence of completion
+                                else:
+                                    # For non-100% progress, trust it
+                                    calculated_score = progress_value
+                                    logger.info("SLIDE_SCORE: Extracted from suspend_data pattern '%s': %s%%", pattern, calculated_score)
                                 break
                         
                         # If no progress found, look for slide completion patterns
@@ -1612,9 +1674,28 @@ class ScormAPIHandlerEnhanced:
                                             completed = 1 if completed_str.strip() else 0
                                         
                                         if total > 0:
-                                            calculated_score = round((completed / total) * 100, 2)
-                                            logger.info("SLIDE_SCORE: Calculated from suspend_data pattern '%s': %s/%s = %s%%", 
-                                                       pattern, completed, total, calculated_score)
+                                            slide_completion_percentage = (completed / total) * 100
+                                            
+                                            # CRITICAL FIX: Only trust 100% completion if we have evidence of actual completion
+                                            if slide_completion_percentage == 100:
+                                                has_evidence_of_completion = (
+                                                    self.attempt.lesson_status in ['completed', 'passed'] or
+                                                    (self.attempt.suspend_data and 'completed=true' in self.attempt.suspend_data.lower())
+                                                )
+                                                
+                                                if has_evidence_of_completion:
+                                                    calculated_score = round(slide_completion_percentage, 2)
+                                                    logger.info("SLIDE_SCORE: Calculated from suspend_data pattern '%s' with completion evidence: %s/%s = %s%%", 
+                                                               pattern, completed, total, calculated_score)
+                                                else:
+                                                    logger.warning("SLIDE_SCORE: Suspend_data slide completion shows 100%% but no evidence of actual completion - using conservative score")
+                                                    # Use a more conservative score
+                                                    calculated_score = min(slide_completion_percentage, 75)  # Cap at 75% if no evidence of completion
+                                                    logger.info("SLIDE_SCORE: Using conservative score from suspend_data: %s%%", calculated_score)
+                                            else:
+                                                calculated_score = round(slide_completion_percentage, 2)
+                                                logger.info("SLIDE_SCORE: Calculated from suspend_data pattern '%s': %s/%s = %s%%", 
+                                                           pattern, completed, total, calculated_score)
                                             break
                                     except Exception as e:
                                         logger.warning("SLIDE_SCORE: Error parsing slide pattern '%s': %s", pattern, str(e))
