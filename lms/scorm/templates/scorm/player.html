@@ -3020,7 +3020,21 @@
         }
         
         (function() {
-            console.log('⏱️ Client-side time tracking initialized');
+            // ✅ SCORM BEST PRACTICE: Let SCORM content handle its own tracking
+            // Check if this is a Rise/Storyline package that manages its own tracking
+            const iframe = document.getElementById('scormFrame');
+            const isRisePackage = iframe && iframe.src && iframe.src.includes('scormcontent/index.html');
+            const isStorylinePackage = iframe && iframe.src && iframe.src.includes('story.html');
+            
+            if (isRisePackage || isStorylinePackage) {
+                console.log('✅ SCORM content will manage its own tracking (no client-side interference)');
+                const contentType = isRisePackage ? 'Rise' : 'Storyline';
+                console.log(`   ${contentType} will call LMSSetValue, LMSCommit on its own schedule`);
+                console.log('   LMS will respond to API calls and save data to database');
+                return; // Don't run client-side tracking
+            }
+            
+            console.log('⏱️ Client-side time tracking initialized (generic SCORM)');
             
             // Track page visibility changes
             document.addEventListener('visibilitychange', function() {
