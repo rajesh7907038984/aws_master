@@ -663,6 +663,16 @@
                     if (event.data.action === 'exit' || event.data.type === 'exit') {
                         console.log('🚪 Exit message received from SCORM content');
                         handleBackToTopic({ preventDefault: function() {} });
+                    } else if (event.data.type === 'scorm_resume' && event.data.action === 'navigate_to_location') {
+                        console.log('🔖 RESUME: Received resume navigation request:', event.data.lesson_location);
+                        // Handle resume navigation from SCORM content
+                        if (event.data.lesson_location) {
+                            const iframe = document.getElementById('scormFrame');
+                            if (iframe) {
+                                iframe.src = event.data.lesson_location;
+                                console.log('✅ RESUME: Navigated iframe to resume location');
+                            }
+                        }
                     }
                 } else if (event.data === 'exit') {
                     console.log('🚪 Exit message received from SCORM content (string)');
@@ -1083,14 +1093,47 @@
                             if (element === 'cmi.core.lesson_location' || element === 'cmi.location') {
                                 lessonLocation = result;
                                 
-                                // Try to navigate iframe to the bookmarked location if it's a URL/path
-                                // This helps SCORM packages that don't properly handle lesson_location internally
+                                // ENHANCED: Navigate iframe to the bookmarked location for proper resume
                                 if (lessonLocation && lessonLocation.length > 0) {
+                                    console.log('🔖 RESUME: Found lesson location:', lessonLocation);
+                                    
                                     // Check if it looks like a valid bookmark (contains file extension or anchor)
                                     if (lessonLocation.includes('.html') || lessonLocation.includes('#') || lessonLocation.includes('?')) {
-                                        console.log('🔖 RESUME: Attempting to navigate iframe to bookmarked location:', lessonLocation);
-                                        // Note: This will only work if the SCORM package structure allows direct navigation
-                                        // Most modern SCORM packages handle this internally via GetValue
+                                        console.log('🔖 RESUME: Navigating iframe to bookmarked location:', lessonLocation);
+                                        
+                                        // Wait for iframe to be ready, then navigate
+                                        setTimeout(() => {
+                                            try {
+                                                const iframe = document.getElementById('scormFrame');
+                                                if (iframe && iframe.contentWindow) {
+                                                    // Construct the full URL for navigation
+                                                    let resumeUrl = lessonLocation;
+                                                    
+                                                    // If it's a relative path, make it absolute
+                                                    if (!resumeUrl.startsWith('http') && !resumeUrl.startsWith('/')) {
+                                                        const currentSrc = iframe.src;
+                                                        const baseUrl = currentSrc.substring(0, currentSrc.lastIndexOf('/') + 1);
+                                                        resumeUrl = baseUrl + resumeUrl;
+                                                    }
+                                                    
+                                                    console.log('🔖 RESUME: Navigating to:', resumeUrl);
+                                                    
+                                                    // Navigate the iframe to the resume location
+                                                    iframe.src = resumeUrl;
+                                                    
+                                                    // Also try to set the location via postMessage for modern SCORM packages
+                                                    iframe.contentWindow.postMessage({
+                                                        type: 'scorm_resume',
+                                                        lesson_location: lessonLocation,
+                                                        action: 'navigate_to_location'
+                                                    }, '*');
+                                                    
+                                                    console.log('✅ RESUME: Iframe navigation initiated');
+                                                }
+                                            } catch (e) {
+                                                console.log('⚠️ RESUME: Could not navigate iframe:', e.message);
+                                            }
+                                        }, 1000); // Wait 1 second for iframe to be ready
                                     }
                                 }
                             }
