@@ -612,22 +612,19 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
             logger.info(f"Serving SCORM HTML content directly: {path}")
             # Serve the HTML content directly with SCORM API injection instead of redirecting
         
-        # Generate direct S3 URL with proper error handling
+        # Generate S3 key for authenticated access
         try:
-            s3_url = scorm_s3.generate_direct_url(scorm_package, path)
-            if not s3_url:
-                logger.error(f"Failed to generate S3 URL for path: {path}")
+            s3_key = scorm_s3.generate_direct_url(scorm_package, path)
+            if not s3_key:
+                logger.error(f"Failed to generate S3 key for path: {path}")
                 return HttpResponse('Content not found', status=404)
-            logger.info(f"Generated S3 URL: {s3_url}")
+            logger.info(f"Generated S3 key: {s3_key}")
         except Exception as e:
-            logger.error(f"Error generating S3 URL: {str(e)}")
-            return HttpResponse('Error generating content URL', status=500)
+            logger.error(f"Error generating S3 key: {str(e)}")
+            return HttpResponse('Error generating content key', status=500)
         
-        # CRITICAL FIX: For non-HTML files, redirect to S3 for performance
-        # For HTML files, proxy through Django to avoid cross-origin issues
-        if not path.endswith(('.html', '.htm')):
-            from django.http import HttpResponseRedirect
-            return HttpResponseRedirect(s3_url)
+        # CRITICAL FIX: Always proxy content through Django to maintain authentication
+        # This ensures SCORM content works for logged-in users without making S3 public
         
         # For HTML files, inject minimal SCORM API reference
         try:
@@ -659,12 +656,15 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
                 response_obj['Cache-Control'] = 'public, max-age=3600'  # Cache for 1 hour
                 return response_obj
             
-            # Fetch from S3 with optimized timeout
-            response = requests.get(s3_url, timeout=5)
-            response.raise_for_status()
-            
-            content = response.content
-            content_type = response.headers.get('content-type', 'text/html; charset=utf-8')
+            # Fetch content directly from S3 using authenticated client
+            try:
+                s3_response = scorm_s3.s3_client.get_object(Bucket=scorm_s3.bucket_name, Key=s3_key)
+                content = s3_response['Body'].read()
+                content_type = s3_response.get('ContentType', 'text/html; charset=utf-8')
+                logger.info(f"Successfully fetched content from S3: {s3_key}")
+            except Exception as s3_error:
+                logger.error(f"Failed to fetch content from S3: {s3_error}")
+                return HttpResponse('Content not found in S3', status=404)
             
             # Inject lightweight SCORM API for HTML files
             if 'text/html' in content_type:

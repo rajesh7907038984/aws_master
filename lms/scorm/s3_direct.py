@@ -31,14 +31,14 @@ class ScormS3DirectAccess:
     
     def generate_direct_url(self, scorm_package, file_path=''):
         """
-        Generate direct S3 URL for SCORM content with caching
+        Generate S3 key for authenticated access (not public URL)
         
         Args:
             scorm_package: ScormPackage instance
             file_path: Optional file path within the package
             
         Returns:
-            Direct HTTPS URL to S3 content
+            S3 key for authenticated access
         """
         try:
             # Build S3 key path
@@ -48,17 +48,11 @@ class ScormS3DirectAccess:
             else:
                 s3_key = f"{base_path}/{scorm_package.launch_url}"
             
-            # Generate direct HTTPS URL with CloudFront if available
-            if hasattr(settings, 'AWS_CLOUDFRONT_DOMAIN') and settings.AWS_CLOUDFRONT_DOMAIN:
-                direct_url = f"https://{settings.AWS_CLOUDFRONT_DOMAIN}/{s3_key}"
-            else:
-                direct_url = f"https://{self.bucket_name}.s3.{self.region}.amazonaws.com/{s3_key}"
-            
-            logger.info(f"Generated direct S3 URL: {direct_url}")
-            return direct_url
+            logger.info(f"Generated S3 key for authenticated access: {s3_key}")
+            return s3_key
             
         except Exception as e:
-            logger.error(f"Error generating S3 URL: {str(e)}")
+            logger.error(f"Error generating S3 key: {str(e)}")
             return None
     
     def generate_launch_url(self, scorm_package):
