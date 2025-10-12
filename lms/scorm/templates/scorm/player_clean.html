@@ -623,6 +623,12 @@
             // ENHANCED: Monitor iframe URL changes for completion pages
             monitorIframeUrlChanges();
             
+        // ENHANCED: Monitor slide progress for better tracking
+        monitorSlideProgress();
+        
+        // ENHANCED: Detect Articulate Storyline package and set up specific monitoring
+        detectAndSetupArticulateStoryline();
+            
             // Add instant sync on user interaction
             document.addEventListener('click', function() {
                 if (totalActiveSeconds > 0) {
@@ -702,6 +708,140 @@
                     console.log('Could not send exit handler to iframe:', e.message);
                 }
             }
+        }
+        
+        // ENHANCED: Monitor slide progress for better tracking
+        function monitorSlideProgress() {
+            console.log('📊 Monitoring slide progress for better tracking...');
+            
+            const iframe = document.getElementById('scormFrame');
+            if (!iframe) return;
+            
+            let lastSlideId = '';
+            let slideStartTime = Date.now();
+            
+            // Monitor slide changes every 2 seconds
+            setInterval(() => {
+                try {
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    if (!iframeDoc) return;
+                    
+                    // Look for slide indicators in the content
+                    const slideIndicators = iframeDoc.querySelectorAll('[data-slide], .slide, .slide-container, [class*="slide"]');
+                    let currentSlideId = '';
+                    
+                    if (slideIndicators.length > 0) {
+                        // Get the active/current slide
+                        const activeSlide = iframeDoc.querySelector('.slide.active, .slide.current, [data-slide].active, [data-slide].current');
+                        if (activeSlide) {
+                            currentSlideId = activeSlide.getAttribute('data-slide') || 
+                                           activeSlide.className || 
+                                           activeSlide.id || 
+                                           'slide_' + Array.from(slideIndicators).indexOf(activeSlide);
+                        } else {
+                            // Fallback: use first visible slide
+                            currentSlideId = slideIndicators[0].getAttribute('data-slide') || 
+                                           slideIndicators[0].className || 
+                                           slideIndicators[0].id || 
+                                           'slide_' + 0;
+                        }
+                    }
+                    
+                    // If slide changed, track the time spent on previous slide
+                    if (currentSlideId && currentSlideId !== lastSlideId) {
+                        if (lastSlideId) {
+                            const timeSpent = Math.round((Date.now() - slideStartTime) / 1000);
+                            console.log(`📊 Slide changed: ${lastSlideId} -> ${currentSlideId} (spent ${timeSpent}s)`);
+                            
+                            // Update slide time tracking
+                            if (window.slideTimeTracker) {
+                                window.slideTimeTracker[lastSlideId] = (window.slideTimeTracker[lastSlideId] || 0) + timeSpent;
+                            }
+                        }
+                        
+                        lastSlideId = currentSlideId;
+                        slideStartTime = Date.now();
+                    }
+                    
+                    // Update progress percentage based on slide completion
+                    if (window.slideTimeTracker && Object.keys(window.slideTimeTracker).length > 0) {
+                        const totalSlides = slideIndicators.length;
+                        const completedSlides = Object.keys(window.slideTimeTracker).length;
+                        const progressPercentage = totalSlides > 0 ? Math.round((completedSlides / totalSlides) * 100) : 0;
+                        
+                        console.log(`📊 Progress: ${completedSlides}/${totalSlides} slides (${progressPercentage}%)`);
+                        
+                        // Update SCORM progress if available
+                        if (window.API && window.API.LMSSetValue) {
+                            window.API.LMSSetValue('cmi.core.lesson_status', progressPercentage >= 100 ? 'completed' : 'incomplete');
+                        }
+                    }
+                    
+                } catch (error) {
+                    console.log('Slide progress monitoring error:', error.message);
+                }
+            }, 2000);
+        }
+        
+        // ENHANCED: Detect and setup Articulate Storyline specific monitoring
+        function detectAndSetupArticulateStoryline() {
+            console.log('🎯 Detecting Articulate Storyline package...');
+            
+            const iframe = document.getElementById('scormFrame');
+            if (!iframe) return;
+            
+            // Wait for iframe to load
+            iframe.onload = function() {
+                try {
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    if (iframeDoc) {
+                        // Check for Articulate Storyline specific elements
+                        const storylineElements = iframeDoc.querySelectorAll('[class*="storyline"], [id*="storyline"], .slide, [data-slide], .scene, [data-scene]');
+                        
+                        if (storylineElements.length > 0) {
+                            console.log('🎯 Articulate Storyline package detected with', storylineElements.length, 'slide elements');
+                            
+                            // Set up enhanced monitoring for Storyline
+                            storylineElements.forEach((element, index) => {
+                                const slideId = element.id || element.getAttribute('data-slide') || `storyline-slide-${index}`;
+                                
+                                // Monitor for slide completion indicators
+                                const observer = new MutationObserver((mutations) => {
+                                    mutations.forEach((mutation) => {
+                                        if (mutation.type === 'attributes') {
+                                            const isCompleted = element.classList.contains('completed') || 
+                                                             element.classList.contains('finished') || 
+                                                             element.classList.contains('passed') ||
+                                                             element.getAttribute('data-completed') === 'true';
+                                            
+                                            if (isCompleted) {
+                                                console.log('✅ Storyline slide completed:', slideId);
+                                                
+                                                // Update slide time tracker
+                                                if (!window.slideTimeTracker[slideId]) {
+                                                    window.slideTimeTracker[slideId] = 5000; // Minimum 5 seconds for completed slide
+                                                }
+                                                
+                                                // Update SCORM status
+                                                if (window.API && window.API.LMSSetValue) {
+                                                    window.API.LMSSetValue('cmi.core.lesson_status', 'incomplete');
+                                                }
+                                            }
+                                        }
+                                    });
+                                });
+                                
+                                observer.observe(element, { 
+                                    attributes: true, 
+                                    attributeFilter: ['class', 'data-completed', 'data-status'] 
+                                });
+                            });
+                        }
+                    }
+                } catch (e) {
+                    console.log('Cannot access iframe for Storyline detection:', e.message);
+                }
+            };
         }
         
         // ENHANCED: Monitor iframe URL changes for completion pages
@@ -1280,7 +1420,12 @@
                                         // For generic packages: allow partial completion
                                         const isArticulateStoryline = document.title.includes('Storyline') || 
                                                                      document.URL.includes('storyline') ||
-                                                                     window.location.href.includes('articulate');
+                                                                     window.location.href.includes('articulate') ||
+                                                                     document.querySelector('[class*=\"storyline\"]') ||
+                                                                     document.querySelector('[id*=\"storyline\"]') ||
+                                                                     // Check for Articulate-specific elements
+                                                                     document.querySelector('.slide') ||
+                                                                     document.querySelector('[data-slide]');
                                         
                                         if (isArticulateStoryline && progressScore < 100) {
                                             console.log('📊 Articulate Storyline: Partial progress detected: {}% ({} slides completed out of {})'.format(progressScore, slidesWithTime, totalSlides));

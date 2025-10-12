@@ -227,7 +227,7 @@ def scorm_view(request, topic_id):
                     if not attempt.cmi_data:
                         attempt.cmi_data = {}
                     
-                    # Load resume data into CMI data
+                    # ENHANCED: Load resume data into CMI data with progress tracking
                     if attempt.lesson_location:
                         if scorm_package.version == '1.2':
                             attempt.cmi_data['cmi.core.lesson_location'] = attempt.lesson_location
@@ -239,6 +239,28 @@ def scorm_view(request, topic_id):
                             attempt.cmi_data['cmi.suspend_data'] = attempt.suspend_data
                         else:  # SCORM 2004
                             attempt.cmi_data['cmi.suspend_data'] = attempt.suspend_data
+                        
+                        # ENHANCED: Parse suspend data for progress information
+                        try:
+                            import json
+                            suspend_data = json.loads(attempt.suspend_data)
+                            
+                            # Calculate progress percentage from suspend data
+                            if 'totalTime' in suspend_data:
+                                total_time = suspend_data.get('totalTime', 0)
+                                # Estimate progress based on time spent (rough calculation)
+                                if total_time > 0:
+                                    # Assume 5 minutes = 100% completion for estimation
+                                    estimated_progress = min(100, (total_time / 300) * 100)
+                                    attempt.progress_percentage = estimated_progress
+                                    
+                                    # Update CMI data with progress
+                                    if scorm_package.version == '1.2':
+                                        attempt.cmi_data['cmi.core.lesson_status'] = 'incomplete'
+                                    else:  # SCORM 2004
+                                        attempt.cmi_data['cmi.completion_status'] = 'incomplete'
+                        except:
+                            pass
                     
                     # Set entry mode to resume
                     attempt.entry = 'resume'
