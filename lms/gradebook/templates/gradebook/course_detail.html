@@ -1887,37 +1887,19 @@
                           {% if score_data.achievement_status == 'passed' or score_data.success_status == 'passed' or score_data.completed %}
                             <span class="grade-score grade-excellent">
                               {% if score_data.score is not None %}
-                                {% if score_data.achievement_status == 'passed' %}
-                                  {% if score_data.raw_score and score_data.raw_score < score_data.mastery_threshold %}
-                                    100/100
-                                  {% else %}
-                                    {{ score_data.raw_score|mul:10|floatformat:0 }}/100
-                                  {% endif %}
-                                {% else %}
-                                  {% if score_data.raw_score %}
-                                    {{ score_data.raw_score|mul:10|floatformat:0 }}/100
-                                  {% else %}
-                                    {% if score_data.raw_score %}
-                                  {{ score_data.raw_score|mul:10|floatformat:0 }}/100
-                                {% else %}
-                                  {{ score_data.score|mul:10|floatformat:0 }}/{{ score_data.max_score }}
-                                {% endif %}
-                                  {% endif %}
-                                {% endif %}
+                                <!-- CRITICAL FIX: Display actual SCORM score without multiplication -->
+                                {{ score_data.score|floatformat:1 }}%
                               {% else %}
                                 Completed
                               {% endif %}
                             </span>
                           {% elif score_data.achievement_status == 'failed' or score_data.score is not None %}
                             <span class="grade-score grade-poor">
-                              {% if score_data.achievement_status == 'failed' %}
-                                {{ score_data.raw_score|floatformat:0 }}/{{ score_data.mastery_threshold|floatformat:0 }}
+                              {% if score_data.score is not None %}
+                                <!-- CRITICAL FIX: Display actual SCORM score without multiplication -->
+                                {{ score_data.score|floatformat:1 }}%
                               {% else %}
-                                {% if score_data.raw_score %}
-                                  {{ score_data.raw_score|mul:10|floatformat:0 }}/100
-                                {% else %}
-                                  {{ score_data.score|mul:10|floatformat:0 }}/{{ score_data.max_score }}
-                                {% endif %}
+                                Failed
                               {% endif %}
                             </span>
                           {% endif %}
@@ -1973,37 +1955,19 @@
                           {% if score_data.achievement_status == 'passed' or score_data.success_status == 'passed' or score_data.completed %}
                             <span class="grade-score grade-excellent">
                               {% if score_data.score is not None %}
-                                {% if score_data.achievement_status == 'passed' %}
-                                  {% if score_data.raw_score and score_data.raw_score < score_data.mastery_threshold %}
-                                    100/100
-                                  {% else %}
-                                    {{ score_data.raw_score|mul:10|floatformat:0 }}/100
-                                  {% endif %}
-                                {% else %}
-                                  {% if score_data.raw_score %}
-                                    {{ score_data.raw_score|mul:10|floatformat:0 }}/100
-                                  {% else %}
-                                    {% if score_data.raw_score %}
-                                  {{ score_data.raw_score|mul:10|floatformat:0 }}/100
-                                {% else %}
-                                  {{ score_data.score|mul:10|floatformat:0 }}/{{ score_data.max_score }}
-                                {% endif %}
-                                  {% endif %}
-                                {% endif %}
+                                <!-- CRITICAL FIX: Display actual SCORM score without multiplication -->
+                                {{ score_data.score|floatformat:1 }}%
                               {% else %}
                                 Completed
                               {% endif %}
                             </span>
                           {% elif score_data.achievement_status == 'failed' or score_data.score is not None %}
                             <span class="grade-score grade-poor">
-                              {% if score_data.achievement_status == 'failed' %}
-                                {{ score_data.raw_score|floatformat:0 }}/{{ score_data.mastery_threshold|floatformat:0 }}
+                              {% if score_data.score is not None %}
+                                <!-- CRITICAL FIX: Display actual SCORM score without multiplication -->
+                                {{ score_data.score|floatformat:1 }}%
                               {% else %}
-                                {% if score_data.raw_score %}
-                                  {{ score_data.raw_score|mul:10|floatformat:0 }}/100
-                                {% else %}
-                                  {{ score_data.score|mul:10|floatformat:0 }}/{{ score_data.max_score }}
-                                {% endif %}
+                                Failed
                               {% endif %}
                             </span>
                           {% endif %}
