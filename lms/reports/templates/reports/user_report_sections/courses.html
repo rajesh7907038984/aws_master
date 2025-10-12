@@ -82,9 +82,11 @@
                 <td class="py-3 px-4">{{ enrollment.enrolled_at|date:"d/m/Y" }}</td>
                 <td class="py-3 px-4">{% if enrollment.completed %}{{ enrollment.completion_date|date:"d/m/Y" }}{% else %}-{% endif %}</td>
                 <td class="py-3 px-4 text-center">
+                    {% if request.user.role != 'learner' %}
                     <a href="{% url 'reports:course_detail' enrollment.course.id %}" class="text-gray-500 hover:text-gray-700 inline-block p-2">
                         <i class="fas fa-ellipsis-h"></i>
                     </a>
+                    {% endif %}
                 </td>
             </tr>
             {% empty %}
