@@ -338,18 +338,22 @@ def scorm_content(request, topic_id, path):
         except ScormPackage.DoesNotExist:
             return HttpResponse('SCORM package not found', status=404)
         
-        # Generate direct S3 URL
-        s3_url = scorm_s3.generate_direct_url(scorm_package, path)
+        # Use Django storage backend to fetch content (authenticated access)
+        from django.core.files.storage import default_storage
+        
+        # Build the S3 key for the file
+        s3_key = f"{scorm_package.extracted_path}/{path}"
         
         # For HTML files, we need to proxy to inject API
         if path.endswith(('.html', '.htm')):
             try:
-                import requests
-                response = requests.get(s3_url, timeout=10)
-                response.raise_for_status()
-                
-                content = response.content
-                content_type = response.headers.get('content-type', 'text/html; charset=utf-8')
+                # Use Django storage to get the file content
+                if default_storage.exists(s3_key):
+                    with default_storage.open(s3_key, 'rb') as f:
+                        content = f.read()
+                    content_type = 'text/html; charset=utf-8'
+                else:
+                    return HttpResponse('Content not found', status=404)
                 
                 # Inject SCORM API for HTML files
                 if 'text/html' in content_type:
@@ -455,12 +459,30 @@ window.API = window.API_1484_11 = {{
                 response_obj['X-Frame-Options'] = 'SAMEORIGIN'
                 return response_obj
                 
-            except requests.RequestException as e:
-                logger.error(f"Failed to fetch S3 content: {str(e)}")
+            except Exception as e:
+                logger.error(f"Failed to fetch content: {str(e)}")
                 return HttpResponse(f'Failed to load content: {str(e)}', status=502)
         else:
-            # For non-HTML files, redirect to S3
-            return redirect(s3_url)
+            # For non-HTML files, serve through Django storage
+            try:
+                if default_storage.exists(s3_key):
+                    with default_storage.open(s3_key, 'rb') as f:
+                        content = f.read()
+                    
+                    # Determine content type based on file extension
+                    import mimetypes
+                    content_type, _ = mimetypes.guess_type(path)
+                    if not content_type:
+                        content_type = 'application/octet-stream'
+                    
+                    response_obj = HttpResponse(content, content_type=content_type)
+                    response_obj['Access-Control-Allow-Origin'] = '*'
+                    return response_obj
+                else:
+                    return HttpResponse('Content not found', status=404)
+            except Exception as e:
+                logger.error(f"Failed to serve content: {str(e)}")
+                return HttpResponse(f'Failed to load content: {str(e)}', status=502)
             
     except Exception as e:
         logger.error(f"Error serving SCORM content: {str(e)}")
