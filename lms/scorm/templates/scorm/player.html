@@ -238,6 +238,51 @@
     </div>
 
     <script>
+        // Handle iframe load events - defined early to avoid reference errors
+        function handleFrameLoad() {
+            const loading = document.getElementById('loading');
+            const frame = document.getElementById('scormFrame');
+            
+            if (loading) {
+                loading.style.display = 'none';
+            }
+            
+            if (frame) {
+                frame.style.display = 'block';
+            }
+            
+            console.log('SCORM content loaded successfully');
+            
+            // OPTIMIZATION: Preload only essential data for faster initial load
+            setTimeout(() => {
+                preloadCommonAPI();
+            }, 300); // Faster preloading
+            
+            // Inject SCORM API into iframe if possible
+            try {
+                const iframeDoc = frame.contentDocument || frame.contentWindow.document;
+                if (iframeDoc) {
+                    injectScormAPI(iframeDoc);
+                    // Also inject exit button handler
+                    injectExitButtonHandler();
+                }
+            } catch (e) {
+                // Cross-origin, can't inject directly
+                console.log('Cross-origin iframe, API will be available via parent window');
+                
+                // ENHANCED: For cross-origin SCORM content, use postMessage communication
+                setupCrossOriginExitHandling();
+            }
+        }
+        
+        function handleFrameError() {
+            const loading = document.getElementById('loading');
+            if (loading) {
+                loading.textContent = 'Error loading SCORM content. Please refresh the page.';
+            }
+            console.error('SCORM frame loading error');
+        }
+        
         // SCORM API Integration
         const API_ENDPOINT = '{{ api_endpoint }}';
         const ATTEMPT_ID = '{{ attempt.id|default:attempt_id }}';
@@ -665,43 +710,6 @@
             return cookieValue;
         }
         
-        // Handle iframe load events with better performance
-        function handleFrameLoad() {
-            const loading = document.getElementById('loading');
-            const frame = document.getElementById('scormFrame');
-            
-            if (loading) {
-                loading.style.display = 'none';
-            }
-            
-            if (frame) {
-                frame.style.display = 'block';
-            }
-            
-            console.log('SCORM content loaded successfully');
-            
-            // OPTIMIZATION: Preload only essential data for faster initial load
-            setTimeout(() => {
-                preloadCommonAPI();
-            }, 300); // Faster preloading
-            
-            // Inject SCORM API into iframe if possible
-            try {
-                const iframeDoc = frame.contentDocument || frame.contentWindow.document;
-                if (iframeDoc) {
-                    injectScormAPI(iframeDoc);
-                    // Also inject exit button handler
-                    injectExitButtonHandler();
-                }
-            } catch (e) {
-                // Cross-origin, can't inject directly
-                console.log('Cross-origin iframe, API will be available via parent window');
-                
-                // ENHANCED: For cross-origin SCORM content, use postMessage communication
-                setupCrossOriginExitHandling();
-            }
-        }
-        
         // Enhanced slide detection for slide-based SCORM content
         function detectSlideChanges() {
             try {
@@ -756,9 +764,9 @@
                             }
                         }
                     }
-                } catch (e) {
-                    // Cross-origin or other issues - ignore
                 }
+            } catch (e) {
+                // Cross-origin or other issues - ignore
             }
         }
         
