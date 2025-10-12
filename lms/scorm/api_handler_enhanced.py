@@ -1172,6 +1172,74 @@ class ScormAPIHandlerEnhanced:
         except (ValueError, TypeError, IndexError):
             return False
     
+    def _validate_completion_status(self, status_completed):
+        """
+        Validate that completion status is legitimate based on actual content interaction
+        Returns True only if there's evidence of real completion
+        """
+        if not status_completed:
+            return False
+        
+        # Check for evidence of actual content interaction
+        has_real_interaction = False
+        
+        # 1. Check for Continue button interactions in suspend_data
+        if self.attempt.suspend_data:
+            continue_patterns = [
+                r'continue[_-]?button[_-]?clicked[=:]\s*(\d+)',
+                r'continue[_-]?clicks[=:]\s*(\d+)',
+                r'button[_-]?interactions[=:]\s*(\d+)',
+                r'slide[_-]?progress[=:]\s*(\d+)',
+                r'continue[_-]?count[=:]\s*(\d+)'
+            ]
+            
+            for pattern in continue_patterns:
+                match = re.search(pattern, self.attempt.suspend_data, re.IGNORECASE)
+                if match:
+                    click_count = int(match.group(1))
+                    if click_count > 0:
+                        has_real_interaction = True
+                        logger.info(f"✅ Found Continue button interactions: {click_count} clicks")
+                        break
+        
+        # 2. Check for slide completion tracking
+        if not has_real_interaction and self.attempt.completed_slides:
+            # Check if we have actual completed slides (not just visited)
+            completed_count = len(self.attempt.completed_slides)
+            if completed_count > 0:
+                has_real_interaction = True
+                logger.info(f"✅ Found completed slides: {completed_count} slides")
+        
+        # 3. Check for quiz/assessment interactions
+        if not has_real_interaction and self.attempt.score_raw is not None:
+            if self.attempt.score_raw > 0:
+                has_real_interaction = True
+                logger.info(f"✅ Found quiz score: {self.attempt.score_raw}")
+        
+        # 4. Check for substantial time spent (as backup validation)
+        if not has_real_interaction:
+            time_seconds = 0
+            if self.attempt.total_time and self.attempt.total_time != '0000:00:00.00':
+                try:
+                    time_parts = str(self.attempt.total_time).split(':')
+                    if len(time_parts) == 3:
+                        hours, minutes, seconds = map(float, time_parts)
+                        time_seconds = int(hours * 3600 + minutes * 60 + seconds)
+                except (ValueError, TypeError, IndexError):
+                    pass
+                
+                # Require at least 2 minutes of actual time spent
+                if time_seconds >= 120:
+                    has_real_interaction = True
+                    logger.info(f"✅ Found substantial time spent: {time_seconds}s")
+        
+        if not has_real_interaction:
+            logger.warning(f"⚠️  Completion status set but no evidence of real interaction - marking as incomplete")
+            return False
+        
+        logger.info(f"✅ Valid completion detected - marking as completed")
+        return True
+    
     def _update_completion_from_status(self, status):
         """Update completion fields based on lesson_status (SCORM 1.2)"""
         if status in ['completed', 'passed']:
@@ -1922,13 +1990,17 @@ class ScormAPIHandlerEnhanced:
                     progress.total_time_spent = max(current_time, time_seconds)
                     logger.info("⏱️  TOPIC_PROGRESS: Updated time - total_time_spent: %s seconds", progress.total_time_spent)
                 
-                # Determine completion status based on SCORM version
+                # CRITICAL FIX: Add strict validation for completion status
+                # Don't just trust the status - validate that actual content interaction occurred
                 if self.version == '1.2':
-                    is_completed = self.attempt.lesson_status in ['completed', 'passed']
+                    status_completed = self.attempt.lesson_status in ['completed', 'passed']
                     is_passed = self.attempt.lesson_status == 'passed'
                 else:
-                    is_completed = self.attempt.completion_status == 'completed'
+                    status_completed = self.attempt.completion_status == 'completed'
                     is_passed = self.attempt.success_status == 'passed'
+                
+                # Validate that completion is legitimate
+                is_completed = self._validate_completion_status(status_completed)
                 
                 # Update completion status
                 if is_completed and not progress.completed:

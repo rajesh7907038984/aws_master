@@ -66,13 +66,15 @@ class SlideTracker:
                     result['visited_slides'].append(slide_id)
                     logger.info(f"Detected slide interaction: {slide_id}")
                     
-                    # If user has visited multiple slides, estimate completion
+                    # CRITICAL FIX: Don't automatically assume completion from slide visits
+                    # Slide visits alone don't indicate completion - require actual content interaction
                     if len(result['visited_slides']) > 1:
-                        result['progress_percentage'] = min(100.0, len(result['visited_slides']) * 25.0)  # 25% per slide
+                        # Much more conservative progress calculation
+                        result['progress_percentage'] = min(30.0, len(result['visited_slides']) * 5.0)  # Max 5% per slide, cap at 30%
                         result['total_slides'] = max(result['total_slides'], len(result['visited_slides']))
-                        logger.info(f"Estimated progress from slide interactions: {result['progress_percentage']}%")
+                        logger.info(f"Conservative progress from slide interactions: {result['progress_percentage']}% (max 30%)")
         
-        # CRITICAL FIX: Detect button interactions from CMI data
+        # CRITICAL FIX: Detect Continue button interactions from CMI data
         if cmi_data:
             # Check for lesson status changes that indicate button interactions
             lesson_status = cmi_data.get('cmi.core.lesson_status', '')
@@ -89,6 +91,19 @@ class SlideTracker:
                 if result['current_slide'] and result['current_slide'] not in result['completed_slides']:
                     result['completed_slides'].append(result['current_slide'])
                     logger.info(f"Detected completion from score: {score_raw}")
+            
+            # NEW: Check for Continue button interactions in CMI data
+            for key, value in cmi_data.items():
+                if 'continue' in key.lower() and 'button' in key.lower():
+                    try:
+                        click_count = int(value) if value.isdigit() else 0
+                        if click_count > 0:
+                            logger.info(f"✅ Found Continue button clicks in CMI: {click_count}")
+                            # Mark current slide as completed if Continue button was clicked
+                            if result['current_slide'] and result['current_slide'] not in result['completed_slides']:
+                                result['completed_slides'].append(result['current_slide'])
+                    except (ValueError, TypeError):
+                        pass
         
         # Parse suspend_data for slide tracking
         if suspend_data:
@@ -120,10 +135,12 @@ class SlideTracker:
             completed_count = len(set(result['completed_slides']))
             result['progress_percentage'] = (completed_count / result['total_slides']) * 100
         elif result['visited_slides']:
-            # If no total but have visited slides, estimate
+            # CRITICAL FIX: Don't automatically mark visited slides as completed
+            # Visited slides are NOT the same as completed slides
             result['total_slides'] = len(set(result['visited_slides']))
-            result['completed_slides'] = result['visited_slides']
-            result['progress_percentage'] = 100.0
+            # Don't automatically set completed_slides = visited_slides
+            # Only set a small progress percentage for visiting slides
+            result['progress_percentage'] = min(20.0, len(result['visited_slides']) * 3.0)  # Max 3% per slide, cap at 20%
         
         # CRITICAL FIX: If no slide data but have time data, use time-based progress
         # Also check if we have minimal slide data (just placeholder) but no real progress
@@ -160,29 +177,26 @@ class SlideTracker:
                         pass
             
             if time_seconds > 0:
-                # Use time-based progress calculation with more realistic thresholds
-                if time_seconds >= 180:  # 3+ minutes = likely completed
-                    result['progress_percentage'] = 100.0
-                    result['completed_slides'] = ['slide_1']
-                    result['total_slides'] = 1
-                elif time_seconds >= 120:  # 2+ minutes = mostly completed
-                    result['progress_percentage'] = 80.0
+                # CRITICAL FIX: Use much more conservative time-based progress calculation
+                # Time alone should NOT determine completion - require actual content interaction
+                if time_seconds >= 300:  # 5+ minutes = likely spent time on content
+                    result['progress_percentage'] = 25.0  # Still not completed, just time spent
                     result['visited_slides'] = ['slide_1']
                     result['total_slides'] = 1
-                elif time_seconds >= 90:  # 1.5+ minutes = partially completed
-                    result['progress_percentage'] = 60.0
+                elif time_seconds >= 180:  # 3+ minutes = some time spent
+                    result['progress_percentage'] = 15.0
                     result['visited_slides'] = ['slide_1']
                     result['total_slides'] = 1
-                elif time_seconds >= 60:  # 1+ minute = started
-                    result['progress_percentage'] = 40.0
+                elif time_seconds >= 120:  # 2+ minutes = minimal time
+                    result['progress_percentage'] = 10.0
                     result['visited_slides'] = ['slide_1']
                     result['total_slides'] = 1
-                elif time_seconds >= 30:  # 30+ seconds = barely started
-                    result['progress_percentage'] = 20.0
-                    result['visited_slides'] = ['slide_1']
-                    result['total_slides'] = 1
-                else:  # Less than 30 seconds = just opened
+                elif time_seconds >= 60:  # 1+ minute = just started
                     result['progress_percentage'] = 5.0
+                    result['visited_slides'] = ['slide_1']
+                    result['total_slides'] = 1
+                else:  # Less than 1 minute = just opened
+                    result['progress_percentage'] = 1.0
                     result['visited_slides'] = ['slide_1']
                     result['total_slides'] = 1
                 
@@ -215,6 +229,20 @@ class SlideTracker:
                     visited = [k for k, v in value.items() if v]
                     result['visited_slides'].extend(visited)
         
+        # NEW: Check for Continue button interactions in JSON data
+        continue_keys = ['continueClicks', 'buttonClicks', 'continueCount', 'slideProgress', 'interactions']
+        for key in continue_keys:
+            if key in data:
+                try:
+                    click_count = int(data[key]) if isinstance(data[key], (int, str)) else 0
+                    if click_count > 0:
+                        logger.info(f"✅ Found Continue button interactions in JSON: {click_count}")
+                        # If we have Continue button clicks, mark slides as completed
+                        if not result['completed_slides'] and result['visited_slides']:
+                            result['completed_slides'] = result['visited_slides'].copy()
+                except (ValueError, TypeError):
+                    pass
+        
         # Check for total slides
         if 'totalSlides' in data:
             result['total_slides'] = int(data['totalSlides'])
@@ -231,29 +259,26 @@ class SlideTracker:
             # Calculate progress percentage based on time spent
             total_time = data['totalTime']
             
-            # Estimate progress based on time thresholds (more realistic)
-            if total_time >= 180:  # 3+ minutes = likely completed
-                result['progress_percentage'] = 100.0
-                result['completed_slides'] = ['slide_1']
-                result['total_slides'] = 1
-            elif total_time >= 120:  # 2+ minutes = mostly completed
-                result['progress_percentage'] = 80.0
+            # CRITICAL FIX: Use conservative time-based progress calculation
+            # Time alone should NOT determine completion - require actual content interaction
+            if total_time >= 300:  # 5+ minutes = likely spent time on content
+                result['progress_percentage'] = 25.0  # Still not completed, just time spent
                 result['visited_slides'] = ['slide_1']
                 result['total_slides'] = 1
-            elif total_time >= 90:  # 1.5+ minutes = partially completed
-                result['progress_percentage'] = 60.0
+            elif total_time >= 180:  # 3+ minutes = some time spent
+                result['progress_percentage'] = 15.0
                 result['visited_slides'] = ['slide_1']
                 result['total_slides'] = 1
-            elif total_time >= 60:  # 1+ minute = started
-                result['progress_percentage'] = 40.0
+            elif total_time >= 120:  # 2+ minutes = minimal time
+                result['progress_percentage'] = 10.0
                 result['visited_slides'] = ['slide_1']
                 result['total_slides'] = 1
-            elif total_time >= 30:  # 30+ seconds = barely started
-                result['progress_percentage'] = 20.0
-                result['visited_slides'] = ['slide_1']
-                result['total_slides'] = 1
-            else:  # Less than 30 seconds = just opened
+            elif total_time >= 60:  # 1+ minute = just started
                 result['progress_percentage'] = 5.0
+                result['visited_slides'] = ['slide_1']
+                result['total_slides'] = 1
+            else:  # Less than 1 minute = just opened
+                result['progress_percentage'] = 1.0
                 result['visited_slides'] = ['slide_1']
                 result['total_slides'] = 1
             
@@ -301,6 +326,26 @@ class SlideTracker:
                 result['completed_slides'] = [
                     f'slide_{i+1}' for i, bit in enumerate(completed_str) if bit == '1'
                 ]
+        
+        # NEW: Pattern 5: Continue button interactions
+        continue_patterns = [
+            r'continue[_-]?button[_-]?clicked[=:]\s*(\d+)',
+            r'continue[_-]?clicks[=:]\s*(\d+)',
+            r'button[_-]?interactions[=:]\s*(\d+)',
+            r'slide[_-]?progress[=:]\s*(\d+)',
+            r'continue[_-]?count[=:]\s*(\d+)'
+        ]
+        
+        for pattern in continue_patterns:
+            match = re.search(pattern, data, re.IGNORECASE)
+            if match:
+                click_count = int(match.group(1))
+                if click_count > 0:
+                    logger.info(f"✅ Found Continue button interactions in string: {click_count}")
+                    # If we have Continue button clicks, mark slides as completed
+                    if not result['completed_slides'] and result['visited_slides']:
+                        result['completed_slides'] = result['visited_slides'].copy()
+                    break
         
         return result
     
