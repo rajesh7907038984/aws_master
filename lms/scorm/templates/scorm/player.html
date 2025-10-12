@@ -1243,13 +1243,23 @@
         function detectAndSetupPackageSpecificMonitoring() {
             console.log(' Setting up package-specific monitoring...');
             
-            // Get package metadata from server
-            const packageMetadata = {% if scorm_package.package_metadata %}{{ scorm_package.package_metadata|safe }}{% else %}{}{% endif %};
+            // Get package metadata from server with error handling
+            let packageMetadata = {};
+            try {
+                packageMetadata = {% if scorm_package.package_metadata %}{{ scorm_package.package_metadata|safe }}{% else %}{}{% endif %};
+            } catch (e) {
+                console.log('Error parsing package metadata, using defaults:', e.message);
+                packageMetadata = {};
+            }
+            
             // Convert Python boolean values to JavaScript boolean values
             if (packageMetadata && typeof packageMetadata === 'object') {
                 Object.keys(packageMetadata).forEach(key => {
                     if (packageMetadata[key] === 'False') packageMetadata[key] = false;
                     if (packageMetadata[key] === 'True') packageMetadata[key] = true;
+                    // Handle actual Python False/True objects
+                    if (packageMetadata[key] === False) packageMetadata[key] = false;
+                    if (packageMetadata[key] === True) packageMetadata[key] = true;
                 });
             }
             const packageType = packageMetadata.package_type || 'unknown';
@@ -2027,14 +2037,24 @@
                                         
                                         // ENHANCED: Handle different SCORM package types for completion
                                         // Use package metadata to determine the correct behavior
-                                        const packageMetadata = {% if scorm_package.package_metadata %}{{ scorm_package.package_metadata|safe }}{% else %}{}{% endif %};
-            // Convert Python boolean values to JavaScript boolean values
-            if (packageMetadata && typeof packageMetadata === 'object') {
-                Object.keys(packageMetadata).forEach(key => {
-                    if (packageMetadata[key] === 'False') packageMetadata[key] = false;
-                    if (packageMetadata[key] === 'True') packageMetadata[key] = true;
-                });
-            }
+                                        let packageMetadata = {};
+                                        try {
+                                            packageMetadata = {% if scorm_package.package_metadata %}{{ scorm_package.package_metadata|safe }}{% else %}{}{% endif %};
+                                        } catch (e) {
+                                            console.log('Error parsing package metadata, using defaults:', e.message);
+                                            packageMetadata = {};
+                                        }
+                                        
+                                        // Convert Python boolean values to JavaScript boolean values
+                                        if (packageMetadata && typeof packageMetadata === 'object') {
+                                            Object.keys(packageMetadata).forEach(key => {
+                                                if (packageMetadata[key] === 'False') packageMetadata[key] = false;
+                                                if (packageMetadata[key] === 'True') packageMetadata[key] = true;
+                                                // Handle actual Python False/True objects
+                                                if (packageMetadata[key] === False) packageMetadata[key] = false;
+                                                if (packageMetadata[key] === True) packageMetadata[key] = true;
+                                            });
+                                        }
                                         const packageType = packageMetadata.package_type || 'unknown';
                                         const scoringMethod = packageMetadata.scoring_method || 'unknown';
                                         
