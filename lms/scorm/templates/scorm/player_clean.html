@@ -606,9 +606,171 @@
             } catch (e) {
                 // Cross-origin, can't inject directly
                 console.log('Cross-origin iframe, API will be available via parent window');
+                
+                // ENHANCED: For cross-origin SCORM content, use postMessage communication
+                setupCrossOriginExitHandling();
+            }
+            
+            // Start slide detection for slide-based SCORM content
+            setTimeout(() => {
+                detectSlideChanges();
+                console.log('📊 Slide detection started for slide-based SCORM content');
+            }, 1000);
+            
+            // ENHANCED: Monitor iframe URL changes for completion pages
+            monitorIframeUrlChanges();
+            
+            // Add instant sync on user interaction
+            document.addEventListener('click', function() {
+                if (totalActiveSeconds > 0) {
+                    syncTimeToServer();
+                }
+            });
+            
+            document.addEventListener('keydown', function() {
+                if (totalActiveSeconds > 0) {
+                    syncTimeToServer();
+                }
+            });
+            
+            // Also sync when iframe content changes
+            const iframe = document.getElementById('scormFrame');
+            if (iframe) {
+                iframe.addEventListener('load', function() {
+                    setTimeout(() => {
+                        syncTimeToServer();
+                    }, 500);
+                });
             }
         }
         
+        // ENHANCED: Cross-origin exit handling for SCORM content
+        function setupCrossOriginExitHandling() {
+            console.log('🔧 Setting up cross-origin exit handling...');
+            
+            // Listen for messages from SCORM content
+            window.addEventListener('message', function(event) {
+                if (event.data && typeof event.data === 'object') {
+                    if (event.data.action === 'exit' || event.data.type === 'exit') {
+                        console.log('🚪 Exit message received from SCORM content');
+                        handleBackToTopic({ preventDefault: function() {} });
+                    }
+                } else if (event.data === 'exit') {
+                    console.log('🚪 Exit message received from SCORM content (string)');
+                    handleBackToTopic({ preventDefault: function() {} });
+                }
+            });
+            
+            // Try to inject a simple exit handler into the iframe via postMessage
+            const iframe = document.getElementById('scormFrame');
+            if (iframe && iframe.contentWindow) {
+                try {
+                    // Send a message to the iframe with exit handling instructions
+                    iframe.contentWindow.postMessage({
+                        type: 'scorm_exit_handler',
+                        action: 'setup',
+                        exitFunction: `
+                            // Auto-detect and override exit buttons
+                            function setupExitButtons() {
+                                const buttons = document.querySelectorAll('button, input[type="button"], a[role="button"]');
+                                buttons.forEach(btn => {
+                                    const text = (btn.textContent || btn.value || '').toLowerCase();
+                                    if (text.includes('exit') || text.includes('move on') || text.includes('final assessment')) {
+                                        btn.onclick = function(e) {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            window.parent.postMessage({action: 'exit', type: 'exit'}, '*');
+                                            return false;
+                                        };
+                                        console.log('Exit button overridden:', btn);
+                                    }
+                                });
+                            }
+                            
+                            // Run immediately and on DOM changes
+                            setupExitButtons();
+                            const observer = new MutationObserver(setupExitButtons);
+                            observer.observe(document.body, { childList: true, subtree: true });
+                        `
+                    }, '*');
+                    
+                    console.log('✅ Cross-origin exit handler setup sent to iframe');
+                } catch (e) {
+                    console.log('Could not send exit handler to iframe:', e.message);
+                }
+            }
+        }
+        
+        // ENHANCED: Monitor iframe URL changes for completion pages
+        function monitorIframeUrlChanges() {
+            console.log('🔍 Monitoring iframe URL changes for completion pages...');
+            
+            const iframe = document.getElementById('scormFrame');
+            if (!iframe) return;
+            
+            let lastUrl = '';
+            
+            // Check for completion pages periodically
+            const checkCompletion = () => {
+                try {
+                    const currentUrl = iframe.contentWindow.location.href;
+                    if (currentUrl !== lastUrl) {
+                        lastUrl = currentUrl;
+                        console.log('📊 Iframe URL changed:', currentUrl);
+                        
+                        // Check if this looks like a completion page
+                        const completionPatterns = [
+                            /completion/i, /complete/i, /finished/i, /done/i,
+                            /final/i, /summary/i, /results/i, /assessment/i,
+                            /good job/i, /congratulations/i, /well done/i
+                        ];
+                        
+                        const isCompletionPage = completionPatterns.some(pattern => 
+                            pattern.test(currentUrl) || pattern.test(document.title)
+                        );
+                        
+                        if (isCompletionPage) {
+                            console.log('🎯 Completion page detected! Setting up exit button override...');
+                            
+                            // Try to override exit buttons on completion page
+                            setTimeout(() => {
+                                try {
+                                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                                    if (iframeDoc) {
+                                        const buttons = iframeDoc.querySelectorAll('button, input[type="button"], a[role="button"]');
+                                        buttons.forEach(btn => {
+                                            const text = (btn.textContent || btn.value || '').toLowerCase();
+                                            if (text.includes('exit') || text.includes('move on') || text.includes('final assessment')) {
+                                                btn.onclick = function(e) {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    console.log('🚪 Exit button clicked - triggering Back to Topic');
+                                                    handleBackToTopic({ preventDefault: function() {} });
+                                                    return false;
+                                                };
+                                                console.log('✅ Exit button overridden:', btn);
+                                            }
+                                        });
+                                    }
+                                } catch (e) {
+                                    console.log('Could not access iframe content for exit button override');
+                                }
+                            }, 1000);
+                        }
+                    }
+                } catch (e) {
+                    // Cross-origin access denied - this is expected
+                }
+            };
+            
+            // Check every 2 seconds
+            setInterval(checkCompletion, 2000);
+            
+            // Also check on iframe load events
+            iframe.addEventListener('load', () => {
+                setTimeout(checkCompletion, 500);
+            });
+        }
         
         // Disabled asset preloading for better initial load performance
         function preloadSCORMAssets() {
@@ -1084,11 +1246,74 @@
                         if (!currentScore || currentScore === '' || currentScore === 'false') {
                             console.log('📊 No explicit score found, checking for slide completion data...');
                             
-                            // Method 1: Try to extract from suspend_data (slide completion tracking)
-                            const suspendData12 = window.API.LMSGetValue ? window.API.LMSGetValue('cmi.core.suspend_data') : '';
-                            const suspendData2004 = window.API_1484_11 && window.API_1484_11.GetValue ? 
-                                window.API_1484_11.GetValue('cmi.suspend_data') : '';
-                            const suspendData = suspendData12 || suspendData2004;
+                            // PRIORITY 1: Check if we have actual results page score
+                            if (resultsPageDetected && actualScoreFromResults !== null) {
+                                currentScore = actualScoreFromResults;
+                                console.log('🎯 Using actual score from results page: {}%'.format(actualScoreFromResults));
+                            } else {
+                                // Method 1: Try to extract from suspend_data (slide completion tracking)
+                                const suspendData12 = window.API.LMSGetValue ? window.API.LMSGetValue('cmi.core.suspend_data') : '';
+                                const suspendData2004 = window.API_1484_11 && window.API_1484_11.GetValue ? 
+                                    window.API_1484_11.GetValue('cmi.suspend_data') : '';
+                                const suspendData = suspendData12 || suspendData2004;
+                                
+                                // Check if we have client-side slide tracking data
+                                if (Object.keys(slideTimeTracker).length > 0) {
+                                    const totalSlides = Object.keys(slideTimeTracker).length;
+                                    const slidesWithTime = Object.values(slideTimeTracker).filter(time => time > 10).length; // Slides with >10 seconds
+                                    
+                                    // IMPROVED: More accurate progress calculation
+                                    let progressScore = 0;
+                                    
+                                    if (totalSlides > 0) {
+                                        // Calculate based on actual slide completion
+                                        progressScore = Math.round((slidesWithTime / totalSlides) * 100);
+                                        
+                                        // CRITICAL FIX: Don't save partial progress as final score
+                                        // Only save progress if user has completed ALL slides
+                                        if (progressScore < 100) {
+                                            console.log('📊 Partial progress detected: {}% ({} slides completed out of {})'.format(progressScore, slidesWithTime, totalSlides));
+                                            console.log('⚠️ Not saving partial progress - user needs to complete all slides for final score');
+                                            
+                                            // For partial progress, don't set a final score
+                                            // Just track progress in suspend_data for resume
+                                            const progressData = {
+                                                totalSlides: totalSlides,
+                                                completedSlides: slidesWithTime,
+                                                progressPercentage: progressScore,
+                                                timestamp: new Date().toISOString(),
+                                                status: 'in_progress'
+                                            };
+                                            
+                                            if (window.API && window.API.LMSSetValue) {
+                                                window.API.LMSSetValue('cmi.suspend_data', JSON.stringify(progressData));
+                                                window.API.LMSSetValue('cmi.core.lesson_status', 'incomplete');
+                                                console.log('✅ Saved progress data for resume (not final score)');
+                                            }
+                                            
+                                            // Don't set currentScore for partial progress
+                                            currentScore = null;
+                                        } else {
+                                            // All slides completed - this is a valid final score
+                                            currentScore = 100;
+                                            console.log('🎯 All slides completed - marking as PASSED (100%)');
+                                            
+                                            // Set lesson status to passed for slide-based content
+                                            if (window.API && window.API.LMSSetValue) {
+                                                window.API.LMSSetValue('cmi.core.lesson_status', 'passed');
+                                                window.API.LMSSetValue('cmi.core.score.raw', '100');
+                                                console.log('✅ Set lesson_status to passed and score to 100');
+                                            }
+                                            if (window.API_1484_11 && window.API_1484_11.SetValue) {
+                                                window.API_1484_11.SetValue('cmi.completion_status', 'completed');
+                                                window.API_1484_11.SetValue('cmi.success_status', 'passed');
+                                                window.API_1484_11.SetValue('cmi.score.raw', '100');
+                                                console.log('✅ Set SCORM 2004 completion and success status');
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                             
                             if (suspendData && suspendData.length > 10) {
                                 // Try to decode JSON-encoded suspend_data first
@@ -1425,7 +1650,7 @@
             }
             
             // Show warning message to user  
-            const warningMessage = '⚠️ WARNING: Closing this window directly may cause your quiz score and progress to be lost!\\n\\nTo ensure your score is saved properly, please click the "← Back to Topic" button instead.\\n\\nDo you really want to close without saving?';
+            const warningMessage = 'Note: Please use the "← Back to Topic" button above to accurately save your progress. In some cases, the "Exit" option inside your course window may not work';
             
             // Set the beforeunload message (browsers will show their own dialog)
             event.preventDefault();
@@ -1654,11 +1879,24 @@
                                             const buttons = document.querySelectorAll(selector);
                                             buttons.forEach(button => {
                                                 const buttonText = button.textContent || button.value || '';
+                                                const buttonTitle = button.getAttribute('title') || '';
+                                                const buttonAriaLabel = button.getAttribute('aria-label') || '';
+                                                const buttonClass = button.className || '';
+                                                
+                                                // ENHANCED: More comprehensive exit button detection
                                                 if (buttonText.toLowerCase().includes('exit') || 
+                                                    buttonTitle.toLowerCase().includes('exit') ||
+                                                    buttonAriaLabel.toLowerCase().includes('exit') ||
+                                                    buttonClass.toLowerCase().includes('exit') ||
                                                     button.classList.contains('courseExit') ||
                                                     button.classList.contains('courseExit--standard') ||
                                                     button.getAttribute('data-action') === 'exit' ||
-                                                    button.getAttribute('data-exit') === 'true') {
+                                                    button.getAttribute('data-exit') === 'true' ||
+                                                    // Check for completion page patterns
+                                                    buttonText.toLowerCase().includes('move on') ||
+                                                    buttonText.toLowerCase().includes('final assessment') ||
+                                                    buttonText.toLowerCase().includes('complete') ||
+                                                    buttonText.toLowerCase().includes('finish')) {
                                                     
                                                     console.log('Found exit button in iframe:', button);
                                                     buttonsFound++;
@@ -1776,6 +2014,12 @@
         let isPageVisible = !document.hidden;
         let heartbeatInterval = null;
         let lastSyncTime = null;
+        let slideStartTime = new Date();
+        let currentSlide = '';
+        let slideTimeTracker = {};
+        let syncDebounceTimer = null;
+        let resultsPageDetected = false;
+        let actualScoreFromResults = null;
         
         // Format seconds into SCORM time format (hhhh:mm:ss.ss)
         function formatScormTime(totalSeconds) {
@@ -1812,7 +2056,7 @@
                 }
             });
             
-            // Heartbeat: Update time every 30 seconds
+            // Enhanced heartbeat: Update time every 10 seconds for better accuracy
             heartbeatInterval = setInterval(function() {
                 if (isPageVisible) {
                     const now = new Date();
@@ -1822,29 +2066,329 @@
                         totalActiveSeconds += activeSeconds;
                         lastHeartbeatTime = now;
                         
+                        // Detect slide changes
+                        detectSlideChanges();
+                        
+                        // Track slide-specific time
+                        if (currentSlide) {
+                            if (!slideTimeTracker[currentSlide]) {
+                                slideTimeTracker[currentSlide] = 0;
+                            }
+                            slideTimeTracker[currentSlide] += activeSeconds;
+                        }
+                        
                         console.log('⏱️ Time tracking heartbeat: ' + formatTimeDisplay(totalActiveSeconds));
                         
-                        // Sync to server every 5 minutes
-                        if (!lastSyncTime || (now - lastSyncTime) > 300000) {
-                            syncTimeToServer();
-                            lastSyncTime = now;
-                        }
+                        // Check slide completion on every heartbeat
+                        checkSlideCompletion();
+                        
+                        // Sync to server instantly for immediate time tracking
+                        syncTimeToServer();
+                        lastSyncTime = now;
                     } else if (activeSeconds >= 60) {
                         // Large time gap detected - user probably idle
                         lastHeartbeatTime = now;
                     }
                 }
-            }, 30000); // Every 30 seconds
+            }, 10000); // Every 10 seconds for better accuracy
             
-            // Sync time to server via custom endpoint
+            // Enhanced slide detection for slide-based SCORM content
+            function detectSlideChanges() {
+                try {
+                    const iframe = document.getElementById('scormFrame');
+                    if (iframe && iframe.contentWindow) {
+                        // Try to detect slide changes in iframe
+                        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                        if (iframeDoc) {
+                            // Look for common slide indicators
+                            const slideIndicators = [
+                                '.slide', '.slide-container', '.slide-wrapper',
+                                '.story-slide', '.story-slide-container',
+                                '[data-slide]', '[data-slide-id]',
+                                '.current-slide', '.active-slide'
+                            ];
+                            
+                            let newSlide = '';
+                            for (const selector of slideIndicators) {
+                                const element = iframeDoc.querySelector(selector);
+                                if (element) {
+                                    newSlide = element.getAttribute('data-slide') || 
+                                              element.getAttribute('data-slide-id') ||
+                                              element.className ||
+                                              selector;
+                                    break;
+                                }
+                            }
+                            
+                            // Also check URL hash changes
+                            if (!newSlide && iframe.contentWindow.location) {
+                                const hash = iframe.contentWindow.location.hash;
+                                if (hash && hash !== currentSlide) {
+                                    newSlide = hash;
+                                }
+                            }
+                            
+                            if (newSlide && newSlide !== currentSlide) {
+                                // Slide changed - track time spent on previous slide
+                                if (currentSlide && slideTimeTracker[currentSlide]) {
+                                    console.log('📊 Slide "{}" completed in {}s'.format(currentSlide, slideTimeTracker[currentSlide]));
+                                }
+                                
+                                currentSlide = newSlide;
+                                slideStartTime = new Date();
+                                console.log('📊 New slide detected: {}'.format(currentSlide));
+                                
+                                // Sync immediately when slide changes
+                                syncTimeToServer();
+                                
+                                // Check if all slides are completed (for slide-based content)
+                                checkSlideCompletion();
+                            }
+                        }
+                    }
+                } catch (e) {
+                    // Cross-origin or other issues - ignore
+                }
+            }
+            
+            // Detect results page and extract actual score
+            function detectResultsPage() {
+                try {
+                    const iframe = document.getElementById('scormFrame');
+                    if (iframe && iframe.contentWindow) {
+                        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                        if (iframeDoc) {
+                            // Look for common results page indicators
+                            const resultsIndicators = [
+                                '.results', '.result-page', '.completion-page',
+                                '.summary', '.score-page', '.final-page',
+                                '[data-results]', '[data-completion]',
+                                '.progress-complete', '.course-complete'
+                            ];
+                            
+                            let resultsElement = null;
+                            for (const selector of resultsIndicators) {
+                                resultsElement = iframeDoc.querySelector(selector);
+                                if (resultsElement) break;
+                            }
+                            
+                            // Also check for results in URL
+                            const currentUrl = iframe.contentWindow.location.href;
+                            const resultsUrlPatterns = [
+                                /results?/i, /completion/i, /summary/i, 
+                                /final/i, /complete/i, /score/i
+                            ];
+                            
+                            const isResultsUrl = resultsUrlPatterns.some(pattern => pattern.test(currentUrl));
+                            
+                            if (resultsElement || isResultsUrl) {
+                                console.log('📊 Results page detected!');
+                                resultsPageDetected = true;
+                                
+                                // Try to extract actual score from results page
+                                extractActualScore(iframeDoc, resultsElement);
+                            }
+                        }
+                    }
+                } catch (e) {
+                    // Cross-origin or other issues - ignore
+                }
+            }
+            
+            // Extract actual score from results page
+            function extractActualScore(doc, resultsElement) {
+                try {
+                    // Look for score patterns in various formats
+                    const scorePatterns = [
+                        // Percentage patterns
+                        /(\d+)%/, /(\d+)\s*percent/, /(\d+)\s*%/,
+                        // Score patterns  
+                        /score[:\s]*(\d+)/i, /result[:\s]*(\d+)/i,
+                        /completion[:\s]*(\d+)/i, /progress[:\s]*(\d+)/i,
+                        // Number patterns
+                        /(\d+)\s*out\s*of\s*(\d+)/i, /(\d+)\s*\/\s*(\d+)/i
+                    ];
+                    
+                    let extractedScore = null;
+                    
+                    // Search in results element first
+                    if (resultsElement) {
+                        const resultsText = resultsElement.textContent || resultsElement.innerText || '';
+                        for (const pattern of scorePatterns) {
+                            const match = resultsText.match(pattern);
+                            if (match) {
+                                if (match[2]) {
+                                    // Handle "X out of Y" format
+                                    extractedScore = Math.round((parseInt(match[1]) / parseInt(match[2])) * 100);
+                                } else {
+                                    extractedScore = parseInt(match[1]);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // Search in entire document if not found in results element
+                    if (!extractedScore) {
+                        const docText = doc.body ? doc.body.textContent || doc.body.innerText : '';
+                        for (const pattern of scorePatterns) {
+                            const match = docText.match(pattern);
+                            if (match) {
+                                if (match[2]) {
+                                    extractedScore = Math.round((parseInt(match[1]) / parseInt(match[2])) * 100);
+                                } else {
+                                    extractedScore = parseInt(match[1]);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // Also check for data attributes
+                    if (!extractedScore && resultsElement) {
+                        const dataScore = resultsElement.getAttribute('data-score') || 
+                                        resultsElement.getAttribute('data-completion') ||
+                                        resultsElement.getAttribute('data-result');
+                        if (dataScore) {
+                            extractedScore = parseInt(dataScore);
+                        }
+                    }
+                    
+                    if (extractedScore && extractedScore >= 0 && extractedScore <= 100) {
+                        actualScoreFromResults = extractedScore;
+                        console.log('🎯 Actual score extracted from results page: {}%'.format(extractedScore));
+                        
+                        // Set the actual score in SCORM API
+                        if (window.API && window.API.LMSSetValue) {
+                            window.API.LMSSetValue('cmi.core.score.raw', extractedScore.toString());
+                            if (extractedScore >= 70) {
+                                window.API.LMSSetValue('cmi.core.lesson_status', 'passed');
+                            } else {
+                                window.API.LMSSetValue('cmi.core.lesson_status', 'failed');
+                            }
+                            console.log('✅ Set actual score in SCORM 1.2: {}%'.format(extractedScore));
+                        }
+                        
+                        if (window.API_1484_11 && window.API_1484_11.SetValue) {
+                            window.API_1484_11.SetValue('cmi.score.raw', extractedScore.toString());
+                            if (extractedScore >= 70) {
+                                window.API_1484_11.SetValue('cmi.completion_status', 'completed');
+                                window.API_1484_11.SetValue('cmi.success_status', 'passed');
+                            } else {
+                                window.API_1484_11.SetValue('cmi.completion_status', 'completed');
+                                window.API_1484_11.SetValue('cmi.success_status', 'failed');
+                            }
+                            console.log('✅ Set actual score in SCORM 2004: {}%'.format(extractedScore));
+                        }
+                        
+                        // Commit the actual score
+                        if (window.API && window.API.LMSCommit) {
+                            window.API.LMSCommit('');
+                        }
+                        if (window.API_1484_11 && window.API_1484_11.Commit) {
+                            window.API_1484_11.Commit('');
+                        }
+                        
+                        return true;
+                    }
+                } catch (error) {
+                    console.error('❌ Error extracting actual score:', error);
+                }
+                return false;
+            }
+            
+            // Check if all slides are completed for slide-based SCORM content
+            function checkSlideCompletion() {
+                try {
+                    // First check if we have actual results page score
+                    if (resultsPageDetected && actualScoreFromResults !== null) {
+                        console.log('🎯 Using actual score from results page: {}%'.format(actualScoreFromResults));
+                        return; // Already handled in extractActualScore
+                    }
+                    
+                    // Check for results page first
+                    detectResultsPage();
+                    
+                    // If results page detected, don't override with slide completion
+                    if (resultsPageDetected) {
+                        return;
+                    }
+                    
+                    // Fallback to slide completion logic
+                    const totalSlides = Object.keys(slideTimeTracker).length;
+                    const slidesWithTime = Object.values(slideTimeTracker).filter(time => time > 10).length;
+                    
+                    if (totalSlides > 0) {
+                        const completionPercentage = Math.round((slidesWithTime / totalSlides) * 100);
+                        
+                        if (slidesWithTime >= totalSlides) {
+                            // All slides completed - mark as passed
+                            console.log('🎯 All slides completed! Marking as PASSED (100%)');
+                            
+                            // Set score to 100%
+                            if (window.API && window.API.LMSSetValue) {
+                                window.API.LMSSetValue('cmi.core.score.raw', '100');
+                                window.API.LMSSetValue('cmi.core.lesson_status', 'passed');
+                                console.log('✅ Set SCORM 1.2: score=100, status=passed');
+                            }
+                            
+                            if (window.API_1484_11 && window.API_1484_11.SetValue) {
+                                window.API_1484_11.SetValue('cmi.score.raw', '100');
+                                window.API_1484_11.SetValue('cmi.completion_status', 'completed');
+                                window.API_1484_11.SetValue('cmi.success_status', 'passed');
+                                console.log('✅ Set SCORM 2004: score=100, completion=completed, success=passed');
+                            }
+                            
+                            // Commit the changes
+                            if (window.API && window.API.LMSCommit) {
+                                window.API.LMSCommit('');
+                            }
+                            if (window.API_1484_11 && window.API_1484_11.Commit) {
+                                window.API_1484_11.Commit('');
+                            }
+                            
+                            console.log('🎉 SCORM content automatically marked as PASSED (100%)');
+                        } else {
+                            // Partial completion - don't set final score
+                            console.log('📊 Partial completion: {}% ({} slides completed out of {})'.format(completionPercentage, slidesWithTime, totalSlides));
+                            console.log('⚠️ Not setting final score for partial completion');
+                            
+                            // Save progress for resume but don't set final score
+                            const progressData = {
+                                                totalSlides: totalSlides,
+                                                completedSlides: slidesWithTime,
+                                                progressPercentage: completionPercentage,
+                                                timestamp: new Date().toISOString(),
+                                                status: 'in_progress'
+                                            };
+                            
+                            if (window.API && window.API.LMSSetValue) {
+                                window.API.LMSSetValue('cmi.suspend_data', JSON.stringify(progressData));
+                                window.API.LMSSetValue('cmi.core.lesson_status', 'incomplete');
+                                console.log('✅ Saved progress for resume (no final score)');
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('❌ Error checking slide completion:', error);
+                }
+            }
+            
+            // Sync time to server via custom endpoint with debounce
             function syncTimeToServer() {
                 if (IS_PREVIEW) {
                     console.log('⏱️ Preview mode - skipping time sync');
                     return;
                 }
                 
-                const scormTime = formatScormTime(totalActiveSeconds);
-                console.log('⏱️ Syncing time to server: ' + scormTime);
+                // Debounce sync calls to avoid too many API requests
+                if (syncDebounceTimer) {
+                    clearTimeout(syncDebounceTimer);
+                }
+                
+                syncDebounceTimer = setTimeout(() => {
+                    const scormTime = formatScormTime(totalActiveSeconds);
+                    console.log('⏱️ Syncing time to server: ' + scormTime);
                 
                 // Send time via SCORM API if not already set by content
                 try {
@@ -1858,6 +2402,24 @@
                         if (window.API && window.API._initialized) {
                             // Set the session time
                             window.API.SetValue('cmi.core.session_time', scormTime);
+                            
+                            // Also set total time
+                            window.API.SetValue('cmi.core.total_time', scormTime);
+                            
+                            // Set lesson location for slide-based content
+                            if (currentSlide) {
+                                window.API.SetValue('cmi.core.lesson_location', currentSlide);
+                            }
+                            
+                            // Set suspend data with slide tracking info
+                            const slideData = {
+                                slides: slideTimeTracker,
+                                currentSlide: currentSlide,
+                                totalTime: totalActiveSeconds,
+                                timestamp: new Date().toISOString()
+                            };
+                            window.API.SetValue('cmi.suspend_data', JSON.stringify(slideData));
+                            
                             window.API.LMSCommit('');
                             
                             console.log('✅ Time synced to SCORM: ' + scormTime);
@@ -1868,6 +2430,7 @@
                 } catch (error) {
                     console.error('❌ Error syncing time:', error);
                 }
+                }, 1000); // 1 second debounce
             }
             
             // Format for display
