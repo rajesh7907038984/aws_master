@@ -240,8 +240,15 @@
     <script>
         // SCORM API Integration
         const API_ENDPOINT = '{{ api_endpoint }}';
-        const ATTEMPT_ID = '{{ attempt.id }}';
+        const ATTEMPT_ID = '{{ attempt.id|default:attempt_id }}';
         const IS_PREVIEW = {{ preview_mode|yesno:"true,false" }};
+        
+        // Safety check for attempt ID
+        if (!ATTEMPT_ID || ATTEMPT_ID === 'None') {
+            console.error('CRITICAL: No valid attempt ID found');
+            alert('Error: Unable to initialize SCORM session. Please refresh the page and try again.');
+            window.location.href = '{% url "courses:topic_view" topic.id %}';
+        }
         
         // Track API calls for debugging
         let apiCallCount = 0;
@@ -1947,7 +1954,7 @@
                             'Content-Type': 'application/x-www-form-urlencoded',
                             'X-CSRFToken': '{{ csrf_token }}'
                         },
-                        body: 'attempt_id={{ attempt.id }}'
+                        body: 'attempt_id={{ attempt.id|default:attempt_id }}'
                     })
                     .then(response => response.json())
                     .then(data => {
@@ -1980,7 +1987,7 @@
                         'Content-Type': 'application/x-www-form-urlencoded',
                         'X-CSRFToken': '{{ csrf_token }}'
                     },
-                    body: 'attempt_id={{ attempt.id }}'
+                    body: 'attempt_id={{ attempt.id|default:attempt_id }}'
                 })
                 .then(response => response.json())
                 .then(data => {

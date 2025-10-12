@@ -289,8 +289,13 @@
             event.message.includes('is not defined') ||
             event.message.includes('is not a function')
         )) {
-            // Only show these if they're from critical core files
-            if (event.filename && event.filename.includes('/core/')) {
+            // Show these if they're from critical core files OR SCORM content
+            if (event.filename && (
+                event.filename.includes('/core/') ||
+                event.filename.includes('main.bundle.js') ||
+                event.filename.includes('scorm') ||
+                event.filename.includes('scormcontent')
+            )) {
                 return true;
             }
             return false;
@@ -307,6 +312,30 @@
                 return true;
             }
             return false;
+        }
+        
+        // Handle SCORM content errors specifically
+        if (event.filename && (
+            event.filename.includes('main.bundle.js') ||
+            event.filename.includes('scormcontent') ||
+            event.filename.includes('scorm')
+        )) {
+            // Log SCORM errors for debugging
+            console.log('[SCORM Error Handler] SCORM content error detected:', {
+                message: event.message,
+                filename: event.filename,
+                lineno: event.lineno,
+                colno: event.colno
+            });
+            
+            // Show critical SCORM errors
+            if (event.message && (
+                event.message.includes('Cannot read properties of null') ||
+                event.message.includes('Cannot read property') ||
+                event.message.includes('is not defined')
+            )) {
+                return true;
+            }
         }
         
         if (event.filename && (
