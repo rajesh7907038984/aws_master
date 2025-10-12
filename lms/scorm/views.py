@@ -713,60 +713,59 @@ if (!window.API && !window.API_1484_11) {
                 else:
                     # For SCORM 1.2 and 2004 packages, also use minimal injection
                     # The heavy tracking code is handled in the player template
-                    api_injection = '''
+                    api_injection = f'''
 <script>
 // Lightweight SCORM API - Points to parent window API
 // Version: 4.0 - Simplified for all SCORM types
 console.log('[SCORM] API bridge loaded for content');
 
 // CRITICAL FIX: Ensure attempt_id is available for SCORM content
-const SCORM_ATTEMPT_ID = '{0}';
-const SCORM_API_ENDPOINT = '/scorm/api/{0}/';
+const SCORM_ATTEMPT_ID = '{current_attempt_id}';
+const SCORM_API_ENDPOINT = '/scorm/api/{current_attempt_id}/';
 console.log('[SCORM] Attempt ID:', SCORM_ATTEMPT_ID);
 console.log('[SCORM] API Endpoint:', SCORM_API_ENDPOINT);
 
 // Try to use parent window's API if available (iframe scenario)
-if (window.parent && window.parent !== window) {
-    if (window.parent.API && !window.API) {
+if (window.parent && window.parent !== window) {{
+    if (window.parent.API && !window.API) {{
         window.API = window.parent.API;
         console.log('[SCORM] Using parent SCORM 1.2 API');
-    }
-    if (window.parent.API_1484_11 && !window.API_1484_11) {
+    }}
+    if (window.parent.API_1484_11 && !window.API_1484_11) {{
         window.API_1484_11 = window.parent.API_1484_11;
         console.log('[SCORM] Using parent SCORM 2004 API');
-    }
-}
-}
+    }}
+}}
 
 // Minimal fallback API stub (only if no API exists)
-if (!window.API) {
-    window.API = {
-        LMSInitialize: function() { return 'true'; },
-        LMSFinish: function() { return 'true'; },
-        LMSGetValue: function(e) { return ''; },
-        LMSSetValue: function(e,v) { return 'true'; },
-        LMSCommit: function() { return 'true'; },
-        LMSGetLastError: function() { return '0'; },
-        LMSGetErrorString: function(c) { return ''; },
-        LMSGetDiagnostic: function(c) { return ''; }
-    };
+if (!window.API) {{
+    window.API = {{
+        LMSInitialize: function() {{ return 'true'; }},
+        LMSFinish: function() {{ return 'true'; }},
+        LMSGetValue: function(e) {{ return ''; }},
+        LMSSetValue: function(e,v) {{ return 'true'; }},
+        LMSCommit: function() {{ return 'true'; }},
+        LMSGetLastError: function() {{ return '0'; }},
+        LMSGetErrorString: function(c) {{ return ''; }},
+        LMSGetDiagnostic: function(c) {{ return ''; }}
+    }};
     console.log('[SCORM] Minimal SCORM 1.2 fallback API created');
-}
+}}
 
-if (!window.API_1484_11) {
-    window.API_1484_11 = {
-        Initialize: function() { return 'true'; },
-        Terminate: function() { return 'true'; },
-        GetValue: function(e) { return ''; },
-        SetValue: function(e,v) { return 'true'; },
-        Commit: function() { return 'true'; },
-        GetLastError: function() { return '0'; },
-        GetErrorString: function(c) { return ''; },
-        GetDiagnostic: function(c) { return ''; }
-    };
+if (!window.API_1484_11) {{
+    window.API_1484_11 = {{
+        Initialize: function() {{ return 'true'; }},
+        Terminate: function() {{ return 'true'; }},
+        GetValue: function(e) {{ return ''; }},
+        SetValue: function(e,v) {{ return 'true'; }},
+        Commit: function() {{ return 'true'; }},
+        GetLastError: function() {{ return '0'; }},
+        GetErrorString: function(c) {{ return ''; }},
+        GetDiagnostic: function(c) {{ return ''; }}
+    }};
     console.log('[SCORM] Minimal SCORM 2004 fallback API created');
-}
-</script>'''.format(current_attempt_id)
+}}
+</script>'''
                 
                 # Inject before </head> or at beginning of <body>
                 if '</head>' in html_content:
