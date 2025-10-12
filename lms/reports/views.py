@@ -4157,23 +4157,42 @@ def _get_user_report_data(request, user_id):
         )
     ).distinct().order_by('-last_accessed')
     
+    # Filter: Only show SCORM scenarios when learner has passed them
+    from scorm.models import ScormAttempt
+    filtered_topic_progress = []
+    for progress in topic_progress:
+        # Check if this is SCORM content
+        is_scorm = hasattr(progress.topic, 'scorm_content') and progress.topic.scorm_content is not None
+        
+        if is_scorm:
+            # For SCORM content, check if user has passed this scenario
+            user_passed = ScormAttempt.objects.filter(
+                user=user,
+                scorm_package__topic=progress.topic,
+                lesson_status='passed'
+            ).exists()
+            
+            # Only include if user has passed
+            if user_passed:
+                filtered_topic_progress.append(progress)
+        else:
+            # Include non-SCORM content as usual
+            filtered_topic_progress.append(progress)
+    
+    # Update topic_progress with filtered results
+    topic_progress = filtered_topic_progress
+    
     # Calculate learning activities statistics
-    total_activities = topic_progress.count()
-    completed_activities = topic_progress.filter(completed=True).count()
-    activities_in_progress = topic_progress.filter(
-        completed=False,
-        attempts__gt=0
-    ).count()
-    activities_not_started = topic_progress.filter(
-        completed=False,
-        attempts=0
-    ).count()
+    total_activities = len(topic_progress)
+    completed_activities = len([p for p in topic_progress if p.completed])
+    activities_in_progress = len([p for p in topic_progress if not p.completed and p.attempts > 0])
+    activities_not_started = len([p for p in topic_progress if not p.completed and p.attempts == 0])
     
     # Calculate average activity score with proper SCORM handling
     from core.utils.scoring import ScoreCalculationService
     
-    scored_progress = topic_progress.filter(last_score__isnull=False, last_score__gte=0)
-    scored_activities_count = scored_progress.count()
+    scored_progress = [p for p in topic_progress if p.last_score is not None and p.last_score >= 0]
+    scored_activities_count = len(scored_progress)
     
     if scored_activities_count > 0:
         # Calculate properly normalized scores including SCORM
