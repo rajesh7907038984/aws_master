@@ -5646,10 +5646,10 @@ def remove_group_from_course(request, course_id, group_id):
             'error': "This group is not associated with the course."
         }, status=400)
 
-@login_required
 def stream_video(request, path):
     """
     Stream video content with proper headers for efficient buffering
+    Note: Removed @login_required to allow public access to course videos
     """
     try:
         # Sanitize path to prevent path traversal attacks
@@ -5659,11 +5659,9 @@ def stream_video(request, path):
         from django.core.files.storage import default_storage
         
         # Check if file exists and get size
+        # Note: For S3 storage, exists() is overridden to always return False to avoid permission issues
+        # So we'll try to open the file directly and handle errors appropriately
         try:
-            if not default_storage.exists(path):
-                logger.error(f"Video file not found: {path}")
-                return HttpResponseNotFound('Video file not found')
-            
             file_size = default_storage.size(path)
             file_obj = default_storage.open(path, 'rb')
         except Exception as open_error:
