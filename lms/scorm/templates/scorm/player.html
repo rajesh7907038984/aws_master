@@ -1650,6 +1650,13 @@
         // Inject bookmark data into iframe for immediate access
         function injectBookmarkData(iframeWindow) {
             try {
+                // ✅ CRITICAL FIX: Prevent multiple navigation attempts
+                if (window.bookmarkInjectionInProgress) {
+                    console.log('⚠️ RESUME: Bookmark injection already in progress, skipping duplicate');
+                    return;
+                }
+                window.bookmarkInjectionInProgress = true;
+                
                 // Preload bookmark data and make it available in the iframe
                 const bookmarkElements = [
                     'cmi.core.lesson_location',
@@ -1661,6 +1668,7 @@
                 
                 let hasBookmarkData = false;
                 let lessonLocation = '';
+                let navigationAttempted = false; // ✅ Guard against multiple navigation
                 
                 bookmarkElements.forEach(element => {
                     makeApiCall('GetValue', [element]).then(result => {
@@ -1672,12 +1680,13 @@
                             iframeWindow.scormBookmarkData = iframeWindow.scormBookmarkData || {};
                             iframeWindow.scormBookmarkData[element] = result;
                             
-                            // Track lesson_location specifically
-                            if (element === 'cmi.core.lesson_location' || element === 'cmi.location') {
+                            // Track lesson_location specifically (only process first valid location)
+                            if ((element === 'cmi.core.lesson_location' || element === 'cmi.location') && !lessonLocation) {
                                 lessonLocation = result;
                                 
                                 // ENHANCED: Navigate iframe to the bookmarked location for proper resume
-                                if (lessonLocation && lessonLocation.length > 0) {
+                                if (lessonLocation && lessonLocation.length > 0 && !navigationAttempted) {
+                                    navigationAttempted = true; // ✅ Prevent duplicate navigation
                                     console.log('✅ RESUME: Found lesson location:', lessonLocation);
                                     
                                     // Store bookmark for SCORM content to use (always, regardless of format)
@@ -1696,11 +1705,28 @@
                                                     // Construct the full URL for navigation
                                                     let resumeUrl = lessonLocation;
                                                     
-                                                    // If it's a relative path, make it absolute
+                                                    // ✅ CRITICAL FIX: Handle Rise package URLs properly to avoid duplication
                                                     if (!resumeUrl.startsWith('http') && !resumeUrl.startsWith('/')) {
                                                         const currentSrc = iframe.src;
-                                                        const baseUrl = currentSrc.substring(0, currentSrc.lastIndexOf('/') + 1);
-                                                        resumeUrl = baseUrl + resumeUrl;
+                                                        
+                                                        // For Rise packages, if lesson_location contains "index.html#", extract just the hash
+                                                        if (resumeUrl.includes('index.html#')) {
+                                                            const hashPart = resumeUrl.substring(resumeUrl.indexOf('#'));
+                                                            // Get base URL without the .html file
+                                                            const baseUrl = currentSrc.substring(0, currentSrc.lastIndexOf('/') + 1);
+                                                            resumeUrl = baseUrl + 'index.html' + hashPart;
+                                                        } 
+                                                        // If lesson_location is just a hash fragment like "#/lessons/xyz"
+                                                        else if (resumeUrl.startsWith('#')) {
+                                                            // Get base URL up to and including the .html file
+                                                            const baseUrl = currentSrc.split('?')[0].split('#')[0]; // Remove query params and hash
+                                                            resumeUrl = baseUrl + resumeUrl;
+                                                        }
+                                                        // Otherwise, append to base directory
+                                                        else {
+                                                            const baseUrl = currentSrc.substring(0, currentSrc.lastIndexOf('/') + 1);
+                                                            resumeUrl = baseUrl + resumeUrl;
+                                                        }
                                                     }
                                                     
                                                     console.log('🔄 RESUME: Navigating to:', resumeUrl);
@@ -1755,9 +1781,12 @@
                     } else {
                         console.log(' RESUME: Bookmark data injected successfully. SCORM content should resume from saved location.');
                     }
-                }, 500);
+                    // ✅ Reset the injection flag after completion
+                    window.bookmarkInjectionInProgress = false;
+                }, 3000); // Wait 3 seconds for all navigation to complete
             } catch (e) {
                 console.log('Could not inject bookmark data:', e.message);
+                window.bookmarkInjectionInProgress = false; // Reset on error
             }
         }
         
