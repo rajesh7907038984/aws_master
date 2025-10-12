@@ -375,7 +375,7 @@
                                         {% endif %}
                                     </div>
                                 </td>
-                                <td class="py-3 px-4">{{ progress.last_score|default:"-" }}</td>
+                                <td class="py-3 px-4">{{ progress.best_score|default:progress.last_score|default:"-" }}</td>
                                 <td class="py-3 px-4">{% if progress.completed %}{{ progress.completed_at|date:"d/m/Y" }}{% else %}-{% endif %}</td>
                                 <td class="py-3 px-4 text-center">
                                     <a href="{% url 'reports:activity_detail' progress.topic.id %}" class="text-gray-500 hover:text-gray-700 inline-block p-2">

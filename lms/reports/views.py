@@ -5126,10 +5126,12 @@ def course_detail(request, course_id):
                 if progress:
                     if progress.completed:
                         status = 'completed'
-                        score = normalize_score(progress.last_score)
+                        # CRITICAL FIX: Use best_score for reports (best achievement)
+                        score = normalize_score(progress.best_score) if progress.best_score is not None else normalize_score(progress.last_score)
                     elif progress.first_accessed:
                         status = 'in_progress'
-                        score = normalize_score(progress.last_score)
+                        # CRITICAL FIX: Use best_score for reports (best achievement)
+                        score = normalize_score(progress.best_score) if progress.best_score is not None else normalize_score(progress.last_score)
                     else:
                         status = 'not_started'
                         score = None
@@ -5454,10 +5456,12 @@ def _get_course_report_data(request, course_id):
                 if progress:
                     if progress.completed:
                         status = 'completed'
-                        score = normalize_score(progress.last_score)
+                        # CRITICAL FIX: Use best_score for reports (best achievement)
+                        score = normalize_score(progress.best_score) if progress.best_score is not None else normalize_score(progress.last_score)
                     elif progress.first_accessed:
                         status = 'in_progress'
-                        score = normalize_score(progress.last_score)
+                        # CRITICAL FIX: Use best_score for reports (best achievement)
+                        score = normalize_score(progress.best_score) if progress.best_score is not None else normalize_score(progress.last_score)
                     else:
                         status = 'not_started'
                         score = None

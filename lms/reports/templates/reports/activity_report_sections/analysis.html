@@ -155,7 +155,9 @@
                         {% endif %}
                     </td>
                     <td class="px-4 py-3">
-                        {% if progress.last_score %}
+                        {% if progress.best_score %}
+                            {{ progress.best_score|floatformat:1 }}%
+                        {% elif progress.last_score %}
                             {{ progress.last_score|floatformat:1 }}%
                         {% else %}
                             -
