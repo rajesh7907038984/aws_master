@@ -452,6 +452,7 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                         
                                         if is_completion_based or score_value >= passing_threshold:
                                             # Passed: Show as 100% (mastery achieved)
+                                            # For completion-based, always show 100/100
                                             display_score = 100
                                             display_max = 100
                                             achievement_status = 'passed'
@@ -463,6 +464,7 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                     else:
                                         # No score available - check completion status
                                         if attempt.lesson_status in ['completed', 'passed']:
+                                            # Completion-based: show 100/100
                                             display_score = 100
                                             display_max = 100
                                             achievement_status = 'passed'

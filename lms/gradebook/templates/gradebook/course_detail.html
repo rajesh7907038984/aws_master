@@ -1889,9 +1889,9 @@
                               {% if score_data.score is not None %}
                                 {% if score_data.achievement_status == 'passed' %}
                                   {% if score_data.raw_score and score_data.raw_score < score_data.mastery_threshold %}
-                                    MASTERY ACHIEVED (Completion-Based)
+                                    100/100
                                   {% else %}
-                                    MASTERY ACHIEVED ({{ score_data.raw_score|floatformat:0 }}/100)
+                                    {{ score_data.raw_score|floatformat:0 }}/100
                                   {% endif %}
                                 {% else %}
                                   {{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}
@@ -1903,7 +1903,7 @@
                           {% elif score_data.achievement_status == 'failed' or score_data.score is not None %}
                             <span class="grade-score grade-poor">
                               {% if score_data.achievement_status == 'failed' %}
-                                FAILED ({{ score_data.raw_score|floatformat:0 }}/100, Need {{ score_data.mastery_threshold|floatformat:0 }})
+                                {{ score_data.raw_score|floatformat:0 }}/{{ score_data.mastery_threshold|floatformat:0 }}
                               {% else %}
                                 {{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}
                               {% endif %}
@@ -1963,9 +1963,9 @@
                               {% if score_data.score is not None %}
                                 {% if score_data.achievement_status == 'passed' %}
                                   {% if score_data.raw_score and score_data.raw_score < score_data.mastery_threshold %}
-                                    MASTERY ACHIEVED (Completion-Based)
+                                    100/100
                                   {% else %}
-                                    MASTERY ACHIEVED ({{ score_data.raw_score|floatformat:0 }}/100)
+                                    {{ score_data.raw_score|floatformat:0 }}/100
                                   {% endif %}
                                 {% else %}
                                   {{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}
@@ -1977,7 +1977,7 @@
                           {% elif score_data.achievement_status == 'failed' or score_data.score is not None %}
                             <span class="grade-score grade-poor">
                               {% if score_data.achievement_status == 'failed' %}
-                                FAILED ({{ score_data.raw_score|floatformat:0 }}/100, Need {{ score_data.mastery_threshold|floatformat:0 }})
+                                {{ score_data.raw_score|floatformat:0 }}/{{ score_data.mastery_threshold|floatformat:0 }}
                               {% else %}
                                 {{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}
                               {% endif %}
