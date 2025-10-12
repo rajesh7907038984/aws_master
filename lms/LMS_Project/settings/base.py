@@ -6,8 +6,15 @@ Contains all common settings shared across environments.
 import os
 import sys
 import mimetypes
+import warnings
 from pathlib import Path
 from django.core.management.utils import get_random_secret_key
+
+# Suppress Python 3.7 deprecation warnings early
+os.environ.setdefault('PYTHONWARNINGS', 'ignore::DeprecationWarning:cryptography,ignore::DeprecationWarning:boto3,ignore::DeprecationWarning:pdfminer')
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="cryptography")
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="boto3")
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="pdfminer")
 
 # Load environment variables from unified .env file
 from core.env_loader import env_loader, get_env, get_bool_env, get_int_env, get_list_env, validate_environment
@@ -549,10 +556,23 @@ env_trusted_ips = get_list_env('TRUSTED_IPS', default=[])
 TRUSTED_IPS = DEFAULT_TRUSTED_IPS + env_trusted_ips
 
 # Content Session Settings
-X_FRAME_OPTIONS = 'SAMEORIGIN'  # Allow iframes from same origin (required for SCORM content)
+X_FRAME_OPTIONS = 'DENY'  # Enhanced security - SCORM content handled via CSP
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+
+# Content Security Policy - Allow SCORM content while maintaining security
+CSP_DEFAULT_SRC = ("'self'",)
+CSP_SCRIPT_SRC = ("'self'", "'unsafe-inline'", "'unsafe-eval'", "*.amazonaws.com")
+CSP_STYLE_SRC = ("'self'", "'unsafe-inline'", "*.amazonaws.com")
+CSP_IMG_SRC = ("'self'", "data:", "*.amazonaws.com")
+CSP_FONT_SRC = ("'self'", "*.amazonaws.com")
+CSP_CONNECT_SRC = ("'self'", "*.amazonaws.com")
+CSP_FRAME_SRC = ("'self'", "*.amazonaws.com")  # Allow SCORM content from S3
+CSP_OBJECT_SRC = ("'none'",)
+CSP_BASE_URI = ("'self'",)
+CSP_FRAME_ANCESTORS = ("'none'",)  # Prevent clickjacking
+
 
 # Content Security Policy - Allow S3 content for SCORM
 # Note: Individual views can override this with more permissive policies

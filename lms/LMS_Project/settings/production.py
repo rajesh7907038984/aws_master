@@ -151,8 +151,8 @@ print("📁 Using local static files storage for production (better performance)
 
 # SSL Configuration - ALB handles SSL termination
 # Enable SSL redirect since ALB terminates SSL and forwards to HTTP backend
-# Disabled for staging environment direct access
-SECURE_SSL_REDIRECT = False
+# Enabled for security - ALB handles SSL termination properly
+SECURE_SSL_REDIRECT = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
