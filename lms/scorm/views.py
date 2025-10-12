@@ -23,6 +23,7 @@ from .models import ScormPackage, ScormAttempt
 from .api_handler_enhanced import ScormAPIHandlerEnhanced
 from .preview_handler import ScormPreviewHandler
 from .s3_direct import scorm_s3
+from .universal_scorm_handler import UniversalSCORMHandler
 from courses.models import Topic
 
 logger = logging.getLogger(__name__)
@@ -668,6 +669,9 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
             # Inject lightweight SCORM API for HTML files
             if 'text/html' in content_type:
                 html_content = content.decode('utf-8')
+                
+                # UNIVERSAL SCORM HANDLER: Automatically fix all SCORM package types
+                html_content = UniversalSCORMHandler.fix_relative_paths(html_content, topic_id)
                 
                 # CRITICAL FIX: For xAPI/Tin Can packages (Articulate Storyline), 
                 # don't inject complex SCORM code - just provide parent API reference
