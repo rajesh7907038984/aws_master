@@ -892,7 +892,7 @@
                 }
             });
             
-            // ENHANCED: Periodic exit button scanner - catches dynamically added buttons
+            // ✅ UNIVERSAL EXIT BUTTON SCANNER - Works for ALL SCORM types
             let exitButtonScanCount = 0;
             const maxScans = 60; // Scan for up to 2 minutes (every 2 seconds)
             
@@ -901,7 +901,7 @@
                 
                 // Stop scanning after max attempts
                 if (exitButtonScanCount > maxScans) {
-                    console.log('Exit button scanner: Max scans reached, stopping periodic scanner');
+                    console.log('✅ Exit button scanner: Max scans reached, stopping periodic scanner');
                     clearInterval(exitButtonScanner);
                     return;
                 }
@@ -911,9 +911,28 @@
                     if (iframe && iframe.contentDocument) {
                         const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
                         if (iframeDoc) {
-                            const buttons = iframeDoc.querySelectorAll('button, input[type="button"], a[role="button"], [class*="exit"], [id*="exit"], [class*="close"], div[onclick], [onclick]');
+                            // ✅ UNIVERSAL: Check ALL interactive elements
+                            const allElements = iframeDoc.querySelectorAll(`
+                                button, 
+                                input[type="button"], 
+                                a[role="button"], 
+                                div[role="button"],
+                                [class*="exit"], 
+                                [id*="exit"], 
+                                [class*="close"],
+                                [class*="button"],
+                                [class*="btn"],
+                                div[onclick], 
+                                [onclick],
+                                .cs-button,
+                                .courseExit,
+                                [data-acc-text*="EXIT"],
+                                [data-acc-text*="Exit"],
+                                [aria-label*="exit"],
+                                [aria-label*="Exit"]
+                            `);
                             
-                            buttons.forEach(btn => {
+                            allElements.forEach(btn => {
                                 // Skip if already processed
                                 if (btn.dataset.exitHandlerAttached) return;
                                 
@@ -921,32 +940,49 @@
                                 const className = (btn.className || '').toLowerCase();
                                 const id = (btn.id || '').toLowerCase();
                                 const onClick = (btn.getAttribute('onclick') || '').toLowerCase();
+                                const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
+                                const dataAccText = (btn.getAttribute('data-acc-text') || '').toLowerCase();
                                 
-                                // Enhanced exit patterns
+                                // ✅ UNIVERSAL: Comprehensive exit patterns for ALL SCORM types
                                 const exitPatterns = [
                                     'exit', 'exit assessment', 'exit course', 'exit lesson',
                                     'move on', 'continue', 'finish', 'final assessment',
                                     'close', 'done', 'complete', 'submit and exit',
                                     'end course', 'end lesson', 'return to course',
-                                    'back to course', 'leave course'
+                                    'back to course', 'leave course', 'quit', 'leave'
                                 ];
                                 
                                 const isExitButton = exitPatterns.some(pattern => 
                                     text.includes(pattern) || 
                                     className.includes(pattern) || 
                                     id.includes(pattern) ||
-                                    onClick.includes(pattern)
+                                    onClick.includes(pattern) ||
+                                    ariaLabel.includes(pattern) ||
+                                    dataAccText.includes(pattern)
                                 );
                                 
                                 if (isExitButton) {
+                                    console.log(`🎯 [Scanner] Found exit button: "${text || className || id || ariaLabel}"`);
+                                    
                                     // Mark as processed
                                     btn.dataset.exitHandlerAttached = 'true';
                                     
-                                    // Attach handlers
+                                    // ✅ UNIVERSAL: Attach exit handler for ALL SCORM types
                                     btn.addEventListener('click', function(e) {
-                                        console.log('🚪 [Scanner] EXIT button clicked:', text || className || id);
+                                        console.log('🚪 [Scanner] EXIT button clicked:', text || className || id || ariaLabel);
                                         e.preventDefault();
                                         e.stopPropagation();
+                                        
+                                        // Commit SCORM data first
+                                        try {
+                                            if (window.API && window.API.LMSCommit) {
+                                                window.API.LMSCommit('');
+                                                console.log('✅ SCORM data committed before exit');
+                                            }
+                                        } catch(err) {
+                                            console.log('Note: Could not commit SCORM data:', err.message);
+                                        }
+                                        
                                         handleBackToTopic({ preventDefault: function() {} });
                                         return false;
                                     }, true);
@@ -2738,35 +2774,51 @@
                             // Enhanced exit button detection and handling
                             function handleExitButtons() {
                                 function findAndFixExitButtons() {
+                                    // ✅ FIXED: Remove invalid :contains() selectors, use vanilla JS
                                     const exitSelectors = [
                                         '.courseExit',
                                         '.courseExit--standard',
                                         'button[class*="exit"]',
                                         'button[class*="Exit"]',
-                                        'button:contains("EXIT")',
-                                        'button:contains("Exit")',
-                                        'button:contains("exit")',
                                         'input[type="button"][value*="EXIT"]',
                                         'input[type="button"][value*="Exit"]',
                                         'input[type="button"][value*="exit"]',
                                         'a[class*="exit"]',
-                                        'a:contains("EXIT")',
-                                        'a:contains("Exit")',
-                                        'a:contains("exit")',
                                         '[data-action="exit"]',
                                         '[data-exit="true"]',
                                         '.exit-button',
                                         '.exit-btn',
                                         '#exit-button',
-                                        '#exit-btn'
+                                        '#exit-btn',
+                                        // Storyline-specific selectors
+                                        '.cs-button',
+                                        'div[data-acc-text*="EXIT"]',
+                                        'div[data-acc-text*="Exit"]',
+                                        'div[aria-label*="exit"]',
+                                        'div[aria-label*="Exit"]'
                                     ];
                                     
                                     let buttonsFound = 0;
+                                    let allElements = new Set();
                                     
+                                    // Collect all potential exit elements
                                     exitSelectors.forEach(selector => {
                                         try {
                                             const buttons = document.querySelectorAll(selector);
-                                            buttons.forEach(button => {
+                                            buttons.forEach(button => allElements.add(button));
+                                        } catch (e) {
+                                            // Invalid selector, skip
+                                        }
+                                    });
+                                    
+                                    // ✅ NEW: Also check ALL buttons by text content (Storyline)
+                                    document.querySelectorAll('button, input[type="button"], a, div[role="button"], div.cs-button').forEach(el => {
+                                        allElements.add(el);
+                                    });
+                                    
+                                    // Process all collected elements
+                                    allElements.forEach(button => {
+                                        try {
                                                 const buttonText = button.textContent || button.value || '';
                                                 const buttonTitle = button.getAttribute('title') || '';
                                                 const buttonAriaLabel = button.getAttribute('aria-label') || '';
