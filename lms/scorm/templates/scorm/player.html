@@ -3211,41 +3211,51 @@
                         return;
                     }
                     
-                    // Fallback to slide completion logic
-                    const totalSlides = Object.keys(slideTimeTracker).length;
-                    const slidesWithTime = Object.values(slideTimeTracker).filter(time => time > 10).length;
+                    // ✅ CRITICAL FIX: Check if this is Storyline first!
+                    const iframe = document.getElementById('scormFrame');
+                    const isStoryline = iframe && iframe.src && iframe.src.includes('story.html');
                     
-                    if (totalSlides > 0) {
-                        const completionPercentage = Math.round((slidesWithTime / totalSlides) * 100);
+                    if (isStoryline) {
+                        // ⚠️ DO NOT auto-complete Storyline packages!
+                        // Storyline reports its own quiz scores and completion
+                        console.log('⚠️ Storyline detected - skipping auto-completion logic');
+                        console.log('   Storyline will report its own score when quiz is complete');
+                    } else {
+                        // Fallback to slide completion logic (for Rise, generic SCORM only)
+                        const totalSlides = Object.keys(slideTimeTracker).length;
+                        const slidesWithTime = Object.values(slideTimeTracker).filter(time => time > 10).length;
                         
-                        if (slidesWithTime >= totalSlides) {
-                            // All slides completed - mark as passed
-                            console.log(' All slides completed! Marking as PASSED (100%)');
+                        if (totalSlides > 0) {
+                            const completionPercentage = Math.round((slidesWithTime / totalSlides) * 100);
                             
-                            // Set score to 100%
-                            if (window.API && window.API.LMSSetValue) {
-                                window.API.LMSSetValue('cmi.core.score.raw', '100');
-                                window.API.LMSSetValue('cmi.core.lesson_status', 'passed');
-                                console.log(' Set SCORM 1.2: score=100, status=passed');
-                            }
-                            
-                            if (window.API_1484_11 && window.API_1484_11.SetValue) {
-                                window.API_1484_11.SetValue('cmi.score.raw', '100');
-                                window.API_1484_11.SetValue('cmi.completion_status', 'completed');
-                                window.API_1484_11.SetValue('cmi.success_status', 'passed');
-                                console.log(' Set SCORM 2004: score=100, completion=completed, success=passed');
-                            }
-                            
-                            // Commit the changes
-                            if (window.API && window.API.LMSCommit) {
-                                window.API.LMSCommit('');
-                            }
-                            if (window.API_1484_11 && window.API_1484_11.Commit) {
-                                window.API_1484_11.Commit('');
-                            }
-                            
-                            console.log(' SCORM content automatically marked as PASSED (100%)');
-                        } else {
+                            if (slidesWithTime >= totalSlides) {
+                                // All slides completed - mark as passed (NON-STORYLINE ONLY)
+                                console.log(' All slides completed! Marking as PASSED (100%)');
+                                
+                                // Set score to 100%
+                                if (window.API && window.API.LMSSetValue) {
+                                    window.API.LMSSetValue('cmi.core.score.raw', '100');
+                                    window.API.LMSSetValue('cmi.core.lesson_status', 'passed');
+                                    console.log(' Set SCORM 1.2: score=100, status=passed');
+                                }
+                                
+                                if (window.API_1484_11 && window.API_1484_11.SetValue) {
+                                    window.API_1484_11.SetValue('cmi.score.raw', '100');
+                                    window.API_1484_11.SetValue('cmi.completion_status', 'completed');
+                                    window.API_1484_11.SetValue('cmi.success_status', 'passed');
+                                    console.log(' Set SCORM 2004: score=100, completion=completed, success=passed');
+                                }
+                                
+                                // Commit the changes
+                                if (window.API && window.API.LMSCommit) {
+                                    window.API.LMSCommit('');
+                                }
+                                if (window.API_1484_11 && window.API_1484_11.Commit) {
+                                    window.API_1484_11.Commit('');
+                                }
+                                
+                                console.log(' SCORM content automatically marked as PASSED (100%)');
+                            } else {
                             // Partial completion - don't set final score
                             console.log(' Partial completion: ' + completionPercentage + '% (' + slidesWithTime + ' slides completed out of ' + totalSlides + ')');
                             console.log('⚠️ Not setting final score for partial completion');
@@ -3272,8 +3282,9 @@
                                 window.API.LMSSetValue('cmi.core.lesson_status', 'incomplete');
                                 console.log('⚠️ Storyline detected - preserved its suspend_data');
                             }
+                            }
                         }
-                    }
+                    } // End of Storyline check
                 } catch (error) {
                     console.error(' Error checking slide completion:', error);
                 }
