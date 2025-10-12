@@ -1,0 +1,95 @@
+SCORM [object Promise] URL Bug Fix
+===================================
+Date: October 12, 2025
+
+ISSUE IDENTIFIED:
+-----------------
+SCORM content URLs were being generated with "[object Promise]" instead of actual file paths:
+- Wrong: https://staging.nexsy.io/scorm/content/97/scormcontent/[object%20Promise]
+- Correct: https://staging.nexsy.io/scorm/content/97/scormcontent/index.html
+
+ROOT CAUSE:
+-----------
+The SCORM API injection in scorm/views.py (lines 385-488) was using ASYNC functions:
+- All API methods (Initialize, GetValue, SetValue, etc.) were defined as "async function"
+- Legacy SCORM content (like Articulate Storyline's scormdriver.js) calls these methods SYNCHRONOUSLY
+- When calling an async function without "await", it returns a Promise object
+- JavaScript concatenates Promise as string → "[object Promise]"
+
+Example from scormdriver/indexAPI.html:
+```javascript
+var bookmark = GetBookmark();  // Expected: "index.html", Got: Promise
+window.location.href = "../scormcontent/" + bookmark;  // Results in: "../scormcontent/[object Promise]"
+```
+
+THE FIX:
+--------
+1. Converted all SCORM API methods from ASYNC to SYNCHRONOUS (scorm/views.py)
+   - Changed from: async function + await fetch()
+   - Changed to: regular function + synchronous XMLHttpRequest
+   - xhr.open('POST', endpoint, false) - The "false" parameter makes it synchronous
+
+2. Added _getCookie helper function for CSRF token retrieval
+
+3. Improved fix_scorm_relative_paths() function logic:
+   - Better handling of multiple path replacements
+   - Added regex-based replacement to avoid double-fixing paths
+   - Prevents creating duplicate path prefixes
+
+TECHNICAL DETAILS:
+------------------
+File Modified: /home/ec2-user/lms/scorm/views.py
+
+Key Changes:
+- Line 385-488: Complete rewrite of API injection
+- Line 29-82: Improved fix_scorm_relative_paths() logic
+- All API methods now return immediate values (not Promises)
+- Maintains SCORM 1.2 and SCORM 2004 compatibility
+
+WHY SYNCHRONOUS XHR:
+--------------------
+While synchronous XHR is generally discouraged in modern web development:
+1. SCORM specification requires immediate return values
+2. Legacy SCORM content cannot be modified to use async/await
+3. SCORM API calls are small, fast operations
+4. This is the standard approach for SCORM LMS implementations
+
+TESTING:
+--------
+Test URL: https://staging.nexsy.io/scorm/view/97/
+Expected: Content loads correctly with proper file paths
+Previous: URLs contained [object Promise] causing "Content not found" errors
+
+DEPLOYMENT:
+-----------
+- Server restarted: October 12, 2025 at 13:18 UTC
+- Commit: 2471bb23
+- Branch: master
+- Status: ✅ Deployed to staging.nexsy.io
+
+IMPACT:
+-------
+✅ Fixes URL generation for ALL SCORM packages
+✅ Resolves "Content not found" errors
+✅ Maintains backward compatibility with existing content
+✅ No database changes required
+✅ No migration needed
+
+RELATED FILES:
+--------------
+- /home/ec2-user/lms/scorm/views.py (main fix)
+- /home/ec2-user/lms/scorm/templates/scorm/player.html (already uses sync XHR - correct)
+
+VERIFICATION:
+-------------
+1. Visit: https://staging.nexsy.io/scorm/view/97/
+2. Check browser console - should see proper file paths, no [object Promise]
+3. SCORM content should load and play correctly
+4. Check network requests - all /scorm/content/* URLs should resolve correctly
+
+NOTES:
+------
+- This fix applies to the API injection for content files served through Django proxy
+- The main player.html already used synchronous XHR (was correct)
+- The issue only affected SCORM packages that load through indexAPI.html or similar drivers
+- Auto-upload SCORM analysis and launch URL detection remain unchanged
