@@ -239,25 +239,6 @@
     </div>
 
     <script>
-        // Fallback timeout to hide loading overlay if onload doesn't fire
-        let loadingTimeout;
-        
-        // Initialize loading timeout as fallback
-        function initializeLoadingTimeout() {
-            loadingTimeout = setTimeout(() => {
-                console.log('Loading timeout reached, hiding overlay as fallback');
-                hideLoadingOverlay();
-            }, 5000); // 5 second fallback timeout
-        }
-        
-        // Clear timeout when content loads successfully
-        function clearLoadingTimeout() {
-            if (loadingTimeout) {
-                clearTimeout(loadingTimeout);
-                loadingTimeout = null;
-            }
-        }
-        
         // Handle iframe load events - defined early to avoid reference errors
         function handleFrameLoad() {
             console.log('handleFrameLoad called');
@@ -284,6 +265,38 @@
                 
                 // ENHANCED: For cross-origin SCORM content, use postMessage communication
                 setupCrossOriginExitHandling();
+            }
+        }
+        
+        // Handle iframe error events - defined early to avoid reference errors
+        function handleFrameError() {
+            const loading = document.getElementById('loading');
+            const frame = document.getElementById('scormFrame');
+            
+            if (loading) {
+                loading.innerHTML = 'Failed to load SCORM content';
+                loading.className = 'error';
+            }
+            
+            console.error('Failed to load SCORM content');
+        }
+        
+        // Fallback timeout to hide loading overlay if onload doesn't fire
+        let loadingTimeout;
+        
+        // Initialize loading timeout as fallback
+        function initializeLoadingTimeout() {
+            loadingTimeout = setTimeout(() => {
+                console.log('Loading timeout reached, hiding overlay as fallback');
+                hideLoadingOverlay();
+            }, 5000); // 5 second fallback timeout
+        }
+        
+        // Clear timeout when content loads successfully
+        function clearLoadingTimeout() {
+            if (loadingTimeout) {
+                clearTimeout(loadingTimeout);
+                loadingTimeout = null;
             }
         }
         
@@ -808,7 +821,6 @@
                             }
                         }
                     }
-                }
             } catch (e) {
                 // Cross-origin or other issues - ignore
             }
@@ -1309,18 +1321,6 @@
         // Simplified bookmark preloading - already handled in preloadCommonAPI
         function preloadBookmarkData() {
             console.log('Bookmark data loaded via preloadCommonAPI');
-        }
-        
-        function handleFrameError() {
-            const loading = document.getElementById('loading');
-            const frame = document.getElementById('scormFrame');
-            
-            if (loading) {
-                loading.innerHTML = 'Failed to load SCORM content';
-                loading.className = 'error';
-            }
-            
-            console.error('Failed to load SCORM content');
         }
         
         // Enhanced SCORM API injection into iframe document
