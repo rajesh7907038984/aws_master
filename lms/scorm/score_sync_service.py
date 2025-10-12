@@ -162,42 +162,38 @@ class ScormScoreSyncService:
     def _should_sync_score(attempt: 'ScormAttempt') -> bool:
         """
         Determine if an attempt should have its score synced
+        CRITICAL: Only sync when there's actual completion or a real SCORM score
+        DO NOT sync just because user viewed the content!
         """
-        # Always sync if attempt is completed/passed/failed
+        # ✅ PERMANENT FIX: Only sync if actually completed or passed
         if attempt.lesson_status in ['completed', 'passed', 'failed']:
+            logger.info(f"Syncing attempt {attempt.id} - Status: {attempt.lesson_status}")
             return True
         
-        # CRITICAL FIX: Sync if there's ANY valid score (including 0)
-        if attempt.score_raw is not None:
+        # ✅ PERMANENT FIX: Only sync if there's a REAL score from SCORM content
+        if attempt.score_raw is not None and attempt.score_raw > 0:
+            logger.info(f"Syncing attempt {attempt.id} - Has real score: {attempt.score_raw}")
             return True
         
-        # Check for score in CMI data (including scores of 0)
+        # ✅ PERMANENT FIX: Check for REAL score in CMI data (from SCORM content)
         if attempt.cmi_data:
             cmi_score = attempt.cmi_data.get('cmi.score.raw') or attempt.cmi_data.get('cmi.core.score.raw')
             if cmi_score is not None and cmi_score != '':
                 try:
                     score_val = float(cmi_score)
-                    # CRITICAL FIX: Accept any valid score >= 0 (not just > 0)
-                    if score_val >= 0:
+                    # Only sync if there's an actual score > 0
+                    if score_val > 0:
+                        logger.info(f"Syncing attempt {attempt.id} - CMI score: {score_val}")
                         return True
                 except:
                     pass
         
-        # CRITICAL FIX: Also check for any score data in attempt even if incomplete
-        # This ensures first visit scores are synced
-        if hasattr(attempt, 'score_raw') and attempt.score_raw is not None:
-            return True
+        # ❌ DO NOT sync just because user accessed content
+        # ❌ DO NOT sync just because there's time spent
+        # ❌ DO NOT sync just because there's suspend_data
+        # ✅ ONLY sync when there's ACTUAL completion or REAL scores
         
-        # NEW FIX: Always sync if user has accessed the content for more than 30 seconds
-        # This handles cases where SCORM content doesn't set explicit scores
-        # but learners have actually interacted with the content
-        if (attempt.last_accessed and 
-            attempt.started_at and 
-            (attempt.last_accessed - attempt.started_at).total_seconds() > 30):
-            logger.info(f"Syncing attempt {attempt.id} due to meaningful access time ({(attempt.last_accessed - attempt.started_at).total_seconds():.0f}s)")
-            return True
-            
-        # Don't sync only if there's truly no score data at all
+        logger.debug(f"NOT syncing attempt {attempt.id} - No completion or real score")
         return False
     
     @staticmethod
@@ -496,48 +492,11 @@ class ScormScoreSyncService:
                         # Use a more conservative score
                         return 75.0  # Cap at 75% if no evidence of completion
         
-        # NEW FIX: Handle cases where users have meaningful interaction but no explicit scores
-        # This is crucial for ensuring that all user interactions are tracked in the gradebook
-        if (attempt.last_accessed and 
-            attempt.started_at and 
-            (attempt.last_accessed - attempt.started_at).total_seconds() > 30):
-            
-            time_spent = (attempt.last_accessed - attempt.started_at).total_seconds()
-            
-            # Check if there's any progress data indicating meaningful interaction
-            progress_indicators = []
-            
-            # Check suspend_data for any progress hints
-            if attempt.suspend_data and len(attempt.suspend_data) > 10:
-                suspend_data_str = attempt.suspend_data.lower()
-                if any(keyword in suspend_data_str for keyword in ['progress', 'slide', 'page', 'section']):
-                    # User has interacted with content - give participation score
-                    progress_indicators.append(15.0)  # 15% for meaningful interaction
-            
-            # Check CMI data for any indication of interaction
-            if attempt.cmi_data and len(attempt.cmi_data) > 5:
-                # User has CMI data, which means they interacted with SCORM content
-                progress_indicators.append(10.0)  # 10% for SCORM interaction
-            
-            # Check completed slides or progress percentage
-            if (attempt.completed_slides and len(attempt.completed_slides) > 0) or \
-               (attempt.progress_percentage and attempt.progress_percentage > 0):
-                progress_indicators.append(20.0)  # 20% for measurable progress
-            
-            # Time-based scoring for meaningful engagement
-            if time_spent > 300:  # 5+ minutes = serious engagement
-                progress_indicators.append(25.0)  # 25% for extended engagement
-            elif time_spent > 120:  # 2+ minutes = basic engagement  
-                progress_indicators.append(15.0)  # 15% for basic engagement
-            elif time_spent > 60:  # 1+ minute = minimal engagement
-                progress_indicators.append(10.0)  # 10% for minimal engagement
-            
-            # Use the best progress indicator as score
-            if progress_indicators:
-                calculated_score = max(progress_indicators)
-                logger.info(f"Calculated interaction-based score for attempt {attempt.id}: {calculated_score}% (spent {time_spent:.0f}s, indicators: {progress_indicators})")
-                return calculated_score
+        # ❌ REMOVED: Do NOT give scores for just viewing/interacting
+        # ✅ PERMANENT FIX: Only return scores from actual SCORM completion
+        # Users must complete the activity to get a score
         
+        logger.debug(f"No valid score found for attempt {attempt.id} - user must complete activity")
         return None
     
     @staticmethod
