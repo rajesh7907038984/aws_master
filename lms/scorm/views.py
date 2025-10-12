@@ -133,7 +133,8 @@ def scorm_view(request, topic_id):
         attempt.is_preview = False  # Mark as real attempt
     
     # Generate content URL using Django proxy (for iframe compatibility)
-    content_url = f'/scorm/content/{topic_id}/{scorm_package.launch_url}'
+    # Include attempt_id in the URL for API access
+    content_url = f'/scorm/content/{topic_id}/{scorm_package.launch_url}?attempt_id={attempt_id}'
     
     context = {
         'topic': topic,
@@ -310,50 +311,80 @@ def scorm_content(request, topic_id, path):
                 if 'text/html' in content_type:
                     html_content = content.decode('utf-8')
                     
-                    # Inject SCORM API stub
-                    api_injection = '''
+                    # Inject SCORM API that connects to the real API endpoint
+                    # Get attempt_id from the URL parameters
+                    attempt_id = request.GET.get('attempt_id', 'preview')
+                    api_endpoint = f'/scorm/api/{attempt_id}/'
+                    api_injection = f'''
 <script>
-// SCORM API Stub for Content
-window.API = window.API_1484_11 = {
-    Initialize: function(param) { return "true"; },
-    LMSInitialize: function(param) { return "true"; },
-    Terminate: function(param) { return "true"; },
-    LMSFinish: function(param) { return "true"; },
-    GetValue: function(element) {
-        switch(element) {
-            case 'cmi.core.lesson_status':
-            case 'cmi.completion_status':
-                return 'incomplete';
-            case 'cmi.core.student_id':
-            case 'cmi.learner_id':
-                return 'student';
-            case 'cmi.core.student_name':
-            case 'cmi.learner_name':
-                return 'Student';
-            case 'cmi.core.score.max':
-            case 'cmi.score.max':
-                return '100';
-            case 'cmi.core.score.min':
-            case 'cmi.score.min':
-                return '0';
-            case 'cmi.mode':
-                return 'normal';
-            default:
-                return '';
-        }
-    },
-    LMSGetValue: function(element) { return this.GetValue(element); },
-    SetValue: function(element, value) { return "true"; },
-    LMSSetValue: function(element, value) { return this.SetValue(element, value); },
-    Commit: function(param) { return "true"; },
-    LMSCommit: function(param) { return "true"; },
-    GetLastError: function() { return "0"; },
-    LMSGetLastError: function() { return "0"; },
-    GetErrorString: function(code) { return "No error"; },
-    LMSGetErrorString: function(code) { return "No error"; },
-    GetDiagnostic: function(code) { return "No error"; },
-    LMSGetDiagnostic: function(code) { return "No error"; }
-};
+// SCORM API that connects to the real API endpoint
+window.API = window.API_1484_11 = {{
+    _apiEndpoint: '{api_endpoint}',
+    _lastError: '0',
+    
+    _makeAPICall: function(method, parameters) {{
+        try {{
+            const response = fetch(this._apiEndpoint, {{
+                method: 'POST',
+                headers: {{ 'Content-Type': 'application/json' }},
+                body: JSON.stringify({{ method: method, parameters: parameters || [] }})
+            }});
+            return response.then(r => r.json()).then(data => data.result);
+        }} catch (e) {{
+            console.error('SCORM API call failed:', e);
+            return 'false';
+        }}
+    }},
+    
+    Initialize: function(param) {{ 
+        return this._makeAPICall('Initialize', [param]); 
+    }},
+    LMSInitialize: function(param) {{ 
+        return this._makeAPICall('Initialize', [param]); 
+    }},
+    Terminate: function(param) {{ 
+        return this._makeAPICall('Terminate', [param]); 
+    }},
+    LMSFinish: function(param) {{ 
+        return this._makeAPICall('Terminate', [param]); 
+    }},
+    GetValue: function(element) {{ 
+        return this._makeAPICall('GetValue', [element]); 
+    }},
+    LMSGetValue: function(element) {{ 
+        return this._makeAPICall('GetValue', [element]); 
+    }},
+    SetValue: function(element, value) {{ 
+        return this._makeAPICall('SetValue', [element, value]); 
+    }},
+    LMSSetValue: function(element, value) {{ 
+        return this._makeAPICall('SetValue', [element, value]); 
+    }},
+    Commit: function(param) {{ 
+        return this._makeAPICall('Commit', [param]); 
+    }},
+    LMSCommit: function(param) {{ 
+        return this._makeAPICall('Commit', [param]); 
+    }},
+    GetLastError: function() {{ 
+        return this._lastError; 
+    }},
+    LMSGetLastError: function() {{ 
+        return this._lastError; 
+    }},
+    GetErrorString: function(code) {{ 
+        return this._makeAPICall('GetErrorString', [code]); 
+    }},
+    LMSGetErrorString: function(code) {{ 
+        return this._makeAPICall('GetErrorString', [code]); 
+    }},
+    GetDiagnostic: function(code) {{ 
+        return this._makeAPICall('GetDiagnostic', [code]); 
+    }},
+    LMSGetDiagnostic: function(code) {{ 
+        return this._makeAPICall('GetDiagnostic', [code]); 
+    }}
+}};
 </script>
 '''
                     
