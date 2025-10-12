@@ -1575,146 +1575,36 @@
                     
                     <div class="submission-info">
                       {% if activity.type == 'assignment' %}
-                        {% if score_data.excused %}
-                          <span class="grade-score grade-none">(Excused)</span>
-                          {% if score_data.submission %}
-                            {% if user.role != 'learner' %}
-                              <button onclick="openGradingSidebar('assignment', {{ activity.object.id }}, {{ student.id }}, {{ score_data.submission.id|default:'null' }})" class="view-btn grade-btn">
-                                GRADE
-                              </button>
-                              <a href="{% url 'assignments:assignment_detailed_report' activity.object.id %}?student_id={{ student.id }}" class="view-btn assignment-view-btn mt-1" style="font-size: 0.65rem;">
-                                DETAILED
-                              </a>
-                            {% else %}
-                              <a href="{% url 'assignments:assignment_detail' activity.object.id %}" class="view-btn assignment-view-btn">
-                                VIEW
-                              </a>
-                            {% endif %}
-                          {% endif %}
-                        {% elif score_data.score is not None %}
+                        {% if score_data.score is not None and score_data.score >= activity.max_score|mul:0.7 %}
+                          <!-- Only show score for passed assignments (70% or higher) -->
                           <div class="submission-date">
                             {{ score_data.date|date:"M d, Y" }}
                           </div>
                           <span class="grade-score 
                             {% if score_data.score >= activity.max_score|mul:0.9 %}grade-excellent
                             {% elif score_data.score >= activity.max_score|mul:0.8 %}grade-good
-                            {% elif score_data.score >= activity.max_score|mul:0.7 %}grade-average
-                            {% else %}grade-poor{% endif %}">
+                            {% else %}grade-average{% endif %}">
                             {{ score_data.score|floatformat:1 }}/{{ activity.max_score|floatformat:1 }}
                           </span>
-                          {% if user.role != 'learner' %}
-                            <button onclick="openGradingSidebar('assignment', {{ activity.object.id }}, {{ student.id }}, {{ score_data.submission.id|default:'null' }})" class="view-btn grade-btn">
-                              GRADE
-                            </button>
-                            <a href="{% url 'assignments:assignment_detailed_report' activity.object.id %}?student_id={{ student.id }}" class="view-btn assignment-view-btn mt-1" style="font-size: 0.65rem;">
-                              DETAILED
-                            </a>
-                          {% else %}
-                            {% has_feedback_available activity student.id as has_feedback %}
-                            {% if has_feedback %}
-                              <button onclick="showFeedback('assignment', {{ activity.object.id }}, {{ student.id }})" class="view-btn assignment-view-btn">
-                                VIEW FEEDBACK
-                              </button>
-                            {% else %}
-                              <a href="{% url 'assignments:assignment_detail' activity.object.id %}" class="view-btn assignment-view-btn">
-                                VIEW
-                              </a>
-                            {% endif %}
-                          {% endif %}
-                        {% elif score_data.submission and score_data.has_submission %}
-                          {# BUGFIX: Show actual submission status instead of generic message #}
-                          <div class="submission-date">
-                            {{ score_data.date|date:"M d, Y" }}
-                          </div>
-                          {% if score_data.submission.status == 'submitted' %}
-                            <span class="grade-score grade-pending">Submitted - Awaiting Grade</span>
-                          {% elif score_data.submission.status == 'not_graded' %}
-                            <span class="grade-score grade-pending">Not Graded Yet</span>
-                          {% elif score_data.submission.status == 'returned' %}
-                            <span class="grade-score grade-revision">Returned for Revision</span>
-                          {% elif score_data.submission.status == 'late' %}
-                            <span class="grade-score grade-late">Late Submission</span>
-                          {% elif score_data.submission.status == 'draft' %}
-                            <span class="grade-score grade-draft">Draft (Not Submitted)</span>
-                          {% else %}
-                            <span class="grade-score grade-pending">{{ score_data.submission.get_status_display }}</span>
-                          {% endif %}
-                          {% if user.role != 'learner' %}
-                            <button onclick="openGradingSidebar('assignment', {{ activity.object.id }}, {{ student.id }}, {{ score_data.submission.id|default:'null' }})" class="view-btn grade-btn">
-                              {% if score_data.submission.status == 'returned' %}RE-GRADE{% else %}GRADE NOW{% endif %}
-                            </button>
-                            <a href="{% url 'assignments:assignment_detailed_report' activity.object.id %}?student_id={{ student.id }}" class="view-btn assignment-view-btn mt-1" style="font-size: 0.65rem;">
-                              DETAILED
-                            </a>
-                          {% else %}
-                            {% if score_data.submission.status == 'returned' %}
-                              <a href="{% url 'assignments:assignment_detail' activity.object.id %}" class="view-btn assignment-view-btn grade-revision">
-                                REVISE
-                              </a>
-                            {% else %}
-                              <a href="{% url 'assignments:assignment_detail' activity.object.id %}" class="view-btn assignment-view-btn">
-                                VIEW
-                              </a>
-                            {% endif %}
-                          {% endif %}
                         {% else %}
-                          <span class="grade-score grade-none">Not Submitted</span>
-                          {% if user.role == 'learner' %}
-                            <a href="{% url 'assignments:assignment_detail' activity.object.id %}" class="view-btn assignment-view-btn">
-                              ATTEMPT
-                            </a>
-                          {% endif %}
+                          <!-- Don't show anything for non-passed or ungraded assignments -->
+                          <span class="grade-score grade-none">-</span>
                         {% endif %}
                         
                       {% elif activity.type == 'quiz' %}
-                        {% if not activity.object.is_active %}
-                          <span class="grade-score grade-unpublished">Inactive</span>
-                        {% elif score_data.score is not None %}
+                        {% if score_data.score is not None and score_data.score >= 70 %}
+                          <!-- Only show score for passed quizzes (70% or higher) -->
                           <div class="submission-date">
                             {{ score_data.date|date:"M d, Y" }}
                           </div>
                           {% if score_data.score_source == 'rubric' %}
-                            {% comment %}For rubric-based scoring, show points/total_points{% endcomment %}
-                            {% if score_data.score >= score_data.max_score|mul:0.7 %}
-                              <span class="grade-score grade-excellent">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
-                            {% else %}
-                              <span class="grade-score grade-poor">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
-                            {% endif %}
+                            <span class="grade-score grade-excellent">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
                           {% else %}
-                            {% comment %}For auto-calculated scoring, show percentage{% endcomment %}
-                            {% if score_data.score >= activity.object.passing_score|default:70 %}
-                              <span class="grade-score grade-excellent">{{ score_data.score|floatformat:1 }}%</span>
-                            {% else %}
-                              <span class="grade-score grade-poor">{{ score_data.score|floatformat:1 }}%</span>
-                            {% endif %}
-                          {% endif %}
-                          {% if user.role != 'learner' %}
-                            <button onclick="openGradingSidebar('quiz', {{ activity.object.id }}, {{ student.id }}, {{ score_data.attempt.id|default:'null' }})" class="view-btn grade-btn">
-                              GRADE
-                            </button>
-                            <a href="{% url 'quiz:quiz_detailed_report' activity.object.id %}?student_id={{ student.id }}" class="view-btn quiz-view-btn mt-1" style="font-size: 0.65rem;">
-                              DETAILED
-                            </a>
-                          {% else %}
-                            {% has_feedback_available activity student.id as quiz_has_feedback %}
-                            {% comment %}Quiz feedback logic: always show feedback if available, otherwise show results{% endcomment %}
-                            {% if quiz_has_feedback %}
-                              <button onclick="showFeedback('quiz', {{ activity.object.id }}, {{ student.id }})" class="view-btn quiz-view-btn">
-                                VIEW FEEDBACK
-                              </button>
-                            {% elif score_data.attempt and score_data.attempt.id %}
-                              <a href="{% url 'quiz:view_attempt' score_data.attempt.id %}" class="view-btn quiz-view-btn">
-                                VIEW RESULTS
-                              </a>
-                            {% endif %}
+                            <span class="grade-score grade-excellent">{{ score_data.score|floatformat:1 }}%</span>
                           {% endif %}
                         {% else %}
-                          <span class="grade-score grade-none">Not Attempted</span>
-                          {% if user.role == 'learner' %}
-                            <a href="{% url 'quiz:quiz_detail' activity.object.id %}" class="view-btn quiz-view-btn">
-                              ATTEMPT
-                            </a>
-                          {% endif %}
+                          <!-- Don't show anything for non-passed or ungraded quizzes -->
+                          <span class="grade-score grade-none">-</span>
                         {% endif %}
                         
                       {% elif activity.type == 'initial_assessment' %}
@@ -1859,167 +1749,60 @@
                         
                       {% elif activity.type == 'scorm' %}
                         {% get_student_activity_score student_scores student.id activity.object.id as score_data %}
-                        {% if score_data.in_progress %}
-                          <!-- SCORM in progress - show status but no score -->
+                        {% if score_data.success_status == 'passed' or score_data.completed or score_data.achievement_status == 'passed' %}
+                          <!-- Only show score for passed SCORM content -->
                           <div class="submission-date">
                             {{ score_data.date|date:"M d, Y" }}
                           </div>
-                          <span class="grade-score grade-good">
-                            {% if score_data.has_bookmark %}
-                              In Progress (Resume Available)
+                          <span class="grade-score grade-excellent">
+                            {% if score_data.score is not None %}
+                              {{ score_data.score|floatformat:1 }}%
                             {% else %}
-                              In Progress
+                              Completed
                             {% endif %}
                           </span>
+                        {% elif score_data.in_progress or score_data.has_bookmark %}
+                          <!-- Show resume button for learners who have started but not passed -->
+                          <span class="grade-score grade-none">In Progress</span>
                           {% if user.role == 'learner' %}
                             {% get_scorm_topic activity.object as scorm_topic %}
                             {% if scorm_topic %}
                               <a href="{% url 'courses:topic_view' scorm_topic.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
-                                {% if score_data.has_bookmark %}RESUME{% else %}CONTINUE{% endif %}
+                                RESUME
                               </a>
                             {% endif %}
                           {% endif %}
-                        {% elif score_data.score is not None or score_data.completed or score_data.completion_status == 'completed' or score_data.success_status == 'passed' %}
-                          <!-- SCORM completed - show mastery achievement status -->
-                          <div class="submission-date">
-                            {{ score_data.date|date:"M d, Y" }}
-                          </div>
-                          {% if score_data.achievement_status == 'passed' or score_data.success_status == 'passed' or score_data.completed %}
-                            <span class="grade-score grade-excellent">
-                              {% if score_data.score is not None %}
-                                <!-- CRITICAL FIX: Display actual SCORM score without multiplication -->
-                                {{ score_data.score|floatformat:1 }}%
-                              {% else %}
-                                Completed
-                              {% endif %}
-                            </span>
-                          {% elif score_data.achievement_status == 'failed' or score_data.score is not None %}
-                            <span class="grade-score grade-poor">
-                              {% if score_data.score is not None %}
-                                <!-- CRITICAL FIX: Display actual SCORM score without multiplication -->
-                                {{ score_data.score|floatformat:1 }}%
-                              {% else %}
-                                Failed
-                              {% endif %}
-                            </span>
-                          {% endif %}
-                          {% comment %}FIXED: Don't show action buttons for completed SCORM - it's done!{% endcomment %}
-                          {% if user.role == 'learner' %}
-                            {% get_scorm_topic activity.object as scorm_topic %}
-                            {% if scorm_topic %}
-                              {% if score_data.success_status == 'passed' or score_data.completed %}
-                                <!-- SCORM is completed/passed - show resume and retake options -->
-                                <div class="completion-status">
-                                  <i class="fas fa-check-circle" style="color: #28a745;"></i>
-                                  <span style="color: #28a745; font-weight: 600;">COMPLETED</span>
-                                </div>
-                                {% if score_data.show_resume %}
-                                  <a href="{% url 'courses:topic_view' scorm_topic.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white; margin-top: 5px;">
-                                    RESUME
-                                  </a>
-                                {% endif %}
-                                <a href="{% url 'courses:topic_view' scorm_topic.id %}?retake=true" class="view-btn" style="color: #6c757d; border-color: #6c757d; background: white; margin-top: 5px;">
-                                  RETAKE
-                                </a>
-                              {% else %}
-                                <!-- SCORM not completed - show appropriate action button -->
-                                <a href="{% url 'courses:topic_view' scorm_topic.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
-                                  {% if score_data.show_resume %}RESUME{% elif score_data.in_progress %}CONTINUE{% else %}LAUNCH{% endif %}
-                                </a>
-                              {% endif %}
-                            {% endif %}
-                          {% endif %}
                         {% else %}
-                          {% if score_data.success_status == 'failed' %}
-                            <span class="grade-score grade-poor">Failed</span>
-                            {% if user.role == 'learner' %}
-                              {% get_scorm_topic activity.object as scorm_topic %}
-                              {% if scorm_topic %}
-                                <a href="{% url 'courses:topic_view' scorm_topic.id %}" class="view-btn" style="color: #dc3545; border-color: #dc3545; background: white;">
-                                  RETRY
-                                </a>
-                              {% endif %}
-                            {% endif %}
-                          {% else %}
-                            <span class="grade-score grade-none">Not Started</span>
-                            {% if user.role == 'learner' %}
-                              {% get_scorm_topic activity.object as scorm_topic %}
-                              {% if scorm_topic %}
-                                <a href="{% url 'courses:topic_view' scorm_topic.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
-                                  LAUNCH
-                                </a>
-                              {% endif %}
-                            {% endif %}
-                          {% endif %}
+                          <!-- Don't show anything for non-started SCORM content -->
+                          <span class="grade-score grade-none">-</span>
                         {% endif %}
                         
                       {% elif activity.type == 'scorm_topic' %}
                         {% comment %}SCORM topics - check TopicProgress for scores{% endcomment %}
                         {% get_student_activity_score student_scores student.id activity.object.id as score_data %}
-                        {% if score_data.score is not None or score_data.completed %}
+                        {% if score_data.success_status == 'passed' or score_data.completed or score_data.achievement_status == 'passed' %}
+                          <!-- Only show score for passed SCORM topics -->
                           <div class="submission-date">
                             {{ score_data.date|date:"M d, Y" }}
                           </div>
-                          {% if score_data.achievement_status == 'passed' or score_data.success_status == 'passed' or score_data.completed %}
-                            <span class="grade-score grade-excellent">
-                              {% if score_data.score is not None %}
-                                <!-- CRITICAL FIX: Display actual SCORM score without multiplication -->
-                                {{ score_data.score|floatformat:1 }}%
-                              {% else %}
-                                Completed
-                              {% endif %}
-                            </span>
-                          {% elif score_data.achievement_status == 'failed' or score_data.score is not None %}
-                            <span class="grade-score grade-poor">
-                              {% if score_data.score is not None %}
-                                <!-- CRITICAL FIX: Display actual SCORM score without multiplication -->
-                                {{ score_data.score|floatformat:1 }}%
-                              {% else %}
-                                Failed
-                              {% endif %}
-                            </span>
-                          {% endif %}
-                          {% comment %}FIXED: Show completion status for completed SCORM topics{% endcomment %}
-                          {% if user.role == 'learner' %}
-                            {% if score_data.success_status == 'passed' or score_data.completed %}
-                              <!-- SCORM topic completed - show completion status -->
-                              <div class="completion-status" style="margin-top: 5px;">
-                                <i class="fas fa-award" style="color: #28a745; margin-right: 5px;"></i>
-                                <span style="color: #28a745; font-weight: 600; font-size: 0.9rem;">PASSED</span>
-                              </div>
+                          <span class="grade-score grade-excellent">
+                            {% if score_data.score is not None %}
+                              {{ score_data.score|floatformat:1 }}%
                             {% else %}
-                              <!-- SCORM topic not completed - show action button -->
-                              <a href="{% url 'courses:topic_view' activity.object.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
-                                VIEW
-                              </a>
+                              Completed
                             {% endif %}
-                          {% endif %}
-                        {% elif score_data.success_status == 'in_progress' %}
-                          <div class="submission-date">
-                            {{ score_data.date|date:"M d, Y" }}
-                          </div>
-                          <span class="grade-score grade-average">In Progress</span>
+                          </span>
+                        {% elif score_data.success_status == 'in_progress' or score_data.last_accessed %}
+                          <!-- Show resume button for learners who have started but not passed -->
+                          <span class="grade-score grade-none">In Progress</span>
                           {% if user.role == 'learner' %}
-                            <a href="{% url 'courses:topic_view' activity.object.id %}" class="view-btn" style="color: #ffc107; border-color: #ffc107; background: white;">
-                              CONTINUE
+                            <a href="{% url 'courses:topic_view' activity.object.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
+                              RESUME
                             </a>
                           {% endif %}
                         {% else %}
-                          {% if score_data.success_status == 'failed' %}
-                            <span class="grade-score grade-poor">Failed</span>
-                            {% if user.role == 'learner' %}
-                              <a href="{% url 'courses:topic_view' activity.object.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
-                                RETRY
-                              </a>
-                            {% endif %}
-                          {% else %}
-                            <span class="grade-score grade-none">Not Started</span>
-                            {% if user.role == 'learner' %}
-                              <a href="{% url 'courses:topic_view' activity.object.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
-                                LAUNCH
-                              </a>
-                            {% endif %}
-                          {% endif %}
+                          <!-- Don't show anything for non-started SCORM topics -->
+                          <span class="grade-score grade-none">-</span>
                         {% endif %}
                         
                       {% endif %}
