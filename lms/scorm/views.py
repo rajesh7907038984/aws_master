@@ -338,24 +338,28 @@ def scorm_content(request, topic_id, path):
         except ScormPackage.DoesNotExist:
             return HttpResponse('SCORM package not found', status=404)
         
-        # Use Django storage backend to fetch content (authenticated access)
-        from django.core.files.storage import default_storage
+        # Use boto3 directly to fetch content (authenticated access)
+        # Django storage prepends 'media/' automatically, but we need the full S3 path
+        import boto3
+        from django.conf import settings
         
-        # Build the S3 key for the file
-        s3_key = f"{scorm_package.extracted_path}/{path}"
+        # Build the S3 key for the file (with media/ prefix for direct S3 access)
+        s3_key = f"media/{scorm_package.extracted_path}/{path}"
+        
+        # Initialize S3 client
+        s3_client = boto3.client('s3', region_name=settings.AWS_S3_REGION_NAME)
+        bucket_name = settings.AWS_STORAGE_BUCKET_NAME
         
         # For HTML files, we need to proxy to inject API
         if path.endswith(('.html', '.htm')):
             try:
-                # Use Django storage to get the file content
-                # Note: exists() method returns False due to S3 storage configuration
-                # So we try to open the file directly and handle the exception
+                # Use boto3 to get the file content directly from S3
                 try:
-                    with default_storage.open(s3_key, 'rb') as f:
-                        content = f.read()
+                    response = s3_client.get_object(Bucket=bucket_name, Key=s3_key)
+                    content = response['Body'].read()
                     content_type = 'text/html; charset=utf-8'
                 except Exception as e:
-                    logger.error(f"Failed to open file {s3_key}: {str(e)}")
+                    logger.error(f"Failed to get S3 object {s3_key}: {str(e)}")
                     return HttpResponse('Content not found', status=404)
                 
                 # Inject SCORM API for HTML files
@@ -466,13 +470,12 @@ window.API = window.API_1484_11 = {{
                 logger.error(f"Failed to fetch content: {str(e)}")
                 return HttpResponse(f'Failed to load content: {str(e)}', status=502)
         else:
-            # For non-HTML files, serve through Django storage
+            # For non-HTML files, serve through boto3
             try:
-                # Note: exists() method returns False due to S3 storage configuration
-                # So we try to open the file directly and handle the exception
+                # Use boto3 to get the file content directly from S3
                 try:
-                    with default_storage.open(s3_key, 'rb') as f:
-                        content = f.read()
+                    response = s3_client.get_object(Bucket=bucket_name, Key=s3_key)
+                    content = response['Body'].read()
                     
                     # Determine content type based on file extension
                     import mimetypes
@@ -484,7 +487,7 @@ window.API = window.API_1484_11 = {{
                     response_obj['Access-Control-Allow-Origin'] = '*'
                     return response_obj
                 except Exception as e:
-                    logger.error(f"Failed to open file {s3_key}: {str(e)}")
+                    logger.error(f"Failed to get S3 object {s3_key}: {str(e)}")
                     return HttpResponse('Content not found', status=404)
             except Exception as e:
                 logger.error(f"Failed to serve content: {str(e)}")
