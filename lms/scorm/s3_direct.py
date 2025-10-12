@@ -31,14 +31,14 @@ class ScormS3DirectAccess:
     
     def generate_direct_url(self, scorm_package, file_path=''):
         """
-        Generate S3 key for authenticated access (not public URL)
+        Generate full S3 URL for content access
         
         Args:
             scorm_package: ScormPackage instance
             file_path: Optional file path within the package
             
         Returns:
-            S3 key for authenticated access
+            Full HTTPS URL to S3 content
         """
         try:
             # Build S3 key path
@@ -48,11 +48,14 @@ class ScormS3DirectAccess:
             else:
                 s3_key = f"{base_path}/{scorm_package.launch_url}"
             
-            logger.info(f"Generated S3 key for authenticated access: {s3_key}")
-            return s3_key
+            # Generate full HTTPS URL
+            full_url = f"https://{self.bucket_name}.s3.{self.region}.amazonaws.com/{s3_key}"
+            
+            logger.info(f"Generated S3 URL: {full_url}")
+            return full_url
             
         except Exception as e:
-            logger.error(f"Error generating S3 key: {str(e)}")
+            logger.error(f"Error generating S3 URL: {str(e)}")
             return None
     
     def generate_launch_url(self, scorm_package):
@@ -66,6 +69,30 @@ class ScormS3DirectAccess:
             Direct HTTPS URL to launch file
         """
         return self.generate_direct_url(scorm_package)
+    
+    def get_s3_key(self, scorm_package, file_path=''):
+        """
+        Get S3 key for authenticated access (for boto3 operations)
+        
+        Args:
+            scorm_package: ScormPackage instance
+            file_path: Optional file path within the package
+            
+        Returns:
+            S3 key for boto3 operations
+        """
+        try:
+            base_path = f"{self.media_location}/{scorm_package.extracted_path}"
+            if file_path:
+                s3_key = f"{base_path}/{file_path}"
+            else:
+                s3_key = f"{base_path}/{scorm_package.launch_url}"
+            
+            return s3_key
+            
+        except Exception as e:
+            logger.error(f"Error generating S3 key: {str(e)}")
+            return None
     
     def get_base_url(self, scorm_package):
         """
@@ -93,12 +120,10 @@ class ScormS3DirectAccess:
             Boolean indicating if file exists
         """
         try:
-            base_path = f"{self.media_location}/{scorm_package.extracted_path}"
-            if file_path:
-                s3_key = f"{base_path}/{file_path}"
-            else:
-                s3_key = f"{base_path}/{scorm_package.launch_url}"
-            
+            s3_key = self.get_s3_key(scorm_package, file_path)
+            if not s3_key:
+                return False
+                
             self.s3_client.head_object(Bucket=self.bucket_name, Key=s3_key)
             return True
             
