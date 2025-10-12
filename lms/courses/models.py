@@ -2318,6 +2318,10 @@ class TopicProgress(models.Model):
             if self.best_score is None or registration.score > self.best_score:
                 self.best_score = registration.score
         
+        # Update total time spent from SCORM registration
+        if registration.total_time is not None and registration.total_time > 0:
+            self.total_time_spent = registration.total_time
+        
         # Update completion data
         if not self.completion_data:
             self.completion_data = {}
@@ -2337,7 +2341,7 @@ class TopicProgress(models.Model):
         self.progress_data.update({
             'status': registration.completion_status,
             'score': float(registration.score) if registration.score else None,
-            'total_time': self.total_time_spent + registration.total_time,
+            'total_time': self.total_time_spent,
             'last_updated': timezone.now().isoformat()
         })
         
