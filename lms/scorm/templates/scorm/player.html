@@ -3111,20 +3111,6 @@
                     clearInterval(periodicCheck);
                 }
             }, 500); // Check every 500ms
-            
-            // SIMPLIFIED: Add a simple click handler for Save & Exit button as backup
-            const saveExitBtn = document.getElementById('backToTopicBtn');
-            if (saveExitBtn) {
-                saveExitBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    console.log('Save & Exit button clicked (backup handler)');
-                    
-                    // Simple redirect - no complex SCORM logic
-                    setTimeout(() => {
-                        window.location.href = '{% url "courses:topic_view" topic.id %}';
-                    }, 100);
-                });
-            }
         });
     </script>
 </body>
