@@ -93,14 +93,19 @@ class ScormScoreSyncService:
             topic_progress.attempts = max(topic_progress.attempts or 0, scorm_attempt.attempt_number)
             
             # Update total time spent from SCORM attempt
-            if scorm_attempt.total_time:
+            # CRITICAL FIX: Use time_spent_seconds directly (from suspend_data)
+            if scorm_attempt.time_spent_seconds and scorm_attempt.time_spent_seconds > 0:
+                # Use time_spent_seconds directly (already parsed from suspend_data)
+                topic_progress.total_time_spent = max(topic_progress.total_time_spent or 0, int(scorm_attempt.time_spent_seconds))
+                logger.info(f"⏱️ Updated time for attempt {scorm_attempt.id}: {scorm_attempt.time_spent_seconds}s (from time_spent_seconds)")
+            elif scorm_attempt.total_time:
                 try:
-                    # Parse SCORM time format (hhhh:mm:ss.ss or PT1H30M45S)
+                    # Fallback: Parse SCORM time format (hhhh:mm:ss.ss or PT1H30M45S)
                     time_seconds = ScormScoreSyncService._parse_scorm_time(scorm_attempt.total_time)
                     if time_seconds > 0:
                         # Update with the latest time value (don't add, as total_time is cumulative)
                         topic_progress.total_time_spent = max(topic_progress.total_time_spent or 0, int(time_seconds))
-                        logger.info(f"Updated time for attempt {scorm_attempt.id}: {time_seconds}s")
+                        logger.info(f"⏱️ Updated time for attempt {scorm_attempt.id}: {time_seconds}s (from total_time)")
                 except Exception as e:
                     logger.warning(f"Could not parse time from attempt {scorm_attempt.id}: {e}")
             
