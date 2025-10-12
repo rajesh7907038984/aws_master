@@ -77,18 +77,22 @@ class ScormScoreSyncService:
             if topic_progress.best_score is None or score_value > float(topic_progress.best_score):
                 topic_progress.best_score = Decimal(str(score_value))
             
-            # CRITICAL FIX: For SCORM content, always use best_score as last_score
-            # This prevents score downgrade when users retake content
-            # Gradebook displays last_score, so it should show their best achievement
-            topic_progress.last_score = topic_progress.best_score if topic_progress.best_score is not None else Decimal(str(score_value))
+            # CRITICAL FIX: Use the actual SCORM score, not the best score
+            # This ensures accurate reporting of what the learner actually achieved
+            # Gradebook should show the actual score from SCORM content
+            topic_progress.last_score = Decimal(str(score_value))
             
             # Update completion status
             # CRITICAL FIX: Only mark as completed if actually completed or passed, NOT failed
+            # According to SCORM standards, 'failed' means not completed
             is_completed = scorm_attempt.lesson_status in ['completed', 'passed']
             if is_completed and not topic_progress.completed:
                 topic_progress.completed = True
                 topic_progress.completion_method = 'scorm'
                 topic_progress.completed_at = timezone.now()
+            elif scorm_attempt.lesson_status == 'failed':
+                # If failed, ensure it's marked as not completed
+                topic_progress.completed = False
             
             # Update attempts count
             topic_progress.attempts = max(topic_progress.attempts or 0, scorm_attempt.attempt_number)
@@ -434,8 +438,56 @@ class ScormScoreSyncService:
             except Exception as e:
                 logger.warning(f"Could not extract from CMI data for attempt {attempt.id}: {e}")
         
-        # Return the highest score found
-        return max(scores) if scores else None
+        # CRITICAL FIX: Return the ACTUAL SCORM score, not the maximum
+        # According to SCORM standards, we should prioritize the actual score from SCORM content
+        # not the highest value from all sources
+        
+        # Priority 1: Use actual SCORM score if available
+        if attempt.score_raw is not None:
+            return float(attempt.score_raw)
+        
+        # Priority 2: Use CMI data scores (actual SCORM scores)
+        if attempt.cmi_data:
+            # SCORM 2004
+            cmi_score = attempt.cmi_data.get('cmi.score.raw')
+            if cmi_score is not None and cmi_score != '':
+                try:
+                    return float(cmi_score)
+                except:
+                    pass
+            
+            # SCORM 1.2
+            core_score = attempt.cmi_data.get('cmi.core.score.raw')
+            if core_score is not None and core_score != '':
+                try:
+                    return float(core_score)
+                except:
+                    pass
+        
+        # Priority 3: Only use progress/slide data if NO actual SCORM score exists
+        # and only if it's reasonable (not suspiciously high)
+        if scores:
+            # Filter out suspiciously high scores (likely from progress percentage)
+            reasonable_scores = [s for s in scores if s <= 100 and s >= 0]
+            if reasonable_scores:
+                # For slide-based content, use the most conservative score
+                # Don't trust 100% unless there's clear evidence of completion
+                conservative_scores = [s for s in reasonable_scores if s < 100]
+                if conservative_scores:
+                    return max(conservative_scores)
+                elif 100 in reasonable_scores:
+                    # Only use 100% if there's evidence of actual completion
+                    has_completion_evidence = (
+                        attempt.lesson_status in ['completed', 'passed'] or
+                        (attempt.suspend_data and 'completed=true' in attempt.suspend_data.lower())
+                    )
+                    if has_completion_evidence:
+                        return 100.0
+                    else:
+                        # Use a more conservative score
+                        return 75.0  # Cap at 75% if no evidence of completion
+        
+        return None
     
     @staticmethod
     def _parse_scorm_time(time_str: str) -> int:
