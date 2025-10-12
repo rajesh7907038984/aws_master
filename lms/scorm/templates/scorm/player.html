@@ -1445,11 +1445,15 @@
                                 
                                 // ENHANCED: Navigate iframe to the bookmarked location for proper resume
                                 if (lessonLocation && lessonLocation.length > 0) {
-                                    console.log(' RESUME: Found lesson location:', lessonLocation);
+                                    console.log('✅ RESUME: Found lesson location:', lessonLocation);
                                     
-                                    // Check if it looks like a valid bookmark (contains file extension or anchor)
+                                    // Store bookmark for SCORM content to use (always, regardless of format)
+                                    // The SCORM content will handle resuming based on this data
+                                    console.log('✅ RESUME: Bookmark data available for SCORM content');
+                                    
+                                    // Check if it looks like a URL that we should navigate to directly
                                     if (lessonLocation.includes('.html') || lessonLocation.includes('#') || lessonLocation.includes('?')) {
-                                        console.log(' RESUME: Navigating iframe to bookmarked location:', lessonLocation);
+                                        console.log('🔄 RESUME: Navigating iframe to bookmarked URL:', lessonLocation);
                                         
                                         // Wait for iframe to be ready, then navigate
                                         setTimeout(() => {
@@ -1466,25 +1470,43 @@
                                                         resumeUrl = baseUrl + resumeUrl;
                                                     }
                                                     
-                                                    console.log(' RESUME: Navigating to:', resumeUrl);
+                                                    console.log('🔄 RESUME: Navigating to:', resumeUrl);
                                                     
                                                     // Navigate the iframe to the resume location
                                                     iframe.src = resumeUrl;
                                                     
-                                                    // Also try to set the location via postMessage for modern SCORM packages
-                                                    iframe.contentWindow.postMessage({
-                                                        type: 'scorm_resume',
-                                                        lesson_location: lessonLocation,
-                                                        action: 'navigate_to_location'
-                                                    }, '*');
-                                                    
-                                                    console.log(' RESUME: Iframe navigation initiated');
+                                                    console.log('✅ RESUME: Direct URL navigation initiated');
                                                 }
                                             } catch (e) {
                                                 console.log('⚠️ RESUME: Could not navigate iframe:', e.message);
                                             }
                                         }, 1000); // Wait 1 second for iframe to be ready
+                                    } else {
+                                        console.log('📍 RESUME: Slide/screen identifier detected (not a URL)');
+                                        console.log('📍 RESUME: SCORM content will use GetValue("cmi.core.lesson_location") to resume');
+                                        
+                                        // For slide identifiers (e.g., "slide cs-6B69syur1W9"), the SCORM content
+                                        // will automatically read the lesson_location via GetValue and resume accordingly
+                                        // We just need to ensure the data is available (which it is via the API)
                                     }
+                                    
+                                    // ALWAYS send postMessage with bookmark data for modern SCORM packages
+                                    // This works for both URL-based and slide-identifier-based bookmarks
+                                    setTimeout(() => {
+                                        try {
+                                            const iframe = document.getElementById('scormFrame');
+                                            if (iframe && iframe.contentWindow) {
+                                                iframe.contentWindow.postMessage({
+                                                    type: 'scorm_resume',
+                                                    lesson_location: lessonLocation,
+                                                    action: 'navigate_to_location'
+                                                }, '*');
+                                                console.log('✅ RESUME: PostMessage sent to SCORM content with bookmark data');
+                                            }
+                                        } catch (e) {
+                                            console.log('⚠️ RESUME: Could not send postMessage:', e.message);
+                                        }
+                                    }, 1500); // Wait 1.5 seconds for iframe to be ready
                                 }
                             }
                         }

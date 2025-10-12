@@ -215,12 +215,37 @@ class ScormAPIHandler:
     
     def get_value(self, element):
         """LMSGetValue / GetValue"""
-        if not self.initialized:
+        # CRITICAL FIX: Allow GetValue for resume-critical elements even before initialization
+        # This is needed because some SCORM packages check bookmark data before calling Initialize
+        resume_critical_elements = [
+            'cmi.core.lesson_location', 'cmi.location',
+            'cmi.suspend_data',
+            'cmi.core.entry', 'cmi.entry'
+        ]
+        
+        if not self.initialized and element not in resume_critical_elements:
             self.last_error = '301'
             logger.warning(f"SCORM API GetValue called before initialization for element: {element}")
             return ''
         
         try:
+            # For resume-critical elements before initialization, return from model fields directly
+            if not self.initialized and element in resume_critical_elements:
+                logger.info(f"SCORM API GetValue({element}) called before initialization - returning from model")
+                if element in ['cmi.core.lesson_location', 'cmi.location']:
+                    value = self.attempt.lesson_location or ''
+                elif element == 'cmi.suspend_data':
+                    value = self.attempt.suspend_data or ''
+                elif element in ['cmi.core.entry', 'cmi.entry']:
+                    # Check if we have bookmark data to determine entry mode
+                    has_bookmark = bool(self.attempt.lesson_location or self.attempt.suspend_data)
+                    value = 'resume' if has_bookmark else 'ab-initio'
+                else:
+                    value = ''
+                logger.info(f"SCORM API GetValue({element}) before init - returning: '{value[:100] if isinstance(value, str) else value}'")
+                self.last_error = '0'
+                return str(value)
+            
             value = self.attempt.cmi_data.get(element, '')
             
             # Log the retrieved value for debugging
