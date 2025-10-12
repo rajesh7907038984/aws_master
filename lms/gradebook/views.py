@@ -594,10 +594,10 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                     
                                     # Find the topic linked to this SCORM package
                                     # SCORM packages are directly linked to topics
-                                    topic = activity['object'].topic if hasattr(activity['object'], 'topic') else None
-                                    scorm_package = activity['object']
+                                    topic = activity['object']
+                                    scorm_package = topic.scorm_package if hasattr(topic, 'scorm_package') else None
                                     # mastery_score is used only for pass/fail threshold, NOT as max_score
-                                    passing_threshold = float(scorm_package.mastery_score) if scorm_package.mastery_score else 70
+                                    passing_threshold = float(scorm_package.mastery_score) if scorm_package and scorm_package.mastery_score else 70
                                     
                                     if topic:
                                         topic_progress = TopicProgress.objects.filter(
