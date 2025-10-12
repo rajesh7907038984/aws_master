@@ -67,14 +67,14 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(' No pending migrations found'))
             return
 
-        self.stdout.write(f'📋 Found {len(pending_migrations)} pending migrations')
+        self.stdout.write(f' Found {len(pending_migrations)} pending migrations')
         
         # Show migrations that would be applied
         for app_label, migration_name in pending_migrations:
             self.stdout.write(f'  📦 {app_label}: {migration_name}')
 
         if options['dry_run']:
-            self.stdout.write(self.style.WARNING('🔍 Dry run mode - no migrations applied'))
+            self.stdout.write(self.style.WARNING(' Dry run mode - no migrations applied'))
             return
 
         # Apply migrations with safety checks
@@ -109,7 +109,7 @@ class Command(BaseCommand):
 
     def list_pending_migrations(self, specific_app=None):
         """List all pending migrations with details"""
-        self.stdout.write('📋 Pending Migrations:')
+        self.stdout.write(' Pending Migrations:')
         
         pending = self.detect_pending_migrations(specific_app)
         

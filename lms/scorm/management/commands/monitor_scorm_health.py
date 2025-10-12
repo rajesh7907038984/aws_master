@@ -31,7 +31,7 @@ class Command(BaseCommand):
         check_only = options['check_only']
         
         if check_only:
-            self.stdout.write('🔍 SCORM Health Check Mode')
+            self.stdout.write(' SCORM Health Check Mode')
         else:
             self.stdout.write('🔧 SCORM Health Monitor Mode')
         
@@ -60,9 +60,9 @@ class Command(BaseCommand):
                     package.package_metadata = package_metadata
                     package.save()
                     fixes_applied += 1
-                    self.stdout.write(f'   ✅ Fixed auto-scoring for {package.title}')
+                    self.stdout.write(f'    Fixed auto-scoring for {package.title}')
         else:
-            self.stdout.write('   ✅ All packages have auto-scoring enabled')
+            self.stdout.write('    All packages have auto-scoring enabled')
         
         # 2. Check for packages with low confidence detection
         self.stdout.write('\n2. Checking detection confidence...')
@@ -85,9 +85,9 @@ class Command(BaseCommand):
                     package.package_metadata = package_metadata
                     package.save()
                     fixes_applied += 1
-                    self.stdout.write(f'   ✅ Re-analyzed {package.title}')
+                    self.stdout.write(f'    Re-analyzed {package.title}')
         else:
-            self.stdout.write('   ✅ All packages have good detection confidence')
+            self.stdout.write('    All packages have good detection confidence')
         
         # 3. Check for inconsistent scores
         self.stdout.write('\n3. Checking score consistency...')
@@ -118,9 +118,9 @@ class Command(BaseCommand):
                 for attempt in inconsistent_attempts:
                     ScormScoreSyncService.sync_score(attempt, force=True)
                     fixes_applied += 1
-                    self.stdout.write(f'   ✅ Synced scores for attempt {attempt.id}')
+                    self.stdout.write(f'    Synced scores for attempt {attempt.id}')
         else:
-            self.stdout.write('   ✅ All scores are consistent')
+            self.stdout.write('    All scores are consistent')
         
         # 4. Check for packages without attempts (unused)
         self.stdout.write('\n4. Checking package usage...')
@@ -136,18 +136,18 @@ class Command(BaseCommand):
             )
             # No auto-fix needed for unused packages
         else:
-            self.stdout.write('   ✅ All packages have been used')
+            self.stdout.write('    All packages have been used')
         
         # 5. Summary
         self.stdout.write('\n=== SUMMARY ===')
         if issues_found == 0:
             self.stdout.write(
-                self.style.SUCCESS('🎉 No issues found! SCORM system is healthy.')
+                self.style.SUCCESS(' No issues found! SCORM system is healthy.')
             )
         else:
             if auto_fix:
                 self.stdout.write(
-                    self.style.SUCCESS(f'✅ Fixed {fixes_applied} issues automatically')
+                    self.style.SUCCESS(f' Fixed {fixes_applied} issues automatically')
                 )
             else:
                 self.stdout.write(
@@ -158,5 +158,5 @@ class Command(BaseCommand):
         self.stdout.write('\n=== RECOMMENDATIONS ===')
         self.stdout.write('   📅 Run this command weekly: python manage.py monitor_scorm_health --auto-fix')
         self.stdout.write('   🔄 Re-analyze packages monthly: python manage.py analyze_scorm_packages --force')
-        self.stdout.write('   📊 Monitor gradebook for display issues')
+        self.stdout.write('    Monitor gradebook for display issues')
         self.stdout.write('   🚀 System is fully automated - no manual intervention needed!')

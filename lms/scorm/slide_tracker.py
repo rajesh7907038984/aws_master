@@ -98,7 +98,7 @@ class SlideTracker:
                     try:
                         click_count = int(value) if value.isdigit() else 0
                         if click_count > 0:
-                            logger.info(f"✅ Found Continue button clicks in CMI: {click_count}")
+                            logger.info(f" Found Continue button clicks in CMI: {click_count}")
                             # Mark current slide as completed if Continue button was clicked
                             if result['current_slide'] and result['current_slide'] not in result['completed_slides']:
                                 result['completed_slides'].append(result['current_slide'])
@@ -236,7 +236,7 @@ class SlideTracker:
                 try:
                     click_count = int(data[key]) if isinstance(data[key], (int, str)) else 0
                     if click_count > 0:
-                        logger.info(f"✅ Found Continue button interactions in JSON: {click_count}")
+                        logger.info(f" Found Continue button interactions in JSON: {click_count}")
                         # If we have Continue button clicks, mark slides as completed
                         if not result['completed_slides'] and result['visited_slides']:
                             result['completed_slides'] = result['visited_slides'].copy()
@@ -341,7 +341,7 @@ class SlideTracker:
             if match:
                 click_count = int(match.group(1))
                 if click_count > 0:
-                    logger.info(f"✅ Found Continue button interactions in string: {click_count}")
+                    logger.info(f" Found Continue button interactions in string: {click_count}")
                     # If we have Continue button clicks, mark slides as completed
                     if not result['completed_slides'] and result['visited_slides']:
                         result['completed_slides'] = result['visited_slides'].copy()
@@ -392,7 +392,7 @@ class SlideTracker:
             
             if updated:
                 logger.info(
-                    f"📊 Slide Progress Updated for attempt {attempt.id}:\n"
+                    f" Slide Progress Updated for attempt {attempt.id}:\n"
                     f"   Current: {slide_info['current_slide']}\n"
                     f"   Section: {slide_info['current_section']}\n"
                     f"   Progress: {slide_info['progress_percentage']:.1f}%\n"

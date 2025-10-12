@@ -884,16 +884,16 @@
             // CRITICAL FIX: For SCORM topics, ensure data is saved before marking complete
             const topicType = $('meta[name="topic-type"]').attr('content');
             if (topicType === 'SCORM') {
-                console.log('📊 SCORM: Ensuring SCORM data is saved before marking complete');
+                console.log(' SCORM: Ensuring SCORM data is saved before marking complete');
                 
                 // Try to trigger SCORM commit from opener window (if SCORM player is open)
                 try {
                     // Check if there's a SCORM player window that opened this page
                     if (window.opener && window.opener.API) {
-                        console.log('💾 SCORM: Calling LMSCommit via opener window');
+                        console.log(' SCORM: Calling LMSCommit via opener window');
                         window.opener.API.LMSCommit('');
                     } else if (window.opener && window.opener.API_1484_11) {
-                        console.log('💾 SCORM: Calling Commit via opener window (SCORM 2004)');
+                        console.log(' SCORM: Calling Commit via opener window (SCORM 2004)');
                         window.opener.API_1484_11.Commit('');
                     }
                 } catch (e) {
@@ -901,7 +901,7 @@
                 }
                 
                 // Add a small delay to ensure SCORM commit completes
-                console.log('⏳ SCORM: Waiting for commit to complete...');
+                console.log(' SCORM: Waiting for commit to complete...');
                 setTimeout(function() {
                     markTopicComplete(topicId);
                 }, 1000);

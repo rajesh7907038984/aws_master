@@ -87,8 +87,8 @@ class Command(BaseCommand):
                 )
         
         # Show analysis results
-        self.stdout.write('\n📊 Analysis Results:')
-        self.stdout.write(f'  📋 Total database tables: {len(all_db_tables)}')
+        self.stdout.write('\n Analysis Results:')
+        self.stdout.write(f'   Total database tables: {len(all_db_tables)}')
         self.stdout.write(f'  🏷️ Django model tables: {len(django_tables)}')
         self.stdout.write(f'  🔗 Many-to-many tables: {len(model_m2m_tables)}')
         self.stdout.write(f'  🏝️ Truly orphaned tables: {len(orphaned_tables)}')
@@ -96,7 +96,7 @@ class Command(BaseCommand):
         self.stdout.write(f'   Has data (needs review): {len(has_data)}')
         
         if safe_to_drop:
-            self.stdout.write(f'\n📋 Safe to drop (empty orphaned tables):')
+            self.stdout.write(f'\n Safe to drop (empty orphaned tables):')
             for table in safe_to_drop:
                 self.stdout.write(f'  - {table}')
         
@@ -107,7 +107,7 @@ class Command(BaseCommand):
         
         if options['dry_run']:
             self.stdout.write(
-                self.style.WARNING('\n🔍 DRY RUN: No changes made. Use --confirm to actually drop tables.')
+                self.style.WARNING('\n DRY RUN: No changes made. Use --confirm to actually drop tables.')
             )
             return
         

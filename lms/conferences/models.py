@@ -808,7 +808,7 @@ class ConferenceParticipant(models.Model):
             # Import the conversion functions
             from conferences.views import force_convert_registration_url_to_direct_join, clean_zoom_url_format
             
-            logger.info(f"🎯 Processing Zoom URL for learner join: {base_meeting_url}")
+            logger.info(f" Processing Zoom URL for learner join: {base_meeting_url}")
             
             # CRITICAL FIX: Always convert to direct join, regardless of current URL format
             # This ensures learners NEVER see registration forms

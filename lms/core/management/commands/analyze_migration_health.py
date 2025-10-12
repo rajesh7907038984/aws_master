@@ -36,7 +36,7 @@ class Command(BaseCommand):
         verbose = options['verbose']
         
         self.stdout.write(
-            self.style.SUCCESS('🔍 Starting comprehensive migration health check...')
+            self.style.SUCCESS(' Starting comprehensive migration health check...')
         )
         
         if dry_run:
@@ -92,7 +92,7 @@ class Command(BaseCommand):
     def analyze_dependencies(self, verbose):
         """Analyze migration dependency chains for issues"""
         if verbose:
-            self.stdout.write('📊 Analyzing migration dependencies...')
+            self.stdout.write(' Analyzing migration dependencies...')
         
         issues = []
         migration_deps = defaultdict(list)

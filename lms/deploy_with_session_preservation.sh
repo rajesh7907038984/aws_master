@@ -20,7 +20,7 @@ cd "$SCRIPT_DIR"
 
 # Load environment variables
 if [ -f ".env" ]; then
-    echo "📋 Loading environment variables from .env..."
+    echo " Loading environment variables from .env..."
     export $(cat .env | grep -v '^#' | xargs)
     echo " Environment variables loaded"
 else
@@ -51,16 +51,16 @@ echo "🔄 Running deployment..."
 
 if [ $? -eq 0 ]; then
     echo ""
-    echo "✅ Deployment completed successfully!"
+    echo " Deployment completed successfully!"
     echo "   - User sessions preserved"
     echo "   - Server restarted"
     echo "   - No auto-logout issues expected"
     echo ""
-    echo "📊 Session Status:"
+    echo " Session Status:"
     python manage.py preserve_sessions --check-only
 else
     echo ""
-    echo "❌ Deployment failed!"
+    echo " Deployment failed!"
     echo "   Check logs for details"
     exit 1
 fi

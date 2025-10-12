@@ -2333,7 +2333,7 @@ def mark_topic_complete(request, topic_id):
     if topic.content_type == 'SCORM':
         score_synced = progress.sync_scorm_score()
         if score_synced:
-            logger.info(f"✅ SCORM Score synced for topic {topic_id} before marking complete (score: {progress.last_score})")
+            logger.info(f" SCORM Score synced for topic {topic_id} before marking complete (score: {progress.last_score})")
         else:
             logger.warning(f"⚠️  No SCORM score found to sync for topic {topic_id}")
     

@@ -56,7 +56,7 @@
                 }
             }
             
-            console.log('📊 Initializing courses chart with data:', chartData);
+            console.log(' Initializing courses chart with data:', chartData);
             
             // Create the chart
             const chart = new Chart(canvas, {

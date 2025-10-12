@@ -2186,7 +2186,7 @@ def sync_zoom_meeting_data(conference):
                                 # Enhanced logging for learner matching success
                                 logger.info(f" LEARNER SYNC SUCCESS: {participant_name} -> {user.username} ({user.role}) | Duration: {duration_minutes}min | Status: {attendance_status}")
                                 if user.role == 'learner':
-                                    logger.info(f"🎯 LEARNER DETAILS: User ID={user.id}, Email={user.email}, Join={join_time}, Leave={leave_time}")
+                                    logger.info(f" LEARNER DETAILS: User ID={user.id}, Email={user.email}, Join={join_time}, Leave={leave_time}")
                                 
                                 # Create or update ConferenceAttendance record
                                 attendance, created = ConferenceAttendance.objects.get_or_create(
@@ -2283,7 +2283,7 @@ def sync_zoom_meeting_data(conference):
                                         for match in domain_matches:
                                             suggestions.append(f"EMAIL_DOMAIN: {match['username']} ({match['first_name']} {match['last_name']}) - {match['email']} - Role: {match['role']}")
                                     
-                                    logger.info(f"🔍 MATCHING SUGGESTIONS for '{participant_name}' ({participant_email}):")
+                                    logger.info(f" MATCHING SUGGESTIONS for '{participant_name}' ({participant_email}):")
                                     if suggestions:
                                         for i, suggestion in enumerate(suggestions, 1):
                                             logger.info(f"   {i}. {suggestion}")
@@ -2299,7 +2299,7 @@ def sync_zoom_meeting_data(conference):
                                             logger.info(f"   Available learners in branch: {list(all_learners)}")
                                     
                                     # Log what we tried to match against
-                                    logger.info(f"🔍 ATTEMPTED MATCHES: Name='{participant_name}', Email='{participant_email}', Zoom_ID='{zoom_participant_id}'")
+                                    logger.info(f" ATTEMPTED MATCHES: Name='{participant_name}', Email='{participant_email}', Zoom_ID='{zoom_participant_id}'")
                                 
                                 # Create ConferenceParticipant record for unmatched/guest participants
                                 try:

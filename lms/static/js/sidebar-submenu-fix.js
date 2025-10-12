@@ -83,7 +83,7 @@
                     }
                     
                     const wasHidden = submenu.classList.contains('hidden');
-                    console.log('📋 Submenu was hidden:', wasHidden);
+                    console.log(' Submenu was hidden:', wasHidden);
                     
                     // Toggle submenu
                     submenu.classList.toggle('hidden');

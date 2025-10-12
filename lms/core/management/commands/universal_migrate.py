@@ -56,7 +56,7 @@ class Command(BaseCommand):
         self.resolver = DynamicMigrationResolver()
         
         self.stdout.write(self.style.SUCCESS(' Universal Migration System'))
-        self.stdout.write('🔍 Analyzing database schema and pending migrations...\n')
+        self.stdout.write(' Analyzing database schema and pending migrations...\n')
         
         # Get all pending migrations
         pending_migrations = self._get_pending_migrations(options.get('app'))
@@ -65,7 +65,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(' No pending migrations found'))
             return
         
-        self.stdout.write(f"📋 Found {len(pending_migrations)} pending migrations:")
+        self.stdout.write(f" Found {len(pending_migrations)} pending migrations:")
         for app_name, migration_name in pending_migrations:
             self.stdout.write(f"   • {app_name}.{migration_name}")
         self.stdout.write("")
@@ -169,7 +169,7 @@ class Command(BaseCommand):
     
     def _display_dry_run_plan(self, pending_migrations, conflicts):
         """Display what would be done in a dry run"""
-        self.stdout.write(self.style.WARNING('🔍 DRY RUN - No changes will be made\n'))
+        self.stdout.write(self.style.WARNING(' DRY RUN - No changes will be made\n'))
         
         self.stdout.write('Plan:')
         for app_name, migration_name in pending_migrations:
@@ -227,7 +227,7 @@ class Command(BaseCommand):
                         error_count += 1
         
         # Final summary
-        self.stdout.write(f"\n📊 Migration Summary:")
+        self.stdout.write(f"\n Migration Summary:")
         self.stdout.write(f"    Successfully applied: {success_count}")
         self.stdout.write(f"    Safely faked: {faked_count}")
         self.stdout.write(f"    Failed: {error_count}")
@@ -247,7 +247,7 @@ class Command(BaseCommand):
         # Show any remaining pending migrations
         remaining = self._get_pending_migrations()
         if remaining:
-            self.stdout.write(f"\n📋 {len(remaining)} migrations still pending:")
+            self.stdout.write(f"\n {len(remaining)} migrations still pending:")
             for app_name, migration_name in remaining[:5]:  # Show first 5
                 self.stdout.write(f"   • {app_name}.{migration_name}")
             if len(remaining) > 5:

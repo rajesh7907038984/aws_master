@@ -99,7 +99,7 @@ def pre_fork(server, worker):
 
 def post_fork(server, worker):
     """Called just after a worker has been forked."""
-    server.log.info("✅ Worker spawned (pid: %s)", worker.pid)
+    server.log.info(" Worker spawned (pid: %s)", worker.pid)
 
 def worker_abort(worker):
     """Called when a worker receives the SIGABRT signal."""

@@ -613,7 +613,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        console.log('📊 Collected quiz rubric data:', rubricData);
+        console.log(' Collected quiz rubric data:', rubricData);
         return rubricData;
     }
     
@@ -690,7 +690,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return response.json();
         })
         .then(data => {
-            console.log('📊 Response data:', data);
+            console.log(' Response data:', data);
             if (data.success) {
                 alert('Rubric evaluation saved successfully!');
                 // Reload parent page

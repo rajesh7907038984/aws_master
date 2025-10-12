@@ -79,7 +79,7 @@ window.handleCourseDelete = function(button) {
  * Get CSRF Token with multiple fallback methods
  */
 function getCsrfToken() {
-    console.log('🔍 Retrieving CSRF token...');
+    console.log(' Retrieving CSRF token...');
     
     // Method 1: Hidden form
     const csrfForm = document.querySelector('#csrf-form [name=csrfmiddlewaretoken]');
@@ -150,7 +150,7 @@ function resetDeleteButton(button) {
  * Initialize delete button handlers on page load
  */
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🎯 Course Delete Fix initialized');
+    console.log(' Course Delete Fix initialized');
     
     // Add click handlers to any existing delete buttons that might not have onclick
     const deleteButtons = document.querySelectorAll('.course-delete-btn');

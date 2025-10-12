@@ -77,7 +77,7 @@ def fix_existing_bookmarks():
                 # Update lesson status if still not_attempted
                 if attempt.lesson_status == 'not_attempted':
                     attempt.lesson_status = 'incomplete'
-                    print(f"  ✅ Updated status to 'incomplete'")
+                    print(f"   Updated status to 'incomplete'")
                 
                 # Update CMI data to ensure consistency
                 if not attempt.cmi_data:
@@ -95,14 +95,14 @@ def fix_existing_bookmarks():
                 
                 attempt.save()
                 
-                print(f"  ✅ Fixed lesson_location: '{location_to_use}'")
+                print(f"   Fixed lesson_location: '{location_to_use}'")
                 fixed_count += 1
                 
             else:
                 print(f"  ⚠️  Could not determine location from data")
                 
         except Exception as e:
-            print(f"  ❌ Error processing attempt {attempt.id}: {e}")
+            print(f"   Error processing attempt {attempt.id}: {e}")
         
         print()
     
@@ -113,7 +113,7 @@ def fix_existing_bookmarks():
     
     if fixed_count > 0:
         print()
-        print("🎉 Bookmark recovery completed!")
+        print(" Bookmark recovery completed!")
         print("Users should now be able to resume their SCORM content properly.")
     else:
         print()

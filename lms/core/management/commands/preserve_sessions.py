@@ -25,13 +25,13 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         self.stdout.write(
-            self.style.SUCCESS('🔍 Checking session configuration...')
+            self.style.SUCCESS(' Checking session configuration...')
         )
         
         # Check session health
         health = check_session_health()
         if health:
-            self.stdout.write(f"📊 Session Health Report:")
+            self.stdout.write(f" Session Health Report:")
             self.stdout.write(f"   Redis Connection: {' OK' if health['redis_connection'] else ' Failed'}")
             self.stdout.write(f"   Active Sessions: {health['database_sessions']}")
             self.stdout.write(f"   Session Engine: {health['session_engine']}")

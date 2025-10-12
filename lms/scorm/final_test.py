@@ -27,27 +27,27 @@ def test_scorm_system_comprehensive():
     print("=" * 60)
     
     # Test 1: Package Loading
-    print("\n🔍 Test 1: SCORM Package Loading")
+    print("\n Test 1: SCORM Package Loading")
     try:
         package = ScormPackage.objects.first()
         if package:
-            print(f"✅ Package found: {package.title}")
+            print(f" Package found: {package.title}")
             print(f"   Version: {package.version}")
             print(f"   Launch URL: {package.launch_url}")
             print(f"   Extracted Path: {package.extracted_path}")
         else:
-            print("❌ No SCORM packages found")
+            print(" No SCORM packages found")
             return False
     except Exception as e:
-        print(f"❌ Error loading package: {e}")
+        print(f" Error loading package: {e}")
         return False
     
     # Test 2: API Handler
-    print("\n🔍 Test 2: SCORM API Handler")
+    print("\n Test 2: SCORM API Handler")
     try:
         attempt = ScormAttempt.objects.first()
         if attempt:
-            print(f"✅ Attempt found: {attempt.id}")
+            print(f" Attempt found: {attempt.id}")
             
             # Test basic handler
             handler = ScormAPIHandler(attempt)
@@ -69,14 +69,14 @@ def test_scorm_system_comprehensive():
             result = handler.commit()
             print(f"   Commit result: {result}")
         else:
-            print("❌ No SCORM attempts found")
+            print(" No SCORM attempts found")
             return False
     except Exception as e:
-        print(f"❌ Error testing API handler: {e}")
+        print(f" Error testing API handler: {e}")
         return False
     
     # Test 3: Enhanced API Handler
-    print("\n🔍 Test 3: Enhanced SCORM API Handler")
+    print("\n Test 3: Enhanced SCORM API Handler")
     try:
         handler = ScormAPIHandlerEnhanced(attempt)
         print(f"   Enhanced handler initialized: {handler.version}")
@@ -99,11 +99,11 @@ def test_scorm_system_comprehensive():
             value = handler.get_value(element)
             print(f"   {element}: {value}")
     except Exception as e:
-        print(f"❌ Error testing enhanced handler: {e}")
+        print(f" Error testing enhanced handler: {e}")
         return False
     
     # Test 4: API Endpoint
-    print("\n🔍 Test 4: SCORM API Endpoint")
+    print("\n Test 4: SCORM API Endpoint")
     try:
         from scorm.views import scorm_api
         
@@ -127,18 +127,18 @@ def test_scorm_system_comprehensive():
             data = json.loads(response.content)
             print(f"   API response: {data}")
             if data.get('success') and data.get('result') == 'true':
-                print("   ✅ API endpoint working correctly")
+                print("    API endpoint working correctly")
             else:
                 print(f"   ⚠️  API returned: {data.get('result')} (error: {data.get('error_code')})")
         else:
-            print(f"   ❌ API error: {response.status_code}")
+            print(f"    API error: {response.status_code}")
             return False
     except Exception as e:
-        print(f"❌ Error testing API endpoint: {e}")
+        print(f" Error testing API endpoint: {e}")
         return False
     
     # Test 5: Content Serving (with authentication)
-    print("\n🔍 Test 5: SCORM Content Serving")
+    print("\n Test 5: SCORM Content Serving")
     try:
         # Use Django test client for proper authentication
         client = Client()
@@ -151,29 +151,29 @@ def test_scorm_system_comprehensive():
         print(f"   Content response status: {response.status_code}")
         
         if response.status_code == 200:
-            print("   ✅ Content serving working")
+            print("    Content serving working")
             content_preview = response.content[:100].decode('utf-8', errors='ignore')
             print(f"   Content preview: {content_preview}...")
         else:
-            print(f"   ❌ Content serving failed: {response.status_code}")
+            print(f"    Content serving failed: {response.status_code}")
             return False
     except Exception as e:
-        print(f"❌ Error testing content serving: {e}")
+        print(f" Error testing content serving: {e}")
         return False
     
     # Test 6: SCORM View (with authentication)
-    print("\n🔍 Test 6: SCORM View")
+    print("\n Test 6: SCORM View")
     try:
         response = client.get(f'/scorm/view/{package.topic.id}/')
         print(f"   SCORM view status: {response.status_code}")
         
         if response.status_code == 200:
-            print("   ✅ SCORM view working")
+            print("    SCORM view working")
         else:
-            print(f"   ❌ SCORM view failed: {response.status_code}")
+            print(f"    SCORM view failed: {response.status_code}")
             return False
     except Exception as e:
-        print(f"❌ Error testing SCORM view: {e}")
+        print(f" Error testing SCORM view: {e}")
         return False
     
     return True
@@ -184,15 +184,15 @@ def run_final_test():
     
     if test_scorm_system_comprehensive():
         print("\n" + "=" * 60)
-        print("🎉 ALL SCORM FIXES ARE WORKING!")
+        print(" ALL SCORM FIXES ARE WORKING!")
         print("=" * 60)
-        print("\n✅ SCORM Package Loading: Working")
-        print("✅ SCORM API Handler: Working")
-        print("✅ Enhanced SCORM API Handler: Working")
-        print("✅ SCORM API Endpoint: Working")
-        print("✅ SCORM Content Serving: Working")
-        print("✅ SCORM View: Working")
-        print("\n🎯 SCORM system is fully functional!")
+        print("\n SCORM Package Loading: Working")
+        print(" SCORM API Handler: Working")
+        print(" Enhanced SCORM API Handler: Working")
+        print(" SCORM API Endpoint: Working")
+        print(" SCORM Content Serving: Working")
+        print(" SCORM View: Working")
+        print("\n SCORM system is fully functional!")
         return True
     else:
         print("\n" + "=" * 60)

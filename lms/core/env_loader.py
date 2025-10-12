@@ -43,7 +43,7 @@ class EnvironmentLoader:
             logger.info("Using system environment variables only")
             return
         
-        logger.info(f"📋 Loading environment variables from: {self.env_file_path}")
+        logger.info(f" Loading environment variables from: {self.env_file_path}")
         
         try:
             with open(self.env_file_path, 'r', encoding='utf-8') as f:
@@ -95,7 +95,7 @@ class EnvironmentLoader:
             if key in sensitive_keys:
                 logger.info(f"🔐 {key}: {'✓ Set' if value else '✗ Not set'}")
             else:
-                logger.info(f"📋 {key}: {value}")
+                logger.info(f" {key}: {value}")
     
     def get(self, key: str, default: Any = None, required: bool = False) -> Any:
         """

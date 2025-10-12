@@ -75,7 +75,7 @@ class ScormPackageAnalyzer:
         metadata['detected_at'] = timezone.now().isoformat()
         
         logger.info(
-            f"📊 Package Analysis Complete:\n"
+            f" Package Analysis Complete:\n"
             f"  Type: {metadata['package_type']}\n"
             f"  Scoring: {metadata['scoring_method']}\n"
             f"  Completion: {metadata['completion_method']}\n"
@@ -99,19 +99,19 @@ class ScormPackageAnalyzer:
             ]
             content_lower = manifest_content.lower()
             if any(indicator in content_lower for indicator in storyline_indicators):
-                logger.info("✅ Detected: Articulate Storyline")
+                logger.info(" Detected: Articulate Storyline")
                 return 'articulate_storyline'
             
             # Check for Adobe Captivate
             captivate_indicators = ['captivate', 'adobe captivate', 'cp_infobox']
             if any(indicator in content_lower for indicator in captivate_indicators):
-                logger.info("✅ Detected: Adobe Captivate")
+                logger.info(" Detected: Adobe Captivate")
                 return 'adobe_captivate'
             
             # Check for Lectora
             lectora_indicators = ['lectora', 'trivantis']
             if any(indicator in content_lower for indicator in lectora_indicators):
-                logger.info("✅ Detected: Lectora")
+                logger.info(" Detected: Lectora")
                 return 'lectora'
         
         # Check manifest data
@@ -136,7 +136,7 @@ class ScormPackageAnalyzer:
             
             # If multiple quiz indicators found, likely has quiz
             if quiz_count >= 3:
-                logger.info(f"✅ Quiz detected (indicators: {quiz_count})")
+                logger.info(f" Quiz detected (indicators: {quiz_count})")
                 return True
         
         return False
@@ -156,7 +156,7 @@ class ScormPackageAnalyzer:
             
             # If multiple slide indicators found, likely slide-based
             if slide_count >= 2:
-                logger.info(f"✅ Slide-based detected (indicators: {slide_count})")
+                logger.info(f" Slide-based detected (indicators: {slide_count})")
                 return True
         
         return False

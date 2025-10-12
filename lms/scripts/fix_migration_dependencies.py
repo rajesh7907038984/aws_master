@@ -44,7 +44,7 @@ class MigrationDependencyFixer:
         
     def analyze_migration_conflicts(self):
         """Analyze and identify migration conflicts"""
-        print("🔍 Analyzing migration conflicts...")
+        print(" Analyzing migration conflicts...")
         
         conflicts = []
         try:
@@ -335,7 +335,7 @@ python manage.py makemigrations --dry-run
         print("=" * 60)
         print(" Migration dependency fix completed!")
         print("🛡️  Safeguards created to prevent future issues")
-        print("📋 Check scripts/migration_safeguards.md for guidelines")
+        print(" Check scripts/migration_safeguards.md for guidelines")
 
 def main():
     """Main execution function"""

@@ -58,7 +58,7 @@ class Command(BaseCommand):
             )
         
         self.stdout.write(
-            self.style.SUCCESS('🔍 Starting LMS Data Integrity Validation...')
+            self.style.SUCCESS(' Starting LMS Data Integrity Validation...')
         )
         
         issues_found = 0
@@ -91,7 +91,7 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(f'Data Integrity Validation Complete')
         )
-        self.stdout.write(f'📊 Issues found: {issues_found}')
+        self.stdout.write(f' Issues found: {issues_found}')
         if not self.dry_run:
             self.stdout.write(f' Issues fixed: {issues_fixed}')
         else:
@@ -404,7 +404,7 @@ class Command(BaseCommand):
 
     def check_data_consistency(self):
         """Check for general data consistency issues"""
-        self.stdout.write('\n🔍 Checking general data consistency...')
+        self.stdout.write('\n Checking general data consistency...')
         
         issues_found = 0
         

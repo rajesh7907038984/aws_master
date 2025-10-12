@@ -76,14 +76,14 @@ class Command(BaseCommand):
                         auto_scoring_applied += 1
                         self.stdout.write(
                             self.style.SUCCESS(
-                                f'✅ {package.title}: Auto-scoring enabled '
+                                f' {package.title}: Auto-scoring enabled '
                                 f'({package_metadata["scoring_method"]}, '
                                 f'{package_metadata["completion_method"]})'
                             )
                         )
                     else:
                         self.stdout.write(
-                            f'📊 {package.title}: Standard scoring '
+                            f' {package.title}: Standard scoring '
                             f'({package_metadata["scoring_method"]}, '
                             f'{package_metadata["completion_method"]})'
                         )
@@ -96,7 +96,7 @@ class Command(BaseCommand):
         
         self.stdout.write(
             self.style.SUCCESS(
-                f'\n✅ Analysis complete!\n'
+                f'\n Analysis complete!\n'
                 f'  Packages analyzed: {analyzed_count}\n'
                 f'  Auto-scoring applied: {auto_scoring_applied}\n'
                 f'  Standard scoring: {analyzed_count - auto_scoring_applied}'

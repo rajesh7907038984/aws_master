@@ -3557,10 +3557,10 @@ if (typeof formHasUnsavedChanges === 'undefined') {
             console.log('Should hide instructions for', contentType + ':', shouldHide);
             
             if (shouldHide) {
-                console.log('🎯 Using force hide for content type:', contentType);
+                console.log(' Using force hide for content type:', contentType);
                 forceHideInstructionsField();
             } else {
-                console.log('🎯 Using force show for content type:', contentType);
+                console.log(' Using force show for content type:', contentType);
                 forceShowInstructionsField();
             }
             
@@ -3793,10 +3793,10 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                 const hideInstructionsTypes = ['video', 'document', 'text', 'audio', 'web', 'embedvideo', 'scorm', 'quiz', 'assignment', 'conference', 'discussion'];
                 
                 if (hideInstructionsTypes.includes(contentType)) {
-                    console.log('🎯 Force hiding instructions for:', contentType);
+                    console.log(' Force hiding instructions for:', contentType);
                     forceHideInstructionsField();
                 } else {
-                    console.log('🎯 Force showing instructions for:', contentType);
+                    console.log(' Force showing instructions for:', contentType);
                     forceShowInstructionsField();
                 }
             }

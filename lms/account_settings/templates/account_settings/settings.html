@@ -850,7 +850,7 @@
                                                         </button>
                                                         <button type="button" onclick="showManualSetupGuide()" 
                                                                 class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-purple-500 hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors duration-200">
-                                                            📋 Setup Guide
+                                                             Setup Guide
                                                         </button>
                                                         <button type="button" onclick="toggleSharePointEditMode()" 
                                                                 class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
@@ -1129,7 +1129,7 @@
                                                         Cancel
                                                     </button>
                                                     <button type="button" onclick="showManualSetupGuide()" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2">
-                                                        📋 Setup Guide
+                                                         Setup Guide
                                                     </button>
                                                     <button type="button" onclick="testSharePointConnectionInEdit()" class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2">
                                                         🔗 Test Connection
@@ -1178,7 +1178,7 @@
                                                                                     <li><strong>Supported account types:</strong> "Accounts in this organizational directory only"</li>
                                                                                     <li><strong>Redirect URI:</strong> Web → <code class="bg-yellow-100 px-2 py-1 rounded">{{ request.scheme }}://{{ request.get_host }}/account/sharepoint/callback/</code> 
                                                                                         <button type="button" onclick="copyToClipboard('{{ request.scheme }}://{{ request.get_host }}/account/sharepoint/callback/')" class="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200">
-                                                                                            📋 Copy
+                                                                                             Copy
                                                                                         </button>
                                                                                     </li>
                                                                                 </ul>
@@ -1353,7 +1353,7 @@
                                                                                 </ul>
                                                                             </div>
                                                                             <div class="bg-purple-100 p-2 rounded">
-                                                                                <strong>📊 Note:</strong> Power BI integration enables automatic dashboard updates with LMS data from SharePoint.
+                                                                                <strong> Note:</strong> Power BI integration enables automatic dashboard updates with LMS data from SharePoint.
                                                                             </div>
                                                                         </div>
                                                                     </div>
@@ -4518,7 +4518,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 let message = ` SharePoint Connection Successful!\n\nSite: ${data.site_title || 'N/A'}\nConnection: ${data.connection_status}\nLast Tested: ${new Date().toLocaleString()}`;
                 
                 if (data.manual_setup_required) {
-                    message += '\n\n📋 Manual Setup Required\n\nPlease follow the detailed setup guide below to configure SharePoint lists and libraries.';
+                    message += '\n\n Manual Setup Required\n\nPlease follow the detailed setup guide below to configure SharePoint lists and libraries.';
                 }
                 
                 alert(message);
@@ -4587,7 +4587,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 let message = ` SharePoint Connection Successful!\n\nSite: ${data.site_title || 'N/A'}\nConnection: ${data.connection_status}\nLast Tested: ${new Date().toLocaleString()}`;
                 
                 if (data.manual_setup_required) {
-                    message += '\n\n📋 Manual Setup Required\n\nPlease follow the detailed setup guide below to configure SharePoint lists and libraries.';
+                    message += '\n\n Manual Setup Required\n\nPlease follow the detailed setup guide below to configure SharePoint lists and libraries.';
                 }
                 
                 alert(message);

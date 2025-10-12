@@ -2,7 +2,7 @@
 # SCORM Health Monitor - Automated monitoring script
 # Run this script weekly via cron to ensure SCORM system health
 
-echo "🔍 SCORM Health Monitor - $(date)"
+echo " SCORM Health Monitor - $(date)"
 echo "=================================="
 
 # Change to LMS directory
@@ -17,7 +17,7 @@ python manage.py monitor_scorm_health --auto-fix
 
 # Check if any issues were found
 if [ $? -eq 0 ]; then
-    echo "✅ SCORM system is healthy"
+    echo " SCORM system is healthy"
 else
     echo "⚠️  Some issues were found and fixed"
 fi

@@ -38,7 +38,7 @@ class Command(BaseCommand):
         topic_id = options.get('topic_id')
         user_id = options.get('user_id')
 
-        self.stdout.write("🔍 Scanning for incorrect SCORM scores...")
+        self.stdout.write(" Scanning for incorrect SCORM scores...")
 
         # Find SCORM attempts with potential score mismatches
         attempts_query = ScormAttempt.objects.select_related(
@@ -107,10 +107,10 @@ class Command(BaseCommand):
                 logger.error(f"Error checking attempt {attempt.id}: {e}")
                 continue
 
-        self.stdout.write(f"📊 Found {len(incorrect_scores)} incorrect scores out of {total_checked} attempts")
+        self.stdout.write(f" Found {len(incorrect_scores)} incorrect scores out of {total_checked} attempts")
 
         if not incorrect_scores:
-            self.stdout.write("✅ No incorrect scores found!")
+            self.stdout.write(" No incorrect scores found!")
             return
 
         # Show details of incorrect scores
@@ -121,13 +121,13 @@ class Command(BaseCommand):
             self.stdout.write(f"   SCORM Score: {item['actual_score']}% (Status: {item['scorm_status']})")
             self.stdout.write(f"   TopicProgress: Last={item['topic_last_score']}%, Best={item['topic_best_score']}%, Completed={tp.completed}")
             for issue in item['issues']:
-                self.stdout.write(f"   ❌ {issue}")
+                self.stdout.write(f"    {issue}")
 
         if len(incorrect_scores) > 10:
             self.stdout.write(f"\n... and {len(incorrect_scores) - 10} more")
 
         if dry_run:
-            self.stdout.write(f"\n🔍 DRY RUN: Would fix {len(incorrect_scores)} incorrect scores")
+            self.stdout.write(f"\n DRY RUN: Would fix {len(incorrect_scores)} incorrect scores")
             return
 
         # Fix the incorrect scores
@@ -158,11 +158,11 @@ class Command(BaseCommand):
                     topic_progress.save()
                     fixed_count += 1
 
-                    self.stdout.write(f"✅ Fixed attempt {attempt.id}: {item['topic_last_score']}% → {actual_score}%")
+                    self.stdout.write(f" Fixed attempt {attempt.id}: {item['topic_last_score']}% → {actual_score}%")
 
                 except Exception as e:
                     logger.error(f"Error fixing attempt {item['attempt'].id}: {e}")
-                    self.stdout.write(f"❌ Failed to fix attempt {item['attempt'].id}: {e}")
+                    self.stdout.write(f" Failed to fix attempt {item['attempt'].id}: {e}")
 
-        self.stdout.write(f"\n🎉 Successfully fixed {fixed_count} incorrect scores!")
+        self.stdout.write(f"\n Successfully fixed {fixed_count} incorrect scores!")
         self.stdout.write("💡 Tip: Run this command regularly to catch score mismatches early")

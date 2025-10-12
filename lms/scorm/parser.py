@@ -174,7 +174,7 @@ class ScormParser:
                             break
             
             # DYNAMIC ANALYSIS: Analyze package type and characteristics
-            logger.info("🔍 Analyzing SCORM package characteristics...")
+            logger.info(" Analyzing SCORM package characteristics...")
             raw_manifest_str = self.manifest_data.get('raw_manifest', '')
             package_metadata = ScormPackageAnalyzer.analyze_package(
                 self.manifest_data,

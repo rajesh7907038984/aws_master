@@ -80,13 +80,13 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(' No orphaned tables to clean up!'))
             return
 
-        self.stdout.write(f'\n📋 Found {len(tables_to_drop)} empty orphaned tables to drop:')
+        self.stdout.write(f'\n Found {len(tables_to_drop)} empty orphaned tables to drop:')
         for table in tables_to_drop:
             self.stdout.write(f'  - {table}')
 
         if options['dry_run']:
             self.stdout.write(
-                self.style.WARNING('\n🔍 DRY RUN: No changes made. Use --confirm to actually drop tables.')
+                self.style.WARNING('\n DRY RUN: No changes made. Use --confirm to actually drop tables.')
             )
             return
 

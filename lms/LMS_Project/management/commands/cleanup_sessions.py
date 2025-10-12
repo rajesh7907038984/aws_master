@@ -57,7 +57,7 @@ class Command(BaseCommand):
             if dry_run:
                 self.stdout.write(
                     self.style.WARNING(
-                        f'🔍 DRY RUN: Would clean up {expired_count} expired '
+                        f' DRY RUN: Would clean up {expired_count} expired '
                         f'and {corrupted_count} corrupted sessions'
                     )
                 )
@@ -111,7 +111,7 @@ class Command(BaseCommand):
             total_sessions = Session.objects.count()
             
             if verbose:
-                self.stdout.write(f'🔍 Checking {total_sessions} sessions for corruption...')
+                self.stdout.write(f' Checking {total_sessions} sessions for corruption...')
             
             # Check each session for corruption - use iterator for memory efficiency
             for session in Session.objects.all().iterator():

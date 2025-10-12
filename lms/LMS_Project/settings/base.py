@@ -152,7 +152,7 @@ else:
         print("SECRET_KEY uses insecure prefix - generating a secure replacement")
         SECRET_KEY = get_random_secret_key()
     else:
-        print("✅ Using provided SECRET_KEY from environment")
+        print(" Using provided SECRET_KEY from environment")
 
 # Site framework
 SITE_ID = 1
@@ -475,7 +475,7 @@ OUTLOOK_FROM_EMAIL = get_env('OUTLOOK_FROM_EMAIL', 'noreply@nexsy.io')
 # Email Backend - Use OAuth2 if configured, otherwise use Global Admin Settings
 if all([OUTLOOK_CLIENT_ID, OUTLOOK_CLIENT_SECRET, OUTLOOK_TENANT_ID]):
     EMAIL_BACKEND = 'lms_notifications.backends.OutlookOAuth2Backend'
-    print("✅ Using OAuth2 email backend")
+    print(" Using OAuth2 email backend")
 else:
     # Use Global Admin Settings for email configuration
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'

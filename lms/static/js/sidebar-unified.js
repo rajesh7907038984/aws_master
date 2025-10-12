@@ -337,7 +337,7 @@
             const submenuId = button.getAttribute('data-submenu');
             if (!submenuId) return;
             
-            console.log('🔍 Found submenu button:', submenuId);
+            console.log(' Found submenu button:', submenuId);
             
             // Remove any existing onclick handlers
             button.removeAttribute('onclick');
@@ -385,7 +385,7 @@
                     }
                     
                     const wasHidden = submenu.classList.contains('hidden');
-                    console.log('📋 Submenu was hidden:', wasHidden);
+                    console.log(' Submenu was hidden:', wasHidden);
                     
                     // Toggle submenu
                     submenu.classList.toggle('hidden');

@@ -49,7 +49,7 @@ case "$1" in
         echo "🧹 Cleaning up system resources..."
         find /tmp -name "django_session*" -delete 2>/dev/null || true
         
-        echo "🔍 Verifying cleanup..."
+        echo " Verifying cleanup..."
         if ! lsof -Pi :8000 -sTCP:LISTEN -t >/dev/null 2>&1; then
             echo " Port 8000 is free"
         else
@@ -97,7 +97,7 @@ case "$1" in
         sudo systemctl start lms-production
         sleep 5
         
-        echo "📊 Service Status:"
+        echo " Service Status:"
         sudo systemctl status lms-production --no-pager -l
         ;;
     quick)
@@ -130,7 +130,7 @@ case "$1" in
         fi
         ;;
     status)
-        echo "📊 Server Status:"
+        echo " Server Status:"
         echo "================"
         
         # Check Nginx status
@@ -169,7 +169,7 @@ case "$1" in
         fi
         ;;
     services-status)
-        echo "🔍 System Services Status:"
+        echo " System Services Status:"
         echo "========================="
         echo "Nginx status:"
         sudo systemctl status nginx --no-pager -l
@@ -178,7 +178,7 @@ case "$1" in
         sudo systemctl status lms-production --no-pager -l 2>/dev/null || echo "LMS Production service not found"
         ;;
     logs)
-        echo "📋 Recent logs:"
+        echo " Recent logs:"
         echo "==============="
         if [ -f "$LOGS_DIR/gunicorn_error.log" ]; then
             echo "Error log (last 15 lines):"

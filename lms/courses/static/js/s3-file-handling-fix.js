@@ -283,7 +283,7 @@ window.S3FileHandler = {
         input.addEventListener('change', async (event) => {
             if (event.target.files.length > 0) {
                 const file = event.target.files[0];
-                console.log(`📁 File selected: ${file.name} (${this.formatFileSize(file.size)})`);
+                console.log(` File selected: ${file.name} (${this.formatFileSize(file.size)})`);
                 
                 // Add visual feedback
                 this.showFileProcessingIndicator(input);

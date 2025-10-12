@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', function() {
         profileDropdown.classList.add('hidden');
         isDropdownOpen = false;
         
-        console.log('📁 Profile dropdown closed');
+        console.log(' Profile dropdown closed');
     }
     
     // Function to toggle dropdown

@@ -144,7 +144,7 @@ class ScormScoreSyncService:
                     cache.delete_pattern(key)
             
             logger.info(
-                f"✅ SYNC SUCCESS: Attempt {scorm_attempt.id} -> TopicProgress {topic_progress.id} | "
+                f" SYNC SUCCESS: Attempt {scorm_attempt.id} -> TopicProgress {topic_progress.id} | "
                 f"Score: {old_last_score} -> {topic_progress.last_score} | "
                 f"Best: {old_best_score} -> {topic_progress.best_score} | "
                 f"Status: {scorm_attempt.lesson_status}"
@@ -153,7 +153,7 @@ class ScormScoreSyncService:
             return True
             
         except Exception as e:
-            logger.error(f"❌ SYNC ERROR: Failed to sync attempt {scorm_attempt.id}: {str(e)}")
+            logger.error(f" SYNC ERROR: Failed to sync attempt {scorm_attempt.id}: {str(e)}")
             import traceback
             logger.error(traceback.format_exc())
             return False

@@ -24,7 +24,7 @@ cd "$SCRIPT_DIR"
 
 # Load .env file
 if [ -f ".env" ]; then
-    echo "📋 Loading environment variables from .env..."
+    echo " Loading environment variables from .env..."
     export $(cat .env | grep -v '^#' | xargs)
     echo " Environment variables loaded"
 else
@@ -39,7 +39,7 @@ fi
 # VALIDATE REQUIRED ENVIRONMENT VARIABLES
 # ==============================================
 
-echo "🔍 Validating environment variables..."
+echo " Validating environment variables..."
 
 required_vars=(
     "PROJECT_ROOT"
@@ -76,7 +76,7 @@ echo " All required environment variables are set"
 # CREATE REQUIRED DIRECTORIES
 # ==============================================
 
-echo "📁 Creating required directories..."
+echo " Creating required directories..."
 
 # Create logs directory
 if [ ! -d "$LOGS_DIR" ]; then
@@ -138,7 +138,7 @@ echo " Using pre-installed dependencies (Python 3.7 compatible versions)"
 # CHECK DJANGO CONFIGURATION
 # ==============================================
 
-echo "🔍 Checking Django configuration..."
+echo " Checking Django configuration..."
 python manage.py check --deploy
 
 if [ $? -ne 0 ]; then
@@ -166,7 +166,7 @@ echo " Database migrations completed"
 # COLLECT STATIC FILES
 # ==============================================
 
-echo "📁 Collecting static files..."
+echo " Collecting static files..."
 python manage.py collectstatic --noinput
 
 if [ $? -ne 0 ]; then
@@ -401,7 +401,7 @@ echo ""
 echo " Server Setup Completed Successfully!"
 echo "======================================"
 echo ""
-echo "📋 Configuration Summary:"
+echo " Configuration Summary:"
 echo "   - Project Root: $PROJECT_ROOT"
 echo "   - Static Files: $STATIC_ROOT"
 echo "   - Logs Directory: $LOGS_DIR"
@@ -409,7 +409,7 @@ echo "   - Media Directory: $MEDIA_ROOT"
 echo "   - Primary Domain: $PRIMARY_DOMAIN"
 echo "   - Gunicorn Bind: ${GUNICORN_BIND}"
 echo ""
-echo "📁 Generated Files:"
+echo " Generated Files:"
 echo "   - $PROJECT_ROOT/nginx_generated.conf"
 echo "   - $PROJECT_ROOT/lms-production-generated.service"
 echo ""

@@ -19,34 +19,34 @@ import boto3
 
 def check_s3_content():
     """Check if SCORM content exists in S3"""
-    print("🔍 Checking S3 Content...")
+    print(" Checking S3 Content...")
     
     try:
         package = ScormPackage.objects.first()
         if not package:
-            print("❌ No SCORM packages found")
+            print(" No SCORM packages found")
             return False
         
-        print(f"✅ Package: {package.title}")
+        print(f" Package: {package.title}")
         print(f"   Extracted Path: {package.extracted_path}")
         print(f"   Launch URL: {package.launch_url}")
         
         # Check if extracted path exists
         if default_storage.exists(package.extracted_path):
-            print(f"✅ Extracted path exists in storage")
+            print(f" Extracted path exists in storage")
         else:
-            print(f"❌ Extracted path does NOT exist in storage")
+            print(f" Extracted path does NOT exist in storage")
             return False
         
         # Check launch file
         launch_file_path = f"{package.extracted_path}/{package.launch_url}"
         if default_storage.exists(launch_file_path):
-            print(f"✅ Launch file exists: {package.launch_url}")
+            print(f" Launch file exists: {package.launch_url}")
         else:
-            print(f"❌ Launch file does NOT exist: {package.launch_url}")
+            print(f" Launch file does NOT exist: {package.launch_url}")
             
             # Try to find the actual launch file
-            print("🔍 Searching for alternative launch files...")
+            print(" Searching for alternative launch files...")
             try:
                 dirs, files = default_storage.listdir(package.extracted_path)
                 html_files = [f for f in files if f.endswith(('.html', '.htm'))]
@@ -56,39 +56,39 @@ def check_s3_content():
                     # Update the launch URL
                     package.launch_url = html_files[0]
                     package.save()
-                    print(f"✅ Updated launch URL to: {html_files[0]}")
+                    print(f" Updated launch URL to: {html_files[0]}")
                 else:
-                    print("❌ No HTML files found in package")
+                    print(" No HTML files found in package")
                     return False
             except Exception as e:
-                print(f"❌ Error listing directory: {e}")
+                print(f" Error listing directory: {e}")
                 return False
         
         # Test S3 direct access
         s3 = scorm_s3
         if s3.verify_file_exists(package, package.launch_url):
-            print(f"✅ S3 verification successful for {package.launch_url}")
+            print(f" S3 verification successful for {package.launch_url}")
         else:
-            print(f"❌ S3 verification failed for {package.launch_url}")
+            print(f" S3 verification failed for {package.launch_url}")
             return False
         
         return True
         
     except Exception as e:
-        print(f"❌ Error checking S3 content: {e}")
+        print(f" Error checking S3 content: {e}")
         return False
 
 def check_scorm_attempts():
     """Check SCORM attempts and their status"""
-    print("\n🔍 Checking SCORM Attempts...")
+    print("\n Checking SCORM Attempts...")
     
     try:
         attempts = ScormAttempt.objects.all()
         if not attempts.exists():
-            print("❌ No SCORM attempts found")
+            print(" No SCORM attempts found")
             return False
         
-        print(f"✅ Found {attempts.count()} attempts")
+        print(f" Found {attempts.count()} attempts")
         
         for attempt in attempts:
             print(f"\n   Attempt {attempt.id}:")
@@ -107,17 +107,17 @@ def check_scorm_attempts():
         return True
         
     except Exception as e:
-        print(f"❌ Error checking attempts: {e}")
+        print(f" Error checking attempts: {e}")
         return False
 
 def check_api_initialization():
     """Check API initialization issues"""
-    print("\n🔍 Checking API Initialization...")
+    print("\n Checking API Initialization...")
     
     try:
         attempt = ScormAttempt.objects.first()
         if not attempt:
-            print("❌ No attempts found")
+            print(" No attempts found")
             return False
         
         # Check if attempt is already initialized
@@ -129,12 +129,12 @@ def check_api_initialization():
             if '_initialized' in attempt.cmi_data:
                 del attempt.cmi_data['_initialized']
                 attempt.save()
-                print("✅ Cleared _initialized flag")
+                print(" Cleared _initialized flag")
         
         return True
         
     except Exception as e:
-        print(f"❌ Error checking API initialization: {e}")
+        print(f" Error checking API initialization: {e}")
         return False
 
 def provide_solutions():
@@ -185,7 +185,7 @@ def run_diagnosis():
         if check():
             passed += 1
     
-    print(f"\n✅ {passed}/{len(checks)} checks passed")
+    print(f"\n {passed}/{len(checks)} checks passed")
     
     provide_solutions()
     

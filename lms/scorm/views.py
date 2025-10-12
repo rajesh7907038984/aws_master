@@ -176,7 +176,8 @@ def scorm_view(request, topic_id):
             'created_at': timezone.now().isoformat(),
         }
         
-        logger.info(f"Created preview attempt {attempt_id} for user {request.user.username if is_authenticated else 'guest'} on topic {topic_id}")
+        user_name = request.user.username if is_authenticated else 'guest'
+        logger.info(f"Created preview attempt {attempt_id} for user {user_name} on topic {topic_id}")
     else:
         # CRITICAL FIX: Handle both authenticated and non-authenticated users
         if is_authenticated:
@@ -277,7 +278,8 @@ def scorm_view(request, topic_id):
                 
                 # Save the updated attempt
                 attempt.save()
-                logger.info(f"RESUME: Loaded resume data for attempt {attempt.id}: entry='{attempt.entry}', location='{attempt.lesson_location}', suspend_data='{attempt.suspend_data[:50] if attempt.suspend_data else 'None'}...'")
+                suspend_data_preview = attempt.suspend_data[:50] if attempt.suspend_data else "None"
+                logger.info(f"RESUME: Loaded resume data for attempt {attempt.id}: entry='{attempt.entry}', location='{attempt.lesson_location}', suspend_data='{suspend_data_preview}...'")
             elif retake_mode and last_attempt:
                 # Create new attempt for retake
                 new_attempt_number = last_attempt.attempt_number + 1
@@ -297,7 +299,8 @@ def scorm_view(request, topic_id):
                 logger.info(f"Created first attempt {attempt.id} for user {request.user.username}")
             
             # Standard SCORM bookmark - lesson_location is automatically handled
-            logger.info(f"SCORM bookmark: lesson_location='{attempt.lesson_location}', suspend_data='{attempt.suspend_data[:50] if attempt.suspend_data else 'None'}...'")
+            suspend_data_preview = attempt.suspend_data[:50] if attempt.suspend_data else "None"
+            logger.info(f"SCORM bookmark: lesson_location='{attempt.lesson_location}', suspend_data='{suspend_data_preview}...'")
         
         attempt_id = attempt.id
         attempt.is_preview = False  # Mark as real attempt
@@ -317,7 +320,8 @@ def scorm_view(request, topic_id):
     
     # CRITICAL FIX: Ensure attempt is never None when passed to template
     if attempt is None:
-        logger.error(f"CRITICAL: attempt is None for topic {topic_id}, user {request.user.username if request.user.is_authenticated else 'guest'}")
+        user_name = request.user.username if request.user.is_authenticated else 'guest'
+        logger.error(f"CRITICAL: attempt is None for topic {topic_id}, user {user_name}")
         messages.error(request, "Error initializing SCORM attempt. Please try again.")
         return redirect('courses:topic_view', topic_id=topic_id)
     
@@ -471,7 +475,8 @@ def scorm_api(request, attempt_id):
         parameters = data.get('parameters', [])
         
         # Log all API calls
-        logger.info(f"📞 SCORM API CALL: method={method}, parameters={parameters[:2] if len(parameters) > 2 else parameters}, attempt_id={attempt_id}")
+        params_preview = parameters[:2] if len(parameters) > 2 else parameters
+        logger.info(f"SCORM API CALL: method={method}, parameters={params_preview}, attempt_id={attempt_id}")
         
         # Initialize appropriate API handler WITHOUT caching to ensure fresh data
         if is_preview:
@@ -502,13 +507,13 @@ def scorm_api(request, attempt_id):
         elif method == 'SetValue' or method == 'LMSSetValue':
             element = parameters[0] if len(parameters) > 0 else ''
             value = parameters[1] if len(parameters) > 1 else ''
-            logger.info(f"📝 SetValue called: element={element}, value={value}")
+            logger.info(f"SetValue called: element={element}, value={value}")
             result = handler.set_value(element, value)
-            logger.info(f"📝 SetValue result: {result}")
+            logger.info(f"SetValue result: {result}")
         elif method == 'Commit' or method == 'LMSCommit':
-            logger.info(f"💾 Commit called for attempt {attempt_id}")
+            logger.info(f"Commit called for attempt {attempt_id}")
             result = handler.commit()
-            logger.info(f"💾 Commit result: {result}")
+            logger.info(f"Commit result: {result}")
         elif method == 'GetLastError' or method == 'LMSGetLastError':
             result = handler.get_last_error()
         elif method == 'GetErrorString' or method == 'LMSGetErrorString':
@@ -576,7 +581,7 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
             # Get the current attempt for this user and topic (only if authenticated)
             from .models import ScormAttempt
             try:
-                if request.user.is_authenticated:
+                if hasattr(request, 'user') and request.user.is_authenticated:
                     current_attempt = ScormAttempt.objects.filter(
                         user=request.user,
                         scorm_package__topic=topic
@@ -613,8 +618,8 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
             logger.error(f"Error generating S3 URL: {str(e)}")
             return HttpResponse('Error generating content URL', status=500)
         
-        # OPTIMIZATION: For ALL files, redirect directly to S3 for maximum performance
-        # The SCORM API is injected in the player template, not in individual content files
+        # CRITICAL FIX: For non-HTML files, redirect to S3 for performance
+        # For HTML files, proxy through Django to avoid cross-origin issues
         if not path.endswith(('.html', '.htm')):
             from django.http import HttpResponseRedirect
             return HttpResponseRedirect(s3_url)
@@ -637,7 +642,8 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
                 logger.warning(f"CRITICAL: attempt_id was None, created fallback: {current_attempt_id}")
             
             # Create cache key for this content with version
-            cache_key = f"scorm_content_v4_{scorm_package.id}_{path}_{scorm_package.updated_at.timestamp()}_{current_attempt_id}"
+            package_timestamp = scorm_package.updated_at.timestamp()
+            cache_key = f"scorm_content_v4_{scorm_package.id}_{path}_{package_timestamp}_{current_attempt_id}"
             cached_content = cache.get(cache_key)
             
             if cached_content:
@@ -714,8 +720,8 @@ if (!window.API && !window.API_1484_11) {
 console.log('[SCORM] API bridge loaded for content');
 
 // CRITICAL FIX: Ensure attempt_id is available for SCORM content
-const SCORM_ATTEMPT_ID = '{}';
-const SCORM_API_ENDPOINT = '/scorm/api/{}/';
+const SCORM_ATTEMPT_ID = '{0}';
+const SCORM_API_ENDPOINT = '/scorm/api/{0}/';
 console.log('[SCORM] Attempt ID:', SCORM_ATTEMPT_ID);
 console.log('[SCORM] API Endpoint:', SCORM_API_ENDPOINT);
 
@@ -760,7 +766,7 @@ if (!window.API_1484_11) {
     };
     console.log('[SCORM] Minimal SCORM 2004 fallback API created');
 }
-</script>'''.format(current_attempt_id, current_attempt_id)
+</script>'''.format(current_attempt_id)
                 
                 # Inject before </head> or at beginning of <body>
                 if '</head>' in html_content:

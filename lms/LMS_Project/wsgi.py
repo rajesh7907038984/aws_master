@@ -32,14 +32,14 @@ def ensure_media_directories():
         # Get MEDIA_ROOT from settings
         MEDIA_ROOT = getattr(settings, 'MEDIA_ROOT', None)
         if not MEDIA_ROOT:
-            logger.info("📁 MEDIA_ROOT not configured, skipping directory creation")
+            logger.info(" MEDIA_ROOT not configured, skipping directory creation")
             return
     
-        logger.info(f"📁 MEDIA_ROOT: {MEDIA_ROOT}")
+        logger.info(f" MEDIA_ROOT: {MEDIA_ROOT}")
     
         # Check if media directory is accessible
         if not os.path.exists(MEDIA_ROOT):
-            logger.info(f"📁 Creating MEDIA_ROOT directory: {MEDIA_ROOT}")
+            logger.info(f" Creating MEDIA_ROOT directory: {MEDIA_ROOT}")
             os.makedirs(MEDIA_ROOT, exist_ok=True)
         
         if not os.access(MEDIA_ROOT, os.W_OK):
@@ -68,19 +68,19 @@ def ensure_media_directories():
                 logger.warning(f" Failed to create/set permissions for {dir_path}: {e}")
         
         if created_count > 0:
-            logger.info(f"📁 Created {created_count} media directories")
+            logger.info(f" Created {created_count} media directories")
         else:
-            logger.info("📁 All media directories already exist")
+            logger.info(" All media directories already exist")
             
     except Exception as e:
         logger.error(f" Error during media directory setup: {e}")
-        logger.info("📁 Media directories will be created at runtime when needed")
+        logger.info(" Media directories will be created at runtime when needed")
 
 # Ensure media directories exist at application startup
 try:
     ensure_media_directories()
 except Exception as e:
     logger.error(f" Media directory setup failed: {e}")
-    logger.info("📁 Application will continue - directories created on demand")
+    logger.info(" Application will continue - directories created on demand")
 
-logger.info("🎯 WSGI configuration completed successfully")
+logger.info(" WSGI configuration completed successfully")

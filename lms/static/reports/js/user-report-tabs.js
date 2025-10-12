@@ -31,7 +31,7 @@ if (isReportsPage && isUserPage) {
         const tabPanes = document.querySelectorAll('.user-report-tab-pane');
         
         console.log('🔘 Tab buttons found:', tabButtons.length);
-        console.log('📋 Tab panes found:', tabPanes.length);
+        console.log(' Tab panes found:', tabPanes.length);
         
         if (tabButtons.length > 0) {
             console.log('🔘 Button details:');
@@ -41,7 +41,7 @@ if (isReportsPage && isUserPage) {
         }
         
         if (tabPanes.length > 0) {
-            console.log('📋 Pane details:');
+            console.log(' Pane details:');
             tabPanes.forEach((pane, i) => {
                 console.log(`  Pane ${i}:`, pane.getAttribute('data-tab-content'));
             });
@@ -108,7 +108,7 @@ if (isReportsPage && isUserPage) {
         });
         
         // Initialize with overview tab
-        console.log('🎯 Initializing with overview tab');
+        console.log(' Initializing with overview tab');
         showTab('overview');
         
         // Periodically ensure our tabs stay visible (conflict resolution)

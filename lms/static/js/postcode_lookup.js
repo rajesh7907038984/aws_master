@@ -148,7 +148,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function performPostcodeLookup(postcode) {
-        console.log('🔍 Starting postcode address lookup for:', postcode);
+        console.log(' Starting postcode address lookup for:', postcode);
         
         // Basic UK postcode validation
         const postcodeRegex = /^[A-Z]{1,2}[0-9][A-Z0-9]?\s?[0-9][A-Z]{2}$/i;

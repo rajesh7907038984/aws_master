@@ -61,7 +61,7 @@ class Command(BaseCommand):
         user_id = options.get('user_id')
 
         if dry_run:
-            self.stdout.write(self.style.WARNING('🔍 DRY RUN MODE - No changes will be made'))
+            self.stdout.write(self.style.WARNING(' DRY RUN MODE - No changes will be made'))
         
         self.stdout.write(self.style.SUCCESS('🧹 Starting quiz attempt cleanup...'))
 
@@ -90,7 +90,7 @@ class Command(BaseCommand):
             if dry_run:
                 self.stdout.write(
                     self.style.WARNING(
-                        f'🔍 DRY RUN: Would clean up {expired_count} expired, '
+                        f' DRY RUN: Would clean up {expired_count} expired, '
                         f'{stale_count} stale attempts, and {orphaned_count} orphaned answers'
                     )
                 )

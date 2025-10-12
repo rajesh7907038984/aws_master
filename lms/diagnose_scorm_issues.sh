@@ -71,7 +71,7 @@ CMD=$(echo $CMD | xargs)  # Clean up extra spaces
 if [ -n "$FIX_MODE" ]; then
     echo "🔧 Running in FIX mode - issues will be automatically corrected"
 else
-    echo "🔍 Running in DIAGNOSE mode - issues will be reported only"
+    echo " Running in DIAGNOSE mode - issues will be reported only"
 fi
 
 if [ -n "$PACKAGE_ID" ]; then

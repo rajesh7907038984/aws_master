@@ -263,7 +263,7 @@ def process_scorm_package(sender, instance, created, **kwargs):
         from scorm.parser import ScormParser
         from scorm.validators import validate_scorm_package, ScormValidationError
         
-        logger.info(f"🎯 Processing SCORM package for topic {instance.id}: {instance.title}")
+        logger.info(f" Processing SCORM package for topic {instance.id}: {instance.title}")
         
         # Simple SCORM processing - no complex validation
         logger.info(f" Simple SCORM processing for topic {instance.id}")
@@ -305,7 +305,7 @@ def process_scorm_package(sender, instance, created, **kwargs):
             logger.info(f"   📌 Version: SCORM {scorm_package.version}")
             logger.info(f"    Launch URL: {scorm_package.launch_url}")
             logger.info(f"   📂 Extracted to: {scorm_package.extracted_path}")
-            logger.info(f"   🎯 Mastery Score: {scorm_package.mastery_score or 'Not set'}")
+            logger.info(f"    Mastery Score: {scorm_package.mastery_score or 'Not set'}")
             logger.info(f"    Title: {scorm_package.title}")
             
         except Exception as create_error:

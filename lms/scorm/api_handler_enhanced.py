@@ -284,10 +284,10 @@ class ScormAPIHandlerEnhanced:
             # CRITICAL FIX: Ensure bookmark data is ALWAYS available in CMI data for resume
             if self.attempt.lesson_location:
                 self.attempt.cmi_data['cmi.core.lesson_location'] = self.attempt.lesson_location
-                logger.info("🔖 RESUME: Set lesson_location in CMI data: %s", self.attempt.lesson_location)
+                logger.info(" RESUME: Set lesson_location in CMI data: %s", self.attempt.lesson_location)
             if self.attempt.suspend_data:
                 self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data
-                logger.info("🔖 RESUME: Set suspend_data in CMI data (%d chars)", len(self.attempt.suspend_data))
+                logger.info(" RESUME: Set suspend_data in CMI data (%d chars)", len(self.attempt.suspend_data))
             
             # Set other required fields
             self.attempt.cmi_data['cmi.core.lesson_status'] = self.attempt.lesson_status or 'not attempted'
@@ -302,10 +302,10 @@ class ScormAPIHandlerEnhanced:
             # CRITICAL FIX: Ensure bookmark data is ALWAYS available in CMI data for resume
             if self.attempt.lesson_location:
                 self.attempt.cmi_data['cmi.location'] = self.attempt.lesson_location
-                logger.info("🔖 RESUME: Set location in CMI data: %s", self.attempt.lesson_location)
+                logger.info(" RESUME: Set location in CMI data: %s", self.attempt.lesson_location)
             if self.attempt.suspend_data:
                 self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data
-                logger.info("🔖 RESUME: Set suspend_data in CMI data (%d chars)", len(self.attempt.suspend_data))
+                logger.info(" RESUME: Set suspend_data in CMI data (%d chars)", len(self.attempt.suspend_data))
             
             # Set other required fields
             self.attempt.cmi_data['cmi.completion_status'] = self.attempt.lesson_status or 'not attempted'
@@ -446,16 +446,16 @@ class ScormAPIHandlerEnhanced:
                     # CRITICAL FIX: Always return bookmark data from model fields
                     value = self.attempt.lesson_location or ''
                     if value:
-                        logger.info("🔖 RESUME: Returning lesson_location = '%s' for attempt %s", value[:100], self.attempt.id)
+                        logger.info(" RESUME: Returning lesson_location = '%s' for attempt %s", value[:100], self.attempt.id)
                     else:
-                        logger.info("🔖 RESUME: No lesson_location found for attempt %s", self.attempt.id)
+                        logger.info(" RESUME: No lesson_location found for attempt %s", self.attempt.id)
                 elif element == 'cmi.suspend_data':
                     # CRITICAL FIX: Always return suspend data from model fields
                     value = self.attempt.suspend_data or ''
                     if value:
-                        logger.info("🔖 RESUME: Returning suspend_data (%d chars) for attempt %s", len(value), self.attempt.id)
+                        logger.info(" RESUME: Returning suspend_data (%d chars) for attempt %s", len(value), self.attempt.id)
                     else:
-                        logger.info("🔖 RESUME: No suspend_data found for attempt %s", self.attempt.id)
+                        logger.info(" RESUME: No suspend_data found for attempt %s", self.attempt.id)
                 elif element == 'cmi.core.total_time':
                     value = self.attempt.total_time or ('0000:00:00.00' if self.version == '1.2' else 'PT00H00M00S')
                 
@@ -633,7 +633,7 @@ class ScormAPIHandlerEnhanced:
                     old_location = self.attempt.lesson_location
                     self.attempt.lesson_location = value
                     self.attempt.cmi_data['cmi.core.lesson_location'] = value
-                    logger.info("🔖 BOOKMARK UPDATE: lesson_location changed from '%s' to '%s' for attempt %s", 
+                    logger.info(" BOOKMARK UPDATE: lesson_location changed from '%s' to '%s' for attempt %s", 
                                old_location or 'None', value or 'None', self.attempt.id)
                     
                     # ENHANCED: Update slide/section tracking
@@ -648,9 +648,9 @@ class ScormAPIHandlerEnhanced:
                         self.attempt.save(update_fields=['lesson_location', 'cmi_data', 'last_accessed', 
                                                          'last_visited_slide', 'progress_percentage', 
                                                          'total_slides', 'completed_slides', 'detailed_tracking'])
-                        logger.info("🔖 BOOKMARK SAVED: Immediately saved lesson_location, slide progress, and CMI data")
+                        logger.info(" BOOKMARK SAVED: Immediately saved lesson_location, slide progress, and CMI data")
                     except Exception as save_error:
-                        logger.error("❌ BOOKMARK SAVE ERROR: %s", str(save_error))
+                        logger.error(" BOOKMARK SAVE ERROR: %s", str(save_error))
                         
                 elif element == 'cmi.suspend_data':
                     # CRITICAL FIX: Store suspend data in both CMI data and model fields
@@ -658,7 +658,7 @@ class ScormAPIHandlerEnhanced:
                     new_suspend_len = len(value) if value else 0
                     self.attempt.suspend_data = value
                     self.attempt.cmi_data['cmi.suspend_data'] = value
-                    logger.info("🔖 SUSPEND DATA UPDATE: Changed from %d chars to %d chars for attempt %s", 
+                    logger.info(" SUSPEND DATA UPDATE: Changed from %d chars to %d chars for attempt %s", 
                                old_suspend_len, new_suspend_len, self.attempt.id)
                     
                     # ENHANCED: Update slide/section tracking from suspend_data
@@ -690,9 +690,9 @@ class ScormAPIHandlerEnhanced:
                                                          'last_visited_slide', 'progress_percentage',
                                                          'total_slides', 'completed_slides', 'detailed_tracking',
                                                          'time_spent_seconds', 'total_time'])
-                        logger.info("🔖 SUSPEND DATA SAVED: Immediately saved suspend_data, slide progress, time tracking, and CMI data")
+                        logger.info(" SUSPEND DATA SAVED: Immediately saved suspend_data, slide progress, time tracking, and CMI data")
                     except Exception as save_error:
-                        logger.error("❌ SUSPEND DATA SAVE ERROR: %s", str(save_error))
+                        logger.error(" SUSPEND DATA SAVE ERROR: %s", str(save_error))
                 elif element == 'cmi.core.session_time':
                     self.attempt.session_time = value
                     self._update_total_time(value)
@@ -804,16 +804,16 @@ class ScormAPIHandlerEnhanced:
                     old_location = self.attempt.lesson_location
                     self.attempt.lesson_location = value
                     self.attempt.cmi_data['cmi.location'] = value
-                    logger.info("🔖 BOOKMARK UPDATE (SCORM 2004): location changed from '%s' to '%s' for attempt %s", 
+                    logger.info(" BOOKMARK UPDATE (SCORM 2004): location changed from '%s' to '%s' for attempt %s", 
                                old_location or 'None', value or 'None', self.attempt.id)
                     
                     # ENHANCED: Immediate save for critical bookmark data to prevent data loss
                     try:
                         self.attempt.last_accessed = timezone.now()
                         self.attempt.save(update_fields=['lesson_location', 'cmi_data', 'last_accessed'])
-                        logger.info("🔖 BOOKMARK SAVED (SCORM 2004): Immediately saved location and CMI data")
+                        logger.info(" BOOKMARK SAVED (SCORM 2004): Immediately saved location and CMI data")
                     except Exception as save_error:
-                        logger.error("❌ BOOKMARK SAVE ERROR (SCORM 2004): %s", str(save_error))
+                        logger.error(" BOOKMARK SAVE ERROR (SCORM 2004): %s", str(save_error))
                         
                 elif element == 'cmi.suspend_data':
                     # CRITICAL FIX: Store suspend data in both CMI data and model fields
@@ -821,16 +821,16 @@ class ScormAPIHandlerEnhanced:
                     new_suspend_len = len(value) if value else 0
                     self.attempt.suspend_data = value
                     self.attempt.cmi_data['cmi.suspend_data'] = value
-                    logger.info("🔖 SUSPEND DATA UPDATE (SCORM 2004): Changed from %d chars to %d chars for attempt %s", 
+                    logger.info(" SUSPEND DATA UPDATE (SCORM 2004): Changed from %d chars to %d chars for attempt %s", 
                                old_suspend_len, new_suspend_len, self.attempt.id)
                     
                     # ENHANCED: Immediate save for critical suspend data to prevent data loss
                     try:
                         self.attempt.last_accessed = timezone.now()
                         self.attempt.save(update_fields=['suspend_data', 'cmi_data', 'last_accessed'])
-                        logger.info("🔖 SUSPEND DATA SAVED (SCORM 2004): Immediately saved suspend_data and CMI data")
+                        logger.info(" SUSPEND DATA SAVED (SCORM 2004): Immediately saved suspend_data and CMI data")
                     except Exception as save_error:
-                        logger.error("❌ SUSPEND DATA SAVE ERROR (SCORM 2004): %s", str(save_error))
+                        logger.error(" SUSPEND DATA SAVE ERROR (SCORM 2004): %s", str(save_error))
                 elif element == 'cmi.session_time':
                     self.attempt.session_time = value
                     self._update_total_time(value)
@@ -868,14 +868,14 @@ class ScormAPIHandlerEnhanced:
             return 'false'
         
         try:
-            logger.info("💾 COMMIT: Starting commit for attempt %s (user: %s, score_raw: %s, lesson_status: %s)", 
+            logger.info(" COMMIT: Starting commit for attempt %s (user: %s, score_raw: %s, lesson_status: %s)", 
                        self.attempt.id, self.attempt.user.username, self.attempt.score_raw, self.attempt.lesson_status)
             self._commit_data()
-            logger.info("✅ COMMIT: Successfully committed data for attempt %s", self.attempt.id)
+            logger.info(" COMMIT: Successfully committed data for attempt %s", self.attempt.id)
             self.last_error = '0'
             return 'true'
         except Exception as e:
-            logger.error("❌ COMMIT ERROR: Failed to commit data for attempt %s: %s", self.attempt.id, str(e))
+            logger.error(" COMMIT ERROR: Failed to commit data for attempt %s: %s", self.attempt.id, str(e))
             self.last_error = '101'
             return 'false'
     
@@ -1199,7 +1199,7 @@ class ScormAPIHandlerEnhanced:
                     click_count = int(match.group(1))
                     if click_count > 0:
                         has_real_interaction = True
-                        logger.info(f"✅ Found Continue button interactions: {click_count} clicks")
+                        logger.info(f" Found Continue button interactions: {click_count} clicks")
                         break
         
         # 2. Check for slide completion tracking
@@ -1208,13 +1208,13 @@ class ScormAPIHandlerEnhanced:
             completed_count = len(self.attempt.completed_slides)
             if completed_count > 0:
                 has_real_interaction = True
-                logger.info(f"✅ Found completed slides: {completed_count} slides")
+                logger.info(f" Found completed slides: {completed_count} slides")
         
         # 3. Check for quiz/assessment interactions
         if not has_real_interaction and self.attempt.score_raw is not None:
             if self.attempt.score_raw > 0:
                 has_real_interaction = True
-                logger.info(f"✅ Found quiz score: {self.attempt.score_raw}")
+                logger.info(f" Found quiz score: {self.attempt.score_raw}")
         
         # 4. Check for substantial time spent (as backup validation)
         if not has_real_interaction:
@@ -1231,13 +1231,13 @@ class ScormAPIHandlerEnhanced:
                 # Require at least 2 minutes of actual time spent
                 if time_seconds >= 120:
                     has_real_interaction = True
-                    logger.info(f"✅ Found substantial time spent: {time_seconds}s")
+                    logger.info(f" Found substantial time spent: {time_seconds}s")
         
         if not has_real_interaction:
             logger.warning(f"⚠️  Completion status set but no evidence of real interaction - marking as incomplete")
             return False
         
-        logger.info(f"✅ Valid completion detected - marking as completed")
+        logger.info(f" Valid completion detected - marking as completed")
         return True
     
     def _update_completion_from_status(self, status):
@@ -1824,7 +1824,7 @@ class ScormAPIHandlerEnhanced:
         """Save attempt data to database with atomic transactions"""
         from django.db import transaction
         
-        logger.info("💾 _COMMIT_DATA: Starting (score_raw=%s, cmi_score=%s, lesson_location=%s, suspend_data_len=%s)", 
+        logger.info(" _COMMIT_DATA: Starting (score_raw=%s, cmi_score=%s, lesson_location=%s, suspend_data_len=%s)", 
                    self.attempt.score_raw, 
                    self.attempt.cmi_data.get('cmi.core.score.raw') or self.attempt.cmi_data.get('cmi.score.raw'),
                    self.attempt.lesson_location[:50] if self.attempt.lesson_location else 'None',
@@ -1857,7 +1857,7 @@ class ScormAPIHandlerEnhanced:
                     # Update last accessed timestamp
                     self.attempt.last_accessed = timezone.now()
                     
-                    logger.info("💾 _COMMIT_DATA: Before save (score_raw=%s, type=%s, bookmark=%s)", 
+                    logger.info(" _COMMIT_DATA: Before save (score_raw=%s, type=%s, bookmark=%s)", 
                                self.attempt.score_raw, type(self.attempt.score_raw),
                                self.attempt.lesson_location[:30] if self.attempt.lesson_location else 'None')
                     
@@ -1881,7 +1881,7 @@ class ScormAPIHandlerEnhanced:
                         
                         self.attempt.full_clean()
                         self.attempt.save()
-                        logger.info("💾 _COMMIT_DATA: ScormAttempt saved successfully")
+                        logger.info(" _COMMIT_DATA: ScormAttempt saved successfully")
                         
                         # Remove the flag after successful save
                         delattr(self.attempt, '_updating_from_api_handler')
@@ -1889,13 +1889,13 @@ class ScormAPIHandlerEnhanced:
                         # Clean up flag even on error
                         if hasattr(self.attempt, '_updating_from_api_handler'):
                             delattr(self.attempt, '_updating_from_api_handler')
-                        logger.error("❌ _COMMIT_DATA: ScormAttempt save failed: %s", str(save_error))
+                        logger.error(" _COMMIT_DATA: ScormAttempt save failed: %s", str(save_error))
                         raise
                     
                     # Verify the save actually worked
                     from scorm.models import ScormAttempt
                     saved_attempt = ScormAttempt.objects.get(id=self.attempt.id)
-                    logger.info("💾 _COMMIT_DATA: DB verification (score_raw=%s, cmi_score=%s, bookmark=%s, suspend_len=%s)", 
+                    logger.info(" _COMMIT_DATA: DB verification (score_raw=%s, cmi_score=%s, bookmark=%s, suspend_len=%s)", 
                                saved_attempt.score_raw,
                                saved_attempt.cmi_data.get('cmi.core.score.raw') or saved_attempt.cmi_data.get('cmi.score.raw'),
                                saved_attempt.lesson_location[:30] if saved_attempt.lesson_location else 'None',
@@ -1903,15 +1903,15 @@ class ScormAPIHandlerEnhanced:
                     
                     # CRITICAL: Check for data loss during save
                     if score_before and not saved_attempt.score_raw:
-                        logger.error("❌ _COMMIT_DATA: SCORE LOST DURING SAVE! Before=%s, After=%s", score_before, saved_attempt.score_raw)
+                        logger.error(" _COMMIT_DATA: SCORE LOST DURING SAVE! Before=%s, After=%s", score_before, saved_attempt.score_raw)
                         raise ValueError(f"Score lost during save: {score_before} -> {saved_attempt.score_raw}")
                     
                     if location_before and not saved_attempt.lesson_location:
-                        logger.error("❌ _COMMIT_DATA: BOOKMARK LOST DURING SAVE! Before=%s, After=%s", location_before, saved_attempt.lesson_location)
+                        logger.error(" _COMMIT_DATA: BOOKMARK LOST DURING SAVE! Before=%s, After=%s", location_before, saved_attempt.lesson_location)
                         raise ValueError(f"Bookmark lost during save: {location_before} -> {saved_attempt.lesson_location}")
                     
                     if suspend_data_len_before > 0 and not saved_attempt.suspend_data:
-                        logger.error("❌ _COMMIT_DATA: SUSPEND_DATA LOST DURING SAVE! Before=%s chars, After=%s", suspend_data_len_before, len(saved_attempt.suspend_data) if saved_attempt.suspend_data else 0)
+                        logger.error(" _COMMIT_DATA: SUSPEND_DATA LOST DURING SAVE! Before=%s chars, After=%s", suspend_data_len_before, len(saved_attempt.suspend_data) if saved_attempt.suspend_data else 0)
                         raise ValueError(f"Suspend data lost during save: {suspend_data_len_before} chars -> {len(saved_attempt.suspend_data) if saved_attempt.suspend_data else 0}")
                     
                     # AUTOMATIC SCORE EXTRACTION: If SCORM content didn't report score, try to extract from suspend_data
@@ -1923,10 +1923,10 @@ class ScormAPIHandlerEnhanced:
                     # Update TopicProgress (within same transaction for consistency)
                     self._update_topic_progress()
                     
-                    logger.info("✅ _COMMIT_DATA: All data committed successfully with atomic transaction")
+                    logger.info(" _COMMIT_DATA: All data committed successfully with atomic transaction")
                     
             except Exception as e:
-                logger.error("❌ _COMMIT_DATA: Transaction failed: %s", str(e))
+                logger.error(" _COMMIT_DATA: Transaction failed: %s", str(e))
                 import traceback
                 logger.error(traceback.format_exc())
                 raise
@@ -2088,7 +2088,7 @@ class ScormAPIHandlerEnhanced:
                     progress.completed = True
                     progress.completion_method = 'scorm'
                     progress.completed_at = timezone.now()
-                    logger.info("✅ TOPIC_PROGRESS: Marked as completed for topic %s", topic.id)
+                    logger.info(" TOPIC_PROGRESS: Marked as completed for topic %s", topic.id)
                 
                 # CRITICAL FIX: Always update scores when available, regardless of completion status
                 if self.attempt.score_raw is not None:
@@ -2109,7 +2109,7 @@ class ScormAPIHandlerEnhanced:
                     progress.attempts = max(progress.attempts or 0, self.attempt.attempt_number)
                     
                     completion_note = "completed" if is_completed else "incomplete but score valid"
-                    logger.info("📊 TOPIC_PROGRESS: Updated scores (%s) - last_score: %s → %s, best_score: %s → %s, attempts: %s", 
+                    logger.info(" TOPIC_PROGRESS: Updated scores (%s) - last_score: %s → %s, best_score: %s → %s, attempts: %s", 
                                completion_note, old_last_score, progress.last_score, old_best_score, progress.best_score, progress.attempts)
                 else:
                     logger.warning("⚠️  TOPIC_PROGRESS: No score to update (score_raw is None), lesson_status: %s", 
@@ -2124,16 +2124,16 @@ class ScormAPIHandlerEnhanced:
                 try:
                     progress.full_clean()  # Validate before saving
                     progress.save()
-                    logger.info("✅ TOPIC_PROGRESS: Successfully saved for topic %s with atomic transaction", topic.id)
+                    logger.info(" TOPIC_PROGRESS: Successfully saved for topic %s with atomic transaction", topic.id)
                 except Exception as save_error:
-                    logger.error("❌ TOPIC_PROGRESS: Save validation failed: %s", str(save_error))
+                    logger.error(" TOPIC_PROGRESS: Save validation failed: %s", str(save_error))
                     raise
                 
                 # Update CourseEnrollment for accurate reporting (within same transaction)
                 self._update_course_enrollment(topic, progress, time_seconds)
                 
         except Exception as e:
-            logger.error("❌ TOPIC_PROGRESS ERROR: Failed to update topic progress: %s", str(e))
+            logger.error(" TOPIC_PROGRESS ERROR: Failed to update topic progress: %s", str(e))
             import traceback
             logger.error(traceback.format_exc())
             # Re-raise the exception to ensure proper error handling up the chain
@@ -2174,7 +2174,7 @@ class ScormAPIHandlerEnhanced:
                 course=course
             )
             
-            logger.info("📋 ENROLLMENT: Updating for user %s, course %s (created=%s)",
+            logger.info(" ENROLLMENT: Updating for user %s, course %s (created=%s)",
                        self.attempt.user.username, course.id, created)
             
             # Get all SCORM topics in this course
@@ -2203,14 +2203,14 @@ class ScormAPIHandlerEnhanced:
                 if not enrollment.completed:
                     enrollment.completed = True
                     enrollment.completion_date = timezone.now()
-                    logger.info("🎉 ENROLLMENT: Course marked as completed!")
+                    logger.info(" ENROLLMENT: Course marked as completed!")
             
             enrollment.save()
-            logger.info("✅ ENROLLMENT: Updated - completed: %s/%s topics, time: %ss",
+            logger.info(" ENROLLMENT: Updated - completed: %s/%s topics, time: %ss",
                        completed_scorm_topics, total_scorm_topics, total_time_all_scorm)
             
         except Exception as e:
-            logger.error("❌ ENROLLMENT ERROR: Failed to update enrollment: %s", str(e))
+            logger.error(" ENROLLMENT ERROR: Failed to update enrollment: %s", str(e))
             import traceback
             logger.error(traceback.format_exc())
     
@@ -2232,13 +2232,13 @@ class ScormAPIHandlerEnhanced:
                 if time_based_score > self.attempt.score_raw * 2:
                     old_score = self.attempt.score_raw
                     self.attempt.score_raw = time_based_score
-                    logger.info(f"📊 IMPROVED SCORING: {old_score}% → {time_based_score}% (time-based calculation)")
+                    logger.info(f" IMPROVED SCORING: {old_score}% → {time_based_score}% (time-based calculation)")
                     
                     # Mark as completed if they spent significant time
                     if time_spent_minutes > 2:  # More than 2 minutes
                         self.attempt.lesson_status = 'completed'
                         self.attempt.completion_status = 'completed'
-                        logger.info(f"📊 IMPROVED STATUS: Marked as completed due to time spent ({time_spent_minutes:.1f} minutes)")
+                        logger.info(f" IMPROVED STATUS: Marked as completed due to time spent ({time_spent_minutes:.1f} minutes)")
                         
         except Exception as e:
             logger.error(f"Error in _improve_scoring_if_needed: {e}")
@@ -2277,14 +2277,14 @@ class ScormAPIHandlerEnhanced:
                 # Track visited slides
                 if current_slide not in slide_tracking['visited_slides']:
                     slide_tracking['visited_slides'].append(current_slide)
-                    logger.info(f"📊 SLIDE TRACKING: Added slide {current_slide} to visited slides")
+                    logger.info(f" SLIDE TRACKING: Added slide {current_slide} to visited slides")
                 
                 # If this looks like a completion slide (contains completion indicators)
                 completion_indicators = ['complete', 'finish', 'end', 'done', 'summary']
                 if any(indicator in current_slide.lower() for indicator in completion_indicators):
                     if current_slide not in slide_tracking['completed_slides']:
                         slide_tracking['completed_slides'].append(current_slide)
-                        logger.info(f"📊 SLIDE TRACKING: Marked slide {current_slide} as completed")
+                        logger.info(f" SLIDE TRACKING: Marked slide {current_slide} as completed")
                 
                 # Calculate completion percentage
                 total_slides = slide_tracking['total_slides']
@@ -2302,27 +2302,27 @@ class ScormAPIHandlerEnhanced:
                         if self.attempt.time_spent_seconds and self.attempt.time_spent_seconds > 120:  # 2+ minutes
                             completion_percentage = 100
                             slide_tracking['completed_slides'] = slide_tracking['visited_slides'].copy()
-                            logger.info(f"📊 SLIDE TRACKING: Auto-completed all slides based on time spent ({self.attempt.time_spent_seconds}s)")
+                            logger.info(f" SLIDE TRACKING: Auto-completed all slides based on time spent ({self.attempt.time_spent_seconds}s)")
                     
                     # Update score based on slide completion
                     if completion_percentage > 0:
                         new_score = max(self.attempt.score_raw or 0, completion_percentage)
                         if new_score > (self.attempt.score_raw or 0):
                             self.attempt.score_raw = new_score
-                            logger.info(f"📊 SLIDE-BASED SCORING: Updated score to {new_score}% based on {completed_slides}/{total_slides} slides completed")
+                            logger.info(f" SLIDE-BASED SCORING: Updated score to {new_score}% based on {completed_slides}/{total_slides} slides completed")
                             
                             # Mark as completed if all slides are done
                             if completion_percentage >= 100:
                                 self.attempt.lesson_status = 'completed'
                                 self.attempt.completion_status = 'completed'
-                                logger.info(f"📊 SLIDE COMPLETION: Marked as completed - all {total_slides} slides completed")
+                                logger.info(f" SLIDE COMPLETION: Marked as completed - all {total_slides} slides completed")
                 
                 # Update model fields
                 self.attempt.completed_slides = ','.join(slide_tracking['completed_slides'])
                 self.attempt.total_slides = total_slides
                 self.attempt.progress_percentage = completion_percentage
                 
-                logger.info(f"📊 SLIDE TRACKING: {completed_slides}/{total_slides} slides completed ({completion_percentage:.1f}%)")
+                logger.info(f" SLIDE TRACKING: {completed_slides}/{total_slides} slides completed ({completion_percentage:.1f}%)")
                 
         except Exception as e:
             logger.error(f"Error in _track_slide_completion: {e}")

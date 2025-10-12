@@ -16,7 +16,7 @@ window.sectionDeleteState = {
  * Robust CSRF token retrieval
  */
 function getCSRFToken() {
-    console.log('🔍 Retrieving CSRF token...');
+    console.log(' Retrieving CSRF token...');
     
     // Method 1: Form input
     const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
@@ -229,7 +229,7 @@ window.showNotification = showNotification;
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🎯 Section Delete Handler initialized');
+    console.log(' Section Delete Handler initialized');
     console.log(' Available functions:', {
         deleteSection: typeof window.deleteSection,
         testSectionDelete: typeof window.testSectionDelete,

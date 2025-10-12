@@ -143,7 +143,7 @@ WHITENOISE_AUTOREFRESH = False  # Disabled for production
 
 # WhiteNoise middleware is configured in base.py
 
-print("📁 Using local static files storage for production (better performance)")
+print(" Using local static files storage for production (better performance)")
 
 # ==============================================
 # SECURITY CONFIGURATION
@@ -325,11 +325,11 @@ DEBUG = False
 # Override only if production needs different security settings
 
 print("🏗️ Production configuration loaded successfully!")
-print("🎯 Environment: {}".format(ENVIRONMENT))
+print(" Environment: {}".format(ENVIRONMENT))
 print("🐛 Debug mode: {}".format(DEBUG))
 print("☁️ S3 Bucket: {}".format(AWS_STORAGE_BUCKET_NAME))
 print("🏠 Allowed hosts: {}...".format(', '.join(ALLOWED_HOSTS[:3])))
-print("📋 Log directory: {}".format(LOG_DIR or 'Console only'))
+print(" Log directory: {}".format(LOG_DIR or 'Console only'))
 # ==============================================
 # PRODUCTION SESSION PERSISTENCE OVERRIDES
 # ==============================================

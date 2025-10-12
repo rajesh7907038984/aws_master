@@ -47,7 +47,7 @@ class Command(BaseCommand):
         self.check_baseline = options.get('check_baseline', False)
         self.dry_run = options.get('dry_run', False)
         
-        self.stdout.write("🔍 Comprehensive Database Analysis Starting...")
+        self.stdout.write(" Comprehensive Database Analysis Starting...")
         self.stdout.write("=" * 60)
         
         # Initialize analysis results
@@ -164,7 +164,7 @@ class Command(BaseCommand):
 
     def analyze_database_tables(self):
         """Find tables that don't correspond to Django models"""
-        self.stdout.write("\n📊 Analyzing Database Tables...")
+        self.stdout.write("\n Analyzing Database Tables...")
         
         # Get Django models and database tables
         django_models = self.get_all_django_models()
@@ -210,7 +210,7 @@ class Command(BaseCommand):
 
     def analyze_table_columns(self):
         """Find columns that don't correspond to model fields"""
-        self.stdout.write("\n📋 Analyzing Table Columns...")
+        self.stdout.write("\n Analyzing Table Columns...")
         
         django_models = self.get_all_django_models()
         orphaned_columns = []
@@ -325,7 +325,7 @@ class Command(BaseCommand):
 
     def compare_with_baseline(self):
         """Compare current schema with baseline"""
-        self.stdout.write("\n📊 Comparing with Baseline Schema...")
+        self.stdout.write("\n Comparing with Baseline Schema...")
         
         baseline_path = Path(__file__).parent.parent.parent.parent / 'schema_baselines' / 'baseline_schema.json'
         
@@ -355,7 +355,7 @@ class Command(BaseCommand):
             self.analysis_results['baseline_differences'] = differences
             
             if differences:
-                self.stdout.write(f"📊 Found {len(differences)} differences from baseline:")
+                self.stdout.write(f" Found {len(differences)} differences from baseline:")
                 for diff in differences:
                     self.stdout.write(f"   • {diff['type']}: {diff['name']}")
             else:
@@ -421,7 +421,7 @@ class Command(BaseCommand):
     def display_results(self):
         """Display comprehensive analysis results"""
         self.stdout.write("\n" + "="*60)
-        self.stdout.write("📋 COMPREHENSIVE DATABASE ANALYSIS RESULTS")
+        self.stdout.write(" COMPREHENSIVE DATABASE ANALYSIS RESULTS")
         self.stdout.write("="*60)
         
         total_issues = (len(self.analysis_results['orphaned_tables']) + 
@@ -435,7 +435,7 @@ class Command(BaseCommand):
         self.stdout.write(f"  Found {total_issues} potential cleanup items")
         
         # Summary
-        self.stdout.write(f"\n📊 Summary:")
+        self.stdout.write(f"\n Summary:")
         self.stdout.write(f"   • Orphaned Tables: {len(self.analysis_results['orphaned_tables'])}")
         self.stdout.write(f"   • Orphaned Columns: {len(self.analysis_results['orphaned_columns'])}")
         self.stdout.write(f"   • Migration Artifacts: {len(self.analysis_results['migration_artifacts'])}")
@@ -443,18 +443,18 @@ class Command(BaseCommand):
         
         # Recommendations
         if self.analysis_results['recommendations']:
-            self.stdout.write(f"\n🎯 Recommended Actions:")
+            self.stdout.write(f"\n Recommended Actions:")
             high_priority = [r for r in self.analysis_results['recommendations'] if r['priority'] == 'HIGH']
             medium_priority = [r for r in self.analysis_results['recommendations'] if r['priority'] == 'MEDIUM']
             
             if high_priority:
-                self.stdout.write(f"\n🔴 HIGH PRIORITY ({len(high_priority)} items):")
+                self.stdout.write(f"\n HIGH PRIORITY ({len(high_priority)} items):")
                 for rec in high_priority:
                     self.stdout.write(f"   • {rec['action']}")
                     self.stdout.write(f"     Reason: {rec['reason']} (Risk: {rec['risk']})")
             
             if medium_priority:
-                self.stdout.write(f"\n🟡 MEDIUM PRIORITY ({len(medium_priority)} items):")
+                self.stdout.write(f"\n MEDIUM PRIORITY ({len(medium_priority)} items):")
                 for rec in medium_priority:
                     self.stdout.write(f"   • {rec['action']}")
                     self.stdout.write(f"     Reason: {rec['reason']} (Risk: {rec['risk']})")

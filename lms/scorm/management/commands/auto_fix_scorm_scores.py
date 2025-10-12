@@ -71,12 +71,12 @@ class Command(BaseCommand):
             filters['user_id'] = user_id
         
         if process_all:
-            self.stdout.write("📊 Processing ALL SCORM attempts...")
+            self.stdout.write(" Processing ALL SCORM attempts...")
             attempts = ScormAttempt.objects.filter(**filters)
         else:
             since = timezone.now() - timedelta(hours=recent_hours)
             filters['last_accessed__gte'] = since
-            self.stdout.write(f"📊 Processing SCORM attempts from last {recent_hours} hours...")
+            self.stdout.write(f" Processing SCORM attempts from last {recent_hours} hours...")
             attempts = ScormAttempt.objects.filter(**filters)
         
         attempts = attempts.select_related('user', 'scorm_package__topic').order_by('-last_accessed')
@@ -86,7 +86,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("No SCORM attempts found to process"))
             return
         
-        self.stdout.write(f"🎯 Found {total_attempts} attempts to analyze")
+        self.stdout.write(f" Found {total_attempts} attempts to analyze")
         
         processed = 0
         issues_detected = 0
@@ -112,11 +112,11 @@ class Command(BaseCommand):
                     continue
                 
                 issues_detected += 1
-                self.stdout.write(f"\n🔍 Processing Attempt {attempt.id}:")
+                self.stdout.write(f"\n Processing Attempt {attempt.id}:")
                 self.stdout.write(f"  👤 User: {attempt.user.username}")
                 self.stdout.write(f"  📚 Topic: {attempt.scorm_package.topic.title} (ID: {attempt.scorm_package.topic.id})")
                 self.stdout.write(f"  📦 Package: {attempt.scorm_package.version} - {attempt.scorm_package.title}")
-                self.stdout.write(f"  📊 Current: Status={attempt.lesson_status}, Score={attempt.score_raw}")
+                self.stdout.write(f"   Current: Status={attempt.lesson_status}, Score={attempt.score_raw}")
                 
                 if dry_run:
                     # Show what would be done
@@ -129,10 +129,10 @@ class Command(BaseCommand):
                     if success:
                         # Re-fetch to see changes
                         attempt.refresh_from_db()
-                        self.stdout.write(f"  ✅ Fixed: Status={attempt.lesson_status}, Score={attempt.score_raw}")
+                        self.stdout.write(f"   Fixed: Status={attempt.lesson_status}, Score={attempt.score_raw}")
                         auto_fixed += 1
                     else:
-                        self.stdout.write(f"  ❌ Could not extract valid score from suspend data")
+                        self.stdout.write(f"   Could not extract valid score from suspend data")
                 
                 # Progress indicator
                 if processed % 10 == 0:
@@ -140,22 +140,22 @@ class Command(BaseCommand):
                 
             except Exception as e:
                 self.stdout.write(
-                    self.style.ERROR(f"❌ Error processing attempt {attempt.id}: {str(e)}")
+                    self.style.ERROR(f" Error processing attempt {attempt.id}: {str(e)}")
                 )
         
         # Summary
         self.stdout.write(f"\n{'=' * 60}")
-        self.stdout.write(self.style.SUCCESS("🎯 Auto-Fix Complete!"))
-        self.stdout.write(f"  📊 Total processed: {processed}")
-        self.stdout.write(f"  🔍 Issues detected: {issues_detected}")
-        self.stdout.write(f"  ✅ Auto-fixed: {auto_fixed}")
+        self.stdout.write(self.style.SUCCESS(" Auto-Fix Complete!"))
+        self.stdout.write(f"   Total processed: {processed}")
+        self.stdout.write(f"   Issues detected: {issues_detected}")
+        self.stdout.write(f"   Auto-fixed: {auto_fixed}")
         self.stdout.write(f"  ⏭️  Skipped (already good): {skipped}")
         
         if dry_run:
             self.stdout.write(self.style.WARNING("\n⚠️  This was a DRY RUN - no changes were made"))
             self.stdout.write("Run without --dry-run to apply fixes")
         elif auto_fixed > 0:
-            self.stdout.write(self.style.SUCCESS(f"\n✅ Successfully auto-fixed {auto_fixed} SCORM score issues"))
+            self.stdout.write(self.style.SUCCESS(f"\n Successfully auto-fixed {auto_fixed} SCORM score issues"))
             
             # Clear application caches
             from django.core.cache import cache

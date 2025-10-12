@@ -47,7 +47,7 @@ class Command(BaseCommand):
         recent_days = options['recent_days']
         verbose = options['verbose']
         
-        self.stdout.write("🔍 Conference Sync Health Monitor")
+        self.stdout.write(" Conference Sync Health Monitor")
         self.stdout.write("=" * 50)
         
         if conference_id:
@@ -63,7 +63,7 @@ class Command(BaseCommand):
             conference = Conference.objects.get(id=conference_id)
             health = SyncHealthChecker.check_conference_sync_health(conference_id)
             
-            self.stdout.write(f"\n📋 Conference: {health['conference_title']} (ID: {conference_id})")
+            self.stdout.write(f"\n Conference: {health['conference_title']} (ID: {conference_id})")
             self.stdout.write(f"Status: {health['overall_status'].upper()}")
             
             if verbose:
@@ -103,7 +103,7 @@ class Command(BaseCommand):
         # Get system-wide health
         system_health = SyncHealthChecker.get_system_wide_health()
         
-        self.stdout.write(f"\n📊 System-Wide Health Summary")
+        self.stdout.write(f"\n System-Wide Health Summary")
         self.stdout.write(f"Total Conferences (last {recent_days} days): {system_health['total_conferences']}")
         self.stdout.write(f"Healthy: {system_health['healthy']}")
         self.stdout.write(f"Warning: {system_health['warning']}")

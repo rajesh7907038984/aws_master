@@ -70,7 +70,7 @@ class Command(BaseCommand):
 
     def list_unmatched_participants(self, conference):
         """List unmatched participants with detailed suggestions"""
-        self.stdout.write(self.style.WARNING('\n📋 UNMATCHED PARTICIPANTS:'))
+        self.stdout.write(self.style.WARNING('\n UNMATCHED PARTICIPANTS:'))
         
         # Get unmatched ConferenceParticipant records (user=None)
         unmatched_participants = ConferenceParticipant.objects.filter(

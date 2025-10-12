@@ -2567,7 +2567,7 @@ def ajax_save_grade(request):
     try:
         logger.info(f" ajax_save_grade called by {user.username}")
         logger.info(f"📦 POST data: {dict(request.POST)}")
-        logger.info(f"📁 FILES data: {list(request.FILES.keys())}")
+        logger.info(f" FILES data: {list(request.FILES.keys())}")
         # Use comprehensive validation
         # Convert QueryDict to regular dict with single values (not lists)
         post_data = {key: value for key, value in request.POST.items()}

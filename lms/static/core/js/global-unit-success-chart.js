@@ -59,8 +59,8 @@ class GlobalUnitSuccessChart {
     }
     
     init() {
-        console.log('🎯 Initializing Global Unit Success Chart...');
-        console.log('📊 Chart data:', {
+        console.log(' Initializing Global Unit Success Chart...');
+        console.log(' Chart data:', {
             passed: this.passedCount,
             notPassed: this.notPassedCount,
             total: this.totalAttempts
@@ -81,7 +81,7 @@ class GlobalUnitSuccessChart {
                 this.showError('Chart library not loaded');
                 return;
             }
-            console.log(`⏳ Waiting for Chart.js... (${retryCount + 1}/${maxRetries})`);
+            console.log(` Waiting for Chart.js... (${retryCount + 1}/${maxRetries})`);
             setTimeout(() => this.waitForChart(callback, retryCount + 1), 200);
             return;
         }
@@ -93,7 +93,7 @@ class GlobalUnitSuccessChart {
                 this.showError('Canvas element not found');
                 return;
             }
-            console.log(`⏳ Waiting for canvas... (${retryCount + 1}/${maxRetries})`);
+            console.log(` Waiting for canvas... (${retryCount + 1}/${maxRetries})`);
             setTimeout(() => this.waitForChart(callback, retryCount + 1), 200);
             return;
         }
@@ -134,7 +134,7 @@ class GlobalUnitSuccessChart {
     }
     
     showEmptyState() {
-        console.log('📊 No data available for unit success chart');
+        console.log(' No data available for unit success chart');
         const statusDiv = document.getElementById('unit-success-status');
         if (statusDiv) {
             statusDiv.className = 'text-center text-sm text-gray-400 mt-4';

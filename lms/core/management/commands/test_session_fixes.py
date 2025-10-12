@@ -47,12 +47,12 @@ class Command(BaseCommand):
         self.test_anonymous_user_protection(verbose)
         
         if verbose:
-            self.stdout.write('\n✅ All session tests completed!')
+            self.stdout.write('\n All session tests completed!')
 
     def test_session_backend_health(self, verbose):
         """Test session backend health"""
         if verbose:
-            self.stdout.write('📊 Testing session backend health...')
+            self.stdout.write(' Testing session backend health...')
         
         try:
             # Test cache connection
@@ -60,12 +60,12 @@ class Command(BaseCommand):
             result = cache.get('test_key')
             
             if result == 'test_value':
-                self.stdout.write(self.style.SUCCESS('✅ Cache connection: OK'))
+                self.stdout.write(self.style.SUCCESS(' Cache connection: OK'))
             else:
-                self.stdout.write(self.style.ERROR('❌ Cache connection: FAILED'))
+                self.stdout.write(self.style.ERROR(' Cache connection: FAILED'))
                 
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f'❌ Cache connection: ERROR - {e}'))
+            self.stdout.write(self.style.ERROR(f' Cache connection: ERROR - {e}'))
 
     def test_cache_connection(self, verbose):
         """Test cache connection"""
@@ -78,12 +78,12 @@ class Command(BaseCommand):
             redis_ok = cache.get('session_health_check') == 'ok'
             
             if redis_ok:
-                self.stdout.write(self.style.SUCCESS('✅ Redis cache: OK'))
+                self.stdout.write(self.style.SUCCESS(' Redis cache: OK'))
             else:
                 self.stdout.write(self.style.WARNING('⚠️ Redis cache: DEGRADED'))
                 
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f'❌ Redis cache: ERROR - {e}'))
+            self.stdout.write(self.style.ERROR(f' Redis cache: ERROR - {e}'))
 
     def test_session_creation(self, verbose):
         """Test session creation"""
@@ -97,10 +97,10 @@ class Command(BaseCommand):
             if verbose:
                 self.stdout.write(f'   Active sessions: {active_sessions}')
             
-            self.stdout.write(self.style.SUCCESS('✅ Session creation: OK'))
+            self.stdout.write(self.style.SUCCESS(' Session creation: OK'))
             
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f'❌ Session creation: ERROR - {e}'))
+            self.stdout.write(self.style.ERROR(f' Session creation: ERROR - {e}'))
 
     def test_session_recovery(self, verbose):
         """Test session recovery mechanisms"""
@@ -117,10 +117,10 @@ class Command(BaseCommand):
                     self.stdout.write(f'   Found {expired_count} expired sessions')
                 self.stdout.write(self.style.WARNING(f'⚠️ Found {expired_count} expired sessions'))
             else:
-                self.stdout.write(self.style.SUCCESS('✅ Session cleanup: OK'))
+                self.stdout.write(self.style.SUCCESS(' Session cleanup: OK'))
                 
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f'❌ Session recovery: ERROR - {e}'))
+            self.stdout.write(self.style.ERROR(f' Session recovery: ERROR - {e}'))
 
     def test_anonymous_user_protection(self, verbose):
         """Test AnonymousUser protection"""
@@ -141,9 +141,9 @@ class Command(BaseCommand):
             has_role = hasattr(request.user, 'role')
             
             if not is_authenticated and not has_role:
-                self.stdout.write(self.style.SUCCESS('✅ AnonymousUser protection: OK'))
+                self.stdout.write(self.style.SUCCESS(' AnonymousUser protection: OK'))
             else:
-                self.stdout.write(self.style.ERROR('❌ AnonymousUser protection: FAILED'))
+                self.stdout.write(self.style.ERROR(' AnonymousUser protection: FAILED'))
                 
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f'❌ AnonymousUser protection: ERROR - {e}'))
+            self.stdout.write(self.style.ERROR(f' AnonymousUser protection: ERROR - {e}'))

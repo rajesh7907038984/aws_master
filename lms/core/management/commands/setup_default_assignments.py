@@ -32,7 +32,7 @@ class Command(BaseCommand):
         
         if dry_run:
             self.stdout.write(
-                self.style.WARNING('🔍 DRY RUN MODE - No changes will be made')
+                self.style.WARNING(' DRY RUN MODE - No changes will be made')
             )
         
         self.stdout.write('🏢 Setting up default business and branch assignments...\n')
@@ -55,7 +55,7 @@ class Command(BaseCommand):
 
     def create_default_structures(self, dry_run):
         """Create default business and branches if they don't exist"""
-        self.stdout.write('📋 Creating default business and branch structures...')
+        self.stdout.write(' Creating default business and branch structures...')
         
         # 1. Create or get default business
         default_business_name = "Default Business"
@@ -146,7 +146,7 @@ class Command(BaseCommand):
         )
         
         if unassigned_superadmins.exists():
-            self.stdout.write(f'   📋 Found {unassigned_superadmins.count()} Super Admin users without business assignments')
+            self.stdout.write(f'    Found {unassigned_superadmins.count()} Super Admin users without business assignments')
             
             for superadmin in unassigned_superadmins:
                 if dry_run:
@@ -172,7 +172,7 @@ class Command(BaseCommand):
         )
         
         if unassigned_users.exists():
-            self.stdout.write(f'   📋 Found {unassigned_users.count()} users without branch assignments')
+            self.stdout.write(f'    Found {unassigned_users.count()} users without branch assignments')
             
             for user in unassigned_users:
                 if dry_run:
@@ -210,7 +210,7 @@ class Command(BaseCommand):
 
     def display_summary(self):
         """Display current system summary"""
-        self.stdout.write('\n📊 Current System Summary:')
+        self.stdout.write('\n Current System Summary:')
         
         # Business count
         business_count = Business.objects.filter(is_active=True).count()

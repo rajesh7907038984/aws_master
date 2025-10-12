@@ -235,7 +235,7 @@ if __name__ == '__main__':
         data_test = test_scorm_data_elements()
         
         if data_test:
-            print("\n🎉 ALL TESTS PASSED! SCORM implementation is working correctly.")
+            print("\n ALL TESTS PASSED! SCORM implementation is working correctly.")
         else:
             print("\nBasic tests passed but data elements test failed.")
     else:

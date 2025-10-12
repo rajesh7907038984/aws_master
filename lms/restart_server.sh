@@ -27,7 +27,7 @@ cd "$SCRIPT_DIR"
 
 # Load .env file
 if [ -f ".env" ]; then
-    echo "📋 Loading environment variables from .env..."
+    echo " Loading environment variables from .env..."
     export $(cat .env | grep -v '^#' | xargs)
     echo " Environment variables loaded"
 else
@@ -100,7 +100,7 @@ source "$PROJECT_ROOT/venv/bin/activate"
 # ==============================================
 
 if [ "$RESTART_MODE" == "full" ]; then
-    echo "🔍 Running pre-start checks..."
+    echo " Running pre-start checks..."
     
     # Install/update dependencies (skip for Python 3.7 compatibility)
     echo "   - Skipping dependency update (already installed)..."
@@ -176,7 +176,7 @@ sleep 5
 # VERIFY SERVER IS RUNNING
 # ==============================================
 
-echo "🔍 Verifying server status..."
+echo " Verifying server status..."
 
 if lsof -Pi :$SERVER_PORT -sTCP:LISTEN -t >/dev/null 2>&1; then
     PID=$(lsof -ti:$SERVER_PORT)
@@ -197,10 +197,10 @@ if lsof -Pi :$SERVER_PORT -sTCP:LISTEN -t >/dev/null 2>&1; then
 else
     echo " Failed to start server!"
     echo ""
-    echo "📋 Recent startup logs:"
+    echo " Recent startup logs:"
     tail -20 "$LOGS_DIR/gunicorn_startup.log"
     echo ""
-    echo "📋 Recent error logs:"
+    echo " Recent error logs:"
     tail -20 "$LOGS_DIR/gunicorn_error.log"
     exit 1
 fi
@@ -213,7 +213,7 @@ echo ""
 echo " Server Restart Completed Successfully!"
 echo "==========================================="
 echo ""
-echo "📊 Server Status:"
+echo " Server Status:"
 echo "   - Status:  Running"
 echo "   - PID: $(lsof -ti:$SERVER_PORT)"
 echo "   - Port: $SERVER_PORT"
@@ -225,7 +225,7 @@ if [ ! -z "$PRIMARY_DOMAIN" ]; then
 fi
 echo "   - Local: http://localhost:$SERVER_PORT"
 echo ""
-echo "📋 Useful Commands:"
+echo " Useful Commands:"
 echo "   - Check status: ./server_manager.sh status"
 echo "   - View logs: tail -f $LOGS_DIR/gunicorn_error.log"
 echo "   - Quick restart: ./restart_server.sh quick"

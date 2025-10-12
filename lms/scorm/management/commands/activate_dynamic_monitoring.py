@@ -40,7 +40,7 @@ class Command(BaseCommand):
             suspend_data=''
         ).select_related('user', 'scorm_package__topic')
         
-        self.stdout.write(f"📊 Scanning {candidates.count()} recent attempts from last {scan_hours} hours")
+        self.stdout.write(f" Scanning {candidates.count()} recent attempts from last {scan_hours} hours")
         
         processed = 0
         detected_issues = 0
@@ -59,7 +59,7 @@ class Command(BaseCommand):
             
             if has_issues:
                 detected_issues += 1
-                self.stdout.write(f"🔍 Found potential issue in attempt {attempt.id} (user: {attempt.user.username}, topic: {attempt.scorm_package.topic.title})")
+                self.stdout.write(f" Found potential issue in attempt {attempt.id} (user: {attempt.user.username}, topic: {attempt.scorm_package.topic.title})")
                 
                 # Try to auto-fix
                 success = auto_process_scorm_score(attempt)
@@ -67,9 +67,9 @@ class Command(BaseCommand):
                 if success:
                     auto_fixed += 1
                     attempt.refresh_from_db()
-                    self.stdout.write(f"  ✅ Auto-fixed: Score={attempt.score_raw}, Status={attempt.lesson_status}")
+                    self.stdout.write(f"   Auto-fixed: Score={attempt.score_raw}, Status={attempt.lesson_status}")
                 else:
-                    self.stdout.write(f"  ❌ Could not auto-fix (may be incomplete interaction)")
+                    self.stdout.write(f"   Could not auto-fix (may be incomplete interaction)")
             
             processed += 1
             
@@ -79,24 +79,24 @@ class Command(BaseCommand):
         
         # Summary
         self.stdout.write(f"\n{'=' * 60}")
-        self.stdout.write(self.style.SUCCESS("🎯 Dynamic SCORM Monitoring Activated!"))
-        self.stdout.write(f"  📊 Scanned: {processed} attempts")
-        self.stdout.write(f"  🔍 Issues detected: {detected_issues}")
-        self.stdout.write(f"  ✅ Auto-fixed: {auto_fixed}")
-        self.stdout.write(f"  🔧 Success rate: {(auto_fixed/detected_issues*100):.1f}% (if issues > 0)" if detected_issues > 0 else "  ✅ No issues found!")
+        self.stdout.write(self.style.SUCCESS(" Dynamic SCORM Monitoring Activated!"))
+        self.stdout.write(f"   Scanned: {processed} attempts")
+        self.stdout.write(f"   Issues detected: {detected_issues}")
+        self.stdout.write(f"   Auto-fixed: {auto_fixed}")
+        self.stdout.write(f"  🔧 Success rate: {(auto_fixed/detected_issues*100):.1f}% (if issues > 0)" if detected_issues > 0 else "   No issues found!")
         
         # Show system capabilities
         self.stdout.write(f"\n🚀 System Features Now Active:")
         self.stdout.write(f"  ⚡ Real-time score processing during SCORM interactions")
         self.stdout.write(f"  🤖 Adaptive detection for Storyline, Captivate, Lectora, etc.")
         self.stdout.write(f"  🔄 Automatic synchronization between ScormAttempt and TopicProgress")
-        self.stdout.write(f"  🔖 Enhanced bookmark/resume functionality")
+        self.stdout.write(f"   Enhanced bookmark/resume functionality")
         self.stdout.write(f"  🚫 Prevention of false completions from navigation")
-        self.stdout.write(f"  📊 Real-time gradebook updates")
+        self.stdout.write(f"   Real-time gradebook updates")
         self.stdout.write(f"  🛡️ Browser close protection with warning prompts")
         
         if auto_fixed > 0:
-            self.stdout.write(f"\n🎉 Success! Fixed {auto_fixed} existing SCORM score issues.")
+            self.stdout.write(f"\n Success! Fixed {auto_fixed} existing SCORM score issues.")
             self.stdout.write(f"The gradebook will now show accurate scores for all affected users.")
             
             # Clear caches
@@ -104,6 +104,6 @@ class Command(BaseCommand):
             cache.clear()
             self.stdout.write(f"🗑️  Cleared application caches for immediate UI updates")
         
-        self.stdout.write(f"\n✅ Dynamic SCORM monitoring is now fully operational!")
+        self.stdout.write(f"\n Dynamic SCORM monitoring is now fully operational!")
         self.stdout.write(f"   All SCORM score issues will be automatically detected and fixed.")
         self.stdout.write(f"   No manual intervention required.")

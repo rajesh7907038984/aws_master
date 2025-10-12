@@ -262,7 +262,7 @@ class MigrationDevelopmentHelper:
         """
         helper = SafeMigrationHelper()
         
-        print("🔍 Pre-migration conflict check...")
+        print(" Pre-migration conflict check...")
         
         # This could analyze model changes and predict conflicts
         # For now, just verify the migration system is working
@@ -280,7 +280,7 @@ class MigrationDevelopmentHelper:
         except Exception as e:
             print(f" Database connection issues: {e}")
         
-        print("🎯 Ready for makemigrations!")
+        print(" Ready for makemigrations!")
     
     @staticmethod
     def test_migration_safety(app_name: str, migration_name: str):

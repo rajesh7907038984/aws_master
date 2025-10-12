@@ -143,7 +143,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("━" * 50))
             self.stdout.write("To fix media storage issues on cloud deployment:")
             self.stdout.write("")
-            self.stdout.write("1. 📋 Check your deployment platform dashboard")
+            self.stdout.write("1.  Check your deployment platform dashboard")
             self.stdout.write("2.  Configure persistent storage if needed")
             self.stdout.write("3. ➕ Ensure media directory is properly mounted")
             self.stdout.write("4.  Redeploy your application")

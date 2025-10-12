@@ -142,7 +142,7 @@ class Command(BaseCommand):
         )
         
         # Run Django system check to verify everything is working
-        self.stdout.write('🔍 Running system check...')
+        self.stdout.write(' Running system check...')
         try:
             call_command('check', verbosity=0)
             self.stdout.write(
