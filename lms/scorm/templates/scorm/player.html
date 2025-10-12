@@ -893,16 +893,23 @@
             });
             
             // ✅ UNIVERSAL EXIT BUTTON SCANNER - Works for ALL SCORM types
+            // ✅ CONFLICT FIX: Prevent duplicate scanners on multiple loads
+            if (window.exitButtonScanner) {
+                clearInterval(window.exitButtonScanner);
+                console.log('🔄 Cleared previous exit button scanner');
+            }
+            
             let exitButtonScanCount = 0;
             const maxScans = 60; // Scan for up to 2 minutes (every 2 seconds)
             
-            const exitButtonScanner = setInterval(() => {
+            window.exitButtonScanner = setInterval(() => {
                 exitButtonScanCount++;
                 
                 // Stop scanning after max attempts
                 if (exitButtonScanCount > maxScans) {
                     console.log('✅ Exit button scanner: Max scans reached, stopping periodic scanner');
-                    clearInterval(exitButtonScanner);
+                    clearInterval(window.exitButtonScanner);
+                    window.exitButtonScanner = null;
                     return;
                 }
                 
@@ -1087,7 +1094,13 @@
             let sectionProgress = {};
             
             // Monitor slide changes every 2 seconds
-            setInterval(() => {
+            // ✅ CONFLICT FIX: Prevent duplicate monitors on multiple loads
+            if (window.slideMonitorInterval) {
+                clearInterval(window.slideMonitorInterval);
+                console.log('🔄 Cleared previous slide monitor');
+            }
+            
+            window.slideMonitorInterval = setInterval(() => {
                 try {
                     const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
                     if (!iframeDoc) return;
@@ -1494,12 +1507,21 @@
             };
             
             // Check every 2 seconds
-            setInterval(checkCompletion, 2000);
+            // ✅ CONFLICT FIX: Prevent duplicate completion checks
+            if (window.completionCheckInterval) {
+                clearInterval(window.completionCheckInterval);
+                console.log('🔄 Cleared previous completion checker');
+            }
+            window.completionCheckInterval = setInterval(checkCompletion, 2000);
             
             // Also check on iframe load events
-            iframe.addEventListener('load', () => {
-                setTimeout(checkCompletion, 500);
-            });
+            // ✅ CONFLICT FIX: Use named function to prevent duplicate listeners
+            if (!window.completionCheckOnLoad) {
+                window.completionCheckOnLoad = () => {
+                    setTimeout(checkCompletion, 500);
+                };
+                iframe.addEventListener('load', window.completionCheckOnLoad);
+            }
         }
         
         // Disabled asset preloading for better initial load performance
@@ -1748,12 +1770,15 @@
         window.API_1484_11._initialized = false;
         
         // OPTIMIZATION: Faster API initialization with better error handling
-        setTimeout(() => {
-            if (window.API && !window.API._initialized) {
-                console.log('Auto-initializing SCORM API...');
-                try {
-                    const initResult = window.API.LMSInitialize('');
-                    console.log('SCORM 1.2 Initialize result:', initResult);
+        // ✅ CONFLICT FIX: Prevent multiple initialization attempts
+        if (!window.scormApiInitialized) {
+            setTimeout(() => {
+                if (window.API && !window.API._initialized) {
+                    console.log('Auto-initializing SCORM API...');
+                    window.scormApiInitialized = true;
+                    try {
+                        const initResult = window.API.LMSInitialize('');
+                        console.log('SCORM 1.2 Initialize result:', initResult);
                     window.API._initialized = true;
                 } catch (error) {
                     console.error('SCORM 1.2 Initialize error:', error);
@@ -1767,7 +1792,8 @@
                     console.error('SCORM 2004 Initialize error:', error);
                 }
             }
-        }, 300); // Reduced from 1000ms to 300ms
+            }, 300); // Reduced from 1000ms to 300ms
+        }
         
         // CRITICAL FIX: Handle page unload - extract score and save SCORM data
         window.addEventListener('beforeunload', function(e) {
@@ -3476,7 +3502,13 @@
             let checkCount = 0;
             const maxChecks = 20; // Check for 10 seconds (20 * 500ms)
             
-            const periodicCheck = setInterval(() => {
+            // ✅ CONFLICT FIX: Prevent duplicate periodic checks
+            if (window.periodicCheckInterval) {
+                clearInterval(window.periodicCheckInterval);
+                console.log('🔄 Cleared previous periodic check');
+            }
+            
+            window.periodicCheckInterval = setInterval(() => {
                 checkCount++;
                 
                 // Check if loading overlay is still visible
