@@ -5655,30 +5655,27 @@ def stream_video(request, path):
         # Sanitize path to prevent path traversal attacks
         path = path.replace('..', '').replace('\\', '/').lstrip('/')
         
-        # For S3 storage, we can't use os.path.exists
-        # Instead, we'll try to access the file through the storage backend
+        # For S3 storage, we'll use default_storage
+        from django.core.files.storage import default_storage
+        
+        # Check if file exists and get size
         try:
-            from django.core.files.storage import default_storage
-            # Try to open file directly instead of checking existence first (S3 permission-safe)
-            try:
-                file_obj = default_storage.open(path)
-            except Exception as open_error:
-                if "403" in str(open_error) or "Forbidden" in str(open_error):
-                    logger.error(f"S3 permission denied for video file: {path}")
-                    return HttpResponseForbidden('Access denied to video file')
-                elif "NoSuchKey" in str(open_error) or "not found" in str(open_error):
-                    logger.error(f"Video file not found: {path}")
-                    return HttpResponseNotFound('Video file not found')
-                else:
-                    logger.error(f"Error opening video file {path}: {open_error}")
-                    return HttpResponseNotFound('Video file not found')
-        except Exception as e:
-            logger.error(f"Error checking video file existence: {str(e)}")
-            return HttpResponseNotFound('Video file not found')
+            if not default_storage.exists(path):
+                logger.error(f"Video file not found: {path}")
+                return HttpResponseNotFound('Video file not found')
             
-        # Get file size - for S3, we can't get exact size without downloading
-        # We'll use a default size for now
-        file_size = 1024 * 1024  # Default 1MB
+            file_size = default_storage.size(path)
+            file_obj = default_storage.open(path, 'rb')
+        except Exception as open_error:
+            if "403" in str(open_error) or "Forbidden" in str(open_error):
+                logger.error(f"S3 permission denied for video file: {path}")
+                return HttpResponseForbidden('Access denied to video file')
+            elif "NoSuchKey" in str(open_error) or "not found" in str(open_error):
+                logger.error(f"Video file not found: {path}")
+                return HttpResponseNotFound('Video file not found')
+            else:
+                logger.error(f"Error opening video file {path}: {open_error}")
+                return HttpResponseServerError('Error opening video file')
         
         # Get content type
         content_type, encoding = mimetypes.guess_type(path)
@@ -5688,8 +5685,6 @@ def stream_video(request, path):
         # Handle range header for partial content
         range_header = request.META.get('HTTP_RANGE', '').strip()
         range_match = re.match(r'bytes=(\d+)-(\d*)', range_header)
-        
-        file_handle = open(file_path, 'rb')
         
         if range_match:
             first_byte, last_byte = range_match.groups()
@@ -5701,9 +5696,9 @@ def stream_video(request, path):
                 
             length = last_byte - first_byte + 1
             
-            file_handle.seek(first_byte)
+            file_obj.seek(first_byte)
             response = StreamingHttpResponse(
-                FileWrapper(file_handle, 8192),  # 8KB chunks
+                FileWrapper(file_obj, 8192),  # 8KB chunks
                 status=206,
                 content_type=content_type
             )
@@ -5712,7 +5707,7 @@ def stream_video(request, path):
             response['Content-Range'] = f'bytes {first_byte}-{last_byte}/{file_size}'
         else:
             response = StreamingHttpResponse(
-                FileWrapper(file_handle, 8192),  # 8KB chunks
+                FileWrapper(file_obj, 8192),  # 8KB chunks
                 content_type=content_type
             )
             response['Content-Length'] = str(file_size)
@@ -5723,6 +5718,8 @@ def stream_video(request, path):
         
     except Exception as e:
         logger.error(f"Error streaming video {path}: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
         return HttpResponseServerError('Error streaming video')
 
 @login_required
