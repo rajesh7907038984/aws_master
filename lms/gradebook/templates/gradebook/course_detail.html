@@ -1891,16 +1891,16 @@
                                   {% if score_data.raw_score and score_data.raw_score < score_data.mastery_threshold %}
                                     100/100
                                   {% else %}
-                                    {{ score_data.raw_score|floatformat:0 }}/100
+                                    {{ score_data.raw_score|mul:10|floatformat:0 }}/100
                                   {% endif %}
                                 {% else %}
                                   {% if score_data.raw_score %}
-                                    {{ score_data.raw_score|floatformat:0 }}/100
+                                    {{ score_data.raw_score|mul:10|floatformat:0 }}/100
                                   {% else %}
                                     {% if score_data.raw_score %}
-                                  {{ score_data.raw_score|floatformat:0 }}/100
+                                  {{ score_data.raw_score|mul:10|floatformat:0 }}/100
                                 {% else %}
-                                  {{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}
+                                  {{ score_data.score|mul:10|floatformat:0 }}/{{ score_data.max_score }}
                                 {% endif %}
                                   {% endif %}
                                 {% endif %}
@@ -1914,9 +1914,9 @@
                                 {{ score_data.raw_score|floatformat:0 }}/{{ score_data.mastery_threshold|floatformat:0 }}
                               {% else %}
                                 {% if score_data.raw_score %}
-                                  {{ score_data.raw_score|floatformat:0 }}/100
+                                  {{ score_data.raw_score|mul:10|floatformat:0 }}/100
                                 {% else %}
-                                  {{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}
+                                  {{ score_data.score|mul:10|floatformat:0 }}/{{ score_data.max_score }}
                                 {% endif %}
                               {% endif %}
                             </span>
@@ -1977,16 +1977,16 @@
                                   {% if score_data.raw_score and score_data.raw_score < score_data.mastery_threshold %}
                                     100/100
                                   {% else %}
-                                    {{ score_data.raw_score|floatformat:0 }}/100
+                                    {{ score_data.raw_score|mul:10|floatformat:0 }}/100
                                   {% endif %}
                                 {% else %}
                                   {% if score_data.raw_score %}
-                                    {{ score_data.raw_score|floatformat:0 }}/100
+                                    {{ score_data.raw_score|mul:10|floatformat:0 }}/100
                                   {% else %}
                                     {% if score_data.raw_score %}
-                                  {{ score_data.raw_score|floatformat:0 }}/100
+                                  {{ score_data.raw_score|mul:10|floatformat:0 }}/100
                                 {% else %}
-                                  {{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}
+                                  {{ score_data.score|mul:10|floatformat:0 }}/{{ score_data.max_score }}
                                 {% endif %}
                                   {% endif %}
                                 {% endif %}
@@ -2000,9 +2000,9 @@
                                 {{ score_data.raw_score|floatformat:0 }}/{{ score_data.mastery_threshold|floatformat:0 }}
                               {% else %}
                                 {% if score_data.raw_score %}
-                                  {{ score_data.raw_score|floatformat:0 }}/100
+                                  {{ score_data.raw_score|mul:10|floatformat:0 }}/100
                                 {% else %}
-                                  {{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}
+                                  {{ score_data.score|mul:10|floatformat:0 }}/{{ score_data.max_score }}
                                 {% endif %}
                               {% endif %}
                             </span>
