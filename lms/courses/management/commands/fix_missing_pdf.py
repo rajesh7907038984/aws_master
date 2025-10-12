@@ -49,11 +49,15 @@ class Command(BaseCommand):
                 if topic.content_file and topic.content_file.name:
                     try:
                         # Try to access the file
-                        if default_storage.exists(topic.content_file.name):
-                            self.stdout.write(f'  ✓ File exists in S3: {topic.content_file.name}')
+                        # Note: For S3 storage, exists() is overridden to always return False to avoid permission issues
+                        # So we'll try to open the file directly and handle errors appropriately
+                        try:
+                            # Try to get file size to check if it exists
+                            file_size = default_storage.size(topic.content_file.name)
+                            self.stdout.write(f'  ✓ File exists in S3: {topic.content_file.name} (size: {file_size} bytes)')
                             continue
-                        else:
-                            self.stdout.write(f'  ✗ File missing from S3: {topic.content_file.name}')
+                        except Exception as storage_error:
+                            self.stdout.write(f'  ✗ File missing from S3: {topic.content_file.name} - {str(storage_error)}')
                     except Exception as e:
                         self.stdout.write(f'  ✗ Error checking file: {str(e)}')
                 
