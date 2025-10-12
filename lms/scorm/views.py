@@ -132,8 +132,8 @@ def scorm_view(request, topic_id):
         attempt_id = attempt.id
         attempt.is_preview = False  # Mark as real attempt
     
-    # Generate content URL using S3 direct access
-    content_url = scorm_s3.generate_launch_url(scorm_package)
+    # Generate content URL using Django proxy (for iframe compatibility)
+    content_url = f'/scorm/content/{topic_id}/{scorm_package.launch_url}'
     
     context = {
         'topic': topic,
