@@ -701,6 +701,65 @@
                 setupCrossOriginExitHandling();
             }
             
+            // Enhanced slide detection for slide-based SCORM content
+            function detectSlideChanges() {
+                try {
+                    const iframe = document.getElementById('scormFrame');
+                    if (iframe && iframe.contentWindow) {
+                        // Try to detect slide changes in iframe
+                        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                        if (iframeDoc) {
+                            // Look for common slide indicators
+                            const slideIndicators = [
+                                '.slide', '.slide-container', '.slide-wrapper',
+                                '.story-slide', '.story-slide-container',
+                                '[data-slide]', '[data-slide-id]',
+                                '.current-slide', '.active-slide'
+                            ];
+                            
+                            let newSlide = '';
+                            for (const selector of slideIndicators) {
+                                const element = iframeDoc.querySelector(selector);
+                                if (element) {
+                                    newSlide = element.getAttribute('data-slide') || 
+                                              element.getAttribute('data-slide-id') ||
+                                              element.className ||
+                                              selector;
+                                    break;
+                                }
+                            }
+                            
+                            // Also check URL hash changes
+                            if (!newSlide && iframe.contentWindow.location) {
+                                const hash = iframe.contentWindow.location.hash;
+                                if (hash && hash !== currentSlide) {
+                                    newSlide = hash;
+                                }
+                            }
+                            
+                            if (newSlide && newSlide !== currentSlide) {
+                                // Slide changed - track time spent on previous slide
+                                if (currentSlide && slideTimeTracker[currentSlide]) {
+                                    console.log(' Slide "' + currentSlide + '" completed in ' + slideTimeTracker[currentSlide] + 's');
+                                }
+                                
+                                currentSlide = newSlide;
+                                slideStartTime = new Date();
+                                console.log(' New slide detected: ' + currentSlide);
+                                
+                                // Sync immediately when slide changes
+                                syncTimeToServer();
+                                
+                                // Check if all slides are completed (for slide-based content)
+                                checkSlideCompletion();
+                            }
+                        }
+                    }
+                } catch (e) {
+                    // Cross-origin or other issues - ignore
+                }
+            }
+            
             // Start slide detection for slide-based SCORM content
             setTimeout(() => {
                 detectSlideChanges();
@@ -1711,7 +1770,7 @@
                             // PRIORITY 1: Check if we have actual results page score
                             if (resultsPageDetected && actualScoreFromResults !== null) {
                                 currentScore = actualScoreFromResults;
-                                console.log(' Using actual score from results page: {}%'.format(actualScoreFromResults));
+                                console.log(' Using actual score from results page: ' + actualScoreFromResults + '%');
                             } else {
                                 // Method 1: Try to extract from suspend_data (slide completion tracking)
                                 const suspendData12 = window.API.LMSGetValue ? window.API.LMSGetValue('cmi.core.suspend_data') : '';
@@ -1748,7 +1807,7 @@
                                         });
                                         
                                         if (isArticulateStoryline && progressScore < 100) {
-                                            console.log(' Articulate Storyline: Partial progress detected: {}% ({} slides completed out of {})'.format(progressScore, slidesWithTime, totalSlides));
+                                            console.log(' Articulate Storyline: Partial progress detected: ' + progressScore + '% (' + slidesWithTime + ' slides completed out of ' + totalSlides + ')');
                                             console.log('⚠️ Not saving partial progress - user needs to complete all slides for final score');
                                             
                                             // For partial progress, don't set a final score
@@ -1772,7 +1831,7 @@
                                         } else if (packageType === 'generic' && progressScore >= 30) {
                                             // For generic packages, allow partial completion (30% threshold)
                                             currentScore = progressScore;
-                                            console.log(' Generic SCORM: Partial completion accepted: {}%'.format(progressScore));
+                                            console.log(' Generic SCORM: Partial completion accepted: ' + progressScore + '%');
                                             
                                             // Set lesson status based on score
                                             if (window.API && window.API.LMSSetValue) {
@@ -1785,7 +1844,7 @@
                                         } else if (packageType === 'unknown' && progressScore >= 50) {
                                             // For unknown packages, use default 50% threshold
                                             currentScore = progressScore;
-                                            console.log(' Unknown SCORM: Partial completion accepted: {}%'.format(progressScore));
+                                            console.log(' Unknown SCORM: Partial completion accepted: ' + progressScore + '%');
                                             
                                             // Set lesson status based on score
                                             if (window.API && window.API.LMSSetValue) {
@@ -2609,65 +2668,6 @@
                 }
             }, 10000); // Every 10 seconds for better accuracy
             
-            // Enhanced slide detection for slide-based SCORM content
-            function detectSlideChanges() {
-                try {
-                    const iframe = document.getElementById('scormFrame');
-                    if (iframe && iframe.contentWindow) {
-                        // Try to detect slide changes in iframe
-                        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                        if (iframeDoc) {
-                            // Look for common slide indicators
-                            const slideIndicators = [
-                                '.slide', '.slide-container', '.slide-wrapper',
-                                '.story-slide', '.story-slide-container',
-                                '[data-slide]', '[data-slide-id]',
-                                '.current-slide', '.active-slide'
-                            ];
-                            
-                            let newSlide = '';
-                            for (const selector of slideIndicators) {
-                                const element = iframeDoc.querySelector(selector);
-                                if (element) {
-                                    newSlide = element.getAttribute('data-slide') || 
-                                              element.getAttribute('data-slide-id') ||
-                                              element.className ||
-                                              selector;
-                                    break;
-                                }
-                            }
-                            
-                            // Also check URL hash changes
-                            if (!newSlide && iframe.contentWindow.location) {
-                                const hash = iframe.contentWindow.location.hash;
-                                if (hash && hash !== currentSlide) {
-                                    newSlide = hash;
-                                }
-                            }
-                            
-                            if (newSlide && newSlide !== currentSlide) {
-                                // Slide changed - track time spent on previous slide
-                                if (currentSlide && slideTimeTracker[currentSlide]) {
-                                    console.log(' Slide "{}" completed in {}s'.format(currentSlide, slideTimeTracker[currentSlide]));
-                                }
-                                
-                                currentSlide = newSlide;
-                                slideStartTime = new Date();
-                                console.log(' New slide detected: {}'.format(currentSlide));
-                                
-                                // Sync immediately when slide changes
-                                syncTimeToServer();
-                                
-                                // Check if all slides are completed (for slide-based content)
-                                checkSlideCompletion();
-                            }
-                        }
-                    }
-                } catch (e) {
-                    // Cross-origin or other issues - ignore
-                }
-            }
-            
             // Detect results page and extract actual score
             function detectResultsPage() {
                 try {
@@ -2773,7 +2773,7 @@
                     
                     if (extractedScore && extractedScore >= 0 && extractedScore <= 100) {
                         actualScoreFromResults = extractedScore;
-                        console.log(' Actual score extracted from results page: {}%'.format(extractedScore));
+                        console.log(' Actual score extracted from results page: ' + extractedScore + '%');
                         
                         // Set the actual score in SCORM API
                         if (window.API && window.API.LMSSetValue) {
@@ -2783,7 +2783,7 @@
                             } else {
                                 window.API.LMSSetValue('cmi.core.lesson_status', 'failed');
                             }
-                            console.log(' Set actual score in SCORM 1.2: {}%'.format(extractedScore));
+                            console.log(' Set actual score in SCORM 1.2: ' + extractedScore + '%');
                         }
                         
                         if (window.API_1484_11 && window.API_1484_11.SetValue) {
@@ -2795,7 +2795,7 @@
                                 window.API_1484_11.SetValue('cmi.completion_status', 'completed');
                                 window.API_1484_11.SetValue('cmi.success_status', 'failed');
                             }
-                            console.log(' Set actual score in SCORM 2004: {}%'.format(extractedScore));
+                            console.log(' Set actual score in SCORM 2004: ' + extractedScore + '%');
                         }
                         
                         // Commit the actual score
@@ -2819,7 +2819,7 @@
                 try {
                     // First check if we have actual results page score
                     if (resultsPageDetected && actualScoreFromResults !== null) {
-                        console.log(' Using actual score from results page: {}%'.format(actualScoreFromResults));
+                        console.log(' Using actual score from results page: ' + actualScoreFromResults + '%');
                         return; // Already handled in extractActualScore
                     }
                     
@@ -2867,7 +2867,7 @@
                             console.log(' SCORM content automatically marked as PASSED (100%)');
                         } else {
                             // Partial completion - don't set final score
-                            console.log(' Partial completion: {}% ({} slides completed out of {})'.format(completionPercentage, slidesWithTime, totalSlides));
+                            console.log(' Partial completion: ' + completionPercentage + '% (' + slidesWithTime + ' slides completed out of ' + totalSlides + ')');
                             console.log('⚠️ Not setting final score for partial completion');
                             
                             // Save progress for resume but don't set final score
