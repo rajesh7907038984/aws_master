@@ -431,13 +431,34 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                         completion_status = attempt.lesson_status
                                         success_status = attempt.success_status
                                     
-                                    # CRITICAL FIX: For SCORM, max_score should ALWAYS be 100 (score_raw is a percentage 0-100)
-                                    # mastery_score is only used for pass/fail threshold, NOT as max_score
+                                    # CRITICAL FIX: For SCORM, show mastery achievement status instead of raw scores
+                                    # mastery_score is the pass/fail threshold, and we should display achievement relative to mastery
                                     passing_threshold = float(attempt.scorm_package.mastery_score) if attempt.scorm_package.mastery_score else 70
                                     
+                                    # For SCORM content, show mastery achievement status
+                                    if score_value is not None:
+                                        if score_value >= passing_threshold:
+                                            # Passed: Show as 100% (mastery achieved)
+                                            display_score = 100
+                                            display_max = 100
+                                            achievement_status = 'passed'
+                                        else:
+                                            # Failed: Show actual score vs mastery threshold
+                                            display_score = score_value
+                                            display_max = passing_threshold
+                                            achievement_status = 'failed'
+                                    else:
+                                        # No score available
+                                        display_score = None
+                                        display_max = passing_threshold
+                                        achievement_status = completion_status
+                                    
                                     student_scores[activity_id] = {
-                                        'score': score_value,
-                                        'max_score': 100,  # SCORM scores are always 0-100 percentages
+                                        'score': display_score,
+                                        'max_score': display_max,  # Show mastery threshold as max for failed attempts
+                                        'raw_score': score_value,  # Keep original score for reference
+                                        'mastery_threshold': passing_threshold,  # Add mastery threshold for reference
+                                        'achievement_status': achievement_status,  # Add achievement status
                                         'date': attempt.last_accessed,
                                         'type': 'scorm',
                                         'attempt': attempt,

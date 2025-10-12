@@ -1880,26 +1880,30 @@
                             {% endif %}
                           {% endif %}
                         {% elif score_data.score is not None or score_data.completed or score_data.completion_status == 'completed' or score_data.success_status == 'passed' %}
-                          <!-- SCORM completed - show score -->
+                          <!-- SCORM completed - show mastery achievement status -->
                           <div class="submission-date">
                             {{ score_data.date|date:"M d, Y" }}
                           </div>
-                          {% if score_data.success_status == 'passed' or score_data.completed %}
+                          {% if score_data.achievement_status == 'passed' or score_data.success_status == 'passed' or score_data.completed %}
                             <span class="grade-score grade-excellent">
                               {% if score_data.score is not None %}
-                                {{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}
+                                {% if score_data.achievement_status == 'passed' %}
+                                  MASTERY ACHIEVED ({{ score_data.raw_score|floatformat:0 }}/100)
+                                {% else %}
+                                  {{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}
+                                {% endif %}
                               {% else %}
                                 Completed
                               {% endif %}
                             </span>
-                          {% elif score_data.score is not None %}
-                            {% if score_data.score >= score_data.max_score|mul:0.8 %}
-                              <span class="grade-score grade-good">{{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}</span>
-                            {% elif score_data.score >= score_data.max_score|mul:0.6 %}
-                              <span class="grade-score grade-average">{{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}</span>
-                            {% else %}
-                              <span class="grade-score grade-poor">{{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}</span>
-                            {% endif %}
+                          {% elif score_data.achievement_status == 'failed' or score_data.score is not None %}
+                            <span class="grade-score grade-poor">
+                              {% if score_data.achievement_status == 'failed' %}
+                                FAILED ({{ score_data.raw_score|floatformat:0 }}/100, Need {{ score_data.mastery_threshold|floatformat:0 }})
+                              {% else %}
+                                {{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}
+                              {% endif %}
+                            </span>
                           {% endif %}
                           {% comment %}FIXED: Don't show action buttons for completed SCORM - it's done!{% endcomment %}
                           {% if user.role == 'learner' %}
@@ -1950,22 +1954,26 @@
                           <div class="submission-date">
                             {{ score_data.date|date:"M d, Y" }}
                           </div>
-                          {% if score_data.success_status == 'passed' or score_data.completed %}
+                          {% if score_data.achievement_status == 'passed' or score_data.success_status == 'passed' or score_data.completed %}
                             <span class="grade-score grade-excellent">
                               {% if score_data.score is not None %}
-                                {{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}
+                                {% if score_data.achievement_status == 'passed' %}
+                                  MASTERY ACHIEVED ({{ score_data.raw_score|floatformat:0 }}/100)
+                                {% else %}
+                                  {{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}
+                                {% endif %}
                               {% else %}
                                 Completed
                               {% endif %}
                             </span>
-                          {% elif score_data.score is not None %}
-                            {% if score_data.score >= score_data.max_score|mul:0.8 %}
-                              <span class="grade-score grade-good">{{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}</span>
-                            {% elif score_data.score >= score_data.max_score|mul:0.6 %}
-                              <span class="grade-score grade-average">{{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}</span>
-                            {% else %}
-                              <span class="grade-score grade-poor">{{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}</span>
-                            {% endif %}
+                          {% elif score_data.achievement_status == 'failed' or score_data.score is not None %}
+                            <span class="grade-score grade-poor">
+                              {% if score_data.achievement_status == 'failed' %}
+                                FAILED ({{ score_data.raw_score|floatformat:0 }}/100, Need {{ score_data.mastery_threshold|floatformat:0 }})
+                              {% else %}
+                                {{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}
+                              {% endif %}
+                            </span>
                           {% endif %}
                           {% comment %}FIXED: Show completion status for completed SCORM topics{% endcomment %}
                           {% if user.role == 'learner' %}
