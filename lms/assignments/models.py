@@ -438,6 +438,30 @@ class AssignmentSubmission(models.Model):
             if submission.id == self.id:
                 return index
         return 1  # Default to 1 if not found
+    
+    def delete(self, *args, **kwargs):
+        """
+        Enhanced delete method with S3 cleanup for submission files.
+        """
+        try:
+            logger.info(f"Starting deletion for AssignmentSubmission ID: {self.id}")
+            
+            # DELETE SUBMISSION FILE FROM S3
+            if self.submission_file:
+                try:
+                    logger.info(f"Deleting submission file: {self.submission_file.name}")
+                    self.submission_file.delete(save=False)
+                    logger.info(f"Successfully deleted submission file: {self.submission_file.name}")
+                except Exception as e:
+                    logger.error(f"Error deleting submission file: {str(e)}")
+            
+            # Call parent delete to remove the database record and cascade to related models
+            super().delete(*args, **kwargs)
+            logger.info(f"Successfully completed deletion for AssignmentSubmission ID: {self.id}")
+            
+        except Exception as e:
+            logger.error(f"Error in AssignmentSubmission.delete(): {str(e)}")
+            raise
 
 class AssignmentFeedback(models.Model):
     """Model for instructor feedback on assignments"""
@@ -493,6 +517,39 @@ class AssignmentFeedback(models.Model):
         if self.video_feedback:
             types.append('video')
         return types
+    
+    def delete(self, *args, **kwargs):
+        """
+        Enhanced delete method with S3 cleanup for feedback files.
+        """
+        try:
+            logger.info(f"Starting deletion for AssignmentFeedback ID: {self.id}")
+            
+            # DELETE AUDIO FEEDBACK FILE FROM S3
+            if self.audio_feedback:
+                try:
+                    logger.info(f"Deleting audio feedback file: {self.audio_feedback.name}")
+                    self.audio_feedback.delete(save=False)
+                    logger.info(f"Successfully deleted audio feedback file: {self.audio_feedback.name}")
+                except Exception as e:
+                    logger.error(f"Error deleting audio feedback file: {str(e)}")
+            
+            # DELETE VIDEO FEEDBACK FILE FROM S3
+            if self.video_feedback:
+                try:
+                    logger.info(f"Deleting video feedback file: {self.video_feedback.name}")
+                    self.video_feedback.delete(save=False)
+                    logger.info(f"Successfully deleted video feedback file: {self.video_feedback.name}")
+                except Exception as e:
+                    logger.error(f"Error deleting video feedback file: {str(e)}")
+            
+            # Call parent delete to remove the database record
+            super().delete(*args, **kwargs)
+            logger.info(f"Successfully completed deletion for AssignmentFeedback ID: {self.id}")
+            
+        except Exception as e:
+            logger.error(f"Error in AssignmentFeedback.delete(): {str(e)}")
+            raise
 
 class TextQuestion(models.Model):
     """Model for text-based questions in assignments"""

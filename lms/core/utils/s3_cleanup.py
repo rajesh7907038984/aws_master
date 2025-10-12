@@ -476,3 +476,27 @@ def cleanup_scorm_package_s3_files(scorm_package_id: int, topic_id: Optional[int
         Dict mapping file paths to deletion success status
     """
     return s3_cleanup.cleanup_scorm_package_files(scorm_package_id, topic_id, package_file_path)
+
+def cleanup_assignment_s3_files(assignment_id: int) -> Dict[str, bool]:
+    """
+    Convenience function to clean up all files associated with an assignment
+    
+    Args:
+        assignment_id: ID of the assignment whose files should be deleted
+        
+    Returns:
+        Dict mapping file paths to deletion success status
+    """
+    return s3_cleanup.cleanup_assignment_files(assignment_id)
+
+def cleanup_quiz_s3_files(quiz_id: int) -> Dict[str, bool]:
+    """
+    Convenience function to clean up all files associated with a quiz
+    
+    Args:
+        quiz_id: ID of the quiz whose files should be deleted
+        
+    Returns:
+        Dict mapping file paths to deletion success status
+    """
+    return s3_cleanup.cleanup_quiz_files(quiz_id)
