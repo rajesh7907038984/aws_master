@@ -2819,85 +2819,84 @@
                                     // Process all collected elements
                                     allElements.forEach(button => {
                                         try {
-                                                const buttonText = button.textContent || button.value || '';
-                                                const buttonTitle = button.getAttribute('title') || '';
-                                                const buttonAriaLabel = button.getAttribute('aria-label') || '';
-                                                const buttonClass = button.className || '';
+                                            const buttonText = button.textContent || button.value || '';
+                                            const buttonTitle = button.getAttribute('title') || '';
+                                            const buttonAriaLabel = button.getAttribute('aria-label') || '';
+                                            const buttonClass = button.className || '';
+                                            
+                                            // ENHANCED: More comprehensive exit button detection
+                                            if (buttonText.toLowerCase().includes('exit') || 
+                                                buttonTitle.toLowerCase().includes('exit') ||
+                                                buttonAriaLabel.toLowerCase().includes('exit') ||
+                                                buttonClass.toLowerCase().includes('exit') ||
+                                                button.classList.contains('courseExit') ||
+                                                button.classList.contains('courseExit--standard') ||
+                                                button.getAttribute('data-action') === 'exit' ||
+                                                button.getAttribute('data-exit') === 'true' ||
+                                                // Check for completion page patterns
+                                                buttonText.toLowerCase().includes('move on') ||
+                                                buttonText.toLowerCase().includes('final assessment') ||
+                                                buttonText.toLowerCase().includes('complete') ||
+                                                buttonText.toLowerCase().includes('finish')) {
                                                 
-                                                // ENHANCED: More comprehensive exit button detection
-                                                if (buttonText.toLowerCase().includes('exit') || 
-                                                    buttonTitle.toLowerCase().includes('exit') ||
-                                                    buttonAriaLabel.toLowerCase().includes('exit') ||
-                                                    buttonClass.toLowerCase().includes('exit') ||
-                                                    button.classList.contains('courseExit') ||
-                                                    button.classList.contains('courseExit--standard') ||
-                                                    button.getAttribute('data-action') === 'exit' ||
-                                                    button.getAttribute('data-exit') === 'true' ||
-                                                    // Check for completion page patterns
-                                                    buttonText.toLowerCase().includes('move on') ||
-                                                    buttonText.toLowerCase().includes('final assessment') ||
-                                                    buttonText.toLowerCase().includes('complete') ||
-                                                    buttonText.toLowerCase().includes('finish')) {
+                                                console.log('Found exit button in iframe:', button);
+                                                buttonsFound++;
+                                                
+                                                // Remove existing handlers and add new one
+                                                const newButton = button.cloneNode(true);
+                                                button.parentNode.replaceChild(newButton, button);
+                                                
+                                                newButton.addEventListener('click', function(e) {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
                                                     
-                                                    console.log('Found exit button in iframe:', button);
-                                                    buttonsFound++;
+                                                    console.log(' EXIT button clicked in SCORM iframe - triggering Save & Exit...');
                                                     
-                                                    // Remove existing handlers and add new one
-                                                    const newButton = button.cloneNode(true);
-                                                    button.parentNode.replaceChild(newButton, button);
+                                                    // Show user feedback
+                                                    const originalText = newButton.textContent || newButton.value;
+                                                    newButton.textContent = 'Saving progress...';
+                                                    newButton.disabled = true;
                                                     
-                                                    newButton.addEventListener('click', function(e) {
-                                                        e.preventDefault();
-                                                        e.stopPropagation();
-                                                        
-                                                        console.log(' EXIT button clicked in SCORM iframe - triggering Save & Exit...');
-                                                        
-                                                        // Show user feedback
-                                                        const originalText = newButton.textContent || newButton.value;
-                                                        newButton.textContent = 'Saving progress...';
-                                                        newButton.disabled = true;
-                                                        
-                                                        // IMPORTANT: Don't terminate session, just commit to save progress
-                                                        // This allows learners to resume from where they left off
-                                                        try {
-                                                            // Try to call parent window's SCORM API
-                                                            if (window.parent && window.parent.API) {
-                                                                console.log(' Committing SCORM data (not terminating - for resume)...');
-                                                                
-                                                                // Only commit current progress - don't terminate
-                                                                if (window.parent.API.LMSCommit) {
-                                                                    window.parent.API.LMSCommit('');
-                                                                    console.log(' SCORM 1.2 data committed');
-                                                                }
-                                                                
-                                                                // Also commit SCORM 2004 if available
-                                                                if (window.parent.API_1484_11 && window.parent.API_1484_11.Commit) {
-                                                                    window.parent.API_1484_11.Commit('');
-                                                                    console.log(' SCORM 2004 data committed');
-                                                                }
-                                                                
-                                                                // Send exit message to parent (not completion)
-                                                                // This will trigger handleBackToTopic functionality
-                                                                window.parent.postMessage({
-                                                                    action: 'exit',
-                                                                    type: 'exit'
-                                                                }, '*');
-                                                                
-                                                                console.log(' Exit message sent to parent - progress saved for resume');
-                                                            } else {
-                                                                console.log('Parent SCORM API not available, sending exit message...');
-                                                                window.parent.postMessage('exit', '*');
+                                                    // IMPORTANT: Don't terminate session, just commit to save progress
+                                                    // This allows learners to resume from where they left off
+                                                    try {
+                                                        // Try to call parent window's SCORM API
+                                                        if (window.parent && window.parent.API) {
+                                                            console.log(' Committing SCORM data (not terminating - for resume)...');
+                                                            
+                                                            // Only commit current progress - don't terminate
+                                                            if (window.parent.API.LMSCommit) {
+                                                                window.parent.API.LMSCommit('');
+                                                                console.log(' SCORM 1.2 data committed');
                                                             }
-                                                        } catch (error) {
-                                                            console.error(' Error calling SCORM API:', error);
-                                                            // Still send exit message
+                                                            
+                                                            // Also commit SCORM 2004 if available
+                                                            if (window.parent.API_1484_11 && window.parent.API_1484_11.Commit) {
+                                                                window.parent.API_1484_11.Commit('');
+                                                                console.log(' SCORM 2004 data committed');
+                                                            }
+                                                            
+                                                            // Send exit message to parent (not completion)
+                                                            // This will trigger handleBackToTopic functionality
+                                                            window.parent.postMessage({
+                                                                action: 'exit',
+                                                                type: 'exit'
+                                                            }, '*');
+                                                            
+                                                            console.log(' Exit message sent to parent - progress saved for resume');
+                                                        } else {
+                                                            console.log('Parent SCORM API not available, sending exit message...');
                                                             window.parent.postMessage('exit', '*');
                                                         }
-                                                    });
-                                                    
-                                                    console.log('Exit button handler attached in iframe');
-                                                }
-                                            });
+                                                    } catch (error) {
+                                                        console.error(' Error calling SCORM API:', error);
+                                                        // Still send exit message
+                                                        window.parent.postMessage('exit', '*');
+                                                    }
+                                                });
+                                                
+                                                console.log('Exit button handler attached in iframe');
+                                            }
                                         } catch (e) {
                                             // Ignore selector errors
                                         }
