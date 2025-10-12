@@ -109,17 +109,22 @@ class ScormAPIHandler:
             self.attempt.cmi_data = self._initialize_cmi_data()
         
         # CRITICAL FIX: Check for existing bookmark data and set entry mode accordingly
-        # ✅ BALANCED FIX: Check lesson_location OR suspend_data for resume
-        # Rise uses lesson_location for navigation resume, suspend_data for video resume
-        # Always return empty string '' (not None) for suspend_data to prevent NaN errors
-        has_bookmark = bool(self.attempt.lesson_location or self.attempt.suspend_data)
+        # ✅ FIX FOR RISE VIDEOS: ONLY set 'resume' if suspend_data has content
+        # Rise videos parse suspend_data for timestamp - empty causes NaN/crash
+        # lesson_location alone is NOT enough - Rise will still try to resume video
+        # SCORM content can still use lesson_location even with entry='ab-initio'
+        has_suspend_data = bool(self.attempt.suspend_data and len(self.attempt.suspend_data) > 0)
         
-        if has_bookmark:
+        # Only set resume if we have actual state data
+        if has_suspend_data:
             self.attempt.entry = 'resume'
-            logger.info(f"SCORM Resume: lesson_location='{self.attempt.lesson_location}', suspend_data={len(self.attempt.suspend_data) if self.attempt.suspend_data else 0} chars")
+            logger.info(f"SCORM Resume: suspend_data={len(self.attempt.suspend_data)} chars, lesson_location='{self.attempt.lesson_location}'")
         else:
             self.attempt.entry = 'ab-initio'
-            logger.info(f"SCORM Fresh start: no bookmark data")
+            if self.attempt.lesson_location:
+                logger.info(f"SCORM Fresh start (has location but no suspend_data): lesson_location='{self.attempt.lesson_location}'")
+            else:
+                logger.info(f"SCORM Fresh start: no bookmark data")
         
         if self.version == '1.2':
             # CRITICAL FIX: Always set entry mode in CMI data
@@ -238,11 +243,14 @@ class ScormAPIHandler:
                 if element in ['cmi.core.lesson_location', 'cmi.location']:
                     value = self.attempt.lesson_location or ''
                 elif element == 'cmi.suspend_data':
+                    # ✅ CRITICAL: Return empty string for Rise compatibility
+                    # Rise will check if empty and handle gracefully
                     value = self.attempt.suspend_data or ''
                 elif element in ['cmi.core.entry', 'cmi.entry']:
-                    # Check if we have bookmark data to determine entry mode
-                    has_bookmark = bool(self.attempt.lesson_location or self.attempt.suspend_data)
-                    value = 'resume' if has_bookmark else 'ab-initio'
+                    # ✅ CRITICAL FIX: ONLY return 'resume' if suspend_data exists
+                    # Rise videos need suspend_data for timestamp - empty causes NaN crash
+                    has_suspend_data = bool(self.attempt.suspend_data and len(self.attempt.suspend_data) > 0)
+                    value = 'resume' if has_suspend_data else 'ab-initio'
                 else:
                     value = ''
                 logger.info(f"SCORM API GetValue({element}) before init - returning: '{value[:100] if isinstance(value, str) else value}'")

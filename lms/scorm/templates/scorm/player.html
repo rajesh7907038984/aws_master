@@ -2825,20 +2825,46 @@
                                 const targetText = target.textContent || target.value || '';
                                 const targetClass = target.className || '';
                                 const targetAriaLabel = target.getAttribute('aria-label') || '';
+                                const targetId = target.id || '';
                                 
-                                // Detect Rise exit button by text/class
-                                if (targetText.toLowerCase().includes('exit') || 
+                                // ✅ ENHANCED: Detect Rise exit button by multiple criteria
+                                const isExitButton = 
+                                    targetText.toLowerCase().includes('exit') || 
                                     targetClass.toLowerCase().includes('exit') ||
-                                    targetAriaLabel.toLowerCase().includes('exit')) {
+                                    targetAriaLabel.toLowerCase().includes('exit') ||
+                                    targetId.toLowerCase().includes('exit') ||
+                                    // Also check parent elements
+                                    (target.parentElement && target.parentElement.textContent && 
+                                     target.parentElement.textContent.toLowerCase().includes('exit assessment'));
+                                
+                                if (isExitButton) {
+                                    console.log('🚪 Rise exit button detected:', targetText || targetClass || targetId);
                                     
-                                    console.log('🚪 Rise exit button clicked - triggering Save & Exit');
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    
-                                    // Call our Save & Exit functionality
-                                    if (window.handleBackToTopic) {
-                                        window.handleBackToTopic();
+                                    // ✅ CRITICAL FIX: Call LMSCommit() FIRST to save data
+                                    try {
+                                        if (window.API && window.API._initialized && window.API.LMSCommit) {
+                                            console.log('💾 Calling LMSCommit() to save data...');
+                                            const commitResult = window.API.LMSCommit('');
+                                            console.log('✅ LMSCommit() result:', commitResult);
+                                        }
+                                        if (window.API_1484_11 && window.API_1484_11._initialized && window.API_1484_11.Commit) {
+                                            const commitResult = window.API_1484_11.Commit('');
+                                            console.log('✅ SCORM 2004 Commit() result:', commitResult);
+                                        }
+                                    } catch (err) {
+                                        console.error('❌ Error calling Commit:', err);
                                     }
+                                    
+                                    // Wait a moment for commit to complete, then redirect
+                                    setTimeout(function() {
+                                        console.log('🚪 Redirecting after save...');
+                                        if (window.handleBackToTopic) {
+                                            window.handleBackToTopic({ preventDefault: function() {} });
+                                        }
+                                    }, 500);
+                                    
+                                    // Don't prevent default - let Rise close if it wants
+                                    // We've already saved the data
                                 }
                             }, true); // Use capture phase
                             
