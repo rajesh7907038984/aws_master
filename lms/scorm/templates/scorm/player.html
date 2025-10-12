@@ -1689,11 +1689,22 @@
                                     navigationAttempted = true; // ✅ Prevent duplicate navigation
                                     console.log('✅ RESUME: Found lesson location:', lessonLocation);
                                     
-                                    // Store bookmark for SCORM content to use (always, regardless of format)
-                                    // The SCORM content will handle resuming based on this data
+                                    // ✅ ROBUST FIX: For Rise packages, DON'T navigate - let Rise handle resume internally
+                                    const iframe = document.getElementById('scormFrame');
+                                    const isRisePackage = iframe && iframe.src && iframe.src.includes('scormcontent/index.html');
+                                    
+                                    if (isRisePackage) {
+                                        console.log('✅ RESUME: Rise package detected - data available via API (Rise will handle navigation)');
+                                        console.log('✅ RESUME: Rise will read cmi.core.lesson_location via GetValue() and resume automatically');
+                                        // Don't try to navigate for Rise - it manages its own resume
+                                        // Rise reads lesson_location via SCORM API and handles navigation internally
+                                        return; // Exit early for Rise packages
+                                    }
+                                    
+                                    // Store bookmark for SCORM content to use (for non-Rise packages)
                                     console.log('✅ RESUME: Bookmark data available for SCORM content');
                                     
-                                    // Check if it looks like a URL that we should navigate to directly
+                                    // Check if it looks like a URL that we should navigate to directly (Storyline only)
                                     if (lessonLocation.includes('.html') || lessonLocation.includes('#') || lessonLocation.includes('?')) {
                                         console.log('🔄 RESUME: Navigating iframe to bookmarked URL:', lessonLocation);
                                         
