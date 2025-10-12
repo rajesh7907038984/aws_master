@@ -348,6 +348,7 @@ def scorm_content(request, topic_id, path):
     """
     Serve SCORM content files from S3
     Proxies content to maintain same-origin policy for API access
+    Handles multiple SCORM package structures with intelligent fallback
     """
     try:
         topic = get_object_or_404(Topic, id=topic_id)
@@ -359,13 +360,8 @@ def scorm_content(request, topic_id, path):
             return HttpResponse('SCORM package not found', status=404)
         
         # Use boto3 directly to fetch content (authenticated access)
-        # Django storage prepends 'media/' automatically, but we need the full S3 path
         import boto3
         from django.conf import settings
-        
-        # Build the S3 key for the file (with media/ prefix for direct S3 access)
-        # Note: extracted_path already includes the base folder (e.g., 'scorm_content/uuid')
-        s3_key = f"media/{scorm_package.extracted_path}/{path}"
         
         # Initialize S3 client
         try:
@@ -376,32 +372,82 @@ def scorm_content(request, topic_id, path):
             
         bucket_name = settings.AWS_STORAGE_BUCKET_NAME
         
-        logger.info(f"Attempting to fetch S3 content: bucket={bucket_name}, key={s3_key}")
+        # CRITICAL FIX: Try multiple S3 path combinations to handle different SCORM structures
+        # Different authoring tools (Rise, Storyline, etc.) create different folder structures
+        path_attempts = []
         
-        # For HTML files, we need to proxy to inject API
+        # Attempt 1: Direct path (for files at root level like story.html)
+        path_attempts.append(f"media/{scorm_package.extracted_path}/{path}")
+        
+        # Attempt 2: Without media/ prefix (for some S3 configurations)
+        path_attempts.append(f"{scorm_package.extracted_path}/{path}")
+        
+        # Attempt 3: If path contains subdirectories, try without the first directory
+        # (handles cases where launch_url includes directory like "scormcontent/index.html")
+        if '/' in path:
+            path_parts = path.split('/', 1)
+            if len(path_parts) > 1:
+                path_attempts.append(f"media/{scorm_package.extracted_path}/{path_parts[1]}")
+                path_attempts.append(f"{scorm_package.extracted_path}/{path_parts[1]}")
+        
+        # Attempt 4: Try with scormcontent/ prefix (for Rise packages)
+        if not path.startswith('scormcontent/'):
+            path_attempts.append(f"media/{scorm_package.extracted_path}/scormcontent/{path}")
+            path_attempts.append(f"{scorm_package.extracted_path}/scormcontent/{path}")
+        
+        # Attempt 5: Try with just the filename (for deeply nested structures)
+        if '/' in path:
+            filename = path.split('/')[-1]
+            path_attempts.append(f"media/{scorm_package.extracted_path}/{filename}")
+            path_attempts.append(f"{scorm_package.extracted_path}/{filename}")
+        
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_paths = []
+        for p in path_attempts:
+            if p not in seen:
+                seen.add(p)
+                unique_paths.append(p)
+        
+        logger.info(f"Attempting to fetch SCORM content for topic {topic_id}, path: {path}")
+        logger.info(f"Will try {len(unique_paths)} path combinations")
+        
+        # Try each path until one works
+        content = None
+        successful_key = None
+        for attempt_num, s3_key in enumerate(unique_paths, 1):
+            try:
+                logger.info(f"Attempt {attempt_num}/{len(unique_paths)}: {s3_key}")
+                response = s3_client.get_object(Bucket=bucket_name, Key=s3_key)
+                content = response['Body'].read()
+                successful_key = s3_key
+                logger.info(f"✅ Successfully fetched content from: {s3_key}")
+                break
+            except s3_client.exceptions.NoSuchKey:
+                logger.debug(f"❌ Path not found: {s3_key}")
+                continue
+            except Exception as e:
+                logger.debug(f"❌ Error trying {s3_key}: {str(e)}")
+                continue
+        
+        # If no path worked, return detailed error
+        if content is None:
+            error_msg = f"SCORM content file not found. Tried {len(unique_paths)} paths:\n"
+            for p in unique_paths[:5]:  # Show first 5 attempts
+                error_msg += f"  - {p}\n"
+            if len(unique_paths) > 5:
+                error_msg += f"  ... and {len(unique_paths) - 5} more\n"
+            error_msg += "\nPlease contact your administrator."
+            logger.error(f"Failed to find SCORM content for topic {topic_id}, path: {path}")
+            logger.error(f"Tried paths: {unique_paths}")
+            return HttpResponse(error_msg, status=404)
+        
+        logger.info(f"Serving SCORM content from: {successful_key}")
+        
+        # For HTML files, inject SCORM API
         if path.endswith(('.html', '.htm')):
             try:
-                # Use boto3 to get the file content directly from S3
-                try:
-                    response = s3_client.get_object(Bucket=bucket_name, Key=s3_key)
-                    content = response['Body'].read()
-                    content_type = 'text/html; charset=utf-8'
-                except s3_client.exceptions.NoSuchKey:
-                    logger.error(f"S3 object not found: {s3_key} in bucket {bucket_name}")
-                    # Try alternative path without 'media/' prefix
-                    alt_key = f"{scorm_package.extracted_path}/{path}"
-                    logger.info(f"Trying alternative S3 key: {alt_key}")
-                    try:
-                        response = s3_client.get_object(Bucket=bucket_name, Key=alt_key)
-                        content = response['Body'].read()
-                        content_type = 'text/html; charset=utf-8'
-                        logger.info(f"Successfully fetched content using alternative key: {alt_key}")
-                    except Exception as alt_e:
-                        logger.error(f"Alternative key also failed: {str(alt_e)}")
-                        return HttpResponse(f'SCORM content files are missing. Tried paths: {s3_key}, {alt_key}. Please contact your administrator.', status=404)
-                except Exception as e:
-                    logger.error(f"Failed to get S3 object {s3_key}: {str(e)}")
-                    return HttpResponse(f'SCORM content files are missing. Error: {str(e)}. Please contact your administrator.', status=404)
+                content_type = 'text/html; charset=utf-8'
                 
                 # Inject SCORM API for HTML files
                 if 'text/html' in content_type:
@@ -539,32 +585,11 @@ window.API = window.API_1484_11 = {{
                 return response_obj
                 
             except Exception as e:
-                logger.error(f"Failed to fetch content: {str(e)}")
+                logger.error(f"Failed to process HTML content: {str(e)}")
                 return HttpResponse(f'Failed to load content: {str(e)}', status=502)
         else:
-            # For non-HTML files, serve through boto3
+            # For non-HTML files, determine content type and serve
             try:
-                # Use boto3 to get the file content directly from S3
-                try:
-                    response = s3_client.get_object(Bucket=bucket_name, Key=s3_key)
-                    content = response['Body'].read()
-                except s3_client.exceptions.NoSuchKey:
-                    logger.error(f"S3 object not found: {s3_key} in bucket {bucket_name}")
-                    # Try alternative path without 'media/' prefix
-                    alt_key = f"{scorm_package.extracted_path}/{path}"
-                    logger.info(f"Trying alternative S3 key: {alt_key}")
-                    try:
-                        response = s3_client.get_object(Bucket=bucket_name, Key=alt_key)
-                        content = response['Body'].read()
-                        logger.info(f"Successfully fetched content using alternative key: {alt_key}")
-                    except Exception as alt_e:
-                        logger.error(f"Alternative key also failed: {str(alt_e)}")
-                        return HttpResponse(f'SCORM content files are missing. Tried paths: {s3_key}, {alt_key}. Please contact your administrator.', status=404)
-                except Exception as e:
-                    logger.error(f"Failed to get S3 object {s3_key}: {str(e)}")
-                    return HttpResponse(f'SCORM content files are missing. Error: {str(e)}. Please contact your administrator.', status=404)
-                
-                # Determine content type based on file extension
                 import mimetypes
                 content_type, _ = mimetypes.guess_type(path)
                 if not content_type:
