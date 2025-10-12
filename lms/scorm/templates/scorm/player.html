@@ -868,8 +868,12 @@
             // Listen for messages from SCORM content
             window.addEventListener('message', function(event) {
                 if (event.data && typeof event.data === 'object') {
-                    if (event.data.action === 'exit' || event.data.type === 'exit') {
-                        console.log(' Exit message received from SCORM content');
+                    if (event.data.action === 'exit' || event.data.type === 'exit' || event.data.type === 'scorm_exit_button') {
+                        const buttonText = event.data.buttonText || 'unknown';
+                        console.log('🚪 EXIT message received from SCORM content');
+                        console.log('   Button text:', buttonText);
+                        console.log('   Message type:', event.data.type);
+                        console.log('   Triggering Save & Exit...');
                         handleBackToTopic({ preventDefault: function() {} });
                     } else if (event.data.type === 'scorm_resume' && event.data.action === 'navigate_to_location') {
                         console.log('RESUME: Received resume navigation request:', event.data.lesson_location);
@@ -883,10 +887,89 @@
                         }
                     }
                 } else if (event.data === 'exit') {
-                    console.log(' Exit message received from SCORM content (string)');
+                    console.log('🚪 EXIT message received from SCORM content (string format)');
                     handleBackToTopic({ preventDefault: function() {} });
                 }
             });
+            
+            // ENHANCED: Periodic exit button scanner - catches dynamically added buttons
+            let exitButtonScanCount = 0;
+            const maxScans = 60; // Scan for up to 2 minutes (every 2 seconds)
+            
+            const exitButtonScanner = setInterval(() => {
+                exitButtonScanCount++;
+                
+                // Stop scanning after max attempts
+                if (exitButtonScanCount > maxScans) {
+                    console.log('Exit button scanner: Max scans reached, stopping periodic scanner');
+                    clearInterval(exitButtonScanner);
+                    return;
+                }
+                
+                try {
+                    const iframe = document.getElementById('scormFrame');
+                    if (iframe && iframe.contentDocument) {
+                        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                        if (iframeDoc) {
+                            const buttons = iframeDoc.querySelectorAll('button, input[type="button"], a[role="button"], [class*="exit"], [id*="exit"], [class*="close"], div[onclick], [onclick]');
+                            
+                            buttons.forEach(btn => {
+                                // Skip if already processed
+                                if (btn.dataset.exitHandlerAttached) return;
+                                
+                                const text = (btn.textContent || btn.value || btn.innerText || '').toLowerCase().trim();
+                                const className = (btn.className || '').toLowerCase();
+                                const id = (btn.id || '').toLowerCase();
+                                const onClick = (btn.getAttribute('onclick') || '').toLowerCase();
+                                
+                                // Enhanced exit patterns
+                                const exitPatterns = [
+                                    'exit', 'exit assessment', 'exit course', 'exit lesson',
+                                    'move on', 'continue', 'finish', 'final assessment',
+                                    'close', 'done', 'complete', 'submit and exit',
+                                    'end course', 'end lesson', 'return to course',
+                                    'back to course', 'leave course'
+                                ];
+                                
+                                const isExitButton = exitPatterns.some(pattern => 
+                                    text.includes(pattern) || 
+                                    className.includes(pattern) || 
+                                    id.includes(pattern) ||
+                                    onClick.includes(pattern)
+                                );
+                                
+                                if (isExitButton) {
+                                    // Mark as processed
+                                    btn.dataset.exitHandlerAttached = 'true';
+                                    
+                                    // Attach handlers
+                                    btn.addEventListener('click', function(e) {
+                                        console.log('🚪 [Scanner] EXIT button clicked:', text || className || id);
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleBackToTopic({ preventDefault: function() {} });
+                                        return false;
+                                    }, true);
+                                    
+                                    btn.onclick = function(e) {
+                                        console.log('🚪 [Scanner] EXIT onclick triggered:', text || className || id);
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleBackToTopic({ preventDefault: function() {} });
+                                        return false;
+                                    };
+                                    
+                                    console.log('✅ [Scanner] Exit button captured:', text || className || id);
+                                }
+                            });
+                        }
+                    }
+                } catch (e) {
+                    // Cross-origin, can't access - this is normal
+                }
+            }, 2000); // Scan every 2 seconds
+            
+            console.log('✅ Exit button periodic scanner started (every 2 seconds)');
             
             // Try to inject a simple exit handler into the iframe via postMessage
             const iframe = document.getElementById('scormFrame');
@@ -899,17 +982,45 @@
                         exitFunction: `
                             // Auto-detect and override exit buttons
                             function setupExitButtons() {
-                                const buttons = document.querySelectorAll('button, input[type="button"], a[role="button"]');
+                                const buttons = document.querySelectorAll('button, input[type="button"], a[role="button"], [class*="exit"], [id*="exit"], [class*="close"], div[onclick*="exit"]');
                                 buttons.forEach(btn => {
-                                    const text = (btn.textContent || btn.value || '').toLowerCase();
-                                    if (text.includes('exit') || text.includes('move on') || text.includes('final assessment')) {
-                                        btn.onclick = function(e) {
+                                    const text = (btn.textContent || btn.value || btn.innerText || '').toLowerCase().trim();
+                                    const className = (btn.className || '').toLowerCase();
+                                    const id = (btn.id || '').toLowerCase();
+                                    
+                                    // Enhanced exit button detection patterns
+                                    const exitPatterns = [
+                                        'exit', 'exit assessment', 'exit course', 'exit lesson',
+                                        'move on', 'continue', 'finish', 'final assessment',
+                                        'close', 'done', 'complete', 'submit and exit',
+                                        'end course', 'end lesson', 'return to course'
+                                    ];
+                                    
+                                    const isExitButton = exitPatterns.some(pattern => 
+                                        text.includes(pattern) || className.includes(pattern) || id.includes(pattern)
+                                    );
+                                    
+                                    if (isExitButton) {
+                                        // Override the click handler
+                                        const originalOnClick = btn.onclick;
+                                        btn.addEventListener('click', function(e) {
+                                            console.log('🚪 EXIT button clicked in SCORM content:', text);
                                             e.preventDefault();
                                             e.stopPropagation();
-                                            window.parent.postMessage({action: 'exit', type: 'exit'}, '*');
+                                            window.parent.postMessage({action: 'exit', type: 'scorm_exit_button', buttonText: text}, '*');
+                                            return false;
+                                        }, true); // Use capture phase
+                                        
+                                        // Also override onclick property
+                                        btn.onclick = function(e) {
+                                            console.log('🚪 EXIT button onclick triggered:', text);
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            window.parent.postMessage({action: 'exit', type: 'scorm_exit_button', buttonText: text}, '*');
                                             return false;
                                         };
-                                        console.log('Exit button overridden:', btn);
+                                        
+                                        console.log('✅ Exit button captured:', text || className || id);
                                     }
                                 });
                             }
@@ -1256,18 +1367,42 @@
                                 try {
                                     const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
                                     if (iframeDoc) {
-                                        const buttons = iframeDoc.querySelectorAll('button, input[type="button"], a[role="button"]');
+                                        const buttons = iframeDoc.querySelectorAll('button, input[type="button"], a[role="button"], [class*="exit"], [id*="exit"], [class*="close"], div[onclick*="exit"]');
                                         buttons.forEach(btn => {
-                                            const text = (btn.textContent || btn.value || '').toLowerCase();
-                                            if (text.includes('exit') || text.includes('move on') || text.includes('final assessment')) {
+                                            const text = (btn.textContent || btn.value || btn.innerText || '').toLowerCase().trim();
+                                            const className = (btn.className || '').toLowerCase();
+                                            const id = (btn.id || '').toLowerCase();
+                                            
+                                            // Enhanced exit button detection patterns
+                                            const exitPatterns = [
+                                                'exit', 'exit assessment', 'exit course', 'exit lesson',
+                                                'move on', 'continue', 'finish', 'final assessment',
+                                                'close', 'done', 'complete', 'submit and exit',
+                                                'end course', 'end lesson', 'return to course'
+                                            ];
+                                            
+                                            const isExitButton = exitPatterns.some(pattern => 
+                                                text.includes(pattern) || className.includes(pattern) || id.includes(pattern)
+                                            );
+                                            
+                                            if (isExitButton) {
+                                                // Capture with both event listener and onclick
+                                                btn.addEventListener('click', function(e) {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    console.log('🚪 Exit button clicked in SCORM - triggering Save & Exit:', text);
+                                                    handleBackToTopic({ preventDefault: function() {} });
+                                                    return false;
+                                                }, true); // Capture phase
+                                                
                                                 btn.onclick = function(e) {
                                                     e.preventDefault();
                                                     e.stopPropagation();
-                                                    console.log(' Exit button clicked - triggering Save & Exit');
+                                                    console.log('🚪 Exit button onclick - triggering Save & Exit:', text);
                                                     handleBackToTopic({ preventDefault: function() {} });
                                                     return false;
                                                 };
-                                                console.log(' Exit button overridden:', btn);
+                                                console.log('✅ Exit button overridden:', text || className || id);
                                             }
                                         });
                                     }
