@@ -109,6 +109,13 @@ def scorm_view(request, topic_id):
         messages.error(request, "SCORM package not found for this topic")
         return redirect('courses:topic_view', topic_id=topic_id)
     
+    # Check if SCORM package file exists in storage
+    from django.core.files.storage import default_storage
+    if not scorm_package.package_file or not default_storage.exists(scorm_package.package_file.name):
+        messages.error(request, "SCORM content files are missing. Please contact your administrator to re-upload the SCORM package.")
+        logger.error(f"SCORM package file missing for topic {topic_id}, package {scorm_package.id}: {scorm_package.package_file}")
+        return redirect('courses:topic_view', topic_id=topic_id)
+    
     # Check for preview mode
     preview_mode = request.GET.get('preview', '').lower() == 'true'
     is_instructor_or_admin = request.user.role in ['instructor', 'admin', 'superadmin', 'globaladmin']
@@ -372,7 +379,7 @@ def scorm_content(request, topic_id, path):
                     content_type = 'text/html; charset=utf-8'
                 except Exception as e:
                     logger.error(f"Failed to get S3 object {s3_key}: {str(e)}")
-                    return HttpResponse('Content not found', status=404)
+                    return HttpResponse('SCORM content files are missing. Please contact your administrator to re-upload the SCORM package.', status=404)
                 
                 # Inject SCORM API for HTML files
                 if 'text/html' in content_type:
@@ -531,7 +538,7 @@ window.API = window.API_1484_11 = {{
                     return response_obj
                 except Exception as e:
                     logger.error(f"Failed to get S3 object {s3_key}: {str(e)}")
-                    return HttpResponse('Content not found', status=404)
+                    return HttpResponse('SCORM content files are missing. Please contact your administrator to re-upload the SCORM package.', status=404)
             except Exception as e:
                 logger.error(f"Failed to serve content: {str(e)}")
                 return HttpResponse(f'Failed to load content: {str(e)}', status=502)
