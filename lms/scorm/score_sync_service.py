@@ -187,6 +187,15 @@ class ScormScoreSyncService:
         # This ensures first visit scores are synced
         if hasattr(attempt, 'score_raw') and attempt.score_raw is not None:
             return True
+        
+        # NEW FIX: Always sync if user has accessed the content for more than 30 seconds
+        # This handles cases where SCORM content doesn't set explicit scores
+        # but learners have actually interacted with the content
+        if (attempt.last_accessed and 
+            attempt.started_at and 
+            (attempt.last_accessed - attempt.started_at).total_seconds() > 30):
+            logger.info(f"Syncing attempt {attempt.id} due to meaningful access time ({(attempt.last_accessed - attempt.started_at).total_seconds():.0f}s)")
+            return True
             
         # Don't sync only if there's truly no score data at all
         return False
@@ -486,6 +495,48 @@ class ScormScoreSyncService:
                     else:
                         # Use a more conservative score
                         return 75.0  # Cap at 75% if no evidence of completion
+        
+        # NEW FIX: Handle cases where users have meaningful interaction but no explicit scores
+        # This is crucial for ensuring that all user interactions are tracked in the gradebook
+        if (attempt.last_accessed and 
+            attempt.started_at and 
+            (attempt.last_accessed - attempt.started_at).total_seconds() > 30):
+            
+            time_spent = (attempt.last_accessed - attempt.started_at).total_seconds()
+            
+            # Check if there's any progress data indicating meaningful interaction
+            progress_indicators = []
+            
+            # Check suspend_data for any progress hints
+            if attempt.suspend_data and len(attempt.suspend_data) > 10:
+                suspend_data_str = attempt.suspend_data.lower()
+                if any(keyword in suspend_data_str for keyword in ['progress', 'slide', 'page', 'section']):
+                    # User has interacted with content - give participation score
+                    progress_indicators.append(15.0)  # 15% for meaningful interaction
+            
+            # Check CMI data for any indication of interaction
+            if attempt.cmi_data and len(attempt.cmi_data) > 5:
+                # User has CMI data, which means they interacted with SCORM content
+                progress_indicators.append(10.0)  # 10% for SCORM interaction
+            
+            # Check completed slides or progress percentage
+            if (attempt.completed_slides and len(attempt.completed_slides) > 0) or \
+               (attempt.progress_percentage and attempt.progress_percentage > 0):
+                progress_indicators.append(20.0)  # 20% for measurable progress
+            
+            # Time-based scoring for meaningful engagement
+            if time_spent > 300:  # 5+ minutes = serious engagement
+                progress_indicators.append(25.0)  # 25% for extended engagement
+            elif time_spent > 120:  # 2+ minutes = basic engagement  
+                progress_indicators.append(15.0)  # 15% for basic engagement
+            elif time_spent > 60:  # 1+ minute = minimal engagement
+                progress_indicators.append(10.0)  # 10% for minimal engagement
+            
+            # Use the best progress indicator as score
+            if progress_indicators:
+                calculated_score = max(progress_indicators)
+                logger.info(f"Calculated interaction-based score for attempt {attempt.id}: {calculated_score}% (spent {time_spent:.0f}s, indicators: {progress_indicators})")
+                return calculated_score
         
         return None
     

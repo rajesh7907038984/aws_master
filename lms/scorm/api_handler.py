@@ -595,8 +595,22 @@ class ScormAPIHandler:
                 self.attempt.save()
                 
                 # Use centralized sync service for score synchronization
+                # This is critical for ensuring all user interactions are tracked
                 from .score_sync_service import ScormScoreSyncService
-                ScormScoreSyncService.sync_score(self.attempt)
+                sync_success = ScormScoreSyncService.sync_score(self.attempt, force=True)
+                logger.info(f"COMMIT: Score sync result for attempt {self.attempt.id}: {sync_success}")
+                
+                # CRITICAL FIX: Always try to sync even if no explicit score
+                # This ensures user interactions are captured in gradebook
+                if not sync_success:
+                    # Update last_accessed to ensure interaction is recorded
+                    from django.utils import timezone
+                    self.attempt.last_accessed = timezone.now()
+                    self.attempt.save()
+                    
+                    # Try sync again with updated timestamp
+                    sync_success = ScormScoreSyncService.sync_score(self.attempt, force=True)
+                    logger.info(f"COMMIT: Retry score sync with updated timestamp: {sync_success}")
             finally:
                 # Clean up the flag
                 if hasattr(self.attempt, '_updating_from_api_handler'):
