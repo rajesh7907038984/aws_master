@@ -191,7 +191,7 @@ def scorm_view(request, topic_id):
         'is_instructor_or_admin': is_instructor_or_admin,
     }
     
-    response = render(request, 'scorm/player_clean.html', context)
+    response = render(request, 'scorm/player.html', context)
     
     # Set permissive CSP headers for SCORM content
     response['Content-Security-Policy'] = (

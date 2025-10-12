@@ -700,20 +700,21 @@
                 // ENHANCED: For cross-origin SCORM content, use postMessage communication
                 setupCrossOriginExitHandling();
             }
-            
-            // Enhanced slide detection for slide-based SCORM content
-            function detectSlideChanges() {
-                try {
-                    const iframe = document.getElementById('scormFrame');
-                    if (iframe && iframe.contentWindow) {
-                        // Try to detect slide changes in iframe
-                        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                        if (iframeDoc) {
-                            // Look for common slide indicators
-                            const slideIndicators = [
-                                '.slide', '.slide-container', '.slide-wrapper',
-                                '.story-slide', '.story-slide-container',
-                                '[data-slide]', '[data-slide-id]',
+        }
+        
+        // Enhanced slide detection for slide-based SCORM content
+        function detectSlideChanges() {
+            try {
+                const iframe = document.getElementById('scormFrame');
+                if (iframe && iframe.contentWindow) {
+                    // Try to detect slide changes in iframe
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    if (iframeDoc) {
+                        // Look for common slide indicators
+                        const slideIndicators = [
+                            '.slide', '.slide-container', '.slide-wrapper',
+                            '.story-slide', '.story-slide-container',
+                            '[data-slide]', '[data-slide-id]',
                                 '.current-slide', '.active-slide'
                             ];
                             
@@ -759,16 +760,17 @@
                     // Cross-origin or other issues - ignore
                 }
             }
-            
-            // Start slide detection for slide-based SCORM content
-            setTimeout(() => {
-                detectSlideChanges();
-                console.log('Slide detection started for slide-based SCORM content');
-            }, 1000);
-            
-            // ENHANCED: Monitor iframe URL changes for completion pages
-            monitorIframeUrlChanges();
-            
+        }
+        
+        // Start slide detection for slide-based SCORM content
+        setTimeout(() => {
+            detectSlideChanges();
+            console.log('Slide detection started for slide-based SCORM content');
+        }, 1000);
+        
+        // ENHANCED: Monitor iframe URL changes for completion pages
+        monitorIframeUrlChanges();
+        
         // ENHANCED: Monitor slide progress for better tracking
         monitorSlideProgress();
         
@@ -1078,7 +1080,7 @@
             console.log(' Setting up package-specific monitoring...');
             
             // Get package metadata from server
-            const packageMetadata = {{ scorm_package.package_metadata|default:"{}"|safe }};
+            const packageMetadata = {% if scorm_package.package_metadata %}{{ scorm_package.package_metadata|safe }}{% else %}{}{% endif %};
             const packageType = packageMetadata.package_type || 'unknown';
             const scoringMethod = packageMetadata.scoring_method || 'unknown';
             
@@ -1792,7 +1794,7 @@
                                         
                                         // ENHANCED: Handle different SCORM package types for completion
                                         // Use package metadata to determine the correct behavior
-                                        const packageMetadata = {{ scorm_package.package_metadata|default:"{}"|safe }};
+                                        const packageMetadata = {% if scorm_package.package_metadata %}{{ scorm_package.package_metadata|safe }}{% else %}{}{% endif %};
                                         const packageType = packageMetadata.package_type || 'unknown';
                                         const scoringMethod = packageMetadata.scoring_method || 'unknown';
                                         
