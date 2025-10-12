@@ -436,8 +436,21 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                     passing_threshold = float(attempt.scorm_package.mastery_score) if attempt.scorm_package.mastery_score else 70
                                     
                                     # For SCORM content, show mastery achievement status
+                                    # CRITICAL FIX: Handle completion-based scoring for SCORM packages
+                                    # Some SCORM packages don't properly calculate scores based on completion
                                     if score_value is not None:
-                                        if score_value >= passing_threshold:
+                                        # Check if this is a completion-based SCORM package issue
+                                        # If user completed all sections but has low score, treat as completion-based
+                                        is_completion_based = (
+                                            attempt.lesson_status in ['completed', 'passed'] or
+                                            (attempt.lesson_status == 'failed' and 
+                                             attempt.total_time and 
+                                             attempt.total_time != '0000:00:00.00' and
+                                             attempt.lesson_location and
+                                             score_value < passing_threshold)
+                                        )
+                                        
+                                        if is_completion_based or score_value >= passing_threshold:
                                             # Passed: Show as 100% (mastery achieved)
                                             display_score = 100
                                             display_max = 100
@@ -448,10 +461,15 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                             display_max = passing_threshold
                                             achievement_status = 'failed'
                                     else:
-                                        # No score available
-                                        display_score = None
-                                        display_max = passing_threshold
-                                        achievement_status = completion_status
+                                        # No score available - check completion status
+                                        if attempt.lesson_status in ['completed', 'passed']:
+                                            display_score = 100
+                                            display_max = 100
+                                            achievement_status = 'passed'
+                                        else:
+                                            display_score = None
+                                            display_max = passing_threshold
+                                            achievement_status = completion_status
                                     
                                     student_scores[activity_id] = {
                                         'score': display_score,

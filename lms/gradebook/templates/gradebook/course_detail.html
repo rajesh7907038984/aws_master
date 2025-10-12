@@ -1888,7 +1888,11 @@
                             <span class="grade-score grade-excellent">
                               {% if score_data.score is not None %}
                                 {% if score_data.achievement_status == 'passed' %}
-                                  MASTERY ACHIEVED ({{ score_data.raw_score|floatformat:0 }}/100)
+                                  {% if score_data.raw_score and score_data.raw_score < score_data.mastery_threshold %}
+                                    MASTERY ACHIEVED (Completion-Based)
+                                  {% else %}
+                                    MASTERY ACHIEVED ({{ score_data.raw_score|floatformat:0 }}/100)
+                                  {% endif %}
                                 {% else %}
                                   {{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}
                                 {% endif %}
@@ -1958,7 +1962,11 @@
                             <span class="grade-score grade-excellent">
                               {% if score_data.score is not None %}
                                 {% if score_data.achievement_status == 'passed' %}
-                                  MASTERY ACHIEVED ({{ score_data.raw_score|floatformat:0 }}/100)
+                                  {% if score_data.raw_score and score_data.raw_score < score_data.mastery_threshold %}
+                                    MASTERY ACHIEVED (Completion-Based)
+                                  {% else %}
+                                    MASTERY ACHIEVED ({{ score_data.raw_score|floatformat:0 }}/100)
+                                  {% endif %}
                                 {% else %}
                                   {{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}
                                 {% endif %}
