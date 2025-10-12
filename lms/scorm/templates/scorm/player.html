@@ -2110,22 +2110,16 @@
                                         
                                         if (isArticulateStoryline && progressScore < 100) {
                                             console.log(' Articulate Storyline: Partial progress detected: ' + progressScore + '% (' + slidesWithTime + ' slides completed out of ' + totalSlides + ')');
-                                            console.log('⚠️ Not saving partial progress - user needs to complete all slides for final score');
+                                            console.log('📌 Saving progress for resume (no final score)');
                                             
-                                            // For partial progress, don't set a final score
-                                            // Just track progress in suspend_data for resume
-                                            const progressData = {
-                                                totalSlides: totalSlides,
-                                                completedSlides: slidesWithTime,
-                                                progressPercentage: progressScore,
-                                                timestamp: new Date().toISOString(),
-                                                status: 'in_progress'
-                                            };
+                                            // ✅ CRITICAL FIX: DO NOT overwrite Storyline's suspend_data!
+                                            // Storyline manages its own quiz state in suspend_data
+                                            // We should NEVER overwrite it or the quiz will restart
                                             
+                                            // Just ensure lesson_status is set (don't overwrite suspend_data)
                                             if (window.API && window.API.LMSSetValue) {
-                                                window.API.LMSSetValue('cmi.suspend_data', JSON.stringify(progressData));
                                                 window.API.LMSSetValue('cmi.core.lesson_status', 'incomplete');
-                                                console.log(' Saved progress data for resume (not final score)');
+                                                console.log(' ✅ Saved lesson_status (preserved Storyline suspend_data)');
                                             }
                                             
                                             // Don't set currentScore for partial progress
