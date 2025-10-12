@@ -626,8 +626,8 @@
         // ENHANCED: Monitor slide progress for better tracking
         monitorSlideProgress();
         
-        // ENHANCED: Detect Articulate Storyline package and set up specific monitoring
-        detectAndSetupArticulateStoryline();
+        // ENHANCED: Detect package type and set up specific monitoring based on metadata
+        detectAndSetupPackageSpecificMonitoring();
             
             // Add instant sync on user interaction
             document.addEventListener('click', function() {
@@ -783,9 +783,19 @@
             }, 2000);
         }
         
-        // ENHANCED: Detect and setup Articulate Storyline specific monitoring
-        function detectAndSetupArticulateStoryline() {
-            console.log('🎯 Detecting Articulate Storyline package...');
+        // ENHANCED: Detect and setup package-specific monitoring based on metadata
+        function detectAndSetupPackageSpecificMonitoring() {
+            console.log('🎯 Setting up package-specific monitoring...');
+            
+            // Get package metadata from server
+            const packageMetadata = {{ scorm_package.package_metadata|default:"{}"|safe }};
+            const packageType = packageMetadata.package_type || 'unknown';
+            const scoringMethod = packageMetadata.scoring_method || 'unknown';
+            
+            console.log('📊 Package Metadata:', {
+                packageType: packageType,
+                scoringMethod: scoringMethod
+            });
             
             const iframe = document.getElementById('scormFrame');
             if (!iframe) return;
@@ -795,51 +805,66 @@
                 try {
                     const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
                     if (iframeDoc) {
-                        // Check for Articulate Storyline specific elements
-                        const storylineElements = iframeDoc.querySelectorAll('[class*="storyline"], [id*="storyline"], .slide, [data-slide], .scene, [data-scene]');
                         
-                        if (storylineElements.length > 0) {
-                            console.log('🎯 Articulate Storyline package detected with', storylineElements.length, 'slide elements');
+                        if (packageType === 'articulate_storyline' && scoringMethod === 'slide_completion') {
+                            // ARTICULATE STORYLINE: Enhanced slide monitoring
+                            console.log('🎯 Setting up Articulate Storyline monitoring...');
                             
-                            // Set up enhanced monitoring for Storyline
-                            storylineElements.forEach((element, index) => {
-                                const slideId = element.id || element.getAttribute('data-slide') || `storyline-slide-${index}`;
+                            const storylineElements = iframeDoc.querySelectorAll('[class*="storyline"], [id*="storyline"], .slide, [data-slide], .scene, [data-scene]');
+                            
+                            if (storylineElements.length > 0) {
+                                console.log('🎯 Articulate Storyline package detected with', storylineElements.length, 'slide elements');
                                 
-                                // Monitor for slide completion indicators
-                                const observer = new MutationObserver((mutations) => {
-                                    mutations.forEach((mutation) => {
-                                        if (mutation.type === 'attributes') {
-                                            const isCompleted = element.classList.contains('completed') || 
-                                                             element.classList.contains('finished') || 
-                                                             element.classList.contains('passed') ||
-                                                             element.getAttribute('data-completed') === 'true';
-                                            
-                                            if (isCompleted) {
-                                                console.log('✅ Storyline slide completed:', slideId);
+                                storylineElements.forEach((element, index) => {
+                                    const slideId = element.id || element.getAttribute('data-slide') || `storyline-slide-${index}`;
+                                    
+                                    // Monitor for slide completion indicators
+                                    const observer = new MutationObserver((mutations) => {
+                                        mutations.forEach((mutation) => {
+                                            if (mutation.type === 'attributes') {
+                                                const isCompleted = element.classList.contains('completed') || 
+                                                                 element.classList.contains('finished') || 
+                                                                 element.classList.contains('passed') ||
+                                                                 element.getAttribute('data-completed') === 'true';
                                                 
-                                                // Update slide time tracker
-                                                if (!window.slideTimeTracker[slideId]) {
-                                                    window.slideTimeTracker[slideId] = 5000; // Minimum 5 seconds for completed slide
-                                                }
-                                                
-                                                // Update SCORM status
-                                                if (window.API && window.API.LMSSetValue) {
-                                                    window.API.LMSSetValue('cmi.core.lesson_status', 'incomplete');
+                                                if (isCompleted) {
+                                                    console.log('✅ Storyline slide completed:', slideId);
+                                                    
+                                                    // Update slide time tracker
+                                                    if (!window.slideTimeTracker[slideId]) {
+                                                        window.slideTimeTracker[slideId] = 5000; // Minimum 5 seconds for completed slide
+                                                    }
+                                                    
+                                                    // Update SCORM status
+                                                    if (window.API && window.API.LMSSetValue) {
+                                                        window.API.LMSSetValue('cmi.core.lesson_status', 'incomplete');
+                                                    }
                                                 }
                                             }
-                                        }
+                                        });
+                                    });
+                                    
+                                    observer.observe(element, { 
+                                        attributes: true, 
+                                        attributeFilter: ['class', 'data-completed', 'data-status'] 
                                     });
                                 });
-                                
-                                observer.observe(element, { 
-                                    attributes: true, 
-                                    attributeFilter: ['class', 'data-completed', 'data-status'] 
-                                });
-                            });
+                            }
+                            
+                        } else if (packageType === 'generic') {
+                            // GENERIC SCORM: Standard monitoring
+                            console.log('📊 Setting up generic SCORM monitoring...');
+                            
+                            // Generic SCORM packages use standard completion detection
+                            // No special slide monitoring needed
+                            
+                        } else {
+                            // UNKNOWN TYPE: Default monitoring
+                            console.log('📊 Setting up default monitoring for unknown package type...');
                         }
                     }
                 } catch (e) {
-                    console.log('Cannot access iframe for Storyline detection:', e.message);
+                    console.log('Cannot access iframe for package-specific monitoring:', e.message);
                 }
             };
         }
@@ -1416,16 +1441,20 @@
                                         progressScore = Math.round((slidesWithTime / totalSlides) * 100);
                                         
                                         // ENHANCED: Handle different SCORM package types for completion
-                                        // For Articulate Storyline: require all slides completed
-                                        // For generic packages: allow partial completion
-                                        const isArticulateStoryline = document.title.includes('Storyline') || 
-                                                                     document.URL.includes('storyline') ||
-                                                                     window.location.href.includes('articulate') ||
-                                                                     document.querySelector('[class*=\"storyline\"]') ||
-                                                                     document.querySelector('[id*=\"storyline\"]') ||
-                                                                     // Check for Articulate-specific elements
-                                                                     document.querySelector('.slide') ||
-                                                                     document.querySelector('[data-slide]');
+                                        // Use package metadata to determine the correct behavior
+                                        const packageMetadata = {{ scorm_package.package_metadata|default:"{}"|safe }};
+                                        const packageType = packageMetadata.package_type || 'unknown';
+                                        const scoringMethod = packageMetadata.scoring_method || 'unknown';
+                                        
+                                        // Determine if this is an Articulate Storyline package
+                                        const isArticulateStoryline = packageType === 'articulate_storyline' && 
+                                                                     scoringMethod === 'slide_completion';
+                                        
+                                        console.log('📊 Package Type Detection:', {
+                                            packageType: packageType,
+                                            scoringMethod: scoringMethod,
+                                            isArticulateStoryline: isArticulateStoryline
+                                        });
                                         
                                         if (isArticulateStoryline && progressScore < 100) {
                                             console.log('📊 Articulate Storyline: Partial progress detected: {}% ({} slides completed out of {})'.format(progressScore, slidesWithTime, totalSlides));
@@ -1449,10 +1478,23 @@
                                             
                                             // Don't set currentScore for partial progress
                                             currentScore = null;
-                                        } else if (!isArticulateStoryline && progressScore >= 50) {
-                                            // For generic packages, allow partial completion (50% threshold)
+                                        } else if (packageType === 'generic' && progressScore >= 30) {
+                                            // For generic packages, allow partial completion (30% threshold)
                                             currentScore = progressScore;
                                             console.log('🎯 Generic SCORM: Partial completion accepted: {}%'.format(progressScore));
+                                            
+                                            // Set lesson status based on score
+                                            if (window.API && window.API.LMSSetValue) {
+                                                if (progressScore >= 70) {
+                                                    window.API.LMSSetValue('cmi.core.lesson_status', 'passed');
+                                                } else {
+                                                    window.API.LMSSetValue('cmi.core.lesson_status', 'completed');
+                                                }
+                                            }
+                                        } else if (packageType === 'unknown' && progressScore >= 50) {
+                                            // For unknown packages, use default 50% threshold
+                                            currentScore = progressScore;
+                                            console.log('🎯 Unknown SCORM: Partial completion accepted: {}%'.format(progressScore));
                                             
                                             // Set lesson status based on score
                                             if (window.API && window.API.LMSSetValue) {
