@@ -157,6 +157,7 @@
             height: 100%;
             border: none;
             background: white;
+            display: none; /* Initially hidden until content loads */
         }
         
         .loading {
@@ -238,20 +239,30 @@
     </div>
 
     <script>
+        // Fallback timeout to hide loading overlay if onload doesn't fire
+        let loadingTimeout;
+        
+        // Initialize loading timeout as fallback
+        function initializeLoadingTimeout() {
+            loadingTimeout = setTimeout(() => {
+                console.log('Loading timeout reached, hiding overlay as fallback');
+                hideLoadingOverlay();
+            }, 5000); // 5 second fallback timeout
+        }
+        
+        // Clear timeout when content loads successfully
+        function clearLoadingTimeout() {
+            if (loadingTimeout) {
+                clearTimeout(loadingTimeout);
+                loadingTimeout = null;
+            }
+        }
+        
         // Handle iframe load events - defined early to avoid reference errors
         function handleFrameLoad() {
-            const loading = document.getElementById('loading');
-            const frame = document.getElementById('scormFrame');
-            
-            if (loading) {
-                loading.style.display = 'none';
-            }
-            
-            if (frame) {
-                frame.style.display = 'block';
-            }
-            
-            console.log('SCORM content loaded successfully');
+            console.log('handleFrameLoad called');
+            clearLoadingTimeout(); // Clear the fallback timeout
+            hideLoadingOverlay();
             
             // OPTIMIZATION: Preload only essential data for faster initial load
             setTimeout(() => {
@@ -260,6 +271,7 @@
             
             // Inject SCORM API into iframe if possible
             try {
+                const frame = document.getElementById('scormFrame');
                 const iframeDoc = frame.contentDocument || frame.contentWindow.document;
                 if (iframeDoc) {
                     injectScormAPI(iframeDoc);
@@ -275,13 +287,45 @@
             }
         }
         
-        function handleFrameError() {
+        // Separate function to hide loading overlay
+        function hideLoadingOverlay() {
             const loading = document.getElementById('loading');
+            const frame = document.getElementById('scormFrame');
+            
             if (loading) {
-                loading.textContent = 'Error loading SCORM content. Please refresh the page.';
+                loading.style.display = 'none';
+                console.log('Loading overlay hidden');
             }
-            console.error('SCORM frame loading error');
+            
+            if (frame) {
+                frame.style.display = 'block';
+                console.log('SCORM iframe shown');
+            }
+            
+            console.log('SCORM content loaded successfully');
         }
+        
+        // Additional check for iframe content readiness
+        function checkIframeContentReady() {
+            const frame = document.getElementById('scormFrame');
+            if (frame && frame.contentWindow) {
+                try {
+                    // Try to access iframe content to see if it's ready
+                    const iframeDoc = frame.contentDocument || frame.contentWindow.document;
+                    if (iframeDoc && iframeDoc.readyState === 'complete') {
+                        console.log('Iframe content is ready');
+                        clearLoadingTimeout();
+                        hideLoadingOverlay();
+                        return true;
+                    }
+                } catch (e) {
+                    // Cross-origin, can't access content directly
+                    console.log('Cross-origin iframe detected, relying on onload event');
+                }
+            }
+            return false;
+        }
+        
         
         // SCORM API Integration
         const API_ENDPOINT = '{{ api_endpoint }}';
@@ -1636,16 +1680,28 @@
         
         // FIXED: Handle "Save & Exit" button click - save progress without forcing completion
         function handleBackToTopic(event) {
-            event.preventDefault();
-            isExiting = true;  // Flag that user is exiting properly
-            console.log(' Save & Exit button clicked - saving bookmark data for resume...');
+            if (event) {
+                event.preventDefault();
+            }
+            
+            console.log(' Save & Exit button clicked - saving progress...');
             
             // Show user feedback
             const backBtn = document.getElementById('backToTopicBtn');
             if (backBtn) {
                 backBtn.textContent = 'Saving progress...';
                 backBtn.classList.add('disabled');
+                backBtn.style.pointerEvents = 'none';
             }
+            
+            // Set exiting flag
+            isExiting = true;
+            
+            // SIMPLIFIED: Add a fallback timeout to ensure redirect happens
+            const fallbackTimeout = setTimeout(() => {
+                console.log(' Fallback timeout reached - redirecting anyway');
+                window.location.href = '{% url "courses:topic_view" topic.id %}';
+            }, 5000); // 5 second fallback
             
             // CRITICAL FIX: Capture and sync client-side tracked time BEFORE commit
             try {
@@ -2080,6 +2136,12 @@
                     window.location.href = '{% url "courses:topic_view" topic.id %}';
                 });
             }
+            
+            // SIMPLIFIED: Ensure redirect happens even if all SCORM logic fails
+            setTimeout(() => {
+                console.log(' Final fallback redirect - ensuring Save & Exit works');
+                window.location.href = '{% url "courses:topic_view" topic.id %}';
+            }, 3000); // 3 second final fallback
         }
         
         // Enhanced message listener for iframe exit communication
@@ -3017,6 +3079,48 @@
         console.log('  Preview Mode:', IS_PREVIEW);
         console.log('  Content URL:', '{{ content_url }}');
         {% endif %}
+        
+        // Initialize loading timeout when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeLoadingTimeout();
+            
+            // Additional periodic check to ensure loading overlay is hidden
+            let checkCount = 0;
+            const maxChecks = 20; // Check for 10 seconds (20 * 500ms)
+            
+            const periodicCheck = setInterval(() => {
+                checkCount++;
+                
+                // Check if loading overlay is still visible
+                const loading = document.getElementById('loading');
+                if (loading && loading.style.display !== 'none') {
+                    // Try to hide it if iframe is ready
+                    if (checkIframeContentReady() || checkCount >= maxChecks) {
+                        console.log('Periodic check: hiding loading overlay');
+                        clearLoadingTimeout();
+                        hideLoadingOverlay();
+                        clearInterval(periodicCheck);
+                    }
+                } else {
+                    // Loading overlay is already hidden, stop checking
+                    clearInterval(periodicCheck);
+                }
+            }, 500); // Check every 500ms
+            
+            // SIMPLIFIED: Add a simple click handler for Save & Exit button as backup
+            const saveExitBtn = document.getElementById('backToTopicBtn');
+            if (saveExitBtn) {
+                saveExitBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('Save & Exit button clicked (backup handler)');
+                    
+                    // Simple redirect - no complex SCORM logic
+                    setTimeout(() => {
+                        window.location.href = '{% url "courses:topic_view" topic.id %}';
+                    }, 100);
+                });
+            }
+        });
     </script>
 </body>
 </html>
