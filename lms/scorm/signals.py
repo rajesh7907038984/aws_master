@@ -194,7 +194,8 @@ def _update_topic_progress(attempt, score_value):
         
         # CRITICAL FIX: Only update scores when SCORM is completed
         # Check completion status
-        is_completed = attempt.lesson_status in ['passed', 'failed', 'completed']
+        # CRITICAL FIX: Only mark as completed if actually completed or passed, NOT failed
+        is_completed = attempt.lesson_status in ['passed', 'completed']
         
         if not is_completed:
             logger.info(f"📊 AUTO-EXTRACT: SCORM not completed yet (status: {attempt.lesson_status}) - skipping TopicProgress score update")

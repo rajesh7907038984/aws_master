@@ -83,7 +83,8 @@ class ScormScoreSyncService:
             topic_progress.last_score = topic_progress.best_score if topic_progress.best_score is not None else Decimal(str(score_value))
             
             # Update completion status
-            is_completed = scorm_attempt.lesson_status in ['completed', 'passed', 'failed']
+            # CRITICAL FIX: Only mark as completed if actually completed or passed, NOT failed
+            is_completed = scorm_attempt.lesson_status in ['completed', 'passed']
             if is_completed and not topic_progress.completed:
                 topic_progress.completed = True
                 topic_progress.completion_method = 'scorm'
