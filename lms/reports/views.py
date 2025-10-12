@@ -2428,7 +2428,8 @@ def subgroup_detail(request, subgroup_id):
     total_time_seconds = topic_progresses.aggregate(Sum('total_time_spent'))['total_time_spent__sum'] or 0
     training_hours = int(total_time_seconds / 3600)
     training_minutes = int((total_time_seconds % 3600) / 60)
-    training_time = f"{training_hours}h {training_minutes}m"
+    training_seconds = int(total_time_seconds % 60)
+    training_time = f"{training_hours}h {training_minutes}m {training_seconds}s"
     
     from django.db.models import Count
     from django.db.models.functions import TruncDate
@@ -2600,7 +2601,8 @@ def subgroup_detail_excel(request, subgroup_id):
     total_time_seconds = topic_progresses.aggregate(Sum('total_time_spent'))['total_time_spent__sum'] or 0
     training_hours = int(total_time_seconds / 3600)
     training_minutes = int((total_time_seconds % 3600) / 60)
-    training_time = f"{training_hours}h {training_minutes}m"
+    training_seconds = int(total_time_seconds % 60)
+    training_time = f"{training_hours}h {training_minutes}m {training_seconds}s"
     
     # Get courses with completion rates
     courses_with_stats = []
@@ -2845,7 +2847,8 @@ def courses_report(request):
     training_time_seconds = topic_progresses.aggregate(Sum('total_time_spent'))['total_time_spent__sum'] or 0
     training_hours = int(training_time_seconds / 3600)
     training_minutes = int((training_time_seconds % 3600) / 60)
-    training_time = f"{training_hours}h {training_minutes}m"
+    training_seconds = int(training_time_seconds % 60)
+    training_time = f"{training_hours}h {training_minutes}m {training_seconds}s"
     
     # Prepare the context
     context = {
@@ -2938,11 +2941,12 @@ def export_user_report_to_excel(request, user):
     else:
         completion_rate = 0.0
     
-    # Format training time
+    # Format training time with seconds
     total_seconds = user_stats.total_time_spent or 0
     hours = total_seconds // 3600
     minutes = (total_seconds % 3600) // 60
-    training_time = f"{hours}h {minutes}m"
+    seconds = total_seconds % 60
+    training_time = f"{hours}h {minutes}m {seconds}s"
     
     # Write overview statistics
     overview_sheet.write(6, 0, 'COURSE STATISTICS', header_style)
@@ -3221,7 +3225,7 @@ def reports_dashboard(request):
             'courses_in_progress': courses_in_progress_recent,  # Only recently accessed
             'courses_not_passed': courses_not_passed,  # Not accessed in 30 days
             'courses_not_started': courses_not_started,
-            'training_time': "0h 0m",  # Placeholder
+            'training_time': "0h 0m 0s",  # Placeholder
             'total_initial_assessments': total_initial_assessments,
             'avg_initial_assessment_score': round(avg_initial_assessment_score, 1),
             'page_obj': page_obj,
@@ -3591,7 +3595,8 @@ def user_detail_report(request, user_id):
     total_seconds = max(0, total_seconds)
     hours = total_seconds // 3600
     minutes = (total_seconds % 3600) // 60
-    training_time = f"{hours}h {minutes}m"
+    seconds = total_seconds % 60
+    training_time = f"{hours}h {minutes}m {seconds}s"
     
     # Get user enrolled courses with detailed information and calculated fields
     user_courses = CourseEnrollment.objects.filter(user=user).select_related('course').order_by('-enrolled_at')
@@ -3764,9 +3769,10 @@ def user_detail_report(request, user_id):
         if progress.total_time_spent:
             hours = progress.total_time_spent // 3600
             minutes = (progress.total_time_spent % 3600) // 60
-            progress.formatted_time = f"{hours}h {minutes}m"
+            seconds = progress.total_time_spent % 60
+            progress.formatted_time = f"{hours}h {minutes}m {seconds}s"
         else:
-            progress.formatted_time = "0h 0m"
+            progress.formatted_time = "0h 0m 0s"
     
     # Get user timeline activities (Event model for proper learning activities tracking)
     user_activities = Event.objects.filter(user=user).select_related('course').order_by('-created_at')[:20]
@@ -4024,7 +4030,8 @@ def _get_user_report_data(request, user_id):
         total_seconds = enrollment.course_time_spent
         hours = total_seconds // 3600
         minutes = (total_seconds % 3600) // 60
-        enrollment.formatted_time_spent = f"{hours}h {minutes}m"
+        seconds = total_seconds % 60
+        enrollment.formatted_time_spent = f"{hours}h {minutes}m {seconds}s"
     
     # Recalculate user stats after syncing completion status
     thirty_days_ago = timezone.now() - timedelta(days=30)
@@ -4077,7 +4084,8 @@ def _get_user_report_data(request, user_id):
     total_seconds = max(0, total_seconds)
     hours = total_seconds // 3600
     minutes = (total_seconds % 3600) // 60
-    training_time = f"{hours}h {minutes}m"
+    seconds = total_seconds % 60
+    training_time = f"{hours}h {minutes}m {seconds}s"
         
     # Get Learning Activities data (TopicProgress) with data consistency checks
     # Ensure data consistency: create missing TopicProgress records for enrolled courses only
@@ -4165,9 +4173,10 @@ def _get_user_report_data(request, user_id):
         if progress.total_time_spent:
             hours = progress.total_time_spent // 3600
             minutes = (progress.total_time_spent % 3600) // 60
-            progress.formatted_time = f"{hours}h {minutes}m"
+            seconds = progress.total_time_spent % 60
+            progress.formatted_time = f"{hours}h {minutes}m {seconds}s"
         else:
-            progress.formatted_time = "0h 0m"
+            progress.formatted_time = "0h 0m 0s"
     
     # Get user timeline activities
     user_activities = Event.objects.filter(user=user).select_related('course').order_by('-created_at')[:20]
@@ -4733,10 +4742,11 @@ def branch_detail(request, branch_id):
     if branch_stats and branch_stats.training_time:
         hours = branch_stats.training_time // 3600 if branch_stats.training_time else 0
         minutes = (branch_stats.training_time % 3600) // 60 if branch_stats.training_time else 0
-        branch_stats.training_time = f"{hours}h {minutes}m"
+        seconds = branch_stats.training_time % 60 if branch_stats.training_time else 0
+        branch_stats.training_time = f"{hours}h {minutes}m {seconds}s"
     else:
         if branch_stats:
-            branch_stats.training_time = "0h 0m"
+            branch_stats.training_time = "0h 0m 0s"
     
     # Get top courses with highest completion rates
     top_courses = branch_courses.filter(enrollments_count__gt=0).order_by('-completion_rate')[:4]
@@ -5047,13 +5057,13 @@ def course_detail(request, course_id):
         enrollment = CourseEnrollment.objects.filter(course=course, user=learner).first()
         if enrollment:
             learner.progress_percentage = enrollment.progress_percentage if hasattr(enrollment, 'progress_percentage') else 0
-            learner.time_spent_formatted = getattr(enrollment, 'total_time_spent', "0h 0m")
+            learner.time_spent_formatted = getattr(enrollment, 'total_time_spent', "0h 0m 0s")
             raw_score = getattr(enrollment, 'score', None)
             # Use normalized score to handle both percentage and basis points formats
             learner.score = normalize_score(raw_score)
         else:
             learner.progress_percentage = 0
-            learner.time_spent_formatted = "0h 0m"
+            learner.time_spent_formatted = "0h 0m 0s"
             learner.score = None
         learners_with_progress.append(learner)
     
@@ -5375,13 +5385,13 @@ def _get_course_report_data(request, course_id):
         enrollment = CourseEnrollment.objects.filter(course=course, user=learner).first()
         if enrollment:
             learner.progress_percentage = enrollment.progress_percentage if hasattr(enrollment, 'progress_percentage') else 0
-            learner.time_spent_formatted = getattr(enrollment, 'total_time_spent', "0h 0m")
+            learner.time_spent_formatted = getattr(enrollment, 'total_time_spent', "0h 0m 0s")
             raw_score = getattr(enrollment, 'score', None)
             # Use normalized score to handle both percentage and basis points formats
             learner.score = normalize_score(raw_score)
         else:
             learner.progress_percentage = 0
-            learner.time_spent_formatted = "0h 0m"
+            learner.time_spent_formatted = "0h 0m 0s"
             learner.score = None
         learners_with_progress.append(learner)
     
@@ -6080,7 +6090,7 @@ class BranchReportView(LoginRequiredMixin, TemplateView):
                 completed=False,
                 last_accessed__isnull=True
             ).count(),
-            'training_time': "0h 0m",  # Placeholder
+            'training_time': "0h 0m 0s",  # Placeholder
             'breadcrumbs': breadcrumbs,
             **filter_context  # Add filter context (businesses, branches for filter, show_*_filter flags)
         })
