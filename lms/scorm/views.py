@@ -351,6 +351,9 @@ def scorm_content(request, topic_id, path):
     Handles multiple SCORM package structures with intelligent fallback
     """
     try:
+        # CRITICAL DEBUG: Log the incoming request
+        logger.info(f"🔍 SCORM Content Request - Topic: {topic_id}, Path: '{path}'")
+        
         topic = get_object_or_404(Topic, id=topic_id)
         
         # Check if topic has SCORM package
@@ -358,6 +361,11 @@ def scorm_content(request, topic_id, path):
             scorm_package = topic.scorm_package
         except ScormPackage.DoesNotExist:
             return HttpResponse('SCORM package not found', status=404)
+        
+        # CRITICAL FIX: If path is empty or ends with /, use the launch_url
+        if not path or path.endswith('/'):
+            logger.info(f"⚠️  Path is empty or directory, using launch_url: {scorm_package.launch_url}")
+            path = scorm_package.launch_url
         
         # Use boto3 directly to fetch content (authenticated access)
         import boto3
@@ -409,8 +417,9 @@ def scorm_content(request, topic_id, path):
                 seen.add(p)
                 unique_paths.append(p)
         
-        logger.info(f"Attempting to fetch SCORM content for topic {topic_id}, path: {path}")
-        logger.info(f"Will try {len(unique_paths)} path combinations")
+        logger.info(f"🔍 SCORM Content - Topic: {topic_id}, Requested Path: '{path}'")
+        logger.info(f"📦 Package - Launch URL: '{scorm_package.launch_url}', Extracted Path: '{scorm_package.extracted_path}'")
+        logger.info(f"🔄 Will try {len(unique_paths)} path combinations")
         
         # Try each path until one works
         content = None
