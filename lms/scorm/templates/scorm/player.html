@@ -3532,11 +3532,11 @@
                         console.log('Periodic check: hiding loading overlay');
                         clearLoadingTimeout();
                         hideLoadingOverlay();
-                        clearInterval(periodicCheck);
+                        clearInterval(window.periodicCheckInterval);
                     }
                 } else {
                     // Loading overlay is already hidden, stop checking
-                    clearInterval(periodicCheck);
+                    clearInterval(window.periodicCheckInterval);
                 }
             }, 500); // Check every 500ms
             
