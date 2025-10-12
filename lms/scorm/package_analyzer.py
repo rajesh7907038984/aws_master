@@ -65,6 +65,9 @@ class ScormPackageAnalyzer:
         # Determine completion method
         metadata['completion_method'] = ScormPackageAnalyzer._determine_completion_method(metadata)
         
+        # Detect if auto-scoring adjustment is needed
+        metadata['needs_auto_scoring'] = ScormPackageAnalyzer._detect_auto_scoring_needed(metadata, manifest_content)
+        
         # Set detection confidence
         metadata['detection_confidence'] = ScormPackageAnalyzer._calculate_confidence(metadata)
         
@@ -78,6 +81,7 @@ class ScormPackageAnalyzer:
             f"  Completion: {metadata['completion_method']}\n"
             f"  Has Quiz: {metadata['has_quiz']}\n"
             f"  Has Slides: {metadata['has_slides']}\n"
+            f"  Needs Auto-Scoring: {metadata['needs_auto_scoring']}\n"
             f"  Confidence: {metadata['detection_confidence']}"
         )
         
@@ -144,7 +148,8 @@ class ScormPackageAnalyzer:
         if manifest_content:
             slide_indicators = [
                 'slide', 'scene', 'navigation', 'menu', 'toc',
-                'table of contents', 'sidebar', 'player'
+                'table of contents', 'sidebar', 'player', 'presentation',
+                'content', 'page', 'section', 'chapter', 'module'
             ]
             content_lower = manifest_content.lower()
             slide_count = sum(1 for indicator in slide_indicators if indicator in content_lower)
@@ -205,6 +210,34 @@ class ScormPackageAnalyzer:
             return 'viewed'  # Default to "viewed all content"
         
         return 'viewed'  # Default: just view the content
+    
+    @staticmethod
+    def _detect_auto_scoring_needed(metadata: Dict, manifest_content: str = None) -> bool:
+        """
+        Detect if package needs auto-scoring adjustment due to poor slide completion tracking
+        """
+        scoring_method = metadata.get('scoring_method', 'unknown')
+        has_slides = metadata.get('has_slides', False)
+        has_quiz = metadata.get('has_quiz', False)
+        
+        # Packages that need auto-scoring:
+        # 1. Slide-based without proper completion tracking
+        # 2. Mixed packages with unclear scoring
+        # 3. Packages with low confidence detection
+        
+        if scoring_method == 'slide_completion' and not has_quiz:
+            # Pure slide-based packages often have poor completion tracking
+            return True
+        
+        if scoring_method == 'mixed' and has_slides:
+            # Mixed packages with slides often need adjustment
+            return True
+        
+        if metadata.get('detection_confidence') == 'low' and has_slides:
+            # Low confidence packages with slides likely need auto-scoring
+            return True
+        
+        return False
     
     @staticmethod
     def _calculate_confidence(metadata: Dict) -> str:

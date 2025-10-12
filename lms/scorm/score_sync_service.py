@@ -232,6 +232,10 @@ class ScormScoreSyncService:
             progress_score = float(attempt.progress_percentage)
             # Only use progress as score if it's reasonable (0-100)
             if 0 <= progress_score <= 100:
+                # Check if package needs auto-scoring adjustment
+                package_metadata = attempt.scorm_package.package_metadata or {}
+                needs_auto_scoring = package_metadata.get('needs_auto_scoring', False)
+                
                 # CRITICAL FIX: Only trust 100% progress if we have evidence of actual completion
                 if progress_score == 100:
                     has_evidence_of_completion = (
@@ -248,9 +252,16 @@ class ScormScoreSyncService:
                         logger.warning(f"Progress shows 100% but no evidence of actual completion for attempt {attempt.id} - ignoring")
                         # Don't use the 100% progress if there's no evidence of completion
                 else:
-                    # For non-100% progress, trust it
-                    scores.append(progress_score)
-                    logger.info(f"Using progress_percentage as score: {progress_score}% for attempt {attempt.id}")
+                    # For non-100% progress, apply auto-scoring if needed
+                    if needs_auto_scoring and progress_score > 0:
+                        # Auto-scoring: multiply by 10 for better tracking
+                        adjusted_score = min(progress_score * 10, 100)
+                        scores.append(adjusted_score)
+                        logger.info(f"Auto-scoring applied: {progress_score}% -> {adjusted_score}% for attempt {attempt.id}")
+                    else:
+                        # For non-100% progress, trust it
+                        scores.append(progress_score)
+                        logger.info(f"Using progress_percentage as score: {progress_score}% for attempt {attempt.id}")
         
         # Priority 4: Calculate from slide completion (for slide-based SCORM)
         if not scores and attempt.completed_slides and attempt.total_slides:
