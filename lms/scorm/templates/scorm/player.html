@@ -804,7 +804,9 @@
                             console.log(' New slide detected: ' + currentSlide);
                             
                             // Sync immediately when slide changes
-                            syncTimeToServer();
+                            if (typeof syncTimeToServer === 'function') {
+                                syncTimeToServer();
+                            }
                             
                             // Check if all slides are completed (for slide-based content)
                             checkSlideCompletion();
@@ -836,13 +838,13 @@
         
         // Add instant sync on user interaction
         document.addEventListener('click', function() {
-            if (totalActiveSeconds > 0) {
+            if (totalActiveSeconds > 0 && typeof syncTimeToServer === 'function') {
                 syncTimeToServer();
             }
         });
         
         document.addEventListener('keydown', function() {
-            if (totalActiveSeconds > 0) {
+            if (totalActiveSeconds > 0 && typeof syncTimeToServer === 'function') {
                 syncTimeToServer();
             }
         });
@@ -852,7 +854,9 @@
         if (iframe) {
             iframe.addEventListener('load', function() {
                 setTimeout(() => {
-                    syncTimeToServer();
+                    if (typeof syncTimeToServer === 'function') {
+                        syncTimeToServer();
+                    }
                 }, 500);
             });
         }
