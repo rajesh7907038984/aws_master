@@ -1711,7 +1711,7 @@
                 event.preventDefault();
             }
             
-            console.log(' Save & Exit button clicked - saving progress...');
+            console.log('💾 Save & Exit button clicked - saving progress...');
             
             // Show user feedback
             const backBtn = document.getElementById('backToTopicBtn');
@@ -1719,16 +1719,23 @@
                 backBtn.textContent = 'Saving progress...';
                 backBtn.classList.add('disabled');
                 backBtn.style.pointerEvents = 'none';
+                backBtn.disabled = true;
             }
             
             // Set exiting flag
             isExiting = true;
             
-            // SIMPLIFIED: Add a fallback timeout to ensure redirect happens
-            const fallbackTimeout = setTimeout(() => {
-                console.log(' Fallback timeout reached - redirecting anyway');
+            // CRITICAL FIX: Ensure redirect ALWAYS happens - set primary fallback early
+            const primaryFallbackTimeout = setTimeout(() => {
+                console.log('⏰ Primary fallback (2s) - redirecting now');
                 window.location.href = '{% url "courses:topic_view" topic.id %}';
-            }, 5000); // 5 second fallback
+            }, 2000); // 2 second primary fallback (faster response)
+            
+            // Also set a backup fallback
+            const backupFallbackTimeout = setTimeout(() => {
+                console.log('⏰ Backup fallback (5s) - forcing redirect');
+                window.location.href = '{% url "courses:topic_view" topic.id %}';
+            }, 5000); // 5 second backup fallback
             
             // CRITICAL FIX: Capture and sync client-side tracked time BEFORE commit
             try {
@@ -1843,9 +1850,10 @@
             }
             
             // Call SCORM commit (but NOT terminate) to save current progress for resume
-            if (window.API && window.API._initialized) {
-                try {
-                    console.log(' Committing SCORM bookmark data for resume...');
+            // Wrap entire SCORM save logic in try-catch to prevent blocking redirect
+            try {
+                if (window.API && window.API._initialized) {
+                    console.log('💾 Committing SCORM bookmark data for resume...');
                     
                     // CRITICAL FIX: Calculate and set score for both quiz-based and slide-based SCORM content
                     try {
@@ -2107,10 +2115,11 @@
                         console.log('SCORM 2004 Commit result:', commitResult2004);
                     }
                     
-                    console.log(' SCORM bookmark data saved for resume');
+                    console.log('✅ SCORM bookmark data saved for resume');
                     scormDataSaved = true;  // Mark that data has been saved
                     
                     // CRITICAL: Trigger backend sync to update TopicProgress with time/attempts
+                    // Use fire-and-forget approach - don't wait for response
                     fetch('{% url "scorm:sync_on_exit" %}', {
                         method: 'POST',
                         headers: {
@@ -2121,54 +2130,47 @@
                     })
                     .then(response => response.json())
                     .then(data => {
-                        console.log('🔄 Backend sync result:', data);
+                        console.log('✅ Backend sync result:', data);
+                        // Clear the primary timeout and redirect immediately on success
+                        clearTimeout(primaryFallbackTimeout);
+                        console.log('🔄 Data saved successfully, redirecting...');
+                        window.location.href = '{% url "courses:topic_view" topic.id %}';
                     })
                     .catch(error => {
-                        console.error(' Backend sync error:', error);
-                    })
-                    .finally(() => {
-                        // Redirect after sync attempt (success or failure)
-                        setTimeout(() => {
-                            console.log(' Redirecting to topic view...');
-                            window.location.href = '{% url "courses:topic_view" topic.id %}';
-                        }, 300);
+                        console.error('❌ Backend sync error (will still redirect):', error);
+                        // Don't block redirect on error - fallback timers will handle it
                     });
-                } catch (error) {
-                    console.error(' SCORM Commit error:', error);
-                    // Still redirect even if commit fails
-                    setTimeout(() => {
+                } else {
+                    console.log('ℹ️ SCORM API not initialized, triggering backend sync anyway...');
+                    
+                    // Still trigger backend sync even if SCORM API wasn't initialized
+                    fetch('{% url "scorm:sync_on_exit" %}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        },
+                        body: 'attempt_id={{ attempt.id|default:attempt_id }}'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('✅ Backend sync result:', data);
+                        // Clear the primary timeout and redirect immediately on success
+                        clearTimeout(primaryFallbackTimeout);
+                        console.log('🔄 Data saved successfully, redirecting...');
                         window.location.href = '{% url "courses:topic_view" topic.id %}';
-                    }, 300);
+                    })
+                    .catch(error => {
+                        console.error('❌ Backend sync error (will still redirect):', error);
+                        // Don't block redirect on error - fallback timers will handle it
+                    });
                 }
-            } else {
-                console.log(' SCORM API not initialized, triggering backend sync anyway...');
-                
-                // Still trigger backend sync even if SCORM API wasn't initialized
-                fetch('{% url "scorm:sync_on_exit" %}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                        'X-CSRFToken': '{{ csrf_token }}'
-                    },
-                    body: 'attempt_id={{ attempt.id|default:attempt_id }}'
-                })
-                .then(response => response.json())
-                .then(data => {
-                    console.log('🔄 Backend sync result:', data);
-                })
-                .catch(error => {
-                    console.error(' Backend sync error:', error);
-                })
-                .finally(() => {
-                    window.location.href = '{% url "courses:topic_view" topic.id %}';
-                });
+            } catch (error) {
+                // CRITICAL: If any error occurs in SCORM save logic, don't block redirect
+                console.error('❌ Error in Save & Exit logic:', error);
+                console.log('⚠️ Continuing with redirect despite error...');
+                // Fallback timers will handle the redirect
             }
-            
-            // SIMPLIFIED: Ensure redirect happens even if all SCORM logic fails
-            setTimeout(() => {
-                console.log(' Final fallback redirect - ensuring Save & Exit works');
-                window.location.href = '{% url "courses:topic_view" topic.id %}';
-            }, 3000); // 3 second final fallback
         }
         
         // Enhanced message listener for iframe exit communication
