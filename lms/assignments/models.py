@@ -11,6 +11,9 @@ import re
 from lms_rubrics.models import Rubric
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+import logging
+
+logger = logging.getLogger(__name__)
 
 def secure_filename(filename):
     """
@@ -209,6 +212,41 @@ class Assignment(models.Model):
             return linked_to_enrolled_course
         
         return False
+    
+    def delete(self, *args, **kwargs):
+        """
+        Enhanced delete method with S3 cleanup for Assignment files.
+        """
+        try:
+            logger.info(f"Starting deletion for Assignment: {self.title} (ID: {self.id})")
+            
+            # 1. DELETE ATTACHMENT FILE FROM S3
+            if self.attachment:
+                try:
+                    logger.info(f"Deleting assignment attachment: {self.attachment.name}")
+                    self.attachment.delete(save=False)
+                    logger.info(f"Successfully deleted assignment attachment: {self.attachment.name}")
+                except Exception as e:
+                    logger.error(f"Error deleting assignment attachment: {str(e)}")
+            
+            # 2. USE S3 CLEANUP UTILITY FOR COMPREHENSIVE CLEANUP
+            try:
+                from core.utils.s3_cleanup import cleanup_assignment_s3_files
+                s3_results = cleanup_assignment_s3_files(self.id)
+                successful_s3_deletions = sum(1 for success in s3_results.values() if success)
+                total_s3_files = len(s3_results)
+                if total_s3_files > 0:
+                    logger.info(f"S3 cleanup: {successful_s3_deletions}/{total_s3_files} assignment files deleted successfully")
+            except Exception as e:
+                logger.error(f"Error during S3 cleanup for assignment {self.id}: {str(e)}")
+            
+            # Call parent delete to remove the database record and cascade to related models
+            super().delete(*args, **kwargs)
+            logger.info(f"Successfully completed deletion for Assignment: {self.title} (ID: {self.id})")
+            
+        except Exception as e:
+            logger.error(f"Error in Assignment.delete(): {str(e)}")
+            raise
 
 class TopicAssignment(models.Model):
     """Through model for Topic-Assignment relationship"""

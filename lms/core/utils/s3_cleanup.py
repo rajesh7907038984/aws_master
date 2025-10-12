@@ -300,6 +300,48 @@ class S3CleanupManager:
         logger.info(f"Completed S3 cleanup for topic {topic_id}")
         return all_results
     
+    def cleanup_scorm_package_files(self, scorm_package_id: int, topic_id: Optional[int] = None, package_file_path: Optional[str] = None) -> Dict[str, bool]:
+        """
+        Clean up all files associated with a SCORM package
+        
+        Args:
+            scorm_package_id: ID of the SCORM package whose files should be deleted
+            topic_id: Optional topic ID to clean up additional topic-related SCORM files
+            package_file_path: Optional path to the SCORM package file (for targeted deletion)
+            
+        Returns:
+            Dict mapping file paths to deletion success status
+        """
+        logger.info(f"Starting S3 cleanup for SCORM package {scorm_package_id}")
+        
+        all_results = {}
+        
+        # 1. Delete specific package file if path provided
+        if package_file_path:
+            result = self.delete_file(package_file_path)
+            all_results[package_file_path] = result
+        
+        # 2. Define SCORM package-specific directories to clean up
+        scorm_directories = [
+            f"scorm_packages/{scorm_package_id}",
+            f"scorm_content/{scorm_package_id}",
+        ]
+        
+        # 3. Add topic-specific SCORM directories if topic_id is provided
+        if topic_id:
+            scorm_directories.extend([
+                f"scorm_content/{topic_id}",
+                f"scorm_packages/topic_{topic_id}",
+            ])
+        
+        # 4. Clean up each directory
+        for directory in scorm_directories:
+            results = self.delete_directory_contents(directory)
+            all_results.update(results)
+        
+        logger.info(f"Completed S3 cleanup for SCORM package {scorm_package_id}")
+        return all_results
+    
     def cleanup_assignment_files(self, assignment_id: int) -> Dict[str, bool]:
         """
         Clean up all files associated with an assignment
@@ -420,3 +462,17 @@ def cleanup_topic_s3_files(topic_id: int) -> Dict[str, bool]:
         Dict mapping file paths to deletion success status
     """
     return s3_cleanup.cleanup_topic_files(topic_id)
+
+def cleanup_scorm_package_s3_files(scorm_package_id: int, topic_id: Optional[int] = None, package_file_path: Optional[str] = None) -> Dict[str, bool]:
+    """
+    Convenience function to clean up all files associated with a SCORM package
+    
+    Args:
+        scorm_package_id: ID of the SCORM package whose files should be deleted
+        topic_id: Optional topic ID to clean up additional topic-related SCORM files
+        package_file_path: Optional path to the SCORM package file (for targeted deletion)
+        
+    Returns:
+        Dict mapping file paths to deletion success status
+    """
+    return s3_cleanup.cleanup_scorm_package_files(scorm_package_id, topic_id, package_file_path)
