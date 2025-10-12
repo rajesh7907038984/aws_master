@@ -3113,6 +3113,9 @@
         document.addEventListener('DOMContentLoaded', function() {
             initializeLoadingTimeout();
             
+            // Initialize exit button handlers
+            handleExitButtonClicks();
+            
             // Additional periodic check to ensure loading overlay is hidden
             let checkCount = 0;
             const maxChecks = 20; // Check for 10 seconds (20 * 500ms)
