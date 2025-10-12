@@ -237,7 +237,7 @@
             class="scorm-iframe" 
             src="{{ content_url }}"
             allow="fullscreen; autoplay; encrypted-media; microphone; camera"
-            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox">
+            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation">
         </iframe>
     </div>
 
@@ -2933,9 +2933,9 @@
                             handleExitButtons();
                         })();
                     `;
-                    iframeDoc.head.appendChild(script);
-                    
-                            console.log('Enhanced exit button handler injected into iframe');
+                            
+                            iframeDoc.head.appendChild(script);
+                            console.log('✅ Enhanced exit button handler injected into iframe');
                         } else {
                             console.log('Cannot inject exit button handler - iframe not ready or cross-origin');
                         }
