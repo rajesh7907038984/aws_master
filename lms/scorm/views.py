@@ -26,6 +26,50 @@ from courses.models import Topic
 logger = logging.getLogger(__name__)
 
 
+def fix_scorm_relative_paths(html_content, topic_id):
+    """
+    Fix relative paths in SCORM content to use Django proxy URLs
+    """
+    base_content_url = f"/scorm/content/{topic_id}"
+    
+    # First, clean up any existing double paths
+    double_path_patterns = [
+        f"{base_content_url}//{base_content_url}/",
+        f"{base_content_url}//{base_content_url}",
+    ]
+    
+    for pattern in double_path_patterns:
+        if pattern in html_content:
+            html_content = html_content.replace(pattern, f"{base_content_url}/")
+            logger.info(f"Cleaned double path: {pattern} -> {base_content_url}/")
+    
+    # Fix common SCORM relative paths - only if they don't already contain the base URL
+    path_fixes = [
+        ('../scormcontent/', f'{base_content_url}/scormcontent/'),
+        ('../scormdriver/', f'{base_content_url}/scormdriver/'),
+    ]
+    
+    for old_path, new_path in path_fixes:
+        # Only replace if the path doesn't already contain the base URL
+        if old_path in html_content and base_content_url not in html_content:
+            html_content = html_content.replace(old_path, new_path)
+            logger.info(f"Fixed relative path: {old_path} -> {new_path}")
+    
+    # Fix direct paths only if they don't already have the base URL
+    direct_path_fixes = [
+        ('scormcontent/', f'{base_content_url}/scormcontent/'),
+        ('scormdriver/', f'{base_content_url}/scormdriver/'),
+    ]
+    
+    for old_path, new_path in direct_path_fixes:
+        # Only replace if the path doesn't already contain the base URL
+        if old_path in html_content and base_content_url not in html_content:
+            html_content = html_content.replace(old_path, new_path)
+            logger.info(f"Fixed direct path: {old_path} -> {new_path}")
+    
+    return html_content
+
+
 @login_required
 def scorm_view(request, topic_id):
     """
@@ -387,6 +431,9 @@ window.API = window.API_1484_11 = {{
 }};
 </script>
 '''
+                    
+                    # Fix relative paths in SCORM content
+                    html_content = fix_scorm_relative_paths(html_content, topic_id)
                     
                     # Inject before </head> or at beginning of <body>
                     if '</head>' in html_content:
