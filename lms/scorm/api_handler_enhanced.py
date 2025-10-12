@@ -667,13 +667,30 @@ class ScormAPIHandlerEnhanced:
                     except Exception as tracker_error:
                         logger.warning("⚠️ Slide tracker error: %s", str(tracker_error))
                     
+                    # CRITICAL FIX: Extract and save time from suspend_data
+                    try:
+                        import json
+                        suspend_json = json.loads(value)
+                        if 'totalTime' in suspend_json:
+                            total_seconds = int(suspend_json['totalTime'])
+                            self.attempt.time_spent_seconds = total_seconds
+                            # Convert to SCORM time format (hhhh:mm:ss.ss)
+                            hours = total_seconds // 3600
+                            minutes = (total_seconds % 3600) // 60
+                            seconds = total_seconds % 60
+                            self.attempt.total_time = f"{hours:04d}:{minutes:02d}:{seconds:02d}.00"
+                            logger.info(f"⏱️ TIME EXTRACTED: {total_seconds}s from suspend_data -> {self.attempt.total_time}")
+                    except Exception as time_error:
+                        logger.warning(f"⚠️ Could not extract time from suspend_data: {time_error}")
+                    
                     # ENHANCED: Immediate save for critical suspend data to prevent data loss
                     try:
                         self.attempt.last_accessed = timezone.now()
                         self.attempt.save(update_fields=['suspend_data', 'cmi_data', 'last_accessed',
                                                          'last_visited_slide', 'progress_percentage',
-                                                         'total_slides', 'completed_slides', 'detailed_tracking'])
-                        logger.info("🔖 SUSPEND DATA SAVED: Immediately saved suspend_data, slide progress, and CMI data")
+                                                         'total_slides', 'completed_slides', 'detailed_tracking',
+                                                         'time_spent_seconds', 'total_time'])
+                        logger.info("🔖 SUSPEND DATA SAVED: Immediately saved suspend_data, slide progress, time tracking, and CMI data")
                     except Exception as save_error:
                         logger.error("❌ SUSPEND DATA SAVE ERROR: %s", str(save_error))
                 elif element == 'cmi.core.session_time':
