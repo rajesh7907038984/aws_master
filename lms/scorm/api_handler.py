@@ -304,6 +304,9 @@ class ScormAPIHandler:
             self.attempt.cmi_data[element] = value
             logger.info(f"SCORM API SetValue({element}, {value}) - stored successfully")
             
+            # Handle interactions, objectives, and comments tracking
+            self._handle_detailed_tracking(element, value)
+            
             # Standard SCORM bookmark handling - lesson_location is already stored in the model
             
             # Update model fields based on element
@@ -793,5 +796,173 @@ class ScormAPIHandler:
                 
         except Exception as e:
             logger.error(f"Error parsing and syncing suspend data: {str(e)}")
+    
+    def _handle_detailed_tracking(self, element, value):
+        """
+        Handle detailed SCORM tracking for interactions, objectives, and comments
+        Store these in dedicated models for comprehensive reporting
+        """
+        import re
+        
+        try:
+            # Handle interactions (e.g., cmi.interactions.0.id, cmi.interactions.0.result)
+            interaction_match = re.match(r'cmi\.(core\.)?interactions\.(\d+)\.(\w+)', element)
+            if interaction_match:
+                interaction_index = int(interaction_match.group(2))
+                interaction_field = interaction_match.group(3)
+                
+                # Store in a temporary dictionary for this interaction
+                if not hasattr(self.attempt, '_temp_interactions'):
+                    self.attempt._temp_interactions = {}
+                
+                if interaction_index not in self.attempt._temp_interactions:
+                    self.attempt._temp_interactions[interaction_index] = {}
+                
+                self.attempt._temp_interactions[interaction_index][interaction_field] = value
+                
+                # If we have essential data, create/update the interaction record
+                if 'id' in self.attempt._temp_interactions[interaction_index]:
+                    self._save_interaction(interaction_index, self.attempt._temp_interactions[interaction_index])
+                
+                return
+            
+            # Handle objectives (e.g., cmi.objectives.0.id, cmi.objectives.0.status)
+            objective_match = re.match(r'cmi\.(core\.)?objectives\.(\d+)\.(\w+)', element)
+            if objective_match:
+                objective_index = int(objective_match.group(2))
+                objective_field = objective_match.group(3)
+                
+                # Store in a temporary dictionary for this objective
+                if not hasattr(self.attempt, '_temp_objectives'):
+                    self.attempt._temp_objectives = {}
+                
+                if objective_index not in self.attempt._temp_objectives:
+                    self.attempt._temp_objectives[objective_index] = {}
+                
+                self.attempt._temp_objectives[objective_index][objective_field] = value
+                
+                # If we have essential data, create/update the objective record
+                if 'id' in self.attempt._temp_objectives[objective_index]:
+                    self._save_objective(objective_index, self.attempt._temp_objectives[objective_index])
+                
+                return
+            
+            # Handle comments (SCORM 1.2: cmi.comments, SCORM 2004: cmi.comments_from_learner.n.comment)
+            if element == 'cmi.comments' and value:
+                # SCORM 1.2 simple comments
+                self._save_comment('learner', value)
+            elif element == 'cmi.comments_from_lms' and value:
+                self._save_comment('lms', value)
+            
+            comment_match = re.match(r'cmi\.comments_from_learner\.(\d+)\.comment', element)
+            if comment_match and value:
+                # SCORM 2004 comments
+                self._save_comment('learner', value)
+                
+        except Exception as e:
+            logger.error(f"Error handling detailed tracking for {element}: {str(e)}")
+    
+    def _save_interaction(self, index, interaction_data):
+        """Save or update a SCORM interaction record"""
+        try:
+            from .models import ScormInteraction
+            
+            interaction_id = interaction_data.get('id', f'interaction_{index}')
+            
+            # Get or create the interaction
+            interaction, created = ScormInteraction.objects.get_or_create(
+                attempt=self.attempt,
+                interaction_id=interaction_id,
+                defaults={
+                    'interaction_type': interaction_data.get('type', 'other'),
+                    'timestamp': timezone.now(),
+                }
+            )
+            
+            # Update fields
+            if 'type' in interaction_data:
+                interaction.interaction_type = interaction_data['type']
+            if 'correct_responses' in interaction_data:
+                interaction.correct_responses = interaction_data['correct_responses']
+            if 'weighting' in interaction_data:
+                try:
+                    interaction.weighting = Decimal(interaction_data['weighting'])
+                except (ValueError, TypeError):
+                    pass
+            if 'learner_response' in interaction_data:
+                interaction.learner_response = interaction_data['learner_response']
+            if 'result' in interaction_data:
+                interaction.result = interaction_data['result']
+            if 'latency' in interaction_data:
+                interaction.latency = interaction_data['latency']
+            if 'description' in interaction_data:
+                interaction.description = interaction_data['description']
+            
+            interaction.save()
+            logger.info(f"Saved interaction: {interaction_id} - {interaction_data.get('result', 'N/A')}")
+            
+        except Exception as e:
+            logger.error(f"Error saving interaction: {str(e)}")
+    
+    def _save_objective(self, index, objective_data):
+        """Save or update a SCORM objective record"""
+        try:
+            from .models import ScormObjective
+            
+            objective_id = objective_data.get('id', f'objective_{index}')
+            
+            # Get or create the objective
+            objective, created = ScormObjective.objects.get_or_create(
+                attempt=self.attempt,
+                objective_id=objective_id,
+                defaults={}
+            )
+            
+            # Update fields
+            if 'status' in objective_data:
+                objective.success_status = objective_data['status']
+                objective.completion_status = objective_data['status']
+            if 'score' in objective_data:
+                try:
+                    objective.score_raw = Decimal(objective_data['score'])
+                except (ValueError, TypeError):
+                    pass
+            if 'score_min' in objective_data:
+                try:
+                    objective.score_min = Decimal(objective_data['score_min'])
+                except (ValueError, TypeError):
+                    pass
+            if 'score_max' in objective_data:
+                try:
+                    objective.score_max = Decimal(objective_data['score_max'])
+                except (ValueError, TypeError):
+                    pass
+            if 'description' in objective_data:
+                objective.description = objective_data['description']
+            
+            objective.save()
+            logger.info(f"Saved objective: {objective_id} - {objective_data.get('status', 'N/A')}")
+            
+        except Exception as e:
+            logger.error(f"Error saving objective: {str(e)}")
+    
+    def _save_comment(self, comment_type, comment_text):
+        """Save a SCORM comment"""
+        try:
+            from .models import ScormComment
+            
+            # Create the comment
+            comment = ScormComment.objects.create(
+                attempt=self.attempt,
+                comment_type=comment_type,
+                comment_text=comment_text[:5000],  # Limit length
+                location=self.attempt.lesson_location or '',
+                timestamp=timezone.now()
+            )
+            
+            logger.info(f"Saved comment ({comment_type}): {comment_text[:50]}...")
+            
+        except Exception as e:
+            logger.error(f"Error saving comment: {str(e)}")
     
 

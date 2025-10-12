@@ -3111,6 +3111,56 @@
                     clearInterval(periodicCheck);
                 }
             }, 500); // Check every 500ms
+            
+            // Suppress non-critical SCORM content warnings (but keep our own logs)
+            const originalConsoleWarn = console.warn;
+            
+            console.warn = function(...args) {
+                const message = args.join(' ');
+                // Filter out only specific known non-critical SCORM package warnings
+                if (message.includes('could not find') && message.includes('in string table')) {
+                    // These are localization warnings from the SCORM content - not critical
+                    return;
+                }
+                originalConsoleWarn.apply(console, args);
+            };
+            
+            // Also handle iframe console errors to prevent SCORM content errors from breaking functionality
+            window.addEventListener('error', function(event) {
+                if (event.filename && event.filename.includes('frame.desktop')) {
+                    // Error from SCORM content package - log but don't let it break functionality
+                    console.log('ℹ️ SCORM content error (handled):', event.message);
+                    event.preventDefault();
+                    return false;
+                }
+            }, true);
+            
+            // Inject console override into iframe for cross-origin SCORM content
+            try {
+                const frame = document.getElementById('scormFrame');
+                frame.addEventListener('load', function() {
+                    try {
+                        const iframeWindow = frame.contentWindow;
+                        if (iframeWindow && iframeWindow.console) {
+                            const originalIframeWarn = iframeWindow.console.warn;
+                            iframeWindow.console.warn = function(...args) {
+                                const message = args.join(' ');
+                                if (message.includes('could not find') && message.includes('in string table')) {
+                                    // Silently ignore these localization warnings
+                                    return;
+                                }
+                                originalIframeWarn.apply(iframeWindow.console, args);
+                            };
+                            console.log('✅ SCORM console filter active - non-critical warnings suppressed');
+                        }
+                    } catch (e) {
+                        // Cross-origin restriction - that's okay
+                        console.log('Cannot override iframe console (cross-origin - this is normal)');
+                    }
+                });
+            } catch (e) {
+                console.log('Error setting up iframe console override:', e.message);
+            }
         });
     </script>
 </body>
