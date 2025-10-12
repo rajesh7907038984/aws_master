@@ -281,7 +281,9 @@ def scorm_view(request, topic_id):
         logger.info(f"Generated content URL: {content_url}")
     except Exception as e:
         logger.error(f"Error generating content URL: {str(e)}")
-        content_url = f"/scorm/content/{topic_id}/index.html"
+        # Use the actual launch URL from the package as fallback
+        fallback_launch_url = scorm_package.launch_url if hasattr(scorm_package, 'launch_url') else 'index.html'
+        content_url = f"/scorm/content/{topic_id}/{fallback_launch_url}"
     
     context = {
         'topic': topic,
@@ -549,9 +551,11 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
         except ScormPackage.DoesNotExist:
             return HttpResponse('SCORM package not found', status=404)
         
-        # Handle directory requests by redirecting to index.html
+        # Handle directory requests by using the correct launch URL from the package
         if path.endswith('/'):
-            path = path + 'index.html'
+            # Use the actual launch URL from the SCORM package instead of hardcoded index.html
+            path = path + scorm_package.launch_url
+            logger.info(f"Directory request redirected to launch URL: {path}")
         
         # Generate direct S3 URL with proper error handling
         try:

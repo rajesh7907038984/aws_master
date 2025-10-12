@@ -316,7 +316,9 @@ def scorm_view(request, topic_id):
         logger.info(f"Generated content URL: {content_url}")
     except Exception as e:
         logger.error(f"Error generating content URL: {str(e)}")
-        content_url = f"/scorm/content/{topic_id}/index.html"
+        # Use the actual launch URL from the package as fallback
+        fallback_launch_url = scorm_package.launch_url if hasattr(scorm_package, 'launch_url') else 'index.html'
+        content_url = f"/scorm/content/{topic_id}/{fallback_launch_url}"
     
     # CRITICAL FIX: Ensure attempt is never None when passed to template
     if attempt is None:
@@ -597,13 +599,15 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
         except ScormPackage.DoesNotExist:
             return HttpResponse('SCORM package not found', status=404)
         
-        # Handle directory requests by redirecting to index.html
+        # Handle directory requests by using the correct launch URL from the package
         if path.endswith('/'):
-            path = path + 'index.html'
+            # Use the actual launch URL from the SCORM package instead of hardcoded index.html
+            path = path + scorm_package.launch_url
+            logger.info(f"Directory request redirected to launch URL: {path}")
         
         # CRITICAL FIX: For SCORM content HTML files, serve them directly with SCORM API injection
         # This ensures the SCORM content can access the API without redirecting to the player
-        if path.endswith(('.html', '.htm')) and ('scormcontent' in path or path.endswith('index.html')):
+        if path.endswith(('.html', '.htm')) and ('scormcontent' in path or 'scormdriver' in path or path.endswith(('.html', '.htm'))):
             logger.info(f"Serving SCORM HTML content directly: {path}")
             # Serve the HTML content directly with SCORM API injection instead of redirecting
         
