@@ -348,11 +348,14 @@ def scorm_content(request, topic_id, path):
         if path.endswith(('.html', '.htm')):
             try:
                 # Use Django storage to get the file content
-                if default_storage.exists(s3_key):
+                # Note: exists() method returns False due to S3 storage configuration
+                # So we try to open the file directly and handle the exception
+                try:
                     with default_storage.open(s3_key, 'rb') as f:
                         content = f.read()
                     content_type = 'text/html; charset=utf-8'
-                else:
+                except Exception as e:
+                    logger.error(f"Failed to open file {s3_key}: {str(e)}")
                     return HttpResponse('Content not found', status=404)
                 
                 # Inject SCORM API for HTML files
@@ -465,7 +468,9 @@ window.API = window.API_1484_11 = {{
         else:
             # For non-HTML files, serve through Django storage
             try:
-                if default_storage.exists(s3_key):
+                # Note: exists() method returns False due to S3 storage configuration
+                # So we try to open the file directly and handle the exception
+                try:
                     with default_storage.open(s3_key, 'rb') as f:
                         content = f.read()
                     
@@ -478,7 +483,8 @@ window.API = window.API_1484_11 = {{
                     response_obj = HttpResponse(content, content_type=content_type)
                     response_obj['Access-Control-Allow-Origin'] = '*'
                     return response_obj
-                else:
+                except Exception as e:
+                    logger.error(f"Failed to open file {s3_key}: {str(e)}")
                     return HttpResponse('Content not found', status=404)
             except Exception as e:
                 logger.error(f"Failed to serve content: {str(e)}")
