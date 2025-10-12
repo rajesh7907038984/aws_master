@@ -12,8 +12,40 @@ from django.dispatch import receiver
 from django.core.cache import cache
 from django.utils import timezone
 from .dynamic_score_processor import auto_process_scorm_score
+from .package_analyzer import ScormPackageAnalyzer
 
 logger = logging.getLogger(__name__)
+
+
+@receiver(post_save, sender='scorm.ScormPackage')
+def auto_analyze_scorm_package(sender, instance, created, **kwargs):
+    """
+    Automatically analyze new SCORM packages to ensure auto-scoring is enabled
+    """
+    if created:
+        try:
+            logger.info(f"🔍 Auto-analyzing new SCORM package: {instance.title}")
+            
+            # Get manifest content for analysis
+            manifest_content = None
+            if instance.manifest_data:
+                manifest_content = instance.manifest_data.get('raw_manifest', '')
+            
+            # Analyze package
+            package_metadata = ScormPackageAnalyzer.analyze_package(
+                instance.manifest_data or {},
+                manifest_content
+            )
+            
+            # Update package metadata
+            instance.package_metadata = package_metadata
+            instance.save()
+            
+            auto_scoring = package_metadata.get('needs_auto_scoring', False)
+            logger.info(f"✅ Package analysis complete - Auto-scoring: {auto_scoring}")
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to auto-analyze package {instance.id}: {str(e)}")
 
 
 @receiver(post_save, sender='scorm.ScormAttempt')
