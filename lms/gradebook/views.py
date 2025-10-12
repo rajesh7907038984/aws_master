@@ -111,17 +111,28 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
         if scorm_attempts:
             for attempt in scorm_attempts:
                 key = (attempt.user_id, attempt.scorm_package_id)
-                # Keep only the latest attempt for each student-scorm pair
+                # CRITICAL FIX: Keep the BEST attempt for each student-scorm pair, not the latest
                 if key not in scorm_lookup:
                     scorm_lookup[key] = attempt
-                elif attempt.last_accessed and scorm_lookup[key].last_accessed:
-                    # Both have last_accessed, compare them
-                    if attempt.last_accessed > scorm_lookup[key].last_accessed:
+                else:
+                    current_attempt = scorm_lookup[key]
+                    # Compare attempts to find the best one
+                    current_score = current_attempt.score_raw or 0
+                    new_score = attempt.score_raw or 0
+                    
+                    # Prefer attempt with higher score
+                    if new_score > current_score:
                         scorm_lookup[key] = attempt
-                elif attempt.last_accessed and not scorm_lookup[key].last_accessed:
-                    # New attempt has last_accessed but stored one doesn't, prefer the one with data
-                    scorm_lookup[key] = attempt
-                # If neither has last_accessed, keep the first one encountered (most recent by query order)
+                    # If scores are equal, prefer completed/passed attempts
+                    elif new_score == current_score:
+                        if (attempt.lesson_status in ['completed', 'passed'] and 
+                            current_attempt.lesson_status not in ['completed', 'passed']):
+                            scorm_lookup[key] = attempt
+                        # If both have same status, prefer the one with more recent activity
+                        elif (attempt.lesson_status == current_attempt.lesson_status and 
+                              attempt.last_accessed and current_attempt.last_accessed and
+                              attempt.last_accessed > current_attempt.last_accessed):
+                            scorm_lookup[key] = attempt
         
         conference_lookup = {}
         for evaluation in conference_evaluations:
@@ -656,12 +667,12 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                     # Calculate completion status
                                     completion_status = 'completed' if topic_progress.completed else 'incomplete'
                                     
-                                    # Get score from last_score (most recent/live) to match SCORM results page
+                                    # CRITICAL FIX: Use best_score for gradebook display (best achievement)
                                     score_value = None
-                                    if topic_progress.last_score is not None:
-                                        score_value = float(topic_progress.last_score)
-                                    elif topic_progress.best_score is not None:
+                                    if topic_progress.best_score is not None:
                                         score_value = float(topic_progress.best_score)
+                                    elif topic_progress.last_score is not None:
+                                        score_value = float(topic_progress.last_score)
                                     else:
                                         # Fallback: check progress_data for SCORM score
                                         progress_data = topic_progress.progress_data or {}
