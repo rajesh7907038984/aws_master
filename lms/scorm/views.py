@@ -109,11 +109,12 @@ def scorm_view(request, topic_id):
         messages.error(request, "SCORM package not found for this topic")
         return redirect('courses:topic_view', topic_id=topic_id)
     
-    # Check if SCORM package file exists in storage
-    from django.core.files.storage import default_storage
-    if not scorm_package.package_file or not default_storage.exists(scorm_package.package_file.name):
-        messages.error(request, "SCORM content files are missing. Please contact your administrator to re-upload the SCORM package.")
-        logger.error(f"SCORM package file missing for topic {topic_id}, package {scorm_package.id}: {scorm_package.package_file}")
+    # Check if SCORM package has extracted content path
+    # Note: For S3 storage, we rely on the extracted_path rather than checking the original zip file
+    # The extracted content is what's actually used for playback
+    if not scorm_package.extracted_path or not scorm_package.launch_url:
+        messages.error(request, "SCORM content configuration is incomplete. Please contact your administrator.")
+        logger.error(f"SCORM package missing extracted_path or launch_url for topic {topic_id}, package {scorm_package.id}")
         return redirect('courses:topic_view', topic_id=topic_id)
     
     # Check for preview mode
@@ -363,11 +364,19 @@ def scorm_content(request, topic_id, path):
         from django.conf import settings
         
         # Build the S3 key for the file (with media/ prefix for direct S3 access)
+        # Note: extracted_path already includes the base folder (e.g., 'scorm_content/uuid')
         s3_key = f"media/{scorm_package.extracted_path}/{path}"
         
         # Initialize S3 client
-        s3_client = boto3.client('s3', region_name=settings.AWS_S3_REGION_NAME)
+        try:
+            s3_client = boto3.client('s3', region_name=settings.AWS_S3_REGION_NAME)
+        except Exception as e:
+            logger.error(f"Failed to initialize S3 client: {str(e)}")
+            s3_client = boto3.client('s3')  # Try without region
+            
         bucket_name = settings.AWS_STORAGE_BUCKET_NAME
+        
+        logger.info(f"Attempting to fetch S3 content: bucket={bucket_name}, key={s3_key}")
         
         # For HTML files, we need to proxy to inject API
         if path.endswith(('.html', '.htm')):
@@ -377,9 +386,22 @@ def scorm_content(request, topic_id, path):
                     response = s3_client.get_object(Bucket=bucket_name, Key=s3_key)
                     content = response['Body'].read()
                     content_type = 'text/html; charset=utf-8'
+                except s3_client.exceptions.NoSuchKey:
+                    logger.error(f"S3 object not found: {s3_key} in bucket {bucket_name}")
+                    # Try alternative path without 'media/' prefix
+                    alt_key = f"{scorm_package.extracted_path}/{path}"
+                    logger.info(f"Trying alternative S3 key: {alt_key}")
+                    try:
+                        response = s3_client.get_object(Bucket=bucket_name, Key=alt_key)
+                        content = response['Body'].read()
+                        content_type = 'text/html; charset=utf-8'
+                        logger.info(f"Successfully fetched content using alternative key: {alt_key}")
+                    except Exception as alt_e:
+                        logger.error(f"Alternative key also failed: {str(alt_e)}")
+                        return HttpResponse(f'SCORM content files are missing. Tried paths: {s3_key}, {alt_key}. Please contact your administrator.', status=404)
                 except Exception as e:
                     logger.error(f"Failed to get S3 object {s3_key}: {str(e)}")
-                    return HttpResponse('SCORM content files are missing. Please contact your administrator to re-upload the SCORM package.', status=404)
+                    return HttpResponse(f'SCORM content files are missing. Error: {str(e)}. Please contact your administrator.', status=404)
                 
                 # Inject SCORM API for HTML files
                 if 'text/html' in content_type:
@@ -526,19 +548,31 @@ window.API = window.API_1484_11 = {{
                 try:
                     response = s3_client.get_object(Bucket=bucket_name, Key=s3_key)
                     content = response['Body'].read()
-                    
-                    # Determine content type based on file extension
-                    import mimetypes
-                    content_type, _ = mimetypes.guess_type(path)
-                    if not content_type:
-                        content_type = 'application/octet-stream'
-                    
-                    response_obj = HttpResponse(content, content_type=content_type)
-                    response_obj['Access-Control-Allow-Origin'] = '*'
-                    return response_obj
+                except s3_client.exceptions.NoSuchKey:
+                    logger.error(f"S3 object not found: {s3_key} in bucket {bucket_name}")
+                    # Try alternative path without 'media/' prefix
+                    alt_key = f"{scorm_package.extracted_path}/{path}"
+                    logger.info(f"Trying alternative S3 key: {alt_key}")
+                    try:
+                        response = s3_client.get_object(Bucket=bucket_name, Key=alt_key)
+                        content = response['Body'].read()
+                        logger.info(f"Successfully fetched content using alternative key: {alt_key}")
+                    except Exception as alt_e:
+                        logger.error(f"Alternative key also failed: {str(alt_e)}")
+                        return HttpResponse(f'SCORM content files are missing. Tried paths: {s3_key}, {alt_key}. Please contact your administrator.', status=404)
                 except Exception as e:
                     logger.error(f"Failed to get S3 object {s3_key}: {str(e)}")
-                    return HttpResponse('SCORM content files are missing. Please contact your administrator to re-upload the SCORM package.', status=404)
+                    return HttpResponse(f'SCORM content files are missing. Error: {str(e)}. Please contact your administrator.', status=404)
+                
+                # Determine content type based on file extension
+                import mimetypes
+                content_type, _ = mimetypes.guess_type(path)
+                if not content_type:
+                    content_type = 'application/octet-stream'
+                
+                response_obj = HttpResponse(content, content_type=content_type)
+                response_obj['Access-Control-Allow-Origin'] = '*'
+                return response_obj
             except Exception as e:
                 logger.error(f"Failed to serve content: {str(e)}")
                 return HttpResponse(f'Failed to load content: {str(e)}', status=502)
