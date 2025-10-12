@@ -1224,17 +1224,26 @@
         function saveSectionProgress(sectionProgress) {
             try {
                 if (window.API && window.API.LMSGetValue && window.API.LMSSetValue) {
-                    // ✅ CRITICAL FIX: DO NOT modify suspend_data for Storyline packages!
-                    // Storyline manages its own quiz state in suspend_data
-                    // Check if this is a Storyline package (story.html)
-                    const isStoryline = window.location.href.includes('story.html') ||
-                                       document.querySelector('iframe[src*="story.html"]') ||
-                                       typeof GetPlayer === 'function'; // Storyline API check
+                    // ✅ CRITICAL FIX: DO NOT modify suspend_data for packages that manage their own state!
+                    // Check if SCORM content already has complex suspend_data (quiz answers, interactions)
+                    const iframe = document.getElementById('scormFrame');
+                    const isStoryline = iframe && iframe.src && iframe.src.includes('story.html');
+                    const isRise = iframe && iframe.src && iframe.src.includes('scormcontent/index.html');
                     
-                    if (isStoryline) {
-                        console.log('⚠️ Skipping suspend_data modification - Storyline package detected');
-                        console.log('   Storyline manages its own quiz/slide state');
-                        return; // Don't touch Storyline's suspend_data!
+                    // Check if content already has its own suspend_data
+                    let hasExistingSuspendData = false;
+                    try {
+                        const existingData = window.API.LMSGetValue('cmi.suspend_data');
+                        if (existingData && existingData.length > 100) {
+                            // Content has substantial suspend data - likely managing its own state
+                            hasExistingSuspendData = true;
+                        }
+                    } catch (e) {}
+                    
+                    if (isStoryline || isRise || hasExistingSuspendData) {
+                        console.log('⚠️ Skipping suspend_data modification - Content manages its own state');
+                        console.log('   Type: ' + (isStoryline ? 'Storyline' : isRise ? 'Rise' : 'Has existing data'));
+                        return; // Don't touch the content's suspend_data!
                     }
                     
                     // Only for non-Storyline packages (Rise, generic SCORM)
@@ -3211,15 +3220,17 @@
                         return;
                     }
                     
-                    // ✅ CRITICAL FIX: Check if this is Storyline first!
+                    // ✅ CRITICAL FIX: Check if content manages its own state first!
                     const iframe = document.getElementById('scormFrame');
                     const isStoryline = iframe && iframe.src && iframe.src.includes('story.html');
+                    const isRise = iframe && iframe.src && iframe.src.includes('scormcontent/index.html');
                     
-                    if (isStoryline) {
-                        // ⚠️ DO NOT auto-complete Storyline packages!
-                        // Storyline reports its own quiz scores and completion
-                        console.log('⚠️ Storyline detected - skipping auto-completion logic');
-                        console.log('   Storyline will report its own score when quiz is complete');
+                    if (isStoryline || isRise) {
+                        // ⚠️ DO NOT auto-complete packages that manage their own state!
+                        // Storyline and Rise report their own quiz scores and completion
+                        const contentType = isStoryline ? 'Storyline' : 'Rise';
+                        console.log(`⚠️ ${contentType} detected - skipping auto-completion logic`);
+                        console.log(`   ${contentType} will report its own score when quiz is complete`);
                     } else {
                         // Fallback to slide completion logic (for Rise, generic SCORM only)
                         const totalSlides = Object.keys(slideTimeTracker).length;
@@ -3260,12 +3271,24 @@
                             console.log(' Partial completion: ' + completionPercentage + '% (' + slidesWithTime + ' slides completed out of ' + totalSlides + ')');
                             console.log('⚠️ Not setting final score for partial completion');
                             
-                            // ✅ CRITICAL FIX: DO NOT overwrite suspend_data for Storyline!
-                            // Storyline manages its own quiz state
+                            // ✅ CRITICAL FIX: DO NOT overwrite suspend_data for content managing its own state!
                             const iframe = document.getElementById('scormFrame');
                             const isStoryline = iframe && iframe.src && iframe.src.includes('story.html');
+                            const isRise = iframe && iframe.src && iframe.src.includes('scormcontent/index.html');
                             
-                            if (!isStoryline && window.API && window.API.LMSSetValue) {
+                            // Check if content has its own suspend data
+                            let hasOwnSuspendData = false;
+                            try {
+                                const existingData = window.API.LMSGetValue('cmi.suspend_data');
+                                if (existingData && existingData.length > 100 && 
+                                    !existingData.includes('"slides":{') && 
+                                    !existingData.includes('"currentSlide"')) {
+                                    // Content has different suspend data format - it's managing its own state
+                                    hasOwnSuspendData = true;
+                                }
+                            } catch (e) {}
+                            
+                            if (!isStoryline && !isRise && !hasOwnSuspendData && window.API && window.API.LMSSetValue) {
                                 // Only save our progress data for non-Storyline packages
                                 const progressData = {
                                     totalSlides: totalSlides,
@@ -3277,10 +3300,11 @@
                                 window.API.LMSSetValue('cmi.suspend_data', JSON.stringify(progressData));
                                 window.API.LMSSetValue('cmi.core.lesson_status', 'incomplete');
                                 console.log(' Saved progress for resume (no final score)');
-                            } else if (isStoryline && window.API && window.API.LMSSetValue) {
-                                // For Storyline, only set lesson_status (don't touch suspend_data!)
+                            } else if ((isStoryline || isRise || hasOwnSuspendData) && window.API && window.API.LMSSetValue) {
+                                // For content managing its own state, only set lesson_status
                                 window.API.LMSSetValue('cmi.core.lesson_status', 'incomplete');
-                                console.log('⚠️ Storyline detected - preserved its suspend_data');
+                                const contentType = isStoryline ? 'Storyline' : isRise ? 'Rise' : 'Self-managed content';
+                                console.log(`⚠️ ${contentType} detected - preserved its suspend_data`);
                             }
                             }
                         }
@@ -3322,12 +3346,13 @@
                             // Also set total time
                             window.API.SetValue('cmi.core.total_time', scormTime);
                             
-                            // ✅ CRITICAL FIX: DO NOT overwrite suspend_data for Storyline!
+                            // ✅ CRITICAL FIX: DO NOT overwrite suspend_data for content managing its own state!
                             const iframe = document.getElementById('scormFrame');
                             const isStoryline = iframe && iframe.src && iframe.src.includes('story.html');
+                            const isRise = iframe && iframe.src && iframe.src.includes('scormcontent/index.html');
                             
-                            if (!isStoryline) {
-                                // Only for non-Storyline packages (Rise, generic SCORM)
+                            if (!isStoryline && !isRise) {
+                                // Only for generic SCORM packages (not Storyline/Rise)
                                 // Set lesson location for slide-based content
                                 if (currentSlide) {
                                     window.API.SetValue('cmi.core.lesson_location', currentSlide);
@@ -3344,8 +3369,9 @@
                                 
                                 console.log(' Time synced with slide data');
                             } else {
-                                console.log('⚠️ Storyline detected - NOT overwriting suspend_data');
-                                // Storyline manages its own suspend_data
+                                const contentType = isStoryline ? 'Storyline' : 'Rise';
+                                console.log(`⚠️ ${contentType} detected - NOT overwriting suspend_data`);
+                                // Content manages its own suspend_data
                             }
                             
                             window.API.LMSCommit('');
