@@ -2159,6 +2159,15 @@ class TopicProgress(models.Model):
                 return min(progress, 100)
         return 0.0
     
+    def get_best_score(self):
+        """Get the best score for this topic progress"""
+        if self.best_score is not None:
+            return self.best_score
+        elif self.last_score is not None:
+            return self.last_score
+        else:
+            return None
+    
     def get_progress_percentage(self):
         """Calculate progress percentage for this topic"""
         from core.utils.type_guards import normalize_mixed_type_field, safe_get_float
