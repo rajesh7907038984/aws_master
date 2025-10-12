@@ -2804,6 +2804,16 @@
                     const iframeDoc = iframe.contentDocument;
                     const iframeWindow = iframe.contentWindow;
                     
+                    // ✅ CRITICAL FIX: Skip exit button injection for Rise packages
+                    // Rise video packages manage their own navigation and our injection breaks their JavaScript
+                    const iframeSrc = iframe.src || '';
+                    const isRisePackage = iframeSrc.includes('scormcontent/index.html');
+                    
+                    if (isRisePackage) {
+                        console.log('⚠️ Skipping exit button injection for Rise package (manages own navigation)');
+                        return; // Don't inject anything for Rise
+                    }
+                    
                     // Only inject if not cross-origin and iframe is accessible
                     try {
                         // Test if we can access the iframe content and it's not cross-origin
