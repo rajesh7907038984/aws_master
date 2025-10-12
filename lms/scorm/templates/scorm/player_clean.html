@@ -721,11 +721,13 @@
                         lastUrl = currentUrl;
                         console.log('📊 Iframe URL changed:', currentUrl);
                         
-                        // Check if this looks like a completion page
+                        // ENHANCED: Check if this looks like a completion page for different SCORM types
                         const completionPatterns = [
                             /completion/i, /complete/i, /finished/i, /done/i,
                             /final/i, /summary/i, /results/i, /assessment/i,
-                            /good job/i, /congratulations/i, /well done/i
+                            /good job/i, /congratulations/i, /well done/i,
+                            /slide.*complete/i, /lesson.*complete/i, /module.*complete/i,
+                            /end.*course/i, /course.*complete/i, /training.*complete/i
                         ];
                         
                         const isCompletionPage = completionPatterns.some(pattern => 
@@ -1245,7 +1247,8 @@
                             window.API_1484_11.GetValue('cmi.score.raw') : '';
                         let currentScore = scoreRaw12 || scoreRaw2004;
                         
-                        // If no explicit score is set, try to calculate from slide completion or progress data
+                        // ENHANCED: If no explicit score is set, try to calculate from slide completion or progress data
+                        // Handle different SCORM package types appropriately
                         if (!currentScore || currentScore === '' || currentScore === 'false') {
                             console.log('📊 No explicit score found, checking for slide completion data...');
                             
@@ -1272,10 +1275,15 @@
                                         // Calculate based on actual slide completion
                                         progressScore = Math.round((slidesWithTime / totalSlides) * 100);
                                         
-                                        // CRITICAL FIX: Don't save partial progress as final score
-                                        // Only save progress if user has completed ALL slides
-                                        if (progressScore < 100) {
-                                            console.log('📊 Partial progress detected: {}% ({} slides completed out of {})'.format(progressScore, slidesWithTime, totalSlides));
+                                        // ENHANCED: Handle different SCORM package types for completion
+                                        // For Articulate Storyline: require all slides completed
+                                        // For generic packages: allow partial completion
+                                        const isArticulateStoryline = document.title.includes('Storyline') || 
+                                                                     document.URL.includes('storyline') ||
+                                                                     window.location.href.includes('articulate');
+                                        
+                                        if (isArticulateStoryline && progressScore < 100) {
+                                            console.log('📊 Articulate Storyline: Partial progress detected: {}% ({} slides completed out of {})'.format(progressScore, slidesWithTime, totalSlides));
                                             console.log('⚠️ Not saving partial progress - user needs to complete all slides for final score');
                                             
                                             // For partial progress, don't set a final score
@@ -1296,6 +1304,19 @@
                                             
                                             // Don't set currentScore for partial progress
                                             currentScore = null;
+                                        } else if (!isArticulateStoryline && progressScore >= 50) {
+                                            // For generic packages, allow partial completion (50% threshold)
+                                            currentScore = progressScore;
+                                            console.log('🎯 Generic SCORM: Partial completion accepted: {}%'.format(progressScore));
+                                            
+                                            // Set lesson status based on score
+                                            if (window.API && window.API.LMSSetValue) {
+                                                if (progressScore >= 70) {
+                                                    window.API.LMSSetValue('cmi.core.lesson_status', 'passed');
+                                                } else {
+                                                    window.API.LMSSetValue('cmi.core.lesson_status', 'completed');
+                                                }
+                                            }
                                         } else {
                                             // All slides completed - this is a valid final score
                                             currentScore = 100;

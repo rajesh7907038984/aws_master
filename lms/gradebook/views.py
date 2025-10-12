@@ -446,25 +446,48 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                     # mastery_score is the pass/fail threshold, and we should display achievement relative to mastery
                                     passing_threshold = float(attempt.scorm_package.mastery_score) if attempt.scorm_package.mastery_score else 70
                                     
+                                    # ENHANCED: Handle different SCORM package types with appropriate scoring logic
+                                    package_metadata = attempt.scorm_package.package_metadata or {}
+                                    package_type = package_metadata.get('package_type', 'unknown')
+                                    scoring_method = package_metadata.get('scoring_method', 'unknown')
+                                    
                                     # For SCORM content, show mastery achievement status
                                     # CRITICAL FIX: Handle completion-based scoring for SCORM packages
                                     # Some SCORM packages don't properly calculate scores based on completion
                                     if score_value is not None:
-                                        # Check if this is a completion-based SCORM package issue
-                                        # CRITICAL FIX: Only treat as completion-based if user actually completed content
-                                        # Must have meaningful progress indicators, not just time spent
-                                        is_completion_based = (
-                                            attempt.lesson_status in ['completed', 'passed'] or
-                                            (attempt.lesson_status == 'failed' and 
-                                             attempt.total_time and 
-                                             attempt.total_time != '0000:00:00.00' and
-                                             attempt.lesson_location and
-                                             score_value < passing_threshold and
-                                             # ADDITIONAL CHECKS: Ensure meaningful completion
-                                             (attempt.progress_percentage and attempt.progress_percentage > 50) or  # At least 50% progress
-                                             (attempt.completed_slides and len(attempt.completed_slides) > 0) or  # Has completed slides
-                                             (attempt.total_time and attempt.total_time > '0000:02:00.00'))  # At least 2 minutes spent
-                                        )
+                                        # ENHANCED: Handle different SCORM package types with appropriate completion logic
+                                        is_completion_based = False
+                                        
+                                        # For Articulate Storyline packages (slide_completion method)
+                                        if package_type == 'articulate_storyline' and scoring_method == 'slide_completion':
+                                            # Check if slides are completed (stored in suspend_data)
+                                            if attempt.suspend_data:
+                                                try:
+                                                    import json
+                                                    suspend_data = json.loads(attempt.suspend_data)
+                                                    slides_completed = len(suspend_data.get('slides', {}))
+                                                    total_slides = suspend_data.get('totalSlides', 0)
+                                                    
+                                                    # If we have slide data and slides are completed, consider it completion-based
+                                                    if slides_completed > 0 and (total_slides == 0 or slides_completed >= total_slides):
+                                                        is_completion_based = True
+                                                except:
+                                                    pass
+                                        
+                                        # For generic packages or fallback logic
+                                        if not is_completion_based:
+                                            is_completion_based = (
+                                                attempt.lesson_status in ['completed', 'passed'] or
+                                                (attempt.lesson_status == 'failed' and 
+                                                 attempt.total_time and 
+                                                 attempt.total_time != '0000:00:00.00' and
+                                                 attempt.lesson_location and
+                                                 score_value < passing_threshold and
+                                                 # ADDITIONAL CHECKS: Ensure meaningful completion
+                                                 (attempt.progress_percentage and attempt.progress_percentage > 50) or  # At least 50% progress
+                                                 (attempt.completed_slides and len(attempt.completed_slides) > 0) or  # Has completed slides
+                                                 (attempt.total_time and attempt.total_time > '0000:02:00.00'))  # At least 2 minutes spent
+                                            )
                                         
                                         if is_completion_based or score_value >= passing_threshold:
                                             # Passed: Show as 100% (mastery achieved)
