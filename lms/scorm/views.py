@@ -37,7 +37,9 @@ def scorm_view(request, topic_id):
     # SECURITY FIX: Require authentication for all SCORM content
     if not request.user.is_authenticated:
         messages.error(request, "You must be logged in to access SCORM content.")
-        return redirect('users:login')
+        # Preserve the next parameter for proper redirect after login
+        next_url = request.get_full_path()
+        return redirect(f'/login/?next={next_url}')
     
     is_authenticated = True
     
@@ -56,8 +58,10 @@ def scorm_view(request, topic_id):
                 from courses.models import CourseTopic
                 course_topic = CourseTopic.objects.filter(topic=topic).first()
                 if course_topic:
+                    messages.info(request, f"Please enroll in the course '{course_topic.course.title}' to access this SCORM content.")
                     return redirect('courses:course_view', course_id=course_topic.course.id)
-            except Exception:
+            except Exception as e:
+                logger.error(f"Error getting course for topic {topic_id}: {e}")
                 pass
             return redirect('courses:course_list')
     else:
@@ -71,6 +75,7 @@ def scorm_view(request, topic_id):
     # Check if topic has SCORM package (already loaded with select_related)
     if not hasattr(topic, 'scorm_package') or not topic.scorm_package:
         messages.error(request, "SCORM package not found for this topic")
+        logger.warning(f"SCORM package not found for topic {topic_id}")
         return redirect('courses:topic_view', topic_id=topic_id)
     
     scorm_package = topic.scorm_package
@@ -309,6 +314,12 @@ def scorm_view(request, topic_id):
     except Exception as e:
         logger.error(f"Error generating content URL: {str(e)}")
         content_url = f"/scorm/content/{topic_id}/index.html"
+    
+    # CRITICAL FIX: Ensure attempt is never None when passed to template
+    if attempt is None:
+        logger.error(f"CRITICAL: attempt is None for topic {topic_id}, user {request.user.username if request.user.is_authenticated else 'guest'}")
+        messages.error(request, "Error initializing SCORM attempt. Please try again.")
+        return redirect('courses:topic_view', topic_id=topic_id)
     
     context = {
         'topic': topic,
@@ -585,12 +596,11 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
         if path.endswith('/'):
             path = path + 'index.html'
         
-        # CRITICAL FIX: For SCORM content HTML files, redirect to the proper SCORM player
-        # This ensures the "Save & Exit" button functionality is available
+        # CRITICAL FIX: For SCORM content HTML files, serve them directly with SCORM API injection
+        # This ensures the SCORM content can access the API without redirecting to the player
         if path.endswith(('.html', '.htm')) and ('scormcontent' in path or path.endswith('index.html')):
-            logger.info(f"Redirecting SCORM HTML content to player: /scorm/view/{topic_id}/")
-            from django.http import HttpResponseRedirect
-            return HttpResponseRedirect(reverse('scorm:view', kwargs={'topic_id': topic_id}))
+            logger.info(f"Serving SCORM HTML content directly: {path}")
+            # Serve the HTML content directly with SCORM API injection instead of redirecting
         
         # Generate direct S3 URL with proper error handling
         try:
@@ -614,8 +624,20 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
             import requests
             from django.core.cache import cache
             
+            # CRITICAL FIX: Ensure we have a valid attempt_id for SCORM API
+            if not current_attempt_id:
+                # Create a temporary attempt_id for unauthenticated users
+                import uuid
+                current_attempt_id = f"temp_{uuid.uuid4()}"
+                logger.info(f"Created temporary attempt_id for SCORM content: {current_attempt_id}")
+            
+            # CRITICAL FIX: Ensure attempt_id is not None or empty
+            if not current_attempt_id or current_attempt_id == 'None':
+                current_attempt_id = f"fallback_{uuid.uuid4()}"
+                logger.warning(f"CRITICAL: attempt_id was None, created fallback: {current_attempt_id}")
+            
             # Create cache key for this content with version
-            cache_key = f"scorm_content_v3_{scorm_package.id}_{path}_{scorm_package.updated_at.timestamp()}"
+            cache_key = f"scorm_content_v4_{scorm_package.id}_{path}_{scorm_package.updated_at.timestamp()}_{current_attempt_id}"
             cached_content = cache.get(cache_key)
             
             if cached_content:
@@ -691,6 +713,12 @@ if (!window.API && !window.API_1484_11) {
 // Version: 4.0 - Simplified for all SCORM types
 console.log('[SCORM] API bridge loaded for content');
 
+// CRITICAL FIX: Ensure attempt_id is available for SCORM content
+const SCORM_ATTEMPT_ID = '{}';
+const SCORM_API_ENDPOINT = '/scorm/api/{}/';
+console.log('[SCORM] Attempt ID:', SCORM_ATTEMPT_ID);
+console.log('[SCORM] API Endpoint:', SCORM_API_ENDPOINT);
+
 // Try to use parent window's API if available (iframe scenario)
 if (window.parent && window.parent !== window) {
     if (window.parent.API && !window.API) {
@@ -701,6 +729,7 @@ if (window.parent && window.parent !== window) {
         window.API_1484_11 = window.parent.API_1484_11;
         console.log('[SCORM] Using parent SCORM 2004 API');
     }
+}
 }
 
 // Minimal fallback API stub (only if no API exists)
@@ -731,7 +760,7 @@ if (!window.API_1484_11) {
     };
     console.log('[SCORM] Minimal SCORM 2004 fallback API created');
 }
-</script>'''
+</script>'''.format(current_attempt_id, current_attempt_id)
                 
                 # Inject before </head> or at beginning of <body>
                 if '</head>' in html_content:
