@@ -818,40 +818,59 @@
             }
         }
         
-        // Start slide detection for slide-based SCORM content
-        setTimeout(() => {
-            detectSlideChanges();
-            console.log('Slide detection started for slide-based SCORM content');
-        }, 1000);
-        
-        // ENHANCED: Monitor iframe URL changes for completion pages
-        monitorIframeUrlChanges();
-        
-        // ENHANCED: Monitor slide progress for better tracking
-        monitorSlideProgress();
-        
-        // ENHANCED: Detect package type and set up specific monitoring based on metadata
-        detectAndSetupPackageSpecificMonitoring();
-        
-        // ENHANCED: Load existing section progress for sidebar indicators
-        loadExistingSectionProgress();
-        
-        // Add instant sync on user interaction
-        document.addEventListener('click', function() {
-            if (totalActiveSeconds > 0 && typeof syncTimeToServer === 'function') {
-                syncTimeToServer();
-            }
-        });
-        
-        document.addEventListener('keydown', function() {
-            if (totalActiveSeconds > 0 && typeof syncTimeToServer === 'function') {
-                syncTimeToServer();
-            }
-        });
-        
-        // Also sync when iframe content changes
+        // ✅ SCORM BEST PRACTICE: Only monitor generic SCORM content
+        // Rise and Storyline manage their own tracking completely
         const iframe = document.getElementById('scormFrame');
-        if (iframe) {
+        const isRisePackage = iframe && iframe.src && iframe.src.includes('scormcontent/index.html');
+        const isStorylinePackage = iframe && iframe.src && iframe.src.includes('story.html');
+        
+        if (isRisePackage || isStorylinePackage) {
+            console.log('✅ SCORM content managing its own tracking - NO client-side monitoring');
+            const contentType = isRisePackage ? 'Rise' : 'Storyline';
+            console.log(`   ${contentType} will call API methods on its own schedule`);
+            console.log('   LMS provides API only - no interference');
+        } else {
+            console.log('⚙️ Generic SCORM - enabling client-side monitoring helpers');
+            
+            // Start slide detection for slide-based SCORM content
+            setTimeout(() => {
+                detectSlideChanges();
+                console.log('Slide detection started for slide-based SCORM content');
+            }, 1000);
+            
+            // ENHANCED: Monitor iframe URL changes for completion pages
+            monitorIframeUrlChanges();
+            
+            // ENHANCED: Monitor slide progress for better tracking
+            monitorSlideProgress();
+            
+            // ENHANCED: Detect package type and set up specific monitoring based on metadata
+            detectAndSetupPackageSpecificMonitoring();
+            
+            // ENHANCED: Load existing section progress for sidebar indicators
+            loadExistingSectionProgress();
+        }
+        
+        // Add instant sync on user interaction (only for generic SCORM)
+        if (!isRisePackage && !isStorylinePackage) {
+            document.addEventListener('click', function() {
+                if (totalActiveSeconds > 0 && typeof syncTimeToServer === 'function') {
+                    syncTimeToServer();
+                }
+            });
+        }
+        
+        // Add keydown sync (only for generic SCORM)
+        if (!isRisePackage && !isStorylinePackage) {
+            document.addEventListener('keydown', function() {
+                if (totalActiveSeconds > 0 && typeof syncTimeToServer === 'function') {
+                    syncTimeToServer();
+                }
+            });
+        }
+        
+        // Also sync when iframe content changes (only for generic SCORM)
+        if (!isRisePackage && !isStorylinePackage && iframe) {
             iframe.addEventListener('load', function() {
                 setTimeout(() => {
                     if (typeof syncTimeToServer === 'function') {

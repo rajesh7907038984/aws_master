@@ -3,6 +3,11 @@ from django.conf import settings
 from django.utils import timezone
 from courses.models import Topic
 import json
+import logging
+import os
+import shutil
+
+logger = logging.getLogger(__name__)
 
 
 class ScormPackage(models.Model):
