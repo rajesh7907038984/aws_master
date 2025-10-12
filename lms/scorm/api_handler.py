@@ -109,14 +109,16 @@ class ScormAPIHandler:
             self.attempt.cmi_data = self._initialize_cmi_data()
         
         # CRITICAL FIX: Check for existing bookmark data and set entry mode accordingly
-        has_bookmark_data = bool(self.attempt.lesson_location or self.attempt.suspend_data)
+        # ✅ SIMPLE FIX: Require suspend_data to exist (not just lesson_location)
+        # This prevents Rise video errors when trying to parse empty suspend_data for timestamps
+        has_actual_progress = bool(self.attempt.suspend_data)
         
-        if has_bookmark_data:
+        if has_actual_progress:
             self.attempt.entry = 'resume'
-            logger.info(f"SCORM Resume: lesson_location='{self.attempt.lesson_location}', suspend_data='{self.attempt.suspend_data[:50] if self.attempt.suspend_data else 'None'}...'")
+            logger.info(f"SCORM Resume: suspend_data exists ({len(self.attempt.suspend_data)} chars), lesson_location='{self.attempt.lesson_location}'")
         else:
             self.attempt.entry = 'ab-initio'
-            logger.info(f"SCORM New attempt: starting from beginning")
+            logger.info(f"SCORM Fresh start: no suspend_data yet (prevents Rise video NaN errors)")
         
         if self.version == '1.2':
             # CRITICAL FIX: Always set entry mode in CMI data
