@@ -1224,6 +1224,20 @@
         function saveSectionProgress(sectionProgress) {
             try {
                 if (window.API && window.API.LMSGetValue && window.API.LMSSetValue) {
+                    // ✅ CRITICAL FIX: DO NOT modify suspend_data for Storyline packages!
+                    // Storyline manages its own quiz state in suspend_data
+                    // Check if this is a Storyline package (story.html)
+                    const isStoryline = window.location.href.includes('story.html') ||
+                                       document.querySelector('iframe[src*="story.html"]') ||
+                                       typeof GetPlayer === 'function'; // Storyline API check
+                    
+                    if (isStoryline) {
+                        console.log('⚠️ Skipping suspend_data modification - Storyline package detected');
+                        console.log('   Storyline manages its own quiz/slide state');
+                        return; // Don't touch Storyline's suspend_data!
+                    }
+                    
+                    // Only for non-Storyline packages (Rise, generic SCORM)
                     // Get current suspend data
                     let suspendData = {};
                     try {
@@ -3236,19 +3250,27 @@
                             console.log(' Partial completion: ' + completionPercentage + '% (' + slidesWithTime + ' slides completed out of ' + totalSlides + ')');
                             console.log('⚠️ Not setting final score for partial completion');
                             
-                            // Save progress for resume but don't set final score
-                            const progressData = {
-                                                totalSlides: totalSlides,
-                                                completedSlides: slidesWithTime,
-                                                progressPercentage: completionPercentage,
-                                                timestamp: new Date().toISOString(),
-                                                status: 'in_progress'
-                                            };
+                            // ✅ CRITICAL FIX: DO NOT overwrite suspend_data for Storyline!
+                            // Storyline manages its own quiz state
+                            const iframe = document.getElementById('scormFrame');
+                            const isStoryline = iframe && iframe.src && iframe.src.includes('story.html');
                             
-                            if (window.API && window.API.LMSSetValue) {
+                            if (!isStoryline && window.API && window.API.LMSSetValue) {
+                                // Only save our progress data for non-Storyline packages
+                                const progressData = {
+                                    totalSlides: totalSlides,
+                                    completedSlides: slidesWithTime,
+                                    progressPercentage: completionPercentage,
+                                    timestamp: new Date().toISOString(),
+                                    status: 'in_progress'
+                                };
                                 window.API.LMSSetValue('cmi.suspend_data', JSON.stringify(progressData));
                                 window.API.LMSSetValue('cmi.core.lesson_status', 'incomplete');
                                 console.log(' Saved progress for resume (no final score)');
+                            } else if (isStoryline && window.API && window.API.LMSSetValue) {
+                                // For Storyline, only set lesson_status (don't touch suspend_data!)
+                                window.API.LMSSetValue('cmi.core.lesson_status', 'incomplete');
+                                console.log('⚠️ Storyline detected - preserved its suspend_data');
                             }
                         }
                     }
@@ -3289,19 +3311,31 @@
                             // Also set total time
                             window.API.SetValue('cmi.core.total_time', scormTime);
                             
-                            // Set lesson location for slide-based content
-                            if (currentSlide) {
-                                window.API.SetValue('cmi.core.lesson_location', currentSlide);
-                            }
+                            // ✅ CRITICAL FIX: DO NOT overwrite suspend_data for Storyline!
+                            const iframe = document.getElementById('scormFrame');
+                            const isStoryline = iframe && iframe.src && iframe.src.includes('story.html');
                             
-                            // Set suspend data with slide tracking info
-                            const slideData = {
-                                slides: slideTimeTracker,
-                                currentSlide: currentSlide,
-                                totalTime: totalActiveSeconds,
-                                timestamp: new Date().toISOString()
-                            };
-                            window.API.SetValue('cmi.suspend_data', JSON.stringify(slideData));
+                            if (!isStoryline) {
+                                // Only for non-Storyline packages (Rise, generic SCORM)
+                                // Set lesson location for slide-based content
+                                if (currentSlide) {
+                                    window.API.SetValue('cmi.core.lesson_location', currentSlide);
+                                }
+                                
+                                // Set suspend data with slide tracking info
+                                const slideData = {
+                                    slides: slideTimeTracker,
+                                    currentSlide: currentSlide,
+                                    totalTime: totalActiveSeconds,
+                                    timestamp: new Date().toISOString()
+                                };
+                                window.API.SetValue('cmi.suspend_data', JSON.stringify(slideData));
+                                
+                                console.log(' Time synced with slide data');
+                            } else {
+                                console.log('⚠️ Storyline detected - NOT overwriting suspend_data');
+                                // Storyline manages its own suspend_data
+                            }
                             
                             window.API.LMSCommit('');
                             
