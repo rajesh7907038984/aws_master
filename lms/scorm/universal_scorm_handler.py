@@ -15,28 +15,31 @@ class UniversalSCORMHandler:
     """
     
     # Common SCORM launch file patterns
+    # PRIORITY ORDER: Check actual content files BEFORE wrapper/driver files
     LAUNCH_FILE_PATTERNS = [
-        # Articulate Storyline packages
-        'scormdriver/indexAPI.html',
-        'scormdriver/index.html',
-        
-        # Articulate Rise packages
-        'story.html',
-        'index.html',
-        
-        # Direct content packages
+        # PRIORITY 1: Direct content in scormcontent directory (actual content, not wrapper)
         'scormcontent/index.html',
         'scormcontent/story.html',
         
-        # Generic SCORM packages
+        # PRIORITY 2: Direct Articulate Rise/Storyline content
+        'story.html',
+        'story_html5.html',
+        
+        # PRIORITY 3: HTML5 packages
+        'html5/index.html',
+        'html5/story.html',
+        
+        # PRIORITY 4: Generic SCORM packages
         'index.html',
         'launch.html',
         'start.html',
         'main.html',
+        'default.html',
         
-        # HTML5 packages
-        'html5/index.html',
-        'html5/story.html',
+        # PRIORITY 5 (LAST): Articulate driver/wrapper (only if no direct content found)
+        # These are just wrappers that load the actual content - avoid if possible
+        'scormdriver/indexAPI.html',
+        'scormdriver/index.html',
     ]
     
     # Relative path patterns that need fixing

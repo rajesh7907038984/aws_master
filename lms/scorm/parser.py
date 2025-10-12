@@ -155,23 +155,31 @@ class ScormParser:
                     # Launch URL is relative to manifest location
                     pass
             
-            # CRITICAL FIX: If launch URL is not set or is index_lms.html, check for story.html
-            # story.html is the correct player file for Articulate Storyline packages
-            if not self.launch_url or self.launch_url == 'index_lms.html':
-                # Check if story.html exists in extracted files
-                story_html_candidates = [f for f in extracted_files if f.lower().endswith('story.html')]
-                if story_html_candidates:
-                    self.launch_url = story_html_candidates[0]
-                    logger.info(f"Using story.html as launch file: {self.launch_url}")
+            # CRITICAL FIX: Use UniversalSCORMHandler for correct launch URL detection
+            # Priority: scormcontent/ files > direct files > driver wrappers
+            if not self.launch_url or self.launch_url == 'index_lms.html' or 'scormdriver' in self.launch_url.lower():
+                # Import the universal handler
+                from scorm.universal_scorm_handler import UniversalSCORMHandler
+                
+                # Use the handler to detect the best launch file
+                detected_launch = UniversalSCORMHandler.detect_launch_file(extracted_files)
+                
+                if detected_launch:
+                    self.launch_url = detected_launch
+                    logger.info(f"✅ Auto-detected launch file: {self.launch_url}")
                 elif not self.launch_url:
-                    # Fallback to other common entry points (prioritize story.html)
-                    entry_points = ['story.html', 'index.html', 'launch.html', 'start.html', 'main.html']
-                    for entry_point in entry_points:
-                        candidates = [f for f in extracted_files if f.lower().endswith(entry_point)]
-                        if candidates:
-                            self.launch_url = candidates[0]
-                            logger.info(f"Using {entry_point} as launch file: {self.launch_url}")
-                            break
+                    # Last resort fallback - check for any HTML file
+                    html_files = [f for f in extracted_files if f.lower().endswith(('.html', '.htm'))]
+                    if html_files:
+                        # Prefer files in scormcontent directory
+                        scormcontent_files = [f for f in html_files if 'scormcontent' in f.lower()]
+                        if scormcontent_files:
+                            self.launch_url = scormcontent_files[0]
+                        else:
+                            self.launch_url = html_files[0]
+                        logger.info(f"⚠️ Fallback launch file: {self.launch_url}")
+                    else:
+                        logger.warning(f"❌ No HTML files found in package")
             
             # DYNAMIC ANALYSIS: Analyze package type and characteristics
             logger.info(" Analyzing SCORM package characteristics...")
