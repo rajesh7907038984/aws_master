@@ -1769,30 +1769,33 @@
         window.API._initialized = false;
         window.API_1484_11._initialized = false;
         
-        // OPTIMIZATION: Faster API initialization with better error handling
-        // ✅ CONFLICT FIX: Prevent multiple initialization attempts
+        // ✅ CRITICAL FIX FOR RISE VIDEOS: Initialize IMMEDIATELY, no delay
+        // Rise video packages check for suspend_data/lesson_location BEFORE calling Initialize
+        // They need the API to be ready instantly for video skip/resume functionality
         if (!window.scormApiInitialized) {
-            setTimeout(() => {
-                if (window.API && !window.API._initialized) {
-                    console.log('Auto-initializing SCORM API...');
-                    window.scormApiInitialized = true;
-                    try {
-                        const initResult = window.API.LMSInitialize('');
-                        console.log('SCORM 1.2 Initialize result:', initResult);
+            console.log('🎬 Initializing SCORM API immediately for video packages...');
+            window.scormApiInitialized = true;
+            
+            // Initialize immediately (no setTimeout)
+            if (window.API && !window.API._initialized) {
+                try {
+                    const initResult = window.API.LMSInitialize('');
+                    console.log('✅ SCORM 1.2 Initialize result:', initResult);
                     window.API._initialized = true;
                 } catch (error) {
-                    console.error('SCORM 1.2 Initialize error:', error);
-                }
-                
-                try {
-                    const initResult2004 = window.API_1484_11.Initialize('');
-                    console.log('SCORM 2004 Initialize result:', initResult2004);
-                    window.API_1484_11._initialized = true;
-                } catch (error) {
-                    console.error('SCORM 2004 Initialize error:', error);
+                    console.error('❌ SCORM 1.2 Initialize error:', error);
                 }
             }
-            }, 300); // Reduced from 1000ms to 300ms
+            
+            if (window.API_1484_11 && !window.API_1484_11._initialized) {
+                try {
+                    const initResult2004 = window.API_1484_11.Initialize('');
+                    console.log('✅ SCORM 2004 Initialize result:', initResult2004);
+                    window.API_1484_11._initialized = true;
+                } catch (error) {
+                    console.error('❌ SCORM 2004 Initialize error:', error);
+                }
+            }
         }
         
         // CRITICAL FIX: Handle page unload - extract score and save SCORM data
