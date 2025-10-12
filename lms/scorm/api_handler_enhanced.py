@@ -579,18 +579,28 @@ class ScormAPIHandlerEnhanced:
                                 self.last_error = '405'
                                 return 'false'
                             
-                            # Set lesson_status based on score if not already set
+                            # PERMANENT FIX: Set lesson_status based on score automatically
                             mastery_score = self.attempt.scorm_package.mastery_score or 70
-                            if self.attempt.lesson_status == 'not_attempted' or self.attempt.lesson_status == 'incomplete':
-                                if self.attempt.score_raw >= mastery_score:
-                                    self.attempt.lesson_status = 'passed'
-                                    self.attempt.cmi_data['cmi.core.lesson_status'] = 'passed'
-                                    self._update_completion_from_status('passed')
-                                else:
-                                    self.attempt.lesson_status = 'failed'
-                                    self.attempt.cmi_data['cmi.core.lesson_status'] = 'failed'
-                                    self._update_completion_from_status('failed')
-                                logger.info("SCORE: Set lesson_status to %s based on score", self.attempt.lesson_status)
+                            
+                            # Determine correct status based on score
+                            correct_status = 'passed' if self.attempt.score_raw >= mastery_score else 'failed'
+                            
+                            # Update status if not already explicitly set by SCORM content or if incorrect
+                            if not hasattr(self.attempt, '_explicit_status_set') or not self.attempt._explicit_status_set:
+                                # Status not explicitly set by SCORM content - use score-based status
+                                if self.attempt.lesson_status != correct_status:
+                                    self.attempt.lesson_status = correct_status
+                                    self.attempt.cmi_data['cmi.core.lesson_status'] = correct_status
+                                    self._update_completion_from_status(correct_status)
+                                    logger.info("SCORE: Auto-set lesson_status to %s based on score %s (mastery: %s)", 
+                                              correct_status, self.attempt.score_raw, mastery_score)
+                            elif self.attempt.score_raw >= mastery_score and self.attempt.lesson_status == 'failed':
+                                # CRITICAL FIX: Override 'failed' status if score is actually passing
+                                self.attempt.lesson_status = 'passed'
+                                self.attempt.cmi_data['cmi.core.lesson_status'] = 'passed'
+                                self._update_completion_from_status('passed')
+                                logger.info("SCORE: Corrected lesson_status from 'failed' to 'passed' for score %s", 
+                                          self.attempt.score_raw)
                             
                             # IMMEDIATE FIX: Save attempt and update TopicProgress right away
                             # This ensures scores are reflected in gradebook even if SCORM content
@@ -690,19 +700,34 @@ class ScormAPIHandlerEnhanced:
                                 self.last_error = '405'
                                 return 'false'
                             
-                            # Set success_status based on score if not already set
+                            # PERMANENT FIX: Set success_status based on score automatically
                             mastery_score = self.attempt.scorm_package.mastery_score or 70
-                            if self.attempt.success_status == 'unknown':
-                                if self.attempt.score_raw >= mastery_score:
-                                    self.attempt.success_status = 'passed'
-                                    self.attempt.cmi_data['cmi.success_status'] = 'passed'
-                                    if self.attempt.completion_status != 'completed':
-                                        self.attempt.completion_status = 'completed'
-                                        self.attempt.cmi_data['cmi.completion_status'] = 'completed'
-                                else:
-                                    self.attempt.success_status = 'failed'
-                                    self.attempt.cmi_data['cmi.success_status'] = 'failed'
-                                logger.info("SCORE: Set success_status to %s based on score", self.attempt.success_status)
+                            
+                            # Determine correct status based on score
+                            correct_success_status = 'passed' if self.attempt.score_raw >= mastery_score else 'failed'
+                            correct_completion_status = 'completed'
+                            
+                            # Update status if not already explicitly set by SCORM content or if incorrect
+                            if not hasattr(self.attempt, '_explicit_status_set') or not self.attempt._explicit_status_set:
+                                # Status not explicitly set by SCORM content - use score-based status
+                                if self.attempt.success_status != correct_success_status:
+                                    self.attempt.success_status = correct_success_status
+                                    self.attempt.cmi_data['cmi.success_status'] = correct_success_status
+                                    logger.info("SCORE: Auto-set success_status to %s based on score %s (mastery: %s)", 
+                                              correct_success_status, self.attempt.score_raw, mastery_score)
+                                
+                                if self.attempt.completion_status != correct_completion_status:
+                                    self.attempt.completion_status = correct_completion_status
+                                    self.attempt.cmi_data['cmi.completion_status'] = correct_completion_status
+                                    logger.info("SCORE: Auto-set completion_status to %s", correct_completion_status)
+                            elif self.attempt.score_raw >= mastery_score and self.attempt.success_status == 'failed':
+                                # CRITICAL FIX: Override 'failed' status if score is actually passing
+                                self.attempt.success_status = 'passed'
+                                self.attempt.cmi_data['cmi.success_status'] = 'passed'
+                                self.attempt.completion_status = 'completed'
+                                self.attempt.cmi_data['cmi.completion_status'] = 'completed'
+                                logger.info("SCORE: Corrected success_status from 'failed' to 'passed' for score %s", 
+                                          self.attempt.score_raw)
                             
                             # IMMEDIATE FIX: Save attempt and update TopicProgress right away
                             # This ensures scores are reflected in gradebook even if SCORM content
