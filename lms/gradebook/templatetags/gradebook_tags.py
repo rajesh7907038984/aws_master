@@ -1171,20 +1171,8 @@ def calculate_student_total_optimized(student_scores, student_id, activities):
                     if score_data.get('is_informational', False):
                         continue
                     
-                    # Check if activity has been started/attempted
-                    has_been_started = (
-                        score_data.get('score') is not None or
-                        score_data.get('completed', False) or
-                        score_data.get('in_progress', False) or
-                        score_data.get('attempt') is not None or
-                        score_data.get('date') is not None or
-                        score_data.get('excused', False) or
-                        score_data.get('completion_status') in ['completed', 'incomplete', 'not attempted'] or
-                        score_data.get('success_status') in ['passed', 'failed']
-                    )
-                    
-                    # Only add to possible points if activity has been started
-                    if has_been_started and score_data.get('max_score', 0) > 0:
+                    # Add to possible points
+                    if score_data.get('max_score', 0) > 0:
                         total_possible += Decimal(str(score_data['max_score']))
                     
                     # Add to earned points if score exists and not excused
