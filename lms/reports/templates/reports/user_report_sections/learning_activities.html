@@ -70,7 +70,13 @@
                         {% endif %}
                     </div>
                 </td>
-                <td class="py-3 px-4">{{ progress.get_best_score|default:"-" }}</td>
+                <td class="py-3 px-4">
+                    {% if progress.completed %}
+                        {{ progress.get_best_score|default:"-" }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
                 <td class="py-3 px-4">{% if progress.completed %}{{ progress.completed_at|date:"d/m/Y" }}{% else %}-{% endif %}</td>
                 <td class="py-3 px-4 text-center">
                     {% if request.user.role != 'learner' %}
