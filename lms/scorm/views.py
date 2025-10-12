@@ -43,29 +43,41 @@ def fix_scorm_relative_paths(html_content, topic_id):
             html_content = html_content.replace(pattern, f"{base_content_url}/")
             logger.info(f"Cleaned double path: {pattern} -> {base_content_url}/")
     
-    # Fix common SCORM relative paths - only if they don't already contain the base URL
+    # Fix common SCORM relative paths - check each occurrence to avoid duplicate replacements
     path_fixes = [
         ('../scormcontent/', f'{base_content_url}/scormcontent/'),
         ('../scormdriver/', f'{base_content_url}/scormdriver/'),
     ]
     
     for old_path, new_path in path_fixes:
-        # Only replace if the path doesn't already contain the base URL
-        if old_path in html_content and base_content_url not in html_content:
-            html_content = html_content.replace(old_path, new_path)
-            logger.info(f"Fixed relative path: {old_path} -> {new_path}")
+        # Only replace if the pattern exists and isn't already part of a fixed path
+        # Use a more careful approach: don't replace if it's already in the context of base_content_url
+        if old_path in html_content:
+            # Check if this would create double paths
+            if new_path not in html_content:
+                html_content = html_content.replace(old_path, new_path)
+                logger.info(f"Fixed relative path: {old_path} -> {new_path}")
     
-    # Fix direct paths only if they don't already have the base URL
+    # Fix direct paths only if they don't already have the base URL prefix
+    # This is more careful - we need to avoid replacing paths that are already fixed
     direct_path_fixes = [
         ('scormcontent/', f'{base_content_url}/scormcontent/'),
         ('scormdriver/', f'{base_content_url}/scormdriver/'),
     ]
     
     for old_path, new_path in direct_path_fixes:
-        # Only replace if the path doesn't already contain the base URL
-        if old_path in html_content and base_content_url not in html_content:
-            html_content = html_content.replace(old_path, new_path)
-            logger.info(f"Fixed direct path: {old_path} -> {new_path}")
+        # Only replace standalone occurrences, not ones already prefixed with base_content_url
+        # Use negative lookbehind concept: don't replace if preceded by base_content_url
+        count_before = html_content.count(old_path)
+        if count_before > 0:
+            # Replace only occurrences that aren't already prefixed correctly
+            import re
+            # Match the path only if it's not already part of the fixed path
+            pattern = re.compile(r'(?<!' + re.escape(base_content_url + '/') + r')' + re.escape(old_path))
+            matches = pattern.findall(html_content)
+            if matches:
+                html_content = pattern.sub(new_path, html_content)
+                logger.info(f"Fixed {len(matches)} direct path occurrences: {old_path} -> {new_path}")
     
     return html_content
 
@@ -373,54 +385,85 @@ def scorm_content(request, topic_id, path):
                     api_injection = f'''
 <script>
 // SCORM API that connects to the real API endpoint
+// CRITICAL: Uses SYNCHRONOUS XHR to support legacy SCORM content that expects immediate return values
 window.API = window.API_1484_11 = {{
     _apiEndpoint: '{api_endpoint}',
     _lastError: '0',
     
-    _makeAPICall: async function(method, parameters) {{
+    _getCookie: function(name) {{
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {{
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {{
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {{
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }}
+            }}
+        }}
+        return cookieValue;
+    }},
+    
+    _makeAPICall: function(method, parameters) {{
         try {{
-            const response = await fetch(this._apiEndpoint, {{
-                method: 'POST',
-                headers: {{ 'Content-Type': 'application/json' }},
-                body: JSON.stringify({{ method: method, parameters: parameters || [] }})
-            }});
-            const data = await response.json();
-            return data.result;
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', this._apiEndpoint, false); // SYNCHRONOUS request
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.setRequestHeader('X-CSRFToken', this._getCookie('csrftoken'));
+            xhr.send(JSON.stringify({{ method: method, parameters: parameters || [] }}));
+            
+            if (xhr.status === 200) {{
+                const data = JSON.parse(xhr.responseText);
+                if (data.success) {{
+                    console.log('[SCORM API] ' + method + ' -> ' + data.result);
+                    return data.result;
+                }} else {{
+                    console.error('[SCORM API] ' + method + ' failed: ' + data.error);
+                    this._lastError = '101';
+                    return 'false';
+                }}
+            }} else {{
+                console.error('[SCORM API] HTTP error: ' + xhr.status);
+                this._lastError = '101';
+                return 'false';
+            }}
         }} catch (e) {{
-            console.error('SCORM API call failed:', e);
+            console.error('[SCORM API] Error:', e);
+            this._lastError = '101';
             return 'false';
         }}
     }},
     
-    Initialize: async function(param) {{ 
-        return await this._makeAPICall('Initialize', [param]); 
+    Initialize: function(param) {{ 
+        return this._makeAPICall('Initialize', [param]); 
     }},
-    LMSInitialize: async function(param) {{ 
-        return await this._makeAPICall('Initialize', [param]); 
+    LMSInitialize: function(param) {{ 
+        return this._makeAPICall('Initialize', [param]); 
     }},
-    Terminate: async function(param) {{ 
-        return await this._makeAPICall('Terminate', [param]); 
+    Terminate: function(param) {{ 
+        return this._makeAPICall('Terminate', [param]); 
     }},
-    LMSFinish: async function(param) {{ 
-        return await this._makeAPICall('Terminate', [param]); 
+    LMSFinish: function(param) {{ 
+        return this._makeAPICall('Terminate', [param]); 
     }},
-    GetValue: async function(element) {{ 
-        return await this._makeAPICall('GetValue', [element]); 
+    GetValue: function(element) {{ 
+        return this._makeAPICall('GetValue', [element]); 
     }},
-    LMSGetValue: async function(element) {{ 
-        return await this._makeAPICall('GetValue', [element]); 
+    LMSGetValue: function(element) {{ 
+        return this._makeAPICall('GetValue', [element]); 
     }},
-    SetValue: async function(element, value) {{ 
-        return await this._makeAPICall('SetValue', [element, value]); 
+    SetValue: function(element, value) {{ 
+        return this._makeAPICall('SetValue', [element, value]); 
     }},
-    LMSSetValue: async function(element, value) {{ 
-        return await this._makeAPICall('SetValue', [element, value]); 
+    LMSSetValue: function(element, value) {{ 
+        return this._makeAPICall('SetValue', [element, value]); 
     }},
-    Commit: async function(param) {{ 
-        return await this._makeAPICall('Commit', [param]); 
+    Commit: function(param) {{ 
+        return this._makeAPICall('Commit', [param]); 
     }},
-    LMSCommit: async function(param) {{ 
-        return await this._makeAPICall('Commit', [param]); 
+    LMSCommit: function(param) {{ 
+        return this._makeAPICall('Commit', [param]); 
     }},
     GetLastError: function() {{ 
         return this._lastError; 
@@ -428,17 +471,17 @@ window.API = window.API_1484_11 = {{
     LMSGetLastError: function() {{ 
         return this._lastError; 
     }},
-    GetErrorString: async function(code) {{ 
-        return await this._makeAPICall('GetErrorString', [code]); 
+    GetErrorString: function(code) {{ 
+        return this._makeAPICall('GetErrorString', [code]); 
     }},
-    LMSGetErrorString: async function(code) {{ 
-        return await this._makeAPICall('GetErrorString', [code]); 
+    LMSGetErrorString: function(code) {{ 
+        return this._makeAPICall('GetErrorString', [code]); 
     }},
-    GetDiagnostic: async function(code) {{ 
-        return await this._makeAPICall('GetDiagnostic', [code]); 
+    GetDiagnostic: function(code) {{ 
+        return this._makeAPICall('GetDiagnostic', [code]); 
     }},
-    LMSGetDiagnostic: async function(code) {{ 
-        return await this._makeAPICall('GetDiagnostic', [code]); 
+    LMSGetDiagnostic: function(code) {{ 
+        return this._makeAPICall('GetDiagnostic', [code]); 
     }}
 }};
 </script>
