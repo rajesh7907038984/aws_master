@@ -154,15 +154,15 @@ class ScormParser:
                     # Launch URL is relative to manifest location
                     pass
             
-            # FIXED: Only override launch URL if it's not set or is clearly wrong
-            # Don't override index_lms.html which is correct from manifest
-            if not self.launch_url:
-                # Check if story.html exists in extracted files (for Articulate Storyline packages)
+            # CRITICAL FIX: If launch URL is not set or is index_lms.html, check for story.html
+            # story.html is the correct player file for Articulate Storyline packages
+            if not self.launch_url or self.launch_url == 'index_lms.html':
+                # Check if story.html exists in extracted files
                 story_html_candidates = [f for f in extracted_files if f.lower().endswith('story.html')]
                 if story_html_candidates:
                     self.launch_url = story_html_candidates[0]
                     logger.info(f"Using story.html as launch file: {self.launch_url}")
-                else:
+                elif not self.launch_url:
                     # Fallback to other common entry points (prioritize story.html)
                     entry_points = ['story.html', 'index.html', 'launch.html', 'start.html', 'main.html']
                     for entry_point in entry_points:
@@ -341,30 +341,19 @@ class ScormParser:
                                 if resource is not None:
                                     self.launch_url = resource.get('href', '')
             
-            # Fallback: if no launch URL found, look for resource with adlcp:scormtype="sco"
+            # Fallback: if no launch URL found, look for common entry points
             if not self.launch_url:
                 resources = root.find('.//{http://www.imsglobal.org/xsd/imscp_v1p1}resources') or \
                           root.find('.//{http://www.imsproject.org/xsd/imscp_rootv1p1p2}resources') or \
                           root.find('.//resources')
                 
                 if resources is not None:
-                    # Look for resource with adlcp:scormtype="sco" first
-                    sco_resource = resources.find('.//{http://www.imsglobal.org/xsd/imscp_v1p1}resource[@adlcp:scormtype="sco"]') or \
-                                 resources.find('.//{http://www.imsproject.org/xsd/imscp_rootv1p1p2}resource[@adlcp:scormtype="sco"]') or \
-                                 resources.find('.//resource[@adlcp:scormtype="sco"]')
+                    resource = resources.find('.//{http://www.imsglobal.org/xsd/imscp_v1p1}resource') or \
+                             resources.find('.//{http://www.imsproject.org/xsd/imscp_rootv1p1p2}resource') or \
+                             resources.find('.//resource')
                     
-                    if sco_resource is not None:
-                        self.launch_url = sco_resource.get('href', '')
-                        logger.info(f"Found SCO resource with adlcp:scormtype='sco': {self.launch_url}")
-                    else:
-                        # Fallback to first resource if no SCO found
-                        resource = resources.find('.//{http://www.imsglobal.org/xsd/imscp_v1p1}resource') or \
-                                 resources.find('.//{http://www.imsproject.org/xsd/imscp_rootv1p1p2}resource') or \
-                                 resources.find('.//resource')
-                        
-                        if resource is not None:
-                            self.launch_url = resource.get('href', '')
-                            logger.info(f"Using first resource as fallback: {self.launch_url}")
+                    if resource is not None:
+                        self.launch_url = resource.get('href', '')
             
             # Final fallback to common file names
             if not self.launch_url:
