@@ -178,59 +178,10 @@
                 return makeCaptivateCall('LMSInitialize', [param]); 
             },
             LMSFinish: function(param) { 
-                console.log('[Captivate] Finish - EXIT COURSE button clicked inside content');
+                console.log('[Captivate] Finish - Please use "Save & Exit" button');
                 const result = makeCaptivateCall('LMSFinish', [param]);
-                // CRITICAL FIX: Sync to database before redirect (same as Save & Exit button)
-                if (result === 'true') {
-                    console.log('[Captivate] Data saved, syncing to database...');
-                    
-                    // BUG FIX: Use FormData instead of raw urlencoded string
-                    const formData = new FormData();
-                    formData.append('attempt_id', '{{ attempt.id|default:attempt_id }}');
-                    
-                    // Call the same sync endpoint as Save & Exit button
-                    fetch('{% url "scorm:sync_on_exit" %}', {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRFToken': getCookie('csrftoken')
-                            // Let browser set proper Content-Type with boundary
-                        },
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        console.log('[Captivate] Database sync successful, redirecting...');
-                        try {
-                            if (window.top && window.top !== window) {
-                                window.top.location.href = '{% url "courses:topic_view" topic.id %}';
-                            } else if (window.parent && window.parent !== window) {
-                                window.parent.location.href = '{% url "courses:topic_view" topic.id %}';
-                            } else {
-                                window.location.href = '{% url "courses:topic_view" topic.id %}';
-                            }
-                        } catch (e) {
-                            console.log('[Captivate] Cross-origin restriction, trying fallback redirect');
-                            window.location.href = '{% url "courses:topic_view" topic.id %}';
-                        }
-                    })
-                    .catch(error => {
-                        console.error('[Captivate] Database sync error:', error);
-                        // Still redirect even if sync fails
-                        setTimeout(function() {
-                            try {
-                                if (window.top && window.top !== window) {
-                                    window.top.location.href = '{% url "courses:topic_view" topic.id %}';
-                                } else if (window.parent && window.parent !== window) {
-                                    window.parent.location.href = '{% url "courses:topic_view" topic.id %}';
-                                } else {
-                                    window.location.href = '{% url "courses:topic_view" topic.id %}';
-                                }
-                            } catch (e) {
-                                window.location.href = '{% url "courses:topic_view" topic.id %}';
-                            }
-                        }, 500);
-                    });
-                }
+                // DO NOT auto-redirect - user must click "Save & Exit" button
+                console.log('[Captivate] Data saved. Please click "Save & Exit" button to exit.');
                 return result;
             },
             LMSGetValue: function(element) { 
@@ -261,59 +212,10 @@
         window.API_1484_11 = {
             Initialize: function(param) { return makeCaptivateCall('Initialize', [param]); },
             Terminate: function(param) { 
-                console.log('[Captivate] Terminate - EXIT COURSE button clicked inside content (SCORM 2004)');
+                console.log('[Captivate] Terminate - Please use "Save & Exit" button');
                 const result = makeCaptivateCall('Terminate', [param]);
-                // CRITICAL FIX: Sync to database before redirect (same as Save & Exit button)
-                if (result === 'true') {
-                    console.log('[Captivate] Data saved, syncing to database...');
-                    
-                    // BUG FIX: Use FormData instead of raw urlencoded string
-                    const formData = new FormData();
-                    formData.append('attempt_id', '{{ attempt.id|default:attempt_id }}');
-                    
-                    // Call the same sync endpoint as Save & Exit button
-                    fetch('{% url "scorm:sync_on_exit" %}', {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRFToken': getCookie('csrftoken')
-                            // Let browser set proper Content-Type with boundary
-                        },
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        console.log('[Captivate] Database sync successful, redirecting...');
-                        try {
-                            if (window.top && window.top !== window) {
-                                window.top.location.href = '{% url "courses:topic_view" topic.id %}';
-                            } else if (window.parent && window.parent !== window) {
-                                window.parent.location.href = '{% url "courses:topic_view" topic.id %}';
-                            } else {
-                                window.location.href = '{% url "courses:topic_view" topic.id %}';
-                            }
-                        } catch (e) {
-                            console.log('[Captivate] Cross-origin restriction, trying fallback redirect');
-                            window.location.href = '{% url "courses:topic_view" topic.id %}';
-                        }
-                    })
-                    .catch(error => {
-                        console.error('[Captivate] Database sync error:', error);
-                        // Still redirect even if sync fails
-                        setTimeout(function() {
-                            try {
-                                if (window.top && window.top !== window) {
-                                    window.top.location.href = '{% url "courses:topic_view" topic.id %}';
-                                } else if (window.parent && window.parent !== window) {
-                                    window.parent.location.href = '{% url "courses:topic_view" topic.id %}';
-                                } else {
-                                    window.location.href = '{% url "courses:topic_view" topic.id %}';
-                                }
-                            } catch (e) {
-                                window.location.href = '{% url "courses:topic_view" topic.id %}';
-                            }
-                        }, 500);
-                    });
-                }
+                // DO NOT auto-redirect - user must click "Save & Exit" button
+                console.log('[Captivate] Data saved. Please click "Save & Exit" button to exit.');
                 return result;
             },
             GetValue: function(element) { return makeCaptivateCall('GetValue', [element]); },
@@ -343,25 +245,8 @@
             console.log('✅ Captivate content loaded - Instant save enabled');
             console.log('[Captivate] Data will be saved instantly on every action');
             
-            // CRITICAL FIX: Initialize Exit Assessment Button Fix in iframe
-            try {
-                const captivateFrame = document.getElementById('captivateFrame');
-                if (captivateFrame && captivateFrame.contentWindow) {
-                    // Add global variables for the exit assessment fix script
-                    captivateFrame.contentWindow.SCORM_ATTEMPT_ID = '{{ attempt.id|default:attempt_id }}';
-                    captivateFrame.contentWindow.SCORM_TOPIC_URL = '{% url "courses:topic_view" topic.id %}';
-                    
-                    // Inject the exit assessment fix script
-                    const script = captivateFrame.contentDocument.createElement('script');
-                    script.src = '/static/scorm/exit_assessment_fix.js?v=2';
-                    script.onload = function() {
-                        console.log('[Captivate] Exit Assessment Button Fix loaded in iframe');
-                    };
-                    captivateFrame.contentDocument.head.appendChild(script);
-                }
-            } catch (e) {
-                console.error('[Captivate] Error initializing Exit Assessment Button Fix:', e);
-            }
+            // REMOVED: Auto-exit button enhancement - Users must use "Save & Exit" button
+            console.log('[Captivate] Content loaded. Use "Save & Exit" button to exit.');
         });
         
         // FIXED: Save & Exit button handler with proper event attachment and DB sync
@@ -500,26 +385,8 @@
             attachWithRetry();
         }
         
-        // CRITICAL FIX: Listen for messages from content for exit requests
-        window.addEventListener('message', function(event) {
-            try {
-                if (event.data && (event.data.type === 'exit' || 
-                                  event.data.type === 'rise360Exit' || 
-                                  event.data === 'exit' || 
-                                  event.data === 'close' || 
-                                  event.data === 'scorm:exit')) {
-                    console.log('[Captivate] Received exit message from content');
-                    // Find the Save & Exit button and click it
-                    var saveExitBtn = document.getElementById('saveExitBtn');
-                    if (saveExitBtn) {
-                        console.log('[Captivate] Triggering Save & Exit button');
-                        saveExitBtn.click();
-                    }
-                }
-            } catch (e) {
-                console.error('[Captivate] Error handling message event:', e);
-            }
-        });
+        // REMOVED: Auto-exit detection - Users must click "Save & Exit" button
+        console.log('[Captivate] Auto-exit detection disabled. Users must use "Save & Exit" button.');
         
         window.addEventListener('beforeunload', function() {
             console.log('[Captivate] Auto-save');

@@ -147,12 +147,7 @@ function initCourseProgress() {
         if (progress === 100) {
             console.log('Setting button to Show Certificate mode');
             // Change to certificate button
-            const buttonText = startButton.querySelector('.button-text');
-            if (buttonText) {
-                buttonText.textContent = 'Show Certificate';
-            } else {
-                startButton.textContent = 'Show Certificate';
-            }
+            startButton.textContent = 'Show Certificate';
             startButton.classList.add('completed-button');
             
             // Update href and onclick
@@ -169,13 +164,8 @@ function initCourseProgress() {
             startButton.parentNode.replaceChild(newButton, startButton);
         } else if (progress > 0) {
             console.log('Setting button to Resume mode');
-            // Resume button - preserve icon by only updating the text span
-            const buttonText = startButton.querySelector('.button-text');
-            if (buttonText) {
-                buttonText.textContent = 'Resume Course';
-            } else {
-                startButton.textContent = 'Resume Course';
-            }
+            // Resume button
+            startButton.textContent = 'Resume';
             startButton.classList.add('resume-button');
             
             // Clear certificate onclick if it was previously set
@@ -188,13 +178,8 @@ function initCourseProgress() {
             }
         } else {
             console.log('Setting button to Start mode');
-            // Start button - preserve icon by only updating the text span
-            const buttonText = startButton.querySelector('.button-text');
-            if (buttonText) {
-                buttonText.textContent = 'Start Course';
-            } else {
-                startButton.textContent = 'Start Course';
-            }
+            // Start button
+            startButton.textContent = 'Start';
             
             // Clear certificate onclick if it was previously set
             if (startButton.getAttribute('onclick')) {

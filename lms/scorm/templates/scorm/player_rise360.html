@@ -484,7 +484,7 @@
             },
             
             LMSFinish: function(param) {
-                console.log('[Rise 360] Finish - EXIT COURSE button clicked inside content');
+                console.log('[Rise 360] Finish - Please use "Save & Exit" button');
                 try {
                     // Save any pending cached data first
                     if (scormDataCache.pendingSync) {
@@ -492,95 +492,16 @@
                         scormDataCache.pendingSync = false;
                     }
                     
-                    // Then call the API
-                const result = makeRiseAPICall('LMSFinish', [param]);
-                
-                    // Enhanced sync logic with retry mechanism
-                    function syncToServer(attemptCount = 0) {
-                        console.log(`[Rise 360] Syncing to database (attempt ${attemptCount + 1})...`);
-                        
-                        // BUG FIX: Use FormData instead of raw urlencoded string
-                        const formData = new FormData();
-                        formData.append('attempt_id', '{{ attempt.id|default:attempt_id }}');
-                        
-                        return fetch('{% url "scorm:sync_on_exit" %}', {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRFToken': getCookie('csrftoken')
-                            // Let browser set proper Content-Type with boundary
-                        },
-                        body: formData
-                    })
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error(`HTTP ${response.status}`);
-                            }
-                            return response.json();
-                        });
-                    }
+                    // Call the API to save data
+                    const result = makeRiseAPICall('LMSFinish', [param]);
                     
-                    // Function to redirect safely
-                    function safeRedirect() {
-                        console.log('[Rise 360] Redirecting to topic view...');
-                        try {
-                            if (window.top && window.top !== window) {
-                                window.top.location.href = '{% url "courses:topic_view" topic.id %}';
-                            } else if (window.parent && window.parent !== window) {
-                                window.parent.location.href = '{% url "courses:topic_view" topic.id %}';
-                            } else {
-                                window.location.href = '{% url "courses:topic_view" topic.id %}';
-                            }
-                        } catch (e) {
-                            // Fallback if cross-origin restrictions
-                            console.log('[Rise 360] Cross-origin restriction, using fallback redirect');
-                            window.location.href = '{% url "courses:topic_view" topic.id %}';
-                        }
-                    }
+                    // DO NOT auto-redirect - user must click "Save & Exit" button
+                    console.log('[Rise 360] Data saved. Please click "Save & Exit" button to exit.');
                     
-                    // CRITICAL FIX: Sync to database before redirect with retry
-                    if (result === 'true') {
-                        console.log('[Rise 360] Data saved, syncing to database...');
-                        
-                        // Try to sync with retries
-                        syncToServer(0)
-                            .then(data => {
-                                console.log('[Rise 360] Database sync successful:', data);
-                                // Delay redirect briefly for stable session state
-                                setTimeout(safeRedirect, 500);
-                    })
-                    .catch(error => {
-                        console.error('[Rise 360] Database sync error:', error);
-                                
-                                // Try once more
-                                syncToServer(1)
-                                    .then(data => {
-                                        console.log('[Rise 360] Database sync retry successful');
-                                        setTimeout(safeRedirect, 500);
-                                    })
-                                    .catch(error => {
-                                        console.error('[Rise 360] Database sync retry failed:', error);
-                                        // Still redirect even if sync fails after retry
-                                        setTimeout(safeRedirect, 1000);
-                                    });
-                            });
-                                } else {
-                        // Even if LMSFinish failed, try to sync data and redirect
-                        console.warn('[Rise 360] LMSFinish failed, attempting database sync anyway');
-                        syncToServer(0)
-                            .then(() => setTimeout(safeRedirect, 500))
-                            .catch(() => setTimeout(safeRedirect, 1000));
-                    }
-                    
-                    return result || 'true'; // Return success to prevent content from breaking
-                            } catch (e) {
+                    return result || 'true';
+                } catch (e) {
                     console.error('[Rise 360] Finish error:', e);
-                    
-                    // Critical: still try to redirect even if there was an error
-                    setTimeout(() => {
-                                window.location.href = '{% url "courses:topic_view" topic.id %}';
-                    }, 1000);
-                
-                    return 'true'; // Return success to prevent content from breaking
+                    return 'true';
                 }
             },
             
@@ -702,62 +623,11 @@
                 return window.API.LMSInitialize(param);
             },
             Terminate: function(param) {
-                console.log('[Rise 360] Terminate - EXIT COURSE button clicked inside content (SCORM 2004)');
+                console.log('[Rise 360] Terminate - Please use "Save & Exit" button');
                 const result = makeRiseAPICall('Terminate', [param]);
                 
-                // CRITICAL FIX: Sync to database before redirect (same as Save & Exit button)
-                if (result === 'true') {
-                    console.log('[Rise 360] Data saved, syncing to database...');
-                    
-                    // BUG FIX: Use FormData instead of raw urlencoded string
-                    const formData = new FormData();
-                    formData.append('attempt_id', '{{ attempt.id|default:attempt_id }}');
-                    
-                    // Call the same sync endpoint as Save & Exit button
-                    fetch('{% url "scorm:sync_on_exit" %}', {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRFToken': getCookie('csrftoken')
-                            // Let browser set proper Content-Type with boundary
-                        },
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        console.log('[Rise 360] Database sync successful, redirecting...');
-                        // Force redirect from top window to bypass iframe restrictions
-                        try {
-                            if (window.top && window.top !== window) {
-                                window.top.location.href = '{% url "courses:topic_view" topic.id %}';
-                            } else if (window.parent && window.parent !== window) {
-                                window.parent.location.href = '{% url "courses:topic_view" topic.id %}';
-                            } else {
-                                window.location.href = '{% url "courses:topic_view" topic.id %}';
-                            }
-                        } catch (e) {
-                            // Fallback if cross-origin restrictions
-                            console.log('[Rise 360] Cross-origin restriction, trying fallback redirect');
-                            window.location.href = '{% url "courses:topic_view" topic.id %}';
-                        }
-                    })
-                    .catch(error => {
-                        console.error('[Rise 360] Database sync error:', error);
-                        // Still redirect even if sync fails
-                        setTimeout(function() {
-                            try {
-                                if (window.top && window.top !== window) {
-                                    window.top.location.href = '{% url "courses:topic_view" topic.id %}';
-                                } else if (window.parent && window.parent !== window) {
-                                    window.parent.location.href = '{% url "courses:topic_view" topic.id %}';
-                                } else {
-                                    window.location.href = '{% url "courses:topic_view" topic.id %}';
-                                }
-                            } catch (e) {
-                                window.location.href = '{% url "courses:topic_view" topic.id %}';
-                            }
-                        }, 500);
-                    });
-                }
+                // DO NOT auto-redirect - user must click "Save & Exit" button
+                console.log('[Rise 360] Data saved. Please click "Save & Exit" button to exit.');
                 
                 return result;
             },
@@ -823,327 +693,7 @@
         console.log('✅ Rise 360 SCORM API created and ready!');
         }
         
-        // CRITICAL FIX: Enhance Rise 360 internal exit buttons - moved before usage
-        function enhanceRise360ExitButtons() {
-            console.log('[Rise 360] Enhancing internal exit buttons...');
-            
-            // Function to handle exit button clicks
-            function handleExitClick(event) {
-                console.log('[Rise 360] Internal exit button clicked');
-                if (event) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                }
-                
-                // FIXED: First, explicitly save all current data
-                try {
-                    console.log('[Rise 360] Saving current state before exit...');
-                    if (window.API && window.API.LMSCommit) {
-                        window.API.LMSCommit('');
-                    }
-                } catch (e) {
-                    console.warn('[Rise 360] Error saving state before exit:', e);
-                }
-                
-                // Call SCORM API to save and exit
-                try {
-                    if (window.API && window.API.LMSFinish) {
-                        console.log('[Rise 360] Calling LMSFinish...');
-                        const result = window.API.LMSFinish('');
-                        console.log('[Rise 360] LMSFinish result:', result);
-                        
-                        if (result === 'true') {
-                            console.log('[Rise 360] SCORM data saved, syncing to database...');
-                            
-                            // BUG FIX: Use FormData instead of raw urlencoded string
-                            const formData = new FormData();
-                            formData.append('attempt_id', '{{ attempt.id|default:attempt_id }}');
-                            
-                            // FIXED: Ensure data is synced to the server
-                            fetch('{% url "scorm:sync_on_exit" %}', {
-                                method: 'POST',
-                                headers: {
-                                    'X-CSRFToken': getCookie('csrftoken')
-                                    // Let browser set proper Content-Type with boundary
-                                },
-                                body: formData
-                            })
-                            .then(response => response.json())
-                            .then(data => {
-                                console.log('[Rise 360] Database sync successful:', data);
-                                window.location.href = '{% url "courses:topic_view" topic.id %}';
-                            })
-                            .catch(error => {
-                                console.error('[Rise 360] Database sync error:', error);
-                                window.location.href = '{% url "courses:topic_view" topic.id %}';
-                            });
-                        } else {
-                            console.warn('[Rise 360] LMSFinish failed, redirecting anyway');
-                            window.location.href = '{% url "courses:topic_view" topic.id %}';
-                        }
-                    } else if (window.API && window.API.Terminate) {
-                        console.log('[Rise 360] Calling Terminate...');
-                        const result = window.API.Terminate('');
-                        console.log('[Rise 360] Terminate result:', result);
-                        
-                        if (result === 'true') {
-                            console.log('[Rise 360] SCORM data saved, redirecting...');
-                            window.location.href = '{% url "courses:topic_view" topic.id %}';
-                        } else {
-                            console.warn('[Rise 360] Terminate failed, redirecting anyway');
-                            window.location.href = '{% url "courses:topic_view" topic.id %}';
-                        }
-                    } else {
-                        console.warn('[Rise 360] No SCORM API available, redirecting anyway');
-                        window.location.href = '{% url "courses:topic_view" topic.id %}';
-                    }
-                } catch (e) {
-                    console.error('[Rise 360] Error in exit handler:', e);
-                    // Still redirect even if there's an error
-                    window.location.href = '{% url "courses:topic_view" topic.id %}';
-                }
-                
-                return false;
-            }
-            
-            // Function to enhance exit buttons in iframe content
-            function enhanceIframeExitButtons() {
-                try {
-                    const riseFrame = document.getElementById('riseFrame');
-                    if (!riseFrame || !riseFrame.contentWindow) {
-                        return;
-                    }
-                    
-                    // FIXED: Wait for iframe content to be fully loaded
-                    if (riseFrame.contentDocument && riseFrame.contentDocument.readyState !== 'complete') {
-                        console.log('[Rise 360] Iframe content not fully loaded, waiting...');
-                        setTimeout(enhanceIframeExitButtons, 500);
-                        return;
-                    }
-                    
-                    // FIXED: Try multiple approaches to access iframe content securely
-                    let iframeDoc = null;
-                    try {
-                        iframeDoc = riseFrame.contentDocument;
-                    } catch (e) {
-                        console.warn('[Rise 360] Could not access contentDocument directly:', e);
-                        try {
-                            iframeDoc = riseFrame.contentWindow.document;
-                        } catch (e2) {
-                            console.warn('[Rise 360] Could not access contentWindow.document either:', e2);
-                            return; // Can't access iframe content (likely cross-origin)
-                        }
-                    }
-                    
-                    if (!iframeDoc) {
-                        console.warn('[Rise 360] Could not access iframe document');
-                        return;
-                    }
-                    
-                    // Look for Rise 360 exit buttons with various selectors
-                    const exitSelectors = [
-                        // Rise 360 specific exit button patterns
-                        'button[data-acc-text*="Exit" i]',
-                        'button[data-acc-text*="Save & Exit" i]',
-                        'button[data-acc-text*="Save and Exit" i]',
-                        'button[data-acc-text*="Close" i]',
-                        'button[data-acc-text*="Finish" i]',
-                        'button[data-acc-text*="Complete" i]',
-                        'button[data-acc-text*="Done" i]',
-                        'button[data-acc-text*="End" i]',
-                        'button[data-acc-text*="Quit" i]',
-                        'button[data-acc-text*="Stop" i]',
-                        // Generic button patterns
-                        'button[onclick*="exit" i]',
-                        'button[onclick*="save" i]',
-                        'button[onclick*="close" i]',
-                        'button[onclick*="finish" i]',
-                        'button[onclick*="complete" i]',
-                        'button[onclick*="done" i]',
-                        'button[onclick*="end" i]',
-                        'button[onclick*="quit" i]',
-                        'button[onclick*="stop" i]',
-                        // Link patterns
-                        'a[href*="exit" i]',
-                        'a[href*="close" i]',
-                        'a[href*="finish" i]',
-                        'a[href*="complete" i]',
-                        'a[href*="done" i]',
-                        'a[href*="end" i]',
-                        'a[href*="quit" i]',
-                        'a[href*="stop" i]',
-                        // Aria labels
-                        'button[aria-label*="Exit" i]',
-                        'button[aria-label*="Save & Exit" i]',
-                        'button[aria-label*="Save and Exit" i]',
-                        'button[aria-label*="Close" i]',
-                        'button[aria-label*="Finish" i]',
-                        'button[aria-label*="Complete" i]',
-                        'button[aria-label*="Done" i]',
-                        'button[aria-label*="End" i]',
-                        'button[aria-label*="Quit" i]',
-                        'button[aria-label*="Stop" i]',
-                        'a[aria-label*="Exit" i]',
-                        'a[aria-label*="Save & Exit" i]',
-                        'a[aria-label*="Save and Exit" i]',
-                        'a[aria-label*="Close" i]',
-                        'a[aria-label*="Finish" i]',
-                        'a[aria-label*="Complete" i]',
-                        'a[aria-label*="Done" i]',
-                        'a[aria-label*="End" i]',
-                        'a[aria-label*="Quit" i]',
-                        'a[aria-label*="Stop" i]',
-                        // CSS classes and IDs
-                        '.exit-button',
-                        '.save-exit-button',
-                        '.close-button',
-                        '.finish-button',
-                        '.complete-button',
-                        '.done-button',
-                        '.end-button',
-                        '.quit-button',
-                        '.stop-button',
-                        '#exit-button',
-                        '#save-exit-button',
-                        '#close-button',
-                        '#finish-button',
-                        '#complete-button',
-                        '#done-button',
-                        '#end-button',
-                        '#quit-button',
-                        '#stop-button'
-                    ];
-                    
-                    exitSelectors.forEach(selector => {
-                        try {
-                            const elements = iframeDoc.querySelectorAll(selector);
-                            elements.forEach(element => {
-                                if (!element.hasAttribute('data-rise360-enhanced')) {
-                                    element.setAttribute('data-rise360-enhanced', 'true');
-                                    
-                                    // Remove any existing click handlers
-                                    element.onclick = null;
-                                    
-                                    // Add new click handler
-                                    element.addEventListener('click', handleExitClick);
-                                    
-                                    console.log('[Rise 360] Enhanced exit button:', element);
-                                }
-                            });
-                        } catch (e) {
-                            // Silently handle cross-origin or selector errors
-                        }
-                    });
-                    
-                    // Also look for text-based exit buttons
-                    const clickableElements = iframeDoc.querySelectorAll('button, a, [role="button"]');
-                    clickableElements.forEach(element => {
-                        const text = element.textContent ? element.textContent.trim().toLowerCase() : '';
-                        const isExitButton = (
-                            text === 'exit' || text === 'exit course' || text === 'close' || 
-                            text === 'save & exit' || text === 'save and exit' || text === 'save exit' ||
-                            text === 'finish' || text === 'complete' || text === 'done' || 
-                            text === 'end' || text === 'quit' || text === 'stop' ||
-                            text === 'finish course' || text === 'complete course' || text === 'end course' ||
-                            text === 'close course' || text === 'quit course' || text === 'stop course' ||
-                            (text.includes('save') && text.includes('exit')) ||
-                            (text.includes('finish') && text.includes('course')) ||
-                            (text.includes('complete') && text.includes('course')) ||
-                            (text.includes('end') && text.includes('course')) ||
-                            (text.includes('close') && text.includes('course')) ||
-                            (text.includes('quit') && text.includes('course')) ||
-                            (text.includes('stop') && text.includes('course'))
-                        );
-                        
-                        if (isExitButton && !element.hasAttribute('data-rise360-enhanced')) {
-                            element.setAttribute('data-rise360-enhanced', 'true');
-                            element.style.cursor = 'pointer';
-                            
-                            // Remove any existing click handlers
-                            element.onclick = null;
-                            
-                            // Add new click handler
-                            element.addEventListener('click', handleExitClick);
-                            
-                            console.log('[Rise 360] Enhanced text exit button:', element.textContent.trim());
-                        }
-                    });
-                    
-                } catch (e) {
-                    console.log('[Rise 360] Could not enhance iframe exit buttons (cross-origin):', e.message);
-                }
-            }
-            
-            // FIXED: Properly enhance Rise360 content's internal exit buttons
-            // We need to actively enhance the exit buttons to ensure they work correctly
-            console.log('[Rise 360] Enhancing Rise360 content\'s internal exit functionality');
-            enhanceIframeExitButtons(); // Call the enhancement function defined above
-            
-            // Only add minimal logging to help with debugging
-            if (window.API && window.API.LMSFinish) {
-                const originalLMSFinish = window.API.LMSFinish;
-                window.API.LMSFinish = function() {
-                    console.log('[Rise 360] LMSFinish called by content');
-                    return originalLMSFinish.apply(this, arguments);
-                };
-            }
-            
-            // Listen for exit messages from content without modifying UI
-            window.addEventListener('message', function(event) {
-                if (event.data === 'exit' || event.data === 'close' || event.data === 'scorm:exit') {
-                    console.log('[Rise 360] Exit message received from content');
-                    if (window.API) {
-                        window.API.LMSFinish('');
-                    }
-                }
-            });
-            
-            // CRITICAL FIX: Prevent infinite loops with global flag
-            if (window.rise360EnhancementActive) {
-                console.log('[Rise 360] Enhancement already active, skipping duplicate');
-                return;
-            }
-            window.rise360EnhancementActive = true;
-            
-            let enhancementAttempts = 0;
-            const maxEnhancementAttempts = 8; // Reduced to 8 attempts
-            let enhanceInterval = null;
-            
-            function limitedEnhanceIframeExitButtons() {
-                if (enhancementAttempts >= maxEnhancementAttempts) {
-                    console.log('[Rise 360] Max enhancement attempts reached, stopping');
-                    if (enhanceInterval) {
-                        clearInterval(enhanceInterval);
-                        enhanceInterval = null;
-                    }
-                    return;
-                }
-                enhancementAttempts++;
-                enhanceIframeExitButtons();
-            }
-            
-            // Use a more efficient approach with increasing intervals
-            const enhancementIntervals = [1000, 2000, 4000, 7000]; // Increasing intervals
-            let enhancementIndex = 0;
-            
-            function scheduleNextRiseEnhancement() {
-                if (enhancementIndex >= enhancementIntervals.length) {
-                    console.log('[Rise 360] Exit button enhancement completed after ' + enhancementIndex + ' attempts');
-                    return; // Stop when we've used all intervals
-                }
-                
-                const currentInterval = enhancementIntervals[enhancementIndex];
-                setTimeout(() => {
-                    limitedEnhanceIframeExitButtons();
-                    enhancementIndex++;
-                    scheduleNextRiseEnhancement(); // Schedule next with increasing interval
-                }, currentInterval);
-            }
-            
-            // Start the enhancement sequence
-            scheduleNextRiseEnhancement();
-        }
-        
+        // REMOVED: enhanceRise360ExitButtons function - Users must use "Save & Exit" button
 document.addEventListener('DOMContentLoaded', function() {
     const riseFrame = document.getElementById('riseFrame');
     if (riseFrame) {
@@ -1165,69 +715,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
         
-        // CRITICAL FIX: Listen for messages from Rise 360 content for exit requests
-        window.addEventListener('message', function(event) {
-            // Accept messages from all origins since SCORM content may be on different domain
-            try {
-                if (event.data && (event.data.type === 'rise360Exit' || event.data.type === 'exit')) {
-                    console.log('[Rise 360] Received exit message from content');
-                    // Find the Save & Exit button and click it
-                    var saveExitBtn = document.getElementById('saveExitBtn');
-                    if (saveExitBtn) {
-                        console.log('[Rise 360] Triggering Save & Exit button');
-                        saveExitBtn.click();
-                    } else {
-                        handleRise360Exit();
-                    }
-                } else if (event.data && event.data.type === 'rise360Progress') {
-                    console.log('[Rise 360] Received progress update from content:', event.data.progress);
-                }
-            } catch (e) {
-                console.error('[Rise 360] Error handling message event:', e);
-            }
-        });
-        
-        // Function to handle Rise 360 exit requests
-        function handleRise360Exit() {
-            console.log('[Rise 360] Handling exit request from content');
-            
-            // Call SCORM API to save and exit
-            try {
-                if (window.API && window.API.LMSFinish) {
-                    console.log('[Rise 360] Calling LMSFinish...');
-                    const result = window.API.LMSFinish('');
-                    console.log('[Rise 360] LMSFinish result:', result);
-                    
-                    if (result === 'true') {
-                        console.log('[Rise 360] SCORM data saved, redirecting...');
-                        // Redirect back to topic view
-                        window.location.href = '{% url "courses:topic_view" topic.id %}';
-                    } else {
-                        console.warn('[Rise 360] LMSFinish failed, redirecting anyway');
-                        window.location.href = '{% url "courses:topic_view" topic.id %}';
-                    }
-                } else if (window.API && window.API.Terminate) {
-                    console.log('[Rise 360] Calling Terminate...');
-                    const result = window.API.Terminate('');
-                    console.log('[Rise 360] Terminate result:', result);
-                    
-                    if (result === 'true') {
-                        console.log('[Rise 360] SCORM data saved, redirecting...');
-                        window.location.href = '{% url "courses:topic_view" topic.id %}';
-                    } else {
-                        console.warn('[Rise 360] Terminate failed, redirecting anyway');
-                        window.location.href = '{% url "courses:topic_view" topic.id %}';
-                    }
-                } else {
-                    console.warn('[Rise 360] No SCORM API available, redirecting anyway');
-                    window.location.href = '{% url "courses:topic_view" topic.id %}';
-                }
-            } catch (e) {
-                console.error('[Rise 360] Error in exit handler:', e);
-                // Still redirect even if there's an error
-                window.location.href = '{% url "courses:topic_view" topic.id %}';
-            }
-        }
+        // REMOVED: Auto-exit detection - Users must click "Save & Exit" button
+        console.log('[Rise 360] Auto-exit detection disabled. Users must use "Save & Exit" button.');
     </script>
 
     <div class="scorm-container">
@@ -1293,28 +782,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 }, 300);
             }
             
-            // CRITICAL FIX: Initialize Exit Assessment Button Fix in iframe
-            try {
-                const riseFrame = document.getElementById('riseFrame');
-                if (riseFrame && riseFrame.contentWindow) {
-                    // Add global variables for the exit assessment fix script
-                    riseFrame.contentWindow.SCORM_ATTEMPT_ID = '{{ attempt.id|default:attempt_id }}';
-                    riseFrame.contentWindow.SCORM_TOPIC_URL = '{% url "courses:topic_view" topic.id %}';
-                    
-                    // Inject the exit assessment fix script
-                    const script = riseFrame.contentDocument.createElement('script');
-                    script.src = '/static/scorm/exit_assessment_fix.js?v=2';
-                    script.onload = function() {
-                        console.log('[Rise 360] Exit Assessment Button Fix loaded in iframe');
-                    };
-                    riseFrame.contentDocument.head.appendChild(script);
-                }
-            } catch (e) {
-                console.error('[Rise 360] Error initializing Exit Assessment Button Fix:', e);
-            }
-            
-            // CRITICAL FIX: Enhance Rise 360 internal exit buttons
-            enhanceRise360ExitButtons();
+            // REMOVED: Auto-exit button enhancement - Users must use "Save & Exit" button
+            console.log('[Rise 360] Content loaded. Use "Save & Exit" button to exit.');
         });
         
         // FIXED: Save & Exit button handler with proper event attachment and DB sync
