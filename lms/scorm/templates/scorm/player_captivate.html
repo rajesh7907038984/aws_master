@@ -34,6 +34,35 @@
             color: #333;
         }
         
+        .progress-container {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            min-width: 200px;
+        }
+        
+        .progress-bar-wrapper {
+            flex: 1;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff9800, #f57c00);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .progress-text {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #666;
+            min-width: 45px;
+        }
+        
         .scorm-actions {
             display: flex;
             gap: 0.5rem;
@@ -91,6 +120,12 @@
             {% if preview_mode %}
             <span class="preview-badge">PREVIEW MODE</span>
             {% endif %}
+        </div>
+        <div class="progress-container">
+            <div class="progress-bar-wrapper">
+                <div id="progressBarFill" class="progress-bar-fill"></div>
+            </div>
+            <span id="progressText" class="progress-text">0%</span>
         </div>
         <div class="scorm-actions">
             <button type="button" id="saveExitBtn" class="btn">Save & Exit</button>
@@ -316,6 +351,44 @@
         };
         
         console.log('✅ Captivate SCORM API ready!');
+        
+        // Progress tracking for Captivate
+        let lastProgressUpdate = 0;
+        
+        function updateProgressBar() {
+            try {
+                let progress = 0;
+                
+                // Captivate reports progress via score
+                const scoreRaw = window.API.LMSGetValue('cmi.core.score.raw');
+                const scoreMax = window.API.LMSGetValue('cmi.core.score.max');
+                if (scoreRaw && scoreMax && parseFloat(scoreMax) > 0) {
+                    progress = Math.round((parseFloat(scoreRaw) / parseFloat(scoreMax)) * 100);
+                }
+                
+                // Check completion status
+                if (progress === 0) {
+                    const status = window.API.LMSGetValue('cmi.core.lesson_status');
+                    if (status === 'completed' || status === 'passed') {
+                        progress = 100;
+                    } else if (status === 'incomplete' || status === 'browsed') {
+                        progress = 50;
+                    }
+                }
+                
+                // Update UI
+                if (progress !== lastProgressUpdate && progress >= 0 && progress <= 100) {
+                    document.getElementById('progressBarFill').style.width = progress + '%';
+                    document.getElementById('progressText').textContent = progress + '%';
+                    lastProgressUpdate = progress;
+                    console.log('[Captivate Progress] ' + progress + '%');
+                }
+            } catch (e) {
+                console.error('[Captivate Progress] Error:', e);
+            }
+        }
+        
+        setInterval(updateProgressBar, 2000);
     </script>
 
     <div class="scorm-container">

@@ -34,6 +34,35 @@
             color: #333;
         }
         
+        .progress-container {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            min-width: 200px;
+        }
+        
+        .progress-bar-wrapper {
+            flex: 1;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #f59e0b, #d97706);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .progress-text {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #666;
+            min-width: 45px;
+        }
+        
         .scorm-actions {
             display: flex;
             gap: 0.5rem;
@@ -99,6 +128,12 @@
             {% if preview_mode %}
             <span class="preview-badge">PREVIEW MODE</span>
             {% endif %}
+        </div>
+        <div class="progress-container">
+            <div class="progress-bar-wrapper">
+                <div id="progressBarFill" class="progress-bar-fill"></div>
+            </div>
+            <span id="progressText" class="progress-text">0%</span>
         </div>
         <div class="scorm-actions">
             <button type="button" id="saveExitBtn" class="btn">Save & Exit</button>
@@ -389,6 +424,46 @@
         };
         
         console.log('✅ Rise 360 SCORM API created and ready!');
+        
+        // Progress tracking for Rise 360
+        let lastProgressUpdate = 0;
+        
+        function updateProgressBar() {
+            try {
+                let progress = 0;
+                
+                // Rise 360 tracks progress via lesson_location and status
+                const bookmark = window.API.LMSGetValue('cmi.core.lesson_location');
+                const status = window.API.LMSGetValue('cmi.core.lesson_status');
+                
+                // If completed, show 100%
+                if (status === 'completed' || status === 'passed') {
+                    progress = 100;
+                } else if (bookmark && bookmark.length > 0) {
+                    // Rise saves bookmark, estimate progress
+                    progress = 50; // Started but not completed
+                }
+                
+                // Check score if available
+                const scoreRaw = window.API.LMSGetValue('cmi.core.score.raw');
+                const scoreMax = window.API.LMSGetValue('cmi.core.score.max');
+                if (scoreRaw && scoreMax && parseFloat(scoreMax) > 0) {
+                    progress = Math.round((parseFloat(scoreRaw) / parseFloat(scoreMax)) * 100);
+                }
+                
+                // Update UI
+                if (progress !== lastProgressUpdate && progress >= 0 && progress <= 100) {
+                    document.getElementById('progressBarFill').style.width = progress + '%';
+                    document.getElementById('progressText').textContent = progress + '%';
+                    lastProgressUpdate = progress;
+                    console.log('[Rise 360 Progress] ' + progress + '%');
+                }
+            } catch (e) {
+                console.error('[Rise 360 Progress] Error:', e);
+            }
+        }
+        
+        setInterval(updateProgressBar, 2000);
     </script>
 
     <div class="scorm-container">

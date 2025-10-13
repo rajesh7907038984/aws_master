@@ -34,6 +34,35 @@
             color: #333;
         }
         
+        .progress-container {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            min-width: 200px;
+        }
+        
+        .progress-bar-wrapper {
+            flex: 1;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4caf50, #45a049);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .progress-text {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #666;
+            min-width: 45px;
+        }
+        
         .scorm-actions {
             display: flex;
             gap: 0.5rem;
@@ -91,6 +120,12 @@
             {% if preview_mode %}
             <span class="preview-badge">PREVIEW MODE</span>
             {% endif %}
+        </div>
+        <div class="progress-container">
+            <div class="progress-bar-wrapper">
+                <div id="progressBarFill" class="progress-bar-fill"></div>
+            </div>
+            <span id="progressText" class="progress-text">0%</span>
         </div>
         <div class="scorm-actions">
             <button type="button" id="saveExitBtn" class="btn">Save & Exit</button>
@@ -277,6 +312,55 @@
         };
         
         console.log('✅ Generic SCORM API ready!');
+        
+        // Progress tracking system
+        let lastProgressUpdate = 0;
+        
+        function updateProgressBar() {
+            try {
+                // Try multiple sources for progress calculation
+                let progress = 0;
+                
+                // Method 1: Check score (most reliable for quizzes)
+                const scoreRaw = window.API.LMSGetValue('cmi.core.score.raw');
+                const scoreMax = window.API.LMSGetValue('cmi.core.score.max');
+                if (scoreRaw && scoreMax && parseFloat(scoreMax) > 0) {
+                    progress = Math.round((parseFloat(scoreRaw) / parseFloat(scoreMax)) * 100);
+                }
+                
+                // Method 2: Check lesson_status for completion
+                if (progress === 0) {
+                    const status = window.API.LMSGetValue('cmi.core.lesson_status');
+                    if (status === 'completed' || status === 'passed') {
+                        progress = 100;
+                    } else if (status === 'incomplete' || status === 'browsed') {
+                        // Estimate 50% for started but not completed
+                        progress = 50;
+                    }
+                }
+                
+                // Method 3: Check progress_measure (SCORM 2004)
+                if (progress === 0 && window.API_1484_11) {
+                    const progressMeasure = window.API_1484_11.GetValue('cmi.progress_measure');
+                    if (progressMeasure && progressMeasure !== '') {
+                        progress = Math.round(parseFloat(progressMeasure) * 100);
+                    }
+                }
+                
+                // Update UI if progress changed
+                if (progress !== lastProgressUpdate && progress >= 0 && progress <= 100) {
+                    document.getElementById('progressBarFill').style.width = progress + '%';
+                    document.getElementById('progressText').textContent = progress + '%';
+                    lastProgressUpdate = progress;
+                    console.log('[Progress] Updated to ' + progress + '%');
+                }
+            } catch (e) {
+                console.error('[Progress] Error updating progress:', e);
+            }
+        }
+        
+        // Update progress every 2 seconds
+        setInterval(updateProgressBar, 2000);
     </script>
 
     <div class="scorm-container">

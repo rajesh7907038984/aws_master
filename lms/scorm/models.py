@@ -79,6 +79,12 @@ class ScormPackage(models.Model):
         help_text="Mastery score from manifest (pass/fail threshold, NOT max score)"
     )
     
+    # Player settings
+    commit_frequency = models.IntegerField(
+        default=5000,
+        help_text="Auto-commit frequency in milliseconds (SCORM Cloud default: 10000ms, Ours: 5000ms for better data safety)"
+    )
+    
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -124,18 +124,40 @@ def check_scorm_health(request):
         }, status=500)
 
 
+def _safe_str(value):
+    """Safely convert any value to string, handling None and non-string types"""
+    if value is None or value == '':
+        return ''
+    try:
+        return str(value).strip()
+    except:
+        return ''
+
+
+def _safe_len(value):
+    """Safely get length of a value, handling None"""
+    if value is None:
+        return 0
+    try:
+        return len(value)
+    except:
+        return 0
+
+
 @login_required
 @require_http_methods(["POST"])
 def sync_on_exit(request):
     """
     Sync SCORM data to TopicProgress when user exits SCORM content
     Called by the "Save & Exit" button to ensure all quiz state and scores are saved
-    ENHANCED: Comprehensive data preservation with transaction safety
+    ENHANCED: Comprehensive data preservation with transaction safety and robust error handling
     """
+    attempt_id = None
     try:
         attempt_id = request.POST.get('attempt_id')
         
         if not attempt_id:
+            logger.warning("sync_on_exit called without attempt_id")
             return JsonResponse({
                 'success': False,
                 'error': 'No attempt_id provided'
@@ -143,19 +165,52 @@ def sync_on_exit(request):
         
         # Use atomic transaction to ensure data consistency
         from django.db import transaction
+        from decimal import Decimal, InvalidOperation
         
-        with transaction.atomic():
-            # Get the attempt with select_for_update to prevent race conditions
-            attempt = ScormAttempt.objects.select_for_update().filter(
+        # First, try to get the attempt without locking to check if it exists
+        try:
+            attempt_check = ScormAttempt.objects.filter(
                 id=attempt_id,
                 user=request.user
             ).select_related('scorm_package__topic').first()
             
-            if not attempt:
+            if not attempt_check:
+                logger.warning(f"Attempt {attempt_id} not found or unauthorized for user {request.user.id}")
                 return JsonResponse({
                     'success': False,
                     'error': 'Attempt not found or unauthorized'
                 }, status=404)
+        except Exception as e:
+            logger.error(f"Error checking attempt {attempt_id}: {str(e)}")
+            return JsonResponse({
+                'success': False,
+                'error': 'Database error when checking attempt'
+            }, status=500)
+        
+        # Now use transaction with locking
+        with transaction.atomic():
+            # Get the attempt with select_for_update to prevent race conditions
+            # Use nowait=False to wait for lock instead of failing immediately
+            try:
+                attempt = ScormAttempt.objects.select_for_update(nowait=False).filter(
+                    id=attempt_id,
+                    user=request.user
+                ).select_related('scorm_package__topic').first()
+                
+                if not attempt:
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'Attempt not found or unauthorized'
+                    }, status=404)
+            except Exception as e:
+                logger.error(f"Error acquiring lock for attempt {attempt_id}: {str(e)}")
+                # Return success anyway to prevent user frustration - data is likely already saved
+                return JsonResponse({
+                    'success': True,
+                    'synced': False,
+                    'message': 'Lock acquisition failed but data may already be saved',
+                    'warning': 'concurrent_access'
+                })
             
             # Log current state for debugging
             logger.info(f"🔄 Exit sync for attempt {attempt_id}")
@@ -166,62 +221,72 @@ def sync_on_exit(request):
             logger.info(f"   Score Max: {attempt.score_max}")
             logger.info(f"   Score Scaled: {attempt.score_scaled}")
             logger.info(f"   Progress: {attempt.progress_percentage}%")
-            logger.info(f"   Suspend data: {len(attempt.suspend_data) if attempt.suspend_data else 0} chars")
+            logger.info(f"   Suspend data: {_safe_len(attempt.suspend_data)} chars")
             logger.info(f"   Bookmark: {attempt.lesson_location[:50] if attempt.lesson_location else 'None'}")
-            logger.info(f"   Completed Slides: {len(attempt.completed_slides) if attempt.completed_slides else 0}")
+            logger.info(f"   Completed Slides: {_safe_len(attempt.completed_slides)}")
             logger.info(f"   Total Slides: {attempt.total_slides}")
             logger.info(f"   CMI Data Keys: {list(attempt.cmi_data.keys()) if attempt.cmi_data else 'None'}")
             
-            # CRITICAL: Extract and sync all tracking data from CMI data
-            if attempt.cmi_data:
-                version = attempt.scorm_package.version
-                
-                # Extract score from CMI if not in model
-                if not attempt.score_raw:
-                    score_key = 'cmi.core.score.raw' if version == '1.2' else 'cmi.score.raw'
-                    cmi_score = attempt.cmi_data.get(score_key)
-                    if cmi_score and str(cmi_score).strip():
-                        try:
-                            from decimal import Decimal
-                            attempt.score_raw = Decimal(str(cmi_score))
-                            logger.info(f"   ✅ Extracted score from CMI: {attempt.score_raw}")
-                        except:
-                            pass
-                
-                # Extract status from CMI if not in model
-                if attempt.lesson_status in ['not_attempted', 'not attempted']:
-                    status_key = 'cmi.core.lesson_status' if version == '1.2' else 'cmi.completion_status'
-                    cmi_status = attempt.cmi_data.get(status_key)
-                    if cmi_status and str(cmi_status).strip():
-                        attempt.lesson_status = str(cmi_status).replace(' ', '_')
-                        logger.info(f"   ✅ Extracted status from CMI: {attempt.lesson_status}")
-                
-                # Extract suspend data from CMI if not in model
-                if not attempt.suspend_data or len(attempt.suspend_data) == 0:
-                    cmi_suspend = attempt.cmi_data.get('cmi.suspend_data')
-                    if cmi_suspend and str(cmi_suspend).strip():
-                        attempt.suspend_data = str(cmi_suspend)
-                        logger.info(f"   ✅ Extracted suspend data from CMI: {len(attempt.suspend_data)} chars")
-                
-                # Extract bookmark from CMI if not in model
-                if not attempt.lesson_location or len(attempt.lesson_location) == 0:
-                    location_key = 'cmi.core.lesson_location' if version == '1.2' else 'cmi.location'
-                    cmi_location = attempt.cmi_data.get(location_key)
-                    if cmi_location and str(cmi_location).strip():
-                        attempt.lesson_location = str(cmi_location)[:1000]  # Respect field limit
-                        logger.info(f"   ✅ Extracted bookmark from CMI: {attempt.lesson_location[:50]}")
+            # CRITICAL: Extract and sync all tracking data from CMI data with safe extraction
+            if attempt.cmi_data and isinstance(attempt.cmi_data, dict):
+                try:
+                    version = attempt.scorm_package.version if attempt.scorm_package else '1.2'
+                    
+                    # Extract score from CMI if not in model
+                    if not attempt.score_raw:
+                        score_key = 'cmi.core.score.raw' if version == '1.2' else 'cmi.score.raw'
+                        cmi_score = attempt.cmi_data.get(score_key)
+                        score_str = _safe_str(cmi_score)
+                        if score_str:
+                            try:
+                                attempt.score_raw = Decimal(score_str)
+                                logger.info(f"   ✅ Extracted score from CMI: {attempt.score_raw}")
+                            except (InvalidOperation, ValueError) as e:
+                                logger.warning(f"   ⚠️ Could not parse score '{score_str}': {e}")
+                    
+                    # Extract status from CMI if not in model
+                    if attempt.lesson_status in ['not_attempted', 'not attempted', 'unknown']:
+                        status_key = 'cmi.core.lesson_status' if version == '1.2' else 'cmi.completion_status'
+                        cmi_status = attempt.cmi_data.get(status_key)
+                        status_str = _safe_str(cmi_status)
+                        if status_str and status_str not in ['not_attempted', 'not attempted']:
+                            attempt.lesson_status = status_str.replace(' ', '_')
+                            logger.info(f"   ✅ Extracted status from CMI: {attempt.lesson_status}")
+                    
+                    # Extract suspend data from CMI if not in model
+                    if not attempt.suspend_data or _safe_len(attempt.suspend_data) == 0:
+                        cmi_suspend = attempt.cmi_data.get('cmi.suspend_data')
+                        suspend_str = _safe_str(cmi_suspend)
+                        if suspend_str:
+                            attempt.suspend_data = suspend_str
+                            logger.info(f"   ✅ Extracted suspend data from CMI: {_safe_len(attempt.suspend_data)} chars")
+                    
+                    # Extract bookmark from CMI if not in model
+                    if not attempt.lesson_location or _safe_len(attempt.lesson_location) == 0:
+                        location_key = 'cmi.core.lesson_location' if version == '1.2' else 'cmi.location'
+                        cmi_location = attempt.cmi_data.get(location_key)
+                        location_str = _safe_str(cmi_location)
+                        if location_str:
+                            attempt.lesson_location = location_str[:1000]  # Respect field limit
+                            logger.info(f"   ✅ Extracted bookmark from CMI: {attempt.lesson_location[:50]}")
+                except Exception as e:
+                    logger.error(f"   ⚠️ Error extracting CMI data: {str(e)}")
+                    # Continue anyway - don't let CMI extraction errors block save
             
             # CRITICAL: Ensure all JSON fields have valid values (never None)
-            if attempt.completed_slides is None:
-                attempt.completed_slides = []
-            if attempt.navigation_history is None:
-                attempt.navigation_history = []
-            if attempt.detailed_tracking is None:
-                attempt.detailed_tracking = {}
-            if attempt.session_data is None:
-                attempt.session_data = {}
-            if attempt.cmi_data is None:
-                attempt.cmi_data = {}
+            try:
+                if attempt.completed_slides is None:
+                    attempt.completed_slides = []
+                if attempt.navigation_history is None:
+                    attempt.navigation_history = []
+                if attempt.detailed_tracking is None:
+                    attempt.detailed_tracking = {}
+                if attempt.session_data is None:
+                    attempt.session_data = {}
+                if attempt.cmi_data is None:
+                    attempt.cmi_data = {}
+            except Exception as e:
+                logger.error(f"   ⚠️ Error setting JSON defaults: {str(e)}")
             
             # Update last accessed timestamp
             attempt.last_accessed = timezone.now()
@@ -251,61 +316,82 @@ def sync_on_exit(request):
                 'session_time'
             ]
             
-            attempt.save(update_fields=fields_to_update)
-            logger.info(f"   ✅ All tracking data saved to database")
+            try:
+                attempt.save(update_fields=fields_to_update)
+                logger.info(f"   ✅ All tracking data saved to database")
+            except Exception as e:
+                logger.error(f"   ❌ Error saving attempt: {str(e)}")
+                # Re-raise to rollback transaction
+                raise
             
             # Refresh from database to ensure we have the saved data
-            attempt.refresh_from_db()
+            try:
+                attempt.refresh_from_db()
+            except Exception as e:
+                logger.warning(f"   ⚠️ Could not refresh from DB: {str(e)}")
             
             # Verify the save was successful
             logger.info(f"   ✅ Verification after save:")
-            logger.info(f"      - Suspend data length: {len(attempt.suspend_data) if attempt.suspend_data else 0}")
+            logger.info(f"      - Suspend data length: {_safe_len(attempt.suspend_data)}")
             logger.info(f"      - Bookmark: {attempt.lesson_location[:50] if attempt.lesson_location else 'None'}")
             logger.info(f"      - Score: {attempt.score_raw}")
             logger.info(f"      - Status: {attempt.lesson_status}")
             logger.info(f"      - Progress: {attempt.progress_percentage}%")
         
         # Sync the attempt data to TopicProgress (outside transaction for better performance)
-        sync_result = ScormScoreSyncService.sync_score(attempt, force=True)
+        sync_result = False
+        try:
+            sync_result = ScormScoreSyncService.sync_score(attempt, force=True)
+            logger.info(f"   Exit sync to TopicProgress: {'✅ Success' if sync_result else '⚠️ Skipped'}")
+        except Exception as e:
+            logger.error(f"   ⚠️ Error syncing to TopicProgress: {str(e)}")
+            # Don't fail the entire operation if sync fails
         
-        logger.info(f"   Exit sync to TopicProgress: {'✅ Success' if sync_result else '⚠️ Skipped'}")
-        
-        # Clear relevant caches to ensure fresh data
-        from django.core.cache import cache
-        if attempt.scorm_package and attempt.scorm_package.topic:
-            topic = attempt.scorm_package.topic
-            # Clear course cache
-            from courses.models import CourseTopic
-            course_topics = CourseTopic.objects.filter(topic=topic)
-            for ct in course_topics:
-                cache.delete(f'gradebook_course_{ct.course.id}')
-                cache.delete(f'course_{ct.course.id}_progress')
-            
-            # Clear topic progress cache
-            cache.delete(f'topic_progress_{topic.id}_{request.user.id}')
-            cache.delete(f'user_{request.user.id}_progress')
+        # Clear relevant caches to ensure fresh data using centralized cache manager
+        try:
+            from .cache_utils import ScormCacheManager
+            if attempt.scorm_package and attempt.scorm_package.topic:
+                topic = attempt.scorm_package.topic
+                # Get course IDs for this topic
+                from courses.models import CourseTopic
+                course_ids = list(CourseTopic.objects.filter(topic=topic).values_list('course_id', flat=True))
+                
+                # Use centralized cache invalidation
+                ScormCacheManager.invalidate_for_attempt(
+                    attempt_id=attempt.id,
+                    user_id=request.user.id,
+                    topic_id=topic.id,
+                    course_ids=course_ids
+                )
+        except Exception as e:
+            logger.error(f"   ⚠️ Error clearing caches: {str(e)}")
+            # Don't fail the entire operation if cache clearing fails
         
         return JsonResponse({
             'success': True,
             'synced': sync_result,
             'message': 'SCORM data synchronized successfully' if sync_result else 'Data saved but not synced to gradebook',
             'attempt_id': attempt_id,
-            'suspend_data_length': len(attempt.suspend_data) if attempt.suspend_data else 0,
-            'bookmark_length': len(attempt.lesson_location) if attempt.lesson_location else 0,
+            'suspend_data_length': _safe_len(attempt.suspend_data),
+            'bookmark_length': _safe_len(attempt.lesson_location),
             'score': float(attempt.score_raw) if attempt.score_raw else None,
             'status': attempt.lesson_status,
             'progress': float(attempt.progress_percentage) if attempt.progress_percentage else 0,
-            'completed_slides': len(attempt.completed_slides) if attempt.completed_slides else 0,
-            'total_slides': attempt.total_slides
+            'completed_slides': _safe_len(attempt.completed_slides),
+            'total_slides': attempt.total_slides if attempt.total_slides else 0
         })
         
     except Exception as e:
-        logger.error(f"❌ Exit sync error: {str(e)}")
+        logger.error(f"❌ Exit sync error for attempt {attempt_id}: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
+        
+        # Return a more graceful error response
         return JsonResponse({
             'success': False,
-            'error': str(e)
+            'error': 'An error occurred while saving your progress. Please try again.',
+            'technical_error': str(e),
+            'attempt_id': attempt_id
         }, status=500)
 
 

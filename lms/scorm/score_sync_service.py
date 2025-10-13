@@ -135,15 +135,22 @@ class ScormScoreSyncService:
             # Save the changes
             topic_progress.save()
             
-            # Clear cache to ensure fresh data
-            cache_keys = [
-                f'gradebook_course_{topic.courses.first().id}_*' if topic.courses.exists() else None,
-                f'topic_progress_{topic.id}_*',
-                f'user_progress_{scorm_attempt.user.id}_*'
-            ]
-            for key in cache_keys:
-                if key:
-                    cache.delete_pattern(key)
+            # Clear cache to ensure fresh data using centralized cache manager
+            try:
+                from .cache_utils import ScormCacheManager
+                # Get course IDs for this topic
+                from courses.models import CourseTopic
+                course_ids = list(CourseTopic.objects.filter(topic=topic).values_list('course_id', flat=True))
+                
+                # Use centralized cache invalidation
+                ScormCacheManager.invalidate_for_attempt(
+                    attempt_id=scorm_attempt.id,
+                    user_id=scorm_attempt.user.id,
+                    topic_id=topic.id,
+                    course_ids=course_ids
+                )
+            except Exception as cache_error:
+                logger.warning(f"Cache invalidation error: {cache_error}")
             
             logger.info(
                 f" SYNC SUCCESS: Attempt {scorm_attempt.id} -> TopicProgress {topic_progress.id} | "
@@ -164,44 +171,61 @@ class ScormScoreSyncService:
     def _should_sync_score(attempt: 'ScormAttempt') -> bool:
         """
         Determine if an attempt should have its score synced
-        CRITICAL: Only sync when there's actual completion or a real SCORM score
-        DO NOT sync just because user viewed the content!
+        BALANCED FIX: Sync when there's actual SCORM data (completion OR scores OR progress)
+        but DON'T sync empty attempts (just viewing without interaction)
         """
-        # ✅ STRICT FIX: Only sync if actually completed or passed (NOT failed without score)
+        # ✅ Sync if completed or passed
         if attempt.lesson_status in ['completed', 'passed']:
             logger.info(f"Syncing attempt {attempt.id} - Status: {attempt.lesson_status}")
             return True
         
-        # For failed status, only sync if there's an actual score
-        if attempt.lesson_status == 'failed' and attempt.score_raw is not None and attempt.score_raw > 0:
+        # ✅ Sync if incomplete but has meaningful progress (user is actively working)
+        if attempt.lesson_status == 'incomplete' and attempt.score_raw is not None and attempt.score_raw >= 0:
+            logger.info(f"Syncing attempt {attempt.id} - Incomplete with score: {attempt.score_raw}")
+            return True
+        
+        # ✅ Sync for failed status with any score (including 0, which is a valid score)
+        if attempt.lesson_status == 'failed' and attempt.score_raw is not None:
             logger.info(f"Syncing attempt {attempt.id} - Failed with score: {attempt.score_raw}")
             return True
         
-        # ✅ STRICT FIX: Only sync if there's a REAL score from SCORM content (must be > 0)
-        if attempt.score_raw is not None and attempt.score_raw > 0:
-            logger.info(f"Syncing attempt {attempt.id} - Has real score: {attempt.score_raw}")
+        # ✅ Sync if there's ANY real score from SCORM content (including 0)
+        # Changed from > 0 to >= 0 to include valid zero scores
+        if attempt.score_raw is not None:
+            logger.info(f"Syncing attempt {attempt.id} - Has score: {attempt.score_raw}")
             return True
         
-        # ✅ STRICT FIX: Check for REAL score in CMI data (from SCORM content)
+        # ✅ Check for score in CMI data (from SCORM content)
         if attempt.cmi_data:
             cmi_score = attempt.cmi_data.get('cmi.score.raw') or attempt.cmi_data.get('cmi.core.score.raw')
             if cmi_score is not None and cmi_score != '':
                 try:
                     score_val = float(cmi_score)
-                    # Only sync if there's an actual score > 0
-                    if score_val > 0:
+                    # Sync ANY valid score including 0
+                    if score_val >= 0:
                         logger.info(f"Syncing attempt {attempt.id} - CMI score: {score_val}")
                         return True
-                except:
+                except (ValueError, TypeError):
                     pass
         
-        # ❌ DO NOT sync just because user accessed content
-        # ❌ DO NOT sync just because there's time spent
-        # ❌ DO NOT sync just because there's suspend_data
-        # ❌ DO NOT sync just because there's progress percentage
-        # ✅ ONLY sync when there's ACTUAL completion or REAL scores
+        # ✅ NEW: Sync if there's meaningful suspend data (quiz state, bookmarks)
+        # This preserves partial progress even without explicit scores yet
+        if attempt.suspend_data and len(attempt.suspend_data) > 100:
+            # Only sync if suspend_data is substantial (> 100 chars)
+            # This indicates real SCORM interaction, not just initialization
+            logger.info(f"Syncing attempt {attempt.id} - Has suspend data: {len(attempt.suspend_data)} chars")
+            return True
         
-        logger.debug(f"NOT syncing attempt {attempt.id} - No completion or real score")
+        # ✅ NEW: Sync if there's progress percentage (slide-based content)
+        if attempt.progress_percentage and attempt.progress_percentage > 0:
+            logger.info(f"Syncing attempt {attempt.id} - Has progress: {attempt.progress_percentage}%")
+            return True
+        
+        # ❌ DO NOT sync if user just viewed content without any interaction
+        # ❌ DO NOT sync if there's no score, no suspend data, no progress
+        # This prevents syncing empty "browsing" attempts
+        
+        logger.debug(f"NOT syncing attempt {attempt.id} - No meaningful progress data")
         return False
     
     @staticmethod

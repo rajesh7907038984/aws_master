@@ -5401,21 +5401,38 @@ def course_add_users(request, course_id):
 
 @login_required
 def get_course_progress(request, course_id):
-    """API endpoint to get the current progress for a course"""
+    """
+    API endpoint to get the current progress for a course
+    ENHANCED: Better error handling, centralized caching, query optimization
+    """
     from django.core.cache import cache
     from django.views.decorators.cache import cache_page
     
-    course = get_object_or_404(Course, id=course_id)
+    try:
+        course = get_object_or_404(Course, id=course_id)
+    except Exception as e:
+        logger.error(f"Error fetching course {course_id}: {str(e)}")
+        return JsonResponse({'success': False, 'error': 'Course not found'}, status=404)
     
     # Check permission to access course
-    if not check_course_permission(request.user, course):
-        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
+    try:
+        if not check_course_permission(request.user, course):
+            return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
+    except Exception as e:
+        logger.error(f"Error checking permissions for course {course_id}: {str(e)}")
+        return JsonResponse({'success': False, 'error': 'Permission check failed'}, status=500)
     
-    # Check cache first (cache for 5 minutes to reduce DB load)
-    cache_key = f"course_progress_{course_id}_{request.user.id}"
-    cached_result = cache.get(cache_key)
-    if cached_result:
-        return JsonResponse(cached_result)
+    # Check cache first using centralized cache manager
+    try:
+        from scorm.cache_utils import ScormCacheManager
+        cache_key = ScormCacheManager.get_course_progress_key(course_id, request.user.id)
+        cached_result = ScormCacheManager.get_or_none(cache_key)
+        if cached_result:
+            logger.debug(f"Cache hit for course progress: {cache_key}")
+            return JsonResponse(cached_result)
+    except Exception as e:
+        logger.warning(f"Cache lookup error for course {course_id}: {str(e)}")
+        # Continue without cache on error
     
     # Get progress information
     try:
@@ -5433,7 +5450,11 @@ def get_course_progress(request, course_id):
                 'total_topics': 0,
                 'topics': []
             }
-            cache.set(cache_key, result, 300)  # Cache for 5 minutes
+            # Cache the result using centralized cache manager
+            try:
+                ScormCacheManager.set_with_timeout(cache_key, result, ScormCacheManager.TIMEOUT_SHORT)
+            except Exception as cache_error:
+                logger.warning(f"Cache set error: {cache_error}")
             return JsonResponse(result)
             
         # Get or create enrollment for this user
@@ -5514,8 +5535,11 @@ def get_course_progress(request, course_id):
             'topics': topics_data
         }
         
-        # Cache the result for 5 minutes
-        cache.set(cache_key, result, 300)
+        # Cache the result using centralized cache manager
+        try:
+            ScormCacheManager.set_with_timeout(cache_key, result, ScormCacheManager.TIMEOUT_SHORT)
+        except Exception as cache_error:
+            logger.warning(f"Cache set error for course {course_id}: {cache_error}")
         
         return JsonResponse(result)
     except Exception as e:
