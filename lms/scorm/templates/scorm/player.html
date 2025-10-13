@@ -2031,9 +2031,10 @@
                         hasBookmark = currentLocation && currentLocation !== '' && currentLocation !== 'false';
                         console.log(`   Has bookmark data: ${hasBookmark}, location: "${currentLocation}"`);
                         
-                        // CRITICAL FIX: If no bookmark, try to extract from iframe URL
-                        if (!hasBookmark) {
-                            console.log('   ⚠️  No bookmark set by SCORM content - forcing extraction from iframe URL...');
+                        // CRITICAL FIX: If no bookmark, try to extract from iframe URL (Rise only)
+                        // Storyline manages bookmarks via suspend_data, not lesson_location
+                        if (!hasBookmark && IS_RISE_PACKAGE) {
+                            console.log('   ⚠️  No bookmark set by Rise - forcing extraction from iframe URL hash...');
                             const iframe = document.getElementById('scormFrame');
                             if (iframe && iframe.contentWindow) {
                                 try {
@@ -2041,7 +2042,7 @@
                                     const urlParts = currentUrl.split('#');
                                     if (urlParts.length > 1) {
                                         const bookmark = 'index.html#' + urlParts[1];
-                                        console.log('   📌 Extracted bookmark from hash:', bookmark);
+                                        console.log('   📌 Extracted Rise bookmark from hash:', bookmark);
                                         if (window.API && window.API.LMSSetValue) {
                                             window.API.LMSSetValue('cmi.core.lesson_location', bookmark);
                                             hasBookmark = true;
@@ -2055,6 +2056,9 @@
                                     console.log('   Could not extract iframe location:', e.message);
                                 }
                             }
+                        } else if (!hasBookmark && IS_STORYLINE_PACKAGE) {
+                            console.log('   ℹ️  Storyline uses suspend_data for state (not lesson_location hash)');
+                            console.log('   ℹ️  Storyline should call SetValue automatically during 5-second buffer');
                         }
                     } catch (error) {
                         console.error('❌ Bookmark check error:', error);
