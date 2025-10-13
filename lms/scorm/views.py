@@ -238,7 +238,7 @@ def scorm_view(request, topic_id):
                 # This ensures learners can always return to their last saved location
                 # even after completing the course
                 attempt = last_attempt
-                logger.info(f"✅ SCORM Resume: Continuing existing attempt {attempt.attempt_number} for user {request.user.username}")
+                logger.info(f" SCORM Resume: Continuing existing attempt {attempt.attempt_number} for user {request.user.username}")
             else:
                 # Create first attempt only if no previous attempt exists
                 attempt = ScormAttempt.objects.create(
@@ -246,7 +246,7 @@ def scorm_view(request, topic_id):
                     scorm_package=scorm_package,
                     attempt_number=1
                 )
-                logger.info(f"✅ SCORM: Created new attempt {attempt.attempt_number} for user {request.user.username}")
+                logger.info(f" SCORM: Created new attempt {attempt.attempt_number} for user {request.user.username}")
         
         attempt_id = attempt.id
         attempt.is_preview = False  # Mark as real attempt
@@ -256,56 +256,38 @@ def scorm_view(request, topic_id):
     
     # Generate content URL using Django proxy (for iframe compatibility)
     # Include attempt_id in the URL for API access
-    # CRITICAL FIX: Append bookmark hash for Rise 360 resume functionality
-    # Rise expects the hash in the URL on initial load to jump to the saved slide
+    # CRITICAL FIX: Properly structure URL with query parameters before hash fragment
     content_url = f'/scorm/content/{topic_id}/{scorm_package.launch_url}?attempt_id={attempt_id}'
     
-    # ENHANCED: Add proper SCORM content hash pattern for navigation
-    # The correct pattern should include the lessons hash fragment
-    if attempt.lesson_location and 'lessons/' in attempt.lesson_location:
-        # Extract lesson ID from lesson_location if it contains the lessons pattern
-        lesson_id = attempt.lesson_location.split('lessons/')[-1] if 'lessons/' in attempt.lesson_location else ''
-        if lesson_id:
-            content_url += f'#/lessons/{lesson_id}'
-            logger.info(f"✅ SCORM: Added lesson hash to content URL: #/lessons/{lesson_id}")
-    elif attempt.lesson_location and not content_url.endswith('#'):
-        # If we have a lesson location but it's not in the lessons format, add it as hash
-        content_url += f'#{attempt.lesson_location}'
-        logger.info(f"✅ SCORM: Added location hash to content URL: #{attempt.lesson_location}")
-    
-    # ENHANCED: Add resume parameters to help SCORM content detect resume mode
+    # ENHANCED: Add resume parameters BEFORE hash fragment (correct URL structure)
     if attempt.entry == 'resume' or (attempt.lesson_status != 'not_attempted' and attempt.lesson_status != 'not attempted'):
         content_url += '&resume=true'
         if attempt.lesson_location:
             content_url += f'&location={attempt.lesson_location}'
         if attempt.suspend_data:
             content_url += f'&suspend_data={attempt.suspend_data[:100]}'  # First 100 chars
-        logger.info(f"✅ SCORM Resume: Added resume parameters to content URL")
+        logger.info(f" SCORM Resume: Added resume parameters to content URL")
+    
+    # CRITICAL FIX: Add hash fragment AFTER all query parameters (correct URL structure)
+    # Rise expects the hash in the URL on initial load to jump to the saved slide
+    if attempt.lesson_location and 'lessons/' in attempt.lesson_location:
+        # Extract lesson ID from lesson_location if it contains the lessons pattern
+        lesson_id = attempt.lesson_location.split('lessons/')[-1] if 'lessons/' in attempt.lesson_location else ''
+        if lesson_id:
+            content_url += f'#/lessons/{lesson_id}'
+            logger.info(f" SCORM: Added lesson hash to content URL: #/lessons/{lesson_id}")
+    elif attempt.lesson_location and not content_url.endswith('#'):
+        # If we have a lesson location but it's not in the lessons format, add it as hash
+        content_url += f'#{attempt.lesson_location}'
+        logger.info(f" SCORM: Added location hash to content URL: #{attempt.lesson_location}")
     
     # COMPREHENSIVE RESUME FIX: Handle all bookmark formats with fallbacks
+    # Note: Bookmark handling is now done above in the correct URL structure
     resume_needed = attempt.entry == 'resume' or (attempt.lesson_status != 'not_attempted' and attempt.lesson_status != 'not attempted')
     bookmark_applied = False
     
-    # Case 1: Rise 360 format with hash in lesson_location
-    if attempt.lesson_location and '#' in attempt.lesson_location:
-        # Extract just the hash part (e.g., "#/lessons/GgZj1-c4S6yfmISAoYe1dLtFocAO8amH")
-        hash_part = '#' + attempt.lesson_location.split('#', 1)[1]
-        content_url += hash_part
-        logger.info(f"✅ SCORM Resume: Applied Rise 360 bookmark hash: {hash_part[:50]}")
-        bookmark_applied = True
-    
-    # Case 2: Regular bookmark with or without hash
-    elif attempt.lesson_location:
-        # Handle lesson locations (avoid double hash)
-        if attempt.lesson_location.startswith('#'):
-            content_url += attempt.lesson_location  # Already has hash
-        else:
-            content_url += '#' + attempt.lesson_location  # Add hash
-        logger.info(f"✅ SCORM Resume: Applied standard bookmark: {attempt.lesson_location}")
-        bookmark_applied = True
-    
     # Case 3: Extract bookmark from suspend_data if no direct bookmark exists
-    elif attempt.suspend_data and resume_needed:
+    if attempt.suspend_data and resume_needed:
         # Try to extract location from suspend_data
         import re
         
@@ -331,7 +313,7 @@ def scorm_view(request, topic_id):
                     attempt.lesson_location = extracted_location
                     content_url += '#' + extracted_location
                     attempt.save()
-                    logger.info(f"✅ SCORM Resume: Extracted bookmark '{extracted_location}' from suspend_data")
+                    logger.info(f" SCORM Resume: Extracted bookmark '{extracted_location}' from suspend_data")
                     bookmark_applied = True
                     break
                     
@@ -351,7 +333,7 @@ def scorm_view(request, topic_id):
             attempt.lesson_location = default_slide
             content_url += '#' + default_slide
             attempt.save()
-            logger.info(f"✅ SCORM Resume: Created default location '{default_slide}' based on progress {progress}%")
+            logger.info(f" SCORM Resume: Created default location '{default_slide}' based on progress {progress}%")
             bookmark_applied = True
             
     # Case 4: Always ensure resume works
@@ -360,7 +342,7 @@ def scorm_view(request, topic_id):
         attempt.lesson_location = 'slide_1'
         content_url += '#slide_1'
         attempt.save()
-        logger.info(f"✅ SCORM Resume: Created failsafe default location 'slide_1'")
+        logger.info(f" SCORM Resume: Created failsafe default location 'slide_1'")
     
     context = {
         'topic': topic,
@@ -494,9 +476,9 @@ def scorm_api(request, attempt_id):
                 # Use specialized handler (cached decision)
                 try:
                     handler = get_handler_for_attempt(attempt)
-                    logger.info(f"✅ Using cached specialized handler ({handler.get_handler_name()}) for attempt {attempt_id}")
+                    logger.info(f" Using cached specialized handler ({handler.get_handler_name()}) for attempt {attempt_id}")
                 except Exception as e:
-                    logger.error(f"⚠️ Error with cached specialized handler, falling back to legacy: {e}")
+                    logger.error(f" Error with cached specialized handler, falling back to legacy: {e}")
                     handler = ScormAPIHandler(attempt)
                     # Update cache for future requests
                     try:
@@ -518,9 +500,9 @@ def scorm_api(request, attempt_id):
                             cache.set(cache_key, 'specialized', 3600)  # Cache for 1 hour
                         except Exception as cache_set_error:
                             logger.warning(f"Cache set error: {cache_set_error}")
-                        logger.info(f"✅ Using specialized handler ({handler.get_handler_name()}) for attempt {attempt_id} (cached)")
+                        logger.info(f" Using specialized handler ({handler.get_handler_name()}) for attempt {attempt_id} (cached)")
                     except Exception as e:
-                        logger.error(f"⚠️ Error with new handler, falling back to legacy: {e}")
+                        logger.error(f" Error with new handler, falling back to legacy: {e}")
                         handler = ScormAPIHandler(attempt)
                         # Cache the decision for future requests
                         try:
@@ -624,7 +606,7 @@ def scorm_content(request, topic_id, path):
         # OPTIMIZATION: Check content cache first (fastest path)
         cached_content = cache.get(content_cache_key)
         if cached_content:
-            logger.info(f"✅ CACHE HIT: Serving content from cache for {path}")
+            logger.info(f" CACHE HIT: Serving content from cache for {path}")
             return HttpResponse(
                 cached_content['data'],
                 content_type=cached_content['content_type'],
@@ -668,13 +650,13 @@ def scorm_content(request, topic_id, path):
                 content = response['Body'].read()
                 
                 # Log cache performance metrics
-                logger.info(f"✅ S3 PATH CACHE HIT: Retrieved content using cached path: {successful_key}")
+                logger.info(f" S3 PATH CACHE HIT: Retrieved content using cached path: {successful_key}")
                 
             except Exception as e:
                 content = None
                 successful_key = None
                 cache.delete(path_cache_key)
-                logger.warning(f"❌ S3 PATH CACHE FAILURE: {str(e)}")
+                logger.warning(f" S3 PATH CACHE FAILURE: {str(e)}")
         
         # If cache miss or failed, try multiple paths
         if content is None:
@@ -736,7 +718,7 @@ def scorm_content(request, topic_id, path):
                     cache.set(path_cache_key, successful_key, path_ttl)
                     
                     # Log performance metrics
-                    logger.info(f"✅ Found content at path attempt #{attempt_num}: {s3_key}")
+                    logger.info(f" Found content at path attempt #{attempt_num}: {s3_key}")
                     break
                     
                 except s3_client.exceptions.NoSuchKey:
@@ -953,7 +935,7 @@ def scorm_content(request, topic_id, path):
             try {
                 xhr.send(requestData);
             } catch (sendError) {
-                console.error('[SCORM API] ❌ Failed to send request:', sendError);
+                console.error('[SCORM API]  Failed to send request:', sendError);
                 // Store data locally as fallback
                 this._storeDataLocally(method, parameters);
                 return 'true'; // Return success to prevent SCORM content from breaking
@@ -967,25 +949,25 @@ def scorm_content(request, topic_id, path):
                 if (data.success) {
                     // ALWAYS log SetValue calls for debugging progress saving
                     if (method === 'SetValue' && parameters && parameters.length >= 2) {
-                        console.log('[SCORM API] ✅ SetValue SUCCESS:', parameters[0], '=', parameters[1], '->', data.result);
+                        console.log('[SCORM API]  SetValue SUCCESS:', parameters[0], '=', parameters[1], '->', data.result);
                     } else if (method === 'Initialize' || method === 'Terminate' || method === 'Commit') {
-                        console.log('[SCORM API] ✅ ' + method + ' SUCCESS -> ' + data.result);
+                        console.log('[SCORM API]  ' + method + ' SUCCESS -> ' + data.result);
                     }
                     return data.result;
                 } else {
-                    console.error('[SCORM API] ❌ ' + method + ' FAILED:', data.error);
+                    console.error('[SCORM API]  ' + method + ' FAILED:', data.error);
                     this._lastError = data.error_code || '101';
                     return 'false';
                 }
             } else {
-                console.error('[SCORM API] ❌ HTTP ERROR:', xhr.status, xhr.responseText);
+                console.error('[SCORM API]  HTTP ERROR:', xhr.status, xhr.responseText);
                 this._lastError = '101';
                 // Store data locally as fallback
                 this._storeDataLocally(method, parameters);
                 return 'false';
             }
         } catch (e) {
-            console.error('[SCORM API] ❌ EXCEPTION:', e);
+            console.error('[SCORM API]  EXCEPTION:', e);
             this._lastError = '101';
             // Store data locally as fallback
             this._storeDataLocally(method, parameters);
@@ -1258,7 +1240,7 @@ def scorm_content(request, topic_id, path):
                 setTimeout(function() {
                     try {
                         startButton.click();
-                        console.log('[SCORM] ✅ Auto-clicked START button for resume');
+                        console.log('[SCORM]  Auto-clicked START button for resume');
                     } catch (e) {
                         console.error('[SCORM] Error auto-clicking START button:', e);
                     }
@@ -2035,7 +2017,7 @@ def scorm_content(request, topic_id, path):
                         window.API.SetValue('cmi.core.lesson_status', currentStatus);
                     }
                     window.API.Commit('');
-                    console.log('[SCORM] ✅ Progress saved successfully');
+                    console.log('[SCORM]  Progress saved successfully');
                     
                     // Stop tracking after successful save to prevent loops
                     clearInterval(progressCheckInterval);
@@ -2287,7 +2269,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 content = html_content.encode('utf-8')
                 content_type = 'text/html; charset=utf-8'
                 
-                logger.info(f"✅ Injected SCORM API into {path} with attempt_id={attempt_id}")
+                logger.info(f" Injected SCORM API into {path} with attempt_id={attempt_id}")
                 logger.info(f"   API endpoint: {api_endpoint}")
                 logger.info(f"   Content length: {len(html_content)} chars")
                 
@@ -2315,7 +2297,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 )
                 
                 # Log cache storage
-                logger.info(f"✅ Stored content in cache (TTL={content_ttl}s): {content_cache_key}")
+                logger.info(f" Stored content in cache (TTL={content_ttl}s): {content_cache_key}")
                 
                 # Create response with all headers
                 response_obj = HttpResponse(content, content_type=content_type)
@@ -2396,7 +2378,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 # Log cache storage for performance monitoring
                 if is_media or path.endswith(('.js', '.css')):
-                    logger.info(f"✅ Cached {content_type} asset ({len(content)} bytes) for {content_ttl/3600:.1f} hours")
+                    logger.info(f" Cached {content_type} asset ({len(content)} bytes) for {content_ttl/3600:.1f} hours")
                 
                 # Create response with all headers
                 response_obj = HttpResponse(content, content_type=content_type)
