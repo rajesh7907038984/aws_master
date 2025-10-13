@@ -177,19 +177,40 @@
                 console.log('[Rise 360] Finish - EXIT COURSE button clicked inside content');
                 const result = makeRiseAPICall('LMSFinish', [param]);
                 
-                // FIXED: Redirect parent window, not iframe
+                // CRITICAL FIX: Sync to database before redirect (same as Save & Exit button)
                 if (result === 'true') {
-                    console.log('[Rise 360] Data saved, redirecting parent window...');
-                    setTimeout(function() {
+                    console.log('[Rise 360] Data saved, syncing to database...');
+                    
+                    // Call the same sync endpoint as Save & Exit button
+                    fetch('{% url "scorm:sync_on_exit" %}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: 'attempt_id={{ attempt.id|default:attempt_id }}'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('[Rise 360] Database sync successful, redirecting...');
                         // Check if we're in an iframe
                         if (window.parent && window.parent !== window) {
-                            // We're in an iframe, redirect parent
                             window.parent.location.href = '{% url "courses:topic_view" topic.id %}';
                         } else {
-                            // We're not in an iframe, redirect normally
                             window.location.href = '{% url "courses:topic_view" topic.id %}';
                         }
-                    }, 500);
+                    })
+                    .catch(error => {
+                        console.error('[Rise 360] Database sync error:', error);
+                        // Still redirect even if sync fails
+                        setTimeout(function() {
+                            if (window.parent && window.parent !== window) {
+                                window.parent.location.href = '{% url "courses:topic_view" topic.id %}';
+                            } else {
+                                window.location.href = '{% url "courses:topic_view" topic.id %}';
+                            }
+                        }, 500);
+                    });
                 }
                 
                 return result;
@@ -239,19 +260,40 @@
                 console.log('[Rise 360] Terminate - EXIT COURSE button clicked inside content (SCORM 2004)');
                 const result = makeRiseAPICall('Terminate', [param]);
                 
-                // FIXED: Redirect parent window, not iframe
+                // CRITICAL FIX: Sync to database before redirect (same as Save & Exit button)
                 if (result === 'true') {
-                    console.log('[Rise 360] Data saved, redirecting parent window...');
-                    setTimeout(function() {
+                    console.log('[Rise 360] Data saved, syncing to database...');
+                    
+                    // Call the same sync endpoint as Save & Exit button
+                    fetch('{% url "scorm:sync_on_exit" %}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: 'attempt_id={{ attempt.id|default:attempt_id }}'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('[Rise 360] Database sync successful, redirecting...');
                         // Check if we're in an iframe
                         if (window.parent && window.parent !== window) {
-                            // We're in an iframe, redirect parent
                             window.parent.location.href = '{% url "courses:topic_view" topic.id %}';
                         } else {
-                            // We're not in an iframe, redirect normally
                             window.location.href = '{% url "courses:topic_view" topic.id %}';
                         }
-                    }, 500);
+                    })
+                    .catch(error => {
+                        console.error('[Rise 360] Database sync error:', error);
+                        // Still redirect even if sync fails
+                        setTimeout(function() {
+                            if (window.parent && window.parent !== window) {
+                                window.parent.location.href = '{% url "courses:topic_view" topic.id %}';
+                            } else {
+                                window.location.href = '{% url "courses:topic_view" topic.id %}';
+                            }
+                        }, 500);
+                    });
                 }
                 
                 return result;

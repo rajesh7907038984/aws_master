@@ -154,14 +154,33 @@
         window.API = {
             LMSInitialize: function(param) { return makeSCORMCall('LMSInitialize', [param]); },
             LMSFinish: function(param) { 
-                console.log('[SCORM] LMSFinish - EXIT COURSE button clicked');
+                console.log('[SCORM] LMSFinish - EXIT COURSE button clicked inside content');
                 const result = makeSCORMCall('LMSFinish', [param]);
-                // CRITICAL FIX: Auto-redirect when content calls LMSFinish (EXIT button)
+                // CRITICAL FIX: Sync to database before redirect (same as Save & Exit button)
                 if (result === 'true') {
-                    console.log('[SCORM] Data saved, redirecting to course page...');
-                    setTimeout(function() {
+                    console.log('[SCORM] Data saved, syncing to database...');
+                    
+                    // Call the same sync endpoint as Save & Exit button
+                    fetch('{% url "scorm:sync_on_exit" %}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: 'attempt_id={{ attempt.id|default:attempt_id }}'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('[SCORM] Database sync successful, redirecting...');
                         window.location.href = '{% url "courses:topic_view" topic.id %}';
-                    }, 500);
+                    })
+                    .catch(error => {
+                        console.error('[SCORM] Database sync error:', error);
+                        // Still redirect even if sync fails
+                        setTimeout(function() {
+                            window.location.href = '{% url "courses:topic_view" topic.id %}';
+                        }, 500);
+                    });
                 }
                 return result;
             },
@@ -177,14 +196,33 @@
         window.API_1484_11 = {
             Initialize: function(param) { return makeSCORMCall('Initialize', [param]); },
             Terminate: function(param) { 
-                console.log('[SCORM] Terminate - EXIT COURSE button clicked (SCORM 2004)');
+                console.log('[SCORM] Terminate - EXIT COURSE button clicked inside content (SCORM 2004)');
                 const result = makeSCORMCall('Terminate', [param]);
-                // CRITICAL FIX: Auto-redirect when content calls Terminate (EXIT button)
+                // CRITICAL FIX: Sync to database before redirect (same as Save & Exit button)
                 if (result === 'true') {
-                    console.log('[SCORM] Data saved, redirecting to course page...');
-                    setTimeout(function() {
+                    console.log('[SCORM] Data saved, syncing to database...');
+                    
+                    // Call the same sync endpoint as Save & Exit button
+                    fetch('{% url "scorm:sync_on_exit" %}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: 'attempt_id={{ attempt.id|default:attempt_id }}'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('[SCORM] Database sync successful, redirecting...');
                         window.location.href = '{% url "courses:topic_view" topic.id %}';
-                    }, 500);
+                    })
+                    .catch(error => {
+                        console.error('[SCORM] Database sync error:', error);
+                        // Still redirect even if sync fails
+                        setTimeout(function() {
+                            window.location.href = '{% url "courses:topic_view" topic.id %}';
+                        }, 500);
+                    });
                 }
                 return result;
             },
