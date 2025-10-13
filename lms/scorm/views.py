@@ -278,10 +278,14 @@ def scorm_view(request, topic_id):
     if attempt.lesson_location and 'lessons/' in attempt.lesson_location:
         # Extract lesson ID from lesson_location if it contains the lessons pattern
         lesson_id = attempt.lesson_location.split('lessons/')[-1] if 'lessons/' in attempt.lesson_location else ''
-        if lesson_id:
+        # CRITICAL FIX: Validate that lesson_id is not empty and not just '/' or '#/'
+        lesson_id = lesson_id.strip('/#').strip()
+        if lesson_id and len(lesson_id) > 3:  # Must be a real lesson ID, not just empty or '/'
             hash_fragment = f'#/lessons/{lesson_id}'
             logger.info(f" SCORM: Set lesson hash fragment: #/lessons/{lesson_id}")
             bookmark_applied = True
+        else:
+            logger.warning(f" SCORM: Invalid lesson_id extracted: '{lesson_id}' from '{attempt.lesson_location}'")
     
     # Case 2: Regular bookmark with or without hash
     elif attempt.lesson_location:

@@ -491,15 +491,14 @@ class ScormAPIHandler:
                     try:
                         new_progress = float(value) if value else 0.0
                         new_percentage = new_progress * 100
+                        old_percentage = self.attempt.progress_percentage
                         
-                        # ENHANCED: Always update progress measure (it's the current state, not cumulative)
-                        # Only keep highest value for final completion, not intermediate progress
-                        if new_percentage >= self.attempt.progress_percentage or self.attempt.lesson_status in ['completed', 'passed']:
-                            logger.info(f"[SCORM]  Updating progress: {new_percentage}% (was: {self.attempt.progress_percentage}%)")
-                        else:
-                            # For incomplete courses, always update to current progress
-                            logger.info(f"[SCORM]  Updating current progress: {new_percentage}% (was: {self.attempt.progress_percentage}%)")
+                        # CRITICAL FIX: Always save the CURRENT progress exactly as SCORM provides it
+                        # Don't compare or filter - save the actual current state from SCORM content
+                        self.attempt.progress_percentage = new_percentage
+                        logger.info(f"[SCORM] Progress updated: {new_percentage}% (was: {old_percentage}%)")
                     except (ValueError, TypeError):
+                        logger.warning(f"[SCORM] Invalid progress_measure value: {value}")
                         pass
                 
                 # Store the value (always store in CMI data for debugging, but only update model if higher value)
@@ -582,22 +581,13 @@ class ScormAPIHandler:
                             self.last_error = '405'  # Incorrect data type
                             return 'false'
                     elif element == 'cmi.core.lesson_location':
-                        # CRITICAL FIX: Store bookmark data in both CMI data and model fields
-                        # ENHANCED: Ensure lesson location follows correct SCORM pattern
+                        # CRITICAL FIX: Store bookmark data EXACTLY as SCORM content provides it
+                        # Don't modify or convert - save the exact value from the SCORM content
                         lesson_location = value
-                        
-                        # Convert to proper SCORM lessons pattern if needed
-                        if lesson_location and not lesson_location.startswith('lessons/'):
-                            # If it's a slide or simple location, convert to lessons format
-                            if 'slide_' in lesson_location or 'page_' in lesson_location:
-                                # Generate a proper lesson ID for the location
-                                lesson_id = f"AYDXE2rFU388us8PJ2R_yzaVWKH0lOY8"  # Use the pattern from the correct URL
-                                lesson_location = f"lessons/{lesson_id}"
-                                logger.info(f"[SCORM] Converted lesson location to proper format: {lesson_location}")
                         
                         self.attempt.lesson_location = lesson_location
                         self.attempt.cmi_data['cmi.core.lesson_location'] = lesson_location
-                        logger.info(f"[TRACKING] Lesson location updated (SCORM 1.2): {lesson_location[:50]}...")
+                        logger.info(f"[TRACKING] Lesson location saved (SCORM 1.2): {lesson_location}")
                         # Enhanced slide tracking
                         self._update_slide_tracking(lesson_location)
                         
