@@ -222,6 +222,34 @@
     
 
     <div class="scorm-container">
+        {% if goodbye_mode %}
+        <!-- Goodbye/Exit Confirmation Page -->
+        <div class="goodbye-container" style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; text-align: center; padding: 2rem;">
+            <div class="goodbye-content" style="max-width: 600px; background: white; padding: 3rem; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+                <div class="goodbye-icon" style="font-size: 4rem; margin-bottom: 1.5rem;">✅</div>
+                <h2 style="color: #333; margin-bottom: 1rem; font-size: 1.8rem;">Assessment Completed</h2>
+                <p style="color: #666; margin-bottom: 2rem; font-size: 1.1rem; line-height: 1.6;">
+                    Thank you for completing the assessment. Your progress and score have been saved successfully.
+                </p>
+                <div class="goodbye-actions" style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                    <a href="{% url 'courses:topic_view' topic.id %}" 
+                       class="btn btn-primary" 
+                       style="background: #007bff; color: white; padding: 0.75rem 2rem; border-radius: 6px; text-decoration: none; font-weight: 600;">
+                        ← Back to Topic
+                    </a>
+                    <a href="{% url 'courses:course_view' topic.courses.first.id %}" 
+                       class="btn btn-secondary" 
+                       style="background: #6c757d; color: white; padding: 0.75rem 2rem; border-radius: 6px; text-decoration: none; font-weight: 600;">
+                        View Course
+                    </a>
+                </div>
+                <div class="goodbye-info" style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #e0e0e0; color: #888; font-size: 0.9rem;">
+                    <p>Your assessment data has been automatically saved. You can return to this topic anytime to review your progress.</p>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <!-- Normal SCORM Content -->
         <div class="loading" id="loading">⏳ Loading SCORM content...</div>
         <iframe 
             id="scormFrame"
@@ -232,6 +260,7 @@
             onload="handleFrameLoad()"
             onerror="handleFrameError()">
         </iframe>
+        {% endif %}
     </div>
 
     <script>
@@ -842,20 +871,20 @@
                     
                     // Wait a moment for data to be saved
                     setTimeout(() => {
-                        console.log('Redirecting to topic view...');
-                        // Redirect to topic view
-                        window.location.href = '{% url "courses:topic_view" topic.id %}';
+                        console.log('Redirecting to goodbye page...');
+                        // Redirect to goodbye page
+                        window.location.href = '{% url "scorm:view" topic.id %}?goodbye=true';
                     }, 1000);
                 } catch (error) {
                     console.error('SCORM Terminate error:', error);
                     // Still redirect even if terminate fails
                     setTimeout(() => {
-                        window.location.href = '{% url "courses:topic_view" topic.id %}';
+                        window.location.href = '{% url "scorm:view" topic.id %}?goodbye=true';
                     }, 1000);
                 }
             } else {
-                console.log('SCORM API not initialized, redirecting anyway...');
-                window.location.href = '{% url "courses:topic_view" topic.id %}';
+                console.log('SCORM API not initialized, redirecting to goodbye page...');
+                window.location.href = '{% url "scorm:view" topic.id %}?goodbye=true';
             }
         }
         
@@ -1366,10 +1395,10 @@
                     }
                 }
                 
-                // Redirect to topic view after a short delay to ensure data is saved
+                // Redirect to goodbye page after a short delay to ensure data is saved
                 setTimeout(() => {
-                    console.log('Redirecting to topic view after completion...');
-                    window.location.href = '{% url "courses:topic_view" topic.id %}';
+                    console.log('Redirecting to goodbye page after completion...');
+                    window.location.href = '{% url "scorm:view" topic.id %}?goodbye=true';
                 }, 1000);
             }
             // Handle exit (trigger Back to Topic functionality without completion)
@@ -1544,9 +1573,9 @@
                                                     window.API_1484_11.Commit('');
                                                 }
                                                 
-                                                console.log('SCORM Terminate successful, redirecting...');
+                                                console.log('SCORM Terminate successful, redirecting to goodbye page...');
                                                 setTimeout(() => {
-                                                    window.location.href = '{% url "courses:topic_view" topic.id %}';
+                                                    window.location.href = '{% url "scorm:view" topic.id %}?goodbye=true';
                                                 }, 500);
                                                 
                                             } catch (error) {
@@ -1555,16 +1584,16 @@
                                                 if (terminateAttempts < maxAttempts) {
                                                     setTimeout(attemptTerminate, 1000);
                                                 } else {
-                                                    console.log('Max terminate attempts reached, redirecting anyway...');
+                                                    console.log('Max terminate attempts reached, redirecting to goodbye page...');
                                                     setTimeout(() => {
-                                                        window.location.href = '{% url "courses:topic_view" topic.id %}';
+                                                        window.location.href = '{% url "scorm:view" topic.id %}?goodbye=true';
                                                     }, 500);
                                                 }
                                             }
                                         } else {
-                                            console.log('SCORM API not initialized, redirecting anyway...');
+                                            console.log('SCORM API not initialized, redirecting to goodbye page...');
                                             setTimeout(() => {
-                                                window.location.href = '{% url "courses:topic_view" topic.id %}';
+                                                window.location.href = '{% url "scorm:view" topic.id %}?goodbye=true';
                                             }, 500);
                                         }
                                     }
