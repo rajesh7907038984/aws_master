@@ -22,14 +22,20 @@ class MediaS3Storage(S3Boto3Storage):
     
     def exists(self, name):
         """
-        Override exists() to skip HeadObject permission check
-        Always return False to skip the existence check
-        This is safe because we use file_overwrite=False and unique filenames (UUIDs)
-        
-        Why: HeadObject requires s3:HeadObject permission which many IAM policies don't grant.
-        By returning False, we skip the check and let S3 handle duplicates (won't happen with UUIDs).
+        Check if file exists in S3 storage
+        Uses ListObjectsV2 to avoid HeadObject permission issues
         """
-        return False
+        try:
+            # Use ListObjectsV2 instead of HeadObject to avoid permission issues
+            response = self.bucket.meta.client.list_objects_v2(
+                Bucket=self.bucket.name,
+                Prefix=name,
+                MaxKeys=1
+            )
+            return 'Contents' in response and len(response['Contents']) > 0
+        except Exception:
+            # If we can't check, assume it exists to avoid breaking existing functionality
+            return True
     
     def get_available_name(self, name, max_length=None):
         """

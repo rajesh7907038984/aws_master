@@ -156,13 +156,10 @@ class ScormPackageValidator:
                 # Check for required files (either imsmanifest.xml or tincan.xml)
                 manifest_found = any(f.lower().endswith(('imsmanifest.xml', 'tincan.xml')) for f in file_list)
                 if not manifest_found:
-                    # Check if it's a legacy package with HTML content
-                    html_files = [f for f in file_list if f.lower().endswith(('.html', '.htm'))]
-                    if html_files:
-                        self.warnings.append("No manifest file found - treating as legacy SCORM package")
-                        self.info.append("Legacy SCORM package detected")
-                    else:
-                        self.errors.append("Required manifest file not found (imsmanifest.xml or tincan.xml required)")
+                    # Remove legacy package check
+                    if not manifest_found:
+                        # Reject packages without manifest
+                        self.errors.append("No manifest file found - cannot validate package")
                 
                 # Check for common SCORM structure
                 html_files = [f for f in file_list if f.lower().endswith(('.html', '.htm'))]

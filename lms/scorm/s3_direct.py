@@ -41,8 +41,13 @@ class ScormS3DirectAccess:
             Full HTTPS URL to S3 content
         """
         try:
-            # Build S3 key path
-            base_path = f"{self.media_location}/{scorm_package.extracted_path}"
+            # Build S3 key path - handle double media/ prefix issue
+            extracted_path = scorm_package.extracted_path
+            if extracted_path.startswith('media/'):
+                # Remove the 'media/' prefix since media_location will add it
+                extracted_path = extracted_path[6:]  # Remove 'media/' prefix
+            
+            base_path = f"{self.media_location}/{extracted_path}"
             if file_path:
                 s3_key = f"{base_path}/{file_path}"
             else:
@@ -82,7 +87,13 @@ class ScormS3DirectAccess:
             S3 key for boto3 operations
         """
         try:
-            base_path = f"{self.media_location}/{scorm_package.extracted_path}"
+            # Handle double media/ prefix issue
+            extracted_path = scorm_package.extracted_path
+            if extracted_path.startswith('media/'):
+                # Remove the 'media/' prefix since media_location will add it
+                extracted_path = extracted_path[6:]  # Remove 'media/' prefix
+            
+            base_path = f"{self.media_location}/{extracted_path}"
             if file_path:
                 s3_key = f"{base_path}/{file_path}"
             else:
@@ -105,7 +116,13 @@ class ScormS3DirectAccess:
         Returns:
             Base URL for the SCORM package
         """
-        base_path = f"{self.media_location}/{scorm_package.extracted_path}"
+        # Handle double media/ prefix issue
+        extracted_path = scorm_package.extracted_path
+        if extracted_path.startswith('media/'):
+            # Remove the 'media/' prefix since media_location will add it
+            extracted_path = extracted_path[6:]  # Remove 'media/' prefix
+        
+        base_path = f"{self.media_location}/{extracted_path}"
         return f"https://{self.bucket_name}.s3.{self.region}.amazonaws.com/{base_path}/"
     
     def verify_file_exists(self, scorm_package, file_path=''):
@@ -142,7 +159,13 @@ class ScormS3DirectAccess:
             List of file paths in the package
         """
         try:
-            base_path = f"{self.media_location}/{scorm_package.extracted_path}/"
+            # Handle double media/ prefix issue
+            extracted_path = scorm_package.extracted_path
+            if extracted_path.startswith('media/'):
+                # Remove the 'media/' prefix since media_location will add it
+                extracted_path = extracted_path[6:]  # Remove 'media/' prefix
+            
+            base_path = f"{self.media_location}/{extracted_path}/"
             
             response = self.s3_client.list_objects_v2(
                 Bucket=self.bucket_name,

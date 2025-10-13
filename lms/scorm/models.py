@@ -20,12 +20,11 @@ class ScormPackage(models.Model):
         ('2004', 'SCORM 2004'),
         ('xapi', 'xAPI/Tin Can'),
         ('dual', 'SCORM + xAPI Dual'),
-        ('legacy', 'Legacy SCORM'),
         ('html5', 'HTML5 Package'),
         ('storyline', 'Articulate Storyline'),
         ('captivate', 'Adobe Captivate'),
         ('lectora', 'Lectora'),
-        ('unknown', 'Unknown Format'),
+        ('unknown', 'Unknown Format')
     ]
     
     topic = models.OneToOneField(
