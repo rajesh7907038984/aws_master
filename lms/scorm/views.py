@@ -268,26 +268,33 @@ def scorm_view(request, topic_id):
             content_url += f'&suspend_data={attempt.suspend_data[:100]}'  # First 100 chars
         logger.info(f" SCORM Resume: Added resume parameters to content URL")
     
-    # CRITICAL FIX: Add hash fragment AFTER all query parameters (correct URL structure)
-    # Rise expects the hash in the URL on initial load to jump to the saved slide
+    # COMPREHENSIVE RESUME FIX: Handle all bookmark formats with fallbacks
+    # CRITICAL FIX: Only add hash fragment ONCE at the end to avoid duplicates
+    resume_needed = attempt.entry == 'resume' or (attempt.lesson_status != 'not_attempted' and attempt.lesson_status != 'not attempted')
+    bookmark_applied = False
+    hash_fragment = None
+    
+    # Case 1: Rise 360 format with lessons/ in lesson_location
     if attempt.lesson_location and 'lessons/' in attempt.lesson_location:
         # Extract lesson ID from lesson_location if it contains the lessons pattern
         lesson_id = attempt.lesson_location.split('lessons/')[-1] if 'lessons/' in attempt.lesson_location else ''
         if lesson_id:
-            content_url += f'#/lessons/{lesson_id}'
-            logger.info(f" SCORM: Added lesson hash to content URL: #/lessons/{lesson_id}")
-    elif attempt.lesson_location and not content_url.endswith('#'):
-        # If we have a lesson location but it's not in the lessons format, add it as hash
-        content_url += f'#{attempt.lesson_location}'
-        logger.info(f" SCORM: Added location hash to content URL: #{attempt.lesson_location}")
+            hash_fragment = f'#/lessons/{lesson_id}'
+            logger.info(f" SCORM: Set lesson hash fragment: #/lessons/{lesson_id}")
+            bookmark_applied = True
     
-    # COMPREHENSIVE RESUME FIX: Handle all bookmark formats with fallbacks
-    # Note: Bookmark handling is now done above in the correct URL structure
-    resume_needed = attempt.entry == 'resume' or (attempt.lesson_status != 'not_attempted' and attempt.lesson_status != 'not attempted')
-    bookmark_applied = False
+    # Case 2: Regular bookmark with or without hash
+    elif attempt.lesson_location:
+        # Handle lesson locations (avoid double hash)
+        if attempt.lesson_location.startswith('#'):
+            hash_fragment = attempt.lesson_location  # Already has hash
+        else:
+            hash_fragment = f'#{attempt.lesson_location}'  # Add hash
+        logger.info(f" SCORM: Set location hash fragment: {hash_fragment}")
+        bookmark_applied = True
     
     # Case 3: Extract bookmark from suspend_data if no direct bookmark exists
-    if attempt.suspend_data and resume_needed:
+    elif attempt.suspend_data and resume_needed:
         # Try to extract location from suspend_data
         import re
         
@@ -309,14 +316,14 @@ def scorm_view(request, topic_id):
             if match:
                 extracted_location = match.group(1).strip()
                 if extracted_location:
-                    # Set location in attempt and URL
+                    # Set location in attempt
                     attempt.lesson_location = extracted_location
-                    content_url += '#' + extracted_location
+                    hash_fragment = f'#{extracted_location}'
                     attempt.save()
                     logger.info(f" SCORM Resume: Extracted bookmark '{extracted_location}' from suspend_data")
                     bookmark_applied = True
                     break
-                    
+        
         # If no pattern matched but we know we need to resume
         if not bookmark_applied:
             # Use a generic slide ID based on progress percentage
@@ -331,7 +338,7 @@ def scorm_view(request, topic_id):
                 default_slide = "slide_1"   # Beginning
                 
             attempt.lesson_location = default_slide
-            content_url += '#' + default_slide
+            hash_fragment = f'#{default_slide}'
             attempt.save()
             logger.info(f" SCORM Resume: Created default location '{default_slide}' based on progress {progress}%")
             bookmark_applied = True
@@ -340,9 +347,14 @@ def scorm_view(request, topic_id):
     if resume_needed and not bookmark_applied:
         # Final fallback - use slide_1 as a safe default
         attempt.lesson_location = 'slide_1'
-        content_url += '#slide_1'
+        hash_fragment = '#slide_1'
         attempt.save()
         logger.info(f" SCORM Resume: Created failsafe default location 'slide_1'")
+    
+    # CRITICAL FIX: Add hash fragment ONLY ONCE at the end
+    if hash_fragment:
+        content_url += hash_fragment
+        logger.info(f" SCORM: Final content URL with hash: {content_url}")
     
     context = {
         'topic': topic,
