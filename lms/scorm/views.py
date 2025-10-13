@@ -659,24 +659,9 @@ def scorm_content(request, topic_id, path):
                 if (data.success) {{
                     console.log('[SCORM API] ' + method + ' -> ' + data.result);
                     
-                    // CRITICAL FIX: Auto-initialize SCORM if not done yet
-                    if (method === 'Initialize' && data.result === 'true') {{
-                        console.log('[SCORM API] Auto-initializing SCORM session...');
-                        // Set initial values to ensure proper initialization
-                        await this._makeAPICallAsync('SetValue', ['cmi.core.lesson_status', 'incomplete']);
-                        await this._makeAPICallAsync('SetValue', ['cmi.core.entry', 'ab-initio']);
-                        
-                        // CRITICAL FIX: Set lesson location for resume functionality
-                        const currentLocation = window.location.hash || 'slide_1';
-                        await this._makeAPICallAsync('SetValue', ['cmi.core.lesson_location', currentLocation]);
-                        
-                        // CRITICAL FIX: Set suspend data to prevent buffering
-                        await this._makeAPICallAsync('SetValue', ['cmi.suspend_data', 'progress=25']);
-                        
-                        await this._makeAPICallAsync('Commit', ['']);
-                        
-                        console.log('[SCORM API] Auto-initialization complete - buffering should stop');
-                    }}
+                    // Note: Removed auto-initialization that was interfering with Storyline
+                    // Storyline manages its own initialization, suspend_data, and bookmarking
+                    // Our auto-init was overwriting Storyline's state data
                     
                     return data.result;
                 }} else {{
@@ -1003,22 +988,10 @@ def scorm_content(request, topic_id, path):
         let interactionCount = 0;
         
         async function trackInteraction() {
-            interactionCount++;
-            console.log('[SCORM] User interaction detected, count:', interactionCount);
-            
-            // Update progress based on interactions
-            const progress = Math.min(interactionCount * 5, 100); // 5% per interaction, max 100%
-            await window.API.SetValue('cmi.core.lesson_status', 'incomplete');
-            await window.API.SetValue('cmi.suspend_data', 'progress=' + progress);
-            
-            // CRITICAL FIX: Track lesson location for resume functionality
-            const currentLocation = window.location.hash || 'slide_' + interactionCount;
-            await window.API.SetValue('cmi.core.lesson_location', currentLocation);
-            
-            await window.API.Commit('');
-            
-            console.log('[SCORM] Progress updated to:', progress + '%');
-            console.log('[SCORM] Location updated to:', currentLocation);
+            // DISABLED: Do not override Storyline's suspend_data
+            // Storyline manages its own progress, quiz state, and bookmarking
+            // Our interference was destroying Storyline's state data
+            console.log('[SCORM] Interaction tracked - Storyline manages its own state');
         }
         
         // Track clicks, keypresses, and other interactions
