@@ -452,11 +452,17 @@ def scorm_api(request, attempt_id):
             try:
                 # Initialize/Terminate methods
                 if method in ['LMSInitialize', 'Initialize']:
+                    logger.info(f"[SCORM API] Calling initialize() for attempt {attempt_id}")
                     result = api_handler.initialize()
+                    logger.info(f"[SCORM API] Initialize result: {result}")
                 elif method in ['LMSFinish', 'Terminate']:
+                    logger.info(f"[SCORM API] Calling terminate() for attempt {attempt_id}")
                     result = api_handler.terminate()
+                    logger.info(f"[SCORM API] Terminate result: {result}")
                 elif method in ['LMSCommit', 'Commit']:
+                    logger.info(f"[SCORM API] Calling commit() for attempt {attempt_id}")
                     result = api_handler.commit()
+                    logger.info(f"[SCORM API] Commit result: {result}")
                 
                 # Get methods
                 elif method in ['LMSGetValue', 'GetValue']:
