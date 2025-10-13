@@ -352,8 +352,12 @@ class BaseScormAPIHandler:
                 if self.attempt.cmi_data is None:
                     self.attempt.cmi_data = {}
                 
+                # CRITICAL FIX: Sync tracking data from CMI data to model fields
+                # This ensures all tracking data (score, status, progress, etc.) is properly saved
+                self._sync_tracking_from_cmi_data()
+                
                 self.attempt.save()
-                logger.info(f"[COMMIT] Saved attempt {self.attempt.id}")
+                logger.info(f"[COMMIT] Saved attempt {self.attempt.id} - Status: {self.attempt.lesson_status}, Score: {self.attempt.score_raw}, Progress: {self.attempt.progress_percentage}%")
                 
                 # Sync score to gradebook
                 from scorm.score_sync_service import ScormScoreSyncService
@@ -361,9 +365,115 @@ class BaseScormAPIHandler:
                 logger.info(f"[COMMIT] Score sync: {sync_success}")
             except Exception as e:
                 logger.error(f"[COMMIT] Error: {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())
             finally:
                 if hasattr(self.attempt, '_updating_from_api_handler'):
                     delattr(self.attempt, '_updating_from_api_handler')
+    
+    def _sync_tracking_from_cmi_data(self):
+        """
+        CRITICAL FIX: Sync tracking data from CMI data to model fields
+        This ensures all tracking data (progress, suspend_data, score, status, etc.) is properly saved
+        """
+        try:
+            # Get CMI data
+            cmi_data = self.attempt.cmi_data or {}
+            
+            # 1. Sync lesson_location (bookmark)
+            if self.version == '1.2':
+                location_key = 'cmi.core.lesson_location'
+                suspend_key = 'cmi.suspend_data'
+                status_key = 'cmi.core.lesson_status'
+                score_raw_key = 'cmi.core.score.raw'
+                score_max_key = 'cmi.core.score.max'
+                score_min_key = 'cmi.core.score.min'
+            else:
+                location_key = 'cmi.location'
+                suspend_key = 'cmi.suspend_data'
+                status_key = 'cmi.completion_status'
+                score_raw_key = 'cmi.score.raw'
+                score_max_key = 'cmi.score.max'
+                score_min_key = 'cmi.score.min'
+            
+            # Sync lesson_location from CMI data if not already set in model
+            if location_key in cmi_data and cmi_data[location_key]:
+                cmi_location = cmi_data[location_key]
+                if cmi_location and (not self.attempt.lesson_location or len(str(cmi_location)) > len(str(self.attempt.lesson_location))):
+                    self.attempt.lesson_location = str(cmi_location)[:1000]
+                    logger.info(f"[SYNC] Updated lesson_location from CMI: {self.attempt.lesson_location[:50]}...")
+            
+            # 2. Sync suspend_data from CMI data if not already set in model
+            if suspend_key in cmi_data and cmi_data[suspend_key]:
+                cmi_suspend = cmi_data[suspend_key]
+                if cmi_suspend and (not self.attempt.suspend_data or len(str(cmi_suspend)) > len(str(self.attempt.suspend_data))):
+                    self.attempt.suspend_data = str(cmi_suspend)
+                    logger.info(f"[SYNC] Updated suspend_data from CMI: {len(self.attempt.suspend_data)} chars")
+            
+            # 3. Sync lesson status from CMI data if not already set
+            if status_key in cmi_data and cmi_data[status_key]:
+                cmi_status = cmi_data[status_key]
+                if cmi_status and cmi_status not in ['not attempted', '']:
+                    if self.version == '1.2':
+                        if self.attempt.lesson_status in ['not_attempted', 'not attempted', '']:
+                            self.attempt.lesson_status = cmi_status.replace(' ', '_')
+                            logger.info(f"[SYNC] Updated lesson_status from CMI: {self.attempt.lesson_status}")
+                    else:
+                        if self.attempt.completion_status in ['not attempted', 'incomplete', '']:
+                            self.attempt.completion_status = cmi_status.replace(' ', '_')
+                            logger.info(f"[SYNC] Updated completion_status from CMI: {self.attempt.completion_status}")
+            
+            # 4. Sync score data from CMI
+            if score_raw_key in cmi_data and cmi_data[score_raw_key]:
+                cmi_score = cmi_data[score_raw_key]
+                if cmi_score and str(cmi_score).strip() != '':
+                    try:
+                        score_value = Decimal(str(cmi_score))
+                        if self.attempt.score_raw is None or score_value != self.attempt.score_raw:
+                            self.attempt.score_raw = score_value
+                            logger.info(f"[SYNC] Updated score_raw from CMI: {self.attempt.score_raw}")
+                    except (ValueError, TypeError) as e:
+                        logger.warning(f"[SYNC] Could not convert score_raw '{cmi_score}': {e}")
+            
+            # Sync score_max
+            if score_max_key in cmi_data and cmi_data[score_max_key]:
+                cmi_score_max = cmi_data[score_max_key]
+                if cmi_score_max and str(cmi_score_max).strip() != '':
+                    try:
+                        self.attempt.score_max = Decimal(str(cmi_score_max))
+                    except (ValueError, TypeError):
+                        pass
+            
+            # Sync score_min
+            if score_min_key in cmi_data and cmi_data[score_min_key]:
+                cmi_score_min = cmi_data[score_min_key]
+                if cmi_score_min and str(cmi_score_min).strip() != '':
+                    try:
+                        self.attempt.score_min = Decimal(str(cmi_score_min))
+                    except (ValueError, TypeError):
+                        pass
+            
+            # 5. Sync progress_measure (SCORM 2004) to progress_percentage
+            if self.version != '1.2' and 'cmi.progress_measure' in cmi_data:
+                progress_measure = cmi_data['cmi.progress_measure']
+                if progress_measure and str(progress_measure).strip() != '':
+                    try:
+                        progress_value = Decimal(str(progress_measure))
+                        # Convert 0-1 to 0-100
+                        if 0 <= progress_value <= 1:
+                            progress_percentage = progress_value * 100
+                            if progress_percentage > self.attempt.progress_percentage:
+                                self.attempt.progress_percentage = progress_percentage
+                                logger.info(f"[SYNC] Updated progress_percentage from CMI progress_measure: {progress_percentage}%")
+                    except (ValueError, TypeError):
+                        pass
+            
+            logger.info(f"[SYNC] Tracking data synced from CMI successfully")
+            
+        except Exception as e:
+            logger.error(f"[SYNC] Error syncing tracking data from CMI: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
     
     def get_handler_name(self):
         """Get handler name for logging"""
