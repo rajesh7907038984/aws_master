@@ -766,55 +766,29 @@
                 }
             }
             
-            // COMPREHENSIVE FIX: Prevent duplicate event listeners and enhancements
-            if (typeof window.rise360ExitEnhancement === 'undefined') {
-                // Create a singleton object to manage exit button enhancement
-                window.rise360ExitEnhancement = {
-                    initialized: false,
-                    eventsBound: false,
-                    enhancementCount: 0,
-                    
-                    // Initialize only once
-                    init: function() {
-                        if (this.initialized) {
-                            console.log('[Rise 360] Exit button enhancement already initialized');
-                            return;
-                        }
-                        
-                        this.initialized = true;
-                        console.log('[Rise 360] Initializing exit button enhancement');
-                        
-                        // Run enhancement immediately
-                        this.runEnhancement();
-                        
-                        // Set up iframe load listener to enhance buttons when iframe content changes
-                        const riseFrame = document.getElementById('riseFrame');
-                        if (riseFrame) {
-                            // Remove any existing listeners first
-                            if (this.eventsBound) {
-                                riseFrame.removeEventListener('load', this.runEnhancement);
-                            }
-                            
-                            // Add event listener with bound context
-                            riseFrame.addEventListener('load', this.runEnhancement.bind(this));
-                            this.eventsBound = true;
-                        }
-                    },
-                    
-                    // Run the enhancement
-                    runEnhancement: function() {
-                        this.enhancementCount++;
-                        console.log(`[Rise 360] Running exit button enhancement (attempt ${this.enhancementCount})`);
-                        enhanceIframeExitButtons();
-                    }
+            // ARCHITECTURAL IMPROVEMENT: Don't interfere with Rise360 content's internal features
+            // Instead of enhancing exit buttons which might interfere with Rise360 content's functionality,
+            // we'll just log that we're respecting the content's internal features
+            console.log('[Rise 360] Respecting Rise360 content\'s internal exit functionality');
+            
+            // Only add minimal logging to help with debugging
+            if (window.API && window.API.LMSFinish) {
+                const originalLMSFinish = window.API.LMSFinish;
+                window.API.LMSFinish = function() {
+                    console.log('[Rise 360] LMSFinish called by content');
+                    return originalLMSFinish.apply(this, arguments);
                 };
-                
-                // Initialize the enhancement
-                window.rise360ExitEnhancement.init();
-            } else {
-                // Already initialized, just log
-                console.log('[Rise 360] Exit button enhancement already set up');
             }
+            
+            // Listen for exit messages from content without modifying UI
+            window.addEventListener('message', function(event) {
+                if (event.data === 'exit' || event.data === 'close' || event.data === 'scorm:exit') {
+                    console.log('[Rise 360] Exit message received from content');
+                    if (window.API) {
+                        window.API.LMSFinish('');
+                    }
+                }
+            });
             
             // CRITICAL FIX: Prevent infinite loops with global flag
             if (window.rise360EnhancementActive) {
@@ -950,93 +924,15 @@
             }
         }
         
-        // CRITICAL FIX: Update Rise 360 content's internal progress indicators
+        // ARCHITECTURAL IMPROVEMENT: Don't interfere with Rise 360 content's internal progress tracking
+        // Instead of modifying the content's internal progress indicators, we'll just track progress in our LMS
         function updateRise360InternalProgress(progress) {
-            try {
-                // Get the Rise 360 iframe content
-                const riseFrame = document.getElementById('riseFrame');
-                if (!riseFrame || !riseFrame.contentWindow) {
-                    return;
-                }
-                
-                const iframeDoc = riseFrame.contentDocument || riseFrame.contentWindow.document;
-                if (!iframeDoc) {
-                    return;
-                }
-                
-                // Update Rise 360's internal progress indicators
-                // Look for various progress indicator elements in Rise 360 content
-                const progressSelectors = [
-                    // Common Rise 360 progress indicators
-                    '[data-progress]',
-                    '.progress-indicator',
-                    '.progress-text',
-                    '.completion-percentage',
-                    '.progress-percentage',
-                    // Look for elements containing "COMPLETE" or percentage text
-                    '*:contains("0% COMPLETE")',
-                    '*:contains("COMPLETE")',
-                    '*:contains("%")',
-                    // Specific Rise 360 patterns
-                    '.sidebar-progress',
-                    '.lesson-progress',
-                    '.course-progress',
-                    '.overall-progress'
-                ];
-                
-                progressSelectors.forEach(selector => {
-                    try {
-                        const elements = iframeDoc.querySelectorAll(selector);
-                        elements.forEach(element => {
-                            const text = element.textContent || element.innerText || '';
-                            
-                            // Update percentage displays
-                            if (text.includes('%') || text.includes('COMPLETE')) {
-                                if (text.includes('0% COMPLETE')) {
-                                    element.textContent = text.replace('0% COMPLETE', progress + '% COMPLETE');
-                                } else if (text.includes('COMPLETE')) {
-                                    element.textContent = text.replace(/\d+% COMPLETE/, progress + '% COMPLETE');
-                                } else if (text.includes('%')) {
-                                    element.textContent = text.replace(/\d+%/, progress + '%');
-                                }
-                                
-                                // Update data attributes
-                                if (element.hasAttribute('data-progress')) {
-                                    element.setAttribute('data-progress', progress);
-                                }
-                                
-                                console.log('[Rise 360 Internal] Updated progress element:', element.textContent);
-                            }
-                        });
-                    } catch (e) {
-                        // Silently handle cross-origin or selector errors
-                    }
-                });
-                
-                // Also try to update progress via Rise 360's internal API if available
-                try {
-                    if (riseFrame.contentWindow && riseFrame.contentWindow.updateProgress) {
-                        riseFrame.contentWindow.updateProgress(progress);
-                        console.log('[Rise 360 Internal] Called updateProgress API');
-                    }
-                } catch (e) {
-                    // Silently handle cross-origin restrictions
-                }
-                
-                // Try to dispatch custom events to notify Rise 360 of progress changes
-                try {
-                    const progressEvent = new CustomEvent('scormProgressUpdate', {
-                        detail: { progress: progress }
-                    });
-                    iframeDoc.dispatchEvent(progressEvent);
-                    console.log('[Rise 360 Internal] Dispatched progress event');
-                } catch (e) {
-                    // Silently handle cross-origin restrictions
-                }
-                
-            } catch (e) {
-                console.log('[Rise 360 Internal] Could not update internal progress (cross-origin):', e.message);
-            }
+            // Log the progress but don't modify the SCORM content
+            console.log('[Rise 360] Progress updated in LMS: ' + progress + '%');
+            
+            // We still update our own UI elements outside the iframe
+            document.getElementById('progressBarFill').style.width = progress + '%';
+            document.getElementById('progressText').textContent = progress + '%';
         }
         
         // Update progress less frequently to prevent API spam

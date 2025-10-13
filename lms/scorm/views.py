@@ -1314,50 +1314,18 @@ def scorm_content(request, topic_id, path):
         });
     }
     
-    // COMPREHENSIVE FIX: Prevent duplicate event listeners and enhancements
-    if (typeof window.scormExitEnhancement === 'undefined') {
-        // Create a singleton object to manage exit button enhancement
-        window.scormExitEnhancement = {
-            initialized: false,
-            eventsBound: false,
-            enhancementCount: 0,
-            
-            // Initialize only once
-            init: function() {
-                if (this.initialized) {
-                    console.log('[SCORM] Exit button enhancement already initialized');
-                    return;
-                }
-                
-                this.initialized = true;
-                console.log('[SCORM] Initializing exit button enhancement');
-                
-                // Run enhancement immediately
-                this.runEnhancement();
-                
-                // Clean up any existing event listeners before adding new ones
-                if (this.eventsBound) {
-                    document.removeEventListener('DOMContentLoaded', this.runEnhancement);
-                }
-                
-                // Add event listener with bound context
-                document.addEventListener('DOMContentLoaded', this.runEnhancement.bind(this));
-                this.eventsBound = true;
-            },
-            
-            // Run the enhancement
-            runEnhancement: function() {
-                this.enhancementCount++;
-                console.log(`[SCORM] Running exit button enhancement (attempt ${this.enhancementCount})`);
-                enhanceExitButtons();
-            }
+    // ARCHITECTURAL IMPROVEMENT: Don't interfere with SCORM content's internal features
+    // Instead of enhancing exit buttons which might interfere with SCORM content's functionality,
+    // we'll just log that we're respecting the SCORM content's internal features
+    console.log('[SCORM] Respecting SCORM content\'s internal exit functionality');
+    
+    // Only add minimal logging to help with debugging
+    if (window.API && window.API.LMSFinish) {
+        const originalLMSFinish = window.API.LMSFinish;
+        window.API.LMSFinish = function() {
+            console.log('[SCORM] LMSFinish called by content');
+            return originalLMSFinish.apply(this, arguments);
         };
-        
-        // Initialize the enhancement
-        window.scormExitEnhancement.init();
-    } else {
-        // Already initialized, just log
-        console.log('[SCORM] Exit button enhancement already set up');
     }
     
     // CRITICAL FIX: Prevent infinite loops with global flag

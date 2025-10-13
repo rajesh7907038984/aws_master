@@ -273,78 +273,78 @@ class ScormAPIHandler:
                 return ''
             
             try:
-            # For resume-critical elements before initialization, return from model fields directly
-            if not self.initialized and element in resume_critical_elements:
-                logger.info(f"SCORM API GetValue({element}) called before initialization - returning from model")
-                if element in ['cmi.core.lesson_location', 'cmi.location']:
-                    value = self.attempt.lesson_location or ''
-                elif element == 'cmi.suspend_data':
-                    # ✅ CRITICAL: Return empty string for Rise compatibility
-                    # Rise will check if empty and handle gracefully
-                    value = self.attempt.suspend_data or ''
-                elif element in ['cmi.core.entry', 'cmi.entry']:
-                    # ✅ CRITICAL FIX: Return 'resume' if bookmark OR suspend_data exists
-                    # Check both lesson_location and suspend_data for resume capability
-                    has_bookmark = bool(self.attempt.lesson_location and len(self.attempt.lesson_location) > 0)
-                    has_suspend_data = bool(self.attempt.suspend_data and len(self.attempt.suspend_data) > 0)
-                    value = 'resume' if (has_bookmark or has_suspend_data) else 'ab-initio'
-                else:
-                    value = ''
-                logger.info(f"SCORM API GetValue({element}) before init - returning: '{value[:100] if isinstance(value, str) else value}'")
-                self.last_error = '0'
-                return str(value)
-            
-            value = self.attempt.cmi_data.get(element, '')
-            
-            # Log the retrieved value for debugging (only log important elements to avoid spam)
-            if element in ['cmi.core.entry', 'cmi.entry', 'cmi.core.lesson_location', 'cmi.location', 'cmi.suspend_data', 'cmi.core.lesson_status']:
-                logger.info(f"📖 SCORM GetValue({element}) - raw value from cmi_data: '{value[:100] if isinstance(value, str) else value}'")
-            
-            # Ensure critical elements have proper defaults if empty or whitespace
-            if not value or str(value).strip() == '':
-                logger.info(f"SCORM API GetValue({element}) - value is empty, applying default")
-                if element == 'cmi.core.lesson_status':
-                    value = self.attempt.lesson_status if self.attempt.lesson_status != 'not_attempted' else 'not attempted'
-                    # Ensure it's a valid SCORM 1.2 status
-                    valid_statuses = ['passed', 'completed', 'failed', 'incomplete', 'browsed', 'not attempted']
-                    if value not in valid_statuses:
-                        value = 'not attempted'
-                elif element == 'cmi.core.lesson_mode':
-                    value = 'normal'
-                elif element == 'cmi.core.credit':
-                    value = 'credit'
-                elif element == 'cmi.completion_status':
-                    value = self.attempt.completion_status or 'incomplete'
-                elif element == 'cmi.mode':
-                    value = 'normal'
-                elif element == 'cmi.success_status':
-                    value = self.attempt.success_status or 'unknown'
-                elif element == 'cmi.progress_measure':
-                    # Calculate progress_measure from progress_percentage (0-100 -> 0-1)
-                    if self.attempt.progress_percentage and self.attempt.progress_percentage > 0:
-                        value = str(float(self.attempt.progress_percentage) / 100.0)
+                # For resume-critical elements before initialization, return from model fields directly
+                if not self.initialized and element in resume_critical_elements:
+                    logger.info(f"SCORM API GetValue({element}) called before initialization - returning from model")
+                    if element in ['cmi.core.lesson_location', 'cmi.location']:
+                        value = self.attempt.lesson_location or ''
+                    elif element == 'cmi.suspend_data':
+                        # ✅ CRITICAL: Return empty string for Rise compatibility
+                        # Rise will check if empty and handle gracefully
+                        value = self.attempt.suspend_data or ''
+                    elif element in ['cmi.core.entry', 'cmi.entry']:
+                        # ✅ CRITICAL FIX: Return 'resume' if bookmark OR suspend_data exists
+                        # Check both lesson_location and suspend_data for resume capability
+                        has_bookmark = bool(self.attempt.lesson_location and len(self.attempt.lesson_location) > 0)
+                        has_suspend_data = bool(self.attempt.suspend_data and len(self.attempt.suspend_data) > 0)
+                        value = 'resume' if (has_bookmark or has_suspend_data) else 'ab-initio'
                     else:
                         value = ''
-                elif element in ['cmi.core.score.max', 'cmi.score.max']:
-                    value = str(self.attempt.score_max) if self.attempt.score_max else '100'
-                elif element in ['cmi.core.score.min', 'cmi.score.min']:
-                    value = str(self.attempt.score_min) if self.attempt.score_min else '0'
-                elif element == 'cmi.core.student_id' or element == 'cmi.learner_id':
-                    value = str(self.attempt.user.id)
-                elif element == 'cmi.core.student_name' or element == 'cmi.learner_name':
-                    value = self.attempt.user.get_full_name() or self.attempt.user.username
-                elif element == 'cmi.core.entry' or element == 'cmi.entry':
-                    value = self.attempt.entry
-                elif element == 'cmi.core.lesson_location' or element == 'cmi.location':
-                    # CRITICAL FIX: Always return bookmark data from model fields
-                    value = self.attempt.lesson_location or ''
-                elif element == 'cmi.suspend_data':
-                    # CRITICAL FIX: Always return suspend data from model fields
-                    value = self.attempt.suspend_data or ''
-            
-            self.last_error = '0'
-            logger.info(f"SCORM API GetValue({element}) - returning: '{value}'")
-            return str(value)
+                    logger.info(f"SCORM API GetValue({element}) before init - returning: '{value[:100] if isinstance(value, str) else value}'")
+                    self.last_error = '0'
+                    return str(value)
+                
+                value = self.attempt.cmi_data.get(element, '')
+                
+                # Log the retrieved value for debugging (only log important elements to avoid spam)
+                if element in ['cmi.core.entry', 'cmi.entry', 'cmi.core.lesson_location', 'cmi.location', 'cmi.suspend_data', 'cmi.core.lesson_status']:
+                    logger.info(f"📖 SCORM GetValue({element}) - raw value from cmi_data: '{value[:100] if isinstance(value, str) else value}'")
+                
+                # Ensure critical elements have proper defaults if empty or whitespace
+                if not value or str(value).strip() == '':
+                    logger.info(f"SCORM API GetValue({element}) - value is empty, applying default")
+                    if element == 'cmi.core.lesson_status':
+                        value = self.attempt.lesson_status if self.attempt.lesson_status != 'not_attempted' else 'not attempted'
+                        # Ensure it's a valid SCORM 1.2 status
+                        valid_statuses = ['passed', 'completed', 'failed', 'incomplete', 'browsed', 'not attempted']
+                        if value not in valid_statuses:
+                            value = 'not attempted'
+                    elif element == 'cmi.core.lesson_mode':
+                        value = 'normal'
+                    elif element == 'cmi.core.credit':
+                        value = 'credit'
+                    elif element == 'cmi.completion_status':
+                        value = self.attempt.completion_status or 'incomplete'
+                    elif element == 'cmi.mode':
+                        value = 'normal'
+                    elif element == 'cmi.success_status':
+                        value = self.attempt.success_status or 'unknown'
+                    elif element == 'cmi.progress_measure':
+                        # Calculate progress_measure from progress_percentage (0-100 -> 0-1)
+                        if self.attempt.progress_percentage and self.attempt.progress_percentage > 0:
+                            value = str(float(self.attempt.progress_percentage) / 100.0)
+                        else:
+                            value = ''
+                    elif element in ['cmi.core.score.max', 'cmi.score.max']:
+                        value = str(self.attempt.score_max) if self.attempt.score_max else '100'
+                    elif element in ['cmi.core.score.min', 'cmi.score.min']:
+                        value = str(self.attempt.score_min) if self.attempt.score_min else '0'
+                    elif element == 'cmi.core.student_id' or element == 'cmi.learner_id':
+                        value = str(self.attempt.user.id)
+                    elif element == 'cmi.core.student_name' or element == 'cmi.learner_name':
+                        value = self.attempt.user.get_full_name() or self.attempt.user.username
+                    elif element == 'cmi.core.entry' or element == 'cmi.entry':
+                        value = self.attempt.entry
+                    elif element == 'cmi.core.lesson_location' or element == 'cmi.location':
+                        # CRITICAL FIX: Always return bookmark data from model fields
+                        value = self.attempt.lesson_location or ''
+                    elif element == 'cmi.suspend_data':
+                        # CRITICAL FIX: Always return suspend data from model fields
+                        value = self.attempt.suspend_data or ''
+                
+                self.last_error = '0'
+                logger.info(f"SCORM API GetValue({element}) - returning: '{value}'")
+                return str(value)
         except Exception as e:
             logger.error(f"Error getting value for {element}: {str(e)}")
             self.last_error = '101'
@@ -361,18 +361,18 @@ class ScormAPIHandler:
                 return 'false'
             
             try:
-            # FIXED: Add input validation to prevent malicious data
-            if value is None:
-                value = ''
-            
-            # Convert to string and check for basic validity
-            value_str = str(value)
-            
-            # Prevent script injection attempts
-            if '<script' in value_str.lower() or 'javascript:' in value_str.lower():
-                logger.warning(f"Potential script injection attempt blocked: {element}")
-                self.last_error = '402'  # Invalid set value
-                return 'false'
+                # FIXED: Add input validation to prevent malicious data
+                if value is None:
+                    value = ''
+                
+                # Convert to string and check for basic validity
+                value_str = str(value)
+                
+                # Prevent script injection attempts
+                if '<script' in value_str.lower() or 'javascript:' in value_str.lower():
+                    logger.warning(f"Potential script injection attempt blocked: {element}")
+                    self.last_error = '402'  # Invalid set value
+                    return 'false'
             
             # Validate numeric values
             if element in ['cmi.core.score.raw', 'cmi.score.raw', 'cmi.core.score.min', 'cmi.score.min', 
