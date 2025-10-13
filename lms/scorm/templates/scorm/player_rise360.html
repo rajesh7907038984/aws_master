@@ -411,10 +411,10 @@
         document.getElementById('riseFrame').addEventListener('load', function() {
             console.log('✅ Rise 360 content loaded');
             
-            // Start periodic auto-save (every 30 seconds)
+            // Start periodic auto-save (every 5 seconds)
             if (!autoSaveInterval) {
-                autoSaveInterval = setInterval(performAutoCommit, 30000);
-                console.log('[Rise 360] Auto-save started (every 30 seconds)');
+                autoSaveInterval = setInterval(performAutoCommit, 5000);
+                console.log('[Rise 360] Auto-save started (every 5 seconds)');
             }
         });
         
