@@ -378,11 +378,9 @@
                 }, 300);
             }
             
-            // Start periodic auto-save (every 5 seconds)
-            if (!autoSaveInterval) {
-                autoSaveInterval = setInterval(performAutoCommit, 5000);
-                console.log('[SCORM] Auto-save started (every 5 seconds)');
-            }
+            // REMOVED: Auto-save every 5 seconds
+            // Data is now saved ONLY when user clicks "Save & Exit"
+            console.log('[SCORM] Auto-save disabled - data saved on "Save & Exit" click only');
             
             // CRITICAL FIX: Initialize Exit Assessment Button Fix in iframe
             try {
