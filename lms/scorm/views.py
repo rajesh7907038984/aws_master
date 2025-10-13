@@ -928,114 +928,114 @@ def scorm_content(request, topic_id, path):
         }}
     }},
     
-    Initialize: function(param) {{ 
+    Initialize: function(param) { 
         return this._makeAPICall('Initialize', [param]); 
-    }},
-    LMSInitialize: function(param) {{ 
+    },
+            LMSInitialize: function(param) { 
         return this._makeAPICall('Initialize', [param]); 
-    }},
-    Terminate: function(param) {{ 
+    },
+    Terminate: function(param) { 
         return this._makeAPICall('Terminate', [param]); 
-    }},
-    LMSFinish: function(param) {{ 
+    },
+    LMSFinish: function(param) { 
         return this._makeAPICall('Terminate', [param]); 
-    }},
-    GetValue: function(element) {{ 
+    },
+    GetValue: function(element) { 
         return this._makeAPICall('GetValue', [element]); 
-    }},
-    LMSGetValue: function(element) {{ 
+    },
+    LMSGetValue: function(element) { 
         return this._makeAPICall('GetValue', [element]); 
-    }},
-    SetValue: function(element, value) {{ 
+    },
+    SetValue: function(element, value) { 
         return this._makeAPICall('SetValue', [element, value]); 
-    }},
-    LMSSetValue: function(element, value) {{ 
+    },
+    LMSSetValue: function(element, value) { 
         return this._makeAPICall('SetValue', [element, value]); 
-    }},
-    Commit: function(param) {{ 
+    },
+    Commit: function(param) { 
         return this._makeAPICall('Commit', [param]); 
-    }},
-    LMSCommit: function(param) {{ 
+    },
+    LMSCommit: function(param) { 
         return this._makeAPICall('Commit', [param]); 
-    }},
-    GetLastError: function() {{ 
+    },
+    GetLastError: function() { 
         return this._lastError; 
-    }},
-    LMSGetLastError: function() {{ 
+    },
+    LMSGetLastError: function() { 
         return this._lastError; 
-    }},
-    GetErrorString: function(code) {{ 
+    },
+    GetErrorString: function(code) { 
         return this._makeAPICall('GetErrorString', [code]); 
-    }},
-    LMSGetErrorString: function(code) {{ 
+    },
+    LMSGetErrorString: function(code) { 
         return this._makeAPICall('GetErrorString', [code]); 
-    }},
-    GetDiagnostic: function(code) {{ 
+    },
+    GetDiagnostic: function(code) { 
         return this._makeAPICall('GetDiagnostic', [code]); 
-    }},
-    LMSGetDiagnostic: function(code) {{ 
+    },
+    LMSGetDiagnostic: function(code) { 
         return this._makeAPICall('GetDiagnostic', [code]); 
-    }},
+    },
     
     // Additional SCORM functions that some content may require
-    CommitData: function() {{ 
+    CommitData: function() { 
         return this._makeAPICall('Commit', []); 
-    }},
-    ConcedeControl: function() {{ 
+    },
+    ConcedeControl: function() { 
         return 'true'; 
-    }},
-    CreateResponseIdentifier: function() {{ 
+    },
+    CreateResponseIdentifier: function() { 
         return 'response_' + Date.now(); 
-    }},
-    Finish: function() {{ 
+    },
+    Finish: function() { 
         return this._makeAPICall('Terminate', []); 
-    }},
-    GetDataChunk: function() {{ 
+    },
+    GetDataChunk: function() { 
         return ''; 
-    }},
-    GetStatus: function() {{ 
+    },
+    GetStatus: function() { 
         return this._makeAPICall('GetValue', ['cmi.core.lesson_status']); 
-    }},
-    MatchingResponse: function() {{ 
+    },
+    MatchingResponse: function() { 
         return 'true'; 
-    }},
-    RecordFillInInteraction: function() {{ 
+    },
+    RecordFillInInteraction: function() { 
         return 'true'; 
-    }},
-    RecordMatchingInteraction: function() {{ 
+    },
+    RecordMatchingInteraction: function() { 
         return 'true'; 
-    }},
-    RecordMultipleChoiceInteraction: function() {{ 
+    },
+    RecordMultipleChoiceInteraction: function() { 
         return 'true'; 
-    }},
-    ResetStatus: function() {{ 
+    },
+    ResetStatus: function() { 
         return 'true'; 
-    }},
-    SetBookmark: function(bookmark) {{ 
+    },
+    SetBookmark: function(bookmark) { 
         return this._makeAPICall('SetValue', ['cmi.core.lesson_location', bookmark]); 
-    }},
-    SetDataChunk: function(data) {{ 
+    },
+    SetDataChunk: function(data) { 
         return this._makeAPICall('SetValue', ['cmi.suspend_data', data]); 
-    }},
-    SetFailed: function() {{ 
+    },
+    SetFailed: function() { 
         return this._makeAPICall('SetValue', ['cmi.core.lesson_status', 'failed']); 
-    }},
-    SetLanguagePreference: function(lang) {{ 
+    },
+    SetLanguagePreference: function(lang) { 
         return 'true'; 
-    }},
-    SetPassed: function() {{ 
+    },
+    SetPassed: function() { 
         return this._makeAPICall('SetValue', ['cmi.core.lesson_status', 'passed']); 
-    }},
-    SetReachedEnd: function() {{ 
+    },
+    SetReachedEnd: function() { 
         return this._makeAPICall('SetValue', ['cmi.core.lesson_status', 'completed']); 
-    }},
-    SetScore: function(score) {{ 
+    },
+    SetScore: function(score) { 
         return this._makeAPICall('SetValue', ['cmi.core.score.raw', score]); 
-    }},
-    WriteToDebug: function(message) {{ 
+    },
+    WriteToDebug: function(message) { 
         console.log('[SCORM Debug]', message);
         return 'true'; 
-    }}
+    }
 }};
     
     // CRITICAL: Ensure API is available immediately for Rise 360
