@@ -1268,12 +1268,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (window.API && !window.API._initialized) {
                     console.log('[Rise 360] Forcing SCORM initialization...');
                     try {
-                        var initResult = window.API.Initialize('');
+                        var initResult = window.API.LMSInitialize('');
                         console.log('[Rise 360] Force initialization result:', initResult);
                         if (initResult === 'true') {
                             // Set initial status to incomplete
-                            window.API.SetValue('cmi.core.lesson_status', 'incomplete');
-                            window.API.Commit('');
+                            window.API.LMSSetValue('cmi.core.lesson_status', 'incomplete');
+                            window.API.LMSCommit('');
                             console.log('[Rise 360] Initial status set to incomplete and saved');
                             console.log('[Rise 360] Auto-save removed - data saved only on "Save & Exit" click');
                         }
