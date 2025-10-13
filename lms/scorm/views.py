@@ -641,7 +641,7 @@ def scorm_content(request, topic_id, path):
                 html_content = content.decode('utf-8')
                 
                # Inject SCORM API that connects to the real API endpoint
-                # Get attempt_id from the URL parameters
+                # Get attempt_id from the URL parameters with null safety
                 attempt_id = request.GET.get('attempt_id', 'preview')
                
                 # CRITICAL FIX: If attempt_id is 'preview', try to get the real attempt_id from the referer
@@ -653,6 +653,11 @@ def scorm_content(request, topic_id, path):
                         if match:
                             attempt_id = match.group(1)
                             logger.info(f"SCORM Content: Extracted attempt_id from referer: {attempt_id}")
+                
+                # CRITICAL FIX: Add null safety check
+                if not attempt_id or attempt_id == 'preview':
+                    attempt_id = 'unknown'
+                    logger.warning(f"SCORM Content: Using fallback attempt_id: {attempt_id}")
                
                 api_endpoint = f'/scorm/api/{attempt_id}/'
                 api_injection = f'''
@@ -1103,27 +1108,41 @@ def scorm_content(request, topic_id, path):
     enhanceExitButtons();
     document.addEventListener('DOMContentLoaded', enhanceExitButtons);
     
-    // CRITICAL FIX: Prevent infinite loops by limiting enhancement attempts
+    // CRITICAL FIX: Prevent infinite loops with global flag
+    if (window.scormEnhancementActive) {
+        console.log('[SCORM] Enhancement already active, skipping duplicate');
+        return;
+    }
+    window.scormEnhancementActive = true;
+    
     let enhancementAttempts = 0;
-    const maxEnhancementAttempts = 10; // Limit to 10 attempts over 20 seconds
+    const maxEnhancementAttempts = 5; // Reduced to 5 attempts
+    let enhancementInterval = null;
     
     function limitedEnhanceExitButtons() {
         if (enhancementAttempts >= maxEnhancementAttempts) {
             console.log('[SCORM] Max enhancement attempts reached, stopping');
+            if (enhancementInterval) {
+                clearInterval(enhancementInterval);
+                enhancementInterval = null;
+            }
             return;
         }
         enhancementAttempts++;
         enhanceExitButtons();
     }
     
-    // Run periodically but with limits
-    const enhancementInterval = setInterval(limitedEnhanceExitButtons, 2000);
+    // Run periodically but with strict limits
+    enhancementInterval = setInterval(limitedEnhanceExitButtons, 3000); // Increased interval
     
-    // Stop after 20 seconds to prevent infinite loops
+    // Stop after 15 seconds to prevent infinite loops
     setTimeout(() => {
-        clearInterval(enhancementInterval);
-        console.log('[SCORM] Exit button enhancement stopped after 20 seconds');
-    }, 20000);
+        if (enhancementInterval) {
+            clearInterval(enhancementInterval);
+            enhancementInterval = null;
+        }
+        console.log('[SCORM] Exit button enhancement stopped after 15 seconds');
+    }, 15000);
 })();
 
 // CRITICAL FIX: Enhanced Exit button functionality

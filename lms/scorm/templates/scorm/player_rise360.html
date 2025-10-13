@@ -182,10 +182,16 @@
 
     <!-- CRITICAL: Create SCORM API BEFORE iframe loads for Rise 360 detection -->
     <script>
-        // Configuration
+        // Configuration with null safety
         const API_ENDPOINT = '{{ api_endpoint }}';
-        const ATTEMPT_ID = '{{ attempt.id|default:attempt_id }}';
+        const ATTEMPT_ID = '{{ attempt.id|default:attempt_id }}' || 'unknown';
         const IS_PREVIEW = {% if preview_mode %}true{% else %}false{% endif %};
+        
+        // CRITICAL FIX: Add null safety checks to prevent React-like errors
+        if (!API_ENDPOINT || !ATTEMPT_ID) {
+            console.error('[Rise 360] Missing required configuration');
+            return;
+        }
         
         console.log('🎯 Rise 360 Player - Initializing...');
         
@@ -929,13 +935,24 @@
             // Try to enhance exit buttons immediately
             enhanceIframeExitButtons();
             
-            // CRITICAL FIX: Prevent infinite loops by limiting enhancement attempts
+            // CRITICAL FIX: Prevent infinite loops with global flag
+            if (window.rise360EnhancementActive) {
+                console.log('[Rise 360] Enhancement already active, skipping duplicate');
+                return;
+            }
+            window.rise360EnhancementActive = true;
+            
             let enhancementAttempts = 0;
-            const maxEnhancementAttempts = 15; // Limit to 15 attempts over 30 seconds
+            const maxEnhancementAttempts = 8; // Reduced to 8 attempts
+            let enhanceInterval = null;
             
             function limitedEnhanceIframeExitButtons() {
                 if (enhancementAttempts >= maxEnhancementAttempts) {
                     console.log('[Rise 360] Max enhancement attempts reached, stopping');
+                    if (enhanceInterval) {
+                        clearInterval(enhanceInterval);
+                        enhanceInterval = null;
+                    }
                     return;
                 }
                 enhancementAttempts++;
@@ -943,13 +960,16 @@
             }
             
             // Also try periodically to catch dynamically loaded buttons
-            const enhanceInterval = setInterval(limitedEnhanceIframeExitButtons, 2000);
+            enhanceInterval = setInterval(limitedEnhanceIframeExitButtons, 3000); // Increased interval
             
-            // Stop trying after 30 seconds
+            // Stop trying after 24 seconds
             setTimeout(() => {
-                clearInterval(enhanceInterval);
+                if (enhanceInterval) {
+                    clearInterval(enhanceInterval);
+                    enhanceInterval = null;
+                }
                 console.log('[Rise 360] Stopped trying to enhance exit buttons');
-            }, 30000);
+            }, 24000);
         }
         
         // Update progress less frequently to prevent API spam
