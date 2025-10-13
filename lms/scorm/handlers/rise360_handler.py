@@ -14,51 +14,32 @@ class Rise360Handler(BaseScormAPIHandler):
     
     Rise 360-specific features:
     - Bookmark format: index.html#/lessons/[lesson-id]
-    - Progress tracked via lesson navigation
+    - Progress tracked via lesson navigation and progress_measure
     - Minimal suspend_data usage
     - Lesson completion tracking
-    - CRITICAL: Rise calculates its own progress - DO NOT pre-populate progress_measure
+    - Progress bar restored from stored progress_measure on resume
     """
     
     def initialize(self):
         """
         Initialize with Rise 360-specific resume support
-        CRITICAL FIX: Clear progress_measure to let Rise calculate its own progress
         """
         result = super().initialize()
         
         if result == 'true':
             logger.info(f"📗 Rise 360 Handler initialized for attempt {self.attempt.id}")
             
-            # CRITICAL BUG FIX: Rise 360 calculates its own internal progress for the "X% COMPLETE" bar
-            # We MUST return empty string for progress_measure to let Rise calculate from scratch
-            # If we return a pre-calculated value, Rise will display stale/incorrect progress
-            if self.version != '1.2':
-                # Clear progress_measure for SCORM 2004
-                self.attempt.cmi_data['cmi.progress_measure'] = ''
-                logger.info(f"   [Rise 360] Cleared progress_measure - Rise will calculate its own")
-            
             # Rise 360-specific: Log lesson bookmark for resume
             if self.attempt.lesson_location and '#/lessons/' in self.attempt.lesson_location:
                 lesson_id = self.attempt.lesson_location.split('#/lessons/')[1].split('/')[0] if '#/lessons/' in self.attempt.lesson_location else 'unknown'
                 logger.info(f"   Resume at lesson: {lesson_id[:20]}...")
+            
+            # Log progress_measure for debugging
+            if self.version != '1.2':
+                progress_measure = self.attempt.cmi_data.get('cmi.progress_measure', '')
+                logger.info(f"   [Rise 360] Progress measure on init: {progress_measure}")
         
         return result
-    
-    def get_value(self, element):
-        """
-        Rise 360 GetValue with progress_measure fix
-        CRITICAL: Always return empty string for progress_measure so Rise calculates its own
-        """
-        # CRITICAL BUG FIX: Rise 360 displays "X% COMPLETE" cosmetic bar based on progress_measure
-        # If we return a pre-calculated value, it shows stale/incorrect progress
-        # Return empty string so Rise calculates fresh progress from lesson navigation
-        if element == 'cmi.progress_measure':
-            logger.info(f"📗 [Rise 360] GetValue(progress_measure) -> '' (letting Rise calculate)")
-            return ''
-        
-        # For all other elements, use parent implementation
-        return super().get_value(element)
     
     def set_value(self, element, value):
         """
@@ -71,10 +52,9 @@ class Rise360Handler(BaseScormAPIHandler):
                 # Extract lesson progress
                 self._extract_rise360_progress(value)
         
-        # CRITICAL: Accept progress_measure from Rise 360 (it calculates its own)
-        # Store it so we can sync to backend, but don't interfere with Rise's calculation
+        # Log progress_measure updates from Rise 360
         if element == 'cmi.progress_measure' and value:
-            logger.info(f"💾 [Rise 360] Progress measure received from Rise: {value}")
+            logger.info(f"💾 [Rise 360] Progress measure set by Rise: {value}")
         
         result = super().set_value(element, value)
         
