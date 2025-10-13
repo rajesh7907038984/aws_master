@@ -172,7 +172,7 @@ class Command(BaseCommand):
             self.send_alert_email(critical_conferences)
         
         # Summary
-        self.stdout.write(f"\n📈 Monitoring Summary:")
+        self.stdout.write(f"\n Monitoring Summary:")
         self.stdout.write(f"  • {len(critical_conferences)} critical issues")
         self.stdout.write(f"  • {len(warning_conferences)} warnings")
         if auto_fix:

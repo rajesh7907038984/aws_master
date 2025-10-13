@@ -103,7 +103,7 @@ def post_fork(server, worker):
 
 def worker_abort(worker):
     """Called when a worker receives the SIGABRT signal."""
-    worker.log.info("⚠️ Worker received SIGABRT signal")
+    worker.log.info(" Worker received SIGABRT signal")
 
 def on_exit(server):
     """Called just before exiting."""
@@ -111,4 +111,4 @@ def on_exit(server):
 
 def on_reload(server):
     """Called to recycle workers during a reload via SIGHUP."""
-    server.log.info(f"🔄 LMS {DJANGO_ENV.upper()} Server reloading")
+    server.log.info(f" LMS {DJANGO_ENV.upper()} Server reloading")

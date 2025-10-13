@@ -287,7 +287,7 @@ class MigrationDevelopmentHelper:
         """
         Test a migration for safety before applying it
         """
-        print(f"🧪 Testing migration safety: {app_name}.{migration_name}")
+        print(f" Testing migration safety: {app_name}.{migration_name}")
         
         try:
             # This would analyze the migration file for conflicts

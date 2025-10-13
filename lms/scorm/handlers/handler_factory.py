@@ -77,16 +77,16 @@ def get_handler_for_attempt(attempt):
         # Select handler based on package type
         if package_type == 'storyline':
             handler = StorylineHandler(attempt)
-            logger.info(f"✅ Using StorylineHandler for attempt {attempt.id}")
+            logger.info(f" Using StorylineHandler for attempt {attempt.id}")
         elif package_type == 'rise360':
             handler = Rise360Handler(attempt)
-            logger.info(f"✅ Using Rise360Handler for attempt {attempt.id}")
+            logger.info(f" Using Rise360Handler for attempt {attempt.id}")
         elif package_type == 'captivate':
             handler = CaptivateHandler(attempt)
-            logger.info(f"✅ Using CaptivateHandler for attempt {attempt.id}")
+            logger.info(f" Using CaptivateHandler for attempt {attempt.id}")
         else:
             handler = GenericHandler(attempt)
-            logger.info(f"✅ Using GenericHandler for attempt {attempt.id}")
+            logger.info(f" Using GenericHandler for attempt {attempt.id}")
         
         return handler
         

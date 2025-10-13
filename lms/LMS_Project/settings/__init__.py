@@ -19,7 +19,7 @@ if DJANGO_ENV == 'staging':
     
 elif DJANGO_ENV == 'test':
     from .test import *
-    print("🧪 Loading TEST environment configuration")
+    print(" Loading TEST environment configuration")
     
 else:  # production or default
     from .production import *

@@ -29,9 +29,9 @@ class Command(BaseCommand):
         package_id = options.get('package_id')
         
         if fix_mode:
-            self.stdout.write(self.style.WARNING('🔧 FIX MODE: Will update launch URLs'))
+            self.stdout.write(self.style.WARNING(' FIX MODE: Will update launch URLs'))
         else:
-            self.stdout.write(self.style.SUCCESS('🔍 DRY RUN MODE: Will only detect issues'))
+            self.stdout.write(self.style.SUCCESS(' DRY RUN MODE: Will only detect issues'))
         
         # Get packages to process
         if package_id:
@@ -61,12 +61,12 @@ class Command(BaseCommand):
                 detected_launch_file = UniversalSCORMHandler.detect_launch_file(package_files)
                 
                 if detected_launch_file:
-                    self.stdout.write(f'   ✅ Detected launch file: {detected_launch_file}')
+                    self.stdout.write(f'    Detected launch file: {detected_launch_file}')
                     
                     # Check if current launch URL is correct
                     if package.launch_url != detected_launch_file:
                         self.stdout.write(
-                            self.style.WARNING(f'   ⚠️  Launch URL mismatch!')
+                            self.style.WARNING(f'     Launch URL mismatch!')
                         )
                         self.stdout.write(f'   Current: {package.launch_url}')
                         self.stdout.write(f'   Detected: {detected_launch_file}')
@@ -80,16 +80,16 @@ class Command(BaseCommand):
                             package.save()
                             
                             self.stdout.write(
-                                self.style.SUCCESS(f'   ✅ Fixed launch URL')
+                                self.style.SUCCESS(f'    Fixed launch URL')
                             )
                             self.stdout.write(f'   Old: {old_launch_url}')
                             self.stdout.write(f'   New: {detected_launch_file}')
                             fixes_applied += 1
                     else:
-                        self.stdout.write(f'   ✅ Launch URL is correct')
+                        self.stdout.write(f'    Launch URL is correct')
                 else:
                     self.stdout.write(
-                        self.style.ERROR('   ❌ Could not detect launch file')
+                        self.style.ERROR('    Could not detect launch file')
                     )
                     issues_found += 1
                 
@@ -99,26 +99,26 @@ class Command(BaseCommand):
                 )
                 
                 if validation['is_valid']:
-                    self.stdout.write(f'   ✅ Package structure is valid')
+                    self.stdout.write(f'    Package structure is valid')
                 else:
-                    self.stdout.write(f'   ⚠️  Package structure issues:')
+                    self.stdout.write(f'     Package structure issues:')
                     for key, value in validation.items():
                         if key != 'is_valid':
-                            status = '✅' if value else '❌'
+                            status = '' if value else ''
                             self.stdout.write(f'     {status} {key}: {value}')
                 
                 # Get package type
                 package_type = UniversalSCORMHandler.get_package_type(package.launch_url)
-                self.stdout.write(f'   📋 Package type: {package_type}')
+                self.stdout.write(f'    Package type: {package_type}')
                 
             except Exception as e:
                 self.stdout.write(
-                    self.style.ERROR(f'   ❌ Error processing package: {e}')
+                    self.style.ERROR(f'    Error processing package: {e}')
                 )
                 issues_found += 1
         
         # Summary
-        self.stdout.write(f'\n📊 SUMMARY:')
+        self.stdout.write(f'\n SUMMARY:')
         self.stdout.write(f'   Packages processed: {packages.count()}')
         self.stdout.write(f'   Issues found: {issues_found}')
         
@@ -126,19 +126,19 @@ class Command(BaseCommand):
             self.stdout.write(f'   Fixes applied: {fixes_applied}')
             if fixes_applied > 0:
                 self.stdout.write(
-                    self.style.SUCCESS('✅ Launch URLs have been updated!')
+                    self.style.SUCCESS(' Launch URLs have been updated!')
                 )
             else:
                 self.stdout.write(
-                    self.style.SUCCESS('✅ No fixes needed - all packages are correct!')
+                    self.style.SUCCESS(' No fixes needed - all packages are correct!')
                 )
         else:
             self.stdout.write(f'   Issues that would be fixed: {issues_found}')
             if issues_found > 0:
                 self.stdout.write(
-                    self.style.WARNING('⚠️  Run with --fix to apply fixes')
+                    self.style.WARNING('  Run with --fix to apply fixes')
                 )
             else:
                 self.stdout.write(
-                    self.style.SUCCESS('✅ All packages are correct!')
+                    self.style.SUCCESS(' All packages are correct!')
                 )

@@ -245,10 +245,10 @@ class UniversalSCORMHandler:
             # Sort by score (highest first)
             launch_candidates.sort(key=lambda x: x[1], reverse=True)
             best_candidate = launch_candidates[0]
-            logger.info(f"✅ Selected launch file: {best_candidate[0]} (score: {best_candidate[1]}, type: {best_candidate[2]})")
+            logger.info(f" Selected launch file: {best_candidate[0]} (score: {best_candidate[1]}, type: {best_candidate[2]})")
             return best_candidate[0]
         
-        logger.warning("❌ No launch file detected in package")
+        logger.warning(" No launch file detected in package")
         return None
     
     @classmethod

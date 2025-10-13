@@ -215,7 +215,7 @@ def sync_on_exit(request):
                 })
             
             # Log current state for debugging
-            logger.info(f"🔄 Exit sync for attempt {attempt_id}")
+            logger.info(f" Exit sync for attempt {attempt_id}")
             logger.info(f"   Status: {attempt.lesson_status}")
             logger.info(f"   Completion Status: {attempt.completion_status}")
             logger.info(f"   Success Status: {attempt.success_status}")
@@ -242,9 +242,9 @@ def sync_on_exit(request):
                         if score_str:
                             try:
                                 attempt.score_raw = Decimal(score_str)
-                                logger.info(f"   ✅ Extracted score from CMI: {attempt.score_raw}")
+                                logger.info(f"    Extracted score from CMI: {attempt.score_raw}")
                             except (InvalidOperation, ValueError) as e:
-                                logger.warning(f"   ⚠️ Could not parse score '{score_str}': {e}")
+                                logger.warning(f"    Could not parse score '{score_str}': {e}")
                     
                     # Extract status from CMI if not in model
                     if attempt.lesson_status in ['not_attempted', 'not attempted', 'unknown']:
@@ -253,7 +253,7 @@ def sync_on_exit(request):
                         status_str = _safe_str(cmi_status)
                         if status_str and status_str not in ['not_attempted', 'not attempted']:
                             attempt.lesson_status = status_str.replace(' ', '_')
-                            logger.info(f"   ✅ Extracted status from CMI: {attempt.lesson_status}")
+                            logger.info(f"    Extracted status from CMI: {attempt.lesson_status}")
                     
                     # Extract suspend data from CMI if not in model
                     if not attempt.suspend_data or _safe_len(attempt.suspend_data) == 0:
@@ -261,7 +261,7 @@ def sync_on_exit(request):
                         suspend_str = _safe_str(cmi_suspend)
                         if suspend_str:
                             attempt.suspend_data = suspend_str
-                            logger.info(f"   ✅ Extracted suspend data from CMI: {_safe_len(attempt.suspend_data)} chars")
+                            logger.info(f"    Extracted suspend data from CMI: {_safe_len(attempt.suspend_data)} chars")
                     
                     # Extract bookmark from CMI if not in model
                     if not attempt.lesson_location or _safe_len(attempt.lesson_location) == 0:
@@ -270,9 +270,9 @@ def sync_on_exit(request):
                         location_str = _safe_str(cmi_location)
                         if location_str:
                             attempt.lesson_location = location_str[:1000]  # Respect field limit
-                            logger.info(f"   ✅ Extracted bookmark from CMI: {attempt.lesson_location[:50]}")
+                            logger.info(f"    Extracted bookmark from CMI: {attempt.lesson_location[:50]}")
                 except Exception as e:
-                    logger.error(f"   ⚠️ Error extracting CMI data: {str(e)}")
+                    logger.error(f"    Error extracting CMI data: {str(e)}")
                     # Continue anyway - don't let CMI extraction errors block save
             
             # CRITICAL: Ensure all JSON fields have valid values (never None)
@@ -288,7 +288,7 @@ def sync_on_exit(request):
                 if attempt.cmi_data is None:
                     attempt.cmi_data = {}
             except Exception as e:
-                logger.error(f"   ⚠️ Error setting JSON defaults: {str(e)}")
+                logger.error(f"    Error setting JSON defaults: {str(e)}")
             
             # Update last accessed timestamp
             attempt.last_accessed = timezone.now()
@@ -320,9 +320,9 @@ def sync_on_exit(request):
             
             try:
                 attempt.save(update_fields=fields_to_update)
-                logger.info(f"   ✅ All tracking data saved to database")
+                logger.info(f"    All tracking data saved to database")
             except Exception as e:
-                logger.error(f"   ❌ Error saving attempt: {str(e)}")
+                logger.error(f"    Error saving attempt: {str(e)}")
                 # Re-raise to rollback transaction
                 raise
             
@@ -330,10 +330,10 @@ def sync_on_exit(request):
             try:
                 attempt.refresh_from_db()
             except Exception as e:
-                logger.warning(f"   ⚠️ Could not refresh from DB: {str(e)}")
+                logger.warning(f"    Could not refresh from DB: {str(e)}")
             
             # Verify the save was successful
-            logger.info(f"   ✅ Verification after save:")
+            logger.info(f"    Verification after save:")
             logger.info(f"      - Suspend data length: {_safe_len(attempt.suspend_data)}")
             logger.info(f"      - Bookmark: {attempt.lesson_location[:50] if attempt.lesson_location else 'None'}")
             logger.info(f"      - Score: {attempt.score_raw}")
@@ -344,9 +344,9 @@ def sync_on_exit(request):
         sync_result = False
         try:
             sync_result = ScormScoreSyncService.sync_score(attempt, force=True)
-            logger.info(f"   Exit sync to TopicProgress: {'✅ Success' if sync_result else '⚠️ Skipped'}")
+            logger.info(f"   Exit sync to TopicProgress: {' Success' if sync_result else ' Skipped'}")
         except Exception as e:
-            logger.error(f"   ⚠️ Error syncing to TopicProgress: {str(e)}")
+            logger.error(f"    Error syncing to TopicProgress: {str(e)}")
             # Don't fail the entire operation if sync fails
         
         # Clear relevant caches to ensure fresh data using centralized cache manager
@@ -366,7 +366,7 @@ def sync_on_exit(request):
                     course_ids=course_ids
                 )
         except Exception as e:
-            logger.error(f"   ⚠️ Error clearing caches: {str(e)}")
+            logger.error(f"    Error clearing caches: {str(e)}")
             # Don't fail the entire operation if cache clearing fails
         
         return JsonResponse({
@@ -384,7 +384,7 @@ def sync_on_exit(request):
         })
         
     except Exception as e:
-        logger.error(f"❌ Exit sync error for attempt {attempt_id}: {str(e)}")
+        logger.error(f" Exit sync error for attempt {attempt_id}: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
         

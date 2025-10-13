@@ -67,7 +67,7 @@ class Command(BaseCommand):
                     package_files = scorm_s3.list_package_files(package)
                     self.stdout.write(f'   Files found: {len(package_files)}')
                 except Exception as e:
-                    self.stdout.write(self.style.ERROR(f'   ❌ Error listing files: {str(e)}'))
+                    self.stdout.write(self.style.ERROR(f'    Error listing files: {str(e)}'))
                     error_count += 1
                     continue
                 
@@ -75,7 +75,7 @@ class Command(BaseCommand):
                 detected_launch = UniversalSCORMHandler.detect_launch_file(package_files)
                 
                 if not detected_launch:
-                    self.stdout.write(self.style.WARNING(f'   ⚠️  No launch file detected'))
+                    self.stdout.write(self.style.WARNING(f'     No launch file detected'))
                     error_count += 1
                     continue
                 
@@ -83,11 +83,11 @@ class Command(BaseCommand):
                 
                 # Check if change is needed
                 if package.launch_url == detected_launch:
-                    self.stdout.write(self.style.SUCCESS(f'   ✅ No change needed'))
+                    self.stdout.write(self.style.SUCCESS(f'    No change needed'))
                     no_change_count += 1
                 else:
                     # Show the change
-                    self.stdout.write(self.style.WARNING(f'   🔄 CHANGE:'))
+                    self.stdout.write(self.style.WARNING(f'    CHANGE:'))
                     self.stdout.write(f'      OLD: {package.launch_url}')
                     self.stdout.write(f'      NEW: {detected_launch}')
                     
@@ -96,16 +96,16 @@ class Command(BaseCommand):
                         old_launch = package.launch_url
                         package.launch_url = detected_launch
                         package.save(update_fields=['launch_url'])
-                        self.stdout.write(self.style.SUCCESS(f'   ✅ Updated successfully'))
+                        self.stdout.write(self.style.SUCCESS(f'    Updated successfully'))
                         fixed_count += 1
                     else:
-                        self.stdout.write(self.style.WARNING(f'   ⚠️  Would update (dry run)'))
+                        self.stdout.write(self.style.WARNING(f'     Would update (dry run)'))
                         fixed_count += 1
                 
                 self.stdout.write('')
                 
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f'   ❌ Error processing package: {str(e)}'))
+                self.stdout.write(self.style.ERROR(f'    Error processing package: {str(e)}'))
                 error_count += 1
                 self.stdout.write('')
                 continue
@@ -126,7 +126,7 @@ class Command(BaseCommand):
             self.stdout.write('Run without --dry-run to apply changes')
         else:
             self.stdout.write('')
-            self.stdout.write(self.style.SUCCESS('✅ All changes applied successfully!'))
+            self.stdout.write(self.style.SUCCESS(' All changes applied successfully!'))
             self.stdout.write('')
             self.stdout.write('Next steps:')
             self.stdout.write('1. Restart the server: bash restart_server.sh')

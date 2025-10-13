@@ -50,7 +50,7 @@ def auto_analyze_scorm_package(sender, instance, created, **kwargs):
                 from scorm.s3_direct import scorm_s3
                 from scorm.universal_scorm_handler import UniversalSCORMHandler
                 
-                logger.info(f"🔍 Auto-detecting launch URL for package {instance.id}")
+                logger.info(f" Auto-detecting launch URL for package {instance.id}")
                 
                 # Get package files from S3
                 package_files = scorm_s3.list_package_files(instance)
@@ -60,11 +60,11 @@ def auto_analyze_scorm_package(sender, instance, created, **kwargs):
                 detected_launch_file = UniversalSCORMHandler.detect_launch_file(package_files)
                 
                 if detected_launch_file:
-                    logger.info(f"✅ Detected launch file: {detected_launch_file}")
+                    logger.info(f" Detected launch file: {detected_launch_file}")
                     
                     # Check if current launch URL is correct
                     if instance.launch_url != detected_launch_file:
-                        logger.info(f"⚠️ Launch URL mismatch detected!")
+                        logger.info(f" Launch URL mismatch detected!")
                         logger.info(f" Current: {instance.launch_url}")
                         logger.info(f" Detected: {detected_launch_file}")
                         
@@ -73,11 +73,11 @@ def auto_analyze_scorm_package(sender, instance, created, **kwargs):
                         instance.launch_url = detected_launch_file
                         instance.save()
                         
-                        logger.info(f"✅ Auto-fixed launch URL: {old_launch_url} → {detected_launch_file}")
+                        logger.info(f" Auto-fixed launch URL: {old_launch_url} → {detected_launch_file}")
                     else:
-                        logger.info(f"✅ Launch URL is already correct: {instance.launch_url}")
+                        logger.info(f" Launch URL is already correct: {instance.launch_url}")
                 else:
-                    logger.warning(f"❌ Could not auto-detect launch file for package {instance.id}")
+                    logger.warning(f" Could not auto-detect launch file for package {instance.id}")
                     
             except Exception as launch_error:
                 logger.error(f" Failed to auto-detect launch URL for package {instance.id}: {str(launch_error)}")

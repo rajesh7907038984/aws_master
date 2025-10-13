@@ -421,7 +421,7 @@ def send_test_email(request):
         test_notification = send_notification(
             recipient=request.user,
             notification_type_name=notification_type.name,
-            title=f'🧪 Test: {notification_type.display_name}',
+            title=f' Test: {notification_type.display_name}',
             message=f'''<h2>Test Email for {notification_type.display_name}</h2>
             
 <p>This is a test email to verify that your <strong>{notification_type.display_name}</strong> notifications are working correctly.</p>

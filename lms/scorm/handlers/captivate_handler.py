@@ -40,7 +40,7 @@ class CaptivateHandler(BaseScormAPIHandler):
         """
         # Captivate uses lesson_location for slide position
         if element in ['cmi.core.lesson_location', 'cmi.location']:
-            logger.info(f"💾 [Captivate] Slide position: {value}")
+            logger.info(f" [Captivate] Slide position: {value}")
         
         result = super().set_value(element, value)
         

@@ -166,7 +166,7 @@ class ScormParser:
                 
                 if detected_launch:
                     self.launch_url = detected_launch
-                    logger.info(f"✅ Auto-detected launch file: {self.launch_url}")
+                    logger.info(f" Auto-detected launch file: {self.launch_url}")
                 elif not self.launch_url:
                     # Last resort fallback - check for any HTML file
                     html_files = [f for f in extracted_files if f.lower().endswith(('.html', '.htm'))]
@@ -177,9 +177,9 @@ class ScormParser:
                             self.launch_url = scormcontent_files[0]
                         else:
                             self.launch_url = html_files[0]
-                        logger.info(f"⚠️ Fallback launch file: {self.launch_url}")
+                        logger.info(f" Fallback launch file: {self.launch_url}")
                     else:
-                        logger.warning(f"❌ No HTML files found in package")
+                        logger.warning(f" No HTML files found in package")
             
             # DYNAMIC ANALYSIS: Analyze package type and characteristics
             logger.info(" Analyzing SCORM package characteristics...")

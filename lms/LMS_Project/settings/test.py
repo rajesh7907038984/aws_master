@@ -109,4 +109,4 @@ LOGGING = {
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 DEFAULT_FROM_EMAIL = 'test@nexsy.io'
 
-print("🧪 Test settings loaded successfully")
+print(" Test settings loaded successfully")

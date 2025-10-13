@@ -857,12 +857,12 @@ def scorm_content(request, topic_id, path):
                 api_endpoint = f'/scorm/api/{attempt_id}/'
                 
                 # Generate the JavaScript code with the actual attempt_id value
-                # CRITICAL FIX: Use f-string to properly interpolate attempt_id
-                api_injection = f'''
+                # CRITICAL FIX: Use format() to inject api_endpoint without needing to escape JS braces
+                api_injection = '''
 <script>
 // CRITICAL FIX: SCORM API must be available immediately for Rise 360
 // Rise 360 checks for API on page load, so we set it up synchronously
-(function() {{
+(function() {
     // ENHANCED: Add debugging and monitoring
     window.SCORM_DEBUG = true;
     window.SCORM_API_CALLS = [];
@@ -872,32 +872,32 @@ def scorm_content(request, topic_id, path):
         typeof window.API !== 'undefined' && 
         window.API_1484_11 && 
         typeof window.API_1484_11 !== 'undefined' && 
-        window.API._initialized) {{
+        window.API._initialized) {
         console.log('[SCORM] API already loaded and initialized, skipping duplicate injection');
         return;
-    }}
+    }
     
     // If API exists but not initialized, clean it up first
     if (window.API && typeof window.API !== 'undefined' && 
-        window.API_1484_11 && typeof window.API_1484_11 !== 'undefined') {{
+        window.API_1484_11 && typeof window.API_1484_11 !== 'undefined') {
         console.log('[SCORM] Cleaning up existing API before re-initialization');
-        try {{
+        try {
             delete window.API;
             delete window.API_1484_11;
-        }} catch (e) {{
+        } catch (e) {
             console.error('[SCORM] Error cleaning up API:', e);
             // Fallback: set to null if delete fails
             window.API = null;
             window.API_1484_11 = null;
-        }}
-    }}
+        }
+    }
     
     // SCORM API that connects to the real API endpoint
     // CRITICAL: Uses modern async/await to avoid synchronous XHR deprecation
-    try {{
+    try {
         // Create API with robust error handling
-        window.API = window.API_1484_11 = {{
-            _apiEndpoint: '{api_endpoint}',
+        window.API = window.API_1484_11 = {
+            _apiEndpoint: 'API_ENDPOINT_PLACEHOLDER',
             _lastError: '0',
             _initialized: false,
             _initPromise: null,
@@ -1286,8 +1286,11 @@ def scorm_content(request, topic_id, path):
         window.addEventListener('load', autoResumeSCORM);
     }
 })();
-                </script>
+</script>
 '''
+                
+                # Replace the placeholder with the actual API endpoint
+                api_injection = api_injection.replace('API_ENDPOINT_PLACEHOLDER', api_endpoint)
                 
                 # Fix relative paths in SCORM content
                 html_content = fix_scorm_relative_paths(html_content, topic_id)
@@ -1460,19 +1463,36 @@ def scorm_content(request, topic_id, path):
                 event.stopPropagation();
             }
             
-            // Try to call SCORM API first
+            // CRITICAL FIX: Always commit data before terminating
+            // This ensures all user progress is saved before exit
             try {
-                if (window.API && window.API.LMSFinish) {
-                    console.log('[SCORM] Calling LMSFinish...');
-                    var result = window.API.LMSFinish('');
-                    console.log('[SCORM] LMSFinish result:', result);
-                } else if (window.API && window.API.Terminate) {
-                    console.log('[SCORM] Calling Terminate...');
-                    var result = window.API.Terminate('');
-                    console.log('[SCORM] Terminate result:', result);
+                if (window.API) {
+                    // Step 1: Commit any pending data
+                    console.log('[SCORM] Step 1: Committing pending data...');
+                    if (window.API.LMSCommit) {
+                        var commitResult = window.API.LMSCommit('');
+                        console.log('[SCORM] LMSCommit result:', commitResult);
+                    } else if (window.API.Commit) {
+                        var commitResult = window.API.Commit('');
+                        console.log('[SCORM] Commit result:', commitResult);
+                    }
+                    
+                    // Step 2: Terminate the session
+                    console.log('[SCORM] Step 2: Terminating session...');
+                    if (window.API.LMSFinish) {
+                        var finishResult = window.API.LMSFinish('');
+                        console.log('[SCORM] LMSFinish result:', finishResult);
+                    } else if (window.API.Terminate) {
+                        var terminateResult = window.API.Terminate('');
+                        console.log('[SCORM] Terminate result:', terminateResult);
+                    }
+                    
+                    console.log('[SCORM] Data saved successfully before exit');
+                } else {
+                    console.warn('[SCORM] API not available for save');
                 }
             } catch (e) {
-                console.error('[SCORM] Error calling SCORM API:', e);
+                console.error('[SCORM] Error saving data on exit:', e);
             }
             
             // Send message to parent window to handle exit
@@ -1846,15 +1866,31 @@ def scorm_content(request, topic_id, path):
                         
                         // Add click handler for Exit functionality
                         element.addEventListener('click', function(e) {
-                            console.log('[SCORM] Exit button clicked - triggering Save & Exit button');
+                            console.log('[SCORM] Exit button clicked - saving data and exiting');
                             
                             // Prevent default behavior
                             e.preventDefault();
                             e.stopPropagation();
                             
-                            // Simple approach: trigger parent page's Save & Exit button
                             try {
-                                // Try to find Save & Exit button in parent window
+                                // CRITICAL FIX: Always commit data before exit
+                                if (window.API) {
+                                    console.log('[SCORM] Committing data before exit...');
+                                    if (window.API.LMSCommit) {
+                                        window.API.LMSCommit('');
+                                    } else if (window.API.Commit) {
+                                        window.API.Commit('');
+                                    }
+                                    
+                                    // Terminate session
+                                    if (window.API.LMSFinish) {
+                                        window.API.LMSFinish('');
+                                    } else if (window.API.Terminate) {
+                                        window.API.Terminate('');
+                                    }
+                                }
+                                
+                                // Try to trigger parent page's Save & Exit button
                                 if (window.parent && window.parent !== window) {
                                     var parentExitBtn = window.parent.document.getElementById('saveExitBtn');
                                     if (parentExitBtn) {
@@ -1864,13 +1900,10 @@ def scorm_content(request, topic_id, path):
                                     }
                                 }
                                 
-                                // If we can't find the button, use regular exit
-                                if (window.API && window.API.LMSCommit) {
-                                    window.API.LMSCommit('');
-                                }
+                                // If we can't find the button, redirect directly
                                 redirectToCourse();
                             } catch (ex) {
-                                console.log('[SCORM] Error triggering Save & Exit:', ex);
+                                console.log('[SCORM] Error during exit:', ex);
                                 redirectToCourse();
                             }
                             
@@ -1912,13 +1945,29 @@ def scorm_content(request, topic_id, path):
                 element.style.cursor = 'pointer';
                 
                 element.addEventListener('click', function(e) {
-                    console.log('[SCORM] Text Exit button clicked - triggering Save & Exit button');
+                    console.log('[SCORM] Text Exit button clicked - saving data and exiting');
                     e.preventDefault();
                     e.stopPropagation();
                     
-                    // Simple approach: trigger parent page's Save & Exit button
                     try {
-                        // Try to find Save & Exit button in parent window
+                        // CRITICAL FIX: Always commit data before exit
+                        if (window.API) {
+                            console.log('[SCORM] Committing data before exit...');
+                            if (window.API.LMSCommit) {
+                                window.API.LMSCommit('');
+                            } else if (window.API.Commit) {
+                                window.API.Commit('');
+                            }
+                            
+                            // Terminate session
+                            if (window.API.LMSFinish) {
+                                window.API.LMSFinish('');
+                            } else if (window.API.Terminate) {
+                                window.API.Terminate('');
+                            }
+                        }
+                        
+                        // Try to trigger parent page's Save & Exit button
                         if (window.parent && window.parent !== window) {
                             var parentExitBtn = window.parent.document.getElementById('saveExitBtn');
                             if (parentExitBtn) {
@@ -1928,13 +1977,10 @@ def scorm_content(request, topic_id, path):
                             }
                         }
                         
-                        // If we can't find the button, use regular exit
-                        if (window.API && window.API.LMSCommit) {
-                            window.API.LMSCommit('');
-                        }
+                        // If we can't find the button, redirect directly
                         redirectToCourse();
                     } catch (ex) {
-                        console.log('[SCORM] Error triggering Save & Exit:', ex);
+                        console.log('[SCORM] Error during exit:', ex);
                         redirectToCourse();
                     }
                     

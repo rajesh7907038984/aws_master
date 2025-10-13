@@ -428,7 +428,7 @@
                             console.log('[Captivate] Data integrity check:', dataIntegrity);
                             const passedChecks = Object.values(dataIntegrity).filter(Boolean).length;
                             
-                            saveExitBtn.textContent = 'Saved! (' + passedChecks + '/4)';
+                            saveExitBtn.textContent = 'Saved!';
                             setTimeout(function() {
                                 window.location.href = '{% url "courses:topic_view" topic.id %}';
                             }, 1000);
@@ -438,7 +438,7 @@
                             
                             if (retryCount < 2) {
                                 console.log('[Captivate] Retrying sync in 1 second...');
-                                saveExitBtn.textContent = 'Retrying... (' + (retryCount + 2) + '/3)';
+                                saveExitBtn.textContent = 'Retrying...';
                                 setTimeout(function() {
                                     syncWithRetry(retryCount + 1);
                                 }, 1000);

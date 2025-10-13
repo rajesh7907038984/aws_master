@@ -48,13 +48,13 @@ class Rise360Handler(BaseScormAPIHandler):
         # Rise 360 uses lesson_location for bookmarking
         if element in ['cmi.core.lesson_location', 'cmi.location']:
             if '#/lessons/' in str(value):
-                logger.info(f"💾 [Rise 360] Bookmark saved: {str(value)[:80]}...")
+                logger.info(f" [Rise 360] Bookmark saved: {str(value)[:80]}...")
                 # Extract lesson progress
                 self._extract_rise360_progress(value)
         
         # Log progress_measure updates from Rise 360
         if element == 'cmi.progress_measure' and value:
-            logger.info(f"💾 [Rise 360] Progress measure set by Rise: {value}")
+            logger.info(f" [Rise 360] Progress measure set by Rise: {value}")
         
         result = super().set_value(element, value)
         

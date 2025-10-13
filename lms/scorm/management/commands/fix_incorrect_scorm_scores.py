@@ -131,7 +131,7 @@ class Command(BaseCommand):
             return
 
         # Fix the incorrect scores
-        self.stdout.write(f"\n🔧 Fixing {len(incorrect_scores)} incorrect scores...")
+        self.stdout.write(f"\n Fixing {len(incorrect_scores)} incorrect scores...")
         
         fixed_count = 0
         with transaction.atomic():

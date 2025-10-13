@@ -65,11 +65,11 @@ class Command(BaseCommand):
                 detected_launch_file = UniversalSCORMHandler.detect_launch_file(package_files)
 
                 if detected_launch_file:
-                    self.stdout.write(self.style.SUCCESS(f"  ✅ Detected launch file: {detected_launch_file}"))
+                    self.stdout.write(self.style.SUCCESS(f"   Detected launch file: {detected_launch_file}"))
 
                     # Check if current launch URL is correct
                     if package.launch_url != detected_launch_file:
-                        self.stdout.write(self.style.WARNING(f"  ⚠️ Launch URL mismatch detected!"))
+                        self.stdout.write(self.style.WARNING(f"   Launch URL mismatch detected!"))
                         self.stdout.write(f"  Current: {package.launch_url}")
                         self.stdout.write(f"  Detected: {detected_launch_file}")
 
@@ -78,28 +78,28 @@ class Command(BaseCommand):
                             old_launch_url = package.launch_url
                             package.launch_url = detected_launch_file
                             package.save()
-                            self.stdout.write(self.style.SUCCESS(f"  ✅ Fixed launch URL: {old_launch_url} → {detected_launch_file}"))
+                            self.stdout.write(self.style.SUCCESS(f"   Fixed launch URL: {old_launch_url} → {detected_launch_file}"))
                             fixed_count += 1
                         else:
                             self.stdout.write(self.style.WARNING(f"  [DRY RUN] Would update launch URL to: {detected_launch_file}"))
                             fixed_count += 1
                     else:
-                        self.stdout.write(self.style.SUCCESS(f"  ✅ Launch URL is already correct: {package.launch_url}"))
+                        self.stdout.write(self.style.SUCCESS(f"   Launch URL is already correct: {package.launch_url}"))
                         skipped_count += 1
                 else:
-                    self.stdout.write(self.style.ERROR(f"  ❌ Could not detect launch file"))
+                    self.stdout.write(self.style.ERROR(f"   Could not detect launch file"))
                     error_count += 1
 
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f"  ❌ Error processing package: {str(e)}"))
+                self.stdout.write(self.style.ERROR(f"   Error processing package: {str(e)}"))
                 error_count += 1
 
         # Print summary
         self.stdout.write("\n" + "=" * 50)
         self.stdout.write(f"SUMMARY: Processed {len(packages)} packages")
-        self.stdout.write(f"  ✅ Fixed: {fixed_count}")
-        self.stdout.write(f"  ⚠️ Skipped: {skipped_count}")
-        self.stdout.write(f"  ❌ Errors: {error_count}")
+        self.stdout.write(f"   Fixed: {fixed_count}")
+        self.stdout.write(f"   Skipped: {skipped_count}")
+        self.stdout.write(f"   Errors: {error_count}")
         
         if dry_run:
             self.stdout.write(self.style.WARNING("\nThis was a dry run. No changes were made."))

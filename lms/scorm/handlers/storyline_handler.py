@@ -40,7 +40,7 @@ class StorylineHandler(BaseScormAPIHandler):
         """
         # Storyline stores quiz answers in suspend_data - save immediately
         if element == 'cmi.suspend_data':
-            logger.info(f"💾 [Storyline] Saving quiz state: {len(str(value))} chars")
+            logger.info(f" [Storyline] Saving quiz state: {len(str(value))} chars")
             # Log first 200 chars of suspend_data for debugging
             logger.debug(f"   [Storyline] Suspend data preview: {str(value)[:200]}...")
         

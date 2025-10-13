@@ -149,7 +149,7 @@ class BaseScormAPIHandler:
             if has_prior_activity:
                 resume_sources.append('prior_activity')
                 
-            logger.info(f"🔄 SCORM RESUME MODE: {', '.join(resume_sources)}")
+            logger.info(f" SCORM RESUME MODE: {', '.join(resume_sources)}")
             
             if has_bookmark:
                 logger.info(f"   lesson_location='{self.attempt.lesson_location[:50]}'")
@@ -163,7 +163,13 @@ class BaseScormAPIHandler:
                 self._extract_bookmark_from_suspend_data(self.attempt.suspend_data)
         else:
             self.attempt.entry = 'ab-initio'
-            logger.info(f"🆕 SCORM FRESH START: no saved data")
+            # CRITICAL FIX: Set status to 'incomplete' when Initialize is called for fresh start
+            # This indicates the user has started the SCORM content
+            if self.attempt.lesson_status in ['not_attempted', 'not attempted', '']:
+                self.attempt.lesson_status = 'incomplete'
+                logger.info(f" SCORM FRESH START: Setting status to 'incomplete'")
+            else:
+                logger.info(f" SCORM FRESH START: no saved data")
         
         # Update CMI data with entry mode and resume data
         if self.version == '1.2':
@@ -180,11 +186,16 @@ class BaseScormAPIHandler:
                 self.attempt.cmi_data['cmi.core.progress_measure'] = progress_measure
                 logger.info(f"   SCORM 1.2: Set progress_measure to {progress_measure} ({self.attempt.progress_percentage}%)")
         else:
+            # SCORM 2004
             self.attempt.cmi_data['cmi.entry'] = self.attempt.entry
             if self.attempt.lesson_location:
                 self.attempt.cmi_data['cmi.location'] = self.attempt.lesson_location
             if self.attempt.suspend_data:
                 self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data
+            # Update completion_status for SCORM 2004
+            if self.attempt.completion_status in ['not attempted', 'not_attempted', '']:
+                self.attempt.completion_status = 'incomplete'
+            self.attempt.cmi_data['cmi.completion_status'] = self.attempt.completion_status
             if self.attempt.progress_percentage and self.attempt.progress_percentage > 0:
                 progress_measure = str(float(self.attempt.progress_percentage) / 100.0)
                 self.attempt.cmi_data['cmi.progress_measure'] = progress_measure
@@ -198,15 +209,20 @@ class BaseScormAPIHandler:
             if self.attempt.lesson_status in ['incomplete', 'completed', 'passed']:
                 self.attempt.progress_percentage = 25.0  # Default progress for started content
                 self.attempt.save()
-                logger.info(f"🔧 Set default progress to 25% for attempt {self.attempt.id}")
+                logger.info(f" Set default progress to 25% for attempt {self.attempt.id}")
         
-        logger.info(f"✅ SCORM API initialized for attempt {self.attempt.id} ({self.get_handler_name()})")
+        logger.info(f" SCORM API initialized for attempt {self.attempt.id} ({self.get_handler_name()})")
         logger.info(f"   Status: {self.attempt.lesson_status}, Progress: {self.attempt.progress_percentage}%")
         return 'true'
     
     def terminate(self):
         """LMSFinish / Terminate"""
-        if not self.initialized:
+        # CRITICAL FIX: Check if session was EVER initialized (not just in current request)
+        # Each API call creates a new handler instance, so self.initialized doesn't persist
+        # Instead, check if CMI data exists (created during first Initialize)
+        was_initialized = bool(self.attempt.cmi_data and len(self.attempt.cmi_data) > 0)
+        
+        if not self.initialized and not was_initialized:
             self.last_error = '301'
             logger.warning(f"SCORM API Terminate called before initialization for attempt {self.attempt.id}")
             return 'false'
@@ -327,9 +343,9 @@ class BaseScormAPIHandler:
             
             if element in ['cmi.core.lesson_location', 'cmi.location', 'cmi.suspend_data', 'cmi.core.score.raw', 'cmi.score.raw']:
                 if element == 'cmi.suspend_data' and len(str(value)) > 100:
-                    logger.info(f"💾 SetValue({element}) - {len(str(value))} chars")
+                    logger.info(f" SetValue({element}) - {len(str(value))} chars")
                 else:
-                    logger.info(f"💾 SetValue({element}) = '{str(value)[:100]}'")
+                    logger.info(f" SetValue({element}) = '{str(value)[:100]}'")
             
             # Update model fields
             self._update_model_field(element, value)
@@ -352,7 +368,7 @@ class BaseScormAPIHandler:
         try:
             self._commit_data()
             self.last_error = '0'
-            logger.info(f"✅ SCORM Commit successful for attempt {self.attempt.id}")
+            logger.info(f" SCORM Commit successful for attempt {self.attempt.id}")
             return 'true'
         except Exception as e:
             logger.error(f"Error committing data: {str(e)}")
@@ -423,7 +439,7 @@ class BaseScormAPIHandler:
                         if 0 <= progress_value <= 1:
                             self.attempt.progress_percentage = progress_value * 100
                             self.attempt.save()
-                            logger.info(f"💾 [SCORM 1.2 PROGRESS] Updated progress_percentage to {self.attempt.progress_percentage}% from progress_measure {progress_value}")
+                            logger.info(f" [SCORM 1.2 PROGRESS] Updated progress_percentage to {self.attempt.progress_percentage}% from progress_measure {progress_value}")
                 except Exception as e:
                     logger.error(f"Error updating progress_percentage from progress_measure (SCORM 1.2): {e}")
         else:
@@ -452,7 +468,7 @@ class BaseScormAPIHandler:
                         progress_value = Decimal(str(value))
                         if 0 <= progress_value <= 1:
                             self.attempt.progress_percentage = progress_value * 100
-                            logger.info(f"💾 [PROGRESS] Updated progress_percentage to {self.attempt.progress_percentage}% from progress_measure {progress_value}")
+                            logger.info(f" [PROGRESS] Updated progress_percentage to {self.attempt.progress_percentage}% from progress_measure {progress_value}")
                             self.attempt.save()  # Immediate save for progress
                 except Exception as e:
                     logger.error(f"Error updating progress_percentage from progress_measure: {e}")
@@ -529,7 +545,7 @@ class BaseScormAPIHandler:
                         # Only update if we don't already have a bookmark
                         if not self.attempt.lesson_location:
                             self.attempt.lesson_location = extracted_location
-                            logger.info(f"✅ RESUME FIX: Extracted bookmark '{extracted_location}' from suspend_data using pattern '{pattern}'")
+                            logger.info(f" RESUME FIX: Extracted bookmark '{extracted_location}' from suspend_data using pattern '{pattern}'")
                             return True
                         return False  # Already have a bookmark
                         
@@ -545,7 +561,7 @@ class BaseScormAPIHandler:
                         slide_num = max(1, int(progress / 10))  # Estimate 10% per slide
                         default_slide = f"slide_{slide_num}"
                         self.attempt.lesson_location = default_slide
-                        logger.info(f"✅ RESUME FIX: Created estimated bookmark '{default_slide}' from progress {progress}%")
+                        logger.info(f" RESUME FIX: Created estimated bookmark '{default_slide}' from progress {progress}%")
                         return True
             
             return False

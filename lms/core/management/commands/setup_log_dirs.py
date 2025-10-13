@@ -138,7 +138,7 @@ class Command(BaseCommand):
         self.stdout.write("")
         self.stdout.write("1. 🗂️  Check filesystem permissions")
         self.stdout.write("2.  Ensure sufficient disk space")
-        self.stdout.write("3. 🔒 Verify the application has write access")
+        self.stdout.write("3.  Verify the application has write access")
         self.stdout.write("4.  For production: check if directories need to be created as root")
         self.stdout.write("")
         self.stdout.write("Alternative: Use console logging only by setting DEBUG=True temporarily")

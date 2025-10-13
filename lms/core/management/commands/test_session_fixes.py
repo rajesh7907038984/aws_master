@@ -29,7 +29,7 @@ class Command(BaseCommand):
         verbose = options['verbose']
         
         if verbose:
-            self.stdout.write('🧪 Testing Session Fixes...\n')
+            self.stdout.write(' Testing Session Fixes...\n')
         
         # Test 1: Session Backend Health
         self.test_session_backend_health(verbose)
@@ -80,7 +80,7 @@ class Command(BaseCommand):
             if redis_ok:
                 self.stdout.write(self.style.SUCCESS(' Redis cache: OK'))
             else:
-                self.stdout.write(self.style.WARNING('⚠️ Redis cache: DEGRADED'))
+                self.stdout.write(self.style.WARNING(' Redis cache: DEGRADED'))
                 
         except Exception as e:
             self.stdout.write(self.style.ERROR(f' Redis cache: ERROR - {e}'))
@@ -88,7 +88,7 @@ class Command(BaseCommand):
     def test_session_creation(self, verbose):
         """Test session creation"""
         if verbose:
-            self.stdout.write('🆕 Testing session creation...')
+            self.stdout.write(' Testing session creation...')
         
         try:
             # Get active session count
@@ -105,7 +105,7 @@ class Command(BaseCommand):
     def test_session_recovery(self, verbose):
         """Test session recovery mechanisms"""
         if verbose:
-            self.stdout.write('🔄 Testing session recovery...')
+            self.stdout.write(' Testing session recovery...')
         
         try:
             # Test session cleanup
@@ -115,7 +115,7 @@ class Command(BaseCommand):
             if expired_count > 0:
                 if verbose:
                     self.stdout.write(f'   Found {expired_count} expired sessions')
-                self.stdout.write(self.style.WARNING(f'⚠️ Found {expired_count} expired sessions'))
+                self.stdout.write(self.style.WARNING(f' Found {expired_count} expired sessions'))
             else:
                 self.stdout.write(self.style.SUCCESS(' Session cleanup: OK'))
                 

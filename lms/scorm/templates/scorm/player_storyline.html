@@ -436,7 +436,7 @@
                             const passedChecks = Object.values(dataIntegrity).filter(Boolean).length;
                             console.log('[Storyline] Passed ' + passedChecks + '/4 integrity checks');
                             
-                            saveExitBtn.textContent = 'Saved! (' + passedChecks + '/4 checks passed)';
+                            saveExitBtn.textContent = 'Saved!';
                             
                             // BUG FIX: Give more time for database to finalize write
                             setTimeout(function() {
@@ -449,7 +449,7 @@
                             // Retry up to 2 times
                             if (retryCount < 2) {
                                 console.log('[Storyline] Retrying sync in 1 second...');
-                                saveExitBtn.textContent = 'Retrying... (' + (retryCount + 2) + '/3)';
+                                saveExitBtn.textContent = 'Retrying...';
                                 setTimeout(function() {
                                     syncAndExit(retryCount + 1);
                                 }, 1000);

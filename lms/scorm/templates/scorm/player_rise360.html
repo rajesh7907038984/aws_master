@@ -1226,7 +1226,8 @@ document.addEventListener('DOMContentLoaded', function() {
             id="riseFrame"
             class="scorm-iframe" 
             src="{{ content_url }}"
-            allow="fullscreen; autoplay; encrypted-media">
+            allow="fullscreen; autoplay; encrypted-media"
+            data-resume-location="{{ attempt.lesson_location|default:'' }}">
         </iframe>
     </div>
 
@@ -1235,6 +1236,50 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('riseFrame').addEventListener('load', function() {
             console.log('✅ Rise 360 content loaded - Instant save enabled');
             console.log('[Rise 360] Data will be saved instantly on every action');
+            
+            // Log resume information
+            const riseFrame = document.getElementById('riseFrame');
+            const resumeLocation = riseFrame.getAttribute('data-resume-location');
+            const contentUrl = riseFrame.src;
+            console.log('[Rise 360] Content URL:', contentUrl);
+            if (resumeLocation) {
+                console.log('[Rise 360] Resume location:', resumeLocation);
+            }
+            if (contentUrl.includes('#/lessons/')) {
+                console.log('[Rise 360] ✓ Lesson bookmark found in URL for resume');
+            }
+            
+            // CRITICAL FIX: Force SCORM initialization immediately when content loads
+            // This ensures data can be saved even if Rise 360 doesn't call Initialize
+            setTimeout(function() {
+                if (window.API && !window.API._initialized) {
+                    console.log('[Rise 360] Forcing SCORM initialization...');
+                    try {
+                        var initResult = window.API.Initialize('');
+                        console.log('[Rise 360] Force initialization result:', initResult);
+                        if (initResult === 'true') {
+                            // Set initial status to incomplete
+                            window.API.SetValue('cmi.core.lesson_status', 'incomplete');
+                            window.API.Commit('');
+                            console.log('[Rise 360] Initial status set to incomplete and saved');
+                            
+                            // Start periodic auto-save for resume functionality
+                            setInterval(function() {
+                                if (window.API && window.API._initialized) {
+                                    try {
+                                        window.API.Commit('');
+                                        console.log('[Rise 360] Auto-save: Data committed for resume');
+                                    } catch (e) {
+                                        console.error('[Rise 360] Auto-save error:', e);
+                                    }
+                                }
+                            }, 30000); // Auto-save every 30 seconds
+                        }
+                    } catch (e) {
+                        console.error('[Rise 360] Force initialization error:', e);
+                    }
+                }
+            }, 1000); // Wait 1 second for Rise content to settle
             
             // Hide loading overlay
             const loadingOverlay = document.getElementById('loadingOverlay');
@@ -1384,7 +1429,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             const passedChecks = Object.values(dataIntegrity).filter(Boolean).length;
                             console.log('[Rise 360] Passed ' + passedChecks + '/4 integrity checks');
                             
-                            saveExitBtn.textContent = 'Saved! (' + passedChecks + '/4)';
+                            saveExitBtn.textContent = 'Saved!';
                             
                             // BUG FIX: Give more time for database writes to complete
                             setTimeout(function() {
@@ -1396,7 +1441,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             
                             if (retryCount < 2) {
                                 console.log('[Rise 360] Retrying sync in 1 second...');
-                                saveExitBtn.textContent = 'Retrying... (' + (retryCount + 2) + '/3)';
+                                saveExitBtn.textContent = 'Retrying...';
                                 setTimeout(function() {
                                     syncWithRetry(retryCount + 1);
                                 }, 1000);
@@ -1467,7 +1512,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             const passedChecks = Object.values(dataIntegrity).filter(Boolean).length;
                             console.log('[Rise 360] Passed ' + passedChecks + '/4 integrity checks');
                             
-                            button.textContent = 'Saved! (' + passedChecks + '/4)';
+                            button.textContent = 'Saved!';
                             
                             setTimeout(function() {
                                 window.location.href = '{% url "courses:topic_view" topic.id %}';
@@ -1478,7 +1523,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             
                             if (retryCount < 2) {
                                 console.log('[Rise 360] Retrying sync in 1 second...');
-                                button.textContent = 'Retrying... (' + (retryCount + 2) + '/3)';
+                                button.textContent = 'Retrying...';
                                 setTimeout(function() {
                                     syncWithRetry(retryCount + 1);
                                 }, 1000);

@@ -203,17 +203,17 @@ class ScormScoreSyncService:
         sync_decision = False
         sync_reason = "No sync criteria met"
         
-        # ✅ Sync if completed or passed (highest priority)
+        #  Sync if completed or passed (highest priority)
         if attempt.lesson_status in ['completed', 'passed']:
             sync_decision = True
             sync_reason = f"Status is '{attempt.lesson_status}'"
         
-        # ✅ Sync if failed with any activity
+        #  Sync if failed with any activity
         elif attempt.lesson_status == 'failed':
             sync_decision = True
             sync_reason = "Status is 'failed'"
         
-        # ✅ Sync if there's a valid score (including 0)
+        #  Sync if there's a valid score (including 0)
         elif attempt.score_raw is not None:
             # Validate the score
             try:
@@ -230,9 +230,9 @@ class ScormScoreSyncService:
                 sync_decision = True
                 sync_reason = f"Has non-numeric score: '{attempt.score_raw}' (will fix during sync)"
         
-        # ✅ Additional checks for incomplete attempts that should still sync
+        #  Additional checks for incomplete attempts that should still sync
         
-        # ✅ Check for score in CMI data (from SCORM content)
+        #  Check for score in CMI data (from SCORM content)
         if not sync_decision and attempt.cmi_data:
             cmi_score = attempt.cmi_data.get('cmi.score.raw') or attempt.cmi_data.get('cmi.core.score.raw')
             if cmi_score is not None and cmi_score != '':
@@ -252,7 +252,7 @@ class ScormScoreSyncService:
                         sync_decision = True
                         sync_reason = f"CMI data has non-numeric score: '{cmi_score}'"
         
-        # ✅ Check for substantial suspend data (indicates real interaction)
+        #  Check for substantial suspend data (indicates real interaction)
         if not sync_decision and attempt.suspend_data and len(attempt.suspend_data) > 100:
             # Content with actual student interaction typically has substantial suspend_data
             sync_decision = True
@@ -262,14 +262,14 @@ class ScormScoreSyncService:
             if "complete" in attempt.suspend_data.lower() or "finished" in attempt.suspend_data.lower():
                 sync_reason += " (with completion indicators)"
         
-        # ✅ Check for progress percentage (slide-based content)
+        #  Check for progress percentage (slide-based content)
         if not sync_decision and attempt.progress_percentage is not None and attempt.progress_percentage > 0:
             # Only sync if progress is significant (at least 10%)
             if attempt.progress_percentage >= 10:
                 sync_decision = True
                 sync_reason = f"Has significant progress: {attempt.progress_percentage}%"
         
-        # ✅ Check for time tracking (significant time spent)
+        #  Check for time tracking (significant time spent)
         if not sync_decision and attempt.time_spent_seconds and attempt.time_spent_seconds >= 30:
             # If user spent at least 30 seconds, there's meaningful interaction
             sync_decision = True
@@ -573,8 +573,8 @@ class ScormScoreSyncService:
                         # Use a more conservative score
                         return 75.0  # Cap at 75% if no evidence of completion
         
-        # ❌ REMOVED: Do NOT give scores for just viewing/interacting
-        # ✅ PERMANENT FIX: Only return scores from actual SCORM completion
+        #  REMOVED: Do NOT give scores for just viewing/interacting
+        #  PERMANENT FIX: Only return scores from actual SCORM completion
         # Users must complete the activity to get a score
         
         return None
