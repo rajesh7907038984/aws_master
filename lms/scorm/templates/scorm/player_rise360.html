@@ -162,7 +162,27 @@
             }
         }
         
-        // Rise 360 SCORM API - Simple and focused
+        // INSTANT SAVE: Debounced commit after each action
+        let commitDebounceTimer = null;
+        let pendingCommit = false;
+        
+        function instantCommit() {
+            clearTimeout(commitDebounceTimer);
+            pendingCommit = true;
+            
+            // Debounce: Wait 100ms for multiple rapid changes
+            commitDebounceTimer = setTimeout(function() {
+                if (pendingCommit) {
+                    const result = makeRiseAPICall('LMSCommit', ['']);
+                    if (result === 'true') {
+                        console.log('[Rise 360] ✓ Data saved instantly');
+                    }
+                    pendingCommit = false;
+                }
+            }, 100);
+        }
+        
+        // Rise 360 SCORM API - Simple and focused with instant save
         window.API = {
             LMSInitialize: function(param) {
                 console.log('[Rise 360] Initialize');
@@ -240,11 +260,20 @@
                 if (element === 'cmi.core.lesson_location') {
                     console.log(`[Rise 360] SetValue: Bookmark = ${value.substring(0, 50)}...`);
                 }
-                return makeRiseAPICall('LMSSetValue', [element, value]);
+                const result = makeRiseAPICall('LMSSetValue', [element, value]);
+                
+                // INSTANT SAVE: Commit immediately after setting any value
+                if (result === 'true') {
+                    instantCommit();
+                }
+                
+                return result;
             },
             
             LMSCommit: function(param) {
                 console.log('[Rise 360] Commit');
+                clearTimeout(commitDebounceTimer); // Clear any pending debounced commit
+                pendingCommit = false;
                 return makeRiseAPICall('LMSCommit', [param]);
             },
             
@@ -334,9 +363,18 @@
                 const mapped = element
                     .replace('cmi.location', 'cmi.core.lesson_location')
                     .replace('cmi.completion_status', 'cmi.core.lesson_status');
-                return window.API.LMSSetValue(mapped, value);
+                const result = window.API.LMSSetValue(mapped, value);
+                
+                // INSTANT SAVE: Commit immediately after setting any value
+                if (result === 'true') {
+                    instantCommit();
+                }
+                
+                return result;
             },
             Commit: function(param) {
+                clearTimeout(commitDebounceTimer);
+                pendingCommit = false;
                 return window.API.LMSCommit(param);
             },
             GetLastError: function() {
@@ -363,59 +401,10 @@
     </div>
 
     <script>
-        // CRITICAL FIX: Periodic auto-save to ensure all tracking data is saved
-        // Save every 30 seconds to prevent data loss
-        let autoSaveInterval = null;
-        let commitCount = 0;
-        let failedCommits = 0;
-        let lastSuccessfulCommit = Date.now();
-        
-        function performAutoCommit() {
-            try {
-                if (window.API && window.API.LMSCommit) {
-                    const result = window.API.LMSCommit('');
-                    commitCount++;
-                    
-                    if (result === 'true') {
-                        console.log(`[Rise 360] Auto-commit #${commitCount} - Success`);
-                        lastSuccessfulCommit = Date.now();
-                        failedCommits = 0;
-                    } else {
-                        failedCommits++;
-                        console.warn(`[Rise 360] Auto-commit #${commitCount} - Failed (${failedCommits} failures)`);
-                        
-                        // If 3 consecutive failures, show warning
-                        if (failedCommits >= 3) {
-                            const minutesSinceSuccess = Math.floor((Date.now() - lastSuccessfulCommit) / 60000);
-                            console.error(`[Rise 360] WARNING: ${failedCommits} consecutive save failures (${minutesSinceSuccess} min since last success)`);
-                            
-                            // Show user-friendly warning
-                            if (failedCommits === 3) {
-                                alert('Warning: Your progress may not be saving properly. Please click "Save & Exit" when you finish.');
-                            }
-                        }
-                    }
-                }
-            } catch (e) {
-                failedCommits++;
-                console.error('[Rise 360] Error in auto-commit:', e);
-                
-                // Show critical error after 5 failures
-                if (failedCommits >= 5) {
-                    console.error('[Rise 360] CRITICAL: Multiple save failures detected');
-                }
-            }
-        }
-        
-        // Start auto-save after iframe loads
+        // Content loaded - instant save is now active
         document.getElementById('riseFrame').addEventListener('load', function() {
-            console.log('✅ Rise 360 content loaded');
-            
-            // Start periodic auto-save (every 5 seconds)
-            if (!autoSaveInterval) {
-                autoSaveInterval = setInterval(performAutoCommit, 5000);
-                console.log('[Rise 360] Auto-save started (every 5 seconds)');
-            }
+            console.log('✅ Rise 360 content loaded - Instant save enabled');
+            console.log('[Rise 360] Data will be saved instantly on every action');
         });
         
         // FIXED: Save & Exit button handler with proper event attachment and DB sync
@@ -428,11 +417,6 @@
                     // Disable button to prevent double-clicks
                     saveExitBtn.disabled = true;
                     saveExitBtn.textContent = 'Saving...';
-                    
-                    // Clear auto-save interval
-                    if (autoSaveInterval) {
-                        clearInterval(autoSaveInterval);
-                    }
                     
                     // Try to commit Rise 360 data
                     try {
@@ -481,21 +465,17 @@
             attachSaveExitButton();
         }
         
-        // Auto-save on page unload
+        // Final save on page unload
         window.addEventListener('beforeunload', function() {
-            console.log('[Rise 360] Page unloading - auto-saving...');
-            
-            // Clear auto-save interval
-            if (autoSaveInterval) {
-                clearInterval(autoSaveInterval);
-            }
+            console.log('[Rise 360] Page unloading - final save...');
             
             try {
+                clearTimeout(commitDebounceTimer);
                 if (window.API && window.API.LMSCommit) {
                     window.API.LMSCommit('');
                 }
             } catch (e) {
-                console.error('[Rise 360] Error in auto-save:', e);
+                console.error('[Rise 360] Error in final save:', e);
             }
         });
         

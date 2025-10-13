@@ -150,7 +150,27 @@
             }
         }
         
-        // SCORM 1.2 API (Captivate uses this)
+        // INSTANT SAVE: Debounced commit after each action
+        let commitDebounceTimer = null;
+        let pendingCommit = false;
+        
+        function instantCommit() {
+            clearTimeout(commitDebounceTimer);
+            pendingCommit = true;
+            
+            // Debounce: Wait 100ms for multiple rapid changes
+            commitDebounceTimer = setTimeout(function() {
+                if (pendingCommit) {
+                    const result = makeCaptivateCall('LMSCommit', ['']);
+                    if (result === 'true') {
+                        console.log('[Captivate] ✓ Data saved instantly');
+                    }
+                    pendingCommit = false;
+                }
+            }, 100);
+        }
+        
+        // SCORM 1.2 API (Captivate uses this) with instant save
         window.API = {
             LMSInitialize: function(param) { 
                 console.log('[Captivate] Initialize');
@@ -211,11 +231,20 @@
             LMSGetValue: function(element) { 
                 return makeCaptivateCall('LMSGetValue', [element]); 
             },
-            LMSSetValue: function(element, value) { 
-                return makeCaptivateCall('LMSSetValue', [element, value]); 
+            LMSSetValue: function(element, value) {
+                const result = makeCaptivateCall('LMSSetValue', [element, value]);
+                
+                // INSTANT SAVE: Commit immediately after setting any value
+                if (result === 'true') {
+                    instantCommit();
+                }
+                
+                return result;
             },
             LMSCommit: function(param) { 
                 console.log('[Captivate] Commit');
+                clearTimeout(commitDebounceTimer);
+                pendingCommit = false;
                 return makeCaptivateCall('LMSCommit', [param]); 
             },
             LMSGetLastError: function() { return '0'; },
@@ -299,36 +328,10 @@
     </div>
 
     <script>
-        // CRITICAL FIX: Periodic auto-save for Captivate content
-        // Ensure all tracking data is saved frequently
-        let autoSaveInterval = null;
-        let commitCount = 0;
-        
-        function performAutoCommit() {
-            try {
-                if (window.API && window.API.LMSCommit) {
-                    const result = window.API.LMSCommit('');
-                    commitCount++;
-                    console.log(`[Captivate] Auto-commit #${commitCount} (1.2) - Result: ${result}`);
-                }
-                if (window.API_1484_11 && window.API_1484_11.Commit) {
-                    const result = window.API_1484_11.Commit('');
-                    console.log(`[Captivate] Auto-commit #${commitCount} (2004) - Result: ${result}`);
-                }
-            } catch (e) {
-                console.error('[Captivate] Error in auto-commit:', e);
-            }
-        }
-        
-        // Start auto-save after iframe loads
+        // Content loaded - instant save is now active
         document.getElementById('captivateFrame').addEventListener('load', function() {
-            console.log('✅ Captivate content loaded');
-            
-            // Start periodic auto-save (every 5 seconds)
-            if (!autoSaveInterval) {
-                autoSaveInterval = setInterval(performAutoCommit, 5000);
-                console.log('[Captivate] Auto-save started (every 5 seconds)');
-            }
+            console.log('✅ Captivate content loaded - Instant save enabled');
+            console.log('[Captivate] Data will be saved instantly on every action');
         });
         
         // FIXED: Save & Exit button handler with proper event attachment and DB sync
