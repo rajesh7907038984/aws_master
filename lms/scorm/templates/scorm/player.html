@@ -1949,119 +1949,38 @@
             startAutoScoreCapture();
         }, 5000); // Start after 5 seconds to allow SCORM content to load
         
-        // CRITICAL FIX: Enhanced EXIT ASSESSMENT button handling
+        // STREAMLINED: Exit button handling
         function handleExitButtonClicks() {
-            // Function to find and fix exit buttons
             function fixExitButtons() {
-                // Look for various exit button patterns - expanded list
                 const exitButtonSelectors = [
-                    '.courseExit',
-                    '.courseExit--standard',
-                    'button[class*="exit"]',
-                    'button[class*="Exit"]',
-                    'button:contains("EXIT")',
-                    'button:contains("Exit")',
-                    'button:contains("exit")',
-                    'input[type="button"][value*="EXIT"]',
-                    'input[type="button"][value*="Exit"]',
-                    'input[type="button"][value*="exit"]',
-                    'a[class*="exit"]',
-                    'a:contains("EXIT")',
-                    'a:contains("Exit")',
-                    'a:contains("exit")',
-                    '[data-action="exit"]',
-                    '[data-exit="true"]',
-                    '.exit-button',
-                    '.exit-btn',
-                    '#exit-button',
-                    '#exit-btn'
+                    '.courseExit', '.courseExit--standard', 
+                    'button[class*="exit"]', 'a[class*="exit"]',
+                    '[data-action="exit"]', '.exit-button', '#exit-button'
                 ];
                 
                 let buttonsFound = 0;
-                
                 exitButtonSelectors.forEach(selector => {
                     try {
-                        const buttons = document.querySelectorAll(selector);
-                        buttons.forEach(button => {
-                            // Check if button text contains "EXIT" or "Exit"
-                            const buttonText = button.textContent || button.value || '';
-                            if (buttonText.toLowerCase().includes('exit') || 
-                                button.classList.contains('courseExit') ||
-                                button.classList.contains('courseExit--standard')) {
-                                
-                                console.log('Found exit button:', button);
+                        document.querySelectorAll(selector).forEach(button => {
+                            const buttonText = (button.textContent || button.value || '').toLowerCase();
+                            if (buttonText.includes('exit') || button.classList.contains('courseExit')) {
+                                console.log('🚪 Found exit button:', button);
                                 buttonsFound++;
                                 
-                                // Remove any existing click handlers to avoid conflicts
                                 const newButton = button.cloneNode(true);
                                 button.parentNode.replaceChild(newButton, button);
                                 
-                                // Add our click handler with enhanced error handling
                                 newButton.addEventListener('click', function(e) {
                                     e.preventDefault();
                                     e.stopPropagation();
+                                    console.log('🚪 EXIT button clicked - using Back to Topic logic...');
                                     
-                                    console.log('EXIT ASSESSMENT button clicked - Enhanced handler');
-                                    
-                                    // Show user feedback
-                                    const originalText = newButton.textContent || newButton.value;
-                                    newButton.textContent = 'Exiting...';
+                                    newButton.textContent = 'Saving & Exiting...';
                                     newButton.disabled = true;
                                     
-                                    // Call SCORM API terminate functions with retry logic
-                                    let terminateAttempts = 0;
-                                    const maxAttempts = 3;
-                                    
-                                    function attemptTerminate() {
-                                        terminateAttempts++;
-                                        console.log(`SCORM Terminate attempt ${terminateAttempts}/${maxAttempts}`);
-                                        
-                                        if (window.API && window.API._initialized) {
-                                            try {
-                                                // Call both SCORM 1.2 and 2004 APIs
-                                                const result1 = window.API.LMSFinish('');
-                                                console.log('SCORM 1.2 LMSFinish result:', result1);
-                                                
-                                                if (window.API_1484_11) {
-                                                    const result2 = window.API_1484_11.Terminate('');
-                                                    console.log('SCORM 2004 Terminate result:', result2);
-                                                }
-                                                
-                                                // Force commit any pending data
-                                                if (window.API.LMSCommit) {
-                                                    window.API.LMSCommit('');
-                                                }
-                                                if (window.API_1484_11 && window.API_1484_11.Commit) {
-                                                    window.API_1484_11.Commit('');
-                                                }
-                                                
-                                                console.log('SCORM Terminate successful, redirecting...');
-                                                setTimeout(() => {
-                                                    window.location.href = '{% url "courses:topic_view" topic.id %}';
-                                                }, 500);
-                                                
-                                            } catch (error) {
-                                                console.error(`SCORM Terminate attempt ${terminateAttempts} failed:`, error);
-                                                
-                                                if (terminateAttempts < maxAttempts) {
-                                                    setTimeout(attemptTerminate, 1000);
-                                                } else {
-                                                    console.log('Max terminate attempts reached, redirecting anyway...');
-                                                    setTimeout(() => {
-                                                        window.location.href = '{% url "courses:topic_view" topic.id %}';
-                                                    }, 500);
-                                                }
-                                            }
-                                        } else {
-                                            console.log('SCORM API not initialized, redirecting anyway...');
-                                            setTimeout(() => {
-                                                window.location.href = '{% url "courses:topic_view" topic.id %}';
-                                            }, 500);
-                                        }
-                                    }
-                                    
-                                    // Start the terminate process
-                                    attemptTerminate();
+                                    // Use the same reliable logic as Back to Topic button
+                                    const fakeEvent = { preventDefault: function() {} };
+                                    handleBackToTopic(fakeEvent);
                                 });
                                 
                                 console.log('Exit button handler attached successfully');
@@ -2077,51 +1996,27 @@
                 }
             }
             
-            // Run immediately
+            // Initial fix and periodic check
             fixExitButtons();
-            
-            // OPTIMIZATION: Run periodically but less frequently (every 5 seconds instead of 2)
-            setInterval(fixExitButtons, 5000);
-            
-            // OPTIMIZATION: Simplified MutationObserver with debouncing
-            if (window.MutationObserver) {
-                let debounceTimer;
-                const observer = new MutationObserver(function(mutations) {
-                    clearTimeout(debounceTimer);
-                    debounceTimer = setTimeout(fixExitButtons, 500);
-                });
-                
-                observer.observe(document.body, {
-                    childList: true,
-                    subtree: true
-                });
-            }
+            const interval = setInterval(fixExitButtons, 5000);
+            setTimeout(() => clearInterval(interval), 120000); // Stop after 2 minutes
         }
         
-        // Enhanced exit button handler injection for iframe content
+        // STREAMLINED: Exit button handler - delegates to main handler
         function injectExitButtonHandler() {
-            try {
-                const iframe = document.getElementById('scormFrame');
-                if (iframe && iframe.contentDocument) {
-                    const iframeDoc = iframe.contentDocument;
-                    const iframeWindow = iframe.contentWindow;
-                    
-                    // Inject comprehensive exit button handler script
-                    const script = iframeDoc.createElement('script');
-                    script.textContent = `
-                        (function() {
-                            console.log('SCORM Exit Button Handler injected into iframe');
-                            
-                            // Enhanced exit button detection and handling
-                            function handleExitButtons() {
-                                function findAndFixExitButtons() {
-                                    const exitSelectors = [
-                                        '.courseExit',
-                                        '.courseExit--standard',
-                                        'button[class*="exit"]',
-                                        'button[class*="Exit"]',
-                                        'button:contains("EXIT")',
-                                        'button:contains("Exit")',
+            console.log('🚪 Exit button handling delegated to main handler');
+        }
+        
+        // Start the main exit button handler
+        handleExitButtonClicks();
+        
+        // REMOVED: Old redundant exit button code cleaned up
+        
+        // Initialize automated score capture
+        console.log('🚀 Initializing automated score capture...');
+        setTimeout(() => {
+            startAutoScoreCapture();
+        }, 5000); // Start after 5 seconds to allow SCORM content to load
                                         'button:contains("exit")',
                                         'input[type="button"][value*="EXIT"]',
                                         'input[type="button"][value*="Exit"]',
