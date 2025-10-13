@@ -229,48 +229,78 @@ def sync_on_exit(request):
             logger.info(f"   Total Slides: {attempt.total_slides}")
             logger.info(f"   CMI Data Keys: {list(attempt.cmi_data.keys()) if attempt.cmi_data else 'None'}")
             
-            # CRITICAL: Extract and sync all tracking data from CMI data with safe extraction
+            # CRITICAL FIX: ALWAYS extract and sync all tracking data from CMI data 
+            # This ensures we capture the latest state from SCORM content
             if attempt.cmi_data and isinstance(attempt.cmi_data, dict):
                 try:
                     version = attempt.scorm_package.version if attempt.scorm_package else '1.2'
                     
-                    # Extract score from CMI if not in model
-                    if not attempt.score_raw:
-                        score_key = 'cmi.core.score.raw' if version == '1.2' else 'cmi.score.raw'
-                        cmi_score = attempt.cmi_data.get(score_key)
-                        score_str = _safe_str(cmi_score)
-                        if score_str:
-                            try:
-                                attempt.score_raw = Decimal(score_str)
-                                logger.info(f"    Extracted score from CMI: {attempt.score_raw}")
-                            except (InvalidOperation, ValueError) as e:
-                                logger.warning(f"    Could not parse score '{score_str}': {e}")
+                    # CRITICAL FIX: ALWAYS extract score from CMI (overwrite if present)
+                    score_key = 'cmi.core.score.raw' if version == '1.2' else 'cmi.score.raw'
+                    cmi_score = attempt.cmi_data.get(score_key)
+                    score_str = _safe_str(cmi_score)
+                    if score_str:
+                        try:
+                            new_score = Decimal(score_str)
+                            if attempt.score_raw != new_score:
+                                logger.info(f"    Updating score from CMI: {new_score} (was: {attempt.score_raw})")
+                                attempt.score_raw = new_score
+                            else:
+                                logger.info(f"    Score from CMI confirmed: {attempt.score_raw}")
+                        except (InvalidOperation, ValueError) as e:
+                            logger.warning(f"    Could not parse score '{score_str}': {e}")
                     
-                    # Extract status from CMI if not in model
-                    if attempt.lesson_status in ['not_attempted', 'not attempted', 'unknown']:
-                        status_key = 'cmi.core.lesson_status' if version == '1.2' else 'cmi.completion_status'
-                        cmi_status = attempt.cmi_data.get(status_key)
-                        status_str = _safe_str(cmi_status)
-                        if status_str and status_str not in ['not_attempted', 'not attempted']:
-                            attempt.lesson_status = status_str.replace(' ', '_')
-                            logger.info(f"    Extracted status from CMI: {attempt.lesson_status}")
+                    # CRITICAL FIX: ALWAYS extract status from CMI (overwrite if more progressed)
+                    status_key = 'cmi.core.lesson_status' if version == '1.2' else 'cmi.completion_status'
+                    cmi_status = attempt.cmi_data.get(status_key)
+                    status_str = _safe_str(cmi_status)
+                    if status_str and status_str not in ['not_attempted', 'not attempted']:
+                        new_status = status_str.replace(' ', '_')
+                        if attempt.lesson_status != new_status:
+                            logger.info(f"    Updating status from CMI: {new_status} (was: {attempt.lesson_status})")
+                            attempt.lesson_status = new_status
+                        else:
+                            logger.info(f"    Status from CMI confirmed: {attempt.lesson_status}")
                     
-                    # Extract suspend data from CMI if not in model
-                    if not attempt.suspend_data or _safe_len(attempt.suspend_data) == 0:
-                        cmi_suspend = attempt.cmi_data.get('cmi.suspend_data')
-                        suspend_str = _safe_str(cmi_suspend)
-                        if suspend_str:
+                    # CRITICAL FIX: ALWAYS extract suspend data from CMI (latest state)
+                    cmi_suspend = attempt.cmi_data.get('cmi.suspend_data')
+                    suspend_str = _safe_str(cmi_suspend)
+                    if suspend_str:
+                        old_len = _safe_len(attempt.suspend_data)
+                        new_len = _safe_len(suspend_str)
+                        if attempt.suspend_data != suspend_str:
+                            logger.info(f"    Updating suspend data from CMI: {new_len} chars (was: {old_len} chars)")
                             attempt.suspend_data = suspend_str
-                            logger.info(f"    Extracted suspend data from CMI: {_safe_len(attempt.suspend_data)} chars")
+                        else:
+                            logger.info(f"    Suspend data from CMI confirmed: {new_len} chars")
                     
-                    # Extract bookmark from CMI if not in model
-                    if not attempt.lesson_location or _safe_len(attempt.lesson_location) == 0:
-                        location_key = 'cmi.core.lesson_location' if version == '1.2' else 'cmi.location'
-                        cmi_location = attempt.cmi_data.get(location_key)
-                        location_str = _safe_str(cmi_location)
-                        if location_str:
-                            attempt.lesson_location = location_str[:1000]  # Respect field limit
-                            logger.info(f"    Extracted bookmark from CMI: {attempt.lesson_location[:50]}")
+                    # CRITICAL FIX: ALWAYS extract bookmark from CMI (latest position)
+                    location_key = 'cmi.core.lesson_location' if version == '1.2' else 'cmi.location'
+                    cmi_location = attempt.cmi_data.get(location_key)
+                    location_str = _safe_str(cmi_location)
+                    if location_str:
+                        new_location = location_str[:1000]  # Respect field limit
+                        if attempt.lesson_location != new_location:
+                            logger.info(f"    Updating bookmark from CMI: {new_location[:50]}... (was: {attempt.lesson_location[:50] if attempt.lesson_location else 'empty'}...)")
+                            attempt.lesson_location = new_location
+                        else:
+                            logger.info(f"    Bookmark from CMI confirmed: {attempt.lesson_location[:50]}")
+                            
+                    # CRITICAL FIX: ALWAYS extract progress from CMI (latest progress)
+                    if version != '1.2':
+                        progress_key = 'cmi.progress_measure'
+                        cmi_progress = attempt.cmi_data.get(progress_key)
+                        if cmi_progress:
+                            try:
+                                progress_val = float(_safe_str(cmi_progress))
+                                if 0 <= progress_val <= 1:
+                                    new_progress = progress_val * 100
+                                    if abs(attempt.progress_percentage - new_progress) > 0.1:
+                                        logger.info(f"    Updating progress from CMI: {new_progress}% (was: {attempt.progress_percentage}%)")
+                                        attempt.progress_percentage = new_progress
+                            except (ValueError, TypeError) as e:
+                                logger.warning(f"    Could not parse progress '{cmi_progress}': {e}")
+                                
                 except Exception as e:
                     logger.error(f"    Error extracting CMI data: {str(e)}")
                     # Continue anyway - don't let CMI extraction errors block save

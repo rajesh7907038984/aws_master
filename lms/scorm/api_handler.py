@@ -981,19 +981,25 @@ class ScormAPIHandler:
                 suspend_key = 'cmi.suspend_data'
                 status_key = 'cmi.completion_status'
             
-            # Sync lesson_location from CMI data if not already set in model
+            # CRITICAL FIX: ALWAYS sync lesson_location from CMI data (don't check length)
+            # The bookmark could be shorter but still represent a different/updated position
             if location_key in cmi_data and cmi_data[location_key]:
                 cmi_location = cmi_data[location_key]
-                if cmi_location and (not self.attempt.lesson_location or len(str(cmi_location)) > len(str(self.attempt.lesson_location))):
+                if cmi_location:
+                    old_location = self.attempt.lesson_location or ''
                     self.attempt.lesson_location = str(cmi_location)[:1000]  # Respect field limit
-                    logger.info(f"[SYNC] Updated lesson_location from CMI: {self.attempt.lesson_location[:50]}...")
+                    if old_location != self.attempt.lesson_location:
+                        logger.info(f"[SYNC] Updated lesson_location from CMI: {self.attempt.lesson_location[:50]}... (was: {old_location[:50] if old_location else 'empty'}...)")
             
-            # 2. Sync suspend_data from CMI data if not already set in model
+            # 2. CRITICAL FIX: ALWAYS sync suspend_data from CMI data (don't check length)
+            # The suspend data could have same length but different content (progress updates)
             if suspend_key in cmi_data and cmi_data[suspend_key]:
                 cmi_suspend = cmi_data[suspend_key]
-                if cmi_suspend and (not self.attempt.suspend_data or len(str(cmi_suspend)) > len(str(self.attempt.suspend_data))):
+                if cmi_suspend:
+                    old_suspend_len = len(self.attempt.suspend_data) if self.attempt.suspend_data else 0
                     self.attempt.suspend_data = str(cmi_suspend)
-                    logger.info(f"[SYNC] Updated suspend_data from CMI: {len(self.attempt.suspend_data)} chars")
+                    new_suspend_len = len(self.attempt.suspend_data)
+                    logger.info(f"[SYNC] Updated suspend_data from CMI: {new_suspend_len} chars (was: {old_suspend_len} chars)")
                     
                     # Parse suspend data for progress information
                     self._parse_and_sync_suspend_data(self.attempt.suspend_data)
