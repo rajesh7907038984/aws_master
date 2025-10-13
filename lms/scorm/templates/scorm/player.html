@@ -859,6 +859,204 @@
             }
         }
         
+        // AUTOMATED SCORE CAPTURE MECHANISM
+        let autoScoreCaptureInterval = null;
+        let lastDetectedScore = null;
+        let scoreCaptureAttempts = 0;
+        const MAX_SCORE_CAPTURE_ATTEMPTS = 15;
+        
+        // Enhanced automated score detection and capture
+        function startAutoScoreCapture() {
+            console.log('🎯 Starting automated score capture mechanism...');
+            
+            autoScoreCaptureInterval = setInterval(() => {
+                try {
+                    // Method 1: Check SCORM API for score
+                    let detectedScore = checkScormApiForScore();
+                    
+                    // Method 2: Check iframe content for score patterns
+                    if (!detectedScore) {
+                        detectedScore = checkIframeForScore();
+                    }
+                    
+                    // Method 3: Check for completion indicators
+                    if (!detectedScore) {
+                        detectedScore = checkForCompletionIndicators();
+                    }
+                    
+                    if (detectedScore && detectedScore !== lastDetectedScore) {
+                        console.log('🎯 New score detected:', detectedScore);
+                        lastDetectedScore = detectedScore;
+                        
+                        // Automatically save the score
+                        autoSaveScore(detectedScore);
+                    }
+                    
+                    scoreCaptureAttempts++;
+                    if (scoreCaptureAttempts >= MAX_SCORE_CAPTURE_ATTEMPTS) {
+                        console.log('⏹️ Auto score capture stopped after', MAX_SCORE_CAPTURE_ATTEMPTS, 'attempts');
+                        clearInterval(autoScoreCaptureInterval);
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ Error in auto score capture:', error);
+                }
+            }, 3000); // Check every 3 seconds
+        }
+        
+        function checkScormApiForScore() {
+            try {
+                // Check SCORM 1.2 API
+                if (window.API && window.API._initialized) {
+                    const scoreRaw = window.API.LMSGetValue('cmi.core.score.raw');
+                    if (scoreRaw && scoreRaw !== '' && scoreRaw !== 'undefined' && scoreRaw !== 'false') {
+                        return parseFloat(scoreRaw);
+                    }
+                }
+                
+                // Check SCORM 2004 API
+                if (window.API_1484_11 && window.API_1484_11._initialized) {
+                    const scoreRaw = window.API_1484_11.GetValue('cmi.score.raw');
+                    if (scoreRaw && scoreRaw !== '' && scoreRaw !== 'undefined' && scoreRaw !== 'false') {
+                        return parseFloat(scoreRaw);
+                    }
+                    
+                    const scoreScaled = window.API_1484_11.GetValue('cmi.score.scaled');
+                    if (scoreScaled && scoreScaled !== '' && scoreScaled !== 'undefined' && scoreScaled !== 'false') {
+                        return parseFloat(scoreScaled) * 100;
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Error checking SCORM API:', error);
+            }
+            return null;
+        }
+        
+        function checkIframeForScore() {
+            try {
+                const iframe = document.getElementById('scormFrame');
+                if (iframe && iframe.contentWindow) {
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    
+                    // Look for common score patterns in the iframe content
+                    const scorePatterns = [
+                        // Look for percentage scores
+                        /(\d+)%/g,
+                        // Look for score displays
+                        /score[:\s]*(\d+)/gi,
+                        /result[:\s]*(\d+)/gi,
+                        /(\d+)\s*out\s*of\s*\d+/gi,
+                        // Look for completion indicators
+                        /completed[:\s]*(\d+)/gi,
+                        /passed[:\s]*(\d+)/gi
+                    ];
+                    
+                    const iframeText = iframeDoc.body ? iframeDoc.body.innerText : '';
+                    console.log('🔍 Checking iframe content for score patterns...');
+                    
+                    for (const pattern of scorePatterns) {
+                        const matches = iframeText.match(pattern);
+                        if (matches) {
+                            for (const match of matches) {
+                                const scoreMatch = match.match(/(\d+)/);
+                                if (scoreMatch) {
+                                    const score = parseInt(scoreMatch[1]);
+                                    if (score >= 0 && score <= 100) {
+                                        console.log('🎯 Score found in iframe content:', score);
+                                        return score;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Error checking iframe for score:', error);
+            }
+            return null;
+        }
+        
+        function checkForCompletionIndicators() {
+            try {
+                const iframe = document.getElementById('scormFrame');
+                if (iframe && iframe.contentWindow) {
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    const iframeText = iframeDoc.body ? iframeDoc.body.innerText.toLowerCase() : '';
+                    
+                    // Look for completion indicators
+                    const completionIndicators = [
+                        'quiz results',
+                        'assessment complete',
+                        'test completed',
+                        'finished',
+                        'done',
+                        'submitted'
+                    ];
+                    
+                    for (const indicator of completionIndicators) {
+                        if (iframeText.includes(indicator)) {
+                            console.log('🎯 Completion indicator found:', indicator);
+                            // If we detect completion but no score, assume a default score
+                            return 0; // This will trigger the auto-save mechanism
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Error checking completion indicators:', error);
+            }
+            return null;
+        }
+        
+        function autoSaveScore(score) {
+            console.log('💾 Auto-saving score:', score);
+            
+            try {
+                // Set the score in SCORM API
+                if (window.API && window.API.LMSSetValue) {
+                    window.API.LMSSetValue('cmi.core.score.raw', score.toString());
+                    window.API.LMSSetValue('cmi.core.lesson_status', 'completed');
+                    console.log('✅ Score set in SCORM 1.2 API');
+                }
+                
+                if (window.API_1484_11 && window.API_1484_11.SetValue) {
+                    window.API_1484_11.SetValue('cmi.score.raw', score.toString());
+                    window.API_1484_11.SetValue('cmi.completion_status', 'completed');
+                    console.log('✅ Score set in SCORM 2004 API');
+                }
+                
+                // Commit the changes
+                if (window.API && window.API.LMSCommit) {
+                    window.API.LMSCommit('');
+                    console.log('✅ Score committed to SCORM 1.2');
+                }
+                
+                if (window.API_1484_11 && window.API_1484_11.Commit) {
+                    window.API_1484_11.Commit('');
+                    console.log('✅ Score committed to SCORM 2004');
+                }
+                
+                // Trigger backend sync
+                fetch('{% url "scorm:sync_on_exit" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: 'attempt_id={{ attempt.id }}'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('🔄 Auto-score sync result:', data);
+                })
+                .catch(error => {
+                    console.error('❌ Auto-score sync error:', error);
+                });
+                
+            } catch (error) {
+                console.error('❌ Error auto-saving score:', error);
+            }
+        }
+        
         // CRITICAL FIX: Force extract score from SCORM API state before exit (SECURE - no iframe access)
         function forceExtractScore() {
             console.log('🔍 Attempting to force extract score from SCORM API...');
@@ -1457,6 +1655,12 @@
         window.handleScormExit = handleScormExit;
         
         // Focus on iframe content - no global handlers needed
+        
+        // Start automated score capture mechanism
+        console.log('🚀 Initializing automated score capture...');
+        setTimeout(() => {
+            startAutoScoreCapture();
+        }, 5000); // Start after 5 seconds to allow SCORM content to load
         
         // CRITICAL FIX: Enhanced EXIT ASSESSMENT button handling
         function handleExitButtonClicks() {
