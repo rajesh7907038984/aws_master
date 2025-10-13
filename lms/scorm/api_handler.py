@@ -442,6 +442,10 @@ class ScormAPIHandler:
                     
                     if new_priority > current_priority:
                         logger.info(f"[SCORM] ✅ Updating lesson_status to higher value: {value} (was: {self.attempt.lesson_status})")
+                        
+                        # ENHANCED: Auto-advance to next slide when slide is completed
+                        if value in ['completed', 'passed'] and self.attempt.lesson_location:
+                            self._auto_advance_to_next_slide()
                     else:
                         should_update = False
                         logger.info(f"[SCORM] ⏭️ Keeping existing lesson_status: {self.attempt.lesson_status} (new: {value} was lower)")
@@ -1611,9 +1615,61 @@ class ScormAPIHandler:
                 timestamp=timezone.now()
             )
             
-            logger.info(f"Saved comment ({comment_type}): {comment_text[:50]}...")
+            logger.info(f"Saved comment ({comment_type}): {comment_text[:50]}...")                                                                              
             
         except Exception as e:
             logger.error(f"Error saving comment: {str(e)}")
+    
+    def _auto_advance_to_next_slide(self):
+        """Automatically advance to the next slide when current slide is completed"""
+        try:
+            current_location = self.attempt.lesson_location
+            if not current_location:
+                return
+            
+            # Extract current slide number
+            current_slide = None
+            if 'slide_' in current_location:
+                slide_part = current_location.split('slide_')[-1].split('/')[0]
+                if slide_part.isdigit():
+                    current_slide = int(slide_part)
+            
+            if current_slide is not None:
+                # Calculate next slide
+                next_slide = current_slide + 1
+                
+                # Update lesson location to next slide
+                if 'slide_' in current_location:
+                    new_location = current_location.replace(f'slide_{current_slide}', f'slide_{next_slide}')
+                else:
+                    new_location = f"{current_location}/slide_{next_slide}"
+                
+                # Update the location
+                self.attempt.lesson_location = new_location
+                self.attempt.cmi_data['cmi.core.lesson_location'] = new_location
+                
+                # Update progress to reflect advancement
+                current_progress = self.attempt.progress_percentage or 0
+                new_progress = min(current_progress + 10, 100)  # Add 10% for next slide
+                self.attempt.progress_percentage = new_progress
+                self.attempt.cmi_data['cmi.progress_measure'] = str(new_progress / 100)
+                
+                # Update suspend data
+                if self.attempt.suspend_data:
+                    suspend_data = self.attempt.suspend_data
+                    if 'current_slide=' in suspend_data:
+                        suspend_data = suspend_data.replace(f'current_slide={current_slide}', f'current_slide={next_slide}')
+                    else:
+                        suspend_data += f'&current_slide={next_slide}'
+                    suspend_data += f'&slide_{current_slide}_completed=true'
+                    self.attempt.suspend_data = suspend_data
+                    self.attempt.cmi_data['cmi.suspend_data'] = suspend_data
+                
+                logger.info(f"[SCORM] ✅ Auto-advanced from slide {current_slide} to slide {next_slide}")
+                logger.info(f"[SCORM] New location: {new_location}")
+                logger.info(f"[SCORM] New progress: {new_progress}%")
+                
+        except Exception as e:
+            logger.error(f"[SCORM] Error auto-advancing to next slide: {e}")
     
 
