@@ -103,6 +103,46 @@
             display: block;
         }
         
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 0.3s ease;
+        }
+        
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4caf50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            margin-top: 1rem;
+            font-size: 1.1rem;
+            color: #666;
+        }
+        
         .preview-badge {
             background: #ffc107;
             color: #000;
@@ -380,6 +420,10 @@
     </script>
 
     <div class="scorm-container">
+        <div id="loadingOverlay" class="loading-overlay">
+            <div class="spinner"></div>
+            <div class="loading-text">Loading SCORM content...</div>
+        </div>
         <iframe 
             id="scormFrame"
             class="scorm-iframe" 
@@ -410,9 +454,19 @@
             }
         }
         
-        // Start auto-save after iframe loads
+        // Start auto-save after iframe loads and hide loading overlay
         document.getElementById('scormFrame').addEventListener('load', function() {
             console.log('✅ SCORM content loaded');
+            
+            // Hide loading overlay
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.classList.add('hidden');
+                // Remove overlay after animation completes
+                setTimeout(function() {
+                    loadingOverlay.style.display = 'none';
+                }, 300);
+            }
             
             // Start periodic auto-save (every 5 seconds)
             if (!autoSaveInterval) {

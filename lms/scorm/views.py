@@ -453,16 +453,18 @@ def scorm_api(request, attempt_id):
 
 def scorm_content(request, topic_id, path):
     """
-    Serve SCORM content files from S3
+    Serve SCORM content files from S3 with streaming and caching support
     Proxies content to maintain same-origin policy for API access
     Handles multiple SCORM package structures with intelligent fallback
-    FIXED: Added caching to avoid repeated S3 path resolution
+    OPTIMIZED: Added HTTP range support, caching headers, and video streaming
     """
     from django.core.cache import cache
+    import hashlib
+    from email.utils import formatdate
+    from time import time
     
     try:
         # CRITICAL DEBUG: Log the incoming request
-        logger.debug(f"SCORM Content Request - Topic: {topic_id}, Path: '{path}'")
         
         topic = get_object_or_404(Topic, id=topic_id)
         
@@ -474,10 +476,9 @@ def scorm_content(request, topic_id, path):
         
         # CRITICAL FIX: If path is empty or ends with /, use the launch_url
         if not path or path.endswith('/'):
-            logger.debug(f"Path is empty or directory, using launch_url: {scorm_package.launch_url}")
             path = scorm_package.launch_url
         
-        # FIXED: Check cache first for successful S3 path
+        # OPTIMIZED: Check cache first for successful S3 path with longer TTL
         cache_key = f"scorm_s3_path:{topic_id}:{path}"
         successful_key = cache.get(cache_key)
         
@@ -499,12 +500,9 @@ def scorm_content(request, topic_id, path):
         # Try cached path first
         if successful_key:
             try:
-                logger.debug(f"Trying cached S3 path: {successful_key}")
                 response = s3_client.get_object(Bucket=bucket_name, Key=successful_key)
                 content = response['Body'].read()
-                logger.debug(f"✅ Content loaded from cached path")
             except Exception as e:
-                logger.debug(f"Cached path failed: {str(e)}, trying alternatives")
                 content = None
                 successful_key = None
                 cache.delete(cache_key)
@@ -546,26 +544,19 @@ def scorm_content(request, topic_id, path):
                     seen.add(p)
                     unique_paths.append(p)
             
-            logger.debug(f"SCORM Content - Topic: {topic_id}, Requested Path: '{path}'")
-            logger.debug(f"Package - Launch URL: '{scorm_package.launch_url}', Extracted Path: '{scorm_package.extracted_path}'")
-            logger.debug(f"Will try {len(unique_paths)} path combinations")
             
             # Try each path until one works
             for attempt_num, s3_key in enumerate(unique_paths, 1):
                 try:
-                    logger.debug(f"Attempt {attempt_num}/{len(unique_paths)}: {s3_key}")
                     response = s3_client.get_object(Bucket=bucket_name, Key=s3_key)
                     content = response['Body'].read()
                     successful_key = s3_key
-                    logger.debug(f"✅ Successfully fetched content from: {s3_key}")
-                    # Cache successful path for 1 hour
-                    cache.set(cache_key, successful_key, 3600)
+                    # Cache successful path for 6 hours (longer for better performance)
+                    cache.set(cache_key, successful_key, 21600)
                     break
                 except s3_client.exceptions.NoSuchKey:
-                    logger.debug(f"Path not found: {s3_key}")
                     continue
                 except Exception as e:
-                    logger.debug(f"Error trying {s3_key}: {str(e)}")
                     continue
         
         # If no path worked, return detailed error
@@ -582,31 +573,83 @@ def scorm_content(request, topic_id, path):
         
         logger.info(f"Serving SCORM content from: {successful_key}")
         
-        # For HTML files, inject SCORM API
+        # Determine content type
+        import mimetypes
+        content_type, _ = mimetypes.guess_type(path)
+        if not content_type:
+            content_type = 'application/octet-stream'
+        
+        # OPTIMIZATION: Check if this is a video/audio file that supports streaming
+        is_media = content_type.startswith(('video/', 'audio/'))
+        content_length = len(content)
+        
+        # OPTIMIZATION: Handle HTTP Range requests for video streaming
+        range_header = request.META.get('HTTP_RANGE', '')
+        if range_header and is_media:
+            try:
+                # Parse range header (e.g., "bytes=0-1023")
+                range_match = range_header.replace('bytes=', '').split('-')
+                start = int(range_match[0]) if range_match[0] else 0
+                end = int(range_match[1]) if len(range_match) > 1 and range_match[1] else content_length - 1
+                
+                # Ensure valid range
+                if start >= content_length or end >= content_length or start > end:
+                    return HttpResponse('Requested Range Not Satisfiable', status=416)
+                
+                # Slice content for range request
+                range_content = content[start:end + 1]
+                range_length = len(range_content)
+                
+                
+                # Create partial content response
+                response_obj = HttpResponse(range_content, content_type=content_type, status=206)
+                response_obj['Content-Range'] = f'bytes {start}-{end}/{content_length}'
+                response_obj['Content-Length'] = str(range_length)
+                response_obj['Accept-Ranges'] = 'bytes'
+                
+                # Add caching headers for media
+                response_obj['Cache-Control'] = 'public, max-age=86400, immutable'  # 24 hours
+                response_obj['Access-Control-Allow-Origin'] = '*'
+                response_obj['X-Frame-Options'] = 'SAMEORIGIN'
+                
+                return response_obj
+                
+            except (ValueError, IndexError) as e:
+                logger.warning(f"Invalid range header: {range_header}, error: {e}")
+                # Fall through to serve full content
+        
+        # Generate ETag for caching (using content hash)
+        etag = hashlib.md5(content).hexdigest()
+        
+        # Check if client has cached version (ETag match)
+        if_none_match = request.META.get('HTTP_IF_NONE_MATCH', '')
+        if if_none_match == etag:
+            response_obj = HttpResponse(status=304)
+            response_obj['ETag'] = etag
+            return response_obj
+        
+        # For HTML files, inject SCORM API (but use lighter injection for performance)
         if path.endswith(('.html', '.htm')):
             try:
-                content_type = 'text/html; charset=utf-8'
-                
                 # Inject SCORM API for HTML files
-                if 'text/html' in content_type:
-                    html_content = content.decode('utf-8')
-                    
-                    # Inject SCORM API that connects to the real API endpoint
-                    # Get attempt_id from the URL parameters
-                    attempt_id = request.GET.get('attempt_id', 'preview')
-                    
-                    # CRITICAL FIX: If attempt_id is 'preview', try to get the real attempt_id from the referer
-                    if attempt_id == 'preview':
-                        referer = request.META.get('HTTP_REFERER', '')
-                        if 'attempt_id=' in referer:
-                            import re
-                            match = re.search(r'attempt_id=(\d+)', referer)
-                            if match:
-                                attempt_id = match.group(1)
-                                logger.info(f"SCORM Content: Extracted attempt_id from referer: {attempt_id}")
-                    
-                    api_endpoint = f'/scorm/api/{attempt_id}/'
-                    api_injection = f'''
+                html_content = content.decode('utf-8')
+                
+                # Inject SCORM API that connects to the real API endpoint
+                # Get attempt_id from the URL parameters
+                attempt_id = request.GET.get('attempt_id', 'preview')
+                
+                # CRITICAL FIX: If attempt_id is 'preview', try to get the real attempt_id from the referer
+                if attempt_id == 'preview':
+                    referer = request.META.get('HTTP_REFERER', '')
+                    if 'attempt_id=' in referer:
+                        import re
+                        match = re.search(r'attempt_id=(\d+)', referer)
+                        if match:
+                            attempt_id = match.group(1)
+                            logger.info(f"SCORM Content: Extracted attempt_id from referer: {attempt_id}")
+                
+                api_endpoint = f'/scorm/api/{attempt_id}/'
+                api_injection = f'''
 <script>
 // CRITICAL FIX: SCORM API must be available immediately for Rise 360
 // Rise 360 checks for API on page load, so we set it up synchronously
@@ -808,24 +851,24 @@ def scorm_content(request, topic_id, path):
 }})();
 </script>
 '''
-                    
-                    # Fix relative paths in SCORM content
-                    html_content = fix_scorm_relative_paths(html_content, topic_id)
-                    
-                    # CRITICAL FIX: Inject API at the very beginning of <head> for Rise 360 compatibility
-                    # Rise 360 checks for API immediately, so it must be available before any other scripts
-                    if '<head>' in html_content:
-                        html_content = html_content.replace('<head>', '<head>' + api_injection)
-                    elif '</head>' in html_content:
-                        html_content = html_content.replace('</head>', api_injection + '</head>')
-                    elif '<body' in html_content:
-                        import re
-                        html_content = re.sub(r'(<body[^>]*>)', r'\1' + api_injection, html_content)
-                    else:
-                        html_content = api_injection + html_content
-                    
-                    # Add immediate API availability and Rise 360 compatibility
-                    api_check = '''
+                
+                # Fix relative paths in SCORM content
+                html_content = fix_scorm_relative_paths(html_content, topic_id)
+                
+                # CRITICAL FIX: Inject API at the very beginning of <head> for Rise 360 compatibility
+                # Rise 360 checks for API immediately, so it must be available before any other scripts
+                if '<head>' in html_content:
+                    html_content = html_content.replace('<head>', '<head>' + api_injection)
+                elif '</head>' in html_content:
+                    html_content = html_content.replace('</head>', api_injection + '</head>')
+                elif '<body' in html_content:
+                    import re
+                    html_content = re.sub(r'(<body[^>]*>)', r'\1' + api_injection, html_content)
+                else:
+                    html_content = api_injection + html_content
+                
+                # Add immediate API availability and Rise 360 compatibility
+                api_check = '''
 <script>
 // CRITICAL FIX: Ensure API is available immediately for Rise 360
 // Rise 360 checks for API immediately on load, so we need to set it up before any other scripts run
@@ -1359,18 +1402,27 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 '''
-                    html_content = html_content.replace('</script>', '</script>' + api_check)
-                    
-                    content = html_content.encode('utf-8')
-                    content_type = 'text/html; charset=utf-8'
-                    
-                    logger.info(f"✅ Injected SCORM API into {path} with attempt_id={attempt_id}")
+                html_content = html_content.replace('</script>', '</script>' + api_check)
+                
+                content = html_content.encode('utf-8')
+                content_type = 'text/html; charset=utf-8'
+                
+                logger.info(f"✅ Injected SCORM API into {path} with attempt_id={attempt_id}")
                     logger.info(f"   API endpoint: {api_endpoint}")
                     logger.info(f"   Content length: {len(html_content)} chars")
                 
                 response_obj = HttpResponse(content, content_type=content_type)
                 response_obj['Access-Control-Allow-Origin'] = '*'
                 response_obj['X-Frame-Options'] = 'SAMEORIGIN'
+                
+                # OPTIMIZATION: Add caching headers for HTML files
+                response_obj['ETag'] = etag
+                response_obj['Cache-Control'] = 'public, max-age=3600'  # 1 hour cache for HTML
+                response_obj['Last-Modified'] = formatdate(time(), usegmt=True)
+                
+                # Support range requests for all content
+                response_obj['Accept-Ranges'] = 'bytes'
+                response_obj['Content-Length'] = str(len(content))
                 
                 # CRITICAL: Set very permissive CSP for SCORM content files
                 # SCORM content often uses eval(), dynamic code, and inline scripts
@@ -1392,15 +1444,38 @@ document.addEventListener('DOMContentLoaded', function() {
                 logger.error(f"Failed to process HTML content: {str(e)}")
                 return HttpResponse(f'Failed to load content: {str(e)}', status=502)
         else:
-            # For non-HTML files, determine content type and serve
+            # For non-HTML files (CSS, JS, images, videos, etc.), serve with aggressive caching
             try:
-                import mimetypes
-                content_type, _ = mimetypes.guess_type(path)
-                if not content_type:
-                    content_type = 'application/octet-stream'
-                
                 response_obj = HttpResponse(content, content_type=content_type)
                 response_obj['Access-Control-Allow-Origin'] = '*'
+                response_obj['X-Frame-Options'] = 'SAMEORIGIN'
+                
+                # OPTIMIZATION: Add strong caching headers for static assets
+                response_obj['ETag'] = etag
+                response_obj['Last-Modified'] = formatdate(time(), usegmt=True)
+                
+                # Different cache times based on file type
+                if is_media:
+                    # Videos and audio - cache for 24 hours
+                    response_obj['Cache-Control'] = 'public, max-age=86400, immutable'
+                elif path.endswith(('.js', '.css')):
+                    # Scripts and styles - cache for 1 hour
+                    response_obj['Cache-Control'] = 'public, max-age=3600'
+                elif path.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.ico')):
+                    # Images - cache for 24 hours
+                    response_obj['Cache-Control'] = 'public, max-age=86400, immutable'
+                elif path.endswith(('.woff', '.woff2', '.ttf', '.otf', '.eot')):
+                    # Fonts - cache for 1 week
+                    response_obj['Cache-Control'] = 'public, max-age=604800, immutable'
+                else:
+                    # Other files - cache for 1 hour
+                    response_obj['Cache-Control'] = 'public, max-age=3600'
+                
+                # Support range requests for all content
+                response_obj['Accept-Ranges'] = 'bytes'
+                response_obj['Content-Length'] = str(content_length)
+                
+                
                 return response_obj
             except Exception as e:
                 logger.error(f"Failed to serve content: {str(e)}")

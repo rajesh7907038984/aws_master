@@ -61,7 +61,6 @@ class ScormScoreSyncService:
             should_sync = force or ScormScoreSyncService._should_sync_score(scorm_attempt)
             
             if not should_sync:
-                logger.debug(f"Skipping sync for attempt {scorm_attempt.id} - not ready for sync")
                 return False
             
             # Extract the most accurate score
@@ -225,7 +224,6 @@ class ScormScoreSyncService:
         # ❌ DO NOT sync if there's no score, no suspend data, no progress
         # This prevents syncing empty "browsing" attempts
         
-        logger.debug(f"NOT syncing attempt {attempt.id} - No meaningful progress data")
         return False
     
     @staticmethod
@@ -499,7 +497,6 @@ class ScormScoreSyncService:
         # ✅ PERMANENT FIX: Only return scores from actual SCORM completion
         # Users must complete the activity to get a score
         
-        logger.debug(f"No valid score found for attempt {attempt.id} - user must complete activity")
         return None
     
     @staticmethod

@@ -103,6 +103,46 @@
             display: block;
         }
         
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 0.3s ease;
+        }
+        
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #f59e0b;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            margin-top: 1rem;
+            font-size: 1.1rem;
+            color: #666;
+        }
+        
         .preview-badge {
             background: #ffc107;
             color: #000;
@@ -165,9 +205,27 @@
             return cookieValue;
         }
         
-        // Simple synchronous API call for Rise 360
+        // Optimized API call for Rise 360 with caching to prevent loops
+        const apiCallCache = new Map();
+        const CACHE_DURATION = 2000; // 2 seconds cache
+        
         function makeRiseAPICall(method, parameters) {
             try {
+                // Create cache key
+                const cacheKey = `${method}_${JSON.stringify(parameters)}`;
+                const now = Date.now();
+                
+                // Check cache for read-only operations
+                if (method.includes('Get') && apiCallCache.has(cacheKey)) {
+                    const cached = apiCallCache.get(cacheKey);
+                    if (now - cached.timestamp < CACHE_DURATION) {
+                        console.log(`[Rise 360 API] ${method} -> cached result`);
+                        return cached.result;
+                    } else {
+                        apiCallCache.delete(cacheKey);
+                    }
+                }
+                
                 const xhr = new XMLHttpRequest();
                 xhr.open('POST', API_ENDPOINT, false); // Synchronous for SCORM compatibility
                 xhr.setRequestHeader('Content-Type', 'application/json');
@@ -182,6 +240,15 @@
                     const data = JSON.parse(xhr.responseText);
                     if (data.success) {
                         console.log(`[Rise 360 API] ${method} -> ${data.result}`);
+                        
+                        // Cache read-only results
+                        if (method.includes('Get')) {
+                            apiCallCache.set(cacheKey, {
+                                result: data.result,
+                                timestamp: now
+                            });
+                        }
+                        
                         return data.result;
                     } else {
                         console.error(`[Rise 360 API] ${method} failed:`, data.error);
@@ -282,7 +349,26 @@
             },
             
             LMSGetValue: function(element) {
+                // Add debouncing to prevent rapid API calls
+                const now = Date.now();
+                const lastCallKey = `last_${element}`;
+                const lastCall = window[lastCallKey] || 0;
+                
+                // If called within 100ms, return cached value
+                if (now - lastCall < 100) {
+                    const cachedKey = `cached_${element}`;
+                    if (window[cachedKey]) {
+                        console.log(`[Rise 360] GetValue(${element}) = cached ${window[cachedKey]}`);
+                        return window[cachedKey];
+                    }
+                }
+                
                 const value = makeRiseAPICall('LMSGetValue', [element]);
+                
+                // Cache the result
+                window[lastCallKey] = now;
+                window[`cached_${element}`] = value;
+                
                 // Rise 360 needs these for resume
                 if (element === 'cmi.core.lesson_location' || element === 'cmi.core.entry') {
                     console.log(`[Rise 360] GetValue(${element}) = ${value}`);
@@ -387,11 +473,32 @@
                 return result;
             },
             GetValue: function(element) {
+                // Add debouncing to prevent rapid API calls
+                const now = Date.now();
+                const lastCallKey = `last_2004_${element}`;
+                const lastCall = window[lastCallKey] || 0;
+                
+                // If called within 100ms, return cached value
+                if (now - lastCall < 100) {
+                    const cachedKey = `cached_2004_${element}`;
+                    if (window[cachedKey]) {
+                        console.log(`[Rise 360] GetValue(${element}) = cached ${window[cachedKey]}`);
+                        return window[cachedKey];
+                    }
+                }
+                
                 // Map SCORM 2004 to 1.2
                 const mapped = element
                     .replace('cmi.location', 'cmi.core.lesson_location')
                     .replace('cmi.completion_status', 'cmi.core.lesson_status');
-                return window.API.LMSGetValue(mapped);
+                
+                const value = window.API.LMSGetValue(mapped);
+                
+                // Cache the result
+                window[lastCallKey] = now;
+                window[`cached_2004_${element}`] = value;
+                
+                return value;
             },
             SetValue: function(element, value) {
                 // Map SCORM 2004 to 1.2
@@ -425,60 +532,77 @@
         
         console.log('✅ Rise 360 SCORM API created and ready!');
         
-        // Progress tracking for Rise 360
+        // Progress tracking for Rise 360 with caching to prevent API spam
         let lastProgressUpdate = 0;
+        let progressCache = {};
+        let cacheTimeout = 3000; // Cache for 3 seconds
         
         function updateProgressBar() {
             try {
                 let progress = 0;
                 let progressSource = 'none';
+                const now = Date.now();
                 
-                // Rise 360 tracks progress via multiple methods - check in priority order
-                const status = window.API.LMSGetValue('cmi.core.lesson_status');
-                
-                // Priority 1: If completed, show 100%
-                if (status === 'completed' || status === 'passed') {
-                    progress = 100;
-                    progressSource = 'status';
-                    console.log('[Rise 360 Progress] Completed');
+                // Check cache first to avoid repeated API calls
+                if (progressCache.timestamp && (now - progressCache.timestamp) < cacheTimeout) {
+                    progress = progressCache.value;
+                    progressSource = progressCache.source;
+                    console.log('[Rise 360 Progress] Using cached progress: ' + progress + '%');
                 } else {
-                    // Priority 2: Check SCORM 2004 progress_measure (Rise 360 uses this)
-                    // This is a decimal value between 0 and 1 representing actual progress
-                    const progressMeasure = window.API.LMSGetValue('cmi.progress_measure');
-                    if (progressMeasure && progressMeasure !== '' && parseFloat(progressMeasure) > 0) {
-                        progress = Math.round(parseFloat(progressMeasure) * 100);
-                        progressSource = 'progress_measure';
-                        console.log('[Rise 360 Progress] From progress_measure: ' + progressMeasure + ' = ' + progress + '%');
-                    }
-                    // Priority 3: Try SCORM 1.2 progress_measure as fallback
-                    else {
-                        const progressMeasure12 = window.API.LMSGetValue('cmi.core.progress_measure');
-                        if (progressMeasure12 && progressMeasure12 !== '' && parseFloat(progressMeasure12) > 0) {
-                            progress = Math.round(parseFloat(progressMeasure12) * 100);
-                            progressSource = 'progress_measure_1.2';
-                            console.log('[Rise 360 Progress] From 1.2 progress_measure: ' + progressMeasure12 + ' = ' + progress + '%');
+                    // Rise 360 tracks progress via multiple methods - check in priority order
+                    const status = window.API.LMSGetValue('cmi.core.lesson_status');
+                    
+                    // Priority 1: If completed, show 100%
+                    if (status === 'completed' || status === 'passed') {
+                        progress = 100;
+                        progressSource = 'status';
+                        console.log('[Rise 360 Progress] Completed');
+                    } else {
+                        // Priority 2: Check SCORM 2004 progress_measure (Rise 360 uses this)
+                        // This is a decimal value between 0 and 1 representing actual progress
+                        const progressMeasure = window.API.LMSGetValue('cmi.progress_measure');
+                        if (progressMeasure && progressMeasure !== '' && parseFloat(progressMeasure) > 0) {
+                            progress = Math.round(parseFloat(progressMeasure) * 100);
+                            progressSource = 'progress_measure';
+                            console.log('[Rise 360 Progress] From progress_measure: ' + progressMeasure + ' = ' + progress + '%');
                         }
-                        // Priority 4: Check score if available (for assessment-based content)
+                        // Priority 3: Try SCORM 1.2 progress_measure as fallback
                         else {
-                            const scoreRaw = window.API.LMSGetValue('cmi.core.score.raw');
-                            const scoreMax = window.API.LMSGetValue('cmi.core.score.max');
-                            if (scoreRaw && scoreMax && parseFloat(scoreMax) > 0) {
-                                progress = Math.round((parseFloat(scoreRaw) / parseFloat(scoreMax)) * 100);
-                                progressSource = 'score';
-                                console.log('[Rise 360 Progress] From score: ' + scoreRaw + '/' + scoreMax + ' = ' + progress + '%');
+                            const progressMeasure12 = window.API.LMSGetValue('cmi.core.progress_measure');
+                            if (progressMeasure12 && progressMeasure12 !== '' && parseFloat(progressMeasure12) > 0) {
+                                progress = Math.round(parseFloat(progressMeasure12) * 100);
+                                progressSource = 'progress_measure_1.2';
+                                console.log('[Rise 360 Progress] From 1.2 progress_measure: ' + progressMeasure12 + ' = ' + progress + '%');
                             }
-                            // Priority 5: Check if started (has bookmark)
+                            // Priority 4: Check score if available (for assessment-based content)
                             else {
-                                const bookmark = window.API.LMSGetValue('cmi.core.lesson_location');
-                                if (bookmark && bookmark.length > 0 && status !== 'not_attempted') {
-                                    // Has started but no specific progress data - show minimal progress
-                                    progress = 5;
-                                    progressSource = 'bookmark';
-                                    console.log('[Rise 360 Progress] Started (has bookmark) - showing minimal progress');
+                                const scoreRaw = window.API.LMSGetValue('cmi.core.score.raw');
+                                const scoreMax = window.API.LMSGetValue('cmi.core.score.max');
+                                if (scoreRaw && scoreMax && parseFloat(scoreMax) > 0) {
+                                    progress = Math.round((parseFloat(scoreRaw) / parseFloat(scoreMax)) * 100);
+                                    progressSource = 'score';
+                                    console.log('[Rise 360 Progress] From score: ' + scoreRaw + '/' + scoreMax + ' = ' + progress + '%');
+                                }
+                                // Priority 5: Check if started (has bookmark)
+                                else {
+                                    const bookmark = window.API.LMSGetValue('cmi.core.lesson_location');
+                                    if (bookmark && bookmark.length > 0 && status !== 'not_attempted') {
+                                        // Has started but no specific progress data - show minimal progress
+                                        progress = 5;
+                                        progressSource = 'bookmark';
+                                        console.log('[Rise 360 Progress] Started (has bookmark) - showing minimal progress');
+                                    }
                                 }
                             }
                         }
                     }
+                    
+                    // Update cache
+                    progressCache = {
+                        value: progress,
+                        source: progressSource,
+                        timestamp: now
+                    };
                 }
                 
                 // Update UI only if progress changed
@@ -493,11 +617,15 @@
             }
         }
         
-        // Update progress more frequently for better responsiveness
-        setInterval(updateProgressBar, 1000);
+        // Update progress less frequently to prevent API spam
+        setInterval(updateProgressBar, 5000);
     </script>
 
     <div class="scorm-container">
+        <div id="loadingOverlay" class="loading-overlay">
+            <div class="spinner"></div>
+            <div class="loading-text">Loading SCORM content...</div>
+        </div>
         <iframe 
             id="riseFrame"
             class="scorm-iframe" 
@@ -507,10 +635,20 @@
     </div>
 
     <script>
-        // Content loaded - instant save is now active
+        // Content loaded - instant save is now active and hide loading overlay
         document.getElementById('riseFrame').addEventListener('load', function() {
             console.log('✅ Rise 360 content loaded - Instant save enabled');
             console.log('[Rise 360] Data will be saved instantly on every action');
+            
+            // Hide loading overlay
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.classList.add('hidden');
+                // Remove overlay after animation completes
+                setTimeout(function() {
+                    loadingOverlay.style.display = 'none';
+                }, 300);
+            }
         });
         
         // FIXED: Save & Exit button handler with proper event attachment and DB sync
