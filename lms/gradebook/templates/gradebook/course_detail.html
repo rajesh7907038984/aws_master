@@ -1814,7 +1814,7 @@
                 <td class="assignment-total activity-cell">
                   {% calculate_student_total_optimized student_scores student.id activities as total_data %}
                   <div class="total-score-container">
-                    {% if total_data.possible > 0 %}
+                    {% if total_data.has_completed_activity and total_data.possible > 0 %}
                       <div class="total-points">
                         {{ total_data.earned|floatformat:1 }}/{{ total_data.possible|floatformat:1 }} pts
                       </div>
@@ -1830,7 +1830,7 @@
                         <div class="grade-score grade-poor total-percentage">{{ total_data.percentage|floatformat:1 }}%</div>
                       {% endif %}
                     {% else %}
-                      <div class="grade-score grade-none">No Activities</div>
+                      <div class="grade-score grade-none">-</div>
                     {% endif %}
                   </div>
                 </td>

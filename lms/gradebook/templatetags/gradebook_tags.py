@@ -1160,6 +1160,7 @@ def calculate_student_total_optimized(student_scores, student_id, activities):
         student_id = int(student_id)
         total_earned = Decimal('0')
         total_possible = Decimal('0')
+        has_completed_activity = False
         
         if student_id in student_scores:
             for activity in activities:
@@ -1178,12 +1179,14 @@ def calculate_student_total_optimized(student_scores, student_id, activities):
                     # Add to earned points if score exists and not excused
                     if score_data.get('score') is not None and not score_data.get('excused', False):
                         total_earned += Decimal(str(score_data['score']))
+                        has_completed_activity = True
                     # Also count completed activities even without scores (for SCORM completions)
                     elif (score_data.get('completed', False) or 
                           score_data.get('completion_status') == 'completed' or 
                           score_data.get('success_status') == 'passed') and not score_data.get('excused', False):
                         # Award full points for completed activities without scores
                         total_earned += Decimal(str(score_data.get('max_score', 0)))
+                        has_completed_activity = True
         
         # Calculate percentage
         if total_possible > 0:
@@ -1194,13 +1197,15 @@ def calculate_student_total_optimized(student_scores, student_id, activities):
         return {
             'earned': total_earned,
             'possible': total_possible,
-            'percentage': percentage
+            'percentage': percentage,
+            'has_completed_activity': has_completed_activity
         }
     except (ValueError, TypeError, KeyError):
         return {
             'earned': Decimal('0'),
             'possible': Decimal('0'),
-            'percentage': 0
+            'percentage': 0,
+            'has_completed_activity': False
         }
 
 @register.simple_tag
