@@ -193,10 +193,18 @@
                     .then(response => response.json())
                     .then(data => {
                         console.log('[Rise 360] Database sync successful, redirecting...');
-                        // Check if we're in an iframe
-                        if (window.parent && window.parent !== window) {
-                            window.parent.location.href = '{% url "courses:topic_view" topic.id %}';
-                        } else {
+                        // Force redirect from top window to bypass iframe restrictions
+                        try {
+                            if (window.top && window.top !== window) {
+                                window.top.location.href = '{% url "courses:topic_view" topic.id %}';
+                            } else if (window.parent && window.parent !== window) {
+                                window.parent.location.href = '{% url "courses:topic_view" topic.id %}';
+                            } else {
+                                window.location.href = '{% url "courses:topic_view" topic.id %}';
+                            }
+                        } catch (e) {
+                            // Fallback if cross-origin restrictions
+                            console.log('[Rise 360] Cross-origin restriction, trying fallback redirect');
                             window.location.href = '{% url "courses:topic_view" topic.id %}';
                         }
                     })
@@ -204,9 +212,15 @@
                         console.error('[Rise 360] Database sync error:', error);
                         // Still redirect even if sync fails
                         setTimeout(function() {
-                            if (window.parent && window.parent !== window) {
-                                window.parent.location.href = '{% url "courses:topic_view" topic.id %}';
-                            } else {
+                            try {
+                                if (window.top && window.top !== window) {
+                                    window.top.location.href = '{% url "courses:topic_view" topic.id %}';
+                                } else if (window.parent && window.parent !== window) {
+                                    window.parent.location.href = '{% url "courses:topic_view" topic.id %}';
+                                } else {
+                                    window.location.href = '{% url "courses:topic_view" topic.id %}';
+                                }
+                            } catch (e) {
                                 window.location.href = '{% url "courses:topic_view" topic.id %}';
                             }
                         }, 500);
@@ -276,10 +290,18 @@
                     .then(response => response.json())
                     .then(data => {
                         console.log('[Rise 360] Database sync successful, redirecting...');
-                        // Check if we're in an iframe
-                        if (window.parent && window.parent !== window) {
-                            window.parent.location.href = '{% url "courses:topic_view" topic.id %}';
-                        } else {
+                        // Force redirect from top window to bypass iframe restrictions
+                        try {
+                            if (window.top && window.top !== window) {
+                                window.top.location.href = '{% url "courses:topic_view" topic.id %}';
+                            } else if (window.parent && window.parent !== window) {
+                                window.parent.location.href = '{% url "courses:topic_view" topic.id %}';
+                            } else {
+                                window.location.href = '{% url "courses:topic_view" topic.id %}';
+                            }
+                        } catch (e) {
+                            // Fallback if cross-origin restrictions
+                            console.log('[Rise 360] Cross-origin restriction, trying fallback redirect');
                             window.location.href = '{% url "courses:topic_view" topic.id %}';
                         }
                     })
@@ -287,9 +309,15 @@
                         console.error('[Rise 360] Database sync error:', error);
                         // Still redirect even if sync fails
                         setTimeout(function() {
-                            if (window.parent && window.parent !== window) {
-                                window.parent.location.href = '{% url "courses:topic_view" topic.id %}';
-                            } else {
+                            try {
+                                if (window.top && window.top !== window) {
+                                    window.top.location.href = '{% url "courses:topic_view" topic.id %}';
+                                } else if (window.parent && window.parent !== window) {
+                                    window.parent.location.href = '{% url "courses:topic_view" topic.id %}';
+                                } else {
+                                    window.location.href = '{% url "courses:topic_view" topic.id %}';
+                                }
+                            } catch (e) {
                                 window.location.href = '{% url "courses:topic_view" topic.id %}';
                             }
                         }, 500);

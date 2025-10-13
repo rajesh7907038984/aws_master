@@ -129,7 +129,8 @@ def check_scorm_health(request):
 def sync_on_exit(request):
     """
     Sync SCORM data to TopicProgress when user exits SCORM content
-    Called by the "Back to Topic" button to ensure time/attempts are saved
+    Called by the "Save & Exit" button to ensure all quiz state and scores are saved
+    ENHANCED: Special handling for Storyline quiz state preservation
     """
     try:
         attempt_id = request.POST.get('attempt_id')
@@ -140,8 +141,8 @@ def sync_on_exit(request):
                 'error': 'No attempt_id provided'
             }, status=400)
         
-        # Get the attempt
-        attempt = ScormAttempt.objects.filter(
+        # Get the attempt with select_for_update to prevent race conditions
+        attempt = ScormAttempt.objects.select_for_update().filter(
             id=attempt_id,
             user=request.user
         ).select_related('scorm_package__topic').first()
@@ -152,20 +153,42 @@ def sync_on_exit(request):
                 'error': 'Attempt not found or unauthorized'
             }, status=404)
         
+        # Log current state for debugging
+        logger.info(f"🔄 Exit sync for attempt {attempt_id}")
+        logger.info(f"   Status: {attempt.lesson_status}")
+        logger.info(f"   Score: {attempt.score_raw}")
+        logger.info(f"   Suspend data: {len(attempt.suspend_data) if attempt.suspend_data else 0} chars")
+        logger.info(f"   Bookmark: {attempt.lesson_location[:50] if attempt.lesson_location else 'None'}")
+        
+        # CRITICAL: Ensure suspend_data is preserved (especially for Storyline quiz state)
+        if attempt.suspend_data and len(attempt.suspend_data) > 0:
+            logger.info(f"   ✅ Quiz state preserved: {len(attempt.suspend_data)} chars")
+            # Force save to ensure suspend_data is in database
+            attempt.save(update_fields=['suspend_data', 'lesson_location', 'last_accessed'])
+            logger.info(f"   ✅ Suspend data saved to database")
+        
+        # Refresh from database to ensure we have latest data
+        attempt.refresh_from_db()
+        
         # Sync the attempt data to TopicProgress
         sync_result = ScormScoreSyncService.sync_score(attempt, force=True)
         
-        logger.info(f"Exit sync for attempt {attempt_id}: {'success' if sync_result else 'skipped'}")
+        logger.info(f"   Exit sync result: {'success' if sync_result else 'skipped'}")
         
         return JsonResponse({
             'success': True,
             'synced': sync_result,
             'message': 'SCORM data synchronized successfully' if sync_result else 'No sync needed',
-            'attempt_id': attempt_id
+            'attempt_id': attempt_id,
+            'suspend_data_length': len(attempt.suspend_data) if attempt.suspend_data else 0,
+            'score': float(attempt.score_raw) if attempt.score_raw else None,
+            'status': attempt.lesson_status
         })
         
     except Exception as e:
         logger.error(f"Exit sync error: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
         return JsonResponse({
             'success': False,
             'error': str(e)

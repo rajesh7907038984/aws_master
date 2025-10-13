@@ -293,7 +293,7 @@
             }
         });
         
-        // FIXED: Save & Exit button handler with proper event attachment and DB sync
+        // FIXED: Save & Exit button handler with proper quiz state preservation
         function attachSaveExitButton() {
             const saveExitBtn = document.getElementById('saveExitBtn');
             if (saveExitBtn && !saveExitBtn.hasAttribute('data-listener-attached')) {
@@ -309,39 +309,63 @@
                         clearInterval(autoSaveInterval);
                     }
                     
+                    // CRITICAL FIX: Perform multiple commits to ensure all quiz data is saved
                     try {
                         if (window.API && window.API.LMSCommit) {
-                            window.API.LMSCommit('');
-                            console.log('[Storyline] SCORM data committed');
+                            // First commit to save current state
+                            const commitResult1 = window.API.LMSCommit('');
+                            console.log('[Storyline] First commit result:', commitResult1);
+                            
+                            // Small delay to allow database write
+                            setTimeout(function() {
+                                // Second commit to ensure all data is flushed
+                                const commitResult2 = window.API.LMSCommit('');
+                                console.log('[Storyline] Second commit result:', commitResult2);
+                                
+                                // Another small delay before database sync
+                                setTimeout(function() {
+                                    // Now sync to database with proper wait time
+                                    syncAndExit();
+                                }, 500);
+                            }, 500);
+                        } else {
+                            console.warn('[Storyline] API not available, syncing anyway');
+                            syncAndExit();
                         }
                     } catch (e) {
                         console.error('[Storyline] Commit error:', e);
+                        // Still try to sync even if commit fails
+                        syncAndExit();
                     }
                     
-                    // CRITICAL FIX: Sync to database before redirect
-                    fetch('{% url "scorm:sync_on_exit" %}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                            'X-CSRFToken': '{{ csrf_token }}'
-                        },
-                        body: 'attempt_id={{ attempt.id|default:attempt_id }}'
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        console.log('[Storyline] Database sync successful:', data);
-                        saveExitBtn.textContent = 'Saved!';
-                        setTimeout(function() {
-                            window.location.href = '{% url "courses:topic_view" topic.id %}';
-                        }, 300);
-                    })
-                    .catch(error => {
-                        console.error('[Storyline] Database sync error:', error);
-                        // Still redirect even if sync fails
-                        setTimeout(function() {
-                            window.location.href = '{% url "courses:topic_view" topic.id %}';
-                        }, 500);
-                    });
+                    function syncAndExit() {
+                        console.log('[Storyline] Starting database sync...');
+                        fetch('{% url "scorm:sync_on_exit" %}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded',
+                                'X-CSRFToken': getCookie('csrftoken')
+                            },
+                            body: 'attempt_id={{ attempt.id|default:attempt_id }}'
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            console.log('[Storyline] Database sync successful:', data);
+                            saveExitBtn.textContent = 'Saved!';
+                            // Give extra time for database to finalize write
+                            setTimeout(function() {
+                                window.location.href = '{% url "courses:topic_view" topic.id %}';
+                            }, 800);
+                        })
+                        .catch(error => {
+                            console.error('[Storyline] Database sync error:', error);
+                            saveExitBtn.textContent = 'Error - Redirecting...';
+                            // Still redirect even if sync fails, but give it more time
+                            setTimeout(function() {
+                                window.location.href = '{% url "courses:topic_view" topic.id %}';
+                            }, 1000);
+                        });
+                    }
                 });
                 saveExitBtn.setAttribute('data-listener-attached', 'true');
                 console.log('[Storyline] Save & Exit button listener attached');

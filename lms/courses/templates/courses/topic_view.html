@@ -671,23 +671,32 @@
             
             <!-- Topic Navigation -->
             <div class="flex justify-between items-center mt-8 pt-6 border-t border-gray-200">
-                {% if previous_topic %}
-                <a href="{% url 'courses:topic_view' previous_topic.id %}?manual=True" class="btn btn-secondary">
-                    <i class="fas fa-arrow-left mr-2"></i>Previous: {{ previous_topic.title|truncatechars:20 }}
-                </a>
-                {% else %}
-                <div></div>
-                {% endif %}
+                <div class="flex items-center gap-3">
+                    {% if previous_topic %}
+                    <a href="{% url 'courses:topic_view' previous_topic.id %}?manual=True" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left mr-2"></i>Previous: {{ previous_topic.title|truncatechars:20 }}
+                    </a>
+                    {% else %}
+                    <div></div>
+                    {% endif %}
+                </div>
                 
-                {% if next_topic %}
-                <a href="{% url 'courses:topic_view' next_topic.id %}?manual=True" class="btn btn-primary">
-                    Next: {{ next_topic.title|truncatechars:20 }}<i class="fas fa-arrow-right ml-2"></i>
-                </a>
-                {% else %}
-                <a href="{% url 'courses:course_details' course.id %}" class="btn btn-primary">
-                    Back to Course<i class="fas fa-home ml-2"></i>
-                </a>
-                {% endif %}
+                <div class="flex items-center gap-3">
+                    <!-- Save & Exit Button -->
+                    <button id="save-exit-btn" class="btn btn-outline-primary" data-topic-id="{{ topic.id }}" data-course-id="{{ course.id }}">
+                        <i class="fas fa-save mr-2"></i>Save & Exit
+                    </button>
+                    
+                    {% if next_topic %}
+                    <a href="{% url 'courses:topic_view' next_topic.id %}?manual=True" class="btn btn-primary">
+                        Next: {{ next_topic.title|truncatechars:20 }}<i class="fas fa-arrow-right ml-2"></i>
+                    </a>
+                    {% else %}
+                    <a href="{% url 'courses:course_details' course.id %}" class="btn btn-primary">
+                        Back to Course<i class="fas fa-home ml-2"></i>
+                    </a>
+                    {% endif %}
+                </div>
             </div>
             
             <!-- Auto Completion Message for specific topic types -->
