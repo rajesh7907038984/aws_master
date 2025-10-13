@@ -133,7 +133,9 @@ class ScormAPIHandler:
             logger.info(f"  - Version: {self.version}")
         
         # CRITICAL FIX: Ensure CMI data is properly initialized with resume data BEFORE any GetValue calls
-        if not self.attempt.cmi_data:
+        # Always reinitialize CMI data from current model state to avoid stale cached data
+        if not self.attempt.cmi_data or len(self.attempt.cmi_data) == 0:
+            logger.info(f"Initializing empty CMI data structure for attempt {self.attempt.id}")
             self.attempt.cmi_data = self._initialize_cmi_data()
         
         # CRITICAL FIX: Check for existing bookmark data and set entry mode accordingly
@@ -157,37 +159,46 @@ class ScormAPIHandler:
             logger.info(f"SCORM FRESH START: no saved data (lesson_location={has_bookmark}, suspend_data={has_suspend_data})")
         
         if self.version == '1.2':
-            # CRITICAL FIX: Always set entry mode in CMI data
+            # CRITICAL FIX: FORCE UPDATE entry mode and resume data to overwrite any stale cached values
             self.attempt.cmi_data['cmi.core.entry'] = self.attempt.entry
+            logger.info(f"  [CMI Sync] Set cmi.core.entry = '{self.attempt.entry}'")
             
-            # CRITICAL FIX: Ensure bookmark data is ALWAYS available in CMI data
+            # CRITICAL FIX: FORCE UPDATE bookmark data - always sync from model to CMI
+            self.attempt.cmi_data['cmi.core.lesson_location'] = self.attempt.lesson_location or ''
             if self.attempt.lesson_location:
-                self.attempt.cmi_data['cmi.core.lesson_location'] = self.attempt.lesson_location
+                logger.info(f"  [CMI Sync] Set cmi.core.lesson_location = '{self.attempt.lesson_location}'")
+            
+            self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data or ''
             if self.attempt.suspend_data:
-                self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data
+                logger.info(f"  [CMI Sync] Set cmi.suspend_data ({len(self.attempt.suspend_data)} chars)")
             
             # Ensure other required fields are set
             # CRITICAL FIX: Set status to match model
             self.attempt.cmi_data['cmi.core.lesson_status'] = self.attempt.lesson_status
+            logger.info(f"  [CMI Sync] Set cmi.core.lesson_status = '{self.attempt.lesson_status}'")
             if not self.attempt.cmi_data.get('cmi.core.lesson_mode'):
                 self.attempt.cmi_data['cmi.core.lesson_mode'] = 'normal'
             if not self.attempt.cmi_data.get('cmi.core.credit'):
                 self.attempt.cmi_data['cmi.core.credit'] = 'credit'
         else:
-            # CRITICAL FIX: Always set entry mode in CMI data
+            # CRITICAL FIX: FORCE UPDATE entry mode and resume data to overwrite any stale cached values
             self.attempt.cmi_data['cmi.entry'] = self.attempt.entry
+            logger.info(f"  [CMI Sync] Set cmi.entry = '{self.attempt.entry}'")
             
-            # CRITICAL FIX: Ensure bookmark data is ALWAYS available in CMI data
+            # CRITICAL FIX: FORCE UPDATE bookmark data - always sync from model to CMI
+            self.attempt.cmi_data['cmi.location'] = self.attempt.lesson_location or ''
             if self.attempt.lesson_location:
-                self.attempt.cmi_data['cmi.location'] = self.attempt.lesson_location
+                logger.info(f"  [CMI Sync] Set cmi.location = '{self.attempt.lesson_location}'")
+            
+            self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data or ''
             if self.attempt.suspend_data:
-                self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data
+                logger.info(f"  [CMI Sync] Set cmi.suspend_data ({len(self.attempt.suspend_data)} chars)")
             
             # CRITICAL FIX: Ensure progress_measure is set from progress_percentage
             if self.attempt.progress_percentage and self.attempt.progress_percentage > 0:
                 progress_measure = str(float(self.attempt.progress_percentage) / 100.0)
                 self.attempt.cmi_data['cmi.progress_measure'] = progress_measure
-                logger.info(f"SCORM Resume: Set progress_measure to {progress_measure} from progress_percentage {self.attempt.progress_percentage}%")
+                logger.info(f"  [CMI Sync] Set cmi.progress_measure = {progress_measure} ({self.attempt.progress_percentage}%)")
             
             # Ensure other required fields are set
             # CRITICAL FIX: Set status to match model
