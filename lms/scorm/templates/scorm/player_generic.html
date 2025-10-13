@@ -318,33 +318,49 @@
         
         function updateProgressBar() {
             try {
-                // Try multiple sources for progress calculation
+                // Try multiple sources for progress calculation in priority order
                 let progress = 0;
+                let progressSource = 'none';
                 
-                // Method 1: Check score (most reliable for quizzes)
-                const scoreRaw = window.API.LMSGetValue('cmi.core.score.raw');
-                const scoreMax = window.API.LMSGetValue('cmi.core.score.max');
-                if (scoreRaw && scoreMax && parseFloat(scoreMax) > 0) {
-                    progress = Math.round((parseFloat(scoreRaw) / parseFloat(scoreMax)) * 100);
+                // Priority 1: Check lesson_status for completion first
+                const status = window.API.LMSGetValue('cmi.core.lesson_status');
+                if (status === 'completed' || status === 'passed') {
+                    progress = 100;
+                    progressSource = 'status';
                 }
                 
-                // Method 2: Check lesson_status for completion
-                if (progress === 0) {
-                    const status = window.API.LMSGetValue('cmi.core.lesson_status');
-                    if (status === 'completed' || status === 'passed') {
-                        progress = 100;
-                    } else if (status === 'incomplete' || status === 'browsed') {
-                        // Estimate 50% for started but not completed
-                        progress = 50;
-                    }
-                }
-                
-                // Method 3: Check progress_measure (SCORM 2004)
+                // Priority 2: Check progress_measure (SCORM 2004) - most accurate for partial progress
                 if (progress === 0 && window.API_1484_11) {
                     const progressMeasure = window.API_1484_11.GetValue('cmi.progress_measure');
-                    if (progressMeasure && progressMeasure !== '') {
+                    if (progressMeasure && progressMeasure !== '' && parseFloat(progressMeasure) > 0) {
                         progress = Math.round(parseFloat(progressMeasure) * 100);
+                        progressSource = 'progress_measure_2004';
                     }
+                }
+                
+                // Priority 3: Check progress_measure via SCORM 1.2 API (custom extension)
+                if (progress === 0) {
+                    const progressMeasure12 = window.API.LMSGetValue('cmi.progress_measure');
+                    if (progressMeasure12 && progressMeasure12 !== '' && parseFloat(progressMeasure12) > 0) {
+                        progress = Math.round(parseFloat(progressMeasure12) * 100);
+                        progressSource = 'progress_measure_1.2';
+                    }
+                }
+                
+                // Priority 4: Check score (most reliable for quizzes)
+                if (progress === 0) {
+                    const scoreRaw = window.API.LMSGetValue('cmi.core.score.raw');
+                    const scoreMax = window.API.LMSGetValue('cmi.core.score.max');
+                    if (scoreRaw && scoreMax && parseFloat(scoreMax) > 0) {
+                        progress = Math.round((parseFloat(scoreRaw) / parseFloat(scoreMax)) * 100);
+                        progressSource = 'score';
+                    }
+                }
+                
+                // Priority 5: Check if started (minimal progress indicator)
+                if (progress === 0 && (status === 'incomplete' || status === 'browsed')) {
+                    progress = 5; // Started but no specific progress data
+                    progressSource = 'status_incomplete';
                 }
                 
                 // Update UI if progress changed
@@ -352,15 +368,15 @@
                     document.getElementById('progressBarFill').style.width = progress + '%';
                     document.getElementById('progressText').textContent = progress + '%';
                     lastProgressUpdate = progress;
-                    console.log('[Progress] Updated to ' + progress + '%');
+                    console.log('[Progress] Updated to ' + progress + '% (source: ' + progressSource + ')');
                 }
             } catch (e) {
                 console.error('[Progress] Error updating progress:', e);
             }
         }
         
-        // Update progress every 2 seconds
-        setInterval(updateProgressBar, 2000);
+        // Update progress every second for better responsiveness
+        setInterval(updateProgressBar, 1000);
     </script>
 
     <div class="scorm-container">

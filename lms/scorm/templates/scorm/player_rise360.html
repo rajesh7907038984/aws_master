@@ -431,39 +431,70 @@
         function updateProgressBar() {
             try {
                 let progress = 0;
+                let progressSource = 'none';
                 
-                // Rise 360 tracks progress via lesson_location and status
-                const bookmark = window.API.LMSGetValue('cmi.core.lesson_location');
+                // Rise 360 tracks progress via multiple methods - check in priority order
                 const status = window.API.LMSGetValue('cmi.core.lesson_status');
                 
-                // If completed, show 100%
+                // Priority 1: If completed, show 100%
                 if (status === 'completed' || status === 'passed') {
                     progress = 100;
-                } else if (bookmark && bookmark.length > 0) {
-                    // Rise saves bookmark, estimate progress
-                    progress = 50; // Started but not completed
+                    progressSource = 'status';
+                    console.log('[Rise 360 Progress] Completed');
+                } else {
+                    // Priority 2: Check SCORM 2004 progress_measure (Rise 360 uses this)
+                    // This is a decimal value between 0 and 1 representing actual progress
+                    const progressMeasure = window.API.LMSGetValue('cmi.progress_measure');
+                    if (progressMeasure && progressMeasure !== '' && parseFloat(progressMeasure) > 0) {
+                        progress = Math.round(parseFloat(progressMeasure) * 100);
+                        progressSource = 'progress_measure';
+                        console.log('[Rise 360 Progress] From progress_measure: ' + progressMeasure + ' = ' + progress + '%');
+                    }
+                    // Priority 3: Try SCORM 1.2 progress_measure as fallback
+                    else {
+                        const progressMeasure12 = window.API.LMSGetValue('cmi.core.progress_measure');
+                        if (progressMeasure12 && progressMeasure12 !== '' && parseFloat(progressMeasure12) > 0) {
+                            progress = Math.round(parseFloat(progressMeasure12) * 100);
+                            progressSource = 'progress_measure_1.2';
+                            console.log('[Rise 360 Progress] From 1.2 progress_measure: ' + progressMeasure12 + ' = ' + progress + '%');
+                        }
+                        // Priority 4: Check score if available (for assessment-based content)
+                        else {
+                            const scoreRaw = window.API.LMSGetValue('cmi.core.score.raw');
+                            const scoreMax = window.API.LMSGetValue('cmi.core.score.max');
+                            if (scoreRaw && scoreMax && parseFloat(scoreMax) > 0) {
+                                progress = Math.round((parseFloat(scoreRaw) / parseFloat(scoreMax)) * 100);
+                                progressSource = 'score';
+                                console.log('[Rise 360 Progress] From score: ' + scoreRaw + '/' + scoreMax + ' = ' + progress + '%');
+                            }
+                            // Priority 5: Check if started (has bookmark)
+                            else {
+                                const bookmark = window.API.LMSGetValue('cmi.core.lesson_location');
+                                if (bookmark && bookmark.length > 0 && status !== 'not_attempted') {
+                                    // Has started but no specific progress data - show minimal progress
+                                    progress = 5;
+                                    progressSource = 'bookmark';
+                                    console.log('[Rise 360 Progress] Started (has bookmark) - showing minimal progress');
+                                }
+                            }
+                        }
+                    }
                 }
                 
-                // Check score if available
-                const scoreRaw = window.API.LMSGetValue('cmi.core.score.raw');
-                const scoreMax = window.API.LMSGetValue('cmi.core.score.max');
-                if (scoreRaw && scoreMax && parseFloat(scoreMax) > 0) {
-                    progress = Math.round((parseFloat(scoreRaw) / parseFloat(scoreMax)) * 100);
-                }
-                
-                // Update UI
+                // Update UI only if progress changed
                 if (progress !== lastProgressUpdate && progress >= 0 && progress <= 100) {
                     document.getElementById('progressBarFill').style.width = progress + '%';
                     document.getElementById('progressText').textContent = progress + '%';
                     lastProgressUpdate = progress;
-                    console.log('[Rise 360 Progress] ' + progress + '%');
+                    console.log('[Rise 360 Progress] Updated to ' + progress + '% (source: ' + progressSource + ')');
                 }
             } catch (e) {
                 console.error('[Rise 360 Progress] Error:', e);
             }
         }
         
-        setInterval(updateProgressBar, 2000);
+        // Update progress more frequently for better responsiveness
+        setInterval(updateProgressBar, 1000);
     </script>
 
     <div class="scorm-container">

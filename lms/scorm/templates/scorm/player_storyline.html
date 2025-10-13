@@ -337,22 +337,38 @@
         function updateProgressBar() {
             try {
                 let progress = 0;
+                let progressSource = 'none';
                 
-                // Storyline reports progress via score
-                const scoreRaw = window.API.LMSGetValue('cmi.core.score.raw');
-                const scoreMax = window.API.LMSGetValue('cmi.core.score.max');
-                if (scoreRaw && scoreMax && parseFloat(scoreMax) > 0) {
-                    progress = Math.round((parseFloat(scoreRaw) / parseFloat(scoreMax)) * 100);
+                // Priority 1: Check completion status
+                const status = window.API.LMSGetValue('cmi.core.lesson_status');
+                if (status === 'completed' || status === 'passed') {
+                    progress = 100;
+                    progressSource = 'status';
                 }
                 
-                // Check completion status
+                // Priority 2: Check progress_measure (Storyline may report this)
                 if (progress === 0) {
-                    const status = window.API.LMSGetValue('cmi.core.lesson_status');
-                    if (status === 'completed' || status === 'passed') {
-                        progress = 100;
-                    } else if (status === 'incomplete' || status === 'browsed') {
-                        progress = 50;
+                    const progressMeasure = window.API.LMSGetValue('cmi.progress_measure');
+                    if (progressMeasure && progressMeasure !== '' && parseFloat(progressMeasure) > 0) {
+                        progress = Math.round(parseFloat(progressMeasure) * 100);
+                        progressSource = 'progress_measure';
                     }
+                }
+                
+                // Priority 3: Storyline reports progress via score
+                if (progress === 0) {
+                    const scoreRaw = window.API.LMSGetValue('cmi.core.score.raw');
+                    const scoreMax = window.API.LMSGetValue('cmi.core.score.max');
+                    if (scoreRaw && scoreMax && parseFloat(scoreMax) > 0) {
+                        progress = Math.round((parseFloat(scoreRaw) / parseFloat(scoreMax)) * 100);
+                        progressSource = 'score';
+                    }
+                }
+                
+                // Priority 4: Check if started (minimal progress indicator)
+                if (progress === 0 && (status === 'incomplete' || status === 'browsed')) {
+                    progress = 5; // Started but no specific progress data
+                    progressSource = 'status_incomplete';
                 }
                 
                 // Update UI
@@ -360,14 +376,14 @@
                     document.getElementById('progressBarFill').style.width = progress + '%';
                     document.getElementById('progressText').textContent = progress + '%';
                     lastProgressUpdate = progress;
-                    console.log('[Storyline Progress] ' + progress + '%');
+                    console.log('[Storyline Progress] ' + progress + '% (source: ' + progressSource + ')');
                 }
             } catch (e) {
                 console.error('[Storyline Progress] Error:', e);
             }
         }
         
-        setInterval(updateProgressBar, 2000);
+        setInterval(updateProgressBar, 1000);
     </script>
 
     <div class="scorm-container">

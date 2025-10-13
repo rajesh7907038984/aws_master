@@ -52,6 +52,12 @@ class BaseScormAPIHandler:
     def _initialize_cmi_data(self):
         """Initialize CMI data structure based on SCORM version"""
         if self.version == '1.2':
+            # Calculate progress_measure for SCORM 1.2 as well (custom extension)
+            # This allows Rise 360 and other content to request progress via either API
+            progress_measure = ''
+            if self.attempt.progress_percentage and self.attempt.progress_percentage > 0:
+                progress_measure = str(float(self.attempt.progress_percentage) / 100.0)
+            
             return {
                 'cmi.core.student_id': str(self.attempt.user.id),
                 'cmi.core.student_name': self.attempt.user.get_full_name() or self.attempt.user.username,
@@ -70,6 +76,9 @@ class BaseScormAPIHandler:
                 'cmi.launch_data': '',
                 'cmi.comments': '',
                 'cmi.comments_from_lms': '',
+                # Custom extension: progress_measure for SCORM 1.2 (for Rise 360 compatibility)
+                'cmi.progress_measure': progress_measure,
+                'cmi.core.progress_measure': progress_measure,
             }
         else:  # SCORM 2004
             progress_measure = ''
@@ -134,6 +143,12 @@ class BaseScormAPIHandler:
             if self.attempt.suspend_data:
                 self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data
             self.attempt.cmi_data['cmi.core.lesson_status'] = self.attempt.lesson_status
+            # Add progress_measure for SCORM 1.2 (custom extension for Rise 360)
+            if self.attempt.progress_percentage and self.attempt.progress_percentage > 0:
+                progress_measure = str(float(self.attempt.progress_percentage) / 100.0)
+                self.attempt.cmi_data['cmi.progress_measure'] = progress_measure
+                self.attempt.cmi_data['cmi.core.progress_measure'] = progress_measure
+                logger.info(f"   SCORM 1.2: Set progress_measure to {progress_measure} ({self.attempt.progress_percentage}%)")
         else:
             self.attempt.cmi_data['cmi.entry'] = self.attempt.entry
             if self.attempt.lesson_location:
@@ -143,6 +158,7 @@ class BaseScormAPIHandler:
             if self.attempt.progress_percentage and self.attempt.progress_percentage > 0:
                 progress_measure = str(float(self.attempt.progress_percentage) / 100.0)
                 self.attempt.cmi_data['cmi.progress_measure'] = progress_measure
+                logger.info(f"   SCORM 2004: Set progress_measure to {progress_measure} ({self.attempt.progress_percentage}%)")
         
         # CRITICAL FIX: Force save and sync to ensure data persistence
         self.attempt.save()
@@ -240,7 +256,7 @@ class BaseScormAPIHandler:
             
             # Validate numeric values
             if element in ['cmi.core.score.raw', 'cmi.score.raw', 'cmi.core.score.min', 'cmi.score.min',
-                          'cmi.core.score.max', 'cmi.score.max', 'cmi.score.scaled', 'cmi.progress_measure']:
+                          'cmi.core.score.max', 'cmi.score.max', 'cmi.score.scaled', 'cmi.progress_measure', 'cmi.core.progress_measure']:
                 if value_str and value_str.strip():
                     try:
                         float(value_str)
@@ -364,6 +380,18 @@ class BaseScormAPIHandler:
             elif element == 'cmi.suspend_data':
                 self.attempt.suspend_data = value
                 self.attempt.save()  # Immediate save for suspend data
+            elif element in ['cmi.progress_measure', 'cmi.core.progress_measure']:
+                # CRITICAL FIX: Support progress_measure for SCORM 1.2 (custom extension for Rise 360)
+                # Convert progress_measure (0-1) to progress_percentage (0-100)
+                try:
+                    if value and str(value).strip():
+                        progress_value = Decimal(str(value))
+                        if 0 <= progress_value <= 1:
+                            self.attempt.progress_percentage = progress_value * 100
+                            self.attempt.save()
+                            logger.info(f"💾 [SCORM 1.2 PROGRESS] Updated progress_percentage to {self.attempt.progress_percentage}% from progress_measure {progress_value}")
+                except Exception as e:
+                    logger.error(f"Error updating progress_percentage from progress_measure (SCORM 1.2): {e}")
         else:
             if element == 'cmi.completion_status':
                 self.attempt.completion_status = value
