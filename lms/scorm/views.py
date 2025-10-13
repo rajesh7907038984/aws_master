@@ -1103,8 +1103,27 @@ def scorm_content(request, topic_id, path):
     enhanceExitButtons();
     document.addEventListener('DOMContentLoaded', enhanceExitButtons);
     
-    // Also run periodically to catch dynamically loaded buttons
-    setInterval(enhanceExitButtons, 2000);
+    // CRITICAL FIX: Prevent infinite loops by limiting enhancement attempts
+    let enhancementAttempts = 0;
+    const maxEnhancementAttempts = 10; // Limit to 10 attempts over 20 seconds
+    
+    function limitedEnhanceExitButtons() {
+        if (enhancementAttempts >= maxEnhancementAttempts) {
+            console.log('[SCORM] Max enhancement attempts reached, stopping');
+            return;
+        }
+        enhancementAttempts++;
+        enhanceExitButtons();
+    }
+    
+    // Run periodically but with limits
+    const enhancementInterval = setInterval(limitedEnhanceExitButtons, 2000);
+    
+    // Stop after 20 seconds to prevent infinite loops
+    setTimeout(() => {
+        clearInterval(enhancementInterval);
+        console.log('[SCORM] Exit button enhancement stopped after 20 seconds');
+    }, 20000);
 })();
 
 // CRITICAL FIX: Enhanced Exit button functionality
@@ -1536,8 +1555,9 @@ def scorm_content(request, topic_id, path):
         try {
             console.log('[SCORM] Auto-initializing SCORM session... (attempt ' + (initRetryCount + 1) + ')');
             
-            // Use async/await for better error handling
-            window.API.Initialize('').then(function(initResult) {
+            // CRITICAL FIX: Use synchronous call since SCORM API is synchronous
+            try {
+                const initResult = window.API.Initialize('');
                 if (initResult === 'true') {
                     console.log('[SCORM] Auto-initialization successful');
                     scormInitialized = true;
@@ -1560,11 +1580,11 @@ def scorm_content(request, topic_id, path):
                     initRetryCount++;
                     setTimeout(autoInitializeSCORM, 1000); // Reduced delay
                 }
-            }).catch(function(e) {
+            } catch (e) {
                 console.error('[SCORM] Auto-initialization error:', e);
                 initRetryCount++;
                 setTimeout(autoInitializeSCORM, 1000); // Reduced delay
-            });
+            }
         } catch (e) {
             console.error('[SCORM] Auto-initialization error:', e);
             initRetryCount++;

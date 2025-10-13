@@ -521,11 +521,28 @@
             }
         }
         
+        // CRITICAL FIX: More robust button attachment with retry logic
+        let retryCount = 0;
+        const maxRetries = 50; // 5 seconds max
+        
+        function attachWithRetry() {
+            const saveExitBtn = document.getElementById('saveExitBtn');
+            if (saveExitBtn) {
+                attachSaveExitButton();
+            } else if (retryCount < maxRetries) {
+                retryCount++;
+                // Button not found, retry after a short delay
+                setTimeout(attachWithRetry, 100);
+            } else {
+                console.error('[Storyline] Save & Exit button not found after maximum retries');
+            }
+        }
+        
         // Attach immediately if DOM ready, otherwise wait for DOMContentLoaded
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', attachSaveExitButton);
+            document.addEventListener('DOMContentLoaded', attachWithRetry);
         } else {
-            attachSaveExitButton();
+            attachWithRetry();
         }
         
         window.addEventListener('beforeunload', function() {

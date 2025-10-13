@@ -386,6 +386,16 @@
                 // INSTANT SAVE: Commit immediately after setting any value
                 if (result === 'true') {
                     instantCommit();
+                    
+                    // CRITICAL FIX: Update progress immediately when SCORM values change
+                    // This ensures the sidebar progress updates in real-time
+                    if (element === 'cmi.core.lesson_location' || 
+                        element === 'cmi.progress_measure' || 
+                        element === 'cmi.core.lesson_status' ||
+                        element === 'cmi.core.score.raw') {
+                        console.log('[Rise 360] SCORM value changed, updating progress immediately');
+                        setTimeout(updateProgressBar, 100); // Small delay to ensure value is saved
+                    }
                 }
                 
                 return result;
@@ -510,6 +520,16 @@
                 // INSTANT SAVE: Commit immediately after setting any value
                 if (result === 'true') {
                     instantCommit();
+                    
+                    // CRITICAL FIX: Update progress immediately when SCORM values change
+                    // This ensures the sidebar progress updates in real-time
+                    if (element === 'cmi.location' || 
+                        element === 'cmi.progress_measure' || 
+                        element === 'cmi.completion_status' ||
+                        element === 'cmi.score.raw') {
+                        console.log('[Rise 360] SCORM 2004 value changed, updating progress immediately');
+                        setTimeout(updateProgressBar, 100); // Small delay to ensure value is saved
+                    }
                 }
                 
                 return result;
@@ -611,14 +631,405 @@
                     document.getElementById('progressText').textContent = progress + '%';
                     lastProgressUpdate = progress;
                     console.log('[Rise 360 Progress] Updated to ' + progress + '% (source: ' + progressSource + ')');
+                    
+                    // CRITICAL FIX: Update Rise 360 content's internal progress indicators
+                    updateRise360InternalProgress(progress);
                 }
             } catch (e) {
                 console.error('[Rise 360 Progress] Error:', e);
             }
         }
         
+        // CRITICAL FIX: Update Rise 360 content's internal progress indicators
+        function updateRise360InternalProgress(progress) {
+            try {
+                // Get the Rise 360 iframe content
+                const riseFrame = document.getElementById('riseFrame');
+                if (!riseFrame || !riseFrame.contentWindow) {
+                    return;
+                }
+                
+                const iframeDoc = riseFrame.contentDocument || riseFrame.contentWindow.document;
+                if (!iframeDoc) {
+                    return;
+                }
+                
+                // Update Rise 360's internal progress indicators
+                // Look for various progress indicator elements in Rise 360 content
+                const progressSelectors = [
+                    // Common Rise 360 progress indicators
+                    '[data-progress]',
+                    '.progress-indicator',
+                    '.progress-text',
+                    '.completion-percentage',
+                    '.progress-percentage',
+                    // Look for elements containing "COMPLETE" or percentage text
+                    '*:contains("0% COMPLETE")',
+                    '*:contains("COMPLETE")',
+                    '*:contains("%")',
+                    // Specific Rise 360 patterns
+                    '.sidebar-progress',
+                    '.lesson-progress',
+                    '.course-progress',
+                    '.overall-progress'
+                ];
+                
+                progressSelectors.forEach(selector => {
+                    try {
+                        const elements = iframeDoc.querySelectorAll(selector);
+                        elements.forEach(element => {
+                            const text = element.textContent || element.innerText || '';
+                            
+                            // Update percentage displays
+                            if (text.includes('%') || text.includes('COMPLETE')) {
+                                if (text.includes('0% COMPLETE')) {
+                                    element.textContent = text.replace('0% COMPLETE', progress + '% COMPLETE');
+                                } else if (text.includes('COMPLETE')) {
+                                    element.textContent = text.replace(/\d+% COMPLETE/, progress + '% COMPLETE');
+                                } else if (text.includes('%')) {
+                                    element.textContent = text.replace(/\d+%/, progress + '%');
+                                }
+                                
+                                // Update data attributes
+                                if (element.hasAttribute('data-progress')) {
+                                    element.setAttribute('data-progress', progress);
+                                }
+                                
+                                console.log('[Rise 360 Internal] Updated progress element:', element.textContent);
+                            }
+                        });
+                    } catch (e) {
+                        // Silently handle cross-origin or selector errors
+                    }
+                });
+                
+                // Also try to update progress via Rise 360's internal API if available
+                try {
+                    if (riseFrame.contentWindow && riseFrame.contentWindow.updateProgress) {
+                        riseFrame.contentWindow.updateProgress(progress);
+                        console.log('[Rise 360 Internal] Called updateProgress API');
+                    }
+                } catch (e) {
+                    // Silently handle cross-origin restrictions
+                }
+                
+                // Try to dispatch custom events to notify Rise 360 of progress changes
+                try {
+                    const progressEvent = new CustomEvent('scormProgressUpdate', {
+                        detail: { progress: progress }
+                    });
+                    iframeDoc.dispatchEvent(progressEvent);
+                    console.log('[Rise 360 Internal] Dispatched progress event');
+                } catch (e) {
+                    // Silently handle cross-origin restrictions
+                }
+                
+            } catch (e) {
+                console.log('[Rise 360 Internal] Could not update internal progress (cross-origin):', e.message);
+            }
+        }
+        
+        // CRITICAL FIX: Enhance Rise 360 internal exit buttons
+        function enhanceRise360ExitButtons() {
+            console.log('[Rise 360] Enhancing internal exit buttons...');
+            
+            // Function to handle exit button clicks
+            function handleExitClick(event) {
+                console.log('[Rise 360] Internal exit button clicked');
+                event.preventDefault();
+                event.stopPropagation();
+                
+                // Call SCORM API to save and exit
+                try {
+                    if (window.API && window.API.LMSFinish) {
+                        console.log('[Rise 360] Calling LMSFinish...');
+                        const result = window.API.LMSFinish('');
+                        console.log('[Rise 360] LMSFinish result:', result);
+                        
+                        if (result === 'true') {
+                            console.log('[Rise 360] SCORM data saved, redirecting...');
+                            // Redirect back to topic view
+                            window.location.href = '{% url "courses:topic_view" topic.id %}';
+                        } else {
+                            console.warn('[Rise 360] LMSFinish failed, redirecting anyway');
+                            window.location.href = '{% url "courses:topic_view" topic.id %}';
+                        }
+                    } else if (window.API && window.API.Terminate) {
+                        console.log('[Rise 360] Calling Terminate...');
+                        const result = window.API.Terminate('');
+                        console.log('[Rise 360] Terminate result:', result);
+                        
+                        if (result === 'true') {
+                            console.log('[Rise 360] SCORM data saved, redirecting...');
+                            window.location.href = '{% url "courses:topic_view" topic.id %}';
+                        } else {
+                            console.warn('[Rise 360] Terminate failed, redirecting anyway');
+                            window.location.href = '{% url "courses:topic_view" topic.id %}';
+                        }
+                    } else {
+                        console.warn('[Rise 360] No SCORM API available, redirecting anyway');
+                        window.location.href = '{% url "courses:topic_view" topic.id %}';
+                    }
+                } catch (e) {
+                    console.error('[Rise 360] Error in exit handler:', e);
+                    // Still redirect even if there's an error
+                    window.location.href = '{% url "courses:topic_view" topic.id %}';
+                }
+                
+                return false;
+            }
+            
+            // Function to enhance exit buttons in iframe content
+            function enhanceIframeExitButtons() {
+                try {
+                    const riseFrame = document.getElementById('riseFrame');
+                    if (!riseFrame || !riseFrame.contentWindow) {
+                        return;
+                    }
+                    
+                    const iframeDoc = riseFrame.contentDocument || riseFrame.contentWindow.document;
+                    if (!iframeDoc) {
+                        return;
+                    }
+                    
+                    // Look for Rise 360 exit buttons with various selectors
+                    const exitSelectors = [
+                        // Rise 360 specific exit button patterns
+                        'button[data-acc-text*="Exit" i]',
+                        'button[data-acc-text*="Save & Exit" i]',
+                        'button[data-acc-text*="Save and Exit" i]',
+                        'button[data-acc-text*="Close" i]',
+                        'button[data-acc-text*="Finish" i]',
+                        'button[data-acc-text*="Complete" i]',
+                        'button[data-acc-text*="Done" i]',
+                        'button[data-acc-text*="End" i]',
+                        'button[data-acc-text*="Quit" i]',
+                        'button[data-acc-text*="Stop" i]',
+                        // Generic button patterns
+                        'button[onclick*="exit" i]',
+                        'button[onclick*="save" i]',
+                        'button[onclick*="close" i]',
+                        'button[onclick*="finish" i]',
+                        'button[onclick*="complete" i]',
+                        'button[onclick*="done" i]',
+                        'button[onclick*="end" i]',
+                        'button[onclick*="quit" i]',
+                        'button[onclick*="stop" i]',
+                        // Link patterns
+                        'a[href*="exit" i]',
+                        'a[href*="close" i]',
+                        'a[href*="finish" i]',
+                        'a[href*="complete" i]',
+                        'a[href*="done" i]',
+                        'a[href*="end" i]',
+                        'a[href*="quit" i]',
+                        'a[href*="stop" i]',
+                        // Aria labels
+                        'button[aria-label*="Exit" i]',
+                        'button[aria-label*="Save & Exit" i]',
+                        'button[aria-label*="Save and Exit" i]',
+                        'button[aria-label*="Close" i]',
+                        'button[aria-label*="Finish" i]',
+                        'button[aria-label*="Complete" i]',
+                        'button[aria-label*="Done" i]',
+                        'button[aria-label*="End" i]',
+                        'button[aria-label*="Quit" i]',
+                        'button[aria-label*="Stop" i]',
+                        'a[aria-label*="Exit" i]',
+                        'a[aria-label*="Save & Exit" i]',
+                        'a[aria-label*="Save and Exit" i]',
+                        'a[aria-label*="Close" i]',
+                        'a[aria-label*="Finish" i]',
+                        'a[aria-label*="Complete" i]',
+                        'a[aria-label*="Done" i]',
+                        'a[aria-label*="End" i]',
+                        'a[aria-label*="Quit" i]',
+                        'a[aria-label*="Stop" i]',
+                        // CSS classes and IDs
+                        '.exit-button',
+                        '.save-exit-button',
+                        '.close-button',
+                        '.finish-button',
+                        '.complete-button',
+                        '.done-button',
+                        '.end-button',
+                        '.quit-button',
+                        '.stop-button',
+                        '#exit-button',
+                        '#save-exit-button',
+                        '#close-button',
+                        '#finish-button',
+                        '#complete-button',
+                        '#done-button',
+                        '#end-button',
+                        '#quit-button',
+                        '#stop-button'
+                    ];
+                    
+                    exitSelectors.forEach(selector => {
+                        try {
+                            const elements = iframeDoc.querySelectorAll(selector);
+                            elements.forEach(element => {
+                                if (!element.hasAttribute('data-rise360-enhanced')) {
+                                    element.setAttribute('data-rise360-enhanced', 'true');
+                                    
+                                    // Remove any existing click handlers
+                                    element.onclick = null;
+                                    
+                                    // Add new click handler
+                                    element.addEventListener('click', handleExitClick);
+                                    
+                                    console.log('[Rise 360] Enhanced exit button:', element);
+                                }
+                            });
+                        } catch (e) {
+                            // Silently handle cross-origin or selector errors
+                        }
+                    });
+                    
+                    // Also look for text-based exit buttons
+                    const clickableElements = iframeDoc.querySelectorAll('button, a, [role="button"]');
+                    clickableElements.forEach(element => {
+                        const text = element.textContent ? element.textContent.trim().toLowerCase() : '';
+                        const isExitButton = (
+                            text === 'exit' || text === 'exit course' || text === 'close' || 
+                            text === 'save & exit' || text === 'save and exit' || text === 'save exit' ||
+                            text === 'finish' || text === 'complete' || text === 'done' || 
+                            text === 'end' || text === 'quit' || text === 'stop' ||
+                            text === 'finish course' || text === 'complete course' || text === 'end course' ||
+                            text === 'close course' || text === 'quit course' || text === 'stop course' ||
+                            (text.includes('save') && text.includes('exit')) ||
+                            (text.includes('finish') && text.includes('course')) ||
+                            (text.includes('complete') && text.includes('course')) ||
+                            (text.includes('end') && text.includes('course')) ||
+                            (text.includes('close') && text.includes('course')) ||
+                            (text.includes('quit') && text.includes('course')) ||
+                            (text.includes('stop') && text.includes('course'))
+                        );
+                        
+                        if (isExitButton && !element.hasAttribute('data-rise360-enhanced')) {
+                            element.setAttribute('data-rise360-enhanced', 'true');
+                            element.style.cursor = 'pointer';
+                            
+                            // Remove any existing click handlers
+                            element.onclick = null;
+                            
+                            // Add new click handler
+                            element.addEventListener('click', handleExitClick);
+                            
+                            console.log('[Rise 360] Enhanced text exit button:', element.textContent.trim());
+                        }
+                    });
+                    
+                } catch (e) {
+                    console.log('[Rise 360] Could not enhance iframe exit buttons (cross-origin):', e.message);
+                }
+            }
+            
+            // Try to enhance exit buttons immediately
+            enhanceIframeExitButtons();
+            
+            // CRITICAL FIX: Prevent infinite loops by limiting enhancement attempts
+            let enhancementAttempts = 0;
+            const maxEnhancementAttempts = 15; // Limit to 15 attempts over 30 seconds
+            
+            function limitedEnhanceIframeExitButtons() {
+                if (enhancementAttempts >= maxEnhancementAttempts) {
+                    console.log('[Rise 360] Max enhancement attempts reached, stopping');
+                    return;
+                }
+                enhancementAttempts++;
+                enhanceIframeExitButtons();
+            }
+            
+            // Also try periodically to catch dynamically loaded buttons
+            const enhanceInterval = setInterval(limitedEnhanceIframeExitButtons, 2000);
+            
+            // Stop trying after 30 seconds
+            setTimeout(() => {
+                clearInterval(enhanceInterval);
+                console.log('[Rise 360] Stopped trying to enhance exit buttons');
+            }, 30000);
+        }
+        
         // Update progress less frequently to prevent API spam
         setInterval(updateProgressBar, 5000);
+        
+        // CRITICAL FIX: Also update progress immediately when content loads
+        document.getElementById('riseFrame').addEventListener('load', function() {
+            console.log('✅ Rise 360 content loaded - updating progress immediately');
+            // Update progress immediately when content loads
+            setTimeout(updateProgressBar, 1000);
+            // Also update every 2 seconds for the first 30 seconds to catch early progress
+            let earlyUpdateCount = 0;
+            const earlyUpdateInterval = setInterval(function() {
+                earlyUpdateCount++;
+                updateProgressBar();
+                if (earlyUpdateCount >= 15) { // 15 * 2 seconds = 30 seconds
+                    clearInterval(earlyUpdateInterval);
+                }
+            }, 2000);
+        });
+        
+        // CRITICAL FIX: Listen for messages from Rise 360 content for exit requests
+        window.addEventListener('message', function(event) {
+            // Only accept messages from the same origin or trusted sources
+            if (event.origin !== window.location.origin) {
+                return;
+            }
+            
+            if (event.data && event.data.type === 'rise360Exit') {
+                console.log('[Rise 360] Received exit message from content');
+                handleRise360Exit();
+            } else if (event.data && event.data.type === 'rise360Progress') {
+                console.log('[Rise 360] Received progress update from content:', event.data.progress);
+                if (event.data.progress !== undefined) {
+                    updateRise360InternalProgress(event.data.progress);
+                }
+            }
+        });
+        
+        // Function to handle Rise 360 exit requests
+        function handleRise360Exit() {
+            console.log('[Rise 360] Handling exit request from content');
+            
+            // Call SCORM API to save and exit
+            try {
+                if (window.API && window.API.LMSFinish) {
+                    console.log('[Rise 360] Calling LMSFinish...');
+                    const result = window.API.LMSFinish('');
+                    console.log('[Rise 360] LMSFinish result:', result);
+                    
+                    if (result === 'true') {
+                        console.log('[Rise 360] SCORM data saved, redirecting...');
+                        // Redirect back to topic view
+                        window.location.href = '{% url "courses:topic_view" topic.id %}';
+                    } else {
+                        console.warn('[Rise 360] LMSFinish failed, redirecting anyway');
+                        window.location.href = '{% url "courses:topic_view" topic.id %}';
+                    }
+                } else if (window.API && window.API.Terminate) {
+                    console.log('[Rise 360] Calling Terminate...');
+                    const result = window.API.Terminate('');
+                    console.log('[Rise 360] Terminate result:', result);
+                    
+                    if (result === 'true') {
+                        console.log('[Rise 360] SCORM data saved, redirecting...');
+                        window.location.href = '{% url "courses:topic_view" topic.id %}';
+                    } else {
+                        console.warn('[Rise 360] Terminate failed, redirecting anyway');
+                        window.location.href = '{% url "courses:topic_view" topic.id %}';
+                    }
+                } else {
+                    console.warn('[Rise 360] No SCORM API available, redirecting anyway');
+                    window.location.href = '{% url "courses:topic_view" topic.id %}';
+                }
+            } catch (e) {
+                console.error('[Rise 360] Error in exit handler:', e);
+                // Still redirect even if there's an error
+                window.location.href = '{% url "courses:topic_view" topic.id %}';
+            }
+        }
     </script>
 
     <div class="scorm-container">
@@ -649,6 +1060,9 @@
                     loadingOverlay.style.display = 'none';
                 }, 300);
             }
+            
+            // CRITICAL FIX: Enhance Rise 360 internal exit buttons
+            enhanceRise360ExitButtons();
         });
         
         // FIXED: Save & Exit button handler with proper event attachment and DB sync
@@ -737,11 +1151,28 @@
             }
         }
         
+        // CRITICAL FIX: More robust button attachment with retry logic
+        let retryCount = 0;
+        const maxRetries = 50; // 5 seconds max
+        
+        function attachWithRetry() {
+            const saveExitBtn = document.getElementById('saveExitBtn');
+            if (saveExitBtn) {
+                attachSaveExitButton();
+            } else if (retryCount < maxRetries) {
+                retryCount++;
+                // Button not found, retry after a short delay
+                setTimeout(attachWithRetry, 100);
+            } else {
+                console.error('[Rise 360] Save & Exit button not found after maximum retries');
+            }
+        }
+        
         // Attach immediately if DOM ready, otherwise wait for DOMContentLoaded
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', attachSaveExitButton);
+            document.addEventListener('DOMContentLoaded', attachWithRetry);
         } else {
-            attachSaveExitButton();
+            attachWithRetry();
         }
         
         // Final save on page unload
