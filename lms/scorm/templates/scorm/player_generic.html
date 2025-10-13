@@ -195,10 +195,16 @@
         window.API = {
             LMSInitialize: function(param) { return makeSCORMCall('LMSInitialize', [param]); },
             LMSFinish: function(param) { 
-                console.log('[SCORM] LMSFinish - Please use "Save & Exit" button');
+                console.log('[SCORM] LMSFinish called - triggering exit');
                 const result = makeSCORMCall('LMSFinish', [param]);
-                // DO NOT auto-redirect - user must click "Save & Exit" button
-                console.log('[SCORM] Data saved. Please click "Save & Exit" button to exit.');
+                // FIXED: Allow auto-redirect when SCORM content calls LMSFinish
+                setTimeout(function() {
+                    console.log('[SCORM] Auto-triggering Save & Exit button');
+                    const saveExitBtn = document.getElementById('saveExitBtn');
+                    if (saveExitBtn) {
+                        saveExitBtn.click();
+                    }
+                }, 500);
                 return result;
             },
             LMSGetValue: function(element) { return makeSCORMCall('LMSGetValue', [element]); },
@@ -213,10 +219,16 @@
         window.API_1484_11 = {
             Initialize: function(param) { return makeSCORMCall('Initialize', [param]); },
             Terminate: function(param) { 
-                console.log('[SCORM] Terminate - Please use "Save & Exit" button');
+                console.log('[SCORM] Terminate called - triggering exit');
                 const result = makeSCORMCall('Terminate', [param]);
-                // DO NOT auto-redirect - user must click "Save & Exit" button
-                console.log('[SCORM] Data saved. Please click "Save & Exit" button to exit.');
+                // FIXED: Allow auto-redirect when SCORM content calls Terminate
+                setTimeout(function() {
+                    console.log('[SCORM] Auto-triggering Save & Exit button');
+                    const saveExitBtn = document.getElementById('saveExitBtn');
+                    if (saveExitBtn) {
+                        saveExitBtn.click();
+                    }
+                }, 500);
                 return result;
             },
             GetValue: function(element) { return makeSCORMCall('GetValue', [element]); },
@@ -280,8 +292,13 @@
                 }, 300);
             }
             
-            // REMOVED: Auto-exit button enhancement - Users must use "Save & Exit" button
-            console.log('[SCORM] Content loaded. Use "Save & Exit" button to exit.');
+            // ENABLE: Periodic auto-save every 30 seconds to preserve progress on refresh
+            if (!autoSaveInterval) {
+                autoSaveInterval = setInterval(performAutoCommit, 30000); // 30 seconds
+                console.log('[SCORM] Auto-save enabled: saving every 30 seconds');
+            }
+            
+            console.log('[SCORM] Content loaded. Progress will auto-save every 30 seconds.');
         });
         
         // FIXED: Save & Exit button handler with proper event attachment and DB sync
@@ -313,28 +330,69 @@
                         console.error('[SCORM] Commit error:', e);
                     }
                     
-                    // CRITICAL FIX: Force final API calls before sync
+                    // CRITICAL FIX: Force final API calls before sync + capture lesson_location
                     function forceFinalCommit() {
                         return new Promise(function(resolve) {
                             console.log('[SCORM] Forcing final commit before sync...');
                             
                             try {
-                                // Force a final commit to ensure all data is saved
-                                if (window.API && window.API.LMSCommit) {
-                                    const commitResult = window.API.LMSCommit('');
-                                    console.log('[SCORM] Final LMSCommit result:', commitResult);
+                                // CRITICAL FIX: Force capture lesson_location before exit
+                                // Get current lesson_location and immediately set it again to ensure it's saved
+                                if (window.API && window.API.LMSGetValue && window.API.LMSSetValue) {
+                                    const currentLocation = window.API.LMSGetValue('cmi.core.lesson_location');
+                                    if (currentLocation && currentLocation !== '') {
+                                        console.log('[SCORM] Forcing lesson_location save:', currentLocation);
+                                        window.API.LMSSetValue('cmi.core.lesson_location', currentLocation);
+                                    }
+                                    
+                                    // Also capture suspend_data
+                                    const currentSuspend = window.API.LMSGetValue('cmi.suspend_data');
+                                    if (currentSuspend && currentSuspend !== '') {
+                                        console.log('[SCORM] Forcing suspend_data save:', currentSuspend.substring(0, 50) + '...');
+                                        window.API.LMSSetValue('cmi.suspend_data', currentSuspend);
+                                    }
                                 }
-                                if (window.API_1484_11 && window.API_1484_11.Commit) {
-                                    const commitResult = window.API_1484_11.Commit('');
-                                    console.log('[SCORM] Final Commit (2004) result:', commitResult);
+                                if (window.API_1484_11 && window.API_1484_11.GetValue && window.API_1484_11.SetValue) {
+                                    const currentLocation = window.API_1484_11.GetValue('cmi.location');
+                                    if (currentLocation && currentLocation !== '') {
+                                        console.log('[SCORM] Forcing lesson_location save (2004):', currentLocation);
+                                        window.API_1484_11.SetValue('cmi.location', currentLocation);
+                                    }
+                                    
+                                    // Also capture suspend_data
+                                    const currentSuspend = window.API_1484_11.GetValue('cmi.suspend_data');
+                                    if (currentSuspend && currentSuspend !== '') {
+                                        console.log('[SCORM] Forcing suspend_data save (2004):', currentSuspend.substring(0, 50) + '...');
+                                        window.API_1484_11.SetValue('cmi.suspend_data', currentSuspend);
+                                    }
                                 }
                                 
-                                // Add a small delay to ensure API calls complete
-                                setTimeout(resolve, 500);
+                                // Force multiple commits to ensure all data is saved
+                                if (window.API && window.API.LMSCommit) {
+                                    const commitResult1 = window.API.LMSCommit('');
+                                    console.log('[SCORM] First LMSCommit result:', commitResult1);
+                                    // Second commit after a tiny delay
+                                    setTimeout(function() {
+                                        const commitResult2 = window.API.LMSCommit('');
+                                        console.log('[SCORM] Second LMSCommit result:', commitResult2);
+                                    }, 100);
+                                }
+                                if (window.API_1484_11 && window.API_1484_11.Commit) {
+                                    const commitResult1 = window.API_1484_11.Commit('');
+                                    console.log('[SCORM] First Commit (2004) result:', commitResult1);
+                                    // Second commit after a tiny delay
+                                    setTimeout(function() {
+                                        const commitResult2 = window.API_1484_11.Commit('');
+                                        console.log('[SCORM] Second Commit (2004) result:', commitResult2);
+                                    }, 100);
+                                }
+                                
+                                // Add a longer delay to ensure all API calls complete
+                                setTimeout(resolve, 800);
                             } catch (e) {
                                 console.error('[SCORM] Error in final commit:', e);
                                 // Continue anyway
-                                setTimeout(resolve, 200);
+                                setTimeout(resolve, 400);
                             }
                         });
                     }

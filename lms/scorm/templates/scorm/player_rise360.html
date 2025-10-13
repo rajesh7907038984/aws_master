@@ -484,7 +484,7 @@
             },
             
             LMSFinish: function(param) {
-                console.log('[Rise 360] Finish - Please use "Save & Exit" button');
+                console.log('[Rise 360] Finish called - triggering exit');
                 try {
                     // Save any pending cached data first
                     if (scormDataCache.pendingSync) {
@@ -495,8 +495,14 @@
                     // Call the API to save data
                     const result = makeRiseAPICall('LMSFinish', [param]);
                     
-                    // DO NOT auto-redirect - user must click "Save & Exit" button
-                    console.log('[Rise 360] Data saved. Please click "Save & Exit" button to exit.');
+                    // FIXED: Allow auto-redirect when Rise 360 calls LMSFinish
+                    setTimeout(function() {
+                        console.log('[Rise 360] Auto-triggering Save & Exit button');
+                        const saveExitBtn = document.getElementById('saveExitBtn');
+                        if (saveExitBtn) {
+                            saveExitBtn.click();
+                        }
+                    }, 500);
                     
                     return result || 'true';
                 } catch (e) {
@@ -623,11 +629,18 @@
                 return window.API.LMSInitialize(param);
             },
             Terminate: function(param) {
-                console.log('[Rise 360] Terminate - Please use "Save & Exit" button');
+                console.log('[Rise 360] Terminate called - triggering exit');
                 const result = makeRiseAPICall('Terminate', [param]);
                 
-                // DO NOT auto-redirect - user must click "Save & Exit" button
-                console.log('[Rise 360] Data saved. Please click "Save & Exit" button to exit.');
+                // FIXED: Allow auto-redirect when Rise 360 calls Terminate
+                setTimeout(function() {
+                    console.log('[Rise 360] Auto-triggering Save & Exit button');
+                    const saveExitBtn = document.getElementById('saveExitBtn');
+                    if (saveExitBtn) {
+                        saveExitBtn.click();
+                    }
+                }, 500);
+                console.log('[Rise 360] Data saved, exit triggered.');
                 
                 return result;
             },
@@ -819,12 +832,43 @@ document.addEventListener('DOMContentLoaded', function() {
                             scormDataCache.saveToAPI();
                         }
                         
-                        // CRITICAL FIX: Force final API calls before sync
+                        // CRITICAL FIX: Force final API calls before sync + capture lesson_location
                         function forceFinalCommit() {
                             return new Promise(function(resolve) {
                                 console.log('[Rise 360] Forcing final commit before sync...');
                                 
                                 try {
+                                    // CRITICAL FIX: Force capture lesson_location before exit
+                                    // Get current lesson_location and immediately set it again to ensure it's saved
+                                    if (window.API && window.API.LMSGetValue && window.API.LMSSetValue) {
+                                        const currentLocation = window.API.LMSGetValue('cmi.core.lesson_location');
+                                        if (currentLocation && currentLocation !== '') {
+                                            console.log('[Rise 360] Forcing lesson_location save:', currentLocation);
+                                            window.API.LMSSetValue('cmi.core.lesson_location', currentLocation);
+                                        }
+                                        
+                                        // Also capture suspend_data
+                                        const currentSuspend = window.API.LMSGetValue('cmi.suspend_data');
+                                        if (currentSuspend && currentSuspend !== '') {
+                                            console.log('[Rise 360] Forcing suspend_data save:', currentSuspend.substring(0, 50) + '...');
+                                            window.API.LMSSetValue('cmi.suspend_data', currentSuspend);
+                                        }
+                                    }
+                                    if (window.API_1484_11 && window.API_1484_11.GetValue && window.API_1484_11.SetValue) {
+                                        const currentLocation = window.API_1484_11.GetValue('cmi.location');
+                                        if (currentLocation && currentLocation !== '') {
+                                            console.log('[Rise 360] Forcing lesson_location save (2004):', currentLocation);
+                                            window.API_1484_11.SetValue('cmi.location', currentLocation);
+                                        }
+                                        
+                                        // Also capture suspend_data
+                                        const currentSuspend = window.API_1484_11.GetValue('cmi.suspend_data');
+                                        if (currentSuspend && currentSuspend !== '') {
+                                            console.log('[Rise 360] Forcing suspend_data save (2004):', currentSuspend.substring(0, 50) + '...');
+                                            window.API_1484_11.SetValue('cmi.suspend_data', currentSuspend);
+                                        }
+                                    }
+                                    
                                     // Double commit to ensure all data is flushed to the API
                                     if (window.API && window.API.LMSCommit) {
                                         console.log('[Rise 360] Performing final commit before exit...');
@@ -840,6 +884,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                             // Final delay to ensure API calls complete
                                             setTimeout(resolve, 300);
                                         }, 300);
+                                    } else if (window.API_1484_11 && window.API_1484_11.Commit) {
+                                        const commitResult1 = window.API_1484_11.Commit('');
+                                        console.log('[Rise 360] First commit (2004) result:', commitResult1);
+                                        
+                                        setTimeout(function() {
+                                            const commitResult2 = window.API_1484_11.Commit('');
+                                            console.log('[Rise 360] Second commit (2004) result:', commitResult2);
+                                            setTimeout(resolve, 300);
+                                        }, 300);
                                     } else {
                                         console.warn('[Rise 360] API not available');
                                         setTimeout(resolve, 100);
@@ -847,7 +900,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 } catch (e) {
                                     console.error('[Rise 360] Error in final commit:', e);
                                     // Continue anyway
-                                    setTimeout(resolve, 100);
+                                    setTimeout(resolve, 400);
                                 }
                             });
                         }
