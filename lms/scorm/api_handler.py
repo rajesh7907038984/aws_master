@@ -109,22 +109,21 @@ class ScormAPIHandler:
             self.attempt.cmi_data = self._initialize_cmi_data()
         
         # CRITICAL FIX: Check for existing bookmark data and set entry mode accordingly
-        # ✅ FIX FOR RISE VIDEOS: ONLY set 'resume' if suspend_data has content
-        # Rise videos parse suspend_data for timestamp - empty causes NaN/crash
-        # lesson_location alone is NOT enough - Rise will still try to resume video
-        # SCORM content can still use lesson_location even with entry='ab-initio'
+        # Set 'resume' if either lesson_location OR suspend_data exists
+        # This allows Rise slides to resume from saved location
+        has_bookmark = bool(self.attempt.lesson_location and len(self.attempt.lesson_location) > 0)
         has_suspend_data = bool(self.attempt.suspend_data and len(self.attempt.suspend_data) > 0)
         
-        # Only set resume if we have actual state data
-        if has_suspend_data:
+        # Set resume if we have any bookmark data
+        if has_bookmark or has_suspend_data:
             self.attempt.entry = 'resume'
-            logger.info(f"SCORM Resume: suspend_data={len(self.attempt.suspend_data)} chars, lesson_location='{self.attempt.lesson_location}'")
+            # Update lesson_status to incomplete if still not_attempted
+            if self.attempt.lesson_status == 'not_attempted':
+                self.attempt.lesson_status = 'incomplete'
+            logger.info(f"SCORM Resume: bookmark={has_bookmark}, suspend_data={has_suspend_data}, lesson_location='{self.attempt.lesson_location}'")
         else:
             self.attempt.entry = 'ab-initio'
-            if self.attempt.lesson_location:
-                logger.info(f"SCORM Fresh start (has location but no suspend_data): lesson_location='{self.attempt.lesson_location}'")
-            else:
-                logger.info(f"SCORM Fresh start: no bookmark data")
+            logger.info(f"SCORM Fresh start: no bookmark data")
         
         if self.version == '1.2':
             # CRITICAL FIX: Always set entry mode in CMI data
@@ -137,8 +136,8 @@ class ScormAPIHandler:
                 self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data
             
             # Ensure other required fields are set
-            if not self.attempt.cmi_data.get('cmi.core.lesson_status'):
-                self.attempt.cmi_data['cmi.core.lesson_status'] = 'not attempted'
+            # CRITICAL FIX: Set status to match model
+            self.attempt.cmi_data['cmi.core.lesson_status'] = self.attempt.lesson_status
             if not self.attempt.cmi_data.get('cmi.core.lesson_mode'):
                 self.attempt.cmi_data['cmi.core.lesson_mode'] = 'normal'
             if not self.attempt.cmi_data.get('cmi.core.credit'):
@@ -154,8 +153,11 @@ class ScormAPIHandler:
                 self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data
             
             # Ensure other required fields are set
-            if not self.attempt.cmi_data.get('cmi.completion_status'):
-                self.attempt.cmi_data['cmi.completion_status'] = 'incomplete'
+            # CRITICAL FIX: Set status to match model
+            if self.attempt.lesson_status == 'not_attempted':
+                self.attempt.cmi_data['cmi.completion_status'] = 'not attempted'
+            else:
+                self.attempt.cmi_data['cmi.completion_status'] = self.attempt.lesson_status
             if not self.attempt.cmi_data.get('cmi.mode'):
                 self.attempt.cmi_data['cmi.mode'] = 'normal'
             if not self.attempt.cmi_data.get('cmi.credit'):
