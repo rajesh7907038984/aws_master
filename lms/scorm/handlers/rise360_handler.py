@@ -45,6 +45,21 @@ class Rise360Handler(BaseScormAPIHandler):
         
         return result
     
+    def get_value(self, element):
+        """
+        Rise 360 GetValue with progress_measure fix
+        CRITICAL: Always return empty string for progress_measure so Rise calculates its own
+        """
+        # CRITICAL BUG FIX: Rise 360 displays "X% COMPLETE" cosmetic bar based on progress_measure
+        # If we return a pre-calculated value, it shows stale/incorrect progress
+        # Return empty string so Rise calculates fresh progress from lesson navigation
+        if element == 'cmi.progress_measure':
+            logger.info(f"📗 [Rise 360] GetValue(progress_measure) -> '' (letting Rise calculate)")
+            return ''
+        
+        # For all other elements, use parent implementation
+        return super().get_value(element)
+    
     def set_value(self, element, value):
         """
         Rise 360 SetValue with enhanced lesson_location handling
@@ -55,6 +70,11 @@ class Rise360Handler(BaseScormAPIHandler):
                 logger.info(f"💾 [Rise 360] Bookmark saved: {str(value)[:80]}...")
                 # Extract lesson progress
                 self._extract_rise360_progress(value)
+        
+        # CRITICAL: Accept progress_measure from Rise 360 (it calculates its own)
+        # Store it so we can sync to backend, but don't interfere with Rise's calculation
+        if element == 'cmi.progress_measure' and value:
+            logger.info(f"💾 [Rise 360] Progress measure received from Rise: {value}")
         
         result = super().set_value(element, value)
         
