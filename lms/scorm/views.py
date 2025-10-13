@@ -198,7 +198,16 @@ def scorm_view(request, topic_id):
     
     # Generate content URL using Django proxy (for iframe compatibility)
     # Include attempt_id in the URL for API access
+    # CRITICAL FIX: Append bookmark hash for Rise 360 resume functionality
+    # Rise expects the hash in the URL on initial load to jump to the saved slide
     content_url = f'/scorm/content/{topic_id}/{scorm_package.launch_url}?attempt_id={attempt_id}'
+    
+    # Check if there's a saved bookmark with a hash (Rise 360 format)
+    if attempt.lesson_location and '#' in attempt.lesson_location:
+        # Extract just the hash part (e.g., "#/lessons/GgZj1-c4S6yfmISAoYe1dLtFocAO8amH")
+        hash_part = '#' + attempt.lesson_location.split('#', 1)[1]
+        content_url += hash_part
+        logger.info(f"SCORM Resume: Appending bookmark hash to iframe URL: {hash_part[:50]}")
     
     context = {
         'topic': topic,
