@@ -126,7 +126,7 @@ class ScormAPIHandler:
             self.last_error = '0'
             
             # ENHANCED: Log initialization with user details
-            logger.info(f"[SCORM INIT] ✅ Initializing SCORM API for:")
+            logger.info(f"[SCORM INIT]  Initializing SCORM API for:")
             logger.info(f"  - User: {self.attempt.user.username} ({self.attempt.user.get_full_name()})")
             logger.info(f"  - Attempt ID: {self.attempt.id}")
             logger.info(f"  - Package: {self.attempt.scorm_package.title}")
@@ -148,13 +148,13 @@ class ScormAPIHandler:
             # Update lesson_status to incomplete if still not_attempted
             if self.attempt.lesson_status == 'not_attempted':
                 self.attempt.lesson_status = 'incomplete'
-            logger.info(f"🔄 SCORM RESUME MODE: bookmark={has_bookmark}, suspend_data={has_suspend_data}")
+            logger.info(f"SCORM RESUME MODE: bookmark={has_bookmark}, suspend_data={has_suspend_data}")
             logger.info(f"   lesson_location='{self.attempt.lesson_location}'")
             logger.info(f"   suspend_data length={len(self.attempt.suspend_data)} chars")
             logger.info(f"   Setting entry='resume', status='incomplete'")
         else:
             self.attempt.entry = 'ab-initio'
-            logger.info(f"🆕 SCORM FRESH START: no saved data (lesson_location={has_bookmark}, suspend_data={has_suspend_data})")
+            logger.info(f"SCORM FRESH START: no saved data (lesson_location={has_bookmark}, suspend_data={has_suspend_data})")
         
         if self.version == '1.2':
             # CRITICAL FIX: Always set entry mode in CMI data
@@ -222,12 +222,23 @@ class ScormAPIHandler:
         self.initialized = False
         self.last_error = '0'
         
-        # CRITICAL FIX: Set exit mode to indicate proper termination
-        self.attempt.exit_mode = 'logout'
-        if self.version == '1.2':
-            self.attempt.cmi_data['cmi.core.exit'] = 'logout'
+        # CRITICAL FIX: Check if content already set exit mode, otherwise default to 'suspend' for resume capability
+        exit_element = 'cmi.core.exit' if self.version == '1.2' else 'cmi.exit'
+        current_exit = self.attempt.cmi_data.get(exit_element, '')
+        
+        # If content hasn't set an exit value, or it's empty, default to 'suspend' to enable resume
+        if not current_exit or current_exit == '':
+            self.attempt.exit_mode = 'suspend'
+            self.attempt.cmi_data[exit_element] = 'suspend'
+            logger.info(f"TERMINATE: Set exit='suspend' to enable resume (content didn't specify exit mode)")
         else:
-            self.attempt.cmi_data['cmi.exit'] = 'logout'
+            # Content explicitly set exit mode (e.g., 'logout', 'suspend', 'time-out')
+            self.attempt.exit_mode = current_exit
+            logger.info(f"TERMINATE: Using content's exit mode: '{current_exit}'")
+        
+        # If exit mode is still not set in attempt model, use the value from cmi_data
+        if not self.attempt.exit_mode:
+            self.attempt.exit_mode = current_exit if current_exit else 'suspend'
         
         # SIMPLIFIED: Update lesson status based on score if available (trust SCORM's native logic)
         if not self.attempt.lesson_status or self.attempt.lesson_status == 'not_attempted':
@@ -289,11 +300,11 @@ class ScormAPIHandler:
                     if element in ['cmi.core.lesson_location', 'cmi.location']:
                         value = self.attempt.lesson_location or ''
                     elif element == 'cmi.suspend_data':
-                        # ✅ CRITICAL: Return empty string for Rise compatibility
+                        #  CRITICAL: Return empty string for Rise compatibility
                         # Rise will check if empty and handle gracefully
                         value = self.attempt.suspend_data or ''
                     elif element in ['cmi.core.entry', 'cmi.entry']:
-                        # ✅ CRITICAL FIX: Return 'resume' if bookmark OR suspend_data exists
+                        #  CRITICAL FIX: Return 'resume' if bookmark OR suspend_data exists
                         # Check both lesson_location and suspend_data for resume capability
                         has_bookmark = bool(self.attempt.lesson_location and len(self.attempt.lesson_location) > 0)
                         has_suspend_data = bool(self.attempt.suspend_data and len(self.attempt.suspend_data) > 0)
@@ -444,24 +455,24 @@ class ScormAPIHandler:
                     new_priority = status_hierarchy.get(value, 0)
                     
                     if new_priority > current_priority:
-                        logger.info(f"[SCORM] ✅ Updating lesson_status to higher value: {value} (was: {self.attempt.lesson_status})")
+                        logger.info(f"[SCORM] Updating lesson_status to higher value: {value} (was: {self.attempt.lesson_status})")
                         
                         # ENHANCED: Auto-advance to next slide when slide is completed
                         if value in ['completed', 'passed'] and self.attempt.lesson_location:
                             self._auto_advance_to_next_slide()
                     else:
                         should_update = False
-                        logger.info(f"[SCORM] ⏭️ Keeping existing lesson_status: {self.attempt.lesson_status} (new: {value} was lower)")
+                        logger.info(f"[SCORM] Keeping existing lesson_status: {self.attempt.lesson_status} (new: {value} was lower)")
                         
                 elif element in ['cmi.core.score.raw', 'cmi.score.raw']:
                     try:
                         new_score = float(value) if value and str(value).strip() else None
                         if new_score is not None and self.attempt.score_raw is not None:
                             if new_score > float(self.attempt.score_raw):
-                                logger.info(f"[SCORM] ✅ Updating score to higher value: {new_score} (was: {self.attempt.score_raw})")
+                                logger.info(f"[SCORM]  Updating score to higher value: {new_score} (was: {self.attempt.score_raw})")
                             else:
                                 should_update = False
-                                logger.info(f"[SCORM] ⏭️ Keeping existing score: {self.attempt.score_raw} (new: {new_score} was lower)")
+                                logger.info(f"[SCORM]  Keeping existing score: {self.attempt.score_raw} (new: {new_score} was lower)")
                     except (ValueError, TypeError):
                         pass
                         
@@ -473,10 +484,10 @@ class ScormAPIHandler:
                         # ENHANCED: Always update progress measure (it's the current state, not cumulative)
                         # Only keep highest value for final completion, not intermediate progress
                         if new_percentage >= self.attempt.progress_percentage or self.attempt.lesson_status in ['completed', 'passed']:
-                            logger.info(f"[SCORM] ✅ Updating progress: {new_percentage}% (was: {self.attempt.progress_percentage}%)")
+                            logger.info(f"[SCORM]  Updating progress: {new_percentage}% (was: {self.attempt.progress_percentage}%)")
                         else:
                             # For incomplete courses, always update to current progress
-                            logger.info(f"[SCORM] ✅ Updating current progress: {new_percentage}% (was: {self.attempt.progress_percentage}%)")
+                            logger.info(f"[SCORM]  Updating current progress: {new_percentage}% (was: {self.attempt.progress_percentage}%)")
                     except (ValueError, TypeError):
                         pass
                 
@@ -518,6 +529,29 @@ class ScormAPIHandler:
                     elif element == 'cmi.core.score.raw' and should_update:
                         try:
                             self.attempt.score_raw = Decimal(value) if value and str(value).strip() else None
+                            # Auto-determine success status when score is set
+                            if self.attempt.score_raw is not None and self.attempt.scorm_package.mastery_score is not None:
+                                if self.attempt.score_raw >= self.attempt.scorm_package.mastery_score:
+                                    self.attempt.success_status = 'passed'
+                                else:
+                                    self.attempt.success_status = 'failed'
+                                logger.info(f"Auto-determined success status: {self.attempt.success_status} (score: {self.attempt.score_raw}, mastery: {self.attempt.scorm_package.mastery_score})")
+                            
+                            # CRITICAL FIX: Force immediate save with all tracking data
+                            try:
+                                # Save with all critical fields
+                                self.attempt.save(update_fields=[
+                                    'score_raw', 'success_status', 'last_accessed',
+                                    'lesson_status', 'completion_status'
+                                ])
+                                logger.info(f"[TRACKING]  Score saved to database (SCORM 1.2)")
+                                
+                                # Force sync to TopicProgress
+                                self._force_sync_to_topic_progress()
+                                
+                            except Exception as e:
+                                logger.error(f"[TRACKING] Error saving score (SCORM 1.2): {str(e)}")
+                                
                         except (ValueError, TypeError):
                             logger.warning(f"Invalid score.raw value: {value}")
                             self.last_error = '405'  # Incorrect data type
@@ -555,10 +589,25 @@ class ScormAPIHandler:
                         logger.info(f"[TRACKING] Lesson location updated (SCORM 1.2): {lesson_location[:50]}...")
                         # Enhanced slide tracking
                         self._update_slide_tracking(lesson_location)
-                        # IMMEDIATE SAVE: Bookmark is critical for resume, save immediately
+                        
+                        # CRITICAL FIX: Force immediate save with all tracking data
                         try:
-                            self.attempt.save()
-                            logger.info(f"[TRACKING] Lesson location saved to database (SCORM 1.2)")
+                            # Update entry mode to resume if we have bookmark data
+                            if lesson_location and len(lesson_location) > 0:
+                                self.attempt.entry = 'resume'
+                                if self.attempt.lesson_status == 'not_attempted':
+                                    self.attempt.lesson_status = 'incomplete'
+                            
+                            # Save with all critical fields
+                            self.attempt.save(update_fields=[
+                                'lesson_location', 'cmi_data', 'entry', 'lesson_status', 
+                                'last_accessed', 'progress_percentage'
+                            ])
+                            logger.info(f"[TRACKING]  Lesson location saved to database (SCORM 1.2)")
+                            
+                            # Force sync to TopicProgress
+                            self._force_sync_to_topic_progress()
+                            
                         except Exception as e:
                             logger.error(f"[TRACKING] Error saving lesson location (SCORM 1.2): {str(e)}")
                     elif element == 'cmi.core.session_time':
@@ -573,11 +622,24 @@ class ScormAPIHandler:
                         logger.info(f"[TRACKING] Suspend data updated (SCORM 1.2): {len(value)} chars")
                         # ENHANCED: Parse and sync progress from suspend data
                         self._parse_and_sync_suspend_data(value)
-                        # IMMEDIATE SAVE: Suspend data is critical for resume, save immediately
+                        
+                        # CRITICAL FIX: Force immediate save with all tracking data
                         try:
-                            # CRITICAL FIX: Use update_fields to avoid race conditions
-                            self.attempt.save(update_fields=['suspend_data', 'cmi_data', 'last_accessed'])
-                            logger.info(f"[TRACKING] Suspend data saved to database (SCORM 1.2)")
+                            # Update entry mode to resume if we have suspend data
+                            if value and len(value) > 0:
+                                self.attempt.entry = 'resume'
+                                if self.attempt.lesson_status == 'not_attempted':
+                                    self.attempt.lesson_status = 'incomplete'
+                            
+                            # Save with all critical fields
+                            self.attempt.save(update_fields=[
+                                'suspend_data', 'cmi_data', 'entry', 'lesson_status', 
+                                'last_accessed', 'progress_percentage'
+                            ])
+                            logger.info(f"[TRACKING]  Suspend data saved to database (SCORM 1.2)")
+                            
+                            # Force sync to TopicProgress
+                            self._force_sync_to_topic_progress()
                             
                             # Force sync score if we have meaningful progress
                             if len(value) > 100:  # Meaningful suspend data
@@ -596,6 +658,29 @@ class ScormAPIHandler:
                     elif element == 'cmi.score.raw':
                         try:
                             self.attempt.score_raw = Decimal(value) if value and str(value).strip() else None
+                            # Auto-determine success status when score is set
+                            if self.attempt.score_raw is not None and self.attempt.scorm_package.mastery_score is not None:
+                                if self.attempt.score_raw >= self.attempt.scorm_package.mastery_score:
+                                    self.attempt.success_status = 'passed'
+                                else:
+                                    self.attempt.success_status = 'failed'
+                                logger.info(f"Auto-determined success status: {self.attempt.success_status} (score: {self.attempt.score_raw}, mastery: {self.attempt.scorm_package.mastery_score})")
+                            
+                            # CRITICAL FIX: Force immediate save with all tracking data
+                            try:
+                                # Save with all critical fields
+                                self.attempt.save(update_fields=[
+                                    'score_raw', 'success_status', 'last_accessed',
+                                    'lesson_status', 'completion_status'
+                                ])
+                                logger.info(f"[TRACKING]  Score saved to database (SCORM 2004)")
+                                
+                                # Force sync to TopicProgress
+                                self._force_sync_to_topic_progress()
+                                
+                            except Exception as e:
+                                logger.error(f"[TRACKING] Error saving score (SCORM 2004): {str(e)}")
+                                
                         except (ValueError, TypeError):
                             logger.warning(f"Invalid score.raw value: {value}")
                             self.last_error = '405'  # Incorrect data type
@@ -640,7 +725,7 @@ class ScormAPIHandler:
                                 # ENHANCED: Always update progress_measure (current state)
                                 new_percentage = float(progress_value * 100)
                                 self.attempt.progress_percentage = new_percentage
-                                logger.info(f"✅ Updated progress_percentage to {new_percentage}% from progress_measure {progress_value}")
+                                logger.info(f" Updated progress_percentage to {new_percentage}% from progress_measure {progress_value}")
                         except (ValueError, TypeError):
                             logger.warning(f"Invalid progress_measure value: {value}")
                             self.last_error = '405'  # Incorrect data type
@@ -652,10 +737,25 @@ class ScormAPIHandler:
                         logger.info(f"[TRACKING] Lesson location updated (SCORM 2004): {value[:50]}...")
                         # Enhanced slide tracking
                         self._update_slide_tracking(value)
-                        # IMMEDIATE SAVE: Bookmark is critical for resume, save immediately
+                        
+                        # CRITICAL FIX: Force immediate save with all tracking data
                         try:
-                            self.attempt.save()
-                            logger.info(f"[TRACKING] Lesson location saved to database (SCORM 2004)")
+                            # Update entry mode to resume if we have bookmark data
+                            if value and len(value) > 0:
+                                self.attempt.entry = 'resume'
+                                if self.attempt.lesson_status == 'not_attempted':
+                                    self.attempt.lesson_status = 'incomplete'
+                            
+                            # Save with all critical fields
+                            self.attempt.save(update_fields=[
+                                'lesson_location', 'cmi_data', 'entry', 'lesson_status', 
+                                'last_accessed', 'progress_percentage'
+                            ])
+                            logger.info(f"[TRACKING]  Lesson location saved to database (SCORM 2004)")
+                            
+                            # Force sync to TopicProgress
+                            self._force_sync_to_topic_progress()
+                            
                         except Exception as e:
                             logger.error(f"[TRACKING] Error saving lesson location (SCORM 2004): {str(e)}")
                     elif element == 'cmi.session_time':
@@ -670,11 +770,24 @@ class ScormAPIHandler:
                         logger.info(f"[TRACKING] Suspend data updated (SCORM 2004): {len(value)} chars")
                         # ENHANCED: Parse and sync progress from suspend data
                         self._parse_and_sync_suspend_data(value)
-                        # IMMEDIATE SAVE: Suspend data is critical for resume, save immediately
+                        
+                        # CRITICAL FIX: Force immediate save with all tracking data
                         try:
-                            # CRITICAL FIX: Use update_fields to avoid race conditions
-                            self.attempt.save(update_fields=['suspend_data', 'cmi_data', 'last_accessed'])
-                            logger.info(f"[TRACKING] Suspend data saved to database (SCORM 2004)")
+                            # Update entry mode to resume if we have suspend data
+                            if value and len(value) > 0:
+                                self.attempt.entry = 'resume'
+                                if self.attempt.lesson_status == 'not_attempted':
+                                    self.attempt.lesson_status = 'incomplete'
+                            
+                            # Save with all critical fields
+                            self.attempt.save(update_fields=[
+                                'suspend_data', 'cmi_data', 'entry', 'lesson_status', 
+                                'last_accessed', 'progress_percentage'
+                            ])
+                            logger.info(f"[TRACKING]  Suspend data saved to database (SCORM 2004)")
+                            
+                            # Force sync to TopicProgress
+                            self._force_sync_to_topic_progress()
                             
                             # Force sync score if we have meaningful progress
                             if len(value) > 100:  # Meaningful suspend data
@@ -746,6 +859,14 @@ class ScormAPIHandler:
             self.attempt.success_status = 'passed'
         elif status == 'failed':
             self.attempt.success_status = 'failed'
+        else:
+            # Auto-determine success status based on score and mastery
+            if self.attempt.score_raw is not None and self.attempt.scorm_package.mastery_score is not None:
+                if self.attempt.score_raw >= self.attempt.scorm_package.mastery_score:
+                    self.attempt.success_status = 'passed'
+                else:
+                    self.attempt.success_status = 'failed'
+                logger.info(f"Auto-determined success status: {self.attempt.success_status} (score: {self.attempt.score_raw}, mastery: {self.attempt.scorm_package.mastery_score})")
     
     def _update_total_time(self, session_time):
         """Update total time by adding session time with enhanced tracking"""
@@ -1063,11 +1184,11 @@ class ScormAPIHandler:
                     # ENHANCED: Track commit event
                     self._track_commit_event()
                     
-                    logger.info(f"[COMMIT] ✅ Successfully saved attempt {self.attempt.id} to database")
+                    logger.info(f"[COMMIT]  Successfully saved attempt {self.attempt.id} to database")
                     
                     # 6. Verify the save was successful by checking a few critical fields
                     self.attempt.refresh_from_db()
-                    logger.info(f"[COMMIT] ✅ Verification after save:")
+                    logger.info(f"[COMMIT]  Verification after save:")
                     logger.info(f"  - Suspend data still present: {len(self.attempt.suspend_data) if self.attempt.suspend_data else 0} chars")
                     logger.info(f"  - Bookmark still present: {len(self.attempt.lesson_location) if self.attempt.lesson_location else 0} chars")
                     logger.info(f"  - Score still present: {self.attempt.score_raw}")
@@ -1098,7 +1219,7 @@ class ScormAPIHandler:
                                 score_val = float(cmi_score)
                                 if 0 <= score_val <= 100:
                                     self.attempt.score_raw = score_val
-                                    logger.info(f"[COMMIT] ✅ FIRST ATTEMPT FIX: Extracted score {score_val} from CMI data")
+                                    logger.info(f"[COMMIT]  FIRST ATTEMPT FIX: Extracted score {score_val} from CMI data")
                                     self.attempt.save()
                             except (ValueError, TypeError):
                                 pass
@@ -1112,14 +1233,14 @@ class ScormAPIHandler:
                             
                             if extracted_score is not None:
                                 self.attempt.score_raw = extracted_score
-                                logger.info(f"[COMMIT] ✅ FIRST ATTEMPT FIX: Extracted score {extracted_score} from suspend_data")
+                                logger.info(f"[COMMIT]  FIRST ATTEMPT FIX: Extracted score {extracted_score} from suspend_data")
                                 self.attempt.save()
                         except Exception as e:
                             logger.error(f"[COMMIT] Error extracting score from suspend_data: {e}")
                     
                     # Now sync score with potentially fixed data
                     sync_success = ScormScoreSyncService.sync_score(self.attempt, force=True)
-                    logger.info(f"[COMMIT] Score sync result for attempt {self.attempt.id}: {'✅ Success' if sync_success else '⚠️ Skipped'}")
+                    logger.info(f"[COMMIT] Score sync result for attempt {self.attempt.id}: {' Success' if sync_success else ' Skipped'}")
                     
                     # Always try to sync even if no explicit score
                     # This ensures user interactions are captured in gradebook
@@ -1130,7 +1251,7 @@ class ScormAPIHandler:
                         
                         # Try sync again with updated timestamp
                         sync_success = ScormScoreSyncService.sync_score(self.attempt, force=True)
-                        logger.info(f"[COMMIT] Retry score sync with updated timestamp: {'✅ Success' if sync_success else '⚠️ Skipped'}")
+                        logger.info(f"[COMMIT] Retry score sync with updated timestamp: {' Success' if sync_success else ' Skipped'}")
                     
                     # 8. Clear relevant caches to ensure fresh data
                     from django.core.cache import cache
@@ -1143,15 +1264,15 @@ class ScormAPIHandler:
                         cache.delete(f'topic_progress_{topic.id}_{self.attempt.user.id}')
                 
                 except Exception as e:
-                    logger.error(f"[COMMIT] ❌ Error saving tracking data: {str(e)}")
+                    logger.error(f"[COMMIT]  Error saving tracking data: {str(e)}")
                     import traceback
                     logger.error(traceback.format_exc())
                     # Try a basic save as fallback
                     try:
                         self.attempt.save()
-                        logger.info(f"[COMMIT] ⚠️ Fallback save successful for attempt {self.attempt.id}")
+                        logger.info(f"[COMMIT]  Fallback save successful for attempt {self.attempt.id}")
                     except Exception as fallback_error:
-                        logger.error(f"[COMMIT] ❌ Fallback save also failed: {str(fallback_error)}")
+                        logger.error(f"[COMMIT]  Fallback save also failed: {str(fallback_error)}")
                 finally:
                     # Clean up the flag
                     if hasattr(self.attempt, '_skip_signal'):
@@ -1701,7 +1822,7 @@ class ScormAPIHandler:
                     self.attempt.suspend_data = suspend_data
                     self.attempt.cmi_data['cmi.suspend_data'] = suspend_data
                 
-                logger.info(f"[SCORM] ✅ Auto-advanced from slide {current_slide} to slide {next_slide}")
+                logger.info(f"[SCORM]  Auto-advanced from slide {current_slide} to slide {next_slide}")
                 logger.info(f"[SCORM] New location: {new_location}")
                 logger.info(f"[SCORM] New progress: {new_progress}%")
                 
@@ -1854,6 +1975,55 @@ class ScormAPIHandler:
             
         except Exception as e:
             logger.error(f"Error tracking completion event: {e}")
+    
+    def _force_sync_to_topic_progress(self):
+        """Force sync SCORM data to TopicProgress model"""
+        try:
+            from courses.models import TopicProgress
+            from django.utils import timezone
+            
+            # Get or create TopicProgress record
+            progress, created = TopicProgress.objects.get_or_create(
+                user=self.attempt.user,
+                topic=self.attempt.scorm_package.topic
+            )
+            
+            # Initialize progress data if needed
+            if not progress.progress_data:
+                progress.progress_data = {}
+            
+            # Update progress data with SCORM tracking info
+            progress.progress_data.update({
+                'scorm_attempt_id': self.attempt.id,
+                'lesson_status': self.attempt.lesson_status,
+                'completion_status': self.attempt.completion_status,
+                'success_status': self.attempt.success_status,
+                'progress_percentage': float(self.attempt.progress_percentage) if self.attempt.progress_percentage else 0.0,
+                'score_raw': float(self.attempt.score_raw) if self.attempt.score_raw else None,
+                'score_max': float(self.attempt.score_max) if self.attempt.score_max else None,
+                'lesson_location': self.attempt.lesson_location,
+                'suspend_data_length': len(self.attempt.suspend_data) if self.attempt.suspend_data else 0,
+                'last_sync': timezone.now().isoformat(),
+                'sync_source': 'scorm_api_handler'
+            })
+            
+            # Update completion status if SCORM indicates completion
+            if self.attempt.lesson_status in ['completed', 'passed']:
+                progress.completed = True
+                progress.completed_at = timezone.now()
+                progress.completion_method = 'scorm'
+            
+            # Update scores
+            if self.attempt.score_raw is not None:
+                progress.last_score = self.attempt.score_raw
+                if progress.best_score is None or self.attempt.score_raw > progress.best_score:
+                    progress.best_score = self.attempt.score_raw
+            
+            progress.save()
+            logger.info(f"[SYNC]  Forced sync to TopicProgress for attempt {self.attempt.id}")
+            
+        except Exception as e:
+            logger.error(f"[SYNC] Error forcing sync to TopicProgress: {str(e)}")
     
     def _track_commit_event(self):
         """Track LMSCommit/Commit events"""
