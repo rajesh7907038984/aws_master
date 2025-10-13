@@ -411,6 +411,10 @@ def get_activity_score(activity, student_id, grades, quiz_attempts, scorm_regist
                     if registration.package.id == activity['object'].id and registration.user_id == student_id:
                         # Only return registration data if there's actual progress
                         if has_scorm_progress(registration):
+                            # Extract additional SCORM data
+                            scorm_status = getattr(registration, 'lesson_status', None) or registration.completion_status
+                            progress_percentage = getattr(registration, 'progress_percentage', None)
+                            
                             return {
                                 'score': registration.score,
                                 'max_score': activity['max_score'],
@@ -419,7 +423,11 @@ def get_activity_score(activity, student_id, grades, quiz_attempts, scorm_regist
                                 'object': activity['object'],
                                 'registration': registration,
                                 'completion_status': registration.completion_status,
-                                'success_status': registration.success_status
+                                'success_status': registration.success_status,
+                                'scorm_status': scorm_status,
+                                'progress_percentage': progress_percentage,
+                                'in_progress': registration.completion_status == 'incomplete' and registration.last_accessed is not None,
+                                'has_bookmark': bool(getattr(registration, 'lesson_location', None))
                             }
                         # If registration exists but no progress, treat as not started and don't return registration data
                         return {
@@ -463,6 +471,13 @@ def get_activity_score(activity, student_id, grades, quiz_attempts, scorm_regist
                         # Learner has attempted/accessed but not completed - consider as failed
                         success_status = 'failed'
                     
+                    # Extract SCORM-specific data from progress_data
+                    scorm_status = None
+                    progress_percentage = None
+                    if topic_progress.progress_data:
+                        scorm_status = topic_progress.progress_data.get('scorm_status') or topic_progress.progress_data.get('lesson_status')
+                        progress_percentage = topic_progress.progress_data.get('progress_percentage')
+                    
                     return {
                         'score': float(topic_progress.last_score) if topic_progress.last_score else None,
                         'max_score': activity['max_score'],
@@ -472,7 +487,11 @@ def get_activity_score(activity, student_id, grades, quiz_attempts, scorm_regist
                         'topic_progress': topic_progress,
                         'completion_status': completion_status,
                         'success_status': success_status,
-                        'completed': topic_progress.completed
+                        'completed': topic_progress.completed,
+                        'scorm_status': scorm_status,
+                        'progress_percentage': progress_percentage,
+                        'in_progress': not topic_progress.completed and topic_progress.last_accessed is not None,
+                        'has_bookmark': bool(topic_progress.progress_data and topic_progress.progress_data.get('lesson_location'))
                     }
             except Exception:
                 pass

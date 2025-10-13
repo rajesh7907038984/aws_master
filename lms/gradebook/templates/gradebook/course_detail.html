@@ -1750,7 +1750,7 @@
                       {% elif activity.type == 'scorm' %}
                         {% get_student_activity_score student_scores student.id activity.object.id as score_data %}
                         {% if score_data.success_status == 'passed' or score_data.completed or score_data.achievement_status == 'passed' %}
-                          <!-- Only show score for passed SCORM content -->
+                          <!-- Show score for passed SCORM content -->
                           <div class="submission-date">
                             {{ score_data.date|date:"M d, Y" }}
                           </div>
@@ -1761,6 +1761,32 @@
                               Completed
                             {% endif %}
                           </span>
+                          <!-- Show SCORM status details -->
+                          {% if score_data.scorm_status %}
+                            <div class="text-xs text-gray-500 mt-1">
+                              Status: {{ score_data.scorm_status|title }}
+                            </div>
+                          {% endif %}
+                        {% elif score_data.success_status == 'failed' %}
+                          <!-- Show failed status with score if available -->
+                          <div class="submission-date">
+                            {{ score_data.date|date:"M d, Y" }}
+                          </div>
+                          <span class="grade-score grade-poor">
+                            {% if score_data.score is not None %}
+                              {{ score_data.score|floatformat:1 }}% (Failed)
+                            {% else %}
+                              Failed
+                            {% endif %}
+                          </span>
+                          {% if user.role == 'learner' %}
+                            {% get_scorm_topic activity.object as scorm_topic %}
+                            {% if scorm_topic %}
+                              <a href="{% url 'courses:topic_view' scorm_topic.id %}" class="view-btn" style="color: #dc3545; border-color: #dc3545; background: white;">
+                                RETRY
+                              </a>
+                            {% endif %}
+                          {% endif %}
                         {% elif score_data.in_progress or score_data.has_bookmark %}
                           <!-- Show resume button for learners who have started but not passed -->
                           <span class="grade-score grade-none">In Progress</span>
@@ -1772,6 +1798,12 @@
                               </a>
                             {% endif %}
                           {% endif %}
+                          <!-- Show progress percentage if available -->
+                          {% if score_data.progress_percentage %}
+                            <div class="text-xs text-blue-600 mt-1">
+                              Progress: {{ score_data.progress_percentage|floatformat:1 }}%
+                            </div>
+                          {% endif %}
                         {% else %}
                           <!-- Don't show anything for non-started SCORM content -->
                           <span class="grade-score grade-none">-</span>
@@ -1781,7 +1813,7 @@
                         {% comment %}SCORM topics - check TopicProgress for scores{% endcomment %}
                         {% get_student_activity_score student_scores student.id activity.object.id as score_data %}
                         {% if score_data.success_status == 'passed' or score_data.completed or score_data.achievement_status == 'passed' %}
-                          <!-- Only show score for passed SCORM topics -->
+                          <!-- Show score for passed SCORM topics -->
                           <div class="submission-date">
                             {{ score_data.date|date:"M d, Y" }}
                           </div>
@@ -1792,6 +1824,29 @@
                               Completed
                             {% endif %}
                           </span>
+                          <!-- Show SCORM status details -->
+                          {% if score_data.scorm_status %}
+                            <div class="text-xs text-gray-500 mt-1">
+                              Status: {{ score_data.scorm_status|title }}
+                            </div>
+                          {% endif %}
+                        {% elif score_data.success_status == 'failed' %}
+                          <!-- Show failed status with score if available -->
+                          <div class="submission-date">
+                            {{ score_data.date|date:"M d, Y" }}
+                          </div>
+                          <span class="grade-score grade-poor">
+                            {% if score_data.score is not None %}
+                              {{ score_data.score|floatformat:1 }}% (Failed)
+                            {% else %}
+                              Failed
+                            {% endif %}
+                          </span>
+                          {% if user.role == 'learner' %}
+                            <a href="{% url 'courses:topic_view' activity.object.id %}" class="view-btn" style="color: #dc3545; border-color: #dc3545; background: white;">
+                              RETRY
+                            </a>
+                          {% endif %}
                         {% elif score_data.in_progress or score_data.has_bookmark %}
                           <!-- Show resume button for learners who have started but not passed -->
                           <span class="grade-score grade-none">In Progress</span>
@@ -1799,6 +1854,12 @@
                             <a href="{% url 'courses:topic_view' activity.object.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
                               RESUME
                             </a>
+                          {% endif %}
+                          <!-- Show progress percentage if available -->
+                          {% if score_data.progress_percentage %}
+                            <div class="text-xs text-blue-600 mt-1">
+                              Progress: {{ score_data.progress_percentage|floatformat:1 }}%
+                            </div>
                           {% endif %}
                         {% else %}
                           <!-- Don't show anything for non-started SCORM topics -->
