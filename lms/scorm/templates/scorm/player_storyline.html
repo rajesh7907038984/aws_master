@@ -167,14 +167,18 @@
                 if (result === 'true') {
                     console.log('[Storyline] Data saved, syncing to database...');
                     
+                    // BUG FIX: Use FormData instead of raw urlencoded string
+                    const formData = new FormData();
+                    formData.append('attempt_id', '{{ attempt.id|default:attempt_id }}');
+                    
                     // Call the same sync endpoint as Save & Exit button
                     fetch('{% url "scorm:sync_on_exit" %}', {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
                             'X-CSRFToken': getCookie('csrftoken')
+                            // Let browser set proper Content-Type with boundary
                         },
-                        body: 'attempt_id={{ attempt.id|default:attempt_id }}'
+                        body: formData
                     })
                     .then(response => response.json())
                     .then(data => {
@@ -238,14 +242,18 @@
                 if (result === 'true') {
                     console.log('[Storyline] Data saved, syncing to database...');
                     
+                    // BUG FIX: Use FormData instead of raw urlencoded string
+                    const formData = new FormData();
+                    formData.append('attempt_id', '{{ attempt.id|default:attempt_id }}');
+                    
                     // Call the same sync endpoint as Save & Exit button
                     fetch('{% url "scorm:sync_on_exit" %}', {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
                             'X-CSRFToken': getCookie('csrftoken')
+                            // Let browser set proper Content-Type with boundary
                         },
-                        body: 'attempt_id={{ attempt.id|default:attempt_id }}'
+                        body: formData
                     })
                     .then(response => response.json())
                     .then(data => {

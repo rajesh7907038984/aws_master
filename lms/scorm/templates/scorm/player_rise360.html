@@ -499,13 +499,17 @@
                     function syncToServer(attemptCount = 0) {
                         console.log(`[Rise 360] Syncing to database (attempt ${attemptCount + 1})...`);
                         
+                        // BUG FIX: Use FormData instead of raw urlencoded string
+                        const formData = new FormData();
+                        formData.append('attempt_id', '{{ attempt.id|default:attempt_id }}');
+                        
                         return fetch('{% url "scorm:sync_on_exit" %}', {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
                             'X-CSRFToken': getCookie('csrftoken')
+                            // Let browser set proper Content-Type with boundary
                         },
-                        body: 'attempt_id={{ attempt.id|default:attempt_id }}'
+                        body: formData
                     })
                         .then(response => {
                             if (!response.ok) {
@@ -705,14 +709,18 @@
                 if (result === 'true') {
                     console.log('[Rise 360] Data saved, syncing to database...');
                     
+                    // BUG FIX: Use FormData instead of raw urlencoded string
+                    const formData = new FormData();
+                    formData.append('attempt_id', '{{ attempt.id|default:attempt_id }}');
+                    
                     // Call the same sync endpoint as Save & Exit button
                     fetch('{% url "scorm:sync_on_exit" %}', {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
                             'X-CSRFToken': getCookie('csrftoken')
+                            // Let browser set proper Content-Type with boundary
                         },
-                        body: 'attempt_id={{ attempt.id|default:attempt_id }}'
+                        body: formData
                     })
                     .then(response => response.json())
                     .then(data => {
@@ -846,14 +854,19 @@
                         
                         if (result === 'true') {
                             console.log('[Rise 360] SCORM data saved, syncing to database...');
+                            
+                            // BUG FIX: Use FormData instead of raw urlencoded string
+                            const formData = new FormData();
+                            formData.append('attempt_id', '{{ attempt.id|default:attempt_id }}');
+                            
                             // FIXED: Ensure data is synced to the server
                             fetch('{% url "scorm:sync_on_exit" %}', {
                                 method: 'POST',
                                 headers: {
-                                    'Content-Type': 'application/x-www-form-urlencoded',
                                     'X-CSRFToken': getCookie('csrftoken')
+                                    // Let browser set proper Content-Type with boundary
                                 },
-                                body: 'attempt_id={{ attempt.id|default:attempt_id }}'
+                                body: formData
                             })
                             .then(response => response.json())
                             .then(data => {
@@ -1479,13 +1492,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     // CRITICAL FIX: Sync to database before redirect with retry logic
                     function syncWithRetry(retryCount) {
                         console.log('[Rise 360] Starting database sync... (attempt ' + (retryCount + 1) + ')');
+                        
+                        // BUG FIX: Use FormData instead of raw urlencoded string
+                        const formData = new FormData();
+                        formData.append('attempt_id', '{{ attempt.id|default:attempt_id }}');
+                        
                         fetch('{% url "scorm:sync_on_exit" %}', {
                             method: 'POST',
                             headers: {
-                                'Content-Type': 'application/x-www-form-urlencoded',
                                 'X-CSRFToken': '{{ csrf_token }}'
+                                // Let browser set proper Content-Type with boundary
                             },
-                            body: 'attempt_id={{ attempt.id|default:attempt_id }}'
+                            body: formData
                         })
                         .then(response => {
                             if (!response.ok) {
