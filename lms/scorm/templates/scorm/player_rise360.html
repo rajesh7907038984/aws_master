@@ -190,8 +190,8 @@
         // CRITICAL FIX: Add null safety checks to prevent React-like errors
         if (!API_ENDPOINT || !ATTEMPT_ID) {
             console.error('[Rise 360] Missing required configuration');
-            return;
-        }
+            // Don't use return in global scope - use conditional execution instead
+        } else {
         
         console.log('🎯 Rise 360 Player - Initializing...');
         
@@ -557,185 +557,9 @@
         };
         
         console.log('✅ Rise 360 SCORM API created and ready!');
-        
-        // Progress tracking for Rise 360 with caching to prevent API spam
-        let lastProgressUpdate = 0;
-        let progressCache = {};
-        let cacheTimeout = 3000; // Cache for 3 seconds
-        
-        function updateProgressBar() {
-            try {
-                let progress = 0;
-                let progressSource = 'none';
-                const now = Date.now();
-                
-                // Check cache first to avoid repeated API calls
-                if (progressCache.timestamp && (now - progressCache.timestamp) < cacheTimeout) {
-                    progress = progressCache.value;
-                    progressSource = progressCache.source;
-                    console.log('[Rise 360 Progress] Using cached progress: ' + progress + '%');
-                } else {
-                    // Rise 360 tracks progress via multiple methods - check in priority order
-                    const status = window.API.LMSGetValue('cmi.core.lesson_status');
-                    
-                    // Priority 1: If completed, show 100%
-                    if (status === 'completed' || status === 'passed') {
-                        progress = 100;
-                        progressSource = 'status';
-                        console.log('[Rise 360 Progress] Completed');
-                    } else {
-                        // Priority 2: Check SCORM 2004 progress_measure (Rise 360 uses this)
-                        // This is a decimal value between 0 and 1 representing actual progress
-                        const progressMeasure = window.API.LMSGetValue('cmi.progress_measure');
-                        if (progressMeasure && progressMeasure !== '' && parseFloat(progressMeasure) > 0) {
-                            progress = Math.round(parseFloat(progressMeasure) * 100);
-                            progressSource = 'progress_measure';
-                            console.log('[Rise 360 Progress] From progress_measure: ' + progressMeasure + ' = ' + progress + '%');
-                        }
-                        // Priority 3: Try SCORM 1.2 progress_measure as fallback
-                        else {
-                            const progressMeasure12 = window.API.LMSGetValue('cmi.core.progress_measure');
-                            if (progressMeasure12 && progressMeasure12 !== '' && parseFloat(progressMeasure12) > 0) {
-                                progress = Math.round(parseFloat(progressMeasure12) * 100);
-                                progressSource = 'progress_measure_1.2';
-                                console.log('[Rise 360 Progress] From 1.2 progress_measure: ' + progressMeasure12 + ' = ' + progress + '%');
-                            }
-                            // Priority 4: Check score if available (for assessment-based content)
-                            else {
-                                const scoreRaw = window.API.LMSGetValue('cmi.core.score.raw');
-                                const scoreMax = window.API.LMSGetValue('cmi.core.score.max');
-                                if (scoreRaw && scoreMax && parseFloat(scoreMax) > 0) {
-                                    progress = Math.round((parseFloat(scoreRaw) / parseFloat(scoreMax)) * 100);
-                                    progressSource = 'score';
-                                    console.log('[Rise 360 Progress] From score: ' + scoreRaw + '/' + scoreMax + ' = ' + progress + '%');
-                                }
-                                // Priority 5: Check if started (has bookmark)
-                                else {
-                                    const bookmark = window.API.LMSGetValue('cmi.core.lesson_location');
-                                    if (bookmark && bookmark.length > 0 && status !== 'not_attempted') {
-                                        // Has started but no specific progress data - show minimal progress
-                                        progress = 5;
-                                        progressSource = 'bookmark';
-                                        console.log('[Rise 360 Progress] Started (has bookmark) - showing minimal progress');
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Update cache
-                    progressCache = {
-                        value: progress,
-                        source: progressSource,
-                        timestamp: now
-                    };
-                }
-                
-                // Update UI only if progress changed
-                if (progress !== lastProgressUpdate && progress >= 0 && progress <= 100) {
-                    document.getElementById('progressBarFill').style.width = progress + '%';
-                    document.getElementById('progressText').textContent = progress + '%';
-                    lastProgressUpdate = progress;
-                    console.log('[Rise 360 Progress] Updated to ' + progress + '% (source: ' + progressSource + ')');
-                    
-                    // CRITICAL FIX: Update Rise 360 content's internal progress indicators
-                    updateRise360InternalProgress(progress);
-                }
-            } catch (e) {
-                console.error('[Rise 360 Progress] Error:', e);
-            }
         }
         
-        // CRITICAL FIX: Update Rise 360 content's internal progress indicators
-        function updateRise360InternalProgress(progress) {
-            try {
-                // Get the Rise 360 iframe content
-                const riseFrame = document.getElementById('riseFrame');
-                if (!riseFrame || !riseFrame.contentWindow) {
-                    return;
-                }
-                
-                const iframeDoc = riseFrame.contentDocument || riseFrame.contentWindow.document;
-                if (!iframeDoc) {
-                    return;
-                }
-                
-                // Update Rise 360's internal progress indicators
-                // Look for various progress indicator elements in Rise 360 content
-                const progressSelectors = [
-                    // Common Rise 360 progress indicators
-                    '[data-progress]',
-                    '.progress-indicator',
-                    '.progress-text',
-                    '.completion-percentage',
-                    '.progress-percentage',
-                    // Look for elements containing "COMPLETE" or percentage text
-                    '*:contains("0% COMPLETE")',
-                    '*:contains("COMPLETE")',
-                    '*:contains("%")',
-                    // Specific Rise 360 patterns
-                    '.sidebar-progress',
-                    '.lesson-progress',
-                    '.course-progress',
-                    '.overall-progress'
-                ];
-                
-                progressSelectors.forEach(selector => {
-                    try {
-                        const elements = iframeDoc.querySelectorAll(selector);
-                        elements.forEach(element => {
-                            const text = element.textContent || element.innerText || '';
-                            
-                            // Update percentage displays
-                            if (text.includes('%') || text.includes('COMPLETE')) {
-                                if (text.includes('0% COMPLETE')) {
-                                    element.textContent = text.replace('0% COMPLETE', progress + '% COMPLETE');
-                                } else if (text.includes('COMPLETE')) {
-                                    element.textContent = text.replace(/\d+% COMPLETE/, progress + '% COMPLETE');
-                                } else if (text.includes('%')) {
-                                    element.textContent = text.replace(/\d+%/, progress + '%');
-                                }
-                                
-                                // Update data attributes
-                                if (element.hasAttribute('data-progress')) {
-                                    element.setAttribute('data-progress', progress);
-                                }
-                                
-                                console.log('[Rise 360 Internal] Updated progress element:', element.textContent);
-                            }
-                        });
-                    } catch (e) {
-                        // Silently handle cross-origin or selector errors
-                    }
-                });
-                
-                // Also try to update progress via Rise 360's internal API if available
-                try {
-                    if (riseFrame.contentWindow && riseFrame.contentWindow.updateProgress) {
-                        riseFrame.contentWindow.updateProgress(progress);
-                        console.log('[Rise 360 Internal] Called updateProgress API');
-                    }
-                } catch (e) {
-                    // Silently handle cross-origin restrictions
-                }
-                
-                // Try to dispatch custom events to notify Rise 360 of progress changes
-                try {
-                    const progressEvent = new CustomEvent('scormProgressUpdate', {
-                        detail: { progress: progress }
-                    });
-                    iframeDoc.dispatchEvent(progressEvent);
-                    console.log('[Rise 360 Internal] Dispatched progress event');
-                } catch (e) {
-                    // Silently handle cross-origin restrictions
-                }
-                
-            } catch (e) {
-                console.log('[Rise 360 Internal] Could not update internal progress (cross-origin):', e.message);
-            }
-        }
-        
-        // CRITICAL FIX: Enhance Rise 360 internal exit buttons
+        // CRITICAL FIX: Enhance Rise 360 internal exit buttons - moved before usage
         function enhanceRise360ExitButtons() {
             console.log('[Rise 360] Enhancing internal exit buttons...');
             
@@ -973,6 +797,183 @@
                 }
                 console.log('[Rise 360] Stopped trying to enhance exit buttons');
             }, 24000);
+        }
+        
+        // Progress tracking for Rise 360 with caching to prevent API spam
+        let lastProgressUpdate = 0;
+        let progressCache = {};
+        let cacheTimeout = 3000; // Cache for 3 seconds
+        
+        function updateProgressBar() {
+            try {
+                let progress = 0;
+                let progressSource = 'none';
+                const now = Date.now();
+                
+                // Check cache first to avoid repeated API calls
+                if (progressCache.timestamp && (now - progressCache.timestamp) < cacheTimeout) {
+                    progress = progressCache.value;
+                    progressSource = progressCache.source;
+                    console.log('[Rise 360 Progress] Using cached progress: ' + progress + '%');
+                } else {
+                    // Rise 360 tracks progress via multiple methods - check in priority order
+                    const status = window.API.LMSGetValue('cmi.core.lesson_status');
+                    
+                    // Priority 1: If completed, show 100%
+                    if (status === 'completed' || status === 'passed') {
+                        progress = 100;
+                        progressSource = 'status';
+                        console.log('[Rise 360 Progress] Completed');
+                    } else {
+                        // Priority 2: Check SCORM 2004 progress_measure (Rise 360 uses this)
+                        // This is a decimal value between 0 and 1 representing actual progress
+                        const progressMeasure = window.API.LMSGetValue('cmi.progress_measure');
+                        if (progressMeasure && progressMeasure !== '' && parseFloat(progressMeasure) > 0) {
+                            progress = Math.round(parseFloat(progressMeasure) * 100);
+                            progressSource = 'progress_measure';
+                            console.log('[Rise 360 Progress] From progress_measure: ' + progressMeasure + ' = ' + progress + '%');
+                        }
+                        // Priority 3: Try SCORM 1.2 progress_measure as fallback
+                        else {
+                            const progressMeasure12 = window.API.LMSGetValue('cmi.core.progress_measure');
+                            if (progressMeasure12 && progressMeasure12 !== '' && parseFloat(progressMeasure12) > 0) {
+                                progress = Math.round(parseFloat(progressMeasure12) * 100);
+                                progressSource = 'progress_measure_1.2';
+                                console.log('[Rise 360 Progress] From 1.2 progress_measure: ' + progressMeasure12 + ' = ' + progress + '%');
+                            }
+                            // Priority 4: Check score if available (for assessment-based content)
+                            else {
+                                const scoreRaw = window.API.LMSGetValue('cmi.core.score.raw');
+                                const scoreMax = window.API.LMSGetValue('cmi.core.score.max');
+                                if (scoreRaw && scoreMax && parseFloat(scoreMax) > 0) {
+                                    progress = Math.round((parseFloat(scoreRaw) / parseFloat(scoreMax)) * 100);
+                                    progressSource = 'score';
+                                    console.log('[Rise 360 Progress] From score: ' + scoreRaw + '/' + scoreMax + ' = ' + progress + '%');
+                                }
+                                // Priority 5: Check if started (has bookmark)
+                                else {
+                                    const bookmark = window.API.LMSGetValue('cmi.core.lesson_location');
+                                    if (bookmark && bookmark.length > 0 && status !== 'not_attempted') {
+                                        // Has started but no specific progress data - show minimal progress
+                                        progress = 5;
+                                        progressSource = 'bookmark';
+                                        console.log('[Rise 360 Progress] Started (has bookmark) - showing minimal progress');
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Update cache
+                    progressCache = {
+                        value: progress,
+                        source: progressSource,
+                        timestamp: now
+                    };
+                }
+                
+                // Update UI only if progress changed
+                if (progress !== lastProgressUpdate && progress >= 0 && progress <= 100) {
+                    document.getElementById('progressBarFill').style.width = progress + '%';
+                    document.getElementById('progressText').textContent = progress + '%';
+                    lastProgressUpdate = progress;
+                    console.log('[Rise 360 Progress] Updated to ' + progress + '% (source: ' + progressSource + ')');
+                    
+                    // CRITICAL FIX: Update Rise 360 content's internal progress indicators
+                    updateRise360InternalProgress(progress);
+                }
+            } catch (e) {
+                console.error('[Rise 360 Progress] Error:', e);
+            }
+        }
+        
+        // CRITICAL FIX: Update Rise 360 content's internal progress indicators
+        function updateRise360InternalProgress(progress) {
+            try {
+                // Get the Rise 360 iframe content
+                const riseFrame = document.getElementById('riseFrame');
+                if (!riseFrame || !riseFrame.contentWindow) {
+                    return;
+                }
+                
+                const iframeDoc = riseFrame.contentDocument || riseFrame.contentWindow.document;
+                if (!iframeDoc) {
+                    return;
+                }
+                
+                // Update Rise 360's internal progress indicators
+                // Look for various progress indicator elements in Rise 360 content
+                const progressSelectors = [
+                    // Common Rise 360 progress indicators
+                    '[data-progress]',
+                    '.progress-indicator',
+                    '.progress-text',
+                    '.completion-percentage',
+                    '.progress-percentage',
+                    // Look for elements containing "COMPLETE" or percentage text
+                    '*:contains("0% COMPLETE")',
+                    '*:contains("COMPLETE")',
+                    '*:contains("%")',
+                    // Specific Rise 360 patterns
+                    '.sidebar-progress',
+                    '.lesson-progress',
+                    '.course-progress',
+                    '.overall-progress'
+                ];
+                
+                progressSelectors.forEach(selector => {
+                    try {
+                        const elements = iframeDoc.querySelectorAll(selector);
+                        elements.forEach(element => {
+                            const text = element.textContent || element.innerText || '';
+                            
+                            // Update percentage displays
+                            if (text.includes('%') || text.includes('COMPLETE')) {
+                                if (text.includes('0% COMPLETE')) {
+                                    element.textContent = text.replace('0% COMPLETE', progress + '% COMPLETE');
+                                } else if (text.includes('COMPLETE')) {
+                                    element.textContent = text.replace(/\d+% COMPLETE/, progress + '% COMPLETE');
+                                } else if (text.includes('%')) {
+                                    element.textContent = text.replace(/\d+%/, progress + '%');
+                                }
+                                
+                                // Update data attributes
+                                if (element.hasAttribute('data-progress')) {
+                                    element.setAttribute('data-progress', progress);
+                                }
+                                
+                                console.log('[Rise 360 Internal] Updated progress element:', element.textContent);
+                            }
+                        });
+                    } catch (e) {
+                        // Silently handle cross-origin or selector errors
+                    }
+                });
+                
+                // Also try to update progress via Rise 360's internal API if available
+                try {
+                    if (riseFrame.contentWindow && riseFrame.contentWindow.updateProgress) {
+                        riseFrame.contentWindow.updateProgress(progress);
+                        console.log('[Rise 360 Internal] Called updateProgress API');
+                    }
+                } catch (e) {
+                    // Silently handle cross-origin restrictions
+                }
+                
+                // Try to dispatch custom events to notify Rise 360 of progress changes
+                try {
+                    const progressEvent = new CustomEvent('scormProgressUpdate', {
+                        detail: { progress: progress }
+                    });
+                    iframeDoc.dispatchEvent(progressEvent);
+                    console.log('[Rise 360 Internal] Dispatched progress event');
+                } catch (e) {
+                    // Silently handle cross-origin restrictions
+                }
+                
+            } catch (e) {
+                console.log('[Rise 360 Internal] Could not update internal progress (cross-origin):', e.message);
+            }
         }
         
         // Update progress less frequently to prevent API spam
