@@ -56,6 +56,20 @@ def _detect_scorm_package_type(scorm_package):
                         href = resource.get('href', '').lower()
                         if 'scormcontent' in href and 'lib/' in href:
                             return 'rise360'
+            # CRITICAL FIX: Check if this is actually a Storyline package
+            # Storyline packages can also have scormcontent/index.html but use slide_ format
+            # Check manifest for Storyline indicators
+            if manifest_data:
+                title = str(manifest_data.get('title', '')).lower()
+                if 'storyline' in title or 'articulate' in title:
+                    return 'storyline'
+                # Check for Storyline-specific resources
+                resources = manifest_data.get('resources', [])
+                for resource in resources:
+                    if isinstance(resource, dict):
+                        href = resource.get('href', '').lower()
+                        if 'story.html' in href or 'story_html5.html' in href:
+                            return 'storyline'
             return 'rise360'
         
         # Check for Articulate Storyline
@@ -138,22 +152,10 @@ def fix_scorm_relative_paths(html_content, topic_id):
 @login_required
 def scorm_view(request, topic_id):
     """
-    Main SCORM content viewer
-    Supports both simple and advanced tracking modes
+    SCORM Content Dispatcher
+    Routes to appropriate package-specific view based on package type
     """
     topic = get_object_or_404(Topic, id=topic_id)
-    
-    # Check if user has permission to access this topic's course
-    if not topic.user_has_access(request.user):
-        messages.error(request, "You need to be enrolled in this course to access the SCORM content.")
-        try:
-            from courses.models import CourseTopic
-            course_topic = CourseTopic.objects.filter(topic=topic).first()
-            if course_topic:
-                return redirect('courses:course_view', course_id=course_topic.course.id)
-        except Exception:
-            pass
-        return redirect('courses:course_list')
     
     # Check if topic has SCORM package
     try:
@@ -162,317 +164,44 @@ def scorm_view(request, topic_id):
         messages.error(request, "SCORM package not found for this topic")
         return redirect('courses:topic_view', topic_id=topic_id)
     
-    # Check if SCORM package has extracted content path
-    # Note: For S3 storage, we rely on the extracted_path rather than checking the original zip file
-    # The extracted content is what's actually used for playback
-    if not scorm_package.extracted_path or not scorm_package.launch_url:
-        messages.error(request, "SCORM content configuration is incomplete. Please contact your administrator.")
-        logger.error(f"SCORM package missing extracted_path or launch_url for topic {topic_id}, package {scorm_package.id}")
-        return redirect('courses:topic_view', topic_id=topic_id)
-    
-    # Check for preview mode
-    preview_mode = request.GET.get('preview', '').lower() == 'true'
-    is_instructor_or_admin = request.user.role in ['instructor', 'admin', 'superadmin', 'globaladmin']
-    
-    # Allow preview mode only for instructors/admins
-    if preview_mode and not is_instructor_or_admin:
-        messages.error(request, "Preview mode is only available for instructors and administrators.")
-        preview_mode = False
-    
-    # Handle attempt creation/retrieval
-    attempt = None
-    attempt_id = None
-    
-    if preview_mode:
-        # Preview mode: Create temporary attempt object
-        attempt_id = f"preview_{uuid.uuid4()}"
-        attempt = type('PreviewAttempt', (), {
-            'id': attempt_id,
-            'user': request.user,
-            'scorm_package': scorm_package,
-            'attempt_number': 1,
-            'lesson_status': 'not_attempted',
-            'completion_status': 'incomplete',
-            'success_status': 'unknown',
-            'score_raw': None,
-            'score_max': 100,
-            'score_min': 0,
-            'score_scaled': None,
-            'total_time': '0000:00:00.00',
-            'session_time': '0000:00:00.00',
-            'lesson_location': '',
-            'suspend_data': '',
-            'entry': 'ab-initio',
-            'exit_mode': '',
-            'cmi_data': {},
-            'started_at': timezone.now(),
-            'last_accessed': timezone.now(),
-            'completed_at': None,
-            'is_preview': True,
-        })()
-        
-        # Store preview attempt in session for API access
-        request.session[f'scorm_preview_{attempt_id}'] = {
-            'id': attempt_id,
-            'user_id': request.user.id,
-            'scorm_package_id': scorm_package.id,
-            'is_preview': True,
-            'created_at': timezone.now().isoformat(),
-        }
-        
-        logger.info(f"Created preview attempt {attempt_id} for user {request.user.username} on topic {topic_id}")
-    else:
-        # Normal mode: Get or create actual database attempt for user tracking
-        # FIXED: Use transaction and select_for_update to prevent race conditions
-        from django.db import transaction
-        
-        with transaction.atomic():
-            # Lock the rows to prevent concurrent creation
-            last_attempt = ScormAttempt.objects.select_for_update().filter(
-                user=request.user,
-                scorm_package=scorm_package
-            ).order_by('-attempt_number').first()
-            
-            if last_attempt:
-                # CRITICAL FIX: Always resume existing attempt to preserve progress and location
-                # This ensures learners can always return to their last saved location
-                # even after completing the course
-                attempt = last_attempt
-                logger.info(f" SCORM Resume: Continuing existing attempt {attempt.attempt_number} for user {request.user.username}")
-            else:
-                # Create first attempt only if no previous attempt exists
-                attempt = ScormAttempt.objects.create(
-                    user=request.user,
-                    scorm_package=scorm_package,
-                    attempt_number=1
-                )
-                logger.info(f" SCORM: Created new attempt {attempt.attempt_number} for user {request.user.username}")
-        
-        attempt_id = attempt.id
-        attempt.is_preview = False  # Mark as real attempt
-        
-        # CRITICAL FIX: Refresh attempt data from database to get latest bookmark/suspend data
-        attempt.refresh_from_db()
-        
-        # CRITICAL FIX: Set entry mode to 'resume' if there's existing progress/bookmark data
-        # This needs to happen BEFORE checking resume_needed
-        has_bookmark = bool(attempt.lesson_location and len(attempt.lesson_location) > 0)
-        has_suspend_data = bool(attempt.suspend_data and len(attempt.suspend_data) > 0)
-        has_progress = attempt.lesson_status not in ['not_attempted', 'not attempted']
-        
-        if has_bookmark or has_suspend_data or has_progress:
-            attempt.entry = 'resume'
-            logger.info(f" SCORM: Setting entry='resume' (bookmark={has_bookmark}, suspend_data={has_suspend_data}, progress={has_progress})")
-        else:
-            attempt.entry = 'ab-initio'
-            logger.info(f" SCORM: Setting entry='ab-initio' (fresh start)")
-    
-    # CRITICAL FIX: Detect package type BEFORE generating URL
-    # Different package types need different URL structures
+    # Detect package type with improved logic
     package_type = _detect_scorm_package_type(scorm_package)
-    logger.info(f" SCORM: Detected package type: {package_type}")
     
-    # Generate content URL using Django proxy (for iframe compatibility)
-    # Include attempt_id in the URL for API access
-    content_url = f'/scorm/content/{topic_id}/{scorm_package.launch_url}?attempt_id={attempt_id}'
+    # CRITICAL FIX: If we have an existing attempt, use lesson_location to refine package type detection
+    try:
+        last_attempt = ScormAttempt.objects.filter(
+            user=request.user,
+            scorm_package=scorm_package
+        ).order_by('-attempt_number').first()
+        
+        if last_attempt and last_attempt.lesson_location:
+            if last_attempt.lesson_location.startswith('slide_'):
+                # This is definitely a Storyline package (uses slide_ format)
+                package_type = 'storyline'
+                logger.info(f"SCORM: Refined package type to 'storyline' based on lesson_location: {last_attempt.lesson_location}")
+            elif 'lessons/' in last_attempt.lesson_location:
+                # This is definitely a Rise 360 package (uses lessons/ format)
+                package_type = 'rise360'
+                logger.info(f"SCORM: Refined package type to 'rise360' based on lesson_location: {last_attempt.lesson_location}")
+    except Exception as e:
+        logger.warning(f"SCORM: Could not refine package type: {e}")
     
-    # Check if resume is needed
-    resume_needed = attempt.entry == 'resume' or (attempt.lesson_status != 'not_attempted' and attempt.lesson_status != 'not attempted')
+    logger.info(f"SCORM: Final detected package type: {package_type}")
     
-    # CRITICAL FIX: Handle Rise 360 and Storyline packages differently
+    # Route to appropriate package-specific view
     if package_type == 'rise360':
-        # RISE 360 HANDLING: Only use hash fragment for navigation
-        # Rise 360 does NOT use query parameters for resume
-        hash_fragment = None
-        bookmark_applied = False
-        
-        # Case 1: Rise 360 format with lessons/ in lesson_location
-        if attempt.lesson_location and 'lessons/' in attempt.lesson_location:
-            # Extract lesson ID from lesson_location if it contains the lessons pattern
-            lesson_id = attempt.lesson_location.split('lessons/')[-1] if 'lessons/' in attempt.lesson_location else ''
-            # Validate that lesson_id is not empty and not just '/' or '#/'
-            lesson_id = lesson_id.strip('/#').strip()
-            if lesson_id and len(lesson_id) > 3:  # Must be a real lesson ID, not just empty or '/'
-                hash_fragment = f'#/lessons/{lesson_id}'
-                logger.info(f" SCORM (Rise 360): Set lesson hash fragment from lesson_location: #/lessons/{lesson_id}")
-                bookmark_applied = True
-            else:
-                logger.warning(f" SCORM (Rise 360): Invalid lesson_id extracted: '{lesson_id}' from '{attempt.lesson_location}'")
-        
-        # Case 2: FALLBACK - Check suspend_data for bookmark (Rise 360 sometimes saves here)
-        if not bookmark_applied and attempt.suspend_data and 'lessons/' in attempt.suspend_data:
-            # Extract lesson ID from suspend_data if it contains the lessons pattern
-            import re
-            # Look for patterns like #/lessons/XXXXX or lessons/XXXXX
-            lesson_pattern = r'#?/?lessons/([a-zA-Z0-9_-]+)'
-            match = re.search(lesson_pattern, attempt.suspend_data)
-            if match:
-                lesson_id = match.group(1).strip()
-                if lesson_id and len(lesson_id) > 3:
-                    hash_fragment = f'#/lessons/{lesson_id}'
-                    logger.info(f" SCORM (Rise 360): Set lesson hash fragment from suspend_data: #/lessons/{lesson_id}")
-                    bookmark_applied = True
-        
-        # Case 3: No specific lesson, start from beginning
-        if not bookmark_applied:
-            # Rise 360 will handle navigation on its own
-            logger.info(f" SCORM (Rise 360): No lesson bookmark found, starting from beginning")
-        
-        # Add hash fragment if we have one
-        if hash_fragment:
-            content_url += hash_fragment
-            logger.info(f" SCORM (Rise 360): Final URL with bookmark: {content_url}")
-        else:
-            logger.info(f" SCORM (Rise 360): Final URL (no hash): {content_url}")
-        
-        # CRITICAL FIX: For returning learners with existing progress, redirect directly to content URL
-        # This ensures they go to the correct lesson instead of the player template
-        if resume_needed and (bookmark_applied or attempt.lesson_status not in ['not_attempted', 'not attempted']):
-            logger.info(f" SCORM (Rise 360): Returning learner with progress - redirecting to content URL")
-            return redirect(content_url)
-    
+        from .views_rise360 import scorm_view_rise360
+        return scorm_view_rise360(request, topic_id)
+    elif package_type == 'storyline':
+        from .views_storyline import scorm_view_storyline
+        return scorm_view_storyline(request, topic_id)
+    elif package_type == 'captivate':
+        from .views_captivate import scorm_view_captivate
+        return scorm_view_captivate(request, topic_id)
     else:
-        # STORYLINE/CAPTIVATE/GENERIC HANDLING: Use query parameters for resume
-        # Add resume parameters BEFORE hash fragment (correct URL structure)
-        if resume_needed:
-            content_url += '&resume=true'
-            if attempt.lesson_location:
-                content_url += f'&location={attempt.lesson_location}'
-            if attempt.suspend_data:
-                content_url += f'&suspend_data={attempt.suspend_data[:100]}'  # First 100 chars
-            logger.info(f" SCORM ({package_type}): Added resume parameters to content URL")
-        
-        # Handle bookmark/hash fragments for non-Rise packages
-        hash_fragment = None
-        bookmark_applied = False
-        
-        # Case 1: Regular bookmark with or without hash
-        if attempt.lesson_location:
-            # Handle lesson locations (avoid double hash)
-            if attempt.lesson_location.startswith('#'):
-                hash_fragment = attempt.lesson_location  # Already has hash
-            else:
-                hash_fragment = f'#{attempt.lesson_location}'  # Add hash
-            logger.info(f" SCORM ({package_type}): Set location hash fragment: {hash_fragment}")
-            bookmark_applied = True
-        
-        # Case 2: Extract bookmark from suspend_data if no direct bookmark exists
-        elif attempt.suspend_data and resume_needed:
-            # Try to extract location from suspend_data
-            import re
-            
-            # Common patterns for bookmarks in suspend_data
-            bookmark_patterns = [
-                r'current_slide[=:]([^&]+)',        # current_slide=slide3
-                r'current_location[=:]([^&]+)',      # current_location=slide3
-                r'bookmark[=:]([^&]+)',              # bookmark=slide3
-                r'\"bookmark\"[=:]\"([^\"]+)\"',     # "bookmark":"slide3"
-                r'\"slide\"[=:]\"([^\"]+)\"',        # "slide":"slide3"
-                r'\"location\"[=:]\"([^\"]+)\"',     # "location":"slide3"
-                r'currentSlide[=:]([^&]+)',          # currentSlide=slide3
-                r'slideId[=:]([^&]+)'                # slideId=slide3
-            ]
-            
-            # Try all patterns
-            for pattern in bookmark_patterns:
-                match = re.search(pattern, attempt.suspend_data)
-                if match:
-                    extracted_location = match.group(1).strip()
-                    if extracted_location:
-                        # Set location in attempt
-                        attempt.lesson_location = extracted_location
-                        hash_fragment = f'#{extracted_location}'
-                        attempt.save()
-                        logger.info(f" SCORM ({package_type}): Extracted bookmark '{extracted_location}' from suspend_data")
-                        bookmark_applied = True
-                        break
-            
-            # If no pattern matched but we know we need to resume
-            if not bookmark_applied:
-                # Use a generic slide ID based on progress percentage
-                progress = attempt.progress_percentage or 0
-                if progress > 75:
-                    default_slide = "slide_75"  # Near the end
-                elif progress > 50:
-                    default_slide = "slide_50"  # Middle
-                elif progress > 25:
-                    default_slide = "slide_25"  # Quarter way
-                else:
-                    default_slide = "slide_1"   # Beginning
-                    
-                attempt.lesson_location = default_slide
-                hash_fragment = f'#{default_slide}'
-                attempt.save()
-                logger.info(f" SCORM ({package_type}): Created default location '{default_slide}' based on progress {progress}%")
-                bookmark_applied = True
-                
-        # Case 3: Always ensure resume works
-        if resume_needed and not bookmark_applied:
-            # Final fallback - use slide_1 as a safe default
-            attempt.lesson_location = 'slide_1'
-            hash_fragment = '#slide_1'
-            attempt.save()
-            logger.info(f" SCORM ({package_type}): Created failsafe default location 'slide_1'")
-        
-        # Add hash fragment ONLY ONCE at the end
-        if hash_fragment:
-            content_url += hash_fragment
-            logger.info(f" SCORM ({package_type}): Final content URL with hash: {content_url}")
-        
-        # CRITICAL FIX: For returning learners with existing progress, redirect directly to content URL
-        # This ensures they go to the correct lesson instead of the player template
-        if resume_needed and (bookmark_applied or attempt.lesson_status not in ['not_attempted', 'not attempted']):
-            logger.info(f" SCORM ({package_type}): Returning learner with progress - redirecting to content URL")
-            return redirect(content_url)
-    
-    context = {
-        'topic': topic,
-        'scorm_package': scorm_package,
-        'attempt': attempt,
-        'attempt_id': attempt_id,
-        'content_url': content_url,
-        'api_endpoint': f'/scorm/api/{attempt_id}/',
-        'preview_mode': preview_mode,
-        'is_instructor_or_admin': is_instructor_or_admin,
-    }
-    
-    # ARCHITECTURAL IMPROVEMENT: Use appropriate player template based on detected package type
-    # This simplifies maintenance - each player handles ONE type of SCORM package
-    # Note: package_type was already detected earlier for URL generation
-    template_map = {
-        'rise360': 'scorm/player_rise360.html',
-        'storyline': 'scorm/player_storyline.html',
-        'captivate': 'scorm/player_captivate.html',
-        'generic': 'scorm/player_generic.html',
-    }
-    
-    # Use generic player as fallback for unknown types
-    template_name = template_map.get(package_type, 'scorm/player_generic.html')
-    logger.info(f"Using {template_name} for package type: {package_type}")
-    
-    response = render(request, template_name, context)
-    
-    # Set permissive CSP headers for SCORM content
-    # CRITICAL: SCORM content often uses eval() and dynamic code execution
-    response['Content-Security-Policy'] = (
-        "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'unsafe-hashes' https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
-        "worker-src 'self' blob: data: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
-        "style-src 'self' 'unsafe-inline' https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
-        "img-src 'self' data: blob: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
-        "font-src 'self' data: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
-        "connect-src 'self' https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
-        "media-src 'self' data: blob: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
-        "frame-src 'self' https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
-        "object-src 'none'; "
-        "base-uri 'self'; "
-        "form-action 'self'"
-    )
-    
-    response['X-Frame-Options'] = 'SAMEORIGIN'
-    response['Access-Control-Allow-Origin'] = '*'
-    
-    return response
+        # Default to generic SCORM handler
+        from .views_generic import scorm_view_generic
+        return scorm_view_generic(request, topic_id)
 
 
 @csrf_exempt
