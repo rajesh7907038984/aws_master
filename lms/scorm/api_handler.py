@@ -1481,7 +1481,7 @@ class ScormAPIHandler:
     def _handle_detailed_tracking(self, element, value):
         """
         Handle detailed SCORM tracking for interactions, objectives, and comments
-        Store these in dedicated models for comprehensive reporting
+        ENHANCED: Now uses comprehensive tracking system with database storage
         """
         import re
         
@@ -1505,6 +1505,8 @@ class ScormAPIHandler:
                 if 'id' in self.attempt._temp_interactions[interaction_index]:
                     self._save_interaction(interaction_index, self.attempt._temp_interactions[interaction_index])
                 
+                # ENHANCED: Also track in comprehensive tracking system
+                self._track_interaction_event(element, value)
                 return
             
             # Handle objectives (e.g., cmi.objectives.0.id, cmi.objectives.0.status)
@@ -1526,19 +1528,27 @@ class ScormAPIHandler:
                 if 'id' in self.attempt._temp_objectives[objective_index]:
                     self._save_objective(objective_index, self.attempt._temp_objectives[objective_index])
                 
+                # ENHANCED: Also track in comprehensive tracking system
+                self._track_objective_event(element, value)
                 return
             
             # Handle comments (SCORM 1.2: cmi.comments, SCORM 2004: cmi.comments_from_learner.n.comment)
             if element == 'cmi.comments' and value:
                 # SCORM 1.2 simple comments
                 self._save_comment('learner', value)
+                # ENHANCED: Also track in comprehensive tracking system
+                self._track_comment_event(element, value)
             elif element == 'cmi.comments_from_lms' and value:
                 self._save_comment('lms', value)
+                # ENHANCED: Also track in comprehensive tracking system
+                self._track_comment_event(element, value)
             
             comment_match = re.match(r'cmi\.comments_from_learner\.(\d+)\.comment', element)
             if comment_match and value:
                 # SCORM 2004 comments
                 self._save_comment('learner', value)
+                # ENHANCED: Also track in comprehensive tracking system
+                self._track_comment_event(element, value)
                 
         except Exception as e:
             logger.error(f"Error handling detailed tracking for {element}: {str(e)}")
