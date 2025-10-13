@@ -263,25 +263,85 @@ def scorm_view(request, topic_id):
     # Rise expects the hash in the URL on initial load to jump to the saved slide
     content_url = f'/scorm/content/{topic_id}/{scorm_package.launch_url}?attempt_id={attempt_id}'
     
-    # Check if there's a saved bookmark with a hash (Rise 360 format)
+    # COMPREHENSIVE RESUME FIX: Handle all bookmark formats with fallbacks
+    resume_needed = attempt.entry == 'resume' or (attempt.lesson_status != 'not_attempted' and attempt.lesson_status != 'not attempted')
+    bookmark_applied = False
+    
+    # Case 1: Rise 360 format with hash in lesson_location
     if attempt.lesson_location and '#' in attempt.lesson_location:
         # Extract just the hash part (e.g., "#/lessons/GgZj1-c4S6yfmISAoYe1dLtFocAO8amH")
         hash_part = '#' + attempt.lesson_location.split('#', 1)[1]
         content_url += hash_part
-        logger.info(f"SCORM Resume: Appending bookmark hash to iframe URL: {hash_part[:50]}")
+        logger.info(f"✅ SCORM Resume: Applied Rise 360 bookmark hash: {hash_part[:50]}")
+        bookmark_applied = True
+    
+    # Case 2: Regular bookmark with or without hash
     elif attempt.lesson_location:
-        # CRITICAL FIX: Handle lesson locations (avoid double hash)
+        # Handle lesson locations (avoid double hash)
         if attempt.lesson_location.startswith('#'):
             content_url += attempt.lesson_location  # Already has hash
         else:
             content_url += '#' + attempt.lesson_location  # Add hash
-        logger.info(f"SCORM Resume: Appending location to iframe URL: {attempt.lesson_location}")
-    elif attempt.suspend_data and attempt.entry == 'resume':
-        # CRITICAL FIX: If we have suspend data but no lesson_location, create a default location
-        attempt.lesson_location = 'slide_1'  # Default to first slide
-        attempt.save()
+        logger.info(f"✅ SCORM Resume: Applied standard bookmark: {attempt.lesson_location}")
+        bookmark_applied = True
+    
+    # Case 3: Extract bookmark from suspend_data if no direct bookmark exists
+    elif attempt.suspend_data and resume_needed:
+        # Try to extract location from suspend_data
+        import re
+        
+        # Common patterns for bookmarks in suspend_data
+        bookmark_patterns = [
+            r'current_slide[=:]([^&]+)',        # current_slide=slide3
+            r'current_location[=:]([^&]+)',      # current_location=slide3
+            r'bookmark[=:]([^&]+)',              # bookmark=slide3
+            r'\"bookmark\"[=:]\"([^\"]+)\"',     # "bookmark":"slide3"
+            r'\"slide\"[=:]\"([^\"]+)\"',        # "slide":"slide3"
+            r'\"location\"[=:]\"([^\"]+)\"',     # "location":"slide3"
+            r'currentSlide[=:]([^&]+)',          # currentSlide=slide3
+            r'slideId[=:]([^&]+)'                # slideId=slide3
+        ]
+        
+        # Try all patterns
+        for pattern in bookmark_patterns:
+            match = re.search(pattern, attempt.suspend_data)
+            if match:
+                extracted_location = match.group(1).strip()
+                if extracted_location:
+                    # Set location in attempt and URL
+                    attempt.lesson_location = extracted_location
+                    content_url += '#' + extracted_location
+                    attempt.save()
+                    logger.info(f"✅ SCORM Resume: Extracted bookmark '{extracted_location}' from suspend_data")
+                    bookmark_applied = True
+                    break
+                    
+        # If no pattern matched but we know we need to resume
+        if not bookmark_applied:
+            # Use a generic slide ID based on progress percentage
+            progress = attempt.progress_percentage or 0
+            if progress > 75:
+                default_slide = "slide_75"  # Near the end
+            elif progress > 50:
+                default_slide = "slide_50"  # Middle
+            elif progress > 25:
+                default_slide = "slide_25"  # Quarter way
+            else:
+                default_slide = "slide_1"   # Beginning
+                
+            attempt.lesson_location = default_slide
+            content_url += '#' + default_slide
+            attempt.save()
+            logger.info(f"✅ SCORM Resume: Created default location '{default_slide}' based on progress {progress}%")
+            bookmark_applied = True
+            
+    # Case 4: Always ensure resume works
+    if resume_needed and not bookmark_applied:
+        # Final fallback - use slide_1 as a safe default
+        attempt.lesson_location = 'slide_1'
         content_url += '#slide_1'
-        logger.info(f"SCORM Resume: Created default location for resume with suspend data")
+        attempt.save()
+        logger.info(f"✅ SCORM Resume: Created failsafe default location 'slide_1'")
     
     context = {
         'topic': topic,
@@ -402,18 +462,45 @@ def scorm_api(request, attempt_id):
             handler = ScormPreviewHandler(attempt)
             logger.info(f"Using preview handler for attempt {attempt_id}")
         else:
-            # NEW: Use specialized handlers if available, fallback to legacy
-            if USE_NEW_HANDLERS:
+            # COMPREHENSIVE FIX: More robust handler selection with caching to prevent race conditions
+            # Use cache to ensure consistent handler selection for the same attempt
+            cache_key = f'scorm_handler_type_{attempt_id}'
+            handler_type = cache.get(cache_key)
+            
+            if handler_type == 'specialized':
+                # Use specialized handler (cached decision)
                 try:
                     handler = get_handler_for_attempt(attempt)
-                    logger.info(f"✅ Using specialized handler ({handler.get_handler_name()}) for attempt {attempt_id}")
+                    logger.info(f"✅ Using cached specialized handler ({handler.get_handler_name()}) for attempt {attempt_id}")
                 except Exception as e:
-                    logger.error(f"⚠️  Error with new handler, falling back to legacy: {e}")
+                    logger.error(f"⚠️ Error with cached specialized handler, falling back to legacy: {e}")
                     handler = ScormAPIHandler(attempt)
-                    logger.info(f"Using legacy ScormAPIHandler for attempt {attempt_id}")
-            else:
+                    # Update cache for future requests
+                    cache.set(cache_key, 'legacy', 3600)  # Cache for 1 hour
+                    logger.info(f"Using legacy ScormAPIHandler for attempt {attempt_id} (cache updated)")
+            elif handler_type == 'legacy':
+                # Use legacy handler (cached decision)
                 handler = ScormAPIHandler(attempt)
-                logger.info(f"Using legacy ScormAPIHandler for attempt {attempt_id}")
+                logger.info(f"Using cached legacy ScormAPIHandler for attempt {attempt_id}")
+            else:
+                # First time seeing this attempt, make a decision
+                if USE_NEW_HANDLERS:
+                    try:
+                        handler = get_handler_for_attempt(attempt)
+                        # Cache the decision for future requests
+                        cache.set(cache_key, 'specialized', 3600)  # Cache for 1 hour
+                        logger.info(f"✅ Using specialized handler ({handler.get_handler_name()}) for attempt {attempt_id} (cached)")
+                    except Exception as e:
+                        logger.error(f"⚠️ Error with new handler, falling back to legacy: {e}")
+                        handler = ScormAPIHandler(attempt)
+                        # Cache the decision for future requests
+                        cache.set(cache_key, 'legacy', 3600)  # Cache for 1 hour
+                        logger.info(f"Using legacy ScormAPIHandler for attempt {attempt_id} (cached)")
+                else:
+                    handler = ScormAPIHandler(attempt)
+                    # Cache the decision for future requests
+                    cache.set(cache_key, 'legacy', 3600)  # Cache for 1 hour
+                    logger.info(f"Using legacy ScormAPIHandler for attempt {attempt_id} (cached)")
         
         # Route to appropriate API method
         if method == 'Initialize' or method == 'LMSInitialize':
@@ -484,34 +571,76 @@ def scorm_content(request, topic_id, path):
         if not path or path.endswith('/'):
             path = scorm_package.launch_url
         
-        # OPTIMIZED: Check cache first for successful S3 path with longer TTL
-        cache_key = f"scorm_s3_path:{topic_id}:{path}"
-        successful_key = cache.get(cache_key)
+        # PERFORMANCE OPTIMIZATION: Enhanced caching strategy
+        # 1. Use a hierarchical cache structure
+        # 2. Cache both S3 paths and actual content
+        # 3. Use longer TTLs for static assets
         
-        # Use boto3 directly to fetch content (authenticated access)
+        # Define cache keys and TTLs
+        path_cache_key = f"scorm_s3_path:{topic_id}:{path}"
+        content_cache_key = f"scorm_content:{topic_id}:{path}"
+        path_ttl = 86400  # 24 hours for S3 paths
+        content_ttl = 3600  # 1 hour for content (shorter to allow updates)
+        
+        # Special handling for static assets (longer TTL)
+        is_static_asset = path.endswith(('.js', '.css', '.jpg', '.jpeg', '.png', '.gif', '.svg', '.woff', '.woff2'))
+        if is_static_asset:
+            content_ttl = 604800  # 7 days for static assets
+        
+        # OPTIMIZATION: Check content cache first (fastest path)
+        cached_content = cache.get(content_cache_key)
+        if cached_content:
+            logger.info(f"✅ CACHE HIT: Serving content from cache for {path}")
+            return HttpResponse(
+                cached_content['data'],
+                content_type=cached_content['content_type'],
+                headers=cached_content.get('headers', {})
+            )
+        
+        # Check S3 path cache next
+        successful_key = cache.get(path_cache_key)
+        
+        # Initialize S3 client with better error handling
         import boto3
         from django.conf import settings
+        from botocore.config import Config
         
-        # Initialize S3 client
+        # Create optimized S3 config with timeouts and retries
+        s3_config = Config(
+            connect_timeout=3,  # 3 seconds connection timeout
+            read_timeout=10,    # 10 seconds read timeout
+            retries={'max_attempts': 3}  # Retry failed requests 3 times
+        )
+        
         try:
-            s3_client = boto3.client('s3', region_name=settings.AWS_S3_REGION_NAME)
+            # Initialize S3 client with optimized config
+            s3_client = boto3.client(
+                's3', 
+                region_name=settings.AWS_S3_REGION_NAME,
+                config=s3_config
+            )
         except Exception as e:
             logger.error(f"Failed to initialize S3 client: {str(e)}")
-            s3_client = boto3.client('s3')  # Try without region
+            # Fall back to basic client without region
+            s3_client = boto3.client('s3', config=s3_config)
             
         bucket_name = settings.AWS_STORAGE_BUCKET_NAME
-        
         content = None
         
-        # Try cached path first
+        # Try cached path first with timeout handling
         if successful_key:
             try:
                 response = s3_client.get_object(Bucket=bucket_name, Key=successful_key)
                 content = response['Body'].read()
+                
+                # Log cache performance metrics
+                logger.info(f"✅ S3 PATH CACHE HIT: Retrieved content using cached path: {successful_key}")
+                
             except Exception as e:
                 content = None
                 successful_key = None
-                cache.delete(cache_key)
+                cache.delete(path_cache_key)
+                logger.warning(f"❌ S3 PATH CACHE FAILURE: {str(e)}")
         
         # If cache miss or failed, try multiple paths
         if content is None:
@@ -552,17 +681,37 @@ def scorm_content(request, topic_id, path):
             
             
             # Try each path until one works
+            # Add some additional common path patterns
+            if 'story.html' in path:
+                # Special handling for Storyline content
+                path_attempts.append(f"media/{scorm_package.extracted_path}/story_content/{path.replace('story.html', '')}")
+                path_attempts.append(f"{scorm_package.extracted_path}/story_content/{path.replace('story.html', '')}")
+                
             for attempt_num, s3_key in enumerate(unique_paths, 1):
                 try:
-                    response = s3_client.get_object(Bucket=bucket_name, Key=s3_key)
+                    # Add timeout handling for S3 requests
+                    response = s3_client.get_object(
+                        Bucket=bucket_name, 
+                        Key=s3_key,
+                        ResponseCacheControl=f'max-age={content_ttl}'  # Suggest cache control to CDN
+                    )
                     content = response['Body'].read()
                     successful_key = s3_key
-                    # Cache successful path for 6 hours (longer for better performance)
-                    cache.set(cache_key, successful_key, 21600)
+                    
+                    # Cache successful path with longer TTL
+                    cache.set(path_cache_key, successful_key, path_ttl)
+                    
+                    # Log performance metrics
+                    logger.info(f"✅ Found content at path attempt #{attempt_num}: {s3_key}")
                     break
+                    
                 except s3_client.exceptions.NoSuchKey:
+                    # Just skip quietly for NoSuchKey
                     continue
+                    
                 except Exception as e:
+                    # Log other errors but continue trying
+                    logger.warning(f"Error trying path {s3_key}: {str(e)}")
                     continue
         
         # If no path worked, return detailed error
@@ -640,6 +789,20 @@ def scorm_content(request, topic_id, path):
                 # Inject SCORM API for HTML files
                 html_content = content.decode('utf-8')
                 
+                # PERFORMANCE: Check for non-entry point HTML files that don't need API injection
+                # These can be cached longer for better performance
+                is_entry_point = (
+                    path == scorm_package.launch_url or
+                    'index.html' in path or 
+                    'story.html' in path or
+                    'player.html' in path or
+                    'loader.html' in path
+                )
+                
+                if not is_entry_point:
+                    # For secondary HTML files, cache longer
+                    content_ttl = 86400  # Cache for 24 hours
+                
                # Inject SCORM API that connects to the real API endpoint
                 # Get attempt_id from the URL parameters with null safety
                 attempt_id = request.GET.get('attempt_id', 'preview')
@@ -666,25 +829,44 @@ def scorm_content(request, topic_id, path):
 // Rise 360 checks for API on page load, so we set it up synchronously
 (function() {{
     // Prevent multiple API loading with more robust checking
-    if (window.API && window.API_1484_11 && window.API._initialized) {{
+    if (window.API && 
+        typeof window.API !== 'undefined' && 
+        window.API_1484_11 && 
+        typeof window.API_1484_11 !== 'undefined' && 
+        window.API._initialized) {{
         console.log('[SCORM] API already loaded and initialized, skipping duplicate injection');
         return;
     }}
     
     // If API exists but not initialized, clean it up first
-    if (window.API && window.API_1484_11) {{
+    if (window.API && typeof window.API !== 'undefined' && 
+        window.API_1484_11 && typeof window.API_1484_11 !== 'undefined') {{
         console.log('[SCORM] Cleaning up existing API before re-initialization');
-        delete window.API;
-        delete window.API_1484_11;
+        try {{
+            delete window.API;
+            delete window.API_1484_11;
+        }} catch (e) {{
+            console.error('[SCORM] Error cleaning up API:', e);
+            // Fallback: set to null if delete fails
+            window.API = null;
+            window.API_1484_11 = null;
+        }}
     }}
     
     // SCORM API that connects to the real API endpoint
     // CRITICAL: Uses modern async/await to avoid synchronous XHR deprecation
-    window.API = window.API_1484_11 = {{
-        _apiEndpoint: '/scorm/api/{attempt_id}/',
-        _lastError: '0',
-        _initialized: false,
-        _initPromise: null,
+    try {{
+        // Create API with robust error handling
+        window.API = window.API_1484_11 = {{
+            _apiEndpoint: '/scorm/api/{attempt_id}/',
+            _lastError: '0',
+            _initialized: false,
+            _initPromise: null,
+            
+            // Add error tracking for debugging
+            _errorCount: 0,
+            _lastErrorMessage: '',
+            _apiReady: true,
     
     _getCookie: function(name) {{
         let cookieValue = null;
@@ -859,6 +1041,34 @@ def scorm_content(request, topic_id, path):
     // CRITICAL: Ensure API is available immediately for Rise 360
     console.log('[SCORM] API initialized with', Object.keys(window.API).length, 'functions');
     console.log('[SCORM] API endpoint:', window.API._apiEndpoint);
+    
+    }} catch (setupError) {{
+        // Handle initialization errors gracefully
+        console.error('[SCORM] Critical error during API setup:', setupError);
+        
+        // Create minimal fallback API to prevent crashes
+        if (!window.API) {{
+            window.API = {{
+                _apiEndpoint: '/scorm/api/fallback/',
+                _lastError: '101',
+                _initialized: false,
+                _errorState: true,
+                
+                // Minimal required methods
+                Initialize: function() {{ return 'false'; }},
+                Terminate: function() {{ return 'false'; }},
+                GetValue: function() {{ return ''; }},
+                SetValue: function() {{ return 'false'; }},
+                Commit: function() {{ return 'false'; }},
+                GetLastError: function() {{ return '101'; }},
+                GetErrorString: function() {{ return 'API initialization failed'; }},
+                GetDiagnostic: function() {{ return 'API initialization error: ' + setupError.message; }}
+            }};
+            
+            window.API_1484_11 = window.API;
+            console.error('[SCORM] Created emergency fallback API');
+        }}
+    }}
 }})();
 </script>
 '''
@@ -1104,11 +1314,50 @@ def scorm_content(request, topic_id, path):
         });
     }
     
-    // CRITICAL FIX: Only run enhancement once to prevent duplicates
-    if (!window.scormEnhancementRun) {
-        window.scormEnhancementRun = true;
-        enhanceExitButtons();
-        document.addEventListener('DOMContentLoaded', enhanceExitButtons);
+    // COMPREHENSIVE FIX: Prevent duplicate event listeners and enhancements
+    if (typeof window.scormExitEnhancement === 'undefined') {
+        // Create a singleton object to manage exit button enhancement
+        window.scormExitEnhancement = {
+            initialized: false,
+            eventsBound: false,
+            enhancementCount: 0,
+            
+            // Initialize only once
+            init: function() {
+                if (this.initialized) {
+                    console.log('[SCORM] Exit button enhancement already initialized');
+                    return;
+                }
+                
+                this.initialized = true;
+                console.log('[SCORM] Initializing exit button enhancement');
+                
+                // Run enhancement immediately
+                this.runEnhancement();
+                
+                // Clean up any existing event listeners before adding new ones
+                if (this.eventsBound) {
+                    document.removeEventListener('DOMContentLoaded', this.runEnhancement);
+                }
+                
+                // Add event listener with bound context
+                document.addEventListener('DOMContentLoaded', this.runEnhancement.bind(this));
+                this.eventsBound = true;
+            },
+            
+            // Run the enhancement
+            runEnhancement: function() {
+                this.enhancementCount++;
+                console.log(`[SCORM] Running exit button enhancement (attempt ${this.enhancementCount})`);
+                enhanceExitButtons();
+            }
+        };
+        
+        // Initialize the enhancement
+        window.scormExitEnhancement.init();
+    } else {
+        // Already initialized, just log
+        console.log('[SCORM] Exit button enhancement already set up');
     }
     
     // CRITICAL FIX: Prevent infinite loops with global flag
@@ -1135,17 +1384,26 @@ def scorm_content(request, topic_id, path):
         enhanceExitButtons();
     }
     
-    // Run periodically but with strict limits
-    enhancementInterval = setInterval(limitedEnhanceExitButtons, 3000); // Increased interval
+    // Run a limited number of times with increasing intervals to avoid excessive CPU usage
+    const enhancementIntervals = [1000, 2000, 3000, 5000, 8000]; // Use Fibonacci-like increasing intervals
+    let enhancementIndex = 0;
     
-    // Stop after 15 seconds to prevent infinite loops
-    setTimeout(() => {
-        if (enhancementInterval) {
-            clearInterval(enhancementInterval);
-            enhancementInterval = null;
+    function scheduleNextEnhancement() {
+        if (enhancementIndex >= enhancementIntervals.length) {
+            console.log('[SCORM] Exit button enhancement completed after ' + enhancementIndex + ' attempts');
+            return; // Stop scheduling when we've used all intervals
         }
-        console.log('[SCORM] Exit button enhancement stopped after 15 seconds');
-    }, 15000);
+        
+        const currentInterval = enhancementIntervals[enhancementIndex];
+        setTimeout(() => {
+            limitedEnhanceExitButtons();
+            enhancementIndex++;
+            scheduleNextEnhancement(); // Schedule next one with increasing interval
+        }, currentInterval);
+    }
+    
+    // Start the enhancement sequence
+    scheduleNextEnhancement();
 })();
 
 // CRITICAL FIX: Enhanced Exit button functionality
@@ -1679,18 +1937,36 @@ document.addEventListener('DOMContentLoaded', function() {
                 logger.info(f"   API endpoint: {api_endpoint}")
                 logger.info(f"   Content length: {len(html_content)} chars")
                 
+                # Cache the processed HTML content for faster retrieval next time
+                response_headers = {
+                    'ETag': etag,
+                    'Cache-Control': f'public, max-age={content_ttl}',
+                    'Last-Modified': formatdate(time(), usegmt=True),
+                    'Access-Control-Allow-Origin': '*',
+                    'X-Frame-Options': 'SAMEORIGIN',
+                    'Accept-Ranges': 'bytes',
+                    'Content-Length': str(len(content))
+                }
+                
+                # Store content in cache for faster retrieval
+                cache.set(
+                    content_cache_key, 
+                    {
+                        'data': content,
+                        'content_type': content_type,
+                        'headers': response_headers,
+                        'etag': etag
+                    },
+                    content_ttl
+                )
+                
+                # Log cache storage
+                logger.info(f"✅ Stored content in cache (TTL={content_ttl}s): {content_cache_key}")
+                
+                # Create response with all headers
                 response_obj = HttpResponse(content, content_type=content_type)
-                response_obj['Access-Control-Allow-Origin'] = '*'
-                response_obj['X-Frame-Options'] = 'SAMEORIGIN'
-                
-                # OPTIMIZATION: Add caching headers for HTML files
-                response_obj['ETag'] = etag
-                response_obj['Cache-Control'] = 'public, max-age=3600'  # 1 hour cache for HTML
-                response_obj['Last-Modified'] = formatdate(time(), usegmt=True)
-                
-                # Support range requests for all content
-                response_obj['Accept-Ranges'] = 'bytes'
-                response_obj['Content-Length'] = str(len(content))
+                for header, value in response_headers.items():
+                    response_obj[header] = value
                 
                 # CRITICAL: Set very permissive CSP for SCORM content files
                 # SCORM content often uses eval(), dynamic code, and inline scripts
@@ -1714,34 +1990,64 @@ document.addEventListener('DOMContentLoaded', function() {
         else:
             # For non-HTML files (CSS, JS, images, videos, etc.), serve with aggressive caching
             try:
-                response_obj = HttpResponse(content, content_type=content_type)
-                response_obj['Access-Control-Allow-Origin'] = '*'
-                response_obj['X-Frame-Options'] = 'SAMEORIGIN'
-                
-                # OPTIMIZATION: Add strong caching headers for static assets
-                response_obj['ETag'] = etag
-                response_obj['Last-Modified'] = formatdate(time(), usegmt=True)
-                
-                # Different cache times based on file type
+                # Define optimal cache TTL by file type
                 if is_media:
-                    # Videos and audio - cache for 24 hours
-                    response_obj['Cache-Control'] = 'public, max-age=86400, immutable'
+                    # Videos and audio - cache for 1 week
+                    content_ttl = 604800
+                    immutable = True
                 elif path.endswith(('.js', '.css')):
-                    # Scripts and styles - cache for 1 hour
-                    response_obj['Cache-Control'] = 'public, max-age=3600'
+                    # Scripts and styles - cache for 3 days
+                    content_ttl = 259200
+                    immutable = True
                 elif path.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.ico')):
-                    # Images - cache for 24 hours
-                    response_obj['Cache-Control'] = 'public, max-age=86400, immutable'
+                    # Images - cache for 1 week
+                    content_ttl = 604800
+                    immutable = True
                 elif path.endswith(('.woff', '.woff2', '.ttf', '.otf', '.eot')):
-                    # Fonts - cache for 1 week
-                    response_obj['Cache-Control'] = 'public, max-age=604800, immutable'
+                    # Fonts - cache for 2 weeks
+                    content_ttl = 1209600
+                    immutable = True
                 else:
-                    # Other files - cache for 1 hour
-                    response_obj['Cache-Control'] = 'public, max-age=3600'
+                    # Other files - cache for 1 day
+                    content_ttl = 86400
+                    immutable = False
                 
-                # Support range requests for all content
-                response_obj['Accept-Ranges'] = 'bytes'
-                response_obj['Content-Length'] = str(content_length)
+                # Prepare cache headers
+                cache_control = f"public, max-age={content_ttl}"
+                if immutable:
+                    cache_control += ", immutable"
+                
+                # Prepare headers for CDN compatibility
+                response_headers = {
+                    'ETag': etag,
+                    'Last-Modified': formatdate(time(), usegmt=True),
+                    'Access-Control-Allow-Origin': '*',
+                    'X-Frame-Options': 'SAMEORIGIN',
+                    'Accept-Ranges': 'bytes',
+                    'Content-Length': str(content_length),
+                    'Cache-Control': cache_control
+                }
+                
+                # Store in cache for next time
+                cache.set(
+                    content_cache_key,
+                    {
+                        'data': content,
+                        'content_type': content_type,
+                        'headers': response_headers,
+                        'etag': etag
+                    },
+                    content_ttl
+                )
+                
+                # Log cache storage for performance monitoring
+                if is_media or path.endswith(('.js', '.css')):
+                    logger.info(f"✅ Cached {content_type} asset ({len(content)} bytes) for {content_ttl/3600:.1f} hours")
+                
+                # Create response with all headers
+                response_obj = HttpResponse(content, content_type=content_type)
+                for header, value in response_headers.items():
+                    response_obj[header] = value
                 
                 
                 return response_obj

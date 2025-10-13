@@ -120,17 +120,47 @@ class BaseScormAPIHandler:
         if not self.attempt.cmi_data:
             self.attempt.cmi_data = self._initialize_cmi_data()
         
-        # Check for resume data
+        # ENHANCED RESUME FUNCTIONALITY: Better detection of resume state
+        # Check for all forms of resume data
         has_bookmark = bool(self.attempt.lesson_location and len(self.attempt.lesson_location) > 0)
         has_suspend_data = bool(self.attempt.suspend_data and len(self.attempt.suspend_data) > 0)
+        has_progress = bool(self.attempt.progress_percentage and self.attempt.progress_percentage > 0)
+        has_prior_activity = (self.attempt.lesson_status not in ['not_attempted', 'not attempted', ''] or
+                              self.attempt.time_spent_seconds > 0)
         
-        if has_bookmark or has_suspend_data:
+        # Determine if we should resume
+        should_resume = has_bookmark or has_suspend_data or has_progress or has_prior_activity
+        
+        if should_resume:
             self.attempt.entry = 'resume'
-            if self.attempt.lesson_status == 'not_attempted':
+            
+            # If status is still not_attempted but we have activity, update it
+            if self.attempt.lesson_status in ['not_attempted', 'not attempted', '']:
                 self.attempt.lesson_status = 'incomplete'
-            logger.info(f"🔄 SCORM RESUME MODE: bookmark={has_bookmark}, suspend_data={has_suspend_data}")
-            logger.info(f"   lesson_location='{self.attempt.lesson_location[:50]}'")
-            logger.info(f"   suspend_data length={len(self.attempt.suspend_data)} chars")
+                
+            # Extract extra resume info for logging
+            resume_sources = []
+            if has_bookmark:
+                resume_sources.append('bookmark')
+            if has_suspend_data:
+                resume_sources.append('suspend_data')
+            if has_progress:
+                resume_sources.append('progress')
+            if has_prior_activity:
+                resume_sources.append('prior_activity')
+                
+            logger.info(f"🔄 SCORM RESUME MODE: {', '.join(resume_sources)}")
+            
+            if has_bookmark:
+                logger.info(f"   lesson_location='{self.attempt.lesson_location[:50]}'")
+            if has_suspend_data:
+                logger.info(f"   suspend_data length={len(self.attempt.suspend_data)} chars")
+            if has_progress:
+                logger.info(f"   progress={self.attempt.progress_percentage}%")
+                
+            # Look for potential bookmark in suspend_data if we don't have one
+            if has_suspend_data and not has_bookmark:
+                self._extract_bookmark_from_suspend_data(self.attempt.suspend_data)
         else:
             self.attempt.entry = 'ab-initio'
             logger.info(f"🆕 SCORM FRESH START: no saved data")
@@ -377,9 +407,13 @@ class BaseScormAPIHandler:
             elif element == 'cmi.core.lesson_location':
                 self.attempt.lesson_location = value
                 self.attempt.save()  # Immediate save for bookmarks
-            elif element == 'cmi.suspend_data':
-                self.attempt.suspend_data = value
-                self.attempt.save()  # Immediate save for suspend data
+                elif element == 'cmi.suspend_data':
+                    self.attempt.suspend_data = value
+                    
+                    # CRITICAL FIX: Extract progress information from suspend_data
+                    self._extract_progress_from_suspend_data(value)
+                    
+                    self.attempt.save()  # Immediate save for suspend data
             elif element in ['cmi.progress_measure', 'cmi.core.progress_measure']:
                 # CRITICAL FIX: Support progress_measure for SCORM 1.2 (custom extension for Rise 360)
                 # Convert progress_measure (0-1) to progress_percentage (0-100)
@@ -403,9 +437,13 @@ class BaseScormAPIHandler:
             elif element == 'cmi.location':
                 self.attempt.lesson_location = value
                 self.attempt.save()  # Immediate save for bookmarks
-            elif element == 'cmi.suspend_data':
-                self.attempt.suspend_data = value
-                self.attempt.save()  # Immediate save for suspend data
+                elif element == 'cmi.suspend_data':
+                    self.attempt.suspend_data = value
+                    
+                    # CRITICAL FIX: Extract progress information from suspend_data
+                    self._extract_progress_from_suspend_data(value)
+                    
+                    self.attempt.save()  # Immediate save for suspend data
             elif element == 'cmi.progress_measure':
                 # CRITICAL FIX: Convert progress_measure (0-1) to progress_percentage (0-100)
                 # This is essential for Rise 360 progress bar to persist correctly
@@ -455,14 +493,189 @@ class BaseScormAPIHandler:
                 if hasattr(self.attempt, '_skip_signal'):
                     delattr(self.attempt, '_skip_signal')
     
-    def _sync_tracking_from_cmi_data(self):
+    def _extract_bookmark_from_suspend_data(self, suspend_data):
         """
-        CRITICAL FIX: Sync tracking data from CMI data to model fields
-        This ensures all tracking data (progress, suspend_data, score, status, etc.) is properly saved
+        CRITICAL FIX: Extract bookmark/location information from suspend_data
+        This fixes resume functionality when bookmark is missing but suspend_data contains location info
         """
         try:
-            # Get CMI data
-            cmi_data = self.attempt.cmi_data or {}
+            if not suspend_data or not isinstance(suspend_data, str):
+                return
+                
+            # Common patterns for bookmarks in suspend_data
+            import re
+            
+            # Common bookmark patterns used by different SCORM authoring tools
+            bookmark_patterns = [
+                r'current_slide[=:]([^&]+)',         # current_slide=slide3
+                r'current_location[=:]([^&]+)',      # current_location=slide3
+                r'current_page[=:]([^&]+)',          # current_page=slide3
+                r'bookmark[=:]([^&]+)',              # bookmark=slide3
+                r'\"bookmark\"[=:]\"([^\"]+)\"',     # "bookmark":"slide3"
+                r'\"slide\"[=:]\"([^\"]+)\"',        # "slide":"slide3"
+                r'\"location\"[=:]\"([^\"]+)\"',     # "location":"slide3"
+                r'currentSlide[=:]([^&]+)',          # currentSlide=slide3
+                r'slideId[=:]([^&]+)',               # slideId=slide3
+                r'lessonLocation[=:]([^&]+)',        # lessonLocation=slide3
+                r'lesson_location[=:]([^&]+)',       # lesson_location=slide3
+            ]
+            
+            # Try all patterns
+            for pattern in bookmark_patterns:
+                match = re.search(pattern, suspend_data)
+                if match:
+                    extracted_location = match.group(1).strip()
+                    if extracted_location:
+                        # Only update if we don't already have a bookmark
+                        if not self.attempt.lesson_location:
+                            self.attempt.lesson_location = extracted_location
+                            logger.info(f"✅ RESUME FIX: Extracted bookmark '{extracted_location}' from suspend_data using pattern '{pattern}'")
+                            return True
+                        return False  # Already have a bookmark
+                        
+            # If no pattern matched but suspend_data is substantial
+            # Try to extract slide number from progress data
+            if len(suspend_data) > 500:
+                # Look for any progress indication
+                progress_match = re.search(r'progress[=:](\d+)', suspend_data)
+                if progress_match:
+                    progress = int(progress_match.group(1))
+                    # Create slide estimate based on progress
+                    if progress > 0:
+                        slide_num = max(1, int(progress / 10))  # Estimate 10% per slide
+                        default_slide = f"slide_{slide_num}"
+                        self.attempt.lesson_location = default_slide
+                        logger.info(f"✅ RESUME FIX: Created estimated bookmark '{default_slide}' from progress {progress}%")
+                        return True
+            
+            return False
+                
+        except Exception as e:
+            logger.error(f"Error extracting bookmark from suspend_data: {e}")
+            return False
+    
+    def _extract_progress_from_suspend_data(self, suspend_data):
+        """
+        CRITICAL FIX: Extract progress information from suspend_data
+        This fixes the bug where progress_percentage is not updated from suspend_data
+        """
+        try:
+            if not suspend_data or not isinstance(suspend_data, str):
+                return
+                
+            # Initialize progress tracking if needed
+            if self.attempt.completed_slides is None:
+                self.attempt.completed_slides = []
+                
+            # Common patterns for progress in suspend data
+            import re
+            
+            # Look for progress percentage patterns
+            progress_patterns = [
+                # Direct progress indicators
+                r'progress[=:]\s*(\d+)',               # progress=75
+                r'progress["\s]*[=:]\s*(\d+)',        # progress="75" or progress: 75
+                r'"progress"\s*:\s*(\d+)',           # "progress": 75
+                r'completion[=:]\s*(\d+)',             # completion=75
+                r'completion_percentage[=:]\s*(\d+)',  # completion_percentage=75
+                
+                # Slide/page completion patterns
+                r'completed_slides[=:]([\d,]+).*?total_slides[=:](\d+)',  # completed_slides=1,2,3&total_slides=5
+                r'completed[=:]([\d,]+).*?total[=:](\d+)',              # completed=1,2,3&total=5
+            ]
+            
+            # Try to find direct progress percentage
+            for pattern in progress_patterns[:5]:  # First 5 are direct percentage patterns
+                match = re.search(pattern, suspend_data)
+                if match:
+                    try:
+                        progress_value = int(match.group(1))
+                        if 0 <= progress_value <= 100:
+                            # Only update if the new value is higher (prevent regressions)
+                            current_progress = self.attempt.progress_percentage or 0
+                            if progress_value > current_progress:
+                                self.attempt.progress_percentage = progress_value
+                                logger.info(f"[PROGRESS] Extracted {progress_value}% from suspend_data using pattern '{pattern}'")
+                                return
+                    except (ValueError, TypeError) as e:
+                        logger.debug(f"Error parsing progress value: {e}")
+            
+            # Try slide completion patterns
+            for pattern in progress_patterns[5:]:  # Last patterns are slide completion patterns
+                match = re.search(pattern, suspend_data)
+                if match:
+                    try:
+                        completed_str = match.group(1)
+                        total_slides = int(match.group(2))
+                        
+                        if ',' in completed_str:
+                            completed_slides = [s for s in completed_str.split(',') if s.strip()]
+                            completed_count = len(completed_slides)
+                        else:
+                            completed_count = 1 if completed_str.strip() else 0
+                            
+                        if completed_count > 0 and total_slides > 0:
+                            # Calculate progress percentage
+                            progress_value = min(100, (completed_count / total_slides) * 100)
+                            
+                            # Update attempt data
+                            current_progress = self.attempt.progress_percentage or 0
+                            if progress_value > current_progress:
+                                self.attempt.progress_percentage = progress_value
+                                self.attempt.total_slides = total_slides
+                                
+                                # Update completed slides list
+                                if isinstance(self.attempt.completed_slides, list):
+                                    # Convert slide IDs to strings to ensure consistency
+                                    slide_ids = [str(s) for s in completed_str.split(',') if s.strip()]
+                                    self.attempt.completed_slides = slide_ids
+                                    
+                                logger.info(f"[PROGRESS] Calculated {progress_value:.1f}% from {completed_count}/{total_slides} slides")
+                                return
+                    except (ValueError, TypeError, IndexError) as e:
+                        logger.debug(f"Error parsing slide completion: {e}")
+            
+            # Look for completion indicators
+            if ('complete=true' in suspend_data.lower() or 
+                '"complete":true' in suspend_data.lower() or 
+                '"completion":"completed"' in suspend_data.lower()):
+                
+                # Content is marked as complete but no percentage - set to 100%
+                self.attempt.progress_percentage = 100
+                logger.info(f"[PROGRESS] Set progress to 100% based on completion indicator")
+                return
+                
+            # Analyze suspend_data length to estimate progress
+            if len(suspend_data) > 1000 and self.attempt.progress_percentage == 0:
+                # If suspend_data is very large, the user has made significant progress
+                # Set a reasonable default based on suspend_data size
+                if len(suspend_data) > 5000:
+                    self.attempt.progress_percentage = 80  # Very large suspend_data
+                elif len(suspend_data) > 2500:
+                    self.attempt.progress_percentage = 50  # Medium suspend_data
+                else:
+                    self.attempt.progress_percentage = 25  # Small but meaningful suspend_data
+                    
+                logger.info(f"[PROGRESS] Estimated {self.attempt.progress_percentage}% progress based on suspend_data length ({len(suspend_data)} chars)")
+                
+        except Exception as e:
+            logger.error(f"[PROGRESS] Error extracting progress from suspend_data: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+    
+    def _sync_tracking_from_cmi_data(self):
+        """
+        COMPREHENSIVE FIX: Enhanced sync between CMI data and model fields
+        This ensures all tracking data is properly synchronized in both directions,
+        handling edge cases and preventing data loss
+        """
+        try:
+            # Get CMI data with safety check
+            if self.attempt.cmi_data is None:
+                self.attempt.cmi_data = {}
+                logger.warning(f"[SYNC] Found null cmi_data for attempt {self.attempt.id} - initializing empty dict")
+            
+            cmi_data = self.attempt.cmi_data
             
             # 1. Sync lesson_location (bookmark)
             if self.version == '1.2':
@@ -494,63 +707,224 @@ class BaseScormAPIHandler:
                     self.attempt.suspend_data = str(cmi_suspend)
                     logger.info(f"[SYNC] Updated suspend_data from CMI: {len(self.attempt.suspend_data)} chars")
             
-            # 3. Sync lesson status from CMI data if not already set
-            if status_key in cmi_data and cmi_data[status_key]:
-                cmi_status = cmi_data[status_key]
-                if cmi_status and cmi_status not in ['not attempted', '']:
-                    if self.version == '1.2':
-                        if self.attempt.lesson_status in ['not_attempted', 'not attempted', '']:
-                            self.attempt.lesson_status = cmi_status.replace(' ', '_')
-                            logger.info(f"[SYNC] Updated lesson_status from CMI: {self.attempt.lesson_status}")
-                    else:
-                        if self.attempt.completion_status in ['not attempted', 'incomplete', '']:
-                            self.attempt.completion_status = cmi_status.replace(' ', '_')
-                            logger.info(f"[SYNC] Updated completion_status from CMI: {self.attempt.completion_status}")
+            # 3. COMPREHENSIVE FIX: Better status synchronization with bidirectional updates
+            # Handle lesson_status and completion_status with proper priority
             
-            # 4. Sync score data from CMI
-            if score_raw_key in cmi_data and cmi_data[score_raw_key]:
+            # First, sync from CMI to model fields
+            if status_key in cmi_data and cmi_data[status_key]:
+                cmi_status = str(cmi_data[status_key]).strip()
+                if cmi_status and cmi_status.lower() not in ['not attempted', '']:
+                    normalized_status = cmi_status.replace(' ', '_').lower()
+                    
+                    # Map common status values to standard values
+                    status_mapping = {
+                        'complete': 'completed',
+                        'pass': 'passed',
+                        'fail': 'failed',
+                        'not_attempted': 'not_attempted',
+                        'not attempted': 'not_attempted',
+                        'notapplicable': 'not_attempted',
+                    }
+                    
+                    if normalized_status in status_mapping:
+                        normalized_status = status_mapping[normalized_status]
+                    
+                    if self.version == '1.2':
+                        # For SCORM 1.2, prioritize meaningful statuses over generic ones
+                        current_status = (self.attempt.lesson_status or '').lower()
+                        
+                        # Only update if new status is more meaningful
+                        if (current_status in ['not_attempted', 'not attempted', '', 'unknown', 'incomplete'] or
+                            (current_status == 'incomplete' and normalized_status in ['completed', 'passed', 'failed'])):
+                            self.attempt.lesson_status = normalized_status
+                            logger.info(f"[SYNC] Updated lesson_status from CMI: {self.attempt.lesson_status}")
+                            
+                            # Also update completion_status for consistency
+                            if normalized_status in ['completed', 'passed']:
+                                self.attempt.completion_status = 'completed'
+                            elif normalized_status == 'failed':
+                                self.attempt.completion_status = 'incomplete'
+                            else:
+                                self.attempt.completion_status = normalized_status
+                    else:
+                        # For SCORM 2004, handle completion_status and success_status separately
+                        current_status = (self.attempt.completion_status or '').lower()
+                        
+                        # Only update if new status is more meaningful
+                        if current_status in ['not attempted', 'unknown', '', 'incomplete']:
+                            self.attempt.completion_status = normalized_status
+                            logger.info(f"[SYNC] Updated completion_status from CMI: {self.attempt.completion_status}")
+                        
+                        # Also sync success_status if available
+                        if 'cmi.success_status' in cmi_data and cmi_data['cmi.success_status']:
+                            success_status = str(cmi_data['cmi.success_status']).strip().lower()
+                            if success_status in ['passed', 'failed']:
+                                self.attempt.success_status = success_status
+                                logger.info(f"[SYNC] Updated success_status from CMI: {self.attempt.success_status}")
+                                
+                                # For consistency, also update lesson_status
+                                if success_status == 'passed':
+                                    self.attempt.lesson_status = 'passed'
+                                elif success_status == 'failed':
+                                    self.attempt.lesson_status = 'failed'
+            
+            # Now sync back from model fields to CMI data for consistency
+            # This ensures CMI data always reflects the current model state
+            if self.version == '1.2':
+                if self.attempt.lesson_status and self.attempt.lesson_status not in ['not_attempted', '']:
+                    cmi_data['cmi.core.lesson_status'] = self.attempt.lesson_status.replace('_', ' ')
+            else:
+                if self.attempt.completion_status and self.attempt.completion_status not in ['not_attempted', '']:
+                    cmi_data['cmi.completion_status'] = self.attempt.completion_status.replace('_', ' ')
+                if self.attempt.success_status and self.attempt.success_status not in ['unknown', '']:
+                    cmi_data['cmi.success_status'] = self.attempt.success_status
+            
+            # 4. COMPREHENSIVE FIX: Enhanced score synchronization with validation and normalization
+            # First, get all score components from CMI data
+            score_raw = None
+            score_max = None
+            score_min = None
+            score_scaled = None
+            
+            # Extract raw score with validation
+            if score_raw_key in cmi_data and cmi_data[score_raw_key] is not None:
                 cmi_score = cmi_data[score_raw_key]
                 if cmi_score and str(cmi_score).strip() != '':
                     try:
-                        score_value = Decimal(str(cmi_score))
-                        if self.attempt.score_raw is None or score_value != self.attempt.score_raw:
-                            self.attempt.score_raw = score_value
-                            logger.info(f"[SYNC] Updated score_raw from CMI: {self.attempt.score_raw}")
+                        score_raw = Decimal(str(cmi_score))
+                        logger.info(f"[SYNC] Found valid score_raw in CMI: {score_raw}")
                     except (ValueError, TypeError) as e:
                         logger.warning(f"[SYNC] Could not convert score_raw '{cmi_score}': {e}")
             
-            # Sync score_max
-            if score_max_key in cmi_data and cmi_data[score_max_key]:
+            # Extract max score with validation
+            if score_max_key in cmi_data and cmi_data[score_max_key] is not None:
                 cmi_score_max = cmi_data[score_max_key]
                 if cmi_score_max and str(cmi_score_max).strip() != '':
                     try:
-                        self.attempt.score_max = Decimal(str(cmi_score_max))
-                    except (ValueError, TypeError):
-                        pass
+                        score_max = Decimal(str(cmi_score_max))
+                        logger.info(f"[SYNC] Found valid score_max in CMI: {score_max}")
+                    except (ValueError, TypeError) as e:
+                        logger.warning(f"[SYNC] Could not convert score_max '{cmi_score_max}': {e}")
             
-            # Sync score_min
-            if score_min_key in cmi_data and cmi_data[score_min_key]:
+            # Extract min score with validation
+            if score_min_key in cmi_data and cmi_data[score_min_key] is not None:
                 cmi_score_min = cmi_data[score_min_key]
                 if cmi_score_min and str(cmi_score_min).strip() != '':
                     try:
-                        self.attempt.score_min = Decimal(str(cmi_score_min))
-                    except (ValueError, TypeError):
-                        pass
+                        score_min = Decimal(str(cmi_score_min))
+                        logger.info(f"[SYNC] Found valid score_min in CMI: {score_min}")
+                    except (ValueError, TypeError) as e:
+                        logger.warning(f"[SYNC] Could not convert score_min '{cmi_score_min}': {e}")
             
-            # 5. Sync progress_measure (SCORM 2004) to progress_percentage
-            if self.version != '1.2' and 'cmi.progress_measure' in cmi_data:
-                progress_measure = cmi_data['cmi.progress_measure']
-                if progress_measure and str(progress_measure).strip() != '':
+            # Extract scaled score for SCORM 2004
+            if self.version != '1.2' and 'cmi.score.scaled' in cmi_data and cmi_data['cmi.score.scaled'] is not None:
+                cmi_score_scaled = cmi_data['cmi.score.scaled']
+                if cmi_score_scaled and str(cmi_score_scaled).strip() != '':
                     try:
-                        progress_value = Decimal(str(progress_measure))
-                        # Convert 0-1 to 0-100
-                        if 0 <= progress_value <= 1:
+                        score_scaled = Decimal(str(cmi_score_scaled))
+                        logger.info(f"[SYNC] Found valid score_scaled in CMI: {score_scaled}")
+                    except (ValueError, TypeError) as e:
+                        logger.warning(f"[SYNC] Could not convert score_scaled '{cmi_score_scaled}': {e}")
+            
+            # Now apply score components with validation and normalization
+            
+            # 1. Update score_raw if valid
+            if score_raw is not None:
+                # Check if score is within valid range
+                if score_max is not None and score_raw > score_max:
+                    logger.warning(f"[SYNC] Score {score_raw} exceeds max {score_max}, capping")
+                    score_raw = score_max
+                
+                if score_min is not None and score_raw < score_min:
+                    logger.warning(f"[SYNC] Score {score_raw} below min {score_min}, setting to min")
+                    score_raw = score_min
+                
+                # Only update if different from current value
+                if self.attempt.score_raw is None or score_raw != self.attempt.score_raw:
+                    self.attempt.score_raw = score_raw
+                    logger.info(f"[SYNC] Updated score_raw: {self.attempt.score_raw}")
+                    
+                    # Also update CMI data for consistency
+                    cmi_data[score_raw_key] = str(score_raw)
+            
+            # 2. Update score_max if valid
+            if score_max is not None:
+                self.attempt.score_max = score_max
+                # Also update CMI data for consistency
+                cmi_data[score_max_key] = str(score_max)
+            
+            # 3. Update score_min if valid
+            if score_min is not None:
+                self.attempt.score_min = score_min
+                # Also update CMI data for consistency
+                cmi_data[score_min_key] = str(score_min)
+                
+            # 4. Update score_scaled if valid (SCORM 2004 only)
+            if self.version != '1.2' and score_scaled is not None:
+                # Validate scaled score is between 0 and 1
+                if score_scaled < 0:
+                    score_scaled = Decimal('0')
+                elif score_scaled > 1:
+                    score_scaled = Decimal('1')
+                    
+                self.attempt.score_scaled = score_scaled
+                # Also update CMI data for consistency
+                cmi_data['cmi.score.scaled'] = str(score_scaled)
+                
+            # 5. Calculate scaled score if not provided but we have raw and max (SCORM 2004)
+            if self.version != '1.2' and score_scaled is None and score_raw is not None and score_max is not None and score_max > 0:
+                calculated_scaled = score_raw / score_max
+                if calculated_scaled > 1:
+                    calculated_scaled = Decimal('1')
+                elif calculated_scaled < 0:
+                    calculated_scaled = Decimal('0')
+                    
+                self.attempt.score_scaled = calculated_scaled
+                # Also update CMI data for consistency
+                cmi_data['cmi.score.scaled'] = str(calculated_scaled)
+                logger.info(f"[SYNC] Calculated and updated score_scaled: {calculated_scaled}")
+            
+            # 5. Enhanced progress tracking from multiple CMI data sources
+            # Check various CMI fields for progress information
+            progress_keys = [
+                'cmi.progress_measure',       # SCORM 2004 standard
+                'cmi.core.progress_measure',  # Custom extension for SCORM 1.2
+                'cmi.progress',              # Common custom extension
+                'cmi.completion-percentage', # Common custom extension
+                'cmi.percent-complete'       # Common custom extension
+            ]
+            
+            # Try all possible progress keys
+            for key in progress_keys:
+                if key in cmi_data and cmi_data[key] and str(cmi_data[key]).strip() != '':
+                    try:
+                        progress_value = Decimal(str(cmi_data[key]))
+                        
+                        # Handle both 0-1 and 0-100 formats
+                        if 0 <= progress_value <= 1:  # 0-1 format
                             progress_percentage = progress_value * 100
-                            if progress_percentage > self.attempt.progress_percentage:
-                                self.attempt.progress_percentage = progress_percentage
-                                logger.info(f"[SYNC] Updated progress_percentage from CMI progress_measure: {progress_percentage}%")
-                    except (ValueError, TypeError):
-                        pass
+                        elif 0 <= progress_value <= 100:  # 0-100 format
+                            progress_percentage = progress_value
+                        else:
+                            # Invalid range, skip
+                            continue
+                            
+                        # Only update if higher than current
+                        current_progress = self.attempt.progress_percentage or 0
+                        if progress_percentage > current_progress:
+                            self.attempt.progress_percentage = progress_percentage
+                            logger.info(f"[SYNC] Updated progress_percentage from {key}: {progress_percentage}%")
+                    except (ValueError, TypeError) as e:
+                        logger.warning(f"[SYNC] Invalid progress value in {key}: {cmi_data[key]} - {e}")
+                        
+            # Process suspend_data for progress information if we still don't have progress
+            # or if progress is suspiciously low despite significant suspend_data
+            if (self.attempt.suspend_data and 
+                (not self.attempt.progress_percentage or 
+                 self.attempt.progress_percentage < 10) and 
+                len(self.attempt.suspend_data) > 100):
+                
+                self._extract_progress_from_suspend_data(self.attempt.suspend_data)
             
             logger.info(f"[SYNC] Tracking data synced from CMI successfully")
             

@@ -18,6 +18,10 @@ class ScormAPIHandler:
     Implements both SCORM 1.2 (API) and SCORM 2004 (API_1484_11) standards
     """
     
+    # CRITICAL FIX: Add class-level handler locks to prevent race conditions
+    # This ensures that only one handler is processing an attempt at a time
+    _handler_locks = {}
+    
     # SCORM 1.2 Error codes
     SCORM_12_ERRORS = {
         '0': 'No error',
@@ -41,9 +45,18 @@ class ScormAPIHandler:
             attempt: ScormAttempt instance
         """
         self.attempt = attempt
+        self.attempt_id = getattr(attempt, 'id', 'unknown')
         self.version = attempt.scorm_package.version
         self.last_error = '0'
         self.initialized = False
+        
+        # Create a lock for this attempt if it doesn't exist
+        if self.attempt_id not in ScormAPIHandler._handler_locks:
+            from threading import Lock
+            ScormAPIHandler._handler_locks[self.attempt_id] = Lock()
+        
+        # Store reference to the lock
+        self._lock = ScormAPIHandler._handler_locks[self.attempt_id]
         
         # Always ensure CMI data is properly initialized
         if not self.attempt.cmi_data or len(self.attempt.cmi_data) == 0:
@@ -102,13 +115,15 @@ class ScormAPIHandler:
     
     def initialize(self):
         """LMSInitialize / Initialize"""
-        if self.initialized:
-            self.last_error = '101'
-            logger.warning(f"SCORM API already initialized for attempt {self.attempt.id}")
-            return 'false'
-        
-        self.initialized = True
-        self.last_error = '0'
+        # CRITICAL FIX: Use lock to prevent race conditions during initialization
+        with self._lock:
+            if self.initialized:
+                self.last_error = '101'
+                logger.warning(f"SCORM API already initialized for attempt {self.attempt.id}")
+                return 'false'
+            
+            self.initialized = True
+            self.last_error = '0'
         
         # CRITICAL FIX: Ensure CMI data is properly initialized with resume data BEFORE any GetValue calls
         if not self.attempt.cmi_data:
@@ -190,10 +205,12 @@ class ScormAPIHandler:
     
     def terminate(self):
         """LMSFinish / Terminate"""
-        if not self.initialized:
-            self.last_error = '301'
-            logger.warning(f"SCORM API Terminate called before initialization for attempt {self.attempt.id}")
-            return 'false'
+        # CRITICAL FIX: Use lock to prevent race conditions during terminate
+        with self._lock:
+            if not self.initialized:
+                self.last_error = '301'
+                logger.warning(f"SCORM API Terminate called before initialization for attempt {self.attempt.id}")
+                return 'false'
         
         self.initialized = False
         self.last_error = '0'
@@ -240,20 +257,22 @@ class ScormAPIHandler:
     
     def get_value(self, element):
         """LMSGetValue / GetValue"""
-        # CRITICAL FIX: Allow GetValue for resume-critical elements even before initialization
-        # This is needed because some SCORM packages check bookmark data before calling Initialize
-        resume_critical_elements = [
-            'cmi.core.lesson_location', 'cmi.location',
-            'cmi.suspend_data',
-            'cmi.core.entry', 'cmi.entry'
-        ]
-        
-        if not self.initialized and element not in resume_critical_elements:
-            self.last_error = '301'
-            logger.warning(f"SCORM API GetValue called before initialization for element: {element}")
-            return ''
-        
-        try:
+        # CRITICAL FIX: Use lock to prevent race conditions during get_value
+        with self._lock:
+            # CRITICAL FIX: Allow GetValue for resume-critical elements even before initialization
+            # This is needed because some SCORM packages check bookmark data before calling Initialize
+            resume_critical_elements = [
+                'cmi.core.lesson_location', 'cmi.location',
+                'cmi.suspend_data',
+                'cmi.core.entry', 'cmi.entry'
+            ]
+            
+            if not self.initialized and element not in resume_critical_elements:
+                self.last_error = '301'
+                logger.warning(f"SCORM API GetValue called before initialization for element: {element}")
+                return ''
+            
+            try:
             # For resume-critical elements before initialization, return from model fields directly
             if not self.initialized and element in resume_critical_elements:
                 logger.info(f"SCORM API GetValue({element}) called before initialization - returning from model")
@@ -333,13 +352,15 @@ class ScormAPIHandler:
     
     def set_value(self, element, value):
         """LMSSetValue / SetValue"""
-        # CRITICAL FIX: Allow bookmark data to be stored even before initialization
-        if not self.initialized and element not in ['cmi.core.lesson_location', 'cmi.location', 'cmi.suspend_data']:
-            self.last_error = '301'
-            logger.warning(f"SCORM API SetValue called before initialization for element: {element}")
-            return 'false'
-        
-        try:
+        # CRITICAL FIX: Use lock to prevent race conditions during set_value
+        with self._lock:
+            # CRITICAL FIX: Allow bookmark data to be stored even before initialization
+            if not self.initialized and element not in ['cmi.core.lesson_location', 'cmi.location', 'cmi.suspend_data']:
+                self.last_error = '301'
+                logger.warning(f"SCORM API SetValue called before initialization for element: {element}")
+                return 'false'
+            
+            try:
             # FIXED: Add input validation to prevent malicious data
             if value is None:
                 value = ''
@@ -571,15 +592,17 @@ class ScormAPIHandler:
     
     def commit(self):
         """LMSCommit / Commit"""
-        # CRITICAL FIX: Check if session was EVER initialized (not just in current request)
-        # Each API call creates a new handler instance, so self.initialized doesn't persist
-        # Instead, check if CMI data exists (created during first Initialize)
-        was_initialized = bool(self.attempt.cmi_data and len(self.attempt.cmi_data) > 0)
-        
-        if not self.initialized and not was_initialized:
-            self.last_error = '301'
-            logger.warning(f"SCORM API Commit called before any initialization for attempt {self.attempt.id}")
-            return 'false'
+        # CRITICAL FIX: Use lock to prevent race conditions during commit
+        with self._lock:
+            # CRITICAL FIX: Check if session was EVER initialized (not just in current request)
+            # Each API call creates a new handler instance, so self.initialized doesn't persist
+            # Instead, check if CMI data exists (created during first Initialize)
+            was_initialized = bool(self.attempt.cmi_data and len(self.attempt.cmi_data) > 0)
+            
+            if not self.initialized and not was_initialized:
+                self.last_error = '301'
+                logger.warning(f"SCORM API Commit called before any initialization for attempt {self.attempt.id}")
+                return 'false'
         
         try:
             self._commit_data()
@@ -872,13 +895,15 @@ class ScormAPIHandler:
     
     def _commit_data(self):
         """Save attempt data to database with comprehensive tracking validation"""
-        self.attempt.last_accessed = timezone.now()
-        
-        # Only save to database if not a preview attempt
-        if not getattr(self.attempt, 'is_preview', False):
-            # Set flag to prevent signal from processing this
-            self.attempt._skip_signal = True
-            try:
+        # CRITICAL FIX: Use lock to prevent race conditions during commits
+        with self._lock:
+            self.attempt.last_accessed = timezone.now()
+            
+            # Only save to database if not a preview attempt
+            if not getattr(self.attempt, 'is_preview', False):
+                # Set flag to prevent signal from processing this
+                self.attempt._skip_signal = True
+                try:
                 # CRITICAL FIX: Ensure all tracking fields are properly set before save
                 # This fixes the issue where progress_percentage, suspend_data, etc. remain at default values
                 
@@ -946,14 +971,55 @@ class ScormAPIHandler:
                 # 7. Use centralized sync service for score synchronization
                 # This is critical for ensuring all user interactions are tracked
                 from .score_sync_service import ScormScoreSyncService
+                
+                # COMPREHENSIVE FIX: Handle first attempt scoring issues
+                # This fixes the bug where first attempts don't save scores properly
+                
+                # Check if this is a first attempt with meaningful data but no score
+                is_first_attempt = self.attempt.attempt_number == 1
+                has_meaningful_data = (self.attempt.suspend_data and len(self.attempt.suspend_data) > 100) or \
+                                     (self.attempt.progress_percentage and self.attempt.progress_percentage > 10)
+                                     
+                if is_first_attempt and has_meaningful_data and self.attempt.score_raw is None:
+                    # Check for score in CMI data that might not have been synced
+                    cmi_score = None
+                    if self.attempt.cmi_data:
+                        cmi_score = self.attempt.cmi_data.get('cmi.score.raw') or \
+                                   self.attempt.cmi_data.get('cmi.core.score.raw')
+                        
+                    if cmi_score is not None and cmi_score != '':
+                        try:
+                            # Found score in CMI data - use it
+                            score_val = float(cmi_score)
+                            if 0 <= score_val <= 100:
+                                self.attempt.score_raw = score_val
+                                logger.info(f"[COMMIT] ✅ FIRST ATTEMPT FIX: Extracted score {score_val} from CMI data")
+                                self.attempt.save()
+                        except (ValueError, TypeError):
+                            pass
+                    
+                    # If still no score but has completion evidence, use dynamic processor
+                    if self.attempt.score_raw is None and self.attempt.suspend_data:
+                        try:
+                            from .dynamic_score_processor import DynamicScormScoreProcessor
+                            processor = DynamicScormScoreProcessor(self.attempt)
+                            extracted_score = processor.extract_score_dynamically(self.attempt.suspend_data)
+                            
+                            if extracted_score is not None:
+                                self.attempt.score_raw = extracted_score
+                                logger.info(f"[COMMIT] ✅ FIRST ATTEMPT FIX: Extracted score {extracted_score} from suspend_data")
+                                self.attempt.save()
+                        except Exception as e:
+                            logger.error(f"[COMMIT] Error extracting score from suspend_data: {e}")
+                
+                # Now sync score with potentially fixed data
                 sync_success = ScormScoreSyncService.sync_score(self.attempt, force=True)
                 logger.info(f"[COMMIT] Score sync result for attempt {self.attempt.id}: {'✅ Success' if sync_success else '⚠️ Skipped'}")
                 
-                # CRITICAL FIX: Always try to sync even if no explicit score
+                # Always try to sync even if no explicit score
                 # This ensures user interactions are captured in gradebook
                 if not sync_success:
                     # Update last_accessed to ensure interaction is recorded
-                    # (timezone already imported at module level)
                     self.attempt.last_accessed = timezone.now()
                     self.attempt.save()
                     

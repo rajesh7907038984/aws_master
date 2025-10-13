@@ -152,6 +152,51 @@ class Command(BaseCommand):
             # Check for completed status with no score
             if attempt.lesson_status in ['completed', 'passed'] and attempt.score_raw is None:
                 issues.append(f"Status is '{attempt.lesson_status}' but no score")
+                
+                # Try to fix by extracting score from suspend_data
+                if fix_mode and attempt.suspend_data:
+                    try:
+                        from scorm.dynamic_score_processor import DynamicScormScoreProcessor
+                        processor = DynamicScormScoreProcessor(attempt)
+                        extracted_score = processor.extract_score_dynamically(attempt.suspend_data)
+                        
+                        if extracted_score is not None:
+                            attempt.score_raw = Decimal(str(extracted_score))
+                            attempt.save()
+                            issues.append(f"✅ Fixed by extracting score {extracted_score} from suspend_data")
+                            
+                            # Re-sync with TopicProgress
+                            ScormScoreSyncService.sync_score(attempt, force=True)
+                    except Exception as e:
+                        issues.append(f"❌ Error extracting score: {str(e)}")
+            
+            # COMPREHENSIVE FIX: Check for first attempts with missing scores but meaningful data
+            if attempt.attempt_number == 1 and attempt.score_raw is None:
+                has_meaningful_data = (attempt.suspend_data and len(attempt.suspend_data) > 100) or \
+                                     (attempt.progress_percentage and attempt.progress_percentage > 10)
+                                     
+                if has_meaningful_data:
+                    issues.append(f"First attempt with meaningful data but no score (progress: {attempt.progress_percentage}%)")
+                    
+                    if fix_mode:
+                        # Try to extract score from suspend_data using dynamic processor
+                        try:
+                            from scorm.dynamic_score_processor import DynamicScormScoreProcessor
+                            processor = DynamicScormScoreProcessor(attempt)
+                            extracted_score = processor.extract_score_dynamically(attempt.suspend_data)
+                            
+                            if extracted_score is not None:
+                                attempt.score_raw = Decimal(str(extracted_score))
+                                # If no status set but we found a score, mark as completed
+                                if attempt.lesson_status in ['not_attempted', 'not attempted', '']:
+                                    attempt.lesson_status = 'completed'
+                                attempt.save()
+                                issues.append(f"✅ Fixed by extracting score {extracted_score} from suspend_data")
+                                
+                                # Re-sync with TopicProgress
+                                ScormScoreSyncService.sync_score(attempt, force=True)
+                        except Exception as e:
+                            issues.append(f"❌ Error extracting score: {str(e)}")
             
             if issues:
                 issues_found += len(issues)

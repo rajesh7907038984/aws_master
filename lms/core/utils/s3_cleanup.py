@@ -302,7 +302,8 @@ class S3CleanupManager:
     
     def cleanup_scorm_package_files(self, scorm_package_id: int, topic_id: Optional[int] = None, package_file_path: Optional[str] = None) -> Dict[str, bool]:
         """
-        Clean up all files associated with a SCORM package
+        ENHANCED: Comprehensive cleanup of all files associated with a SCORM package
+        with additional pattern-based scanning to catch orphaned files
         
         Args:
             scorm_package_id: ID of the SCORM package whose files should be deleted
@@ -312,7 +313,7 @@ class S3CleanupManager:
         Returns:
             Dict mapping file paths to deletion success status
         """
-        logger.info(f"Starting S3 cleanup for SCORM package {scorm_package_id}")
+        logger.info(f"Starting comprehensive S3 cleanup for SCORM package {scorm_package_id}")
         
         all_results = {}
         
@@ -320,18 +321,52 @@ class S3CleanupManager:
         if package_file_path:
             result = self.delete_file(package_file_path)
             all_results[package_file_path] = result
+            
+            # Also try to delete any potential variations of the package file path
+            # This catches cases where the file was uploaded with a different name format
+            if '/' in package_file_path:
+                base_filename = package_file_path.split('/')[-1]
+                alt_path = f"scorm_packages/{base_filename}"
+                alt_result = self.delete_file(alt_path)
+                all_results[alt_path] = alt_result
+                
+                # Try with scorm_package_id in the path
+                alt_path = f"scorm_packages/{scorm_package_id}/{base_filename}"
+                alt_result = self.delete_file(alt_path)
+                all_results[alt_path] = alt_result
         
         # 2. Define SCORM package-specific directories to clean up
         scorm_directories = [
+            # Primary directories
             f"scorm_packages/{scorm_package_id}",
             f"scorm_content/{scorm_package_id}",
+            
+            # Alternate formats that might exist
+            f"scorm_packages/package_{scorm_package_id}",
+            f"scorm_content/package_{scorm_package_id}",
+            f"scorm/packages/{scorm_package_id}",
+            f"scorm/content/{scorm_package_id}",
+            
+            # Legacy formats
+            f"scorm/{scorm_package_id}",
+            f"scorm_extracted/{scorm_package_id}",
         ]
         
         # 3. Add topic-specific SCORM directories if topic_id is provided
         if topic_id:
             scorm_directories.extend([
+                # Primary topic directories
                 f"scorm_content/{topic_id}",
                 f"scorm_packages/topic_{topic_id}",
+                
+                # Alternate formats
+                f"topic_content/{topic_id}/scorm",
+                f"topic_files/{topic_id}/scorm",
+                f"scorm/topics/{topic_id}",
+                
+                # Combined formats
+                f"scorm_content/{topic_id}/{scorm_package_id}",
+                f"scorm_packages/{topic_id}/{scorm_package_id}",
             ])
         
         # 4. Clean up each directory
@@ -339,7 +374,42 @@ class S3CleanupManager:
             results = self.delete_directory_contents(directory)
             all_results.update(results)
         
-        logger.info(f"Completed S3 cleanup for SCORM package {scorm_package_id}")
+        # 5. ENHANCED: Try to find any orphaned files with package_id in the key
+        try:
+            if self.is_s3_storage():
+                # Search for any keys containing the package ID
+                package_id_str = str(scorm_package_id)
+                
+                # List all objects in the scorm directories
+                search_prefixes = ["scorm", "scorm_packages", "scorm_content"]
+                
+                for prefix in search_prefixes:
+                    try:
+                        paginator = self.s3_client.get_paginator('list_objects_v2')
+                        pages = paginator.paginate(
+                            Bucket=self.bucket_name, 
+                            Prefix=f"{self.media_location}/{prefix}"
+                        )
+                        
+                        for page in pages:
+                            if 'Contents' in page:
+                                for obj in page['Contents']:
+                                    key = obj['Key']
+                                    # Check if the key contains the package ID as a distinct segment
+                                    if f"/{package_id_str}/" in key or f"_{package_id_str}/" in key or key.endswith(f"/{package_id_str}"):
+                                        # This is likely an orphaned file related to this package
+                                        logger.info(f"Found potential orphaned SCORM file: {key}")
+                                        result = self.delete_file(key)
+                                        all_results[key] = result
+                    except Exception as e:
+                        logger.warning(f"Error searching for orphaned files in {prefix}: {e}")
+        except Exception as e:
+            logger.warning(f"Error in orphaned file cleanup: {e}")
+        
+        # 6. Log summary
+        successful_deletions = sum(1 for success in all_results.values() if success)
+        logger.info(f"Completed comprehensive S3 cleanup for SCORM package {scorm_package_id}: {successful_deletions}/{len(all_results)} files deleted")
+        
         return all_results
     
     def cleanup_assignment_files(self, assignment_id: int) -> Dict[str, bool]:

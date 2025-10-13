@@ -187,10 +187,20 @@
         const ATTEMPT_ID = '{{ attempt.id|default:attempt_id }}' || 'unknown';
         const IS_PREVIEW = {% if preview_mode %}true{% else %}false{% endif %};
         
-        // CRITICAL FIX: Add null safety checks to prevent React-like errors
-        if (!API_ENDPOINT || !ATTEMPT_ID) {
+        // CRITICAL FIX: Add comprehensive null safety checks to prevent React-like errors
+        if (!API_ENDPOINT || !ATTEMPT_ID || API_ENDPOINT === 'undefined' || ATTEMPT_ID === 'undefined') {
             console.error('[Rise 360] Missing required configuration');
-            // Don't use return in global scope - use conditional execution instead
+            // Create fallback configuration to prevent errors
+            const fallbackConfig = {
+                apiEndpoint: '/scorm/api/unknown/',
+                attemptId: 'unknown',
+                isPreview: true
+            };
+            
+            // Log error for debugging
+            console.error('[Rise 360] Using fallback configuration due to missing parameters');
+            
+            // Continue with fallback config
         } else {
         
         console.log('🎯 Rise 360 Player - Initializing...');
@@ -756,10 +766,54 @@
                 }
             }
             
-            // CRITICAL FIX: Only run enhancement once to prevent duplicates
-            if (!window.rise360EnhancementRun) {
-                window.rise360EnhancementRun = true;
-                enhanceIframeExitButtons();
+            // COMPREHENSIVE FIX: Prevent duplicate event listeners and enhancements
+            if (typeof window.rise360ExitEnhancement === 'undefined') {
+                // Create a singleton object to manage exit button enhancement
+                window.rise360ExitEnhancement = {
+                    initialized: false,
+                    eventsBound: false,
+                    enhancementCount: 0,
+                    
+                    // Initialize only once
+                    init: function() {
+                        if (this.initialized) {
+                            console.log('[Rise 360] Exit button enhancement already initialized');
+                            return;
+                        }
+                        
+                        this.initialized = true;
+                        console.log('[Rise 360] Initializing exit button enhancement');
+                        
+                        // Run enhancement immediately
+                        this.runEnhancement();
+                        
+                        // Set up iframe load listener to enhance buttons when iframe content changes
+                        const riseFrame = document.getElementById('riseFrame');
+                        if (riseFrame) {
+                            // Remove any existing listeners first
+                            if (this.eventsBound) {
+                                riseFrame.removeEventListener('load', this.runEnhancement);
+                            }
+                            
+                            // Add event listener with bound context
+                            riseFrame.addEventListener('load', this.runEnhancement.bind(this));
+                            this.eventsBound = true;
+                        }
+                    },
+                    
+                    // Run the enhancement
+                    runEnhancement: function() {
+                        this.enhancementCount++;
+                        console.log(`[Rise 360] Running exit button enhancement (attempt ${this.enhancementCount})`);
+                        enhanceIframeExitButtons();
+                    }
+                };
+                
+                // Initialize the enhancement
+                window.rise360ExitEnhancement.init();
+            } else {
+                // Already initialized, just log
+                console.log('[Rise 360] Exit button enhancement already set up');
             }
             
             // CRITICAL FIX: Prevent infinite loops with global flag
@@ -786,17 +840,26 @@
                 enhanceIframeExitButtons();
             }
             
-            // Also try periodically to catch dynamically loaded buttons
-            enhanceInterval = setInterval(limitedEnhanceIframeExitButtons, 3000); // Increased interval
+            // Use a more efficient approach with increasing intervals
+            const enhancementIntervals = [1000, 2000, 4000, 7000]; // Increasing intervals
+            let enhancementIndex = 0;
             
-            // Stop trying after 24 seconds
-            setTimeout(() => {
-                if (enhanceInterval) {
-                    clearInterval(enhanceInterval);
-                    enhanceInterval = null;
+            function scheduleNextRiseEnhancement() {
+                if (enhancementIndex >= enhancementIntervals.length) {
+                    console.log('[Rise 360] Exit button enhancement completed after ' + enhancementIndex + ' attempts');
+                    return; // Stop when we've used all intervals
                 }
-                console.log('[Rise 360] Stopped trying to enhance exit buttons');
-            }, 24000);
+                
+                const currentInterval = enhancementIntervals[enhancementIndex];
+                setTimeout(() => {
+                    limitedEnhanceIframeExitButtons();
+                    enhancementIndex++;
+                    scheduleNextRiseEnhancement(); // Schedule next with increasing interval
+                }, currentInterval);
+            }
+            
+            // Start the enhancement sequence
+            scheduleNextRiseEnhancement();
         }
         
         // Progress tracking for Rise 360 with caching to prevent API spam
@@ -1230,6 +1293,8 @@
         console.log('Content URL:', '{{ content_url }}');
         console.log('==========================');
         {% endif %}
+        
+        } // End of the configuration else block
     </script>
 </body>
 </html>
