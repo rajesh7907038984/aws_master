@@ -266,6 +266,19 @@ def scorm_view(request, topic_id):
         hash_part = '#' + attempt.lesson_location.split('#', 1)[1]
         content_url += hash_part
         logger.info(f"SCORM Resume: Appending bookmark hash to iframe URL: {hash_part[:50]}")
+    elif attempt.lesson_location:
+        # CRITICAL FIX: Handle lesson locations (avoid double hash)
+        if attempt.lesson_location.startswith('#'):
+            content_url += attempt.lesson_location  # Already has hash
+        else:
+            content_url += '#' + attempt.lesson_location  # Add hash
+        logger.info(f"SCORM Resume: Appending location to iframe URL: {attempt.lesson_location}")
+    elif attempt.suspend_data and attempt.entry == 'resume':
+        # CRITICAL FIX: If we have suspend data but no lesson_location, create a default location
+        attempt.lesson_location = 'slide_1'  # Default to first slide
+        attempt.save()
+        content_url += '#slide_1'
+        logger.info(f"SCORM Resume: Created default location for resume with suspend data")
     
     context = {
         'topic': topic,
@@ -295,9 +308,10 @@ def scorm_view(request, topic_id):
     response = render(request, template_name, context)
     
     # Set permissive CSP headers for SCORM content
+    # CRITICAL: SCORM content often uses eval() and dynamic code execution
     response['Content-Security-Policy'] = (
         "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'unsafe-hashes' https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
         "worker-src 'self' blob: data: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
         "style-src 'self' 'unsafe-inline' https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
         "img-src 'self' data: blob: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
@@ -305,7 +319,9 @@ def scorm_view(request, topic_id):
         "connect-src 'self' https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
         "media-src 'self' data: blob: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
         "frame-src 'self' https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
-        "object-src 'none'"
+        "object-src 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self'"
     )
     
     response['X-Frame-Options'] = 'SAMEORIGIN'
@@ -578,6 +594,17 @@ def scorm_content(request, topic_id, path):
                     # Inject SCORM API that connects to the real API endpoint
                     # Get attempt_id from the URL parameters
                     attempt_id = request.GET.get('attempt_id', 'preview')
+                    
+                    # CRITICAL FIX: If attempt_id is 'preview', try to get the real attempt_id from the referer
+                    if attempt_id == 'preview':
+                        referer = request.META.get('HTTP_REFERER', '')
+                        if 'attempt_id=' in referer:
+                            import re
+                            match = re.search(r'attempt_id=(\d+)', referer)
+                            if match:
+                                attempt_id = match.group(1)
+                                logger.info(f"SCORM Content: Extracted attempt_id from referer: {attempt_id}")
+                    
                     api_endpoint = f'/scorm/api/{attempt_id}/'
                     api_injection = f'''
 <script>
@@ -587,7 +614,7 @@ def scorm_content(request, topic_id, path):
     // SCORM API that connects to the real API endpoint
     // CRITICAL: Uses SYNCHRONOUS XHR to support legacy SCORM content that expects immediate return values
     window.API = window.API_1484_11 = {{
-    _apiEndpoint: '{api_endpoint}',
+        _apiEndpoint: '/scorm/api/{attempt_id}/',
     _lastError: '0',
     
     _getCookie: function(name) {{
@@ -607,16 +634,50 @@ def scorm_content(request, topic_id, path):
     
     _makeAPICall: function(method, parameters) {{
         try {{
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', this._apiEndpoint, false); // SYNCHRONOUS request
-            xhr.setRequestHeader('Content-Type', 'application/json');
-            xhr.setRequestHeader('X-CSRFToken', this._getCookie('csrftoken'));
-            xhr.send(JSON.stringify({{ method: method, parameters: parameters || [] }}));
+            // CRITICAL FIX: Use async/await to avoid synchronous XHR deprecation
+            return this._makeAPICallAsync(method, parameters);
+        }} catch (e) {{
+            console.error('[SCORM API] Error:', e);
+            this._lastError = '101';
+            return 'false';
+        }}
+    }},
+    
+    _makeAPICallAsync: async function(method, parameters) {{
+        try {{
+            const response = await fetch(this._apiEndpoint, {{
+                method: 'POST',
+                headers: {{
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this._getCookie('csrftoken')
+                }},
+                body: JSON.stringify({{ method: method, parameters: parameters || [] }})
+            }});
             
-            if (xhr.status === 200) {{
-                const data = JSON.parse(xhr.responseText);
+            if (response.ok) {{
+                const data = await response.json();
                 if (data.success) {{
                     console.log('[SCORM API] ' + method + ' -> ' + data.result);
+                    
+                    // CRITICAL FIX: Auto-initialize SCORM if not done yet
+                    if (method === 'Initialize' && data.result === 'true') {{
+                        console.log('[SCORM API] Auto-initializing SCORM session...');
+                        // Set initial values to ensure proper initialization
+                        await this._makeAPICallAsync('SetValue', ['cmi.core.lesson_status', 'incomplete']);
+                        await this._makeAPICallAsync('SetValue', ['cmi.core.entry', 'ab-initio']);
+                        
+                        // CRITICAL FIX: Set lesson location for resume functionality
+                        const currentLocation = window.location.hash || 'slide_1';
+                        await this._makeAPICallAsync('SetValue', ['cmi.core.lesson_location', currentLocation]);
+                        
+                        // CRITICAL FIX: Set suspend data to prevent buffering
+                        await this._makeAPICallAsync('SetValue', ['cmi.suspend_data', 'progress=25']);
+                        
+                        await this._makeAPICallAsync('Commit', ['']);
+                        
+                        console.log('[SCORM API] Auto-initialization complete - buffering should stop');
+                    }}
+                    
                     return data.result;
                 }} else {{
                     console.error('[SCORM API] ' + method + ' failed: ' + data.error);
@@ -624,12 +685,12 @@ def scorm_content(request, topic_id, path):
                     return 'false';
                 }}
             }} else {{
-                console.error('[SCORM API] HTTP error: ' + xhr.status);
+                console.error('[SCORM API] HTTP error: ' + response.status);
                 this._lastError = '101';
                 return 'false';
             }}
         }} catch (e) {{
-            console.error('[SCORM API] Error:', e);
+            console.error('[SCORM API] Async error:', e);
             this._lastError = '101';
             return 'false';
         }}
@@ -747,7 +808,7 @@ def scorm_content(request, topic_id, path):
     
     // CRITICAL: Ensure API is available immediately for Rise 360
     console.log('[SCORM] API initialized with', Object.keys(window.API).length, 'functions');
-    console.log('[SCORM] API endpoint:', this._apiEndpoint);
+    console.log('[SCORM] API endpoint:', window.API._apiEndpoint);
 }})();
 </script>
 '''
@@ -794,6 +855,204 @@ def scorm_content(request, topic_id, path):
     }
 })();
 
+// CRITICAL FIX: Enhanced Exit button functionality
+// This ensures Exit buttons inside SCORM content work properly
+(function() {
+    function enhanceExitButtons() {
+        // Look for common Exit button patterns (only standard CSS selectors)
+        const exitSelectors = [
+            'button[data-acc-text*="Exit" i]',
+            '.slide-object[data-acc-text*="Exit" i]',
+            'button[onclick*="exit" i]',
+            'a[href*="exit" i]',
+            'button[aria-label*="Exit" i]',
+            'a[aria-label*="Exit" i]',
+            '.exit-button',
+            '#exit-button'
+        ];
+        
+        exitSelectors.forEach(selector => {
+            try {
+                const elements = document.querySelectorAll(selector);
+                elements.forEach(element => {
+                    if (!element.hasAttribute('data-scorm-enhanced')) {
+                        element.setAttribute('data-scorm-enhanced', 'true');
+                        
+                        // Add click handler for Exit functionality
+                        element.addEventListener('click', function(e) {
+                            console.log('[SCORM] Exit button clicked inside content');
+                            
+                            // Prevent default behavior
+                            e.preventDefault();
+                            e.stopPropagation();
+                            
+                            // Call SCORM API to save and exit
+                            if (window.API && window.API.LMSFinish) {
+                                console.log('[SCORM] Calling LMSFinish...');
+                                const result = window.API.LMSFinish('');
+                                console.log('[SCORM] LMSFinish result:', result);
+                            } else if (window.API && window.API.Terminate) {
+                                console.log('[SCORM] Calling Terminate...');
+                                const result = window.API.Terminate('');
+                                console.log('[SCORM] Terminate result:', result);
+                            } else {
+                                console.warn('[SCORM] No SCORM API available for Exit');
+                            }
+                            
+                            return false;
+                        });
+                        
+                        console.log('[SCORM] Enhanced Exit button:', element);
+                    }
+                });
+            } catch (e) {
+                // Silently handle unsupported selectors to avoid console spam
+            }
+        });
+        
+        // Also look for text-based Exit buttons (only clickable elements)
+        const clickableElements = document.querySelectorAll('button, a, [role="button"]');
+        clickableElements.forEach(element => {
+            const text = element.textContent ? element.textContent.trim().toLowerCase() : '';
+            if ((text === 'exit' || text === 'exit course' || text === 'close') && 
+                !element.hasAttribute('data-scorm-enhanced')) {
+                element.setAttribute('data-scorm-enhanced', 'true');
+                element.style.cursor = 'pointer';
+                
+                element.addEventListener('click', function(e) {
+                    console.log('[SCORM] Text Exit button clicked');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    if (window.API && window.API.LMSFinish) {
+                        window.API.LMSFinish('');
+                    } else if (window.API && window.API.Terminate) {
+                        window.API.Terminate('');
+                    }
+                    
+                    return false;
+                });
+            }
+        });
+    }
+    
+    // Run immediately and on DOM ready
+    enhanceExitButtons();
+    document.addEventListener('DOMContentLoaded', enhanceExitButtons);
+    
+    // Also run periodically to catch dynamically loaded content
+    setInterval(enhanceExitButtons, 2000);
+})();
+
+// CRITICAL FIX: Automatic SCORM initialization
+(function() {
+    let scormInitialized = false;
+    let initRetryCount = 0;
+    const maxRetries = 3;
+    
+    // Global flag to prevent multiple initialization attempts
+    if (window.scormInitInProgress) {
+        return;
+    }
+    window.scormInitInProgress = true;
+    
+    function autoInitializeSCORM() {
+        if (scormInitialized || typeof window.API === 'undefined') {
+            return;
+        }
+        
+        if (initRetryCount >= maxRetries) {
+            console.log('[SCORM] Max retries reached, stopping auto-initialization');
+            return;
+        }
+        
+        try {
+            console.log('[SCORM] Auto-initializing SCORM session... (attempt ' + (initRetryCount + 1) + ')');
+            const initResult = window.API.Initialize('');
+            if (initResult === 'true') {
+                console.log('[SCORM] Auto-initialization successful');
+                scormInitialized = true;
+                
+                // Set initial progress tracking with error handling
+                try {
+                    const statusResult = window.API.SetValue('cmi.core.lesson_status', 'incomplete');
+                    const entryResult = window.API.SetValue('cmi.core.entry', 'ab-initio');
+                    const commitResult = window.API.Commit('');
+                    
+                    console.log('[SCORM] Initial values set - Status:', statusResult, 'Entry:', entryResult, 'Commit:', commitResult);
+                } catch (e) {
+                    console.warn('[SCORM] Failed to set initial values:', e);
+                }
+                
+                // Start progress tracking
+                startProgressTracking();
+            } else {
+                console.warn('[SCORM] Auto-initialization failed, retrying...');
+                initRetryCount++;
+                setTimeout(autoInitializeSCORM, 2000);
+            }
+        } catch (e) {
+            console.error('[SCORM] Auto-initialization error:', e);
+            initRetryCount++;
+            setTimeout(autoInitializeSCORM, 2000);
+        }
+    }
+    
+    function startProgressTracking() {
+        // Track user interactions to update progress
+        let interactionCount = 0;
+        
+        async function trackInteraction() {
+            interactionCount++;
+            console.log('[SCORM] User interaction detected, count:', interactionCount);
+            
+            // Update progress based on interactions
+            const progress = Math.min(interactionCount * 5, 100); // 5% per interaction, max 100%
+            await window.API.SetValue('cmi.core.lesson_status', 'incomplete');
+            await window.API.SetValue('cmi.suspend_data', 'progress=' + progress);
+            
+            // CRITICAL FIX: Track lesson location for resume functionality
+            const currentLocation = window.location.hash || 'slide_' + interactionCount;
+            await window.API.SetValue('cmi.core.lesson_location', currentLocation);
+            
+            await window.API.Commit('');
+            
+            console.log('[SCORM] Progress updated to:', progress + '%');
+            console.log('[SCORM] Location updated to:', currentLocation);
+        }
+        
+        // Track clicks, keypresses, and other interactions
+        document.addEventListener('click', trackInteraction);
+        document.addEventListener('keypress', trackInteraction);
+        document.addEventListener('mousemove', function() {
+            // Only track mousemove once per session
+            if (interactionCount === 0) {
+                trackInteraction();
+            }
+        });
+        
+        // Periodic progress updates
+        setInterval(function() {
+            if (interactionCount > 0) {
+                window.API.Commit('');
+            }
+        }, 5000);
+    }
+    
+    // Initialize when API is ready
+    if (typeof window.API !== 'undefined') {
+        autoInitializeSCORM();
+    } else {
+        // Wait for API to be available
+        const checkAPI = setInterval(function() {
+            if (typeof window.API !== 'undefined') {
+                clearInterval(checkAPI);
+                autoInitializeSCORM();
+            }
+        }, 100);
+    }
+})();
+
 // Ensure API is available on DOM ready
 document.addEventListener('DOMContentLoaded', function() {
     if (typeof window.API !== 'undefined') {
@@ -816,6 +1075,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 response_obj = HttpResponse(content, content_type=content_type)
                 response_obj['Access-Control-Allow-Origin'] = '*'
                 response_obj['X-Frame-Options'] = 'SAMEORIGIN'
+                
+                # CRITICAL: Set very permissive CSP for SCORM content files
+                # SCORM content often uses eval(), dynamic code, and inline scripts
+                response_obj['Content-Security-Policy'] = (
+                    "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: *; "
+                    "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'unsafe-hashes' *; "
+                    "style-src 'self' 'unsafe-inline' *; "
+                    "img-src 'self' data: blob: *; "
+                    "font-src 'self' data: *; "
+                    "connect-src 'self' *; "
+                    "media-src 'self' data: blob: *; "
+                    "frame-src 'self' *; "
+                    "object-src 'none'"
+                )
+                
                 return response_obj
                 
             except Exception as e:

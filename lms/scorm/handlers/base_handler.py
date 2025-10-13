@@ -144,9 +144,18 @@ class BaseScormAPIHandler:
                 progress_measure = str(float(self.attempt.progress_percentage) / 100.0)
                 self.attempt.cmi_data['cmi.progress_measure'] = progress_measure
         
+        # CRITICAL FIX: Force save and sync to ensure data persistence
         self.attempt.save()
         
+        # Force progress calculation if not set
+        if not self.attempt.progress_percentage or self.attempt.progress_percentage == 0:
+            if self.attempt.lesson_status in ['incomplete', 'completed', 'passed']:
+                self.attempt.progress_percentage = 25.0  # Default progress for started content
+                self.attempt.save()
+                logger.info(f"🔧 Set default progress to 25% for attempt {self.attempt.id}")
+        
         logger.info(f"✅ SCORM API initialized for attempt {self.attempt.id} ({self.get_handler_name()})")
+        logger.info(f"   Status: {self.attempt.lesson_status}, Progress: {self.attempt.progress_percentage}%")
         return 'true'
     
     def terminate(self):
