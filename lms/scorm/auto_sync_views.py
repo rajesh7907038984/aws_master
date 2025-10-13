@@ -144,6 +144,7 @@ def _safe_len(value):
         return 0
 
 
+@csrf_exempt
 @login_required
 @require_http_methods(["POST"])
 def sync_on_exit(request):
