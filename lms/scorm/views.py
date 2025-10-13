@@ -433,16 +433,53 @@ def scorm_api(request, attempt_id):
                 return JsonResponse({"error": "Method parameter required"})
         
         elif request.method == 'POST':
-            # Set SCORM data
+            # Parse SCORM API call
             data = json.loads(request.body.decode('utf-8'))
             method = data.get('method', '')
-            value = data.get('value', '')
+            parameters = data.get('parameters', [])
             
-            if method:
-                result = api_handler.set_value(method, value)
-                return JsonResponse({"result": result})
-            else:
+            if not method:
                 return JsonResponse({"error": "Method parameter required"})
+            
+            # Route to appropriate handler method
+            result = None
+            try:
+                # Initialize/Terminate methods
+                if method in ['LMSInitialize', 'Initialize']:
+                    result = api_handler.initialize()
+                elif method in ['LMSFinish', 'Terminate']:
+                    result = api_handler.terminate()
+                elif method in ['LMSCommit', 'Commit']:
+                    result = api_handler.commit()
+                
+                # Get methods
+                elif method in ['LMSGetValue', 'GetValue']:
+                    element = parameters[0] if parameters else ''
+                    result = api_handler.get_value(element)
+                elif method in ['LMSGetLastError', 'GetLastError']:
+                    result = api_handler.get_last_error()
+                elif method in ['LMSGetErrorString', 'GetErrorString']:
+                    error_code = parameters[0] if parameters else '0'
+                    result = api_handler.get_error_string(error_code)
+                elif method in ['LMSGetDiagnostic', 'GetDiagnostic']:
+                    error_code = parameters[0] if parameters else '0'
+                    result = api_handler.get_diagnostic(error_code)
+                
+                # Set methods
+                elif method in ['LMSSetValue', 'SetValue']:
+                    element = parameters[0] if len(parameters) > 0 else ''
+                    value = parameters[1] if len(parameters) > 1 else ''
+                    result = api_handler.set_value(element, value)
+                
+                else:
+                    logger.warning(f"Unknown SCORM API method: {method}")
+                    return JsonResponse({"error": f"Unknown method: {method}"}, status=400)
+                
+                return JsonResponse({"success": True, "result": result})
+                
+            except Exception as e:
+                logger.error(f"Error executing SCORM API method {method}: {str(e)}")
+                return JsonResponse({"error": f"Error executing {method}"}, status=500)
         
     except Exception as e:
         logger.error(f"Error in SCORM API for attempt {attempt_id}: {str(e)}")
