@@ -832,6 +832,10 @@ class ScormAPIHandler:
     
     def commit(self):
         """LMSCommit / Commit"""
+        logger.info(f"📝 [COMMIT] Commit called for attempt {self.attempt.id}")
+        logger.info(f"📝 [COMMIT] Initialized: {self.initialized}")
+        logger.info(f"📝 [COMMIT] CMI data exists: {bool(self.attempt.cmi_data and len(self.attempt.cmi_data) > 0)}")
+        
         # CRITICAL FIX: Use lock to prevent race conditions during commit
         with self._lock:
             # CRITICAL FIX: Check if session was EVER initialized (not just in current request)
@@ -842,26 +846,28 @@ class ScormAPIHandler:
             # FIX: Some SCORM packages skip LMSInitialize/Initialize and go straight to commits
             # Auto-initialize if not already initialized to ensure data can be saved
             if not self.initialized and not was_initialized:
-                logger.warning(f"SCORM API Commit called before initialization - auto-initializing for attempt {self.attempt.id}")
+                logger.warning(f"📝 [COMMIT] Commit called before initialization - auto-initializing for attempt {self.attempt.id}")
                 # CRITICAL: Refresh from DB first to get latest saved data (lesson_location, suspend_data, progress)
                 try:
                     self.attempt.refresh_from_db()
-                    logger.info(f"Refreshed attempt data from database before auto-initialization")
+                    logger.info(f"📝 [COMMIT] Refreshed attempt data from database before auto-initialization")
                 except Exception as e:
-                    logger.warning(f"Could not refresh attempt from DB: {e}")
+                    logger.warning(f"📝 [COMMIT] Could not refresh attempt from DB: {e}")
                 # Auto-initialize the session with fresh data
                 if not self.attempt.cmi_data or len(self.attempt.cmi_data) == 0:
                     self.attempt.cmi_data = self._initialize_cmi_data()
                 self.initialized = True
-                logger.info(f"Auto-initialized SCORM session with latest data for attempt {self.attempt.id}")
+                logger.info(f"✅ [COMMIT] Auto-initialized SCORM session with latest data for attempt {self.attempt.id}")
         
         try:
             self._commit_data()
             self.last_error = '0'
-            logger.info(f"SCORM API Commit successful for attempt {self.attempt.id}")
+            logger.info(f"✅ [COMMIT] Commit successful for attempt {self.attempt.id}")
             return 'true'
         except Exception as e:
-            logger.error(f"Error committing data for attempt {self.attempt.id}: {str(e)}")
+            logger.error(f"❌ [COMMIT] Error committing data for attempt {self.attempt.id}: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
             self.last_error = '101'
             return 'false'
     

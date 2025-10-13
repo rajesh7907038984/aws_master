@@ -593,14 +593,30 @@
                         clearInterval(autoSaveInterval);
                     }
                     
+                    // CRITICAL FIX: Initialize SCORM API if not already initialized
+                    // Some SCORM content doesn't call Initialize, so we need to do it manually
+                    try {
+                        if (window.API && window.API.LMSInitialize) {
+                            const initResult = window.API.LMSInitialize('');
+                            console.log('[SCORM] Manual Initialize result:', initResult);
+                        }
+                        if (window.API_1484_11 && window.API_1484_11.Initialize) {
+                            const initResult = window.API_1484_11.Initialize('');
+                            console.log('[SCORM 2004] Manual Initialize result:', initResult);
+                        }
+                    } catch (e) {
+                        console.warn('[SCORM] Initialize warning:', e);
+                    }
+                    
+                    // Now try to commit
                     try {
                         if (window.API && window.API.LMSCommit) {
-                            window.API.LMSCommit('');
-                            console.log('[SCORM] SCORM 1.2 data committed');
+                            const commitResult = window.API.LMSCommit('');
+                            console.log('[SCORM] SCORM 1.2 data committed, result:', commitResult);
                         }
                         if (window.API_1484_11 && window.API_1484_11.Commit) {
-                            window.API_1484_11.Commit('');
-                            console.log('[SCORM] SCORM 2004 data committed');
+                            const commitResult = window.API_1484_11.Commit('');
+                            console.log('[SCORM] SCORM 2004 data committed, result:', commitResult);
                         }
                     } catch (e) {
                         console.error('[SCORM] Commit error:', e);
@@ -775,14 +791,20 @@
                     
                     // Sync to database
                     function syncWithRetry(retryCount = 0) {
-                        // CRITICAL FIX: Verify data before syncing
+                        // CRITICAL FIX: Verify data before syncing, but limit retries to prevent infinite loop
                         const dataVerified = verifyDataBeforeSync();
-                        if (!dataVerified && retryCount === 0) {
-                            console.warn('[SCORM] Data not verified, waiting 500ms and trying again...');
+                        if (!dataVerified && retryCount < 3) {
+                            console.warn('[SCORM] Data not verified, retry ' + (retryCount + 1) + '/3...');
                             setTimeout(function() {
-                                syncWithRetry(0);
+                                syncWithRetry(retryCount + 1);
                             }, 500);
                             return;
+                        }
+                        
+                        // After 3 retries, proceed anyway (might be preview or content didn't track)
+                        if (!dataVerified && retryCount >= 3) {
+                            console.warn('⚠️ [SCORM] Proceeding with sync after 3 failed verifications');
+                            console.warn('⚠️ [SCORM] This usually means the SCORM content did not send tracking data');
                         }
                         
                         console.log('[SCORM] Starting database sync... (attempt ' + (retryCount + 1) + ')');
