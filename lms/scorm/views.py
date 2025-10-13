@@ -16,6 +16,7 @@ from django.core.files.storage import default_storage
 from django.contrib import messages
 from django.utils import timezone
 from django.conf import settings
+from django.core.cache import cache
 
 from .models import ScormPackage, ScormAttempt
 from .api_handler import ScormAPIHandler  # Keep for fallback
@@ -551,7 +552,6 @@ def scorm_content(request, topic_id, path):
     Handles multiple SCORM package structures with intelligent fallback
     OPTIMIZED: Added HTTP range support, caching headers, and video streaming
     """
-    from django.core.cache import cache
     import hashlib
     from email.utils import formatdate
     from time import time
