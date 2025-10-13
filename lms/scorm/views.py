@@ -434,9 +434,9 @@ def scorm_api(request, attempt_id):
             method = request.GET.get('method', '')
             if method:
                 result = api_handler.get_value(method)
-                return JsonResponse({"result": result})
+                return JsonResponse({"success": True, "result": result})
             else:
-                return JsonResponse({"error": "Method parameter required"})
+                return JsonResponse({"success": False, "error": "Method parameter required"})
         
         elif request.method == 'POST':
             # Parse SCORM API call
@@ -445,7 +445,7 @@ def scorm_api(request, attempt_id):
             parameters = data.get('parameters', [])
             
             if not method:
-                return JsonResponse({"error": "Method parameter required"})
+                return JsonResponse({"success": False, "error": "Method parameter required"})
             
             # Route to appropriate handler method
             result = None
@@ -485,17 +485,21 @@ def scorm_api(request, attempt_id):
                 
                 else:
                     logger.warning(f"Unknown SCORM API method: {method}")
-                    return JsonResponse({"error": f"Unknown method: {method}"}, status=400)
+                    return JsonResponse({"success": False, "error": f"Unknown method: {method}"}, status=400)
                 
                 return JsonResponse({"success": True, "result": result})
                 
             except Exception as e:
                 logger.error(f"Error executing SCORM API method {method}: {str(e)}")
-                return JsonResponse({"error": f"Error executing {method}"}, status=500)
+                import traceback
+                logger.error(traceback.format_exc())
+                return JsonResponse({"success": False, "error": f"Error executing {method}"}, status=500)
         
     except Exception as e:
         logger.error(f"Error in SCORM API for attempt {attempt_id}: {str(e)}")
-        return JsonResponse({"error": "Internal server error"}, status=500)
+        import traceback
+        logger.error(traceback.format_exc())
+        return JsonResponse({"success": False, "error": "Internal server error"}, status=500)
 
 
 @csrf_exempt
