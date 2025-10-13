@@ -324,6 +324,12 @@ def scorm_view(request, topic_id):
             logger.info(f" SCORM (Rise 360): Final URL with bookmark: {content_url}")
         else:
             logger.info(f" SCORM (Rise 360): Final URL (no hash): {content_url}")
+        
+        # CRITICAL FIX: For returning learners with existing progress, redirect directly to content URL
+        # This ensures they go to the correct lesson instead of the player template
+        if resume_needed and (bookmark_applied or attempt.lesson_status not in ['not_attempted', 'not attempted']):
+            logger.info(f" SCORM (Rise 360): Returning learner with progress - redirecting to content URL")
+            return redirect(content_url)
     
     else:
         # STORYLINE/CAPTIVATE/GENERIC HANDLING: Use query parameters for resume
@@ -412,6 +418,12 @@ def scorm_view(request, topic_id):
         if hash_fragment:
             content_url += hash_fragment
             logger.info(f" SCORM ({package_type}): Final content URL with hash: {content_url}")
+        
+        # CRITICAL FIX: For returning learners with existing progress, redirect directly to content URL
+        # This ensures they go to the correct lesson instead of the player template
+        if resume_needed and (bookmark_applied or attempt.lesson_status not in ['not_attempted', 'not attempted']):
+            logger.info(f" SCORM ({package_type}): Returning learner with progress - redirecting to content URL")
+            return redirect(content_url)
     
     context = {
         'topic': topic,
