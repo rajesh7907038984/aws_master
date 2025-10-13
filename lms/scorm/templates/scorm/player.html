@@ -874,13 +874,21 @@
                 try {
                     console.log(`🔍 Auto score capture attempt ${scoreCaptureAttempts + 1}/${MAX_SCORE_CAPTURE_ATTEMPTS}`);
                     
-                    // Method 1: Check SCORM API for score
-                    let detectedScore = checkScormApiForScore();
+                    // Method 1: SCORM API Proxy Method (Primary)
+                    let detectedScore = extractScoreViaScormApi();
                     if (detectedScore) {
-                        console.log('✅ Score found via SCORM API:', detectedScore);
+                        console.log('✅ Score found via SCORM API proxy:', detectedScore);
                     }
                     
-                    // Method 2: Check iframe content for score patterns
+                    // Method 2: Enhanced SCORM API checking (Fallback)
+                    if (!detectedScore) {
+                        detectedScore = checkScormApiForScore();
+                        if (detectedScore) {
+                            console.log('✅ Score found via enhanced SCORM API:', detectedScore);
+                        }
+                    }
+                    
+                    // Method 3: Check iframe content for score patterns (Last resort)
                     if (!detectedScore) {
                         detectedScore = checkIframeForScore();
                         if (detectedScore) {
@@ -888,7 +896,7 @@
                         }
                     }
                     
-                    // Method 3: Check for completion indicators
+                    // Method 4: Check for completion indicators (Final fallback)
                     if (!detectedScore) {
                         detectedScore = checkForCompletionIndicators();
                         if (detectedScore) {
@@ -920,26 +928,105 @@
         
         function checkScormApiForScore() {
             try {
-                // Check SCORM 1.2 API
+                console.log('🔍 Checking SCORM API for score...');
+                
+                // Enhanced SCORM 1.2 API checking
                 if (window.API && window.API._initialized) {
-                    const scoreRaw = window.API.LMSGetValue('cmi.core.score.raw');
-                    if (scoreRaw && scoreRaw !== '' && scoreRaw !== 'undefined' && scoreRaw !== 'false') {
-                        return parseFloat(scoreRaw);
+                    console.log('✅ SCORM 1.2 API is initialized');
+                    
+                    // Try multiple score elements
+                    const scoreElements = [
+                        'cmi.core.score.raw',
+                        'cmi.core.score.max',
+                        'cmi.core.score.min',
+                        'cmi.core.lesson_status',
+                        'cmi.core.completion_status'
+                    ];
+                    
+                    for (const element of scoreElements) {
+                        try {
+                            const value = window.API.LMSGetValue(element);
+                            console.log(`📊 ${element}: "${value}"`);
+                            
+                            if (element === 'cmi.core.score.raw' && value && value !== '' && value !== 'undefined' && value !== 'false') {
+                                const score = parseFloat(value);
+                                if (!isNaN(score) && score >= 0 && score <= 100) {
+                                    console.log('✅ Score found in SCORM 1.2 API:', score);
+                                    return score;
+                                }
+                            }
+                        } catch (e) {
+                            console.log(`⚠️ Error getting ${element}:`, e.message);
+                        }
+                    }
+                } else {
+                    console.log('❌ SCORM 1.2 API not initialized');
+                }
+                
+                // Enhanced SCORM 2004 API checking
+                if (window.API_1484_11 && window.API_1484_11._initialized) {
+                    console.log('✅ SCORM 2004 API is initialized');
+                    
+                    // Try multiple score elements for SCORM 2004
+                    const scoreElements2004 = [
+                        'cmi.score.raw',
+                        'cmi.score.max',
+                        'cmi.score.min',
+                        'cmi.score.scaled',
+                        'cmi.completion_status',
+                        'cmi.success_status'
+                    ];
+                    
+                    for (const element of scoreElements2004) {
+                        try {
+                            const value = window.API_1484_11.GetValue(element);
+                            console.log(`📊 ${element}: "${value}"`);
+                            
+                            if (element === 'cmi.score.raw' && value && value !== '' && value !== 'undefined' && value !== 'false') {
+                                const score = parseFloat(value);
+                                if (!isNaN(score) && score >= 0 && score <= 100) {
+                                    console.log('✅ Score found in SCORM 2004 API:', score);
+                                    return score;
+                                }
+                            }
+                            
+                            if (element === 'cmi.score.scaled' && value && value !== '' && value !== 'undefined' && value !== 'false') {
+                                const scaledScore = parseFloat(value) * 100;
+                                if (!isNaN(scaledScore) && scaledScore >= 0 && scaledScore <= 100) {
+                                    console.log('✅ Scaled score found in SCORM 2004 API:', scaledScore);
+                                    return scaledScore;
+                                }
+                            }
+                        } catch (e) {
+                            console.log(`⚠️ Error getting ${element}:`, e.message);
+                        }
+                    }
+                } else {
+                    console.log('❌ SCORM 2004 API not initialized');
+                }
+                
+                // Check if SCORM API has internal cache
+                if (window.API && window.API._cache) {
+                    console.log('🔍 Checking SCORM API cache...');
+                    const cacheKeys = Object.keys(window.API._cache);
+                    console.log('📋 Cache keys:', cacheKeys);
+                    
+                    for (const key of cacheKeys) {
+                        if (key.includes('score') && window.API._cache[key]) {
+                            const value = window.API._cache[key];
+                            console.log(`📊 Cache ${key}: "${value}"`);
+                            
+                            if (key.includes('raw') && value !== '' && value !== 'undefined') {
+                                const score = parseFloat(value);
+                                if (!isNaN(score) && score >= 0 && score <= 100) {
+                                    console.log('✅ Score found in SCORM API cache:', score);
+                                    return score;
+                                }
+                            }
+                        }
                     }
                 }
                 
-                // Check SCORM 2004 API
-                if (window.API_1484_11 && window.API_1484_11._initialized) {
-                    const scoreRaw = window.API_1484_11.GetValue('cmi.score.raw');
-                    if (scoreRaw && scoreRaw !== '' && scoreRaw !== 'undefined' && scoreRaw !== 'false') {
-                        return parseFloat(scoreRaw);
-                    }
-                    
-                    const scoreScaled = window.API_1484_11.GetValue('cmi.score.scaled');
-                    if (scoreScaled && scoreScaled !== '' && scoreScaled !== 'undefined' && scoreScaled !== 'false') {
-                        return parseFloat(scoreScaled) * 100;
-                    }
-                }
             } catch (error) {
                 console.error('❌ Error checking SCORM API:', error);
             }
@@ -1121,6 +1208,116 @@
             } catch (error) {
                 console.error('❌ Error auto-saving score:', error);
             }
+        }
+        
+        // SCORM API Proxy Method - Direct API calls to extract scores
+        function extractScoreViaScormApi() {
+            console.log('🎯 SCORM API Proxy Method - Direct score extraction...');
+            
+            try {
+                // Method 1: Direct SCORM API calls
+                if (window.API && window.API._initialized) {
+                    console.log('📡 Using SCORM 1.2 API proxy...');
+                    
+                    // Try to get all score-related data
+                    const scoreData = {};
+                    const scoreElements = [
+                        'cmi.core.score.raw',
+                        'cmi.core.score.max', 
+                        'cmi.core.score.min',
+                        'cmi.core.lesson_status',
+                        'cmi.core.completion_status',
+                        'cmi.core.entry',
+                        'cmi.core.exit'
+                    ];
+                    
+                    for (const element of scoreElements) {
+                        try {
+                            const value = window.API.LMSGetValue(element);
+                            scoreData[element] = value;
+                            console.log(`📊 ${element}: "${value}"`);
+                        } catch (e) {
+                            console.log(`⚠️ Error getting ${element}:`, e.message);
+                        }
+                    }
+                    
+                    // Check if we have a valid score
+                    if (scoreData['cmi.core.score.raw'] && scoreData['cmi.core.score.raw'] !== '' && scoreData['cmi.core.score.raw'] !== 'undefined') {
+                        const score = parseFloat(scoreData['cmi.core.score.raw']);
+                        if (!isNaN(score) && score >= 0 && score <= 100) {
+                            console.log('✅ Score extracted via SCORM 1.2 API proxy:', score);
+                            return score;
+                        }
+                    }
+                }
+                
+                // Method 2: SCORM 2004 API calls
+                if (window.API_1484_11 && window.API_1484_11._initialized) {
+                    console.log('📡 Using SCORM 2004 API proxy...');
+                    
+                    const scoreData2004 = {};
+                    const scoreElements2004 = [
+                        'cmi.score.raw',
+                        'cmi.score.max',
+                        'cmi.score.min', 
+                        'cmi.score.scaled',
+                        'cmi.completion_status',
+                        'cmi.success_status'
+                    ];
+                    
+                    for (const element of scoreElements2004) {
+                        try {
+                            const value = window.API_1484_11.GetValue(element);
+                            scoreData2004[element] = value;
+                            console.log(`📊 ${element}: "${value}"`);
+                        } catch (e) {
+                            console.log(`⚠️ Error getting ${element}:`, e.message);
+                        }
+                    }
+                    
+                    // Check raw score first
+                    if (scoreData2004['cmi.score.raw'] && scoreData2004['cmi.score.raw'] !== '' && scoreData2004['cmi.score.raw'] !== 'undefined') {
+                        const score = parseFloat(scoreData2004['cmi.score.raw']);
+                        if (!isNaN(score) && score >= 0 && score <= 100) {
+                            console.log('✅ Score extracted via SCORM 2004 API proxy:', score);
+                            return score;
+                        }
+                    }
+                    
+                    // Check scaled score
+                    if (scoreData2004['cmi.score.scaled'] && scoreData2004['cmi.score.scaled'] !== '' && scoreData2004['cmi.score.scaled'] !== 'undefined') {
+                        const scaledScore = parseFloat(scoreData2004['cmi.score.scaled']) * 100;
+                        if (!isNaN(scaledScore) && scaledScore >= 0 && scaledScore <= 100) {
+                            console.log('✅ Scaled score extracted via SCORM 2004 API proxy:', scaledScore);
+                            return scaledScore;
+                        }
+                    }
+                }
+                
+                // Method 3: Force commit and re-read
+                console.log('🔄 Force commit and re-read method...');
+                if (window.API && window.API.LMSCommit) {
+                    window.API.LMSCommit('');
+                    console.log('✅ Forced commit to SCORM API');
+                    
+                    // Re-read after commit
+                    setTimeout(() => {
+                        const scoreRaw = window.API.LMSGetValue('cmi.core.score.raw');
+                        if (scoreRaw && scoreRaw !== '' && scoreRaw !== 'undefined') {
+                            const score = parseFloat(scoreRaw);
+                            if (!isNaN(score) && score >= 0 && score <= 100) {
+                                console.log('✅ Score found after force commit:', score);
+                                return score;
+                            }
+                        }
+                    }, 1000);
+                }
+                
+            } catch (error) {
+                console.error('❌ Error in SCORM API proxy method:', error);
+            }
+            
+            return null;
         }
         
         // CRITICAL FIX: Force extract score from SCORM API state before exit (SECURE - no iframe access)
