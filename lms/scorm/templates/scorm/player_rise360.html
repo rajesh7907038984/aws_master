@@ -1383,7 +1383,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         // Execute final commit then sync
                         forceFinalCommit().then(function() {
-                            console.log('[Rise 360] Final commit complete, starting database sync...');
+                            console.log('[Rise 360] Final commit complete, waiting for database write...');
+                            // CRITICAL FIX: Wait 1 second for database write to complete
+                            return new Promise(function(resolve) {
+                                setTimeout(resolve, 1000);
+                            });
+                        }).then(function() {
+                            console.log('[Rise 360] Database write complete, starting sync...');
                             syncWithRetry();
                         });
                     } catch (e) {
@@ -1470,18 +1476,35 @@ document.addEventListener('DOMContentLoaded', function() {
                     button.disabled = true;
                     button.textContent = 'Saving...';
                     
-                    // Try to commit Rise 360 data
-                    try {
-                        if (window.API && window.API.LMSCommit) {
-                            window.API.LMSCommit('');
-                            console.log('[Rise 360] SCORM data committed');
-                        }
-                    } catch (e) {
-                        console.error('[Rise 360] Error committing:', e);
+                    // CRITICAL FIX: Commit data and wait for it to be saved to database
+                    function commitAndWait() {
+                        return new Promise(function(resolve) {
+                            try {
+                                if (window.API && window.API.LMSCommit) {
+                                    console.log('[Rise 360] Committing SCORM data...');
+                                    var result = window.API.LMSCommit('');
+                                    console.log('[Rise 360] Commit result:', result);
+                                    // Wait 1.5 seconds for database write to complete
+                                    setTimeout(resolve, 1500);
+                                } else {
+                                    console.warn('[Rise 360] API not available for commit');
+                                    setTimeout(resolve, 500);
+                                }
+                            } catch (e) {
+                                console.error('[Rise 360] Error committing:', e);
+                                setTimeout(resolve, 500);
+                            }
+                        });
                     }
                     
+                    // First commit and wait, then sync to database
+                    commitAndWait().then(function() {
+                        console.log('[Rise 360] Commit complete, starting database sync...');
+                        syncWithRetry(0);
+                    });
+                    
                     // CRITICAL FIX: Sync to database before redirect with retry logic
-                    function syncWithRetry(retryCount = 0) {
+                    function syncWithRetry(retryCount) {
                         console.log('[Rise 360] Starting database sync... (attempt ' + (retryCount + 1) + ')');
                         fetch('{% url "scorm:sync_on_exit" %}', {
                             method: 'POST',

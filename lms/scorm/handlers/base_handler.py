@@ -202,17 +202,23 @@ class BaseScormAPIHandler:
                 logger.info(f"   SCORM 2004: Set progress_measure to {progress_measure} ({self.attempt.progress_percentage}%)")
         
         # CRITICAL FIX: Force save and sync to ensure data persistence
-        self.attempt.save()
+        # Use update_fields to ensure specific fields are saved
+        self.attempt.save(update_fields=[
+            'lesson_status', 'completion_status', 'entry', 'cmi_data', 
+            'lesson_location', 'suspend_data', 'progress_percentage', 'last_accessed'
+        ])
         
-        # Force progress calculation if not set
-        if not self.attempt.progress_percentage or self.attempt.progress_percentage == 0:
-            if self.attempt.lesson_status in ['incomplete', 'completed', 'passed']:
-                self.attempt.progress_percentage = 25.0  # Default progress for started content
-                self.attempt.save()
-                logger.info(f" Set default progress to 25% for attempt {self.attempt.id}")
+        # REMOVED: Default 25% progress - Progress should be ONLY from actual user interaction
+        # Progress will be calculated dynamically from:
+        # - suspend_data analysis
+        # - completed_slides tracking
+        # - SCORM content's own progress reporting
+        # - Never set arbitrary default values
         
         logger.info(f" SCORM API initialized for attempt {self.attempt.id} ({self.get_handler_name()})")
         logger.info(f"   Status: {self.attempt.lesson_status}, Progress: {self.attempt.progress_percentage}%")
+        logger.info(f"   ✓ Data saved to database immediately after initialization")
+        logger.info(f"   ✓ Progress will be calculated dynamically from user interaction")
         return 'true'
     
     def terminate(self):
