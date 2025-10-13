@@ -748,7 +748,7 @@ class ScormAPIHandler:
             logger.error(f"Error updating topic progress: {str(e)}")
     
     def _update_slide_tracking(self, slide_location):
-        """Enhanced slide tracking with detailed navigation history"""
+        """Enhanced slide tracking with detailed navigation history and Rise 360 support"""
         try:
             current_time = timezone.now()
             
@@ -770,6 +770,9 @@ class ScormAPIHandler:
             }
             self.attempt.navigation_history.append(navigation_entry)
             
+            # CRITICAL FIX: Extract Rise 360 progress from bookmark
+            self._extract_rise360_progress(slide_location)
+            
             # Update progress calculation
             self._update_progress_calculation()
             
@@ -787,6 +790,104 @@ class ScormAPIHandler:
             
         except Exception as e:
             logger.error(f"Error updating slide tracking: {str(e)}")
+    
+    def _extract_rise360_progress(self, slide_location):
+        """
+        Extract progress information from Rise 360 bookmark format
+        Rise 360 bookmarks look like: index.html#/lessons/cmgj98srz00033b7ede26ffu0
+        We need to parse the manifest to get total lessons and calculate progress
+        """
+        try:
+            # Check if this is a Rise 360 bookmark
+            if not slide_location or '#/lessons/' not in slide_location:
+                return
+            
+            logger.info(f"[Rise 360] Extracting progress from: {slide_location}")
+            
+            # Parse the manifest to get lessons structure
+            manifest_data = self.attempt.scorm_package.manifest_data
+            
+            # Try to extract lessons from manifest
+            lessons = []
+            total_lessons = 0
+            current_lesson_index = 0
+            
+            # Rise 360 stores lessons in the manifest
+            if manifest_data and isinstance(manifest_data, dict):
+                # Look for lessons in manifest structure
+                # Rise 360 typically has resources with identifiers
+                resources = manifest_data.get('resources', [])
+                
+                # Count unique lessons (excluding lib resources)
+                for resource in resources:
+                    if isinstance(resource, dict):
+                        res_id = resource.get('identifier', '')
+                        href = resource.get('href', '')
+                        # Rise lessons usually have 'lesson' in identifier or are HTML files
+                        if 'lesson' in res_id.lower() or (href and href.endswith('.html') and 'lib/' not in href):
+                            lessons.append(res_id)
+                
+                total_lessons = len(lessons)
+                
+                # Extract current lesson ID from bookmark
+                lesson_id = slide_location.split('#/lessons/')[1].split('/')[0] if '#/lessons/' in slide_location else ''
+                
+                # Find current lesson index
+                for idx, les_id in enumerate(lessons):
+                    if lesson_id in les_id or les_id in lesson_id:
+                        current_lesson_index = idx + 1  # 1-based index
+                        break
+                
+                # If we couldn't match, try to parse from the bookmark structure
+                if current_lesson_index == 0 and lesson_id:
+                    # Store this lesson ID in completed_slides for tracking
+                    if not isinstance(self.attempt.completed_slides, list):
+                        self.attempt.completed_slides = []
+                    if lesson_id not in self.attempt.completed_slides:
+                        self.attempt.completed_slides.append(lesson_id)
+                    current_lesson_index = len(self.attempt.completed_slides)
+            
+            # If manifest parsing didn't work, estimate from bookmark history
+            if total_lessons == 0:
+                # Use navigation history to estimate
+                unique_lessons = set()
+                for nav in self.attempt.navigation_history:
+                    if '#/lessons/' in nav.get('slide', ''):
+                        lesson_id = nav['slide'].split('#/lessons/')[1].split('/')[0]
+                        unique_lessons.add(lesson_id)
+                
+                current_lesson_index = len(unique_lessons)
+                
+                # Estimate total lessons (Rise typically has 5-15 lessons)
+                # We'll update this as user explores more
+                total_lessons = max(current_lesson_index, 9)  # Default estimate: 9 lessons
+            
+            # Update attempt data
+            self.attempt.total_slides = total_lessons
+            
+            # Calculate progress percentage
+            if total_lessons > 0 and current_lesson_index > 0:
+                progress_percentage = min((current_lesson_index / total_lessons) * 100, 100)
+                self.attempt.progress_percentage = progress_percentage
+                
+                logger.info(f"[Rise 360] Progress updated: Lesson {current_lesson_index}/{total_lessons} = {progress_percentage:.1f}%")
+                
+                # Update detailed tracking
+                if not self.attempt.detailed_tracking:
+                    self.attempt.detailed_tracking = {}
+                
+                self.attempt.detailed_tracking.update({
+                    'rise360_current_lesson': current_lesson_index,
+                    'rise360_total_lessons': total_lessons,
+                    'rise360_progress': float(progress_percentage),
+                    'rise360_lesson_id': lesson_id if 'lesson_id' in locals() else None,
+                    'last_rise360_update': timezone.now().isoformat()
+                })
+            
+        except Exception as e:
+            logger.error(f"Error extracting Rise 360 progress: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
     
     def _update_progress_calculation(self):
         """Calculate and update progress percentage based on completed slides and suspend data"""
