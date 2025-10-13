@@ -133,7 +133,7 @@
             {% endif %}
         </div>
         <div class="scorm-actions">
-            <button type="button" id="saveExitBtn" class="btn">Save & Exit</button>
+            <button type="button" id="saveExitBtn" class="btn" title="Save your progress and return to course">Save & Exit</button>
         </div>
     </div>
 
@@ -326,6 +326,10 @@
             try {
                 var data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
                 
+                if (!data || typeof data !== 'object') {
+                    return;
+                }
+                
                 console.log('[SCORM] Received message from iframe:', data);
                 
                 if (data.type === 'SCORM_EXIT' || data.type === 'SCORM_FINISH' || data.type === 'SCORM_TERMINATE') {
@@ -355,7 +359,9 @@
                     }
                 }
             } catch (e) {
-                console.error('[SCORM] Error processing iframe message:', e);
+                if (e.name !== 'SyntaxError') {
+                    console.error('[SCORM] Error processing iframe message:', e);
+                }
             }
         }, false);
         
@@ -384,6 +390,9 @@
         // Auto-save every 30 seconds
         let autoSaveInterval = null;
         let commitCount = 0;
+        let lastCompletionStatus = '';
+        let lastLessonStatus = '';
+        let hasAutoExited = false;
         
         function performAutoCommit() {
             try {
@@ -398,6 +407,52 @@
                 }
             } catch (e) {
                 console.error('[SCORM] Error in auto-commit:', e);
+            }
+        }
+        
+        function checkCompletionStatus() {
+            try {
+                let shouldExit = false;
+                let reason = '';
+                
+                if (window.API && window.API.LMSGetValue) {
+                    const status = window.API.LMSGetValue('cmi.core.lesson_status');
+                    if (status && status !== lastLessonStatus) {
+                        console.log('[SCORM] Lesson status changed:', lastLessonStatus, '->', status);
+                        lastLessonStatus = status;
+                        
+                        if (status === 'completed' || status === 'passed' || status === 'failed') {
+                            shouldExit = true;
+                            reason = 'SCORM 1.2 status: ' + status;
+                        }
+                    }
+                }
+                
+                if (window.API_1484_11 && window.API_1484_11.GetValue) {
+                    const completion = window.API_1484_11.GetValue('cmi.completion_status');
+                    const success = window.API_1484_11.GetValue('cmi.success_status');
+                    
+                    if (completion && completion !== lastCompletionStatus) {
+                        console.log('[SCORM] Completion status changed:', lastCompletionStatus, '->', completion);
+                        lastCompletionStatus = completion;
+                        
+                        if (completion === 'completed' || success === 'passed' || success === 'failed') {
+                            shouldExit = true;
+                            reason = 'SCORM 2004 completion: ' + completion + ', success: ' + success;
+                        }
+                    }
+                }
+                
+                if (shouldExit && !hasAutoExited) {
+                    console.log('[SCORM] Auto-exit triggered:', reason);
+                    hasAutoExited = true;
+                    
+                    setTimeout(function() {
+                        console.log('[SCORM] Content marked as complete, waiting 3 seconds before auto-exit...');
+                    }, 3000);
+                }
+            } catch (e) {
+                console.error('[SCORM] Error checking completion status:', e);
             }
         }
         
@@ -416,9 +471,15 @@
             
             // Enable periodic auto-save
             if (!autoSaveInterval) {
-                autoSaveInterval = setInterval(performAutoCommit, 30000);
+                autoSaveInterval = setInterval(function() {
+                    performAutoCommit();
+                    checkCompletionStatus();
+                }, 30000);
                 console.log('[SCORM] Auto-save enabled: saving every 30 seconds');
             }
+            
+            // Also check completion status every 5 seconds for faster exit detection
+            setInterval(checkCompletionStatus, 5000);
             
             console.log('[SCORM] Content loaded. Progress will auto-save every 30 seconds.');
             
