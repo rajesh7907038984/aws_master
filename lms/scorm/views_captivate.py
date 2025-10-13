@@ -23,7 +23,10 @@ def scorm_view_captivate(request, topic_id):
     topic = get_object_or_404(Topic, id=topic_id)
     
     # Check if user has permission to access this topic's course
-    if not topic.user_has_access(request.user):
+    # Allow instructors and admins to access SCORM content even if not enrolled
+    is_instructor_or_admin = request.user.role in ['instructor', 'admin', 'superadmin', 'globaladmin']
+    
+    if not topic.user_has_access(request.user) and not is_instructor_or_admin:
         messages.error(request, "You need to be enrolled in this course to access the SCORM content.")
         try:
             from courses.models import CourseTopic
@@ -241,14 +244,9 @@ def scorm_view_captivate(request, topic_id):
         content_url += hash_fragment
         logger.info(f"Captivate: Final content URL with hash: {content_url}")
     
-    # CRITICAL FIX: For returning learners with existing progress, redirect directly to content URL
-    # This ensures they go to the correct lesson instead of the player template
-    logger.info(f"Captivate: Debug - resume_needed={resume_needed}, bookmark_applied={bookmark_applied}, lesson_status={attempt.lesson_status}")
-    if resume_needed and (bookmark_applied or attempt.lesson_status not in ['not_attempted', 'not attempted']):
-        logger.info(f"Captivate: Returning learner with progress - redirecting to content URL: {content_url}")
-        return redirect(content_url)
-    else:
-        logger.info(f"Captivate: No redirect needed - showing player template")
+    # FIXED: Always show the player template instead of redirecting
+    # This ensures users get the proper SCORM player interface with controls
+    logger.info(f"Captivate: Showing player template with content URL: {content_url}")
     
     context = {
         'topic': topic,
