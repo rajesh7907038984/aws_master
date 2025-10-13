@@ -175,13 +175,34 @@
                     .then(response => response.json())
                     .then(data => {
                         console.log('[Captivate] Database sync successful, redirecting...');
-                        window.location.href = '{% url "courses:topic_view" topic.id %}';
+                        try {
+                            if (window.top && window.top !== window) {
+                                window.top.location.href = '{% url "courses:topic_view" topic.id %}';
+                            } else if (window.parent && window.parent !== window) {
+                                window.parent.location.href = '{% url "courses:topic_view" topic.id %}';
+                            } else {
+                                window.location.href = '{% url "courses:topic_view" topic.id %}';
+                            }
+                        } catch (e) {
+                            console.log('[Captivate] Cross-origin restriction, trying fallback redirect');
+                            window.location.href = '{% url "courses:topic_view" topic.id %}';
+                        }
                     })
                     .catch(error => {
                         console.error('[Captivate] Database sync error:', error);
                         // Still redirect even if sync fails
                         setTimeout(function() {
-                            window.location.href = '{% url "courses:topic_view" topic.id %}';
+                            try {
+                                if (window.top && window.top !== window) {
+                                    window.top.location.href = '{% url "courses:topic_view" topic.id %}';
+                                } else if (window.parent && window.parent !== window) {
+                                    window.parent.location.href = '{% url "courses:topic_view" topic.id %}';
+                                } else {
+                                    window.location.href = '{% url "courses:topic_view" topic.id %}';
+                                }
+                            } catch (e) {
+                                window.location.href = '{% url "courses:topic_view" topic.id %}';
+                            }
                         }, 500);
                     });
                 }
@@ -224,13 +245,34 @@
                     .then(response => response.json())
                     .then(data => {
                         console.log('[Captivate] Database sync successful, redirecting...');
-                        window.location.href = '{% url "courses:topic_view" topic.id %}';
+                        try {
+                            if (window.top && window.top !== window) {
+                                window.top.location.href = '{% url "courses:topic_view" topic.id %}';
+                            } else if (window.parent && window.parent !== window) {
+                                window.parent.location.href = '{% url "courses:topic_view" topic.id %}';
+                            } else {
+                                window.location.href = '{% url "courses:topic_view" topic.id %}';
+                            }
+                        } catch (e) {
+                            console.log('[Captivate] Cross-origin restriction, trying fallback redirect');
+                            window.location.href = '{% url "courses:topic_view" topic.id %}';
+                        }
                     })
                     .catch(error => {
                         console.error('[Captivate] Database sync error:', error);
                         // Still redirect even if sync fails
                         setTimeout(function() {
-                            window.location.href = '{% url "courses:topic_view" topic.id %}';
+                            try {
+                                if (window.top && window.top !== window) {
+                                    window.top.location.href = '{% url "courses:topic_view" topic.id %}';
+                                } else if (window.parent && window.parent !== window) {
+                                    window.parent.location.href = '{% url "courses:topic_view" topic.id %}';
+                                } else {
+                                    window.location.href = '{% url "courses:topic_view" topic.id %}';
+                                }
+                            } catch (e) {
+                                window.location.href = '{% url "courses:topic_view" topic.id %}';
+                            }
                         }, 500);
                     });
                 }
