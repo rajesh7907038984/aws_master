@@ -393,20 +393,35 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                         # CRITICAL FIX: Use actual SCORM score, not best score
                                         score_value = None
                                         
-                                        # Priority 1: ScormAttempt.score_raw (actual SCORM score - most accurate)
-                                        if attempt.score_raw is not None:
-                                            score_value = float(attempt.score_raw)
-                                            logger.debug(f"GRADEBOOK: Using ScormAttempt.score_raw for attempt {attempt.id}: {score_value}")
+                                        # ENHANCED: Get the BEST score from all attempts for this student and SCORM package
+                                        # This ensures gradebook shows the highest achievement, not just the latest attempt
+                                        all_attempts = ScormAttempt.objects.filter(
+                                            user=student,
+                                            scorm_package=attempt.scorm_package
+                                        ).order_by('-score_raw')
                                         
-                                        # Priority 2: TopicProgress.last_score (synced from SCORM)
-                                        elif topic_progress and topic_progress.last_score is not None:
-                                            score_value = float(topic_progress.last_score)
-                                            logger.debug(f"GRADEBOOK: Using TopicProgress.last_score: {score_value}")
+                                        best_attempt = None
+                                        best_score = None
                                         
-                                        # Priority 3: TopicProgress.best_score (fallback only)
+                                        # Find the attempt with the highest score
+                                        for att in all_attempts:
+                                            if att.score_raw is not None and att.score_raw > 0:
+                                                if best_score is None or att.score_raw > best_score:
+                                                    best_score = float(att.score_raw)
+                                                    best_attempt = att
+                                        
+                                        # Use the best score found
+                                        if best_score is not None:
+                                            score_value = best_score
+                                            logger.debug(f"GRADEBOOK: Using BEST score from all attempts: {score_value} (from attempt {best_attempt.id})")
+                                        # Fallback to TopicProgress.best_score if no attempt scores
                                         elif topic_progress and topic_progress.best_score is not None:
                                             score_value = float(topic_progress.best_score)
-                                            logger.debug(f"GRADEBOOK: Using TopicProgress.best_score: {score_value}")
+                                            logger.debug(f"GRADEBOOK: Using TopicProgress.best_score as fallback: {score_value}")
+                                        # Final fallback to TopicProgress.last_score
+                                        elif topic_progress and topic_progress.last_score is not None:
+                                            score_value = float(topic_progress.last_score)
+                                            logger.debug(f"GRADEBOOK: Using TopicProgress.last_score as final fallback: {score_value}")
                                             
                                         # REMOVED: Don't force completion just because there's a score
                                         # In-progress SCORM should not show scores in gradebook
