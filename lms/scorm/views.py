@@ -853,12 +853,12 @@ def scorm_content(request, topic_id, path):
                 api_endpoint = f'/scorm/api/{attempt_id}/'
                 
                 # Generate the JavaScript code with the actual attempt_id value
-                # Fix JavaScript syntax errors in API injection
-                api_injection = '''
+                # CRITICAL FIX: Use f-string to properly interpolate attempt_id
+                api_injection = f'''
 <script>
 // CRITICAL FIX: SCORM API must be available immediately for Rise 360
 // Rise 360 checks for API on page load, so we set it up synchronously
-(function() {
+(function() {{
     // ENHANCED: Add debugging and monitoring
     window.SCORM_DEBUG = true;
     window.SCORM_API_CALLS = [];
@@ -868,32 +868,32 @@ def scorm_content(request, topic_id, path):
         typeof window.API !== 'undefined' && 
         window.API_1484_11 && 
         typeof window.API_1484_11 !== 'undefined' && 
-        window.API._initialized) {
+        window.API._initialized) {{
         console.log('[SCORM] API already loaded and initialized, skipping duplicate injection');
         return;
-    }
+    }}
     
     // If API exists but not initialized, clean it up first
     if (window.API && typeof window.API !== 'undefined' && 
-        window.API_1484_11 && typeof window.API_1484_11 !== 'undefined') {
+        window.API_1484_11 && typeof window.API_1484_11 !== 'undefined') {{
         console.log('[SCORM] Cleaning up existing API before re-initialization');
-        try {
+        try {{
             delete window.API;
             delete window.API_1484_11;
-        } catch (e) {
+        }} catch (e) {{
             console.error('[SCORM] Error cleaning up API:', e);
             // Fallback: set to null if delete fails
             window.API = null;
             window.API_1484_11 = null;
-        }
-    }
+        }}
+    }}
     
     // SCORM API that connects to the real API endpoint
     // CRITICAL: Uses modern async/await to avoid synchronous XHR deprecation
-    try {
+    try {{
         // Create API with robust error handling
-        window.API = window.API_1484_11 = {
-            _apiEndpoint: '/scorm/api/' + attempt_id + '/',
+        window.API = window.API_1484_11 = {{
+            _apiEndpoint: '{api_endpoint}',
             _lastError: '0',
             _initialized: false,
             _initPromise: null,
@@ -1282,12 +1282,8 @@ def scorm_content(request, topic_id, path):
         window.addEventListener('load', autoResumeSCORM);
     }
 })();
-</script>
+                </script>
 '''
-                
-                # Replace attempt_id in the JavaScript code
-                api_injection = api_injection.replace('_apiEndpoint: \'/scorm/api/\' + attempt_id + \'/\',', 
-                                               f"_apiEndpoint: '/scorm/api/{attempt_id}/',")
                 
                 # Fix relative paths in SCORM content
                 html_content = fix_scorm_relative_paths(html_content, topic_id)
