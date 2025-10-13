@@ -2692,6 +2692,42 @@
             }
         });
         
+        // CRITICAL FIX: Periodic auto-save for Rise 360 section completion tracking
+        // Rise stores section completion in suspend_data but only persists it on explicit saves
+        // This timer forces periodic commits to ensure progress is saved frequently
+        let autoSaveInterval = setInterval(function() {
+            if (!scormDataSaved && !isExiting) {
+                if (window.API && window.API._initialized) {
+                    try {
+                        const commitResult = window.API.LMSCommit('');
+                        if (commitResult === 'true') {
+                            console.log('🔄 Auto-save: SCORM data committed successfully');
+                        }
+                    } catch (error) {
+                        console.error('❌ Auto-save commit error:', error);
+                    }
+                }
+                
+                if (window.API_1484_11 && window.API_1484_11._initialized) {
+                    try {
+                        const commitResult = window.API_1484_11.Commit('');
+                        if (commitResult === 'true') {
+                            console.log('🔄 Auto-save: SCORM 2004 data committed successfully');
+                        }
+                    } catch (error) {
+                        console.error('❌ Auto-save commit error (2004):', error);
+                    }
+                }
+            }
+        }, 30000); // Auto-save every 30 seconds
+        
+        // Clear auto-save interval on exit
+        window.addEventListener('beforeunload', function() {
+            if (autoSaveInterval) {
+                clearInterval(autoSaveInterval);
+            }
+        });
+        
         // Make handleScormExit available globally for SCORM content to call
         window.handleScormExit = handleScormExit;
         
