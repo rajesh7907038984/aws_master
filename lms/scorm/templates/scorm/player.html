@@ -162,26 +162,40 @@
         
         function makeSCORMCall(method, parameters) {
             try {
+                console.log(`[SCORM] Making API call: ${method}, endpoint: ${API_ENDPOINT}`);
                 const xhr = new XMLHttpRequest();
                 xhr.open('POST', API_ENDPOINT, false);
                 xhr.setRequestHeader('Content-Type', 'application/json');
                 xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
                 
-                xhr.send(JSON.stringify({
+                const payload = JSON.stringify({
                     method: method,
                     parameters: parameters || []
-                }));
+                });
+                console.log(`[SCORM] Request payload:`, payload);
+                
+                xhr.send(payload);
+                
+                console.log(`[SCORM] Response status: ${xhr.status}`);
+                console.log(`[SCORM] Response text:`, xhr.responseText);
                 
                 if (xhr.status === 200) {
                     const data = JSON.parse(xhr.responseText);
+                    console.log(`[SCORM] Parsed response:`, data);
                     if (data.result !== undefined) {
                         console.log(`[SCORM] ${method} -> ${data.result}`);
                         return data.result;
                     }
+                    if (data.success && data.result !== undefined) {
+                        console.log(`[SCORM] ${method} -> ${data.result}`);
+                        return data.result;
+                    }
                 }
+                console.warn(`[SCORM] ${method} failed - status: ${xhr.status}, returning false`);
                 return method.includes('Get') ? '' : 'false';
             } catch (error) {
                 console.error(`[SCORM] ${method} error:`, error);
+                console.error(`[SCORM] Error stack:`, error.stack);
                 return method.includes('Get') ? '' : 'false';
             }
         }
