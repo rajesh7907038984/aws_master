@@ -216,7 +216,7 @@ def sync_on_exit(request):
                 })
             
             # Log current state for debugging
-            logger.info(f" Exit sync for attempt {attempt_id}")
+            logger.info(f"📍 Exit sync for attempt {attempt_id}")
             logger.info(f"   Status: {attempt.lesson_status}")
             logger.info(f"   Completion Status: {attempt.completion_status}")
             logger.info(f"   Success Status: {attempt.success_status}")
@@ -225,7 +225,7 @@ def sync_on_exit(request):
             logger.info(f"   Score Scaled: {attempt.score_scaled}")
             logger.info(f"   Progress: {attempt.progress_percentage}%")
             logger.info(f"   Suspend data: {_safe_len(attempt.suspend_data)} chars")
-            logger.info(f"   Bookmark: {attempt.lesson_location[:50] if attempt.lesson_location else 'None'}")
+            logger.info(f"📍 Bookmark: {attempt.lesson_location[:50] if attempt.lesson_location else 'None'}")
             logger.info(f"   Completed Slides: {_safe_len(attempt.completed_slides)}")
             logger.info(f"   Total Slides: {attempt.total_slides}")
             logger.info(f"   CMI Data Keys: {list(attempt.cmi_data.keys()) if attempt.cmi_data else 'None'}")
@@ -282,10 +282,29 @@ def sync_on_exit(request):
                     if location_str:
                         new_location = location_str[:1000]  # Respect field limit
                         if attempt.lesson_location != new_location:
-                            logger.info(f"    Updating bookmark from CMI: {new_location[:50]}... (was: {attempt.lesson_location[:50] if attempt.lesson_location else 'empty'}...)")
+                            logger.info(f"📍 Updating bookmark from CMI: {new_location[:50]}... (was: {attempt.lesson_location[:50] if attempt.lesson_location else 'empty'}...)")
                             attempt.lesson_location = new_location
                         else:
-                            logger.info(f"    Bookmark from CMI confirmed: {attempt.lesson_location[:50]}")
+                            logger.info(f"📍 Bookmark from CMI confirmed: {attempt.lesson_location[:50]}")
+                    
+                    # CRITICAL FIX: If no bookmark from CMI, try to extract from suspend_data
+                    # Many Storyline packages store bookmark ONLY in suspend_data
+                    if not attempt.lesson_location or attempt.lesson_location == '':
+                        suspend_str = _safe_str(cmi_suspend)
+                        if suspend_str and len(suspend_str) > 10:
+                            try:
+                                # Try to extract bookmark from suspend_data
+                                from .api_handler import ScormAPIHandler
+                                # Create temporary handler just for bookmark extraction
+                                temp_handler = ScormAPIHandler(attempt)
+                                extracted_bookmark = temp_handler._extract_bookmark_from_suspend_data(suspend_str)
+                                if extracted_bookmark:
+                                    attempt.lesson_location = extracted_bookmark
+                                    logger.info(f"📍 EXTRACTED bookmark from suspend_data: '{extracted_bookmark}'")
+                                else:
+                                    logger.warning(f"📍 Could not extract bookmark from {len(suspend_str)} chars of suspend_data")
+                            except Exception as extract_err:
+                                logger.error(f"📍 Error extracting bookmark from suspend_data: {extract_err}")
                             
                     # CRITICAL FIX: ALWAYS extract progress from CMI (latest progress)
                     if version != '1.2':
@@ -364,12 +383,19 @@ def sync_on_exit(request):
                 logger.warning(f"    Could not refresh from DB: {str(e)}")
             
             # Verify the save was successful
-            logger.info(f"    Verification after save:")
+            logger.info(f"✅ Verification after save:")
             logger.info(f"      - Suspend data length: {_safe_len(attempt.suspend_data)}")
-            logger.info(f"      - Bookmark: {attempt.lesson_location[:50] if attempt.lesson_location else 'None'}")
+            logger.info(f"📍 Bookmark: {attempt.lesson_location[:50] if attempt.lesson_location else 'None'}")
             logger.info(f"      - Score: {attempt.score_raw}")
             logger.info(f"      - Status: {attempt.lesson_status}")
             logger.info(f"      - Progress: {attempt.progress_percentage}%")
+            
+            # CRITICAL: Double-check bookmark was actually saved
+            if attempt.suspend_data and len(attempt.suspend_data) > 0 and not attempt.lesson_location:
+                logger.warning(f"⚠️ WARNING: Suspend data exists but bookmark is empty!")
+                logger.warning(f"⚠️ Suspend data length: {len(attempt.suspend_data)}, but lesson_location is empty")
+            elif attempt.lesson_location and len(attempt.lesson_location) > 0:
+                logger.info(f"✅ BOOKMARK CONFIRMED SAVED: '{attempt.lesson_location}'")
         
         # Sync the attempt data to TopicProgress (outside transaction for better performance)
         sync_result = False

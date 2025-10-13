@@ -677,25 +677,50 @@
                                     }
                                 }
                                 
-                                // Force multiple commits
+                                // CRITICAL FIX: Sequential commits with proper timing
+                                // Each commit needs to complete before the next one starts
+                                console.log('[SCORM] Starting sequential commits...');
+                                
                                 if (window.API && window.API.LMSCommit) {
+                                    console.log('[SCORM] Commit 1/3...');
                                     const commitResult1 = window.API.LMSCommit('');
-                                    console.log('[SCORM] First LMSCommit result:', commitResult1);
+                                    console.log('[SCORM] Commit 1 result:', commitResult1);
+                                    
                                     setTimeout(function() {
+                                        console.log('[SCORM] Commit 2/3...');
                                         const commitResult2 = window.API.LMSCommit('');
-                                        console.log('[SCORM] Second LMSCommit result:', commitResult2);
-                                    }, 100);
-                                }
-                                if (window.API_1484_11 && window.API_1484_11.Commit) {
-                                    const commitResult1 = window.API_1484_11.Commit('');
-                                    console.log('[SCORM] First Commit (2004) result:', commitResult1);
-                                    setTimeout(function() {
-                                        const commitResult2 = window.API_1484_11.Commit('');
-                                        console.log('[SCORM] Second Commit (2004) result:', commitResult2);
-                                    }, 100);
+                                        console.log('[SCORM] Commit 2 result:', commitResult2);
+                                        
+                                        setTimeout(function() {
+                                            console.log('[SCORM] Commit 3/3...');
+                                            const commitResult3 = window.API.LMSCommit('');
+                                            console.log('[SCORM] Commit 3 result:', commitResult3);
+                                        }, 300);
+                                    }, 300);
                                 }
                                 
-                                setTimeout(resolve, 800);
+                                if (window.API_1484_11 && window.API_1484_11.Commit) {
+                                    console.log('[SCORM 2004] Commit 1/3...');
+                                    const commitResult1 = window.API_1484_11.Commit('');
+                                    console.log('[SCORM 2004] Commit 1 result:', commitResult1);
+                                    
+                                    setTimeout(function() {
+                                        console.log('[SCORM 2004] Commit 2/3...');
+                                        const commitResult2 = window.API_1484_11.Commit('');
+                                        console.log('[SCORM 2004] Commit 2 result:', commitResult2);
+                                        
+                                        setTimeout(function() {
+                                            console.log('[SCORM 2004] Commit 3/3...');
+                                            const commitResult3 = window.API_1484_11.Commit('');
+                                            console.log('[SCORM 2004] Commit 3 result:', commitResult3);
+                                        }, 300);
+                                    }, 300);
+                                }
+                                
+                                // CRITICAL FIX: Wait longer to ensure all commits complete
+                                // 3 commits × 300ms delay + 500ms buffer = 1400ms total
+                                console.log('[SCORM] Waiting 1500ms for all commits to complete...');
+                                setTimeout(resolve, 1500);
                             } catch (e) {
                                 console.error('[SCORM] Error in final commit:', e);
                                 setTimeout(resolve, 400);
@@ -703,8 +728,63 @@
                         });
                     }
                     
+                    // Verify data before sync
+                    function verifyDataBeforeSync() {
+                        console.log('[SCORM] Verifying data before database sync...');
+                        
+                        let verification = {
+                            hasLocation: false,
+                            hasSuspend: false,
+                            hasStatus: false,
+                            locationValue: '',
+                            suspendLength: 0,
+                            statusValue: ''
+                        };
+                        
+                        try {
+                            if (window.API && window.API.LMSGetValue) {
+                                verification.locationValue = window.API.LMSGetValue('cmi.core.lesson_location') || '';
+                                verification.suspendLength = (window.API.LMSGetValue('cmi.suspend_data') || '').length;
+                                verification.statusValue = window.API.LMSGetValue('cmi.core.lesson_status') || '';
+                                verification.hasLocation = verification.locationValue !== '';
+                                verification.hasSuspend = verification.suspendLength > 0;
+                                verification.hasStatus = verification.statusValue !== '' && verification.statusValue !== 'not attempted';
+                            } else if (window.API_1484_11 && window.API_1484_11.GetValue) {
+                                verification.locationValue = window.API_1484_11.GetValue('cmi.location') || '';
+                                verification.suspendLength = (window.API_1484_11.GetValue('cmi.suspend_data') || '').length;
+                                verification.statusValue = window.API_1484_11.GetValue('cmi.completion_status') || '';
+                                verification.hasLocation = verification.locationValue !== '';
+                                verification.hasSuspend = verification.suspendLength > 0;
+                                verification.hasStatus = verification.statusValue !== '' && verification.statusValue !== 'incomplete';
+                            }
+                            
+                            console.log('[SCORM] Data verification results:', verification);
+                            
+                            if (verification.hasSuspend || verification.hasLocation) {
+                                console.log('✅ [SCORM] Data verification PASSED - ready to sync');
+                                return true;
+                            } else {
+                                console.warn('⚠️ [SCORM] Data verification FAILED - no bookmark or suspend data found');
+                                return false;
+                            }
+                        } catch (e) {
+                            console.error('[SCORM] Error during data verification:', e);
+                            return false;
+                        }
+                    }
+                    
                     // Sync to database
                     function syncWithRetry(retryCount = 0) {
+                        // CRITICAL FIX: Verify data before syncing
+                        const dataVerified = verifyDataBeforeSync();
+                        if (!dataVerified && retryCount === 0) {
+                            console.warn('[SCORM] Data not verified, waiting 500ms and trying again...');
+                            setTimeout(function() {
+                                syncWithRetry(0);
+                            }, 500);
+                            return;
+                        }
+                        
                         console.log('[SCORM] Starting database sync... (attempt ' + (retryCount + 1) + ')');
                         
                         const attemptId = '{{ attempt.id|default:attempt_id }}';
@@ -728,8 +808,9 @@
                             return response.json();
                         })
                         .then(data => {
-                            console.log('[SCORM] Database sync successful:', data);
+                            console.log('✅ [SCORM] Database sync successful:', data);
                             
+                            // CRITICAL FIX: Verify data was actually saved before redirecting
                             const dataIntegrity = {
                                 hasSuspendData: data.suspend_data_length > 0,
                                 hasBookmark: data.bookmark_length > 0,
@@ -737,13 +818,35 @@
                                 hasStatus: data.status && data.status !== 'not_attempted'
                             };
                             
-                            console.log('[SCORM] Data integrity check:', dataIntegrity);
+                            console.log('📊 [SCORM] Data integrity check:', dataIntegrity);
                             const passedChecks = Object.values(dataIntegrity).filter(Boolean).length;
                             
-                            saveExitBtn.textContent = 'Saved!';
-                            setTimeout(function() {
-                                window.location.href = '{% url "courses:topic_view" topic.id %}';
-                            }, 1000);
+                            if (passedChecks > 0) {
+                                console.log('✅ [SCORM] Data integrity PASSED (' + passedChecks + '/4 checks)');
+                                console.log('📍 [SCORM] Bookmark saved: ' + (data.bookmark_length || 0) + ' chars');
+                                console.log('💾 [SCORM] Suspend data saved: ' + (data.suspend_data_length || 0) + ' chars');
+                                console.log('📈 [SCORM] Progress saved: ' + (data.progress || 0) + '%');
+                                console.log('✅ [SCORM] Status saved: ' + (data.status || 'not_attempted'));
+                                
+                                saveExitBtn.textContent = '✅ All Data Saved!';
+                                
+                                // Wait a bit longer to ensure database transaction is fully committed
+                                setTimeout(function() {
+                                    console.log('🔄 [SCORM] Redirecting to topic view...');
+                                    window.location.href = '{% url "courses:topic_view" topic.id %}';
+                                }, 1500);
+                            } else {
+                                console.warn('⚠️ [SCORM] Data integrity check FAILED - no data was saved');
+                                console.warn('⚠️ [SCORM] This might indicate the SCORM content did not send any tracking data');
+                                
+                                saveExitBtn.textContent = '⚠️ No data to save';
+                                
+                                // Still redirect, but inform user
+                                setTimeout(function() {
+                                    console.log('🔄 [SCORM] Redirecting anyway (no data to save)...');
+                                    window.location.href = '{% url "courses:topic_view" topic.id %}';
+                                }, 2000);
+                            }
                         })
                         .catch(error => {
                             console.error('[SCORM] Database sync error:', error);
