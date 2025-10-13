@@ -1246,6 +1246,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 }, 300);
             }
             
+            // CRITICAL FIX: Initialize Exit Assessment Button Fix in iframe
+            try {
+                const riseFrame = document.getElementById('riseFrame');
+                if (riseFrame && riseFrame.contentWindow) {
+                    // Add global variables for the exit assessment fix script
+                    riseFrame.contentWindow.SCORM_ATTEMPT_ID = '{{ attempt.id|default:attempt_id }}';
+                    riseFrame.contentWindow.SCORM_TOPIC_URL = '{% url "courses:topic_view" topic.id %}';
+                    
+                    // Inject the exit assessment fix script
+                    const script = riseFrame.contentDocument.createElement('script');
+                    script.src = '/static/scorm/exit_assessment_fix.js?v=2';
+                    script.onload = function() {
+                        console.log('[Rise 360] Exit Assessment Button Fix loaded in iframe');
+                    };
+                    riseFrame.contentDocument.head.appendChild(script);
+                }
+            } catch (e) {
+                console.error('[Rise 360] Error initializing Exit Assessment Button Fix:', e);
+            }
+            
             // CRITICAL FIX: Enhance Rise 360 internal exit buttons
             enhanceRise360ExitButtons();
         });

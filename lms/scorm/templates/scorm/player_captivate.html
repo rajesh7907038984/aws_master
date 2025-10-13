@@ -334,6 +334,26 @@
         document.getElementById('captivateFrame').addEventListener('load', function() {
             console.log('✅ Captivate content loaded - Instant save enabled');
             console.log('[Captivate] Data will be saved instantly on every action');
+            
+            // CRITICAL FIX: Initialize Exit Assessment Button Fix in iframe
+            try {
+                const captivateFrame = document.getElementById('captivateFrame');
+                if (captivateFrame && captivateFrame.contentWindow) {
+                    // Add global variables for the exit assessment fix script
+                    captivateFrame.contentWindow.SCORM_ATTEMPT_ID = '{{ attempt.id|default:attempt_id }}';
+                    captivateFrame.contentWindow.SCORM_TOPIC_URL = '{% url "courses:topic_view" topic.id %}';
+                    
+                    // Inject the exit assessment fix script
+                    const script = captivateFrame.contentDocument.createElement('script');
+                    script.src = '/static/scorm/exit_assessment_fix.js?v=2';
+                    script.onload = function() {
+                        console.log('[Captivate] Exit Assessment Button Fix loaded in iframe');
+                    };
+                    captivateFrame.contentDocument.head.appendChild(script);
+                }
+            } catch (e) {
+                console.error('[Captivate] Error initializing Exit Assessment Button Fix:', e);
+            }
         });
         
         // FIXED: Save & Exit button handler with proper event attachment and DB sync

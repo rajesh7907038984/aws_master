@@ -318,6 +318,26 @@
         document.getElementById('storylineFrame').addEventListener('load', function() {
             console.log('✅ Storyline content loaded');
             
+            // CRITICAL FIX: Initialize Exit Assessment Button Fix in iframe
+            try {
+                const storylineFrame = document.getElementById('storylineFrame');
+                if (storylineFrame && storylineFrame.contentWindow) {
+                    // Add global variables for the exit assessment fix script
+                    storylineFrame.contentWindow.SCORM_ATTEMPT_ID = '{{ attempt.id|default:attempt_id }}';
+                    storylineFrame.contentWindow.SCORM_TOPIC_URL = '{% url "courses:topic_view" topic.id %}';
+                    
+                    // Inject the exit assessment fix script
+                    const script = storylineFrame.contentDocument.createElement('script');
+                    script.src = '/static/scorm/exit_assessment_fix.js?v=2';
+                    script.onload = function() {
+                        console.log('[Storyline] Exit Assessment Button Fix loaded in iframe');
+                    };
+                    storylineFrame.contentDocument.head.appendChild(script);
+                }
+            } catch (e) {
+                console.error('[Storyline] Error initializing Exit Assessment Button Fix:', e);
+            }
+            
             // DISABLED: Auto-save not needed - Storyline handles its own saving
             // Storyline will call LMSSetValue and LMSCommit when needed
             console.log('[Storyline] Auto-save disabled - Storyline manages its own state');
