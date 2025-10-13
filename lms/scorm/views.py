@@ -79,9 +79,6 @@ def scorm_view(request, topic_id):
     is_instructor_or_admin = (hasattr(request.user, 'role') and 
                              request.user.role in ['instructor', 'admin', 'superadmin', 'globaladmin'])
     
-    # Check for goodbye mode (exit confirmation)
-    goodbye_mode = request.GET.get('goodbye', '').lower() == 'true'
-    
     # Allow preview mode only for instructors/admins
     if preview_mode and not is_instructor_or_admin:
         messages.error(request, "Preview mode is only available for instructors and administrators.")
@@ -304,7 +301,6 @@ def scorm_view(request, topic_id):
         'content_url': content_url,
         'api_endpoint': f'/scorm/api/{attempt_id}/',
         'preview_mode': preview_mode,
-        'goodbye_mode': goodbye_mode,
         'is_instructor_or_admin': is_instructor_or_admin,
     }
     
