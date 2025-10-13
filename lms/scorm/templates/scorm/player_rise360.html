@@ -174,8 +174,19 @@
             },
             
             LMSFinish: function(param) {
-                console.log('[Rise 360] Finish');
-                return makeRiseAPICall('LMSFinish', [param]);
+                console.log('[Rise 360] Finish - EXIT COURSE button clicked');
+                const result = makeRiseAPICall('LMSFinish', [param]);
+                
+                // CRITICAL FIX: Auto-redirect when content calls LMSFinish (EXIT button)
+                // Wait 500ms for data to save, then redirect
+                if (result === 'true') {
+                    console.log('[Rise 360] Data saved, redirecting to course page...');
+                    setTimeout(function() {
+                        window.location.href = '{% url "courses:topic_view" topic.id %}';
+                    }, 500);
+                }
+                
+                return result;
             },
             
             LMSGetValue: function(element) {
@@ -219,7 +230,18 @@
                 return window.API.LMSInitialize(param);
             },
             Terminate: function(param) {
-                return window.API.LMSFinish(param);
+                console.log('[Rise 360] Terminate - EXIT COURSE button clicked (SCORM 2004)');
+                const result = makeRiseAPICall('Terminate', [param]);
+                
+                // CRITICAL FIX: Auto-redirect when content calls Terminate (EXIT button)
+                if (result === 'true') {
+                    console.log('[Rise 360] Data saved, redirecting to course page...');
+                    setTimeout(function() {
+                        window.location.href = '{% url "courses:topic_view" topic.id %}';
+                    }, 500);
+                }
+                
+                return result;
             },
             GetValue: function(element) {
                 // Map SCORM 2004 to 1.2

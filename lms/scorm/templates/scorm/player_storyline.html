@@ -160,8 +160,16 @@
                 return makeStorylineCall('LMSInitialize', [param]); 
             },
             LMSFinish: function(param) { 
-                console.log('[Storyline] Finish');
-                return makeStorylineCall('LMSFinish', [param]); 
+                console.log('[Storyline] Finish - EXIT COURSE button clicked');
+                const result = makeStorylineCall('LMSFinish', [param]);
+                // CRITICAL FIX: Auto-redirect when content calls LMSFinish (EXIT button)
+                if (result === 'true') {
+                    console.log('[Storyline] Data saved, redirecting to course page...');
+                    setTimeout(function() {
+                        window.location.href = '{% url "courses:topic_view" topic.id %}';
+                    }, 500);
+                }
+                return result;
             },
             LMSGetValue: function(element) { 
                 return makeStorylineCall('LMSGetValue', [element]); 
@@ -182,7 +190,18 @@
         // SCORM 2004 API (some Storyline versions use this)
         window.API_1484_11 = {
             Initialize: function(param) { return window.API.LMSInitialize(param); },
-            Terminate: function(param) { return window.API.LMSFinish(param); },
+            Terminate: function(param) { 
+                console.log('[Storyline] Terminate - EXIT COURSE button clicked (SCORM 2004)');
+                const result = makeStorylineCall('Terminate', [param]);
+                // CRITICAL FIX: Auto-redirect when content calls Terminate (EXIT button)
+                if (result === 'true') {
+                    console.log('[Storyline] Data saved, redirecting to course page...');
+                    setTimeout(function() {
+                        window.location.href = '{% url "courses:topic_view" topic.id %}';
+                    }, 500);
+                }
+                return result;
+            },
             GetValue: function(element) { 
                 return window.API.LMSGetValue(element.replace('cmi.location', 'cmi.core.lesson_location')); 
             },

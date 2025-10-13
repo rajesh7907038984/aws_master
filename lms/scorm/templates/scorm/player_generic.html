@@ -153,7 +153,18 @@
         // SCORM 1.2 API
         window.API = {
             LMSInitialize: function(param) { return makeSCORMCall('LMSInitialize', [param]); },
-            LMSFinish: function(param) { return makeSCORMCall('LMSFinish', [param]); },
+            LMSFinish: function(param) { 
+                console.log('[SCORM] LMSFinish - EXIT COURSE button clicked');
+                const result = makeSCORMCall('LMSFinish', [param]);
+                // CRITICAL FIX: Auto-redirect when content calls LMSFinish (EXIT button)
+                if (result === 'true') {
+                    console.log('[SCORM] Data saved, redirecting to course page...');
+                    setTimeout(function() {
+                        window.location.href = '{% url "courses:topic_view" topic.id %}';
+                    }, 500);
+                }
+                return result;
+            },
             LMSGetValue: function(element) { return makeSCORMCall('LMSGetValue', [element]); },
             LMSSetValue: function(element, value) { return makeSCORMCall('LMSSetValue', [element, value]); },
             LMSCommit: function(param) { return makeSCORMCall('LMSCommit', [param]); },
@@ -165,7 +176,18 @@
         // SCORM 2004 API
         window.API_1484_11 = {
             Initialize: function(param) { return makeSCORMCall('Initialize', [param]); },
-            Terminate: function(param) { return makeSCORMCall('Terminate', [param]); },
+            Terminate: function(param) { 
+                console.log('[SCORM] Terminate - EXIT COURSE button clicked (SCORM 2004)');
+                const result = makeSCORMCall('Terminate', [param]);
+                // CRITICAL FIX: Auto-redirect when content calls Terminate (EXIT button)
+                if (result === 'true') {
+                    console.log('[SCORM] Data saved, redirecting to course page...');
+                    setTimeout(function() {
+                        window.location.href = '{% url "courses:topic_view" topic.id %}';
+                    }, 500);
+                }
+                return result;
+            },
             GetValue: function(element) { return makeSCORMCall('GetValue', [element]); },
             SetValue: function(element, value) { return makeSCORMCall('SetValue', [element, value]); },
             Commit: function(param) { return makeSCORMCall('Commit', [param]); },

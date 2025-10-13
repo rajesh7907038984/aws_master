@@ -157,8 +157,16 @@
                 return makeCaptivateCall('LMSInitialize', [param]); 
             },
             LMSFinish: function(param) { 
-                console.log('[Captivate] Finish');
-                return makeCaptivateCall('LMSFinish', [param]); 
+                console.log('[Captivate] Finish - EXIT COURSE button clicked');
+                const result = makeCaptivateCall('LMSFinish', [param]);
+                // CRITICAL FIX: Auto-redirect when content calls LMSFinish (EXIT button)
+                if (result === 'true') {
+                    console.log('[Captivate] Data saved, redirecting to course page...');
+                    setTimeout(function() {
+                        window.location.href = '{% url "courses:topic_view" topic.id %}';
+                    }, 500);
+                }
+                return result;
             },
             LMSGetValue: function(element) { 
                 return makeCaptivateCall('LMSGetValue', [element]); 
@@ -178,7 +186,18 @@
         // SCORM 2004 API (Captivate also supports this)
         window.API_1484_11 = {
             Initialize: function(param) { return makeCaptivateCall('Initialize', [param]); },
-            Terminate: function(param) { return makeCaptivateCall('Terminate', [param]); },
+            Terminate: function(param) { 
+                console.log('[Captivate] Terminate - EXIT COURSE button clicked (SCORM 2004)');
+                const result = makeCaptivateCall('Terminate', [param]);
+                // CRITICAL FIX: Auto-redirect when content calls Terminate (EXIT button)
+                if (result === 'true') {
+                    console.log('[Captivate] Data saved, redirecting to course page...');
+                    setTimeout(function() {
+                        window.location.href = '{% url "courses:topic_view" topic.id %}';
+                    }, 500);
+                }
+                return result;
+            },
             GetValue: function(element) { return makeCaptivateCall('GetValue', [element]); },
             SetValue: function(element, value) { return makeCaptivateCall('SetValue', [element, value]); },
             Commit: function(param) { return makeCaptivateCall('Commit', [param]); },
