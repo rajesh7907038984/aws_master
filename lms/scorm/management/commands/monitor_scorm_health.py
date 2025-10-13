@@ -33,7 +33,7 @@ class Command(BaseCommand):
         if check_only:
             self.stdout.write(' SCORM Health Check Mode')
         else:
-            self.stdout.write(' SCORM Health Monitor Mode')
+            self.stdout.write('🔧 SCORM Health Monitor Mode')
         
         issues_found = 0
         fixes_applied = 0
@@ -47,7 +47,7 @@ class Command(BaseCommand):
         if packages_without_auto_scoring.exists():
             issues_found += packages_without_auto_scoring.count()
             self.stdout.write(
-                self.style.WARNING(f'     Found {packages_without_auto_scoring.count()} packages without auto-scoring')
+                self.style.WARNING(f'   ⚠️  Found {packages_without_auto_scoring.count()} packages without auto-scoring')
             )
             
             if auto_fix:
@@ -72,7 +72,7 @@ class Command(BaseCommand):
         
         if low_confidence_packages.exists():
             self.stdout.write(
-                self.style.WARNING(f'     Found {low_confidence_packages.count()} packages with low confidence detection')
+                self.style.WARNING(f'   ⚠️  Found {low_confidence_packages.count()} packages with low confidence detection')
             )
             
             if auto_fix:
@@ -110,7 +110,7 @@ class Command(BaseCommand):
         
         if inconsistent_attempts:
             self.stdout.write(
-                self.style.WARNING(f'     Found {len(inconsistent_attempts)} attempts with inconsistent scores')
+                self.style.WARNING(f'   ⚠️  Found {len(inconsistent_attempts)} attempts with inconsistent scores')
             )
             
             if auto_fix:
@@ -151,12 +151,12 @@ class Command(BaseCommand):
                 )
             else:
                 self.stdout.write(
-                    self.style.WARNING(f'  Found {issues_found} issues. Run with --auto-fix to resolve.')
+                    self.style.WARNING(f'⚠️  Found {issues_found} issues. Run with --auto-fix to resolve.')
                 )
         
         # 6. Recommendations
         self.stdout.write('\n=== RECOMMENDATIONS ===')
         self.stdout.write('   📅 Run this command weekly: python manage.py monitor_scorm_health --auto-fix')
-        self.stdout.write('    Re-analyze packages monthly: python manage.py analyze_scorm_packages --force')
+        self.stdout.write('   🔄 Re-analyze packages monthly: python manage.py analyze_scorm_packages --force')
         self.stdout.write('    Monitor gradebook for display issues')
-        self.stdout.write('    System is fully automated - no manual intervention needed!')
+        self.stdout.write('   🚀 System is fully automated - no manual intervention needed!')

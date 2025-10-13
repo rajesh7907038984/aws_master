@@ -3,11 +3,6 @@ from django.conf import settings
 from django.utils import timezone
 from courses.models import Topic
 import json
-import logging
-import os
-import shutil
-
-logger = logging.getLogger(__name__)
 
 
 class ScormPackage(models.Model):
@@ -20,11 +15,12 @@ class ScormPackage(models.Model):
         ('2004', 'SCORM 2004'),
         ('xapi', 'xAPI/Tin Can'),
         ('dual', 'SCORM + xAPI Dual'),
+        ('legacy', 'Legacy SCORM'),
         ('html5', 'HTML5 Package'),
         ('storyline', 'Articulate Storyline'),
         ('captivate', 'Adobe Captivate'),
         ('lectora', 'Lectora'),
-        ('unknown', 'Unknown Format')
+        ('unknown', 'Unknown Format'),
     ]
     
     topic = models.OneToOneField(
@@ -78,12 +74,6 @@ class ScormPackage(models.Model):
         help_text="Mastery score from manifest (pass/fail threshold, NOT max score)"
     )
     
-    # Player settings
-    commit_frequency = models.IntegerField(
-        default=5000,
-        help_text="Auto-commit frequency in milliseconds (SCORM Cloud default: 10000ms, Ours: 5000ms for better data safety)"
-    )
-    
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -95,110 +85,6 @@ class ScormPackage(models.Model):
     
     def __str__(self):
         return f"{self.title} ({self.version})"
-    
-    def delete(self, *args, **kwargs):
-        """
-        Enhanced delete method with comprehensive S3 cleanup for SCORM packages.
-        This ensures all SCORM files (package and extracted content) are properly deleted from S3.
-        """
-        try:
-            logger.info(f"Starting deletion for SCORM Package: {self.title} (ID: {self.id})")
-            
-            # 1. DELETE PACKAGE FILE FROM S3
-            if self.package_file:
-                try:
-                    logger.info(f"Deleting SCORM package file: {self.package_file.name}")
-                    self.package_file.delete(save=False)
-                    logger.info(f"Successfully deleted SCORM package file: {self.package_file.name}")
-                except Exception as e:
-                    logger.error(f"Error deleting SCORM package file: {str(e)}")
-            
-            # 2. DELETE EXTRACTED CONTENT FROM S3
-            if self.extracted_path:
-                try:
-                    from django.core.files.storage import default_storage
-                    logger.info(f"Deleting extracted SCORM content: {self.extracted_path}")
-                    
-                    # Try to delete all files in the extracted directory
-                    try:
-                        files, dirs = default_storage.listdir(self.extracted_path)
-                        
-                        # Delete all files
-                        for file in files:
-                            file_path = f"{self.extracted_path}/{file}" if not self.extracted_path.endswith('/') else f"{self.extracted_path}{file}"
-                            try:
-                                default_storage.delete(file_path)
-                                logger.info(f"Deleted extracted file: {file_path}")
-                            except Exception as file_error:
-                                if "403" in str(file_error) or "Forbidden" in str(file_error):
-                                    logger.warning(f"S3 permission denied for file {file_path}: {file_error}")
-                                elif "NoSuchKey" in str(file_error) or "not found" in str(file_error):
-                                    logger.info(f"File {file_path} does not exist - skipping")
-                                else:
-                                    logger.error(f"Error deleting file {file_path}: {file_error}")
-                        
-                        # Recursively delete subdirectories
-                        for subdir in dirs:
-                            subdir_path = f"{self.extracted_path}/{subdir}" if not self.extracted_path.endswith('/') else f"{self.extracted_path}{subdir}"
-                            try:
-                                subfiles, subdirs = default_storage.listdir(subdir_path)
-                                for subfile in subfiles:
-                                    subfile_path = f"{subdir_path}/{subfile}"
-                                    try:
-                                        default_storage.delete(subfile_path)
-                                        logger.info(f"Deleted extracted subdirectory file: {subfile_path}")
-                                    except Exception as subfile_error:
-                                        logger.error(f"Error deleting subdirectory file {subfile_path}: {subfile_error}")
-                            except Exception as subdir_error:
-                                logger.error(f"Error processing subdirectory {subdir_path}: {subdir_error}")
-                        
-                        logger.info(f"Successfully deleted extracted SCORM content: {self.extracted_path}")
-                    except Exception as list_error:
-                        if "403" in str(list_error) or "Forbidden" in str(list_error):
-                            logger.warning(f"S3 permission denied for listing {self.extracted_path}: {list_error}")
-                        elif "NoSuchKey" in str(list_error) or "not found" in str(list_error):
-                            logger.info(f"Extracted path {self.extracted_path} does not exist - skipping")
-                        else:
-                            logger.error(f"Error listing extracted content {self.extracted_path}: {list_error}")
-                            
-                except Exception as e:
-                    logger.error(f"Error deleting extracted SCORM content: {str(e)}")
-            
-            # 3. USE S3 CLEANUP UTILITY FOR COMPREHENSIVE CLEANUP
-            try:
-                from core.utils.s3_cleanup import cleanup_scorm_package_s3_files
-                package_file_path = self.package_file.name if self.package_file else None
-                s3_results = cleanup_scorm_package_s3_files(
-                    self.id, 
-                    self.topic.id if self.topic else None,
-                    package_file_path
-                )
-                successful_s3_deletions = sum(1 for success in s3_results.values() if success)
-                total_s3_files = len(s3_results)
-                if total_s3_files > 0:
-                    logger.info(f"S3 cleanup: {successful_s3_deletions}/{total_s3_files} SCORM files deleted successfully")
-            except Exception as e:
-                logger.error(f"Error during S3 cleanup for SCORM package {self.id}: {str(e)}")
-            
-            # 4. DELETE LOCAL FILES (if not using S3)
-            if hasattr(settings, 'MEDIA_ROOT') and settings.MEDIA_ROOT:
-                try:
-                    # Delete extracted content directory if it exists locally
-                    if self.extracted_path:
-                        local_extracted_path = os.path.join(settings.MEDIA_ROOT, self.extracted_path)
-                        if os.path.exists(local_extracted_path):
-                            shutil.rmtree(local_extracted_path)
-                            logger.info(f"Deleted local extracted SCORM directory: {local_extracted_path}")
-                except Exception as e:
-                    logger.error(f"Error deleting local SCORM files: {str(e)}")
-            
-            # Call parent delete to remove the database record and cascade to related models
-            super().delete(*args, **kwargs)
-            logger.info(f"Successfully completed deletion for SCORM Package: {self.title} (ID: {self.id})")
-            
-        except Exception as e:
-            logger.error(f"Error in ScormPackage.delete(): {str(e)}")
-            raise
 
 
 class ScormAttempt(models.Model):

@@ -26,7 +26,7 @@ class Command(BaseCommand):
         scan_hours = options['scan_hours']
         
         self.stdout.write(
-            self.style.SUCCESS(' Activating Dynamic SCORM Monitoring System')
+            self.style.SUCCESS('🚀 Activating Dynamic SCORM Monitoring System')
         )
         
         # Run initial scan of recent attempts
@@ -75,7 +75,7 @@ class Command(BaseCommand):
             
             # Progress indicator
             if processed % 20 == 0:
-                self.stdout.write(f" Progress: {processed}/{candidates.count()}")
+                self.stdout.write(f"📈 Progress: {processed}/{candidates.count()}")
         
         # Summary
         self.stdout.write(f"\n{'=' * 60}")
@@ -83,13 +83,13 @@ class Command(BaseCommand):
         self.stdout.write(f"   Scanned: {processed} attempts")
         self.stdout.write(f"   Issues detected: {detected_issues}")
         self.stdout.write(f"   Auto-fixed: {auto_fixed}")
-        self.stdout.write(f"   Success rate: {(auto_fixed/detected_issues*100):.1f}% (if issues > 0)" if detected_issues > 0 else "   No issues found!")
+        self.stdout.write(f"  🔧 Success rate: {(auto_fixed/detected_issues*100):.1f}% (if issues > 0)" if detected_issues > 0 else "   No issues found!")
         
         # Show system capabilities
-        self.stdout.write(f"\n System Features Now Active:")
-        self.stdout.write(f"   Real-time score processing during SCORM interactions")
+        self.stdout.write(f"\n🚀 System Features Now Active:")
+        self.stdout.write(f"  ⚡ Real-time score processing during SCORM interactions")
         self.stdout.write(f"  🤖 Adaptive detection for Storyline, Captivate, Lectora, etc.")
-        self.stdout.write(f"   Automatic synchronization between ScormAttempt and TopicProgress")
+        self.stdout.write(f"  🔄 Automatic synchronization between ScormAttempt and TopicProgress")
         self.stdout.write(f"   Enhanced bookmark/resume functionality")
         self.stdout.write(f"  🚫 Prevention of false completions from navigation")
         self.stdout.write(f"   Real-time gradebook updates")

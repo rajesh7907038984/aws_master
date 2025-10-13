@@ -21,7 +21,6 @@ logger = logging.getLogger(__name__)
 def auto_analyze_scorm_package(sender, instance, created, **kwargs):
     """
     Automatically analyze new SCORM packages to ensure auto-scoring is enabled
-    and automatically detect and fix launch URLs
     """
     if created:
         try:
@@ -45,43 +44,6 @@ def auto_analyze_scorm_package(sender, instance, created, **kwargs):
             auto_scoring = package_metadata.get('needs_auto_scoring', False)
             logger.info(f" Package analysis complete - Auto-scoring: {auto_scoring}")
             
-            # AUTOMATIC LAUNCH URL DETECTION
-            try:
-                from scorm.s3_direct import scorm_s3
-                from scorm.universal_scorm_handler import UniversalSCORMHandler
-                
-                logger.info(f" Auto-detecting launch URL for package {instance.id}")
-                
-                # Get package files from S3
-                package_files = scorm_s3.list_package_files(instance)
-                logger.info(f" Found {len(package_files)} files in package")
-                
-                # Detect correct launch file
-                detected_launch_file = UniversalSCORMHandler.detect_launch_file(package_files)
-                
-                if detected_launch_file:
-                    logger.info(f" Detected launch file: {detected_launch_file}")
-                    
-                    # Check if current launch URL is correct
-                    if instance.launch_url != detected_launch_file:
-                        logger.info(f" Launch URL mismatch detected!")
-                        logger.info(f" Current: {instance.launch_url}")
-                        logger.info(f" Detected: {detected_launch_file}")
-                        
-                        # Update the launch URL automatically
-                        old_launch_url = instance.launch_url
-                        instance.launch_url = detected_launch_file
-                        instance.save()
-                        
-                        logger.info(f" Auto-fixed launch URL: {old_launch_url} → {detected_launch_file}")
-                    else:
-                        logger.info(f" Launch URL is already correct: {instance.launch_url}")
-                else:
-                    logger.warning(f" Could not auto-detect launch file for package {instance.id}")
-                    
-            except Exception as launch_error:
-                logger.error(f" Failed to auto-detect launch URL for package {instance.id}: {str(launch_error)}")
-            
         except Exception as e:
             logger.error(f" Failed to auto-analyze package {instance.id}: {str(e)}")
 
@@ -91,8 +53,6 @@ def dynamic_score_processor(sender, instance, created, **kwargs):
     """
     DYNAMIC SCORE PROCESSOR - Automatically handles all SCORM formats
     Uses centralized ScormScoreSyncService for consistent score synchronization
-    
-    FIXED: Better recursion prevention using raw update instead of save
     """
     # Import the sync service
     from .score_sync_service import ScormScoreSyncService
@@ -101,27 +61,35 @@ def dynamic_score_processor(sender, instance, created, **kwargs):
     if created:
         return
     
-    # Skip if this save was triggered by the API handler or another component
-    # Use a single consistent flag
-    if getattr(instance, '_skip_signal', False):
+    # Skip if this save was triggered by the API handler or another signal
+    if (getattr(instance, '_updating_from_api_handler', False) or
+        getattr(instance, '_updating_from_signal', False) or
+        getattr(instance, '_signal_processing', False)):
+        logger.info(f"🔄 SYNC: Skipping signal for attempt {instance.id} - update in progress by another component")
         return
     
     try:
-        logger.debug(f"SYNC: Processing score synchronization for attempt {instance.id}...")
+        # Use a flag to prevent recursive signal calls
+        instance._signal_processing = True
+        
+        logger.info(f"🔄 SYNC: Processing score synchronization for attempt {instance.id}...")
         
         # Use the centralized sync service
-        # The sync service will use update() instead of save() to avoid triggering signals
         success = ScormScoreSyncService.sync_score(instance)
         
         if success:
-            logger.info(f"SYNC: Successfully synchronized score for attempt {instance.id}")
+            logger.info(f" SYNC: Successfully synchronized score for attempt {instance.id}")
         else:
-            logger.debug(f"SYNC: No score synchronization needed for attempt {instance.id}")
+            logger.info(f"ℹ️  SYNC: No score synchronization needed for attempt {instance.id}")
         
     except Exception as e:
-        logger.error(f"SYNC: Error synchronizing attempt {instance.id}: {str(e)}")
+        logger.error(f" SYNC: Error synchronizing attempt {instance.id}: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
+    finally:
+        # Clean up the flag
+        if hasattr(instance, '_signal_processing'):
+            delattr(instance, '_signal_processing')
 
 
 def _decode_suspend_data(suspend_data):

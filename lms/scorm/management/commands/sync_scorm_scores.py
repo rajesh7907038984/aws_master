@@ -53,7 +53,7 @@ class Command(BaseCommand):
         
         self.stdout.write(
             self.style.SUCCESS(
-                f' Starting SCORM score synchronization {"(DRY RUN)" if dry_run else ""}'
+                f'🔄 Starting SCORM score synchronization {"(DRY RUN)" if dry_run else ""}'
             )
         )
         
@@ -185,14 +185,14 @@ class Command(BaseCommand):
                                 topic_progress.save()
                             
                             self.stdout.write(
-                                f" Updated TopicProgress for user {attempt.user.username}, topic {attempt.scorm_package.topic.title} "
+                                f"🔄 Updated TopicProgress for user {attempt.user.username}, topic {attempt.scorm_package.topic.title} "
                                 f"- last_score: {old_last_score} → {topic_progress.last_score}, "
                                 f"best_score: {old_best_score} → {topic_progress.best_score}"
                             )
                             updated_count += 1
                         else:
                             self.stdout.write(
-                                f"  Skipped TopicProgress for user {attempt.user.username}, topic {attempt.scorm_package.topic.title} "
+                                f"⏭️  Skipped TopicProgress for user {attempt.user.username}, topic {attempt.scorm_package.topic.title} "
                                 f"(already up to date)"
                             )
                             skipped_count += 1
@@ -207,10 +207,10 @@ class Command(BaseCommand):
                 logger.error(f"SCORM sync error for attempt {attempt.id}: {str(e)}")
         
         # Summary
-        self.stdout.write(self.style.SUCCESS("\n SCORM Score Synchronization Complete!"))
+        self.stdout.write(self.style.SUCCESS("\n📈 SCORM Score Synchronization Complete!"))
         self.stdout.write(f"   Created: {created_count}")
-        self.stdout.write(f"   Updated: {updated_count}")
-        self.stdout.write(f"    Skipped: {skipped_count}")
+        self.stdout.write(f"  🔄 Updated: {updated_count}")
+        self.stdout.write(f"  ⏭️  Skipped: {skipped_count}")
         if error_count > 0:
             self.stdout.write(self.style.ERROR(f"   Errors: {error_count}"))
         
@@ -218,7 +218,7 @@ class Command(BaseCommand):
         self.stdout.write(f"   Total processed: {total_processed}")
         
         if dry_run:
-            self.stdout.write(self.style.WARNING("\n  This was a DRY RUN - no changes were made to the database"))
+            self.stdout.write(self.style.WARNING("\n⚠️  This was a DRY RUN - no changes were made to the database"))
             self.stdout.write("Run without --dry-run to apply these changes")
         else:
             self.stdout.write(self.style.SUCCESS(f"\n Successfully synchronized {created_count + updated_count} SCORM scores"))

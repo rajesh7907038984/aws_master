@@ -31,33 +31,31 @@ class ScormS3DirectAccess:
     
     def generate_direct_url(self, scorm_package, file_path=''):
         """
-        Generate full S3 URL for content access
+        Generate direct S3 URL for SCORM content with caching
         
         Args:
             scorm_package: ScormPackage instance
             file_path: Optional file path within the package
             
         Returns:
-            Full HTTPS URL to S3 content
+            Direct HTTPS URL to S3 content
         """
         try:
-            # Build S3 key path - handle double media/ prefix issue
-            extracted_path = scorm_package.extracted_path
-            if extracted_path.startswith('media/'):
-                # Remove the 'media/' prefix since media_location will add it
-                extracted_path = extracted_path[6:]  # Remove 'media/' prefix
-            
-            base_path = f"{self.media_location}/{extracted_path}"
+            # Build S3 key path
+            base_path = f"{self.media_location}/{scorm_package.extracted_path}"
             if file_path:
                 s3_key = f"{base_path}/{file_path}"
             else:
                 s3_key = f"{base_path}/{scorm_package.launch_url}"
             
-            # Generate full HTTPS URL
-            full_url = f"https://{self.bucket_name}.s3.{self.region}.amazonaws.com/{s3_key}"
+            # Generate direct HTTPS URL with CloudFront if available
+            if hasattr(settings, 'AWS_CLOUDFRONT_DOMAIN') and settings.AWS_CLOUDFRONT_DOMAIN:
+                direct_url = f"https://{settings.AWS_CLOUDFRONT_DOMAIN}/{s3_key}"
+            else:
+                direct_url = f"https://{self.bucket_name}.s3.{self.region}.amazonaws.com/{s3_key}"
             
-            logger.info(f"Generated S3 URL: {full_url}")
-            return full_url
+            logger.info(f"Generated direct S3 URL: {direct_url}")
+            return direct_url
             
         except Exception as e:
             logger.error(f"Error generating S3 URL: {str(e)}")
@@ -75,36 +73,6 @@ class ScormS3DirectAccess:
         """
         return self.generate_direct_url(scorm_package)
     
-    def get_s3_key(self, scorm_package, file_path=''):
-        """
-        Get S3 key for authenticated access (for boto3 operations)
-        
-        Args:
-            scorm_package: ScormPackage instance
-            file_path: Optional file path within the package
-            
-        Returns:
-            S3 key for boto3 operations
-        """
-        try:
-            # Handle double media/ prefix issue
-            extracted_path = scorm_package.extracted_path
-            if extracted_path.startswith('media/'):
-                # Remove the 'media/' prefix since media_location will add it
-                extracted_path = extracted_path[6:]  # Remove 'media/' prefix
-            
-            base_path = f"{self.media_location}/{extracted_path}"
-            if file_path:
-                s3_key = f"{base_path}/{file_path}"
-            else:
-                s3_key = f"{base_path}/{scorm_package.launch_url}"
-            
-            return s3_key
-            
-        except Exception as e:
-            logger.error(f"Error generating S3 key: {str(e)}")
-            return None
-    
     def get_base_url(self, scorm_package):
         """
         Get base URL for SCORM package content
@@ -116,13 +84,7 @@ class ScormS3DirectAccess:
         Returns:
             Base URL for the SCORM package
         """
-        # Handle double media/ prefix issue
-        extracted_path = scorm_package.extracted_path
-        if extracted_path.startswith('media/'):
-            # Remove the 'media/' prefix since media_location will add it
-            extracted_path = extracted_path[6:]  # Remove 'media/' prefix
-        
-        base_path = f"{self.media_location}/{extracted_path}"
+        base_path = f"{self.media_location}/{scorm_package.extracted_path}"
         return f"https://{self.bucket_name}.s3.{self.region}.amazonaws.com/{base_path}/"
     
     def verify_file_exists(self, scorm_package, file_path=''):
@@ -137,10 +99,12 @@ class ScormS3DirectAccess:
             Boolean indicating if file exists
         """
         try:
-            s3_key = self.get_s3_key(scorm_package, file_path)
-            if not s3_key:
-                return False
-                
+            base_path = f"{self.media_location}/{scorm_package.extracted_path}"
+            if file_path:
+                s3_key = f"{base_path}/{file_path}"
+            else:
+                s3_key = f"{base_path}/{scorm_package.launch_url}"
+            
             self.s3_client.head_object(Bucket=self.bucket_name, Key=s3_key)
             return True
             
@@ -159,13 +123,7 @@ class ScormS3DirectAccess:
             List of file paths in the package
         """
         try:
-            # Handle double media/ prefix issue
-            extracted_path = scorm_package.extracted_path
-            if extracted_path.startswith('media/'):
-                # Remove the 'media/' prefix since media_location will add it
-                extracted_path = extracted_path[6:]  # Remove 'media/' prefix
-            
-            base_path = f"{self.media_location}/{extracted_path}/"
+            base_path = f"{self.media_location}/{scorm_package.extracted_path}/"
             
             response = self.s3_client.list_objects_v2(
                 Bucket=self.bucket_name,

@@ -8,7 +8,7 @@ import os
 import uuid
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse, HttpResponse, HttpResponseRedirect
+from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.clickjacking import xframe_options_exempt
@@ -16,10 +16,9 @@ from django.core.files.storage import default_storage
 from django.contrib import messages
 from django.utils import timezone
 from django.conf import settings
-from django.urls import reverse
 
 from .models import ScormPackage, ScormAttempt
-# from .api_handler import ScormAPIHandler  # DISABLED: Using enhanced handler only
+from .api_handler import ScormAPIHandler
 from .api_handler_enhanced import ScormAPIHandlerEnhanced
 from .preview_handler import ScormPreviewHandler
 from .s3_direct import scorm_s3
@@ -37,15 +36,13 @@ def scorm_view(request, topic_id):
     # SECURITY FIX: Require authentication for all SCORM content
     if not request.user.is_authenticated:
         messages.error(request, "You must be logged in to access SCORM content.")
-        # Preserve the next parameter for proper redirect after login
-        next_url = request.get_full_path()
-        return redirect(f'/login/?next={next_url}')
+        return redirect('users:login')
     
     is_authenticated = True
     
-    # OPTIMIZATION: Optimize database queries with select_related
+    # Optimize database queries with select_related and prefetch_related
     topic = get_object_or_404(
-        Topic.objects.select_related('scorm_package'),
+        Topic.objects.select_related('scorm_package').prefetch_related('scorm_package__attempts'),
         id=topic_id
     )
     
@@ -58,10 +55,8 @@ def scorm_view(request, topic_id):
                 from courses.models import CourseTopic
                 course_topic = CourseTopic.objects.filter(topic=topic).first()
                 if course_topic:
-                    messages.info(request, f"Please enroll in the course '{course_topic.course.title}' to access this SCORM content.")
                     return redirect('courses:course_view', course_id=course_topic.course.id)
-            except Exception as e:
-                logger.error(f"Error getting course for topic {topic_id}: {e}")
+            except Exception:
                 pass
             return redirect('courses:course_list')
     else:
@@ -75,14 +70,12 @@ def scorm_view(request, topic_id):
     # Check if topic has SCORM package (already loaded with select_related)
     if not hasattr(topic, 'scorm_package') or not topic.scorm_package:
         messages.error(request, "SCORM package not found for this topic")
-        logger.warning(f"SCORM package not found for topic {topic_id}")
         return redirect('courses:topic_view', topic_id=topic_id)
     
     scorm_package = topic.scorm_package
     
-    # Check for preview mode and retake mode
+    # Check for preview mode
     preview_mode = request.GET.get('preview', '').lower() == 'true'
-    retake_mode = request.GET.get('retake', '').lower() == 'true'
     is_instructor_or_admin = (hasattr(request.user, 'role') and 
                              request.user.role in ['instructor', 'admin', 'superadmin', 'globaladmin'])
     
@@ -176,8 +169,7 @@ def scorm_view(request, topic_id):
             'created_at': timezone.now().isoformat(),
         }
         
-        user_name = request.user.username if is_authenticated else 'guest'
-        logger.info(f"Created preview attempt {attempt_id} for user {user_name} on topic {topic_id}")
+        logger.info(f"Created preview attempt {attempt_id} for user {request.user.username if is_authenticated else 'guest'} on topic {topic_id}")
     else:
         # CRITICAL FIX: Handle both authenticated and non-authenticated users
         if is_authenticated:
@@ -221,11 +213,17 @@ def scorm_view(request, topic_id):
         
         # Handle authenticated user logic
         if is_authenticated:
-            # CRITICAL FIX: Resume the last attempt UNLESS user explicitly clicked "Retake"
-            # This fixes the bug where 'passed' status creates new attempts on every visit
-            # Resume functionality should work for ALL statuses (incomplete, passed, failed)
-            if last_attempt and not retake_mode:
-                # Continue existing incomplete attempt - ensure resume data is loaded
+            if last_attempt and last_attempt.lesson_status in ['completed', 'passed']:
+                # Create new attempt if last one was completed
+                attempt_number = last_attempt.attempt_number + 1
+                attempt = ScormAttempt.objects.create(
+                    user=request.user,
+                    scorm_package=scorm_package,
+                    attempt_number=attempt_number
+                )
+                logger.info(f"Created new attempt {attempt.id} for completed attempt")
+            elif last_attempt:
+                # Continue existing attempt - ensure resume data is loaded
                 attempt = last_attempt
                 
                 # Load resume data into CMI data for proper resume functionality
@@ -234,7 +232,7 @@ def scorm_view(request, topic_id):
                     if not attempt.cmi_data:
                         attempt.cmi_data = {}
                     
-                    # ENHANCED: Load resume data into CMI data with progress tracking
+                    # Load resume data into CMI data
                     if attempt.lesson_location:
                         if scorm_package.version == '1.2':
                             attempt.cmi_data['cmi.core.lesson_location'] = attempt.lesson_location
@@ -246,28 +244,6 @@ def scorm_view(request, topic_id):
                             attempt.cmi_data['cmi.suspend_data'] = attempt.suspend_data
                         else:  # SCORM 2004
                             attempt.cmi_data['cmi.suspend_data'] = attempt.suspend_data
-                        
-                        # ENHANCED: Parse suspend data for progress information
-                        try:
-                            import json
-                            suspend_data = json.loads(attempt.suspend_data)
-                            
-                            # Calculate progress percentage from suspend data
-                            if 'totalTime' in suspend_data:
-                                total_time = suspend_data.get('totalTime', 0)
-                                # Estimate progress based on time spent (rough calculation)
-                                if total_time > 0:
-                                    # Assume 5 minutes = 100% completion for estimation
-                                    estimated_progress = min(100, (total_time / 300) * 100)
-                                    attempt.progress_percentage = estimated_progress
-                                    
-                                    # Update CMI data with progress
-                                    if scorm_package.version == '1.2':
-                                        attempt.cmi_data['cmi.core.lesson_status'] = 'incomplete'
-                                    else:  # SCORM 2004
-                                        attempt.cmi_data['cmi.completion_status'] = 'incomplete'
-                        except:
-                            pass
                     
                     # Set entry mode to resume
                     attempt.entry = 'resume'
@@ -278,17 +254,7 @@ def scorm_view(request, topic_id):
                 
                 # Save the updated attempt
                 attempt.save()
-                suspend_data_preview = attempt.suspend_data[:50] if attempt.suspend_data else "None"
-                logger.info(f"RESUME: Loaded resume data for attempt {attempt.id}: entry='{attempt.entry}', location='{attempt.lesson_location}', suspend_data='{suspend_data_preview}...'")
-            elif retake_mode and last_attempt:
-                # Create new attempt for retake
-                new_attempt_number = last_attempt.attempt_number + 1
-                attempt = ScormAttempt.objects.create(
-                    user=request.user,
-                    scorm_package=scorm_package,
-                    attempt_number=new_attempt_number
-                )
-                logger.info(f"RETAKE: Created new attempt {attempt.id} (attempt #{new_attempt_number}) for user {request.user.username}")
+                logger.info(f"Loaded resume data for attempt {attempt.id}: location='{attempt.lesson_location}', suspend_data='{attempt.suspend_data[:50]}...'")
             else:
                 # Create first attempt
                 attempt = ScormAttempt.objects.create(
@@ -299,8 +265,7 @@ def scorm_view(request, topic_id):
                 logger.info(f"Created first attempt {attempt.id} for user {request.user.username}")
             
             # Standard SCORM bookmark - lesson_location is automatically handled
-            suspend_data_preview = attempt.suspend_data[:50] if attempt.suspend_data else "None"
-            logger.info(f"SCORM bookmark: lesson_location='{attempt.lesson_location}', suspend_data='{suspend_data_preview}...'")
+            logger.info(f"SCORM bookmark: lesson_location='{attempt.lesson_location}', suspend_data='{attempt.suspend_data[:50] if attempt.suspend_data else 'None'}...'")
         
         attempt_id = attempt.id
         attempt.is_preview = False  # Mark as real attempt
@@ -317,13 +282,6 @@ def scorm_view(request, topic_id):
     except Exception as e:
         logger.error(f"Error generating content URL: {str(e)}")
         content_url = f"/scorm/content/{topic_id}/index.html"
-    
-    # CRITICAL FIX: Ensure attempt is never None when passed to template
-    if attempt is None:
-        user_name = request.user.username if request.user.is_authenticated else 'guest'
-        logger.error(f"CRITICAL: attempt is None for topic {topic_id}, user {user_name}")
-        messages.error(request, "Error initializing SCORM attempt. Please try again.")
-        return redirect('courses:topic_view', topic_id=topic_id)
     
     context = {
         'topic': topic,
@@ -474,27 +432,23 @@ def scorm_api(request, attempt_id):
         method = data.get('method')
         parameters = data.get('parameters', [])
         
-        # Log all API calls
-        params_preview = parameters[:2] if len(parameters) > 2 else parameters
-        logger.info(f"SCORM API CALL: method={method}, parameters={params_preview}, attempt_id={attempt_id}")
-        
-        # Initialize appropriate API handler WITHOUT caching to ensure fresh data
+        # Initialize appropriate API handler with caching
         if is_preview:
             handler = ScormPreviewHandler(attempt)
             logger.info(f"Using preview handler for attempt {attempt_id}")
         else:
-            # CRITICAL FIX: Removed handler caching to prevent stale data issues
-            # Each request gets a fresh handler with current database state
-            # This ensures:
-            # 1. Accurate score tracking
-            # 2. Proper progress updates
-            # 3. Working resume functionality with correct bookmark/suspend data
+            # Use cached handler if available
+            from django.core.cache import cache
+            handler_cache_key = f"scorm_handler_v2_{attempt_id}"
+            handler = cache.get(handler_cache_key)
             
-            # IMPORTANT: Refresh attempt from database to get latest data
-            attempt.refresh_from_db()
-            
-            handler = ScormAPIHandlerEnhanced(attempt)
-            logger.info(f"Created fresh enhanced handler for attempt {attempt_id} with latest database state")
+            if not handler:
+                handler = ScormAPIHandlerEnhanced(attempt)
+                # Cache handler for 10 minutes
+                cache.set(handler_cache_key, handler, 600)
+                logger.info(f"Created enhanced handler for attempt {attempt_id}")
+            else:
+                logger.info(f"Using cached enhanced handler for attempt {attempt_id}")
         
         # Route to appropriate API method
         if method == 'Initialize' or method == 'LMSInitialize':
@@ -507,13 +461,9 @@ def scorm_api(request, attempt_id):
         elif method == 'SetValue' or method == 'LMSSetValue':
             element = parameters[0] if len(parameters) > 0 else ''
             value = parameters[1] if len(parameters) > 1 else ''
-            logger.info(f"SetValue called: element={element}, value={value}")
             result = handler.set_value(element, value)
-            logger.info(f"SetValue result: {result}")
         elif method == 'Commit' or method == 'LMSCommit':
-            logger.info(f"Commit called for attempt {attempt_id}")
             result = handler.commit()
-            logger.info(f"Commit result: {result}")
         elif method == 'GetLastError' or method == 'LMSGetLastError':
             result = handler.get_last_error()
         elif method == 'GetErrorString' or method == 'LMSGetErrorString':
@@ -549,16 +499,17 @@ def scorm_api(request, attempt_id):
         }, status=500)
 
 
+@login_required
 def scorm_content(request, topic_id=None, path=None, attempt_id=None):
     """
-    Serve SCORM content files from S3 with optimized loading
-    Note: Removed @login_required to allow SCORM content to be embedded in iframes
-    Uses direct S3 URLs for maximum performance
+    Serve SCORM content files from S3 with optimized loading - SECURE ACCESS ONLY
+    Uses direct S3 URLs for better performance
     Handles both topic_id and attempt_id parameters for backward compatibility
     """
     try:
-        # Note: Authentication removed to allow SCORM content to be embedded in iframes
-        # SCORM content should be publicly accessible for proper iframe functionality
+        # SECURITY FIX: Require authentication for all SCORM content
+        if not request.user.is_authenticated:
+            return HttpResponse('Authentication required', status=401)
         # Handle both topic_id and attempt_id parameters for backward compatibility
         current_attempt_id = None
         if attempt_id is not None and topic_id is None:
@@ -574,14 +525,15 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
                 return HttpResponse('Invalid attempt ID', status=404)
         else:
             # Use topic_id directly - need to get the current attempt for this user
-            topic = get_object_or_404(Topic.objects.select_related('scorm_package'), id=topic_id)
+            topic = get_object_or_404(Topic, id=topic_id)
             
-            # Note: For public SCORM content access, we skip user permission checks
-            # This allows SCORM content to be embedded in iframes without authentication
-            # Get the current attempt for this user and topic (only if authenticated)
+            # SECURITY FIX: Verify user has access to this topic
+            if not topic.user_has_access(request.user):
+                return HttpResponse('Access denied - You do not have permission to access this content', status=403)
+            # Get the current attempt for this user and topic
             from .models import ScormAttempt
             try:
-                if hasattr(request, 'user') and request.user.is_authenticated:
+                if request.user.is_authenticated:
                     current_attempt = ScormAttempt.objects.filter(
                         user=request.user,
                         scorm_package__topic=topic
@@ -601,12 +553,6 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
         if path.endswith('/'):
             path = path + 'index.html'
         
-        # CRITICAL FIX: For SCORM content HTML files, serve them directly with SCORM API injection
-        # This ensures the SCORM content can access the API without redirecting to the player
-        if path.endswith(('.html', '.htm')) and ('scormcontent' in path or path.endswith('index.html')):
-            logger.info(f"Serving SCORM HTML content directly: {path}")
-            # Serve the HTML content directly with SCORM API injection instead of redirecting
-        
         # Generate direct S3 URL with proper error handling
         try:
             s3_url = scorm_s3.generate_direct_url(scorm_package, path)
@@ -618,32 +564,18 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
             logger.error(f"Error generating S3 URL: {str(e)}")
             return HttpResponse('Error generating content URL', status=500)
         
-        # CRITICAL FIX: For non-HTML files, redirect to S3 for performance
-        # For HTML files, proxy through Django to avoid cross-origin issues
+        # For non-HTML files, redirect directly to S3 for better performance
         if not path.endswith(('.html', '.htm')):
             from django.http import HttpResponseRedirect
             return HttpResponseRedirect(s3_url)
         
-        # For HTML files, inject minimal SCORM API reference
+        # For HTML files, we need to proxy to inject API but with caching
         try:
             import requests
             from django.core.cache import cache
             
-            # CRITICAL FIX: Ensure we have a valid attempt_id for SCORM API
-            if not current_attempt_id:
-                # Create a temporary attempt_id for unauthenticated users
-                import uuid
-                current_attempt_id = f"temp_{uuid.uuid4()}"
-                logger.info(f"Created temporary attempt_id for SCORM content: {current_attempt_id}")
-            
-            # CRITICAL FIX: Ensure attempt_id is not None or empty
-            if not current_attempt_id or current_attempt_id == 'None':
-                current_attempt_id = f"fallback_{uuid.uuid4()}"
-                logger.warning(f"CRITICAL: attempt_id was None, created fallback: {current_attempt_id}")
-            
             # Create cache key for this content with version
-            package_timestamp = scorm_package.updated_at.timestamp()
-            cache_key = f"scorm_content_v4_{scorm_package.id}_{path}_{package_timestamp}_{current_attempt_id}"
+            cache_key = f"scorm_content_v2_{scorm_package.id}_{path}_{scorm_package.updated_at.timestamp()}"
             cached_content = cache.get(cache_key)
             
             if cached_content:
@@ -651,150 +583,583 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
                 response_obj = HttpResponse(cached_content, content_type='text/html; charset=utf-8')
                 response_obj['Access-Control-Allow-Origin'] = '*'
                 response_obj['X-Frame-Options'] = 'SAMEORIGIN'
-                response_obj['Cache-Control'] = 'public, max-age=3600'  # Cache for 1 hour
+                response_obj['Cache-Control'] = 'public, max-age=7200'  # Cache for 2 hours
                 return response_obj
             
-            # Fetch from S3 with optimized timeout
-            response = requests.get(s3_url, timeout=5)
+            # Fetch from S3 with optimized timeout and streaming
+            response = requests.get(s3_url, timeout=3, stream=True)
             response.raise_for_status()
             
             content = response.content
             content_type = response.headers.get('content-type', 'text/html; charset=utf-8')
             
-            # Inject lightweight SCORM API for HTML files
+            # Inject REAL SCORM API for HTML files
             if 'text/html' in content_type:
                 html_content = content.decode('utf-8')
                 
-                # CRITICAL FIX: For xAPI/Tin Can packages (Articulate Storyline), 
-                # don't inject complex SCORM code - just provide parent API reference
-                if scorm_package.version == 'xapi':
-                    # Minimal API bridge for xAPI content - doesn't interfere with Storyline
-                    api_injection = '''
+                # CRITICAL FIX: Inject ENHANCED SCORM API with forced progress synchronization
+                api_injection = f'''
 <script>
-// Minimal API bridge for Tin Can/xAPI content
-// Version: 4.0 - Non-intrusive for Articulate Storyline
-console.log('[xAPI] Minimal API bridge loaded');
+// ENHANCED SCORM API Implementation - Forces Progress Synchronization
+// Version: 2.1 - Aggressive Tracking Fix with Cache Busting
+const SCORM_API_ENDPOINT = '/scorm/api/{current_attempt_id or "unknown"}/';
+const SCORM_ATTEMPT_ID = '{current_attempt_id or "unknown"}';
+const CACHE_BUSTER = '{int(timezone.now().timestamp())}';
 
-// Only provide parent window API reference if needed
-if (window.parent && window.parent !== window) {
-    if (window.parent.API && !window.API) {
-        window.API = window.parent.API;
-        console.log('[xAPI] Parent SCORM API available');
-    }
-    if (window.parent.API_1484_11 && !window.API_1484_11) {
-        window.API_1484_11 = window.parent.API_1484_11;
-        console.log('[xAPI] Parent SCORM 2004 API available');
-    }
-}
+// CACHE BUSTING - Force fresh load
+console.log('[SCORM SYNC] Enhanced tracking v2.1 loaded at', new Date().toISOString());
+console.log('[SCORM SYNC] API Endpoint:', SCORM_API_ENDPOINT);
+console.log('[SCORM SYNC] Attempt ID:', SCORM_ATTEMPT_ID);
+console.log('[SCORM SYNC] Cache Buster:', CACHE_BUSTER);
+console.log('[SCORM SYNC] FORCE FRESH LOAD - Enhanced tracking is ACTIVE');
 
-// Minimal fallback API stub (only if no API exists)
-if (!window.API && !window.API_1484_11) {
-    window.API = window.API_1484_11 = {
-        LMSInitialize: function() { return 'true'; },
-        Initialize: function() { return 'true'; },
-        LMSFinish: function() { return 'true'; },
-        Terminate: function() { return 'true'; },
-        LMSGetValue: function(e) { return ''; },
-        GetValue: function(e) { return ''; },
-        LMSSetValue: function(e,v) { return 'true'; },
-        SetValue: function(e,v) { return 'true'; },
-        LMSCommit: function() { return 'true'; },
-        Commit: function() { return 'true'; },
-        LMSGetLastError: function() { return '0'; },
-        GetLastError: function() { return '0'; },
-        LMSGetErrorString: function(c) { return ''; },
-        GetErrorString: function(c) { return ''; },
-        LMSGetDiagnostic: function(c) { return ''; },
-        GetDiagnostic: function(c) { return ''; }
-    };
-    console.log('[xAPI] Minimal fallback API created');
-}
-</script>'''
-                else:
-                    # For SCORM 1.2 and 2004 packages, also use minimal injection
-                    # The heavy tracking code is handled in the player template
-                    api_injection = f'''
-<script>
-// Lightweight SCORM API - Points to parent window API
-// Version: 4.0 - Simplified for all SCORM types
-console.log('[SCORM] API bridge loaded for content');
+// API Cache for performance
+const apiCache = new Map();
+const CACHE_DURATION = 30000; // 30 seconds
 
-// CRITICAL FIX: Ensure attempt_id is available for SCORM content
-const SCORM_ATTEMPT_ID = '{current_attempt_id}';
-const SCORM_API_ENDPOINT = '/scorm/api/{current_attempt_id}/';
-console.log('[SCORM] Attempt ID:', SCORM_ATTEMPT_ID);
-console.log('[SCORM] API Endpoint:', SCORM_API_ENDPOINT);
+// Progress tracking variables
+let currentProgress = 0;
+let lastProgressUpdate = 0;
+let progressUpdateInterval = null;
 
-// Try to use parent window's API if available (iframe scenario)
-if (window.parent && window.parent !== window) {{
-    if (window.parent.API && !window.API) {{
-        window.API = window.parent.API;
-        console.log('[SCORM] Using parent SCORM 1.2 API');
-    }}
-    if (window.parent.API_1484_11 && !window.API_1484_11) {{
-        window.API_1484_11 = window.parent.API_1484_11;
-        console.log('[SCORM] Using parent SCORM 2004 API');
+// Make API call to Django backend
+async function makeScormApiCall(method, parameters) {{
+    try {{
+        const response = await fetch(SCORM_API_ENDPOINT, {{
+            method: 'POST',
+            headers: {{
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            }},
+            body: JSON.stringify({{
+                method: method,
+                parameters: parameters
+            }})
+        }});
+        
+        if (!response.ok) {{
+            throw new Error(`HTTP ${{response.status}}: ${{response.statusText}}`);
+        }}
+        
+        const data = await response.json();
+        return data.success ? data.result : '';
+    }} catch (error) {{
+        console.error(`SCORM API ${{method}} error:`, error);
+        return '';
     }}
 }}
 
-// Minimal fallback API stub (only if no API exists)
-if (!window.API) {{
-    window.API = {{
-        LMSInitialize: function() {{ return 'true'; }},
-        LMSFinish: function() {{ return 'true'; }},
-        LMSGetValue: function(e) {{ return ''; }},
-        LMSSetValue: function(e,v) {{ return 'true'; }},
-        LMSCommit: function() {{ return 'true'; }},
-        LMSGetLastError: function() {{ return '0'; }},
-        LMSGetErrorString: function(c) {{ return ''; }},
-        LMSGetDiagnostic: function(c) {{ return ''; }}
-    }};
-    console.log('[SCORM] Minimal SCORM 1.2 fallback API created');
+// CRITICAL FIX: Force progress synchronization with deep content analysis
+function forceProgressSync() {{
+    // Get current progress from SCORM content with multiple detection methods
+    let contentProgress = 0;
+    let currentSlide = getCurrentSlide();
+    let completedSlides = getCompletedSlides();
+    
+    // Method 1: Check for progress elements
+    const progressElements = document.querySelectorAll('[data-progress], .progress, .completion, .percentage, .progress-text');
+    progressElements.forEach(el => {{
+        const progress = parseInt(el.textContent.match(/(\d+)%/)?.[1] || el.getAttribute('data-progress') || 0);
+        if (progress > contentProgress) contentProgress = progress;
+    }});
+    
+    // Method 2: Check for progress bars
+    const progressBars = document.querySelectorAll('.progress-bar, .completion-bar, .status-bar, .progress-fill');
+    progressBars.forEach(bar => {{
+        const width = bar.style.width || bar.getAttribute('data-width') || '0%';
+        const progress = parseInt(width.replace('%', ''));
+        if (progress > contentProgress) contentProgress = progress;
+    }});
+    
+    // Method 3: Check for question/slide indicators
+    const questionElements = document.querySelectorAll('.question-number, .slide-number, .step-number');
+    questionElements.forEach(el => {{
+        const text = el.textContent || '';
+        const match = text.match(/(\d+)\/(\d+)/);
+        if (match) {{
+            const current = parseInt(match[1]);
+            const total = parseInt(match[2]);
+            const progress = Math.round((current / total) * 100);
+            if (progress > contentProgress) contentProgress = progress;
+        }}
+    }});
+    
+    // CRITICAL FIX: Check for answered questions
+    const answeredQuestions = document.querySelectorAll('input[type="radio"]:checked, input[type="checkbox"]:checked, select option:checked');
+    if (answeredQuestions.length > 0) {{
+        // Estimate progress based on answered questions
+        const estimatedProgress = Math.min(answeredQuestions.length * 20, 100); // Assume 5 questions max
+        if (estimatedProgress > contentProgress) contentProgress = estimatedProgress;
+        console.log(`[SCORM SYNC] Found ${{answeredQuestions.length}} answered questions, progress: ${{estimatedProgress}}%`);
+    }}
+    
+    // Method 4: Check for completed elements
+    const completedElements = document.querySelectorAll('.completed, .done, .finished, .answered');
+    if (completedElements.length > 0) {{
+        // Estimate progress based on completed elements
+        const estimatedProgress = Math.min(completedElements.length * 12.5, 100); // Assume 8 questions max
+        if (estimatedProgress > contentProgress) contentProgress = estimatedProgress;
+    }}
+    
+    // Method 5: Check for navigation state
+    const activeElements = document.querySelectorAll('.active, .current, .selected');
+    if (activeElements.length > 0) {{
+        // Try to determine position from active elements
+        activeElements.forEach(el => {{
+            const classes = el.className;
+            const slideMatch = classes.match(/slide-(\d+)|question-(\d+)|step-(\d+)/);
+            if (slideMatch) {{
+                const slideNum = parseInt(slideMatch[1] || slideMatch[2] || slideMatch[3]);
+                if (slideNum > 1) {{
+                    const estimatedProgress = Math.min((slideNum - 1) * 12.5, 100);
+                    if (estimatedProgress > contentProgress) contentProgress = estimatedProgress;
+                }}
+            }}
+        }});
+    }}
+    
+    // CRITICAL: Always sync if we detect any change
+    if (contentProgress > 0 || currentSlide !== 'current') {{
+        console.log(`[SCORM SYNC] Detected progress: ${{contentProgress}}%, slide: ${{currentSlide}}`);
+        
+        // Force progress update to backend
+        makeScormApiCall('SetValue', ['cmi.core.lesson_status', 'incomplete']);
+        makeScormApiCall('SetValue', ['cmi.core.lesson_location', currentSlide]);
+        makeScormApiCall('SetValue', ['cmi.suspend_data', `progress=${{contentProgress}}&current_slide=${{currentSlide}}&completed_slides=${{completedSlides}}&timestamp=${{Date.now()}}`]);
+        makeScormApiCall('Commit', []);
+        
+        console.log(`[SCORM SYNC] Progress ${{contentProgress}}% sent to backend for slide ${{currentSlide}}`);
+        
+        // Update our tracking
+        currentProgress = contentProgress;
+    }}
+    
+    // CRITICAL FIX: Force sync on any user interaction
+    if (contentProgress > 0) {{
+        console.log(`[SCORM SYNC] FORCE SYNC: Progress ${{contentProgress}}% detected`);
+        
+        // Send immediate progress update
+        makeScormApiCall('SetValue', ['cmi.core.lesson_status', 'incomplete']);
+        makeScormApiCall('SetValue', ['cmi.core.lesson_location', currentSlide]);
+        makeScormApiCall('SetValue', ['cmi.suspend_data', `progress=${{contentProgress}}&current_slide=${{currentSlide}}&completed_slides=${{completedSlides}}&timestamp=${{Date.now()}}`]);
+        makeScormApiCall('Commit', []);
+        
+        console.log(`[SCORM SYNC] FORCE SYNC: Progress ${{contentProgress}}% sent to backend`);
+    }}
 }}
 
-if (!window.API_1484_11) {{
-    window.API_1484_11 = {{
-        Initialize: function() {{ return 'true'; }},
-        Terminate: function() {{ return 'true'; }},
-        GetValue: function(e) {{ return ''; }},
-        SetValue: function(e,v) {{ return 'true'; }},
-        Commit: function() {{ return 'true'; }},
-        GetLastError: function() {{ return '0'; }},
-        GetErrorString: function(c) {{ return ''; }},
-        GetDiagnostic: function(c) {{ return ''; }}
-    }};
-    console.log('[SCORM] Minimal SCORM 2004 fallback API created');
+// CRITICAL FIX: Enhanced current slide detection
+function getCurrentSlide() {{
+    // Method 1: Check for question numbers (e.g., "02/08")
+    const questionElements = document.querySelectorAll('.question-number, .slide-number, .step-number, .progress-text');
+    for (let el of questionElements) {{
+        const text = el.textContent || '';
+        const match = text.match(/(\d+)\/(\d+)/);
+        if (match) {{
+            const current = parseInt(match[1]);
+            return `slide_${{current}}`;
+        }}
+    }}
+    
+    // Method 2: Check for active slide elements
+    const slideElements = document.querySelectorAll('.slide, .page, .section, [data-slide], .question, .step');
+    for (let el of slideElements) {{
+        if (el.classList.contains('active') || el.classList.contains('current') || el.classList.contains('selected')) {{
+            const slideId = el.getAttribute('data-slide') || 
+                          el.getAttribute('data-question') || 
+                          el.getAttribute('data-step') ||
+                          el.className.match(/slide-(\\d+)|question-(\\d+)|step-(\\d+)/)?.[1];
+            if (slideId) return `slide_${{slideId}}`;
+        }}
+    }}
+    
+    // Method 3: Check for navigation indicators
+    const navElements = document.querySelectorAll('.nav-item, .menu-item, .tab-item');
+    for (let el of navElements) {{
+        if (el.classList.contains('active') || el.classList.contains('current')) {{
+            const slideId = el.getAttribute('data-slide') || 
+                          el.textContent.match(/(\d+)/)?.[1];
+            if (slideId) return `slide_${{slideId}}`;
+        }}
+    }}
+    
+    // Method 4: Check for form elements (questions)
+    const formElements = document.querySelectorAll('form, .question-form, .quiz-form');
+    if (formElements.length > 0) {{
+        // Try to find question number in form
+        const form = formElements[0];
+        const questionText = form.textContent || '';
+        const match = questionText.match(/question\s*(\d+)|slide\s*(\d+)|step\s*(\d+)/i);
+        if (match) {{
+            const slideNum = match[1] || match[2] || match[3];
+            return `slide_${{slideNum}}`;
+        }}
+    }}
+    
+    // Method 5: Check for URL hash or location
+    if (window.location.hash) {{
+        const hash = window.location.hash.replace('#', '');
+        const match = hash.match(/slide-(\d+)|question-(\d+)|step-(\d+)/);
+        if (match) {{
+            const slideNum = match[1] || match[2] || match[3];
+            return `slide_${{slideNum}}`;
+        }}
+    }}
+    
+    // Default fallback
+    return 'current';
 }}
-</script>'''
+
+// Get completed slides from content
+function getCompletedSlides() {{
+    const completed = [];
+    const completedElements = document.querySelectorAll('.completed, .done, .finished, [data-completed="true"]');
+    completedElements.forEach((el, index) => {{
+        const slideNum = el.getAttribute('data-slide') || (index + 1);
+        completed.push(slideNum);
+    }});
+    return completed.join(',');
+}}
+
+// CRITICAL FIX: Aggressive progress monitoring
+function startProgressMonitoring() {{
+    if (progressUpdateInterval) clearInterval(progressUpdateInterval);
+    
+    // Check every 1 second for immediate response
+    progressUpdateInterval = setInterval(() => {{
+        forceProgressSync();
+    }}, 1000);
+    
+    // Also monitor for DOM changes
+    const observer = new MutationObserver(() => {{
+        forceProgressSync();
+    }});
+    
+    observer.observe(document.body, {{
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['class', 'data-progress', 'data-slide']
+    }});
+    
+    // Monitor for user interactions
+    document.addEventListener('click', forceProgressSync);
+    document.addEventListener('change', forceProgressSync);
+    document.addEventListener('input', forceProgressSync);
+    document.addEventListener('submit', forceProgressSync);
+    
+    // CRITICAL FIX: Monitor for page unload (user leaving)
+    window.addEventListener('beforeunload', function() {{
+        console.log('[SCORM SYNC] Page unload detected - forcing final sync');
+        forceProgressSync();
+        
+        // Send final progress update
+        makeScormApiCall('SetValue', ['cmi.core.lesson_status', 'incomplete']);
+        makeScormApiCall('SetValue', ['cmi.core.lesson_location', getCurrentSlide()]);
+        makeScormApiCall('SetValue', ['cmi.suspend_data', `progress=${{currentProgress}}&current_slide=${{getCurrentSlide()}}&completed_slides=${{getCompletedSlides()}}&timestamp=${{Date.now()}}`]);
+        makeScormApiCall('Commit', []);
+        
+        console.log('[SCORM SYNC] Final sync completed');
+    }});
+    
+    // CRITICAL FIX: Monitor for navigation away from SCORM
+    window.addEventListener('unload', function() {{
+        console.log('[SCORM SYNC] Page unload - final progress save');
+        forceProgressSync();
+    }});
+    
+    console.log('[SCORM SYNC] Aggressive progress monitoring started');
+}}
+
+// Stop progress monitoring
+function stopProgressMonitoring() {{
+    if (progressUpdateInterval) {{
+        clearInterval(progressUpdateInterval);
+        progressUpdateInterval = null;
+    }}
+    console.log('[SCORM SYNC] Progress monitoring stopped');
+}}
+
+// Synchronous wrapper for SCORM compatibility
+function makeScormApiCallSync(method, parameters) {{
+    // For critical resume elements, make actual API calls
+    if (method === 'GetValue' || method === 'LMSGetValue') {{
+        const element = parameters[0];
+        
+        // Check cache first
+        const cacheKey = method + '_' + JSON.stringify(parameters);
+        if (apiCache.has(cacheKey)) {{
+            const cached = apiCache.get(cacheKey);
+            if (Date.now() - cached.timestamp < CACHE_DURATION) {{
+                return cached.value;
+            }}
+        }}
+        
+        // For bookmark-related elements, make synchronous API call
+        if (element === 'cmi.core.lesson_location' || element === 'cmi.location' || 
+            element === 'cmi.suspend_data' || element === 'cmi.core.entry' || 
+            element === 'cmi.entry' || element === 'cmi.core.lesson_status' || 
+            element === 'cmi.completion_status') {{
+            
+            try {{
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', SCORM_API_ENDPOINT, false); // Synchronous request
+                xhr.setRequestHeader('Content-Type', 'application/json');
+                xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+                
+                xhr.send(JSON.stringify({{
+                    method: method,
+                    parameters: parameters
+                }}));
+                
+                if (xhr.status === 200) {{
+                    const response = JSON.parse(xhr.responseText);
+                    if (response.success) {{
+                        const result = response.result;
+                        
+                        // Cache the result
+                        apiCache.set(cacheKey, {{
+                            value: result,
+                            timestamp: Date.now()
+                        }});
+                        
+                        console.log(`[SCORM API] ${{method}}(${{element}}) -> ${{result}}`);
+                        return result;
+                    }}
+                }}
+            }} catch (e) {{
+                console.error(`[SCORM API] ${{method}} sync error:`, e);
+            }}
+        }}
+    }}
+    
+    // For other methods, return appropriate defaults
+    switch(method) {{
+        case 'Initialize':
+        case 'LMSInitialize':
+            return 'true';
+        case 'GetValue':
+        case 'LMSGetValue':
+            const element = parameters[0];
+            if (element === 'cmi.core.lesson_status' || element === 'cmi.completion_status') {{
+                return 'incomplete';
+            }} else if (element === 'cmi.core.student_id' || element === 'cmi.learner_id') {{
+                return 'student';
+            }} else if (element === 'cmi.core.student_name' || element === 'cmi.learner_name') {{
+                return 'Student';
+            }} else if (element === 'cmi.core.score.max' || element === 'cmi.score.max') {{
+                return '100';
+            }} else if (element === 'cmi.core.score.min' || element === 'cmi.score.min') {{
+                return '0';
+            }} else if (element === 'cmi.mode') {{
+                return 'normal';
+            }}
+            return '';
+        case 'SetValue':
+        case 'LMSSetValue':
+        case 'Commit':
+        case 'LMSCommit':
+        case 'Terminate':
+        case 'LMSFinish':
+            return 'true';
+        case 'GetLastError':
+        case 'LMSGetLastError':
+            return '0';
+        case 'GetErrorString':
+        case 'LMSGetErrorString':
+        case 'GetDiagnostic':
+        case 'LMSGetDiagnostic':
+            return 'No error';
+        default:
+            return 'false';
+    }}
+}}
+
+// Get CSRF token from cookies
+function getCookie(name) {{
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {{
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {{
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {{
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }}
+        }}
+    }}
+    return cookieValue;
+}}
+
+// ENHANCED SCORM API Implementation with Progress Synchronization
+window.API = window.API_1484_11 = {{
+    Initialize: function(param) {{ 
+        const result = makeScormApiCallSync('Initialize', [param]);
+        if (result === 'true') {{
+            startProgressMonitoring(); // Start monitoring progress
+        }}
+        return result;
+    }},
+    LMSInitialize: function(param) {{ 
+        const result = makeScormApiCallSync('LMSInitialize', [param]);
+        if (result === 'true') {{
+            startProgressMonitoring(); // Start monitoring progress
+        }}
+        return result;
+    }},
+    Terminate: function(param) {{ 
+        stopProgressMonitoring(); // Stop monitoring
+        const result = makeScormApiCallSync('Terminate', [param]);
+        // CRITICAL FIX: Handle exit after terminate
+        if (result === 'true') {{
+            console.log('SCORM Terminate successful, handling exit...');
+            // Call parent window exit handler if available
+            if (window.parent && window.parent.handleScormExit) {{
+                window.parent.handleScormExit();
+            }} else {{
+                // Send message to parent
+                window.parent.postMessage('scorm_exit', '*');
+            }}
+        }}
+        return result;
+    }},
+    LMSFinish: function(param) {{ 
+        stopProgressMonitoring(); // Stop monitoring
+        const result = makeScormApiCallSync('LMSFinish', [param]);
+        // CRITICAL FIX: Handle exit after finish
+        if (result === 'true') {{
+            console.log('SCORM LMSFinish successful, handling exit...');
+            // Call parent window exit handler if available
+            if (window.parent && window.parent.handleScormExit) {{
+                window.parent.handleScormExit();
+            }} else {{
+                // Send message to parent
+                window.parent.postMessage('scorm_exit', '*');
+            }}
+        }}
+        return result;
+    }},
+    GetValue: function(element) {{ return makeScormApiCallSync('GetValue', [element]); }},
+    LMSGetValue: function(element) {{ return makeScormApiCallSync('LMSGetValue', [element]); }},
+    SetValue: function(element, value) {{ 
+        const result = makeScormApiCallSync('SetValue', [element, value]);
+        // Force progress sync on any SetValue call
+        if (result === 'true') {{
+            setTimeout(forceProgressSync, 100); // Sync after a short delay
+        }}
+        return result;
+    }},
+    LMSSetValue: function(element, value) {{ 
+        const result = makeScormApiCallSync('LMSSetValue', [element, value]);
+        // Force progress sync on any SetValue call
+        if (result === 'true') {{
+            setTimeout(forceProgressSync, 100); // Sync after a short delay
+        }}
+        return result;
+    }},
+    Commit: function(param) {{ 
+        forceProgressSync(); // Force sync before commit
+        return makeScormApiCallSync('Commit', [param]); 
+    }},
+    LMSCommit: function(param) {{ 
+        forceProgressSync(); // Force sync before commit
+        return makeScormApiCallSync('LMSCommit', [param]); 
+    }},
+    GetLastError: function() {{ return makeScormApiCallSync('GetLastError', []); }},
+    LMSGetLastError: function() {{ return makeScormApiCallSync('LMSGetLastError', []); }},
+    GetErrorString: function(code) {{ return makeScormApiCallSync('GetErrorString', [code]); }},
+    LMSGetErrorString: function(code) {{ return makeScormApiCallSync('LMSGetErrorString', [code]); }},
+    GetDiagnostic: function(code) {{ return makeScormApiCallSync('GetDiagnostic', [code]); }},
+    LMSGetDiagnostic: function(code) {{ return makeScormApiCallSync('LMSGetDiagnostic', [code]); }}
+}};
+
+// Auto-start progress monitoring when page loads
+document.addEventListener('DOMContentLoaded', function() {{
+    console.log('[SCORM SYNC] DOM loaded, starting progress monitoring');
+    startProgressMonitoring();
+    
+    // VISIBLE INDICATOR - Show that enhanced tracking is active
+    const indicator = document.createElement('div');
+    indicator.id = 'scorm-sync-indicator';
+    indicator.style.cssText = `
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: #4CAF50;
+        color: white;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        z-index: 9999;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        border: 2px solid #2E7D32;
+        animation: pulse 2s infinite;
+    `;
+    indicator.innerHTML = '🔄 SCORM SYNC v2.1 ACTIVE';
+    document.body.appendChild(indicator);
+    
+    // Add CSS animation for visibility
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes pulse {{
+            0% {{ opacity: 1; }}
+            50% {{ opacity: 0.7; }}
+            100% {{ opacity: 1; }}
+        }}
+    `;
+    document.head.appendChild(style);
+    
+    // Update indicator every 5 seconds
+    setInterval(() => {{
+        const now = new Date().toLocaleTimeString();
+        indicator.innerHTML = `🔄 SYNC ACTIVE ${{now}}`;
+    }}, 5000);
+}});
+
+// Also start monitoring immediately if DOM is already loaded
+if (document.readyState === 'loading') {{
+    document.addEventListener('DOMContentLoaded', startProgressMonitoring);
+}} else {{
+    startProgressMonitoring();
+}}
+
+console.log('ENHANCED SCORM API v2.0 injected - with forced progress synchronization');
+console.log('[SCORM SYNC] Enhanced tracking is ACTIVE and MONITORING');
+</script>
+'''
                 
                 # Inject before </head> or at beginning of <body>
                 if '</head>' in html_content:
                     html_content = html_content.replace('</head>', api_injection + '</head>')
                 elif '<body' in html_content:
-                    # Find body tag and inject after it
-                    body_pos = html_content.find('<body')
-                    body_end = html_content.find('>', body_pos)
-                    if body_end != -1:
-                        html_content = html_content[:body_end+1] + api_injection + html_content[body_end+1:]
+                    import re
+                    html_content = re.sub(r'(<body[^>]*>)', r'\1' + api_injection, html_content)
                 else:
-                    # As last resort, prepend to the content
                     html_content = api_injection + html_content
                 
                 content = html_content.encode('utf-8')
                 content_type = 'text/html; charset=utf-8'
                 
-                # Cache the processed content for 1 hour
-                cache.set(cache_key, content, 3600)
-                logger.info(f"Injected minimal SCORM API into {path} and cached")
+                # Cache the processed content for 2 hours
+                cache.set(cache_key, content, 7200)
+                logger.info(f"Injected SCORM API into {path} and cached")
             
             response_obj = HttpResponse(content, content_type=content_type)
             response_obj['Access-Control-Allow-Origin'] = '*'
             response_obj['X-Frame-Options'] = 'SAMEORIGIN'
-            # OPTIMIZATION: Enable browser caching for better performance
-            response_obj['Cache-Control'] = 'public, max-age=3600'  # Cache for 1 hour
-            # SECURITY HEADERS
+            # CACHE BUSTING - Force fresh content for enhanced tracking
+            response_obj['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
+            response_obj['Pragma'] = 'no-cache'
+            response_obj['Expires'] = '0'
+            response_obj['Last-Modified'] = timezone.now().strftime('%a, %d %b %Y %H:%M:%S GMT')
+            response_obj['ETag'] = f'"{int(timezone.now().timestamp())}"'
+            response_obj['X-SCORM-Enhanced-Tracking'] = 'v2.0'
+            response_obj['X-Cache-Buster'] = f'{int(timezone.now().timestamp())}'
+            # SECURITY HEADERS - Force authentication
             response_obj['X-Content-Type-Options'] = 'nosniff'
+            response_obj['X-Frame-Options'] = 'SAMEORIGIN'
             response_obj['X-XSS-Protection'] = '1; mode=block'
+            response_obj['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
             return response_obj
             
         except requests.RequestException as e:
@@ -898,46 +1263,6 @@ def scorm_debug(request, attempt_id):
         
     except Exception as e:
         logger.error(f"Error in SCORM debug endpoint: {str(e)}")
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
-
-
-@csrf_exempt
-@require_http_methods(["POST"])
-def scorm_emergency_save(request):
-    """
-    Emergency save endpoint for SCORM data
-    Used when browser is closing or user navigates away
-    """
-    try:
-        data = json.loads(request.body)
-        attempt_id = data.get('attempt_id')
-        
-        if not attempt_id:
-            return JsonResponse({'error': 'No attempt_id provided'}, status=400)
-        
-        attempt = get_object_or_404(ScormAttempt, id=attempt_id)
-        
-        # Verify user owns this attempt
-        if request.user.is_authenticated and attempt.user != request.user:
-            return JsonResponse({'error': 'Unauthorized'}, status=403)
-        
-        # Force score sync
-        from .score_sync_service import ScormScoreSyncService
-        sync_result = ScormScoreSyncService.sync_score(attempt, force=True)
-        
-        logger.info(f"Emergency save for attempt {attempt_id}: sync_result={sync_result}")
-        
-        return JsonResponse({
-            'success': True,
-            'synced': sync_result,
-            'message': 'Emergency save completed'
-        })
-        
-    except Exception as e:
-        logger.error(f"Emergency save error: {str(e)}")
         return JsonResponse({
             'success': False,
             'error': str(e)

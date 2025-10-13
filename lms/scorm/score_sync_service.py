@@ -4,7 +4,7 @@ Provides automatic real-time synchronization between SCORM attempts and TopicPro
 Ensures consistency across all score tracking systems
 """
 import logging
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from typing import Optional, Dict, Any
 from django.db import transaction
 from django.utils import timezone
@@ -39,7 +39,6 @@ class ScormScoreSyncService:
             from .models import ScormAttempt
             
             # Get the related topic
-            # FIXED: Use select_related to avoid N+1 queries
             if not hasattr(scorm_attempt, 'scorm_package') or not scorm_attempt.scorm_package.topic:
                 logger.warning(f"ScormAttempt {scorm_attempt.id} has no associated topic")
                 return False
@@ -47,8 +46,7 @@ class ScormScoreSyncService:
             topic = scorm_attempt.scorm_package.topic
             
             # Get or create TopicProgress
-            # FIXED: Use select_related for foreign keys
-            topic_progress, created = TopicProgress.objects.select_related('user', 'topic').get_or_create(
+            topic_progress, created = TopicProgress.objects.get_or_create(
                 user=scorm_attempt.user,
                 topic=topic,
                 defaults={
@@ -61,6 +59,7 @@ class ScormScoreSyncService:
             should_sync = force or ScormScoreSyncService._should_sync_score(scorm_attempt)
             
             if not should_sync:
+                logger.debug(f"Skipping sync for attempt {scorm_attempt.id} - not ready for sync")
                 return False
             
             # Extract the most accurate score
@@ -74,40 +73,14 @@ class ScormScoreSyncService:
             old_last_score = topic_progress.last_score
             old_best_score = topic_progress.best_score
             
-            # COMPREHENSIVE FIX: More robust score handling with proper validation
-            try:
-                # Ensure score_value is properly converted to Decimal
-                score_decimal = Decimal(str(score_value))
-                
-                # Ensure the score is in a valid range
-                if score_decimal < 0:
-                    logger.warning(f"Negative score detected ({score_decimal}) - setting to 0")
-                    score_decimal = Decimal('0')
-                elif score_decimal > 100:
-                    logger.warning(f"Score exceeds 100 ({score_decimal}) - capping at 100")
-                    score_decimal = Decimal('100')
-                
-                # Update best_score if this is better
-                current_best = Decimal('0')
-                if topic_progress.best_score is not None:
-                    try:
-                        current_best = Decimal(str(topic_progress.best_score))
-                    except (ValueError, TypeError):
-                        logger.warning(f"Invalid best_score format: {topic_progress.best_score} - resetting")
-                        current_best = Decimal('0')
-                
-                if score_decimal > current_best:
-                    logger.info(f"Updating best score: {current_best} → {score_decimal}")
-                    topic_progress.best_score = score_decimal
-                
-                # Set the actual SCORM score as last_score
-                topic_progress.last_score = score_decimal
-                logger.info(f"Set last_score to {score_decimal} for attempt {scorm_attempt.id}")
-            except (ValueError, TypeError, InvalidOperation) as e:
-                logger.error(f"Error converting score value '{score_value}' to Decimal: {e}")
-                # Fallback to ensure we have a valid score
-                topic_progress.last_score = Decimal('0')
-                return False  # Failed to sync properly
+            # Update best_score if this is better
+            if topic_progress.best_score is None or score_value > float(topic_progress.best_score):
+                topic_progress.best_score = Decimal(str(score_value))
+            
+            # CRITICAL FIX: Use the actual SCORM score, not the best score
+            # This ensures accurate reporting of what the learner actually achieved
+            # Gradebook should show the actual score from SCORM content
+            topic_progress.last_score = Decimal(str(score_value))
             
             # Update completion status
             # CRITICAL FIX: Only mark as completed if actually completed or passed, NOT failed
@@ -160,22 +133,15 @@ class ScormScoreSyncService:
             # Save the changes
             topic_progress.save()
             
-            # Clear cache to ensure fresh data using centralized cache manager
-            try:
-                from .cache_utils import ScormCacheManager
-                # Get course IDs for this topic
-                from courses.models import CourseTopic
-                course_ids = list(CourseTopic.objects.filter(topic=topic).values_list('course_id', flat=True))
-                
-                # Use centralized cache invalidation
-                ScormCacheManager.invalidate_for_attempt(
-                    attempt_id=scorm_attempt.id,
-                    user_id=scorm_attempt.user.id,
-                    topic_id=topic.id,
-                    course_ids=course_ids
-                )
-            except Exception as cache_error:
-                logger.warning(f"Cache invalidation error: {cache_error}")
+            # Clear cache to ensure fresh data
+            cache_keys = [
+                f'gradebook_course_{topic.courses.first().id}_*' if topic.courses.exists() else None,
+                f'topic_progress_{topic.id}_*',
+                f'user_progress_{scorm_attempt.user.id}_*'
+            ]
+            for key in cache_keys:
+                if key:
+                    cache.delete_pattern(key)
             
             logger.info(
                 f" SYNC SUCCESS: Attempt {scorm_attempt.id} -> TopicProgress {topic_progress.id} | "
@@ -196,92 +162,34 @@ class ScormScoreSyncService:
     def _should_sync_score(attempt: 'ScormAttempt') -> bool:
         """
         Determine if an attempt should have its score synced
-        COMPREHENSIVE FIX: More robust and consistent sync determination
-        to prevent missing score updates and minimize unnecessary syncs
         """
-        # Track the sync decision with reason
-        sync_decision = False
-        sync_reason = "No sync criteria met"
+        # Always sync if attempt is completed/passed/failed
+        if attempt.lesson_status in ['completed', 'passed', 'failed']:
+            return True
         
-        #  Sync if completed or passed (highest priority)
-        if attempt.lesson_status in ['completed', 'passed']:
-            sync_decision = True
-            sync_reason = f"Status is '{attempt.lesson_status}'"
+        # CRITICAL FIX: Sync if there's ANY valid score (including 0)
+        if attempt.score_raw is not None:
+            return True
         
-        #  Sync if failed with any activity
-        elif attempt.lesson_status == 'failed':
-            sync_decision = True
-            sync_reason = "Status is 'failed'"
-        
-        #  Sync if there's a valid score (including 0)
-        elif attempt.score_raw is not None:
-            # Validate the score
-            try:
-                float_score = float(attempt.score_raw)
-                if 0 <= float_score <= 100:
-                    sync_decision = True
-                    sync_reason = f"Has valid score: {float_score}"
-                else:
-                    # Invalid score range but still indicates activity
-                    sync_decision = True
-                    sync_reason = f"Has out-of-range score: {float_score} (will be normalized)"
-            except (ValueError, TypeError):
-                # Score cannot be converted to float but still sync
-                sync_decision = True
-                sync_reason = f"Has non-numeric score: '{attempt.score_raw}' (will fix during sync)"
-        
-        #  Additional checks for incomplete attempts that should still sync
-        
-        #  Check for score in CMI data (from SCORM content)
-        if not sync_decision and attempt.cmi_data:
+        # Check for score in CMI data (including scores of 0)
+        if attempt.cmi_data:
             cmi_score = attempt.cmi_data.get('cmi.score.raw') or attempt.cmi_data.get('cmi.core.score.raw')
             if cmi_score is not None and cmi_score != '':
                 try:
                     score_val = float(cmi_score)
-                    # Validate score range
-                    if 0 <= score_val <= 100:
-                        sync_decision = True
-                        sync_reason = f"CMI data has valid score: {score_val}"
-                    else:
-                        # Out of range but still indicates activity
-                        sync_decision = True
-                        sync_reason = f"CMI data has out-of-range score: {score_val} (will normalize)"
-                except (ValueError, TypeError):
-                    # Non-numeric but still might indicate activity
-                    if str(cmi_score).strip():
-                        sync_decision = True
-                        sync_reason = f"CMI data has non-numeric score: '{cmi_score}'"
+                    # CRITICAL FIX: Accept any valid score >= 0 (not just > 0)
+                    if score_val >= 0:
+                        return True
+                except:
+                    pass
         
-        #  Check for substantial suspend data (indicates real interaction)
-        if not sync_decision and attempt.suspend_data and len(attempt.suspend_data) > 100:
-            # Content with actual student interaction typically has substantial suspend_data
-            sync_decision = True
-            sync_reason = f"Has meaningful suspend data: {len(attempt.suspend_data)} chars"
+        # CRITICAL FIX: Also check for any score data in attempt even if incomplete
+        # This ensures first visit scores are synced
+        if hasattr(attempt, 'score_raw') and attempt.score_raw is not None:
+            return True
             
-            # Look for completion indicators in suspend_data
-            if "complete" in attempt.suspend_data.lower() or "finished" in attempt.suspend_data.lower():
-                sync_reason += " (with completion indicators)"
-        
-        #  Check for progress percentage (slide-based content)
-        if not sync_decision and attempt.progress_percentage is not None and attempt.progress_percentage > 0:
-            # Only sync if progress is significant (at least 10%)
-            if attempt.progress_percentage >= 10:
-                sync_decision = True
-                sync_reason = f"Has significant progress: {attempt.progress_percentage}%"
-        
-        #  Check for time tracking (significant time spent)
-        if not sync_decision and attempt.time_spent_seconds and attempt.time_spent_seconds >= 30:
-            # If user spent at least 30 seconds, there's meaningful interaction
-            sync_decision = True
-            sync_reason = f"Has meaningful time spent: {attempt.time_spent_seconds}s"
-        
-        # Log sync decision with reason
-        if sync_decision:
-            logger.info(f"Will sync attempt {attempt.id} - Reason: {sync_reason}")
-        else:
-            logger.debug(f"Won't sync attempt {attempt.id} - Reason: {sync_reason}")
-        
-        return sync_decision
+        # Don't sync only if there's truly no score data at all
+        return False
     
     @staticmethod
     def _extract_best_score(attempt: 'ScormAttempt') -> Optional[float]:
@@ -321,14 +229,43 @@ class ScormScoreSyncService:
                 except:
                     pass
         
-        # Priority 3: Progress percentage - ONLY if actually completed
-        # STRICT FIX: Don't use progress as score unless truly completed
-        if attempt.progress_percentage and attempt.lesson_status in ['completed', 'passed']:
+        # Priority 3: Progress percentage (for both completed and in-progress)
+        # This handles slide-based SCORM content that tracks completion by slides
+        # CRITICAL FIX: Only use progress_percentage if it's reasonable and not suspiciously high
+        if attempt.progress_percentage:
             progress_score = float(attempt.progress_percentage)
-            # Only use progress as score if it's reasonable (0-100) AND content is completed
+            # Only use progress as score if it's reasonable (0-100)
             if 0 <= progress_score <= 100:
-                scores.append(progress_score)
-                logger.info(f"Using progress_percentage as score (content completed): {progress_score}% for attempt {attempt.id}")
+                # Check if package needs auto-scoring adjustment
+                package_metadata = attempt.scorm_package.package_metadata or {}
+                needs_auto_scoring = package_metadata.get('needs_auto_scoring', False)
+                
+                # CRITICAL FIX: Only trust 100% progress if we have evidence of actual completion
+                if progress_score == 100:
+                    has_evidence_of_completion = (
+                        attempt.lesson_status in ['completed', 'passed'] or
+                        (attempt.completed_slides and attempt.total_slides and 
+                         len(attempt.completed_slides) >= attempt.total_slides) or
+                        (attempt.suspend_data and 'completed=true' in attempt.suspend_data.lower())
+                    )
+                    
+                    if has_evidence_of_completion:
+                        scores.append(progress_score)
+                        logger.info(f"Using progress_percentage as score with completion evidence: {progress_score}% for attempt {attempt.id}")
+                    else:
+                        logger.warning(f"Progress shows 100% but no evidence of actual completion for attempt {attempt.id} - ignoring")
+                        # Don't use the 100% progress if there's no evidence of completion
+                else:
+                    # For non-100% progress, apply auto-scoring if needed
+                    if needs_auto_scoring and progress_score > 0:
+                        # Auto-scoring: multiply by 10 for better tracking
+                        adjusted_score = min(progress_score * 10, 100)
+                        scores.append(adjusted_score)
+                        logger.info(f"Auto-scoring applied: {progress_score}% -> {adjusted_score}% for attempt {attempt.id}")
+                    else:
+                        # For non-100% progress, trust it
+                        scores.append(progress_score)
+                        logger.info(f"Using progress_percentage as score: {progress_score}% for attempt {attempt.id}")
         
         # Priority 4: Calculate from slide completion (for slide-based SCORM)
         if not scores and attempt.completed_slides and attempt.total_slides:
@@ -501,54 +438,31 @@ class ScormScoreSyncService:
             except Exception as e:
                 logger.warning(f"Could not extract from CMI data for attempt {attempt.id}: {e}")
         
-        # COMPREHENSIVE FIX: Robust score extraction with validation
-        # This ensures we get the most accurate score without potential edge cases
+        # CRITICAL FIX: Return the ACTUAL SCORM score, not the maximum
+        # According to SCORM standards, we should prioritize the actual score from SCORM content
+        # not the highest value from all sources
         
         # Priority 1: Use actual SCORM score if available
         if attempt.score_raw is not None:
-            try:
-                raw_score = float(attempt.score_raw)
-                if 0 <= raw_score <= 100:  # Validate range
-                    logger.info(f"Using attempt.score_raw as source: {raw_score}")
-                    return raw_score
-                else:
-                    logger.warning(f"Score raw out of range (0-100): {raw_score}")
-                    # Continue to other score sources instead of returning invalid value
-            except (ValueError, TypeError) as e:
-                logger.warning(f"Invalid score_raw format: {attempt.score_raw} - {str(e)}")
-                # Continue to other sources
+            return float(attempt.score_raw)
         
         # Priority 2: Use CMI data scores (actual SCORM scores)
-        valid_scores = []
-        
         if attempt.cmi_data:
             # SCORM 2004
             cmi_score = attempt.cmi_data.get('cmi.score.raw')
             if cmi_score is not None and cmi_score != '':
                 try:
-                    score = float(cmi_score)
-                    if 0 <= score <= 100:
-                        valid_scores.append(('cmi.score.raw', score))
-                        logger.info(f"Found valid score in cmi.score.raw: {score}")
-                except (ValueError, TypeError) as e:
-                    logger.warning(f"Invalid cmi.score.raw format: {cmi_score} - {str(e)}")
+                    return float(cmi_score)
+                except:
+                    pass
             
             # SCORM 1.2
             core_score = attempt.cmi_data.get('cmi.core.score.raw')
             if core_score is not None and core_score != '':
                 try:
-                    score = float(core_score)
-                    if 0 <= score <= 100:
-                        valid_scores.append(('cmi.core.score.raw', score))
-                        logger.info(f"Found valid score in cmi.core.score.raw: {score}")
-                except (ValueError, TypeError) as e:
-                    logger.warning(f"Invalid cmi.core.score.raw format: {core_score} - {str(e)}")
-            
-            # If we have valid scores from CMI data, use the highest one
-            if valid_scores:
-                highest_score = max(valid_scores, key=lambda x: x[1])
-                logger.info(f"Using highest score from CMI data: {highest_score[1]} (source: {highest_score[0]})")
-                return highest_score[1]
+                    return float(core_score)
+                except:
+                    pass
         
         # Priority 3: Only use progress/slide data if NO actual SCORM score exists
         # and only if it's reasonable (not suspiciously high)
@@ -572,10 +486,6 @@ class ScormScoreSyncService:
                     else:
                         # Use a more conservative score
                         return 75.0  # Cap at 75% if no evidence of completion
-        
-        #  REMOVED: Do NOT give scores for just viewing/interacting
-        #  PERMANENT FIX: Only return scores from actual SCORM completion
-        # Users must complete the activity to get a score
         
         return None
     

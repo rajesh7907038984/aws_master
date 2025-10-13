@@ -117,8 +117,7 @@ class ScormParser:
                 self._parse_manifest(manifest_content)
             else:
                 # Handle packages without manifests
-                # Removed _handle_legacy_package method completely
-                raise ValueError("No manifest file found and unable to handle legacy package")
+                self._handle_legacy_package(zip_ref)
             
             # Extract all files to S3
             extracted_files = []
@@ -156,31 +155,23 @@ class ScormParser:
                     # Launch URL is relative to manifest location
                     pass
             
-            # CRITICAL FIX: Use UniversalSCORMHandler for correct launch URL detection
-            # Priority: scormcontent/ files > direct files > driver wrappers
-            if not self.launch_url or self.launch_url == 'index_lms.html' or 'scormdriver' in self.launch_url.lower():
-                # Import the universal handler
-                from scorm.universal_scorm_handler import UniversalSCORMHandler
-                
-                # Use the handler to detect the best launch file
-                detected_launch = UniversalSCORMHandler.detect_launch_file(extracted_files)
-                
-                if detected_launch:
-                    self.launch_url = detected_launch
-                    logger.info(f" Auto-detected launch file: {self.launch_url}")
+            # CRITICAL FIX: If launch URL is not set or is index_lms.html, check for story.html
+            # story.html is the correct player file for Articulate Storyline packages
+            if not self.launch_url or self.launch_url == 'index_lms.html':
+                # Check if story.html exists in extracted files
+                story_html_candidates = [f for f in extracted_files if f.lower().endswith('story.html')]
+                if story_html_candidates:
+                    self.launch_url = story_html_candidates[0]
+                    logger.info(f"Using story.html as launch file: {self.launch_url}")
                 elif not self.launch_url:
-                    # Last resort fallback - check for any HTML file
-                    html_files = [f for f in extracted_files if f.lower().endswith(('.html', '.htm'))]
-                    if html_files:
-                        # Prefer files in scormcontent directory
-                        scormcontent_files = [f for f in html_files if 'scormcontent' in f.lower()]
-                        if scormcontent_files:
-                            self.launch_url = scormcontent_files[0]
-                        else:
-                            self.launch_url = html_files[0]
-                        logger.info(f" Fallback launch file: {self.launch_url}")
-                    else:
-                        logger.warning(f" No HTML files found in package")
+                    # Fallback to other common entry points (prioritize story.html)
+                    entry_points = ['story.html', 'index.html', 'launch.html', 'start.html', 'main.html']
+                    for entry_point in entry_points:
+                        candidates = [f for f in extracted_files if f.lower().endswith(entry_point)]
+                        if candidates:
+                            self.launch_url = candidates[0]
+                            logger.info(f"Using {entry_point} as launch file: {self.launch_url}")
+                            break
             
             # DYNAMIC ANALYSIS: Analyze package type and characteristics
             logger.info(" Analyzing SCORM package characteristics...")
@@ -490,42 +481,94 @@ class ScormParser:
     
     def _detect_package_type(self, zip_ref):
         """
-        Detect SCORM package type with modern detection methods
+        Detect package type from content when no manifest is found
+        
+        Args:
+            zip_ref: ZipFile object
+            
+        Returns:
+            str: Detected package type or None
         """
         try:
-            # Check for manifest file
-            manifest_files = [f for f in zip_ref.namelist() if 'imsmanifest.xml' in f.lower()]
+            file_list = zip_ref.namelist()
             
-            if manifest_files:
-                # Parse manifest for type detection
-                manifest_path = manifest_files[0]
-                with zip_ref.open(manifest_path) as manifest_file:
-                    manifest_content = manifest_file.read().decode('utf-8', errors='ignore')
-                    
-                    # Check for specific package type indicators
-                    if 'articulate' in manifest_content.lower():
-                        if 'rise' in manifest_content.lower():
-                            return 'rise360'
-                        elif 'storyline' in manifest_content.lower():
-                            return 'storyline'
-                    
-                    if 'adobe' in manifest_content.lower() or 'captivate' in manifest_content.lower():
-                        return 'captivate'
+            # Check for common SCORM package indicators
+            has_html = any(f.lower().endswith(('.html', '.htm')) for f in file_list)
+            has_js = any(f.lower().endswith('.js') for f in file_list)
+            has_css = any(f.lower().endswith('.css') for f in file_list)
             
-            # Fallback detection based on file structure
-            files = zip_ref.namelist()
-            for file in files:
-                file_lower = file.lower()
-                if 'story.html' in file_lower or 'story_html5.html' in file_lower:
-                    return 'storyline'
-                elif 'scormcontent/index.html' in file_lower:
-                    return 'rise360'
-                elif 'multiscreen.html' in file_lower or 'captivate' in file_lower:
-                    return 'captivate'
+            # Check for specific authoring tool indicators
+            if any('storyline' in f.lower() for f in file_list):
+                return 'storyline'
+            elif any('captivate' in f.lower() for f in file_list):
+                return 'captivate'
+            elif any('lectora' in f.lower() for f in file_list):
+                return 'lectora'
+            elif any('html5' in f.lower() for f in file_list):
+                return 'html5'
+            elif any('scorm' in f.lower() for f in file_list):
+                return 'legacy'
             
-            return 'generic'
-        
+            # Check for common entry points
+            entry_points = ['index.html', 'story.html', 'launch.html', 'start.html', 'main.html']
+            for entry_point in entry_points:
+                if any(f.lower().endswith(entry_point) for f in file_list):
+                    if has_html and (has_js or has_css):
+                        return 'html5'
+                    else:
+                        return 'legacy'
+            
+            # If it has HTML content but no clear indicators, assume it's a legacy package
+            if has_html:
+                return 'legacy'
+            
+            return None
+            
         except Exception as e:
             logger.error(f"Error detecting package type: {e}")
-            return 'generic'
+            return None
+    
+    def _handle_legacy_package(self, zip_ref):
+        """
+        Handle legacy SCORM packages without proper manifests
+        
+        Args:
+            zip_ref: ZipFile object
+        """
+        try:
+            file_list = zip_ref.namelist()
+            
+            # Set basic metadata for legacy packages
+            self.manifest_data['identifier'] = f"legacy_{uuid.uuid4().hex[:8]}"
+            self.manifest_data['title'] = 'Legacy SCORM Package'
+            self.manifest_data['description'] = 'Legacy SCORM package without manifest'
+            
+            # Find the launch URL by looking for common entry points
+            # Prioritize story.html for Articulate Storyline packages
+            entry_points = ['story.html', 'index.html', 'launch.html', 'start.html', 'main.html', 'default.html']
+            for entry_point in entry_points:
+                for file_name in file_list:
+                    if file_name.lower().endswith(entry_point):
+                        self.launch_url = file_name
+                        logger.info(f"Found launch URL for legacy package: {self.launch_url}")
+                        return
+            
+            # If no standard entry point found, use the first HTML file
+            html_files = [f for f in file_list if f.lower().endswith(('.html', '.htm'))]
+            if html_files:
+                self.launch_url = html_files[0]
+                logger.info(f"Using first HTML file as launch URL: {self.launch_url}")
+            else:
+                # If no HTML files, use the first file
+                if file_list:
+                    self.launch_url = file_list[0]
+                    logger.warning(f"No HTML files found, using first file as launch URL: {self.launch_url}")
+                else:
+                    raise ValueError("No files found in package")
+            
+            logger.info(f"Handled legacy package: {self.manifest_data.get('title', 'Untitled')}")
+            
+        except Exception as e:
+            logger.error(f"Error handling legacy package: {e}")
+            raise ValueError(f"Failed to handle legacy package: {e}")
 

@@ -1,29 +1,26 @@
 from django.urls import path
-from . import scorm_handler, validation_views, auto_sync_views
-import logging
-
-logger = logging.getLogger(__name__)
+from . import views, validation_views, views_simple, auto_sync_views
 
 app_name = 'scorm'
 
 urlpatterns = [
-    # SCORM Content Viewing - Universal Handler
-    path('view/<int:topic_id>/', scorm_handler.scorm_view, name='view'),
-    path('player/<int:topic_id>/', scorm_handler.scorm_view, name='player'),  # Legacy URL support
-    path('content/<int:topic_id>/<path:path>', scorm_handler.scorm_content, name='content'),
+    # SCORM Content Viewing
+    path('view/<int:topic_id>/', views.scorm_view, name='view'),
+    path('player/<int:topic_id>/', views.scorm_view, name='player'),  # Legacy URL support
+    path('content/<int:topic_id>/<path:path>', views.scorm_content, name='content'),
     
-    # Direct SCORM content access
-    path('direct/<int:topic_id>/<path:path>', scorm_handler.scorm_content, name='content_direct'),
+    # Direct SCORM content access (no authentication required for direct access)
+    path('direct/<int:topic_id>/<path:path>', views_simple.scorm_content_simple, name='content_direct'),
     
-    # SCORM Content with attempt_id (for backward compatibility) - More specific pattern
-    path('content/attempt/<int:attempt_id>/<path:path>', scorm_handler.scorm_content, name='content_by_attempt'),
+    # SCORM Content with attempt_id (for backward compatibility)
+    path('content/<int:attempt_id>/<path:path>', views.scorm_content, name='content_by_attempt'),
     
-    # SCORM API (for tracking) - Universal API Handler
-    path('api/<int:attempt_id>/', scorm_handler.scorm_api, name='api'),
-    path('api/emergency-save/', scorm_handler.scorm_emergency_save, name='emergency_save'),
-    path('status/<int:attempt_id>/', scorm_handler.scorm_status, name='status'),
-    path('debug/<int:attempt_id>/', scorm_handler.scorm_debug, name='debug'),
-    path('tracking-report/<int:attempt_id>/', scorm_handler.scorm_tracking_report, name='tracking_report'),
+    # SCORM API (for tracking)
+    path('api/<int:attempt_id>/', views.scorm_api, name='api'),
+    path('api/emergency-save/', views.scorm_emergency_save, name='emergency_save'),
+    path('status/<int:attempt_id>/', views.scorm_status, name='status'),
+    path('debug/<int:attempt_id>/', views.scorm_debug, name='debug'),
+    path('tracking-report/<int:attempt_id>/', views.scorm_tracking_report, name='tracking_report'),
     
     # SCORM validation endpoints
     path('validate/', validation_views.validate_scorm_ajax, name='validate'),

@@ -66,7 +66,7 @@ class Command(BaseCommand):
             # Check if mastery score looks suspiciously low (might be raw count instead of percentage)
             if package.mastery_score and package.mastery_score < 20:
                 self.stdout.write(
-                    f"\n  Package '{package.title}' (ID: {package.id}) has suspiciously low mastery score: {package.mastery_score}"
+                    f"\n⚠️  Package '{package.title}' (ID: {package.id}) has suspiciously low mastery score: {package.mastery_score}"
                 )
                 
                 # Check manifest data for clues
@@ -152,56 +152,11 @@ class Command(BaseCommand):
             # Check for completed status with no score
             if attempt.lesson_status in ['completed', 'passed'] and attempt.score_raw is None:
                 issues.append(f"Status is '{attempt.lesson_status}' but no score")
-                
-                # Try to fix by extracting score from suspend_data
-                if fix_mode and attempt.suspend_data:
-                    try:
-                        from scorm.dynamic_score_processor import DynamicScormScoreProcessor
-                        processor = DynamicScormScoreProcessor(attempt)
-                        extracted_score = processor.extract_score_dynamically(attempt.suspend_data)
-                        
-                        if extracted_score is not None:
-                            attempt.score_raw = Decimal(str(extracted_score))
-                            attempt.save()
-                            issues.append(f" Fixed by extracting score {extracted_score} from suspend_data")
-                            
-                            # Re-sync with TopicProgress
-                            ScormScoreSyncService.sync_score(attempt, force=True)
-                    except Exception as e:
-                        issues.append(f" Error extracting score: {str(e)}")
-            
-            # COMPREHENSIVE FIX: Check for first attempts with missing scores but meaningful data
-            if attempt.attempt_number == 1 and attempt.score_raw is None:
-                has_meaningful_data = (attempt.suspend_data and len(attempt.suspend_data) > 100) or \
-                                     (attempt.progress_percentage and attempt.progress_percentage > 10)
-                                     
-                if has_meaningful_data:
-                    issues.append(f"First attempt with meaningful data but no score (progress: {attempt.progress_percentage}%)")
-                    
-                    if fix_mode:
-                        # Try to extract score from suspend_data using dynamic processor
-                        try:
-                            from scorm.dynamic_score_processor import DynamicScormScoreProcessor
-                            processor = DynamicScormScoreProcessor(attempt)
-                            extracted_score = processor.extract_score_dynamically(attempt.suspend_data)
-                            
-                            if extracted_score is not None:
-                                attempt.score_raw = Decimal(str(extracted_score))
-                                # If no status set but we found a score, mark as completed
-                                if attempt.lesson_status in ['not_attempted', 'not attempted', '']:
-                                    attempt.lesson_status = 'completed'
-                                attempt.save()
-                                issues.append(f" Fixed by extracting score {extracted_score} from suspend_data")
-                                
-                                # Re-sync with TopicProgress
-                                ScormScoreSyncService.sync_score(attempt, force=True)
-                        except Exception as e:
-                            issues.append(f" Error extracting score: {str(e)}")
             
             if issues:
                 issues_found += len(issues)
                 self.stdout.write(
-                    f"\n  Attempt {attempt.id} (User: {attempt.user.username}, "
+                    f"\n⚠️  Attempt {attempt.id} (User: {attempt.user.username}, "
                     f"Package: {attempt.scorm_package.title}):"
                 )
                 for issue in issues:
@@ -235,7 +190,7 @@ class Command(BaseCommand):
                 
                 if not topic_progress:
                     self.stdout.write(
-                        f"\n  No TopicProgress for attempt {attempt.id} "
+                        f"\n⚠️  No TopicProgress for attempt {attempt.id} "
                         f"(User: {attempt.user.username}, Topic: {topic.title})"
                     )
                     if fix_mode:
@@ -244,7 +199,7 @@ class Command(BaseCommand):
                     sync_issues += 1
                 elif topic_progress.last_score != attempt_score:
                     self.stdout.write(
-                        f"\n  Score mismatch for attempt {attempt.id}: "
+                        f"\n⚠️  Score mismatch for attempt {attempt.id}: "
                         f"ScormAttempt={attempt_score}, TopicProgress={topic_progress.last_score}"
                     )
                     if fix_mode:
@@ -284,7 +239,7 @@ class Command(BaseCommand):
                 if (first_attempt.score_raw is None and 
                     second_attempt.score_raw is not None):
                     self.stdout.write(
-                        f"\n  First attempt missing score pattern detected:"
+                        f"\n⚠️  First attempt missing score pattern detected:"
                     )
                     self.stdout.write(
                         f"   User: {first_attempt.user.username}"
@@ -326,6 +281,6 @@ class Command(BaseCommand):
         if not fix_mode and issues_found > 0:
             self.stdout.write(
                 self.style.WARNING(
-                    "\n  Run with --fix flag to automatically fix these issues"
+                    "\n⚠️  Run with --fix flag to automatically fix these issues"
                 )
             )
