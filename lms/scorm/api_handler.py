@@ -74,6 +74,11 @@ class ScormAPIHandler:
                 'cmi.comments_from_lms': '',
             }
         else:  # SCORM 2004
+            # Calculate progress_measure from progress_percentage (0-100 -> 0-1)
+            progress_measure = ''
+            if self.attempt.progress_percentage and self.attempt.progress_percentage > 0:
+                progress_measure = str(float(self.attempt.progress_percentage) / 100.0)
+            
             return {
                 'cmi.learner_id': str(self.attempt.user.id),
                 'cmi.learner_name': self.attempt.user.get_full_name() or self.attempt.user.username,
@@ -86,6 +91,7 @@ class ScormAPIHandler:
                 'cmi.score.max': str(self.attempt.score_max) if self.attempt.score_max else '100',
                 'cmi.score.min': str(self.attempt.score_min) if self.attempt.score_min else '0',
                 'cmi.score.scaled': str(self.attempt.score_scaled) if self.attempt.score_scaled else '',
+                'cmi.progress_measure': progress_measure,
                 'cmi.total_time': self.attempt.total_time,
                 'cmi.mode': 'normal',
                 'cmi.exit': '',
@@ -151,6 +157,12 @@ class ScormAPIHandler:
                 self.attempt.cmi_data['cmi.location'] = self.attempt.lesson_location
             if self.attempt.suspend_data:
                 self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data
+            
+            # CRITICAL FIX: Ensure progress_measure is set from progress_percentage
+            if self.attempt.progress_percentage and self.attempt.progress_percentage > 0:
+                progress_measure = str(float(self.attempt.progress_percentage) / 100.0)
+                self.attempt.cmi_data['cmi.progress_measure'] = progress_measure
+                logger.info(f"SCORM Resume: Set progress_measure to {progress_measure} from progress_percentage {self.attempt.progress_percentage}%")
             
             # Ensure other required fields are set
             # CRITICAL FIX: Set status to match model
@@ -284,6 +296,12 @@ class ScormAPIHandler:
                     value = 'normal'
                 elif element == 'cmi.success_status':
                     value = self.attempt.success_status or 'unknown'
+                elif element == 'cmi.progress_measure':
+                    # Calculate progress_measure from progress_percentage (0-100 -> 0-1)
+                    if self.attempt.progress_percentage and self.attempt.progress_percentage > 0:
+                        value = str(float(self.attempt.progress_percentage) / 100.0)
+                    else:
+                        value = ''
                 elif element in ['cmi.core.score.max', 'cmi.score.max']:
                     value = str(self.attempt.score_max) if self.attempt.score_max else '100'
                 elif element in ['cmi.core.score.min', 'cmi.score.min']:
@@ -433,6 +451,22 @@ class ScormAPIHandler:
                         self.attempt.score_scaled = scaled_value
                     except (ValueError, TypeError):
                         logger.warning(f"Invalid score.scaled value: {value}")
+                        self.last_error = '405'  # Incorrect data type
+                        return 'false'
+                elif element == 'cmi.progress_measure':
+                    try:
+                        progress_value = Decimal(value) if value and str(value).strip() else None
+                        # SCORM 2004 progress_measure should be between 0 and 1
+                        if progress_value is not None and (progress_value < 0 or progress_value > 1):
+                            logger.warning(f"Progress_measure out of range (0 to 1): {value}")
+                            self.last_error = '405'  # Incorrect data type
+                            return 'false'
+                        # Convert to progress_percentage (0-1 -> 0-100)
+                        if progress_value is not None:
+                            self.attempt.progress_percentage = progress_value * 100
+                            logger.info(f"Updated progress_percentage to {self.attempt.progress_percentage}% from progress_measure {progress_value}")
+                    except (ValueError, TypeError):
+                        logger.warning(f"Invalid progress_measure value: {value}")
                         self.last_error = '405'  # Incorrect data type
                         return 'false'
                 elif element == 'cmi.location':
