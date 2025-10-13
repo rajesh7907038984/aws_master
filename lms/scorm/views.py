@@ -253,6 +253,19 @@ def scorm_view(request, topic_id):
         
         # CRITICAL FIX: Refresh attempt data from database to get latest bookmark/suspend data
         attempt.refresh_from_db()
+        
+        # CRITICAL FIX: Set entry mode to 'resume' if there's existing progress/bookmark data
+        # This needs to happen BEFORE checking resume_needed
+        has_bookmark = bool(attempt.lesson_location and len(attempt.lesson_location) > 0)
+        has_suspend_data = bool(attempt.suspend_data and len(attempt.suspend_data) > 0)
+        has_progress = attempt.lesson_status not in ['not_attempted', 'not attempted']
+        
+        if has_bookmark or has_suspend_data or has_progress:
+            attempt.entry = 'resume'
+            logger.info(f" SCORM: Setting entry='resume' (bookmark={has_bookmark}, suspend_data={has_suspend_data}, progress={has_progress})")
+        else:
+            attempt.entry = 'ab-initio'
+            logger.info(f" SCORM: Setting entry='ab-initio' (fresh start)")
     
     # CRITICAL FIX: Detect package type BEFORE generating URL
     # Different package types need different URL structures
