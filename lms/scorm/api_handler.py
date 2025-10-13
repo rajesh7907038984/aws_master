@@ -258,6 +258,9 @@ class ScormAPIHandler:
         # Save all data
         self._commit_data()
         
+        # ENHANCED: Track session end event
+        self._track_session_end_event()
+        
         logger.info(f"SCORM API Terminated for attempt {self.attempt.id} - exit_mode: {self.attempt.exit_mode}, lesson_status: {self.attempt.lesson_status}")
         
         return 'true'
@@ -467,16 +470,33 @@ class ScormAPIHandler:
                         new_progress = float(value) if value else 0.0
                         new_percentage = new_progress * 100
                         
-                        if new_percentage > self.attempt.progress_percentage:
-                            logger.info(f"[SCORM] ✅ Updating progress to higher value: {new_percentage}% (was: {self.attempt.progress_percentage}%)")
+                        # ENHANCED: Always update progress measure (it's the current state, not cumulative)
+                        # Only keep highest value for final completion, not intermediate progress
+                        if new_percentage >= self.attempt.progress_percentage or self.attempt.lesson_status in ['completed', 'passed']:
+                            logger.info(f"[SCORM] ✅ Updating progress: {new_percentage}% (was: {self.attempt.progress_percentage}%)")
                         else:
-                            should_update = False
-                            logger.info(f"[SCORM] ⏭️ Keeping existing progress: {self.attempt.progress_percentage}% (new: {new_percentage}% was lower)")
+                            # For incomplete courses, always update to current progress
+                            logger.info(f"[SCORM] ✅ Updating current progress: {new_percentage}% (was: {self.attempt.progress_percentage}%)")
                     except (ValueError, TypeError):
                         pass
                 
                 # Store the value (always store in CMI data for debugging, but only update model if higher value)
                 self.attempt.cmi_data[element] = value
+                
+                # ENHANCED: Track SCORM data setting events with comprehensive tracking
+                self._track_data_setting_event(element, value)
+                
+                # Track specialized events based on element type
+                if element.startswith('cmi.interactions.'):
+                    self._track_interaction_event(element, value)
+                elif element.startswith('cmi.objectives.'):
+                    self._track_objective_event(element, value)
+                elif element.startswith('cmi.comments'):
+                    self._track_comment_event(element, value)
+                elif 'time' in element:
+                    self._track_time_event(element, value)
+                elif 'score' in element:
+                    self._track_scoring_event(element, value)
                 
                 # Log SetValue for important elements
                 if element in ['cmi.core.lesson_location', 'cmi.location', 'cmi.suspend_data', 'cmi.core.lesson_status', 'cmi.core.score.raw', 'cmi.score.raw']:
@@ -617,8 +637,10 @@ class ScormAPIHandler:
                                 return 'false'
                             # Convert to progress_percentage (0-1 -> 0-100)
                             if progress_value is not None:
-                                self.attempt.progress_percentage = progress_value * 100
-                                logger.info(f"Updated progress_percentage to {self.attempt.progress_percentage}% from progress_measure {progress_value}")
+                                # ENHANCED: Always update progress_measure (current state)
+                                new_percentage = float(progress_value * 100)
+                                self.attempt.progress_percentage = new_percentage
+                                logger.info(f"✅ Updated progress_percentage to {new_percentage}% from progress_measure {progress_value}")
                         except (ValueError, TypeError):
                             logger.warning(f"Invalid progress_measure value: {value}")
                             self.last_error = '405'  # Incorrect data type
@@ -1037,6 +1059,10 @@ class ScormAPIHandler:
                     # 5. Save to database with explicit field list for safety
                     # This ensures all critical fields are saved
                     self.attempt.save()
+                    
+                    # ENHANCED: Track commit event
+                    self._track_commit_event()
+                    
                     logger.info(f"[COMMIT] ✅ Successfully saved attempt {self.attempt.id} to database")
                     
                     # 6. Verify the save was successful by checking a few critical fields
@@ -1671,5 +1697,351 @@ class ScormAPIHandler:
                 
         except Exception as e:
             logger.error(f"[SCORM] Error auto-advancing to next slide: {e}")
+    
+    def _track_scorm_event(self, event_type, event_data):
+        """Track SCORM API events for comprehensive monitoring"""
+        try:
+            if not self.attempt.detailed_tracking:
+                self.attempt.detailed_tracking = {}
+            
+            if 'scorm_events' not in self.attempt.detailed_tracking:
+                self.attempt.detailed_tracking['scorm_events'] = []
+            
+            event = {
+                'type': event_type,
+                'data': event_data,
+                'timestamp': timezone.now().isoformat(),
+                'api_version': self.version
+            }
+            
+            self.attempt.detailed_tracking['scorm_events'].append(event)
+            
+            # Keep only last 100 SCORM events
+            if len(self.attempt.detailed_tracking['scorm_events']) > 100:
+                self.attempt.detailed_tracking['scorm_events'] = self.attempt.detailed_tracking['scorm_events'][-100:]
+            
+            logger.info(f"[SCORM EVENT] {event_type}: {event_data.get('api_call', 'N/A')}")
+            
+        except Exception as e:
+            logger.error(f"Error tracking SCORM event: {e}")
+    
+    def _track_data_setting_event(self, element, value):
+        """Track LMSSetValue/SetValue events with comprehensive SCORM data model support"""
+        try:
+            # Determine the category and type of data being set based on comprehensive SCORM reference
+            category = 'unknown'
+            data_type = 'unknown'
+            
+            # SCORM 1.2 Core Elements
+            if element.startswith('cmi.core.'):
+                category = 'scorm_1_2_core'
+                if 'lesson_status' in element:
+                    data_type = 'completion_status'
+                elif 'score' in element:
+                    data_type = 'scoring'
+                elif 'session_time' in element:
+                    data_type = 'time_tracking'
+                elif 'total_time' in element:
+                    data_type = 'time_tracking'
+                elif 'lesson_location' in element:
+                    data_type = 'bookmark'
+                elif 'exit' in element:
+                    data_type = 'session_management'
+                elif 'student' in element:
+                    data_type = 'learner_info'
+                elif 'launch_data' in element:
+                    data_type = 'launch_data'
+                    
+            # SCORM 2004 Elements
+            elif element.startswith('cmi.'):
+                category = 'scorm_2004'
+                if 'completion_status' in element:
+                    data_type = 'completion_status'
+                elif 'success_status' in element:
+                    data_type = 'success_status'
+                elif 'progress_measure' in element:
+                    data_type = 'progress_tracking'
+                elif 'score' in element:
+                    data_type = 'scoring'
+                elif 'session_time' in element or 'total_time' in element:
+                    data_type = 'time_tracking'
+                elif 'location' in element:
+                    data_type = 'bookmark'
+                elif 'exit' in element or 'entry' in element:
+                    data_type = 'session_management'
+                elif 'learner' in element:
+                    data_type = 'learner_info'
+                elif 'launch_data' in element:
+                    data_type = 'launch_data'
+                    
+            # Interactions (both SCORM 1.2 and 2004)
+            elif element.startswith('cmi.interactions.'):
+                category = 'interactions'
+                if 'id' in element:
+                    data_type = 'interaction_id'
+                elif 'type' in element:
+                    data_type = 'interaction_type'
+                elif 'result' in element:
+                    data_type = 'interaction_result'
+                elif 'student_response' in element or 'learner_response' in element:
+                    data_type = 'learner_response'
+                elif 'correct_responses' in element:
+                    data_type = 'correct_answer'
+                elif 'weighting' in element:
+                    data_type = 'interaction_weight'
+                elif 'latency' in element:
+                    data_type = 'response_time'
+                elif 'timestamp' in element:
+                    data_type = 'interaction_timestamp'
+                else:
+                    data_type = 'interaction_data'
+                    
+            # Objectives (both SCORM 1.2 and 2004)
+            elif element.startswith('cmi.objectives.'):
+                category = 'objectives'
+                if 'id' in element:
+                    data_type = 'objective_id'
+                elif 'score' in element:
+                    data_type = 'objective_score'
+                elif 'status' in element:
+                    data_type = 'objective_status'
+                else:
+                    data_type = 'objective_data'
+                    
+            # Comments
+            elif element.startswith('cmi.comments'):
+                category = 'comments'
+                data_type = 'learner_feedback'
+                
+            # Suspend Data (both versions)
+            elif 'suspend_data' in element:
+                category = 'state_persistence'
+                data_type = 'bookmark_data'
+            
+            self._track_scorm_event('data_setting', {
+                'api_call': 'LMSSetValue' if self.version == '1.2' else 'SetValue',
+                'element': element,
+                'value': str(value)[:100],  # Truncate long values
+                'category': category,
+                'data_type': data_type,
+                'scorm_version': self.version,
+                'timestamp': timezone.now().isoformat()
+            })
+            
+        except Exception as e:
+            logger.error(f"Error tracking data setting event: {e}")
+    
+    def _track_completion_event(self, status):
+        """Track completion status events"""
+        try:
+            self._track_scorm_event('completion_status', {
+                'api_call': 'LMSSetValue' if self.version == '1.2' else 'SetValue',
+                'element': 'cmi.core.lesson_status' if self.version == '1.2' else 'cmi.completion_status',
+                'status': status,
+                'is_completed': status in ['completed', 'passed'],
+                'timestamp': timezone.now().isoformat()
+            })
+            
+        except Exception as e:
+            logger.error(f"Error tracking completion event: {e}")
+    
+    def _track_commit_event(self):
+        """Track LMSCommit/Commit events"""
+        try:
+            self._track_scorm_event('data_commit', {
+                'api_call': 'LMSCommit' if self.version == '1.2' else 'Commit',
+                'lesson_status': self.attempt.lesson_status,
+                'progress_percentage': self.attempt.progress_percentage,
+                'lesson_location': self.attempt.lesson_location,
+                'timestamp': timezone.now().isoformat()
+            })
+            
+        except Exception as e:
+            logger.error(f"Error tracking commit event: {e}")
+    
+    def _track_session_end_event(self):
+        """Track LMSFinish/Terminate events"""
+        try:
+            self._track_scorm_event('session_end', {
+                'api_call': 'LMSFinish' if self.version == '1.2' else 'Terminate',
+                'final_status': self.attempt.lesson_status,
+                'final_progress': self.attempt.progress_percentage,
+                'session_duration': str(self.attempt.total_time) if self.attempt.total_time else '00:00:00',
+                'timestamp': timezone.now().isoformat()
+            })
+            
+        except Exception as e:
+            logger.error(f"Error tracking session end event: {e}")
+    
+    def _track_bookmark_event(self, suspend_data):
+        """Track bookmarking events"""
+        try:
+            self._track_scorm_event('bookmark_save', {
+                'api_call': 'LMSSetValue' if self.version == '1.2' else 'SetValue',
+                'element': 'cmi.suspend_data',
+                'data_length': len(str(suspend_data)),
+                'contains_progress': 'progress=' in str(suspend_data),
+                'timestamp': timezone.now().isoformat()
+            })
+            
+        except Exception as e:
+            logger.error(f"Error tracking bookmark event: {e}")
+    
+    def _track_data_retrieval_event(self, element, value):
+        """Track LMSGetValue/GetValue events"""
+        try:
+            self._track_scorm_event('data_retrieval', {
+                'api_call': 'LMSGetValue' if self.version == '1.2' else 'GetValue',
+                'element': element,
+                'value_retrieved': str(value)[:100],  # Truncate long values
+                'timestamp': timezone.now().isoformat()
+            })
+            
+        except Exception as e:
+            logger.error(f"Error tracking data retrieval event: {e}")
+    
+    def _track_interaction_event(self, element, value):
+        """Track SCORM interactions (questions, assessments)"""
+        try:
+            # Extract interaction index and field
+            import re
+            interaction_match = re.match(r'cmi\.interactions\.(\d+)\.(\w+)', element)
+            if interaction_match:
+                interaction_index = int(interaction_match.group(1))
+                interaction_field = interaction_match.group(2)
+                
+                self._track_scorm_event('interaction_tracking', {
+                    'api_call': 'LMSSetValue' if self.version == '1.2' else 'SetValue',
+                    'element': element,
+                    'interaction_index': interaction_index,
+                    'interaction_field': interaction_field,
+                    'value': str(value)[:200],  # Allow longer values for interactions
+                    'timestamp': timezone.now().isoformat()
+                })
+                
+                # Track specific interaction events
+                if interaction_field == 'result':
+                    self._track_scorm_event('interaction_result', {
+                        'interaction_index': interaction_index,
+                        'result': value,
+                        'timestamp': timezone.now().isoformat()
+                    })
+                elif interaction_field in ['student_response', 'learner_response']:
+                    self._track_scorm_event('learner_response', {
+                        'interaction_index': interaction_index,
+                        'response': str(value)[:500],
+                        'timestamp': timezone.now().isoformat()
+                    })
+                elif interaction_field == 'latency':
+                    self._track_scorm_event('response_time', {
+                        'interaction_index': interaction_index,
+                        'latency': value,
+                        'timestamp': timezone.now().isoformat()
+                    })
+                
+        except Exception as e:
+            logger.error(f"Error tracking interaction event: {e}")
+    
+    def _track_objective_event(self, element, value):
+        """Track SCORM objectives (learning goals)"""
+        try:
+            # Extract objective index and field
+            import re
+            objective_match = re.match(r'cmi\.objectives\.(\d+)\.(\w+)', element)
+            if objective_match:
+                objective_index = int(objective_match.group(1))
+                objective_field = objective_match.group(2)
+                
+                self._track_scorm_event('objective_tracking', {
+                    'api_call': 'LMSSetValue' if self.version == '1.2' else 'SetValue',
+                    'element': element,
+                    'objective_index': objective_index,
+                    'objective_field': objective_field,
+                    'value': str(value)[:200],
+                    'timestamp': timezone.now().isoformat()
+                })
+                
+                # Track specific objective events
+                if objective_field == 'status':
+                    self._track_scorm_event('objective_status_change', {
+                        'objective_index': objective_index,
+                        'status': value,
+                        'timestamp': timezone.now().isoformat()
+                    })
+                elif 'score' in objective_field:
+                    self._track_scorm_event('objective_score', {
+                        'objective_index': objective_index,
+                        'score': value,
+                        'timestamp': timezone.now().isoformat()
+                    })
+                
+        except Exception as e:
+            logger.error(f"Error tracking objective event: {e}")
+    
+    def _track_comment_event(self, element, value):
+        """Track SCORM comments (learner feedback)"""
+        try:
+            comment_type = 'unknown'
+            if 'from_learner' in element:
+                comment_type = 'learner_feedback'
+            elif 'from_lms' in element:
+                comment_type = 'instructor_feedback'
+            else:
+                comment_type = 'general_comment'
+            
+            self._track_scorm_event('comment_tracking', {
+                'api_call': 'LMSSetValue' if self.version == '1.2' else 'SetValue',
+                'element': element,
+                'comment_type': comment_type,
+                'comment_length': len(str(value)),
+                'timestamp': timezone.now().isoformat()
+            })
+            
+        except Exception as e:
+            logger.error(f"Error tracking comment event: {e}")
+    
+    def _track_time_event(self, element, value):
+        """Track SCORM time events (session time, total time)"""
+        try:
+            time_type = 'unknown'
+            if 'session_time' in element:
+                time_type = 'session_time'
+            elif 'total_time' in element:
+                time_type = 'total_time'
+            
+            self._track_scorm_event('time_tracking', {
+                'api_call': 'LMSSetValue' if self.version == '1.2' else 'SetValue',
+                'element': element,
+                'time_type': time_type,
+                'time_value': value,
+                'timestamp': timezone.now().isoformat()
+            })
+            
+        except Exception as e:
+            logger.error(f"Error tracking time event: {e}")
+    
+    def _track_scoring_event(self, element, value):
+        """Track SCORM scoring events"""
+        try:
+            score_type = 'unknown'
+            if 'raw' in element:
+                score_type = 'raw_score'
+            elif 'scaled' in element:
+                score_type = 'scaled_score'
+            elif 'min' in element:
+                score_type = 'minimum_score'
+            elif 'max' in element:
+                score_type = 'maximum_score'
+            
+            self._track_scorm_event('scoring', {
+                'api_call': 'LMSSetValue' if self.version == '1.2' else 'SetValue',
+                'element': element,
+                'score_type': score_type,
+                'score_value': value,
+                'timestamp': timezone.now().isoformat()
+            })
+            
+        except Exception as e:
+            logger.error(f"Error tracking scoring event: {e}")
     
 
