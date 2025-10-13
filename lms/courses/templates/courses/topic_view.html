@@ -682,11 +682,6 @@
                 </div>
                 
                 <div class="flex items-center gap-3">
-                    <!-- Save & Exit Button -->
-                    <button id="save-exit-btn" class="btn btn-outline-primary" data-topic-id="{{ topic.id }}" data-course-id="{{ course.id }}">
-                        <i class="fas fa-save mr-2"></i>Save & Exit
-                    </button>
-                    
                     {% if next_topic %}
                     <a href="{% url 'courses:topic_view' next_topic.id %}?manual=True" class="btn btn-primary">
                         Next: {{ next_topic.title|truncatechars:20 }}<i class="fas fa-arrow-right ml-2"></i>
