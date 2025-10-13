@@ -17,16 +17,26 @@ class Rise360Handler(BaseScormAPIHandler):
     - Progress tracked via lesson navigation
     - Minimal suspend_data usage
     - Lesson completion tracking
+    - CRITICAL: Rise calculates its own progress - DO NOT pre-populate progress_measure
     """
     
     def initialize(self):
         """
         Initialize with Rise 360-specific resume support
+        CRITICAL FIX: Clear progress_measure to let Rise calculate its own progress
         """
         result = super().initialize()
         
         if result == 'true':
             logger.info(f"📗 Rise 360 Handler initialized for attempt {self.attempt.id}")
+            
+            # CRITICAL BUG FIX: Rise 360 calculates its own internal progress for the "X% COMPLETE" bar
+            # We MUST return empty string for progress_measure to let Rise calculate from scratch
+            # If we return a pre-calculated value, Rise will display stale/incorrect progress
+            if self.version != '1.2':
+                # Clear progress_measure for SCORM 2004
+                self.attempt.cmi_data['cmi.progress_measure'] = ''
+                logger.info(f"   [Rise 360] Cleared progress_measure - Rise will calculate its own")
             
             # Rise 360-specific: Log lesson bookmark for resume
             if self.attempt.lesson_location and '#/lessons/' in self.attempt.lesson_location:

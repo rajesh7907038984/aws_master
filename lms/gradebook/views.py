@@ -408,11 +408,11 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                             score_value = float(topic_progress.best_score)
                                             logger.debug(f"GRADEBOOK: Using TopicProgress.best_score: {score_value}")
                                             
-                                        # If we have a score but SCORM isn't marked as completed, sync the data
-                                        if score_value is not None and not is_completed:
-                                            logger.warning(f"GRADEBOOK: Score {score_value} found but SCORM not completed for attempt {attempt.id}. This may indicate a sync issue.")
-                                            # Force completion status for scoring purposes
-                                            is_completed = True
+                                        # REMOVED: Don't force completion just because there's a score
+                                        # In-progress SCORM should not show scores in gradebook
+                                        # if score_value is not None and not is_completed:
+                                        #     logger.warning(f"GRADEBOOK: Score {score_value} found but SCORM not completed for attempt {attempt.id}. This may indicate a sync issue.")
+                                        #     is_completed = True
                                         
                                         # Determine completion status
                                         if is_completed:
