@@ -264,6 +264,19 @@ def scorm_view(request, topic_id):
     # Rise expects the hash in the URL on initial load to jump to the saved slide
     content_url = f'/scorm/content/{topic_id}/{scorm_package.launch_url}?attempt_id={attempt_id}'
     
+    # ENHANCED: Add proper SCORM content hash pattern for navigation
+    # The correct pattern should include the lessons hash fragment
+    if attempt.lesson_location and 'lessons/' in attempt.lesson_location:
+        # Extract lesson ID from lesson_location if it contains the lessons pattern
+        lesson_id = attempt.lesson_location.split('lessons/')[-1] if 'lessons/' in attempt.lesson_location else ''
+        if lesson_id:
+            content_url += f'#/lessons/{lesson_id}'
+            logger.info(f"✅ SCORM: Added lesson hash to content URL: #/lessons/{lesson_id}")
+    elif attempt.lesson_location and not content_url.endswith('#'):
+        # If we have a lesson location but it's not in the lessons format, add it as hash
+        content_url += f'#{attempt.lesson_location}'
+        logger.info(f"✅ SCORM: Added location hash to content URL: #{attempt.lesson_location}")
+    
     # ENHANCED: Add resume parameters to help SCORM content detect resume mode
     if attempt.entry == 'resume' or (attempt.lesson_status != 'not_attempted' and attempt.lesson_status != 'not attempted'):
         content_url += '&resume=true'

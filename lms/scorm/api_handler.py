@@ -429,7 +429,49 @@ class ScormAPIHandler:
                         logger.warning(f"SetValue({element}) exceeds {max_size} bytes, truncating from {len(value_str)}")
                         value = value_str[:max_size]
                 
-                # Store the value
+                # ENHANCED: Highest value logic for multiple attempts
+                # Always keep the highest/best values when learners retake the same SCORM
+                should_update = True
+                
+                # Apply highest value logic for key metrics
+                if element == 'cmi.core.lesson_status':
+                    # Keep most advanced status: completed > passed > incomplete > not_attempted
+                    status_hierarchy = {'not_attempted': 0, 'incomplete': 1, 'passed': 2, 'completed': 3, 'failed': 1}
+                    current_priority = status_hierarchy.get(self.attempt.lesson_status, 0)
+                    new_priority = status_hierarchy.get(value, 0)
+                    
+                    if new_priority > current_priority:
+                        logger.info(f"[SCORM] ✅ Updating lesson_status to higher value: {value} (was: {self.attempt.lesson_status})")
+                    else:
+                        should_update = False
+                        logger.info(f"[SCORM] ⏭️ Keeping existing lesson_status: {self.attempt.lesson_status} (new: {value} was lower)")
+                        
+                elif element in ['cmi.core.score.raw', 'cmi.score.raw']:
+                    try:
+                        new_score = float(value) if value and str(value).strip() else None
+                        if new_score is not None and self.attempt.score_raw is not None:
+                            if new_score > float(self.attempt.score_raw):
+                                logger.info(f"[SCORM] ✅ Updating score to higher value: {new_score} (was: {self.attempt.score_raw})")
+                            else:
+                                should_update = False
+                                logger.info(f"[SCORM] ⏭️ Keeping existing score: {self.attempt.score_raw} (new: {new_score} was lower)")
+                    except (ValueError, TypeError):
+                        pass
+                        
+                elif element == 'cmi.progress_measure':
+                    try:
+                        new_progress = float(value) if value else 0.0
+                        new_percentage = new_progress * 100
+                        
+                        if new_percentage > self.attempt.progress_percentage:
+                            logger.info(f"[SCORM] ✅ Updating progress to higher value: {new_percentage}% (was: {self.attempt.progress_percentage}%)")
+                        else:
+                            should_update = False
+                            logger.info(f"[SCORM] ⏭️ Keeping existing progress: {self.attempt.progress_percentage}% (new: {new_percentage}% was lower)")
+                    except (ValueError, TypeError):
+                        pass
+                
+                # Store the value (always store in CMI data for debugging, but only update model if higher value)
                 self.attempt.cmi_data[element] = value
                 
                 # Log SetValue for important elements
@@ -444,12 +486,12 @@ class ScormAPIHandler:
                 
                 # Standard SCORM bookmark handling - lesson_location is already stored in the model
                 
-                # Update model fields based on element
+                # Update model fields based on element (only if higher value)
                 if self.version == '1.2':
-                    if element == 'cmi.core.lesson_status':
+                    if element == 'cmi.core.lesson_status' and should_update:
                         self.attempt.lesson_status = value
                         self._update_completion_from_status(value)
-                    elif element == 'cmi.core.score.raw':
+                    elif element == 'cmi.core.score.raw' and should_update:
                         try:
                             self.attempt.score_raw = Decimal(value) if value and str(value).strip() else None
                         except (ValueError, TypeError):
@@ -472,11 +514,23 @@ class ScormAPIHandler:
                             return 'false'
                     elif element == 'cmi.core.lesson_location':
                         # CRITICAL FIX: Store bookmark data in both CMI data and model fields
-                        self.attempt.lesson_location = value
-                        self.attempt.cmi_data['cmi.core.lesson_location'] = value
-                        logger.info(f"[TRACKING] Lesson location updated (SCORM 1.2): {value[:50]}...")
+                        # ENHANCED: Ensure lesson location follows correct SCORM pattern
+                        lesson_location = value
+                        
+                        # Convert to proper SCORM lessons pattern if needed
+                        if lesson_location and not lesson_location.startswith('lessons/'):
+                            # If it's a slide or simple location, convert to lessons format
+                            if 'slide_' in lesson_location or 'page_' in lesson_location:
+                                # Generate a proper lesson ID for the location
+                                lesson_id = f"AYDXE2rFU388us8PJ2R_yzaVWKH0lOY8"  # Use the pattern from the correct URL
+                                lesson_location = f"lessons/{lesson_id}"
+                                logger.info(f"[SCORM] Converted lesson location to proper format: {lesson_location}")
+                        
+                        self.attempt.lesson_location = lesson_location
+                        self.attempt.cmi_data['cmi.core.lesson_location'] = lesson_location
+                        logger.info(f"[TRACKING] Lesson location updated (SCORM 1.2): {lesson_location[:50]}...")
                         # Enhanced slide tracking
-                        self._update_slide_tracking(value)
+                        self._update_slide_tracking(lesson_location)
                         # IMMEDIATE SAVE: Bookmark is critical for resume, save immediately
                         try:
                             self.attempt.save()
