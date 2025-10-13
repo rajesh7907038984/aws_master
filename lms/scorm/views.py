@@ -253,6 +253,9 @@ def scorm_view(request, topic_id):
         
         attempt_id = attempt.id
         attempt.is_preview = False  # Mark as real attempt
+        
+        # CRITICAL FIX: Refresh attempt data from database to get latest bookmark/suspend data
+        attempt.refresh_from_db()
     
     # Generate content URL using Django proxy (for iframe compatibility)
     # Include attempt_id in the URL for API access
@@ -381,6 +384,9 @@ def scorm_api(request, attempt_id):
         else:
             # Regular mode: Get database attempt
             attempt = get_object_or_404(ScormAttempt, id=attempt_id)
+            
+            # CRITICAL FIX: Refresh attempt data from database to get latest bookmark/suspend data
+            attempt.refresh_from_db()
             
             # Verify user owns this attempt
             if attempt.user != request.user:
@@ -634,10 +640,10 @@ def scorm_content(request, topic_id, path):
                 # Inject SCORM API for HTML files
                 html_content = content.decode('utf-8')
                 
-                # Inject SCORM API that connects to the real API endpoint
+               # Inject SCORM API that connects to the real API endpoint
                 # Get attempt_id from the URL parameters
                 attempt_id = request.GET.get('attempt_id', 'preview')
-                
+               
                 # CRITICAL FIX: If attempt_id is 'preview', try to get the real attempt_id from the referer
                 if attempt_id == 'preview':
                     referer = request.META.get('HTTP_REFERER', '')
@@ -647,7 +653,7 @@ def scorm_content(request, topic_id, path):
                         if match:
                             attempt_id = match.group(1)
                             logger.info(f"SCORM Content: Extracted attempt_id from referer: {attempt_id}")
-                
+               
                 api_endpoint = f'/scorm/api/{attempt_id}/'
                 api_injection = f'''
 <script>
@@ -930,6 +936,175 @@ def scorm_content(request, topic_id, path):
     window.LMSGetErrorString = window.API.LMSGetErrorString;
     window.LMSGetDiagnostic = window.API.LMSGetDiagnostic;
     console.log('[SCORM] Global LMS functions set for Storyline compatibility');
+    
+    // CRITICAL FIX: Enhanced exit button functionality for Rise 360
+    function enhanceExitButtons() {
+        console.log('[SCORM] Enhancing exit buttons in content...');
+        
+        // Function to handle exit button clicks
+        function handleExitClick(event) {
+            console.log('[SCORM] Exit button clicked in content');
+            event.preventDefault();
+            event.stopPropagation();
+            
+            // Try to call SCORM API first
+            try {
+                if (window.API && window.API.LMSFinish) {
+                    console.log('[SCORM] Calling LMSFinish...');
+                    const result = window.API.LMSFinish('');
+                    console.log('[SCORM] LMSFinish result:', result);
+                } else if (window.API && window.API.Terminate) {
+                    console.log('[SCORM] Calling Terminate...');
+                    const result = window.API.Terminate('');
+                    console.log('[SCORM] Terminate result:', result);
+                }
+            } catch (e) {
+                console.error('[SCORM] Error calling SCORM API:', e);
+            }
+            
+            // Send message to parent window to handle exit
+            try {
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'rise360Exit',
+                        source: 'scorm-content'
+                    }, window.location.origin);
+                    console.log('[SCORM] Sent exit message to parent window');
+                } else if (window.top && window.top !== window) {
+                    window.top.postMessage({
+                        type: 'rise360Exit',
+                        source: 'scorm-content'
+                    }, window.location.origin);
+                    console.log('[SCORM] Sent exit message to top window');
+                }
+            } catch (e) {
+                console.error('[SCORM] Error sending exit message:', e);
+            }
+            
+            return false;
+        }
+        
+        // Look for exit buttons and enhance them
+        const exitSelectors = [
+            'button[data-acc-text*="Exit" i]',
+            'button[data-acc-text*="Save & Exit" i]',
+            'button[data-acc-text*="Save and Exit" i]',
+            'button[data-acc-text*="Close" i]',
+            'button[data-acc-text*="Finish" i]',
+            'button[data-acc-text*="Complete" i]',
+            'button[data-acc-text*="Done" i]',
+            'button[data-acc-text*="End" i]',
+            'button[data-acc-text*="Quit" i]',
+            'button[data-acc-text*="Stop" i]',
+            'button[onclick*="exit" i]',
+            'button[onclick*="save" i]',
+            'button[onclick*="close" i]',
+            'button[onclick*="finish" i]',
+            'button[onclick*="complete" i]',
+            'button[onclick*="done" i]',
+            'button[onclick*="end" i]',
+            'button[onclick*="quit" i]',
+            'button[onclick*="stop" i]',
+            'a[href*="exit" i]',
+            'a[href*="close" i]',
+            'a[href*="finish" i]',
+            'a[href*="complete" i]',
+            'a[href*="done" i]',
+            'a[href*="end" i]',
+            'a[href*="quit" i]',
+            'a[href*="stop" i]',
+            'button[aria-label*="Exit" i]',
+            'button[aria-label*="Save & Exit" i]',
+            'button[aria-label*="Save and Exit" i]',
+            'button[aria-label*="Close" i]',
+            'button[aria-label*="Finish" i]',
+            'button[aria-label*="Complete" i]',
+            'button[aria-label*="Done" i]',
+            'button[aria-label*="End" i]',
+            'button[aria-label*="Quit" i]',
+            'button[aria-label*="Stop" i]',
+            'a[aria-label*="Exit" i]',
+            'a[aria-label*="Save & Exit" i]',
+            'a[aria-label*="Save and Exit" i]',
+            'a[aria-label*="Close" i]',
+            'a[aria-label*="Finish" i]',
+            'a[aria-label*="Complete" i]',
+            'a[aria-label*="Done" i]',
+            'a[aria-label*="End" i]',
+            'a[aria-label*="Quit" i]',
+            'a[aria-label*="Stop" i]',
+            '.exit-button',
+            '.save-exit-button',
+            '.close-button',
+            '.finish-button',
+            '.complete-button',
+            '.done-button',
+            '.end-button',
+            '.quit-button',
+            '.stop-button',
+            '#exit-button',
+            '#save-exit-button',
+            '#close-button',
+            '#finish-button',
+            '#complete-button',
+            '#done-button',
+            '#end-button',
+            '#quit-button',
+            '#stop-button'
+        ];
+        
+        exitSelectors.forEach(selector => {
+            try {
+                const elements = document.querySelectorAll(selector);
+                elements.forEach(element => {
+                    if (!element.hasAttribute('data-scorm-enhanced')) {
+                        element.setAttribute('data-scorm-enhanced', 'true');
+                        element.onclick = null; // Remove existing handlers
+                        element.addEventListener('click', handleExitClick);
+                        console.log('[SCORM] Enhanced exit button:', element);
+                    }
+                });
+            } catch (e) {
+                // Silently handle selector errors
+            }
+        });
+        
+        // Also look for text-based exit buttons
+        const clickableElements = document.querySelectorAll('button, a, [role="button"]');
+        clickableElements.forEach(element => {
+            const text = element.textContent ? element.textContent.trim().toLowerCase() : '';
+            const isExitButton = (
+                text === 'exit' || text === 'exit course' || text === 'close' || 
+                text === 'save & exit' || text === 'save and exit' || text === 'save exit' ||
+                text === 'finish' || text === 'complete' || text === 'done' || 
+                text === 'end' || text === 'quit' || text === 'stop' ||
+                text === 'finish course' || text === 'complete course' || text === 'end course' ||
+                text === 'close course' || text === 'quit course' || text === 'stop course' ||
+                (text.includes('save') && text.includes('exit')) ||
+                (text.includes('finish') && text.includes('course')) ||
+                (text.includes('complete') && text.includes('course')) ||
+                (text.includes('end') && text.includes('course')) ||
+                (text.includes('close') && text.includes('course')) ||
+                (text.includes('quit') && text.includes('course')) ||
+                (text.includes('stop') && text.includes('course'))
+            );
+            
+            if (isExitButton && !element.hasAttribute('data-scorm-enhanced')) {
+                element.setAttribute('data-scorm-enhanced', 'true');
+                element.style.cursor = 'pointer';
+                element.onclick = null; // Remove existing handlers
+                element.addEventListener('click', handleExitClick);
+                console.log('[SCORM] Enhanced text exit button:', element.textContent.trim());
+            }
+        });
+    }
+    
+    // Run immediately and on DOM ready
+    enhanceExitButtons();
+    document.addEventListener('DOMContentLoaded', enhanceExitButtons);
+    
+    // Also run periodically to catch dynamically loaded buttons
+    setInterval(enhanceExitButtons, 2000);
 })();
 
 // CRITICAL FIX: Enhanced Exit button functionality
@@ -998,6 +1173,9 @@ def scorm_content(request, topic_id, path):
     }
     
     function enhanceExitButtons() {
+        // CRITICAL FIX: Enhanced exit button detection with cross-origin support
+        const doc = this.document || document;
+        
         // Look for ALL possible Exit button patterns in SCORM content
         const exitSelectors = [
             // Articulate Storyline/Rise buttons
@@ -1084,7 +1262,7 @@ def scorm_content(request, topic_id, path):
         
         exitSelectors.forEach(selector => {
             try {
-                const elements = document.querySelectorAll(selector);
+                const elements = doc.querySelectorAll(selector);
                 elements.forEach(element => {
                     if (!element.hasAttribute('data-scorm-enhanced')) {
                         element.setAttribute('data-scorm-enhanced', 'true');
@@ -1130,7 +1308,7 @@ def scorm_content(request, topic_id, path):
         });
         
         // Also look for text-based Exit buttons (only clickable elements)
-        const clickableElements = document.querySelectorAll('button, a, [role="button"]');
+        const clickableElements = doc.querySelectorAll('button, a, [role="button"]');
         clickableElements.forEach(element => {
             const text = element.textContent ? element.textContent.trim().toLowerCase() : '';
             // Check for ALL possible exit-related text patterns
@@ -1279,6 +1457,54 @@ def scorm_content(request, topic_id, path):
     // REMOVED: Smart progress tracking - causes loops and not needed
     // Storyline will call SCORM API directly when user interacts with content
     
+    // CRITICAL FIX: Enhanced exit button detection with better timing
+    // Wait for SCORM content to fully load before enhancing exit buttons
+    function waitForScormContent() {
+        const maxAttempts = 50; // 10 seconds max wait
+        let attempts = 0;
+        
+        function checkForScormContent() {
+            attempts++;
+            
+            // Check if SCORM content is loaded (iframe or direct content)
+            const iframe = document.querySelector('iframe[src*="scorm"]');
+            const scormContent = document.querySelector('[data-scorm-content]') || 
+                               document.querySelector('.scorm-content') ||
+                               document.querySelector('body[data-scorm]');
+            
+            if (iframe || scormContent || attempts >= maxAttempts) {
+                console.log('[SCORM] Content detected, enhancing exit buttons...');
+                enhanceExitButtons();
+                
+                // Also enhance buttons in iframe if present
+                if (iframe) {
+                    try {
+                        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                        if (iframeDoc) {
+                            // Wait a bit more for iframe content to load
+                            setTimeout(() => {
+                                try {
+                                    enhanceExitButtons.call({ document: iframeDoc });
+                                } catch (e) {
+                                    console.log('[SCORM] Cannot enhance iframe buttons (cross-origin):', e.message);
+                                }
+                            }, 1000);
+                        }
+                    } catch (e) {
+                        console.log('[SCORM] Cannot access iframe content (cross-origin):', e.message);
+                    }
+                }
+            } else {
+                setTimeout(checkForScormContent, 200);
+            }
+        }
+        
+        checkForScormContent();
+    }
+    
+    // Start the enhanced detection
+    waitForScormContent();
+    
     // Also run periodically to catch dynamically loaded content
     setInterval(enhanceExitButtons, 2000);
 })();
@@ -1408,8 +1634,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 content_type = 'text/html; charset=utf-8'
                 
                 logger.info(f"✅ Injected SCORM API into {path} with attempt_id={attempt_id}")
-                    logger.info(f"   API endpoint: {api_endpoint}")
-                    logger.info(f"   Content length: {len(html_content)} chars")
+                logger.info(f"   API endpoint: {api_endpoint}")
+                logger.info(f"   Content length: {len(html_content)} chars")
                 
                 response_obj = HttpResponse(content, content_type=content_type)
                 response_obj['Access-Control-Allow-Origin'] = '*'
