@@ -428,30 +428,65 @@
                         console.error('[Rise 360] Error committing:', e);
                     }
                     
-                    // CRITICAL FIX: Sync to database before redirect
-                    fetch('{% url "scorm:sync_on_exit" %}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                            'X-CSRFToken': '{{ csrf_token }}'
-                        },
-                        body: 'attempt_id={{ attempt.id|default:attempt_id }}'
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        console.log('[Rise 360] Database sync successful:', data);
-                        saveExitBtn.textContent = 'Saved!';
-                        setTimeout(function() {
-                            window.location.href = '{% url "courses:topic_view" topic.id %}';
-                        }, 300);
-                    })
-                    .catch(error => {
-                        console.error('[Rise 360] Database sync error:', error);
-                        // Still redirect even if sync fails
-                        setTimeout(function() {
-                            window.location.href = '{% url "courses:topic_view" topic.id %}';
-                        }, 500);
-                    });
+                    // CRITICAL FIX: Sync to database before redirect with retry logic
+                    function syncWithRetry(retryCount = 0) {
+                        console.log('[Rise 360] Starting database sync... (attempt ' + (retryCount + 1) + ')');
+                        fetch('{% url "scorm:sync_on_exit" %}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded',
+                                'X-CSRFToken': '{{ csrf_token }}'
+                            },
+                            body: 'attempt_id={{ attempt.id|default:attempt_id }}'
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('HTTP ' + response.status);
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            console.log('[Rise 360] Database sync successful:', data);
+                            
+                            // Verify critical data was saved
+                            const dataIntegrity = {
+                                hasSuspendData: data.suspend_data_length > 0,
+                                hasBookmark: data.bookmark_length > 0,
+                                hasProgress: data.progress > 0,
+                                hasStatus: data.status && data.status !== 'not_attempted'
+                            };
+                            
+                            console.log('[Rise 360] Data integrity check:', dataIntegrity);
+                            const passedChecks = Object.values(dataIntegrity).filter(Boolean).length;
+                            console.log('[Rise 360] Passed ' + passedChecks + '/4 integrity checks');
+                            
+                            saveExitBtn.textContent = 'Saved! (' + passedChecks + '/4)';
+                            
+                            setTimeout(function() {
+                                window.location.href = '{% url "courses:topic_view" topic.id %}';
+                            }, 1000);
+                        })
+                        .catch(error => {
+                            console.error('[Rise 360] Database sync error:', error);
+                            
+                            if (retryCount < 2) {
+                                console.log('[Rise 360] Retrying sync in 1 second...');
+                                saveExitBtn.textContent = 'Retrying... (' + (retryCount + 2) + '/3)';
+                                setTimeout(function() {
+                                    syncWithRetry(retryCount + 1);
+                                }, 1000);
+                            } else {
+                                console.error('[Rise 360] All sync attempts failed, redirecting anyway');
+                                saveExitBtn.textContent = 'Sync failed - Redirecting...';
+                                setTimeout(function() {
+                                    window.location.href = '{% url "courses:topic_view" topic.id %}';
+                                }, 1500);
+                            }
+                        });
+                    }
+                    
+                    // Start the sync process
+                    syncWithRetry();
                 });
                 saveExitBtn.setAttribute('data-listener-attached', 'true');
                 console.log('[Rise 360] Save & Exit button listener attached');

@@ -897,25 +897,57 @@ class ScormAPIHandler:
                 # 2. Extract and sync tracking data from CMI data
                 self._sync_tracking_from_cmi_data()
                 
-                # 3. Log the tracking data being saved
+                # 3. Add commit timestamp to detailed tracking
+                if not self.attempt.detailed_tracking:
+                    self.attempt.detailed_tracking = {}
+                
+                self.attempt.detailed_tracking.update({
+                    'last_commit_timestamp': timezone.now().isoformat(),
+                    'commit_count': self.attempt.detailed_tracking.get('commit_count', 0) + 1,
+                    'data_integrity_check': {
+                        'has_suspend_data': bool(self.attempt.suspend_data),
+                        'has_lesson_location': bool(self.attempt.lesson_location),
+                        'has_score': self.attempt.score_raw is not None,
+                        'has_status': self.attempt.lesson_status not in ['not_attempted', 'not attempted'],
+                        'progress_percentage': float(self.attempt.progress_percentage) if self.attempt.progress_percentage else 0
+                    }
+                })
+                
+                # 4. Log the tracking data being saved
                 logger.info(f"[COMMIT] Saving tracking data for attempt {self.attempt.id}:")
                 logger.info(f"  - Progress: {self.attempt.progress_percentage}%")
-                logger.info(f"  - Suspend Data: {len(self.attempt.suspend_data)} chars")
-                logger.info(f"  - Completed Slides: {len(self.attempt.completed_slides)}")
+                logger.info(f"  - Suspend Data: {len(self.attempt.suspend_data) if self.attempt.suspend_data else 0} chars")
+                logger.info(f"  - Completed Slides: {len(self.attempt.completed_slides) if self.attempt.completed_slides else 0}")
                 logger.info(f"  - Total Slides: {self.attempt.total_slides}")
                 logger.info(f"  - Lesson Location: {self.attempt.lesson_location[:50] if self.attempt.lesson_location else 'None'}...")
                 logger.info(f"  - Lesson Status: {self.attempt.lesson_status}")
-                logger.info(f"  - Score: {self.attempt.score_raw}")
+                logger.info(f"  - Completion Status: {self.attempt.completion_status}")
+                logger.info(f"  - Success Status: {self.attempt.success_status}")
+                logger.info(f"  - Score Raw: {self.attempt.score_raw}")
+                logger.info(f"  - Score Max: {self.attempt.score_max}")
+                logger.info(f"  - Score Scaled: {self.attempt.score_scaled}")
+                logger.info(f"  - Time Spent: {self.attempt.time_spent_seconds}s")
+                logger.info(f"  - Total Time: {self.attempt.total_time}")
+                logger.info(f"  - CMI Data Size: {len(str(self.attempt.cmi_data)) if self.attempt.cmi_data else 0} chars")
                 
-                # 4. Save to database
+                # 5. Save to database with explicit field list for safety
+                # This ensures all critical fields are saved
                 self.attempt.save()
-                logger.info(f"[COMMIT] Successfully saved attempt {self.attempt.id} to database")
+                logger.info(f"[COMMIT] ✅ Successfully saved attempt {self.attempt.id} to database")
                 
-                # Use centralized sync service for score synchronization
+                # 6. Verify the save was successful by checking a few critical fields
+                self.attempt.refresh_from_db()
+                logger.info(f"[COMMIT] ✅ Verification after save:")
+                logger.info(f"  - Suspend data still present: {len(self.attempt.suspend_data) if self.attempt.suspend_data else 0} chars")
+                logger.info(f"  - Bookmark still present: {len(self.attempt.lesson_location) if self.attempt.lesson_location else 0} chars")
+                logger.info(f"  - Score still present: {self.attempt.score_raw}")
+                logger.info(f"  - Status still present: {self.attempt.lesson_status}")
+                
+                # 7. Use centralized sync service for score synchronization
                 # This is critical for ensuring all user interactions are tracked
                 from .score_sync_service import ScormScoreSyncService
                 sync_success = ScormScoreSyncService.sync_score(self.attempt, force=True)
-                logger.info(f"[COMMIT] Score sync result for attempt {self.attempt.id}: {sync_success}")
+                logger.info(f"[COMMIT] Score sync result for attempt {self.attempt.id}: {'✅ Success' if sync_success else '⚠️ Skipped'}")
                 
                 # CRITICAL FIX: Always try to sync even if no explicit score
                 # This ensures user interactions are captured in gradebook
@@ -927,11 +959,28 @@ class ScormAPIHandler:
                     
                     # Try sync again with updated timestamp
                     sync_success = ScormScoreSyncService.sync_score(self.attempt, force=True)
-                    logger.info(f"[COMMIT] Retry score sync with updated timestamp: {sync_success}")
+                    logger.info(f"[COMMIT] Retry score sync with updated timestamp: {'✅ Success' if sync_success else '⚠️ Skipped'}")
+                
+                # 8. Clear relevant caches to ensure fresh data
+                from django.core.cache import cache
+                if self.attempt.scorm_package and self.attempt.scorm_package.topic:
+                    topic = self.attempt.scorm_package.topic
+                    from courses.models import CourseTopic
+                    course_topics = CourseTopic.objects.filter(topic=topic)
+                    for ct in course_topics:
+                        cache.delete(f'gradebook_course_{ct.course.id}')
+                    cache.delete(f'topic_progress_{topic.id}_{self.attempt.user.id}')
+                
             except Exception as e:
-                logger.error(f"[COMMIT] Error saving tracking data: {str(e)}")
+                logger.error(f"[COMMIT] ❌ Error saving tracking data: {str(e)}")
                 import traceback
                 logger.error(traceback.format_exc())
+                # Try a basic save as fallback
+                try:
+                    self.attempt.save()
+                    logger.info(f"[COMMIT] ⚠️ Fallback save successful for attempt {self.attempt.id}")
+                except Exception as fallback_error:
+                    logger.error(f"[COMMIT] ❌ Fallback save also failed: {str(fallback_error)}")
             finally:
                 # Clean up the flag
                 if hasattr(self.attempt, '_skip_signal'):

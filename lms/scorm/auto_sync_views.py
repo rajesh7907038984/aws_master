@@ -130,7 +130,7 @@ def sync_on_exit(request):
     """
     Sync SCORM data to TopicProgress when user exits SCORM content
     Called by the "Save & Exit" button to ensure all quiz state and scores are saved
-    ENHANCED: Special handling for Storyline quiz state preservation
+    ENHANCED: Comprehensive data preservation with transaction safety
     """
     try:
         attempt_id = request.POST.get('attempt_id')
@@ -141,52 +141,166 @@ def sync_on_exit(request):
                 'error': 'No attempt_id provided'
             }, status=400)
         
-        # Get the attempt with select_for_update to prevent race conditions
-        attempt = ScormAttempt.objects.select_for_update().filter(
-            id=attempt_id,
-            user=request.user
-        ).select_related('scorm_package__topic').first()
+        # Use atomic transaction to ensure data consistency
+        from django.db import transaction
         
-        if not attempt:
-            return JsonResponse({
-                'success': False,
-                'error': 'Attempt not found or unauthorized'
-            }, status=404)
+        with transaction.atomic():
+            # Get the attempt with select_for_update to prevent race conditions
+            attempt = ScormAttempt.objects.select_for_update().filter(
+                id=attempt_id,
+                user=request.user
+            ).select_related('scorm_package__topic').first()
+            
+            if not attempt:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Attempt not found or unauthorized'
+                }, status=404)
+            
+            # Log current state for debugging
+            logger.info(f"🔄 Exit sync for attempt {attempt_id}")
+            logger.info(f"   Status: {attempt.lesson_status}")
+            logger.info(f"   Completion Status: {attempt.completion_status}")
+            logger.info(f"   Success Status: {attempt.success_status}")
+            logger.info(f"   Score Raw: {attempt.score_raw}")
+            logger.info(f"   Score Max: {attempt.score_max}")
+            logger.info(f"   Score Scaled: {attempt.score_scaled}")
+            logger.info(f"   Progress: {attempt.progress_percentage}%")
+            logger.info(f"   Suspend data: {len(attempt.suspend_data) if attempt.suspend_data else 0} chars")
+            logger.info(f"   Bookmark: {attempt.lesson_location[:50] if attempt.lesson_location else 'None'}")
+            logger.info(f"   Completed Slides: {len(attempt.completed_slides) if attempt.completed_slides else 0}")
+            logger.info(f"   Total Slides: {attempt.total_slides}")
+            logger.info(f"   CMI Data Keys: {list(attempt.cmi_data.keys()) if attempt.cmi_data else 'None'}")
+            
+            # CRITICAL: Extract and sync all tracking data from CMI data
+            if attempt.cmi_data:
+                version = attempt.scorm_package.version
+                
+                # Extract score from CMI if not in model
+                if not attempt.score_raw:
+                    score_key = 'cmi.core.score.raw' if version == '1.2' else 'cmi.score.raw'
+                    cmi_score = attempt.cmi_data.get(score_key)
+                    if cmi_score and str(cmi_score).strip():
+                        try:
+                            from decimal import Decimal
+                            attempt.score_raw = Decimal(str(cmi_score))
+                            logger.info(f"   ✅ Extracted score from CMI: {attempt.score_raw}")
+                        except:
+                            pass
+                
+                # Extract status from CMI if not in model
+                if attempt.lesson_status in ['not_attempted', 'not attempted']:
+                    status_key = 'cmi.core.lesson_status' if version == '1.2' else 'cmi.completion_status'
+                    cmi_status = attempt.cmi_data.get(status_key)
+                    if cmi_status and str(cmi_status).strip():
+                        attempt.lesson_status = str(cmi_status).replace(' ', '_')
+                        logger.info(f"   ✅ Extracted status from CMI: {attempt.lesson_status}")
+                
+                # Extract suspend data from CMI if not in model
+                if not attempt.suspend_data or len(attempt.suspend_data) == 0:
+                    cmi_suspend = attempt.cmi_data.get('cmi.suspend_data')
+                    if cmi_suspend and str(cmi_suspend).strip():
+                        attempt.suspend_data = str(cmi_suspend)
+                        logger.info(f"   ✅ Extracted suspend data from CMI: {len(attempt.suspend_data)} chars")
+                
+                # Extract bookmark from CMI if not in model
+                if not attempt.lesson_location or len(attempt.lesson_location) == 0:
+                    location_key = 'cmi.core.lesson_location' if version == '1.2' else 'cmi.location'
+                    cmi_location = attempt.cmi_data.get(location_key)
+                    if cmi_location and str(cmi_location).strip():
+                        attempt.lesson_location = str(cmi_location)[:1000]  # Respect field limit
+                        logger.info(f"   ✅ Extracted bookmark from CMI: {attempt.lesson_location[:50]}")
+            
+            # CRITICAL: Ensure all JSON fields have valid values (never None)
+            if attempt.completed_slides is None:
+                attempt.completed_slides = []
+            if attempt.navigation_history is None:
+                attempt.navigation_history = []
+            if attempt.detailed_tracking is None:
+                attempt.detailed_tracking = {}
+            if attempt.session_data is None:
+                attempt.session_data = {}
+            if attempt.cmi_data is None:
+                attempt.cmi_data = {}
+            
+            # Update last accessed timestamp
+            attempt.last_accessed = timezone.now()
+            
+            # CRITICAL: Save ALL tracking data to database
+            # Use update_fields to be explicit about what we're saving
+            fields_to_update = [
+                'lesson_status',
+                'completion_status',
+                'success_status',
+                'score_raw',
+                'score_max',
+                'score_min',
+                'score_scaled',
+                'suspend_data',
+                'lesson_location',
+                'progress_percentage',
+                'completed_slides',
+                'total_slides',
+                'navigation_history',
+                'detailed_tracking',
+                'session_data',
+                'cmi_data',
+                'last_accessed',
+                'time_spent_seconds',
+                'total_time',
+                'session_time'
+            ]
+            
+            attempt.save(update_fields=fields_to_update)
+            logger.info(f"   ✅ All tracking data saved to database")
+            
+            # Refresh from database to ensure we have the saved data
+            attempt.refresh_from_db()
+            
+            # Verify the save was successful
+            logger.info(f"   ✅ Verification after save:")
+            logger.info(f"      - Suspend data length: {len(attempt.suspend_data) if attempt.suspend_data else 0}")
+            logger.info(f"      - Bookmark: {attempt.lesson_location[:50] if attempt.lesson_location else 'None'}")
+            logger.info(f"      - Score: {attempt.score_raw}")
+            logger.info(f"      - Status: {attempt.lesson_status}")
+            logger.info(f"      - Progress: {attempt.progress_percentage}%")
         
-        # Log current state for debugging
-        logger.info(f"🔄 Exit sync for attempt {attempt_id}")
-        logger.info(f"   Status: {attempt.lesson_status}")
-        logger.info(f"   Score: {attempt.score_raw}")
-        logger.info(f"   Suspend data: {len(attempt.suspend_data) if attempt.suspend_data else 0} chars")
-        logger.info(f"   Bookmark: {attempt.lesson_location[:50] if attempt.lesson_location else 'None'}")
-        
-        # CRITICAL: Ensure suspend_data is preserved (especially for Storyline quiz state)
-        if attempt.suspend_data and len(attempt.suspend_data) > 0:
-            logger.info(f"   ✅ Quiz state preserved: {len(attempt.suspend_data)} chars")
-            # Force save to ensure suspend_data is in database
-            attempt.save(update_fields=['suspend_data', 'lesson_location', 'last_accessed'])
-            logger.info(f"   ✅ Suspend data saved to database")
-        
-        # Refresh from database to ensure we have latest data
-        attempt.refresh_from_db()
-        
-        # Sync the attempt data to TopicProgress
+        # Sync the attempt data to TopicProgress (outside transaction for better performance)
         sync_result = ScormScoreSyncService.sync_score(attempt, force=True)
         
-        logger.info(f"   Exit sync result: {'success' if sync_result else 'skipped'}")
+        logger.info(f"   Exit sync to TopicProgress: {'✅ Success' if sync_result else '⚠️ Skipped'}")
+        
+        # Clear relevant caches to ensure fresh data
+        from django.core.cache import cache
+        if attempt.scorm_package and attempt.scorm_package.topic:
+            topic = attempt.scorm_package.topic
+            # Clear course cache
+            from courses.models import CourseTopic
+            course_topics = CourseTopic.objects.filter(topic=topic)
+            for ct in course_topics:
+                cache.delete(f'gradebook_course_{ct.course.id}')
+                cache.delete(f'course_{ct.course.id}_progress')
+            
+            # Clear topic progress cache
+            cache.delete(f'topic_progress_{topic.id}_{request.user.id}')
+            cache.delete(f'user_{request.user.id}_progress')
         
         return JsonResponse({
             'success': True,
             'synced': sync_result,
-            'message': 'SCORM data synchronized successfully' if sync_result else 'No sync needed',
+            'message': 'SCORM data synchronized successfully' if sync_result else 'Data saved but not synced to gradebook',
             'attempt_id': attempt_id,
             'suspend_data_length': len(attempt.suspend_data) if attempt.suspend_data else 0,
+            'bookmark_length': len(attempt.lesson_location) if attempt.lesson_location else 0,
             'score': float(attempt.score_raw) if attempt.score_raw else None,
-            'status': attempt.lesson_status
+            'status': attempt.lesson_status,
+            'progress': float(attempt.progress_percentage) if attempt.progress_percentage else 0,
+            'completed_slides': len(attempt.completed_slides) if attempt.completed_slides else 0,
+            'total_slides': attempt.total_slides
         })
         
     except Exception as e:
-        logger.error(f"Exit sync error: {str(e)}")
+        logger.error(f"❌ Exit sync error: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
         return JsonResponse({

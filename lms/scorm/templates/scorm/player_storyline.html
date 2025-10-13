@@ -309,30 +309,16 @@
     <script>
         // CRITICAL FIX: Periodic auto-save for Storyline quiz state
         // Storyline stores quiz answers in suspend_data - must save frequently
-        let autoSaveInterval = null;
-        let commitCount = 0;
-        
-        function performAutoCommit() {
-            try {
-                if (window.API && window.API.LMSCommit) {
-                    const result = window.API.LMSCommit('');
-                    commitCount++;
-                    console.log(`[Storyline] Auto-commit #${commitCount} - Result: ${result}`);
-                }
-            } catch (e) {
-                console.error('[Storyline] Error in auto-commit:', e);
-            }
-        }
+        // REMOVED: Auto-save/auto-commit loops - Storyline handles its own saving
+        // Storyline will automatically call LMSSetValue and LMSCommit when needed
         
         // Start auto-save after iframe loads
         document.getElementById('storylineFrame').addEventListener('load', function() {
             console.log('✅ Storyline content loaded');
             
-            // Start periodic auto-save (every 5 seconds)
-            if (!autoSaveInterval) {
-                autoSaveInterval = setInterval(performAutoCommit, 5000);
-                console.log('[Storyline] Auto-save started (every 5 seconds)');
-            }
+            // DISABLED: Auto-save not needed - Storyline handles its own saving
+            // Storyline will call LMSSetValue and LMSCommit when needed
+            console.log('[Storyline] Auto-save disabled - Storyline manages its own state');
         });
         
         // FIXED: Save & Exit button handler with proper quiz state preservation
@@ -380,8 +366,8 @@
                         syncAndExit();
                     }
                     
-                    function syncAndExit() {
-                        console.log('[Storyline] Starting database sync...');
+                    function syncAndExit(retryCount = 0) {
+                        console.log('[Storyline] Starting database sync... (attempt ' + (retryCount + 1) + ')');
                         fetch('{% url "scorm:sync_on_exit" %}', {
                             method: 'POST',
                             headers: {
@@ -390,22 +376,54 @@
                             },
                             body: 'attempt_id={{ attempt.id|default:attempt_id }}'
                         })
-                        .then(response => response.json())
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('HTTP ' + response.status);
+                            }
+                            return response.json();
+                        })
                         .then(data => {
                             console.log('[Storyline] Database sync successful:', data);
-                            saveExitBtn.textContent = 'Saved!';
+                            
+                            // Verify critical data was saved
+                            const dataIntegrity = {
+                                hasSuspendData: data.suspend_data_length > 0,
+                                hasBookmark: data.bookmark_length > 0,
+                                hasProgress: data.progress > 0,
+                                hasStatus: data.status && data.status !== 'not_attempted'
+                            };
+                            
+                            console.log('[Storyline] Data integrity check:', dataIntegrity);
+                            
+                            // Count how many integrity checks passed
+                            const passedChecks = Object.values(dataIntegrity).filter(Boolean).length;
+                            console.log('[Storyline] Passed ' + passedChecks + '/4 integrity checks');
+                            
+                            saveExitBtn.textContent = 'Saved! (' + passedChecks + '/4 checks passed)';
+                            
                             // Give extra time for database to finalize write
                             setTimeout(function() {
                                 window.location.href = '{% url "courses:topic_view" topic.id %}';
-                            }, 800);
+                            }, 1000);
                         })
                         .catch(error => {
                             console.error('[Storyline] Database sync error:', error);
-                            saveExitBtn.textContent = 'Error - Redirecting...';
-                            // Still redirect even if sync fails, but give it more time
-                            setTimeout(function() {
-                                window.location.href = '{% url "courses:topic_view" topic.id %}';
-                            }, 1000);
+                            
+                            // Retry up to 2 times
+                            if (retryCount < 2) {
+                                console.log('[Storyline] Retrying sync in 1 second...');
+                                saveExitBtn.textContent = 'Retrying... (' + (retryCount + 2) + '/3)';
+                                setTimeout(function() {
+                                    syncAndExit(retryCount + 1);
+                                }, 1000);
+                            } else {
+                                console.error('[Storyline] All sync attempts failed, redirecting anyway');
+                                saveExitBtn.textContent = 'Sync failed - Redirecting...';
+                                // Still redirect even if sync fails, but give it more time
+                                setTimeout(function() {
+                                    window.location.href = '{% url "courses:topic_view" topic.id %}';
+                                }, 1500);
+                            }
                         });
                     }
                 });
