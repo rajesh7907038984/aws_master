@@ -323,11 +323,27 @@ class ScormAPIHandlerEnhanced:
         return 'true'
     
     def terminate(self):
-        """LMSFinish / Terminate"""
+        """LMSFinish / Terminate - Enhanced with Universal Handler"""
         if not self.initialized:
             self.last_error = '301'
             logger.warning("SCORM API Terminate called before initialization for attempt %s", self.attempt.id)
             return 'false'
+        
+        # CRITICAL FIX: Use Universal SCORM Handler for all package types
+        logger.info("🏁 TERMINATE: Starting terminate for attempt %s (user: %s, score_raw: %s, lesson_status: %s)", 
+                   self.attempt.id, self.attempt.user.username, self.attempt.score_raw, self.attempt.lesson_status)
+        
+        try:
+            from .universal_scorm_handler import UniversalScormHandler
+            universal_handler = UniversalScormHandler(self.attempt.scorm_package, self.attempt)
+            
+            # Try to extract and update score using universal handler
+            if universal_handler.process_and_update_score():
+                logger.info("✅ TERMINATE: Universal handler successfully processed score")
+            else:
+                logger.info("ℹ️ TERMINATE: Universal handler found no score, continuing with standard logic")
+        except Exception as e:
+            logger.warning(f"⚠️ TERMINATE: Universal handler failed, falling back to standard logic: {str(e)}")
         
         self.initialized = False
         self.last_error = '0'
@@ -597,39 +613,56 @@ class ScormAPIHandlerEnhanced:
                     self._update_completion_from_status(value)
                 elif element == 'cmi.core.score.raw':
                     try:
-                        # CRITICAL FIX: Store score in both model field AND cmi_data for consistency
+                        # CRITICAL FIX: Enhanced score capture with better validation and logging
+                        logger.info("🎯 SCORE CAPTURE: Attempting to set cmi.core.score.raw = '%s' for attempt %s", value, self.attempt.id)
+                        
                         if value and str(value).strip():
-                            score_value = Decimal(value)
-                            # FIX: Ensure score of 100 is handled properly
-                            if 0 <= score_value <= 100:
+                            score_value = Decimal(str(value).strip())
+                            # CRITICAL FIX: Accept any valid numeric score (not just 0-100)
+                            if score_value >= 0:
+                                old_score = self.attempt.score_raw
                                 self.attempt.score_raw = score_value
                                 self.attempt.cmi_data['cmi.core.score.raw'] = str(value)
-                                logger.info("SCORE: Set score_raw = %s for attempt %s (user: %s)", value, self.attempt.id, self.attempt.user.username)
+                                
+                                logger.info("✅ SCORE CAPTURED: %s -> %s for attempt %s (user: %s)", 
+                                           old_score, score_value, self.attempt.id, self.attempt.user.username)
+                                
+                                # Set lesson_status based on score if not already explicitly set
+                                mastery_score = self.attempt.scorm_package.mastery_score or 70
+                                
+                                # Only auto-set status if content hasn't explicitly set it
+                                if not hasattr(self.attempt, '_explicit_status_set') or not self.attempt._explicit_status_set:
+                                    if self.attempt.lesson_status in ['not_attempted', 'incomplete']:
+                                        if score_value >= mastery_score:
+                                            self.attempt.lesson_status = 'passed'
+                                            self.attempt.cmi_data['cmi.core.lesson_status'] = 'passed'
+                                            self._update_completion_from_status('passed')
+                                        else:
+                                            self.attempt.lesson_status = 'failed'
+                                            self.attempt.cmi_data['cmi.core.lesson_status'] = 'failed'
+                                            self._update_completion_from_status('failed')
+                                        logger.info("📊 AUTO-STATUS: Set lesson_status = %s based on score %s (mastery: %s)", 
+                                                   self.attempt.lesson_status, score_value, mastery_score)
+                                
+                                # CRITICAL FIX: Force immediate database save for score persistence
+                                try:
+                                    self.attempt.save()
+                                    logger.info("💾 SCORE SAVED: Successfully saved score %s to database", score_value)
+                                    
+                                    # Update TopicProgress immediately
+                                    self._update_topic_progress()
+                                    logger.info("📈 PROGRESS UPDATED: TopicProgress synchronized with new score")
+                                    
+                                except Exception as save_error:
+                                    logger.error("❌ SAVE ERROR: Failed to save score to database: %s", str(save_error))
+                                    
                             else:
-                                logger.warning("SCORE: Invalid score value %s (must be 0-100)", value)
+                                logger.warning("⚠️ INVALID SCORE: Score value %s is negative", value)
                                 self.last_error = '405'
                                 return 'false'
-                            
-                            # Set lesson_status based on score if not already set
-                            mastery_score = self.attempt.scorm_package.mastery_score or 70
-                            if self.attempt.lesson_status == 'not_attempted' or self.attempt.lesson_status == 'incomplete':
-                                if self.attempt.score_raw >= mastery_score:
-                                    self.attempt.lesson_status = 'passed'
-                                    self.attempt.cmi_data['cmi.core.lesson_status'] = 'passed'
-                                    self._update_completion_from_status('passed')
-                                else:
-                                    self.attempt.lesson_status = 'failed'
-                                    self.attempt.cmi_data['cmi.core.lesson_status'] = 'failed'
-                                    self._update_completion_from_status('failed')
-                                logger.info("SCORE: Set lesson_status to %s based on score", self.attempt.lesson_status)
-                            
-                            # IMMEDIATE FIX: Save attempt and update TopicProgress right away
-                            # This ensures scores are reflected in gradebook even if SCORM content
-                            # doesn't call Commit/Terminate properly
-                            self.attempt.save()
-                            self._update_topic_progress()
-                            logger.info("SCORE: Immediately saved to database and updated TopicProgress")
                         else:
+                            # Handle empty score
+                            logger.info("🔄 EMPTY SCORE: Clearing score for attempt %s", self.attempt.id)
                             self.attempt.score_raw = None
                             self.attempt.cmi_data['cmi.core.score.raw'] = ''
                     except (ValueError, TypeError) as e:
@@ -708,14 +741,19 @@ class ScormAPIHandlerEnhanced:
                     self.attempt._explicit_status_set = True
                 elif element == 'cmi.score.raw':
                     try:
-                        # CRITICAL FIX: Store score in both model field AND cmi_data for consistency
+                        # CRITICAL FIX: Enhanced SCORM 2004 score capture with better validation and logging
+                        logger.info("🎯 SCORM 2004 SCORE CAPTURE: Attempting to set cmi.score.raw = '%s' for attempt %s", value, self.attempt.id)
+                        
                         if value and str(value).strip():
-                            score_value = Decimal(value)
-                            # FIX: Ensure score of 100 is handled properly
-                            if 0 <= score_value <= 100:
+                            score_value = Decimal(str(value).strip())
+                            # CRITICAL FIX: Accept any valid numeric score (not just 0-100)
+                            if score_value >= 0:
+                                old_score = self.attempt.score_raw
                                 self.attempt.score_raw = score_value
                                 self.attempt.cmi_data['cmi.score.raw'] = str(value)
-                                logger.info("SCORE: Set score_raw = %s for attempt %s (user: %s)", value, self.attempt.id, self.attempt.user.username)
+                                
+                                logger.info("✅ SCORM 2004 SCORE CAPTURED: %s -> %s for attempt %s (user: %s)", 
+                                           old_score, score_value, self.attempt.id, self.attempt.user.username)
                             else:
                                 logger.warning("SCORE: Invalid score value %s (must be 0-100)", value)
                                 self.last_error = '405'
@@ -834,7 +872,7 @@ class ScormAPIHandlerEnhanced:
             return 'false'
     
     def commit(self):
-        """LMSCommit / Commit"""
+        """LMSCommit / Commit - Enhanced with Universal Handler"""
         if not self.initialized:
             self.last_error = '301'
             return 'false'
@@ -842,6 +880,18 @@ class ScormAPIHandlerEnhanced:
         try:
             logger.info("💾 COMMIT: Starting commit for attempt %s (user: %s, score_raw: %s, lesson_status: %s)", 
                        self.attempt.id, self.attempt.user.username, self.attempt.score_raw, self.attempt.lesson_status)
+            
+            # CRITICAL FIX: Try Universal Handler on commit for immediate score processing
+            try:
+                from .universal_scorm_handler import UniversalScormHandler
+                universal_handler = UniversalScormHandler(self.attempt.scorm_package, self.attempt)
+                
+                # Try to extract and update score using universal handler
+                if universal_handler.process_and_update_score():
+                    logger.info("✅ COMMIT: Universal handler successfully processed score during commit")
+            except Exception as e:
+                logger.debug(f"COMMIT: Universal handler during commit: {str(e)}")
+            
             self._commit_data()
             logger.info("✅ COMMIT: Successfully committed data for attempt %s", self.attempt.id)
             self.last_error = '0'
@@ -1090,17 +1140,22 @@ class ScormAPIHandlerEnhanced:
         return True
     
     def _validate_interaction_data(self, field, value):
-        """Validate interaction data"""
+        """Validate interaction data - FIXED: More permissive validation for quiz-based content"""
         if field == 'type':
-            valid_types = ['choice', 'fill-in', 'long-fill-in', 'matching', 'performance', 'sequencing', 'likert', 'numeric', 'other']
-            return value in valid_types
+            valid_types = ['choice', 'fill-in', 'long-fill-in', 'matching', 'performance', 'sequencing', 'likert', 'numeric', 'other', 'true-false']
+            # CRITICAL FIX: Allow any type for quiz-based content compatibility
+            return value in valid_types or len(str(value)) > 0
         elif field == 'result':
             valid_results = ['correct', 'incorrect', 'unanticipated', 'neutral']
-            return value in valid_results or self._is_valid_number(value)
+            # CRITICAL FIX: Allow numeric results and any valid result format
+            return value in valid_results or self._is_valid_number(value) or len(str(value)) > 0
         elif field == 'weighting':
-            return self._is_valid_number(value)
+            # CRITICAL FIX: Allow any numeric value or empty
+            return self._is_valid_number(value) or value == '' or value is None
         elif field == 'latency':
-            return self._is_valid_time_interval(value)
+            # CRITICAL FIX: Allow any time format or empty
+            return self._is_valid_time_interval(value) or value == '' or value is None
+        # CRITICAL FIX: Always allow other fields (id, student_response, correct_response, etc.)
         return True
     
     def _validate_objective_data(self, field, value):
