@@ -43,10 +43,10 @@ class ScormS3DirectAccess:
         try:
             # Build S3 key path - handle media prefix correctly
             if scorm_package.extracted_path.startswith('media/'):
-                # extracted_path already includes media/ prefix
+                # extracted_path already has media prefix
                 base_path = scorm_package.extracted_path
             else:
-                # extracted_path doesn't include media/ prefix
+                # Add media prefix
                 base_path = f"{self.media_location}/{scorm_package.extracted_path}"
             
             if file_path:
@@ -90,11 +90,14 @@ class ScormS3DirectAccess:
         Returns:
             Base URL for the SCORM package
         """
-        # Handle media prefix correctly
+        # Build S3 key path - handle media prefix correctly
         if scorm_package.extracted_path.startswith('media/'):
+            # extracted_path already has media prefix
             base_path = scorm_package.extracted_path
         else:
+            # Add media prefix
             base_path = f"{self.media_location}/{scorm_package.extracted_path}"
+        
         return f"https://{self.bucket_name}.s3.{self.region}.amazonaws.com/{base_path}/"
     
     def verify_file_exists(self, scorm_package, file_path=''):
@@ -109,10 +112,12 @@ class ScormS3DirectAccess:
             Boolean indicating if file exists
         """
         try:
-            # Handle media prefix correctly
+            # Build S3 key path - handle media prefix correctly
             if scorm_package.extracted_path.startswith('media/'):
+                # extracted_path already has media prefix
                 base_path = scorm_package.extracted_path
             else:
+                # Add media prefix
                 base_path = f"{self.media_location}/{scorm_package.extracted_path}"
             
             if file_path:
@@ -138,10 +143,12 @@ class ScormS3DirectAccess:
             List of file paths in the package
         """
         try:
-            # Handle media prefix correctly
+            # Build S3 key path - handle media prefix correctly
             if scorm_package.extracted_path.startswith('media/'):
+                # extracted_path already has media prefix
                 base_path = f"{scorm_package.extracted_path}/"
             else:
+                # Add media prefix
                 base_path = f"{self.media_location}/{scorm_package.extracted_path}/"
             
             response = self.s3_client.list_objects_v2(
