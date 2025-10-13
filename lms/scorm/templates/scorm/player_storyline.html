@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ topic.title }} - Storyline Content</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .scorm-header {
+            background: #fff;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .scorm-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .scorm-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn:hover {
+            opacity: 0.9;
+        }
+        
+        .scorm-note {
+            background: #f3e5f5;
+            border-left: 4px solid #9c27b0;
+            padding: 12px 20px;
+            font-size: 13px;
+            color: #6a1b9a;
+        }
+        
+        .scorm-container {
+            height: calc(100vh - 80px);
+            position: relative;
+        }
+        
+        .scorm-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: white;
+            display: block;
+        }
+        
+        .preview-badge {
+            background: #ffc107;
+            color: #000;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="scorm-header">
+        <div>
+            <h1 class="scorm-title">{{ topic.title }}</h1>
+            {% if preview_mode %}
+            <span class="preview-badge">PREVIEW MODE</span>
+            {% endif %}
+        </div>
+        <div class="scorm-actions">
+            <button type="button" id="saveExitBtn" class="btn">Save & Exit</button>
+        </div>
+    </div>
+    
+    <div class="scorm-note">
+        <strong>Storyline Player:</strong> Optimized for Articulate Storyline packages with quiz state preservation.
+    </div>
+
+    <!-- Storyline-optimized SCORM API -->
+    <script>
+        const API_ENDPOINT = '{{ api_endpoint }}';
+        const ATTEMPT_ID = '{{ attempt.id|default:attempt_id }}';
+        const IS_PREVIEW = {% if preview_mode %}true{% else %}false{% endif %};
+        
+        console.log('📘 Storyline Player - Initializing...');
+        
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        
+        function makeStorylineCall(method, parameters) {
+            try {
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', API_ENDPOINT, false);
+                xhr.setRequestHeader('Content-Type', 'application/json');
+                xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+                
+                xhr.send(JSON.stringify({
+                    method: method,
+                    parameters: parameters || []
+                }));
+                
+                if (xhr.status === 200) {
+                    const data = JSON.parse(xhr.responseText);
+                    if (data.success) {
+                        // Log suspend_data changes (important for Storyline quiz state)
+                        if (method === 'LMSSetValue' && parameters[0] === 'cmi.suspend_data') {
+                            console.log('[Storyline] Saving quiz state (suspend_data length:', parameters[1].length, ')');
+                        }
+                        return data.result;
+                    }
+                }
+                return method.includes('Get') ? '' : 'false';
+            } catch (error) {
+                console.error(`[Storyline] ${method} error:`, error);
+                return method.includes('Get') ? '' : 'false';
+            }
+        }
+        
+        // SCORM 1.2 API (Storyline uses this)
+        window.API = {
+            LMSInitialize: function(param) { 
+                console.log('[Storyline] Initialize');
+                return makeStorylineCall('LMSInitialize', [param]); 
+            },
+            LMSFinish: function(param) { 
+                console.log('[Storyline] Finish');
+                return makeStorylineCall('LMSFinish', [param]); 
+            },
+            LMSGetValue: function(element) { 
+                return makeStorylineCall('LMSGetValue', [element]); 
+            },
+            LMSSetValue: function(element, value) { 
+                // Storyline saves quiz state frequently in suspend_data
+                return makeStorylineCall('LMSSetValue', [element, value]); 
+            },
+            LMSCommit: function(param) { 
+                console.log('[Storyline] Commit');
+                return makeStorylineCall('LMSCommit', [param]); 
+            },
+            LMSGetLastError: function() { return '0'; },
+            LMSGetErrorString: function(code) { return 'No error'; },
+            LMSGetDiagnostic: function(code) { return ''; }
+        };
+        
+        // SCORM 2004 API (some Storyline versions use this)
+        window.API_1484_11 = {
+            Initialize: function(param) { return window.API.LMSInitialize(param); },
+            Terminate: function(param) { return window.API.LMSFinish(param); },
+            GetValue: function(element) { 
+                return window.API.LMSGetValue(element.replace('cmi.location', 'cmi.core.lesson_location')); 
+            },
+            SetValue: function(element, value) { 
+                return window.API.LMSSetValue(element.replace('cmi.location', 'cmi.core.lesson_location'), value); 
+            },
+            Commit: function(param) { return window.API.LMSCommit(param); },
+            GetLastError: function() { return '0'; },
+            GetErrorString: function(code) { return 'No error'; },
+            GetDiagnostic: function(code) { return ''; }
+        };
+        
+        console.log('✅ Storyline SCORM API ready!');
+    </script>
+
+    <div class="scorm-container">
+        <iframe 
+            id="storylineFrame"
+            class="scorm-iframe" 
+            src="{{ content_url }}"
+            allow="fullscreen; autoplay; encrypted-media">
+        </iframe>
+    </div>
+
+    <script>
+        // CRITICAL FIX: Periodic auto-save for Storyline quiz state
+        // Storyline stores quiz answers in suspend_data - must save frequently
+        let autoSaveInterval = null;
+        let commitCount = 0;
+        
+        function performAutoCommit() {
+            try {
+                if (window.API && window.API.LMSCommit) {
+                    const result = window.API.LMSCommit('');
+                    commitCount++;
+                    console.log(`[Storyline] Auto-commit #${commitCount} - Result: ${result}`);
+                }
+            } catch (e) {
+                console.error('[Storyline] Error in auto-commit:', e);
+            }
+        }
+        
+        // Start auto-save after iframe loads
+        document.getElementById('storylineFrame').addEventListener('load', function() {
+            console.log('✅ Storyline content loaded');
+            
+            // Start periodic auto-save (every 30 seconds)
+            if (!autoSaveInterval) {
+                autoSaveInterval = setInterval(performAutoCommit, 30000);
+                console.log('[Storyline] Auto-save started (every 30 seconds)');
+            }
+        });
+        
+        document.getElementById('saveExitBtn').addEventListener('click', function() {
+            console.log('[Storyline] Save & Exit - preserving quiz state');
+            
+            // Clear auto-save interval
+            if (autoSaveInterval) {
+                clearInterval(autoSaveInterval);
+            }
+            
+            try {
+                if (window.API && window.API.LMSCommit) window.API.LMSCommit('');
+            } catch (e) {
+                console.error('[Storyline] Commit error:', e);
+            }
+            setTimeout(function() {
+                window.location.href = '{% url "courses:topic_view" topic.id %}';
+            }, 500);
+        });
+        
+        window.addEventListener('beforeunload', function() {
+            console.log('[Storyline] Auto-save quiz state');
+            
+            // Clear auto-save interval
+            if (autoSaveInterval) {
+                clearInterval(autoSaveInterval);
+            }
+            
+            try {
+                if (window.API && window.API.LMSCommit) window.API.LMSCommit('');
+            } catch (e) {
+                console.error('[Storyline] Auto-save error:', e);
+            }
+        });
+        
+        // Visibility change handler (when tab becomes hidden/visible)
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                console.log('[Storyline] Tab hidden - saving quiz state...');
+                performAutoCommit();
+            }
+        });
+    </script>
+</body>
+</html>
+
