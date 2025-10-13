@@ -1,0 +1,261 @@
+================================================================================
+SCORM COURSE COMMIT DATA REPORT - Topic ID 122
+================================================================================
+Generated: 2025-10-13
+URL: https://staging.nexsy.io/scorm/view/122/
+
+================================================================================
+1. SCORM PACKAGE INFORMATION
+================================================================================
+Package ID:              100
+Topic ID:                122
+Title:                   SCORM Course
+Course Name:             Level 1 - Session 3 - Safeguarding
+Version:                 SCORM 1.2
+Identifier:              _630EvULSfDI_course_id
+Package Type:            Articulate Storyline
+Launch URL:              story.html
+Mastery Score:           70.00 (Pass threshold)
+Commit Frequency:        5000ms (Auto-commit every 5 seconds)
+Created:                 2025-10-12 18:03:36 UTC
+Updated:                 2025-10-12 18:03:36 UTC
+
+Content URL:             https://lms-staging-nexsy-io.s3.eu-west-2.amazonaws.com/media/scorm_content/b36402df-c874-4141-8dd2-f97cb20d03bf/story.html
+Extracted Path:          scorm_content/b36402df-c874-4141-8dd2-f97cb20d03bf/
+Access URL:              https://staging.nexsy.io/scorm/view/122/
+
+--------------------------------------------------------------------------------
+Package Metadata (Auto-Detection):
+--------------------------------------------------------------------------------
+Package Type:            Articulate Storyline
+Scoring Method:          Slide Completion Based
+Completion Method:       Slide-Based Tracking
+Has Quiz:                No
+Has Slides:              Yes
+Max Score Display:       100
+Needs Auto-Scoring:      Yes
+Detection Confidence:    High
+
+================================================================================
+2. LEARNER ATTEMPT INFORMATION
+================================================================================
+Total Attempts:          1
+
+--- Attempt #1 ---
+User:                    ahan.h (hari2987@hotmail.co.uk)
+Attempt Number:          1
+Status:                  not_attempted
+Completion Status:       incomplete
+Success Status:          unknown
+Score (Raw):             None
+Score (Max):             100.00
+Score (Min):             0.00
+Score (Scaled):          None
+Progress:                0.00%
+Time Spent:              0 seconds (0:00:00)
+Started:                 2025-10-13 15:32:27 UTC
+Last Accessed:           2025-10-13 15:32:27 UTC
+Completed:               Not completed
+Entry Mode:              ab-initio (Initial)
+Exit Mode:               Not set
+
+================================================================================
+3. COMMIT DATA (CMI Data Model)
+================================================================================
+Status:                  EMPTY - No learner interaction yet
+CMI Data:                {} (Empty dictionary)
+Session Data:            {} (Empty dictionary)
+Detailed Tracking:       {} (Empty dictionary)
+Suspend Data:            Empty (0 characters)
+Navigation History:      [] (Empty array)
+Completed Slides:        [] (Empty array)
+Total Slides:            0
+Lesson Location:         Not set
+
+EXPLANATION:
+The learner has created an attempt by accessing the SCORM player, but has not
+yet interacted with the SCORM content. No SCORM API calls have been made yet,
+so all commit data fields are empty.
+
+================================================================================
+4. SCORM COMMIT MECHANISM
+================================================================================
+The SCORM commit mechanism works as follows:
+
+1. AUTO-COMMIT FREQUENCY:
+   - Every 5000ms (5 seconds) automatically
+   - On slide navigation
+   - On quiz answer submission
+   - On course completion
+   - On window close/unload
+
+2. COMMIT TRIGGERS:
+   - LMSInitialize() - Start session
+   - LMSSetValue() - Set any SCORM data
+   - LMSCommit() - Explicit commit call
+   - LMSFinish() - End session (includes automatic commit)
+
+3. DATA COMMITTED:
+   - cmi.core.lesson_status (not attempted/incomplete/completed/passed/failed)
+   - cmi.core.score.raw (0-100)
+   - cmi.core.score.max (Maximum possible score)
+   - cmi.core.score.min (Minimum score)
+   - cmi.core.session_time (Time spent in session)
+   - cmi.core.total_time (Total accumulated time)
+   - cmi.suspend_data (Progress/state data for resume)
+   - cmi.core.lesson_location (Bookmark/slide position)
+   - cmi.interactions.* (Quiz/interaction data)
+   - cmi.objectives.* (Learning objective tracking)
+
+4. COMMIT DATA STORAGE:
+   Database Table:       scorm_attempt
+   Primary Fields:       
+     - cmi_data (JSONField) - All SCORM CMI data
+     - detailed_tracking (JSONField) - Enhanced tracking metadata
+     - session_data (JSONField) - Current session information
+     - suspend_data (TextField) - Resume state data
+     - lesson_location (CharField) - Bookmark position
+     - score_raw, score_max, score_min (DecimalField)
+     - lesson_status, completion_status, success_status
+     - progress_percentage, time_spent_seconds
+     - completed_slides (JSONField) - Array of completed slide IDs
+     - navigation_history (JSONField) - Slide visit history
+
+5. COMMIT LOGGING:
+   All commit operations are logged in:
+   - /home/ec2-user/lms/logs/production.log
+   - Search pattern: "[COMMIT]" or "LMSCommit"
+
+================================================================================
+5. HOW TO VIEW REAL-TIME COMMIT DATA
+================================================================================
+
+A. As a Learner (Taking the Course):
+   1. Access: https://staging.nexsy.io/scorm/view/122/
+   2. Login with credentials
+   3. Interact with the SCORM content (navigate slides, answer questions)
+   4. Data will be automatically committed every 5 seconds
+   5. Open browser DevTools Console to see SCORM API calls
+
+B. As an Administrator (Monitoring):
+   1. SSH into server: ssh ec2-user@staging.nexsy.io
+   2. Monitor logs in real-time:
+      tail -f /home/ec2-user/lms/logs/production.log | grep -i "commit\|scorm"
+   
+   3. Query database for live data:
+      cd /home/ec2-user/lms
+      source venv/bin/activate
+      python manage.py shell
+      
+      >>> from scorm.models import ScormAttempt
+      >>> attempt = ScormAttempt.objects.filter(scorm_package__topic_id=122).first()
+      >>> print(attempt.cmi_data)
+      >>> print(attempt.suspend_data)
+      >>> print(attempt.progress_percentage)
+
+C. Via Django Admin:
+   1. Access: https://staging.nexsy.io/admin/
+   2. Navigate to: SCORM > Scorm Attempts
+   3. Filter by: Scorm Package = 100 (Topic 122)
+   4. View detailed commit data in JSON format
+
+D. Via API (if available):
+   GET /scorm/api/attempts/{attempt_id}/
+   GET /scorm/api/packages/{package_id}/attempts/
+
+================================================================================
+6. COMMIT DATA SAMPLE (What it looks like when learner interacts)
+================================================================================
+
+Example CMI Data after learner interaction:
+{
+  "cmi.core.lesson_status": "incomplete",
+  "cmi.core.score.raw": "45",
+  "cmi.core.score.max": "100",
+  "cmi.core.score.min": "0",
+  "cmi.core.session_time": "0000:15:32.00",
+  "cmi.core.total_time": "0000:15:32.00",
+  "cmi.suspend_data": "~CMI~{slide:5,progress:45,answers:[1,2,3]}",
+  "cmi.core.lesson_location": "slide_5",
+  "cmi.core.entry": "resume",
+  "cmi.core.exit": "",
+  "cmi.interactions.0.id": "question_1",
+  "cmi.interactions.0.type": "choice",
+  "cmi.interactions.0.result": "correct",
+  "cmi.interactions.0.student_response": "A",
+  "cmi.interactions.0.time": "2025-10-13T15:45:00Z"
+}
+
+Example Detailed Tracking:
+{
+  "last_commit_timestamp": "2025-10-13T15:45:32Z",
+  "commit_count": 24,
+  "total_time_seconds": 932,
+  "session_count": 1,
+  "last_updated": "2025-10-13T15:45:32Z",
+  "data_integrity_check": {
+    "has_suspend_data": true,
+    "has_lesson_location": true,
+    "has_score": true,
+    "has_status": true,
+    "progress_percentage": 45.0
+  }
+}
+
+Example Completed Slides:
+["slide_1", "slide_2", "slide_3", "slide_4", "slide_5"]
+
+Example Navigation History:
+[
+  {"slide": "slide_1", "timestamp": "2025-10-13T15:30:00Z", "duration": 120},
+  {"slide": "slide_2", "timestamp": "2025-10-13T15:32:00Z", "duration": 180},
+  {"slide": "slide_3", "timestamp": "2025-10-13T15:35:00Z", "duration": 150}
+]
+
+================================================================================
+7. TROUBLESHOOTING COMMIT DATA
+================================================================================
+
+Issue 1: No commit data appearing
+Solution:
+- Ensure SCORM content is calling LMSInitialize()
+- Check browser console for SCORM API errors
+- Verify auto-commit timer is running (check DevTools Network tab)
+
+Issue 2: Commit data not persisting
+Solution:
+- Check database connection
+- Verify session is active (user not logged out)
+- Check production.log for commit errors
+- Ensure JSON fields are not None (automatic handling in models)
+
+Issue 3: Score not updating
+Solution:
+- Verify SCORM content is calling LMSSetValue("cmi.core.score.raw", value)
+- Check if LMSCommit() is called after setting score
+- Review score_sync_service for synchronization issues
+- Check mastery score threshold (70.00 for this course)
+
+================================================================================
+8. NEXT STEPS FOR TESTING
+================================================================================
+
+To generate actual commit data:
+1. Login as learner: ahan.h (hari2987@hotmail.co.uk)
+2. Access course: https://staging.nexsy.io/scorm/view/122/
+3. Interact with SCORM content:
+   - Navigate through slides
+   - Answer any questions
+   - Complete activities
+4. Wait for auto-commit (every 5 seconds)
+5. Check commit data using methods in Section 5
+
+To monitor commits in real-time:
+$ ssh ec2-user@staging.nexsy.io
+$ cd /home/ec2-user/lms
+$ tail -f logs/production.log | grep -i "\[COMMIT\]"
+
+================================================================================
+REPORT END
+================================================================================
+
