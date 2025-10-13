@@ -249,10 +249,11 @@ class ScormAPIHandler:
                     # Rise will check if empty and handle gracefully
                     value = self.attempt.suspend_data or ''
                 elif element in ['cmi.core.entry', 'cmi.entry']:
-                    # ✅ CRITICAL FIX: ONLY return 'resume' if suspend_data exists
-                    # Rise videos need suspend_data for timestamp - empty causes NaN crash
+                    # ✅ CRITICAL FIX: Return 'resume' if bookmark OR suspend_data exists
+                    # Check both lesson_location and suspend_data for resume capability
+                    has_bookmark = bool(self.attempt.lesson_location and len(self.attempt.lesson_location) > 0)
                     has_suspend_data = bool(self.attempt.suspend_data and len(self.attempt.suspend_data) > 0)
-                    value = 'resume' if has_suspend_data else 'ab-initio'
+                    value = 'resume' if (has_bookmark or has_suspend_data) else 'ab-initio'
                 else:
                     value = ''
                 logger.info(f"SCORM API GetValue({element}) before init - returning: '{value[:100] if isinstance(value, str) else value}'")
