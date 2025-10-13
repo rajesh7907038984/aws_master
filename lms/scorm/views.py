@@ -282,7 +282,8 @@ def scorm_view(request, topic_id):
         'generic': 'scorm/player_generic.html',
     }
     
-    template_name = template_map.get(package_type, 'scorm/player.html')
+    # Use generic player as fallback for unknown types
+    template_name = template_map.get(package_type, 'scorm/player_generic.html')
     logger.info(f"Using {template_name} for package type: {package_type}")
     
     response = render(request, template_name, context)

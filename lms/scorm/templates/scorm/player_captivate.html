@@ -251,24 +251,71 @@
             }
         });
         
-        document.getElementById('saveExitBtn').addEventListener('click', function() {
-            console.log('[Captivate] Save & Exit');
-            
-            // Clear auto-save interval
-            if (autoSaveInterval) {
-                clearInterval(autoSaveInterval);
+        // FIXED: Save & Exit button handler with proper event attachment and DB sync
+        function attachSaveExitButton() {
+            const saveExitBtn = document.getElementById('saveExitBtn');
+            if (saveExitBtn && !saveExitBtn.hasAttribute('data-listener-attached')) {
+                saveExitBtn.addEventListener('click', function() {
+                    console.log('[Captivate] Save & Exit');
+                    
+                    // Disable button to prevent double-clicks
+                    saveExitBtn.disabled = true;
+                    saveExitBtn.textContent = 'Saving...';
+                    
+                    // Clear auto-save interval
+                    if (autoSaveInterval) {
+                        clearInterval(autoSaveInterval);
+                    }
+                    
+                    try {
+                        if (window.API && window.API.LMSCommit) {
+                            window.API.LMSCommit('');
+                            console.log('[Captivate] SCORM 1.2 data committed');
+                        }
+                        if (window.API_1484_11 && window.API_1484_11.Commit) {
+                            window.API_1484_11.Commit('');
+                            console.log('[Captivate] SCORM 2004 data committed');
+                        }
+                    } catch (e) {
+                        console.error('[Captivate] Commit error:', e);
+                    }
+                    
+                    // CRITICAL FIX: Sync to database before redirect
+                    fetch('{% url "scorm:sync_on_exit" %}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        },
+                        body: 'attempt_id={{ attempt.id|default:attempt_id }}'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('[Captivate] Database sync successful:', data);
+                        saveExitBtn.textContent = 'Saved!';
+                        setTimeout(function() {
+                            window.location.href = '{% url "courses:topic_view" topic.id %}';
+                        }, 300);
+                    })
+                    .catch(error => {
+                        console.error('[Captivate] Database sync error:', error);
+                        // Still redirect even if sync fails
+                        setTimeout(function() {
+                            window.location.href = '{% url "courses:topic_view" topic.id %}';
+                        }, 500);
+                    });
+                });
+                saveExitBtn.setAttribute('data-listener-attached', 'true');
+                console.log('[Captivate] Save & Exit button listener attached');
             }
-            
-            try {
-                if (window.API && window.API.LMSCommit) window.API.LMSCommit('');
-                if (window.API_1484_11 && window.API_1484_11.Commit) window.API_1484_11.Commit('');
-            } catch (e) {
-                console.error('[Captivate] Commit error:', e);
-            }
-            setTimeout(function() {
-                window.location.href = '{% url "courses:topic_view" topic.id %}';
-            }, 500);
-        });
+        }
+        
+        // Attach immediately if DOM ready, otherwise wait for DOMContentLoaded
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', attachSaveExitButton);
+        } else {
+            attachSaveExitButton();
+        }
         
         window.addEventListener('beforeunload', function() {
             console.log('[Captivate] Auto-save');
