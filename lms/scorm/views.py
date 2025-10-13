@@ -254,111 +254,137 @@ def scorm_view(request, topic_id):
         # CRITICAL FIX: Refresh attempt data from database to get latest bookmark/suspend data
         attempt.refresh_from_db()
     
+    # CRITICAL FIX: Detect package type BEFORE generating URL
+    # Different package types need different URL structures
+    package_type = _detect_scorm_package_type(scorm_package)
+    logger.info(f" SCORM: Detected package type: {package_type}")
+    
     # Generate content URL using Django proxy (for iframe compatibility)
     # Include attempt_id in the URL for API access
-    # CRITICAL FIX: Properly structure URL with query parameters before hash fragment
     content_url = f'/scorm/content/{topic_id}/{scorm_package.launch_url}?attempt_id={attempt_id}'
     
-    # ENHANCED: Add resume parameters BEFORE hash fragment (correct URL structure)
-    if attempt.entry == 'resume' or (attempt.lesson_status != 'not_attempted' and attempt.lesson_status != 'not attempted'):
-        content_url += '&resume=true'
-        if attempt.lesson_location:
-            content_url += f'&location={attempt.lesson_location}'
-        if attempt.suspend_data:
-            content_url += f'&suspend_data={attempt.suspend_data[:100]}'  # First 100 chars
-        logger.info(f" SCORM Resume: Added resume parameters to content URL")
-    
-    # COMPREHENSIVE RESUME FIX: Handle all bookmark formats with fallbacks
-    # CRITICAL FIX: Only add hash fragment ONCE at the end to avoid duplicates
+    # Check if resume is needed
     resume_needed = attempt.entry == 'resume' or (attempt.lesson_status != 'not_attempted' and attempt.lesson_status != 'not attempted')
-    bookmark_applied = False
-    hash_fragment = None
     
-    # Case 1: Rise 360 format with lessons/ in lesson_location
-    if attempt.lesson_location and 'lessons/' in attempt.lesson_location:
-        # Extract lesson ID from lesson_location if it contains the lessons pattern
-        lesson_id = attempt.lesson_location.split('lessons/')[-1] if 'lessons/' in attempt.lesson_location else ''
-        # CRITICAL FIX: Validate that lesson_id is not empty and not just '/' or '#/'
-        lesson_id = lesson_id.strip('/#').strip()
-        if lesson_id and len(lesson_id) > 3:  # Must be a real lesson ID, not just empty or '/'
-            hash_fragment = f'#/lessons/{lesson_id}'
-            logger.info(f" SCORM: Set lesson hash fragment: #/lessons/{lesson_id}")
-            bookmark_applied = True
-        else:
-            logger.warning(f" SCORM: Invalid lesson_id extracted: '{lesson_id}' from '{attempt.lesson_location}'")
-    
-    # Case 2: Regular bookmark with or without hash
-    elif attempt.lesson_location:
-        # Handle lesson locations (avoid double hash)
-        if attempt.lesson_location.startswith('#'):
-            hash_fragment = attempt.lesson_location  # Already has hash
-        else:
-            hash_fragment = f'#{attempt.lesson_location}'  # Add hash
-        logger.info(f" SCORM: Set location hash fragment: {hash_fragment}")
-        bookmark_applied = True
-    
-    # Case 3: Extract bookmark from suspend_data if no direct bookmark exists
-    elif attempt.suspend_data and resume_needed:
-        # Try to extract location from suspend_data
-        import re
+    # CRITICAL FIX: Handle Rise 360 and Storyline packages differently
+    if package_type == 'rise360':
+        # RISE 360 HANDLING: Only use hash fragment for navigation
+        # Rise 360 does NOT use query parameters for resume
+        hash_fragment = None
+        bookmark_applied = False
         
-        # Common patterns for bookmarks in suspend_data
-        bookmark_patterns = [
-            r'current_slide[=:]([^&]+)',        # current_slide=slide3
-            r'current_location[=:]([^&]+)',      # current_location=slide3
-            r'bookmark[=:]([^&]+)',              # bookmark=slide3
-            r'\"bookmark\"[=:]\"([^\"]+)\"',     # "bookmark":"slide3"
-            r'\"slide\"[=:]\"([^\"]+)\"',        # "slide":"slide3"
-            r'\"location\"[=:]\"([^\"]+)\"',     # "location":"slide3"
-            r'currentSlide[=:]([^&]+)',          # currentSlide=slide3
-            r'slideId[=:]([^&]+)'                # slideId=slide3
-        ]
-        
-        # Try all patterns
-        for pattern in bookmark_patterns:
-            match = re.search(pattern, attempt.suspend_data)
-            if match:
-                extracted_location = match.group(1).strip()
-                if extracted_location:
-                    # Set location in attempt
-                    attempt.lesson_location = extracted_location
-                    hash_fragment = f'#{extracted_location}'
-                    attempt.save()
-                    logger.info(f" SCORM Resume: Extracted bookmark '{extracted_location}' from suspend_data")
-                    bookmark_applied = True
-                    break
-        
-        # If no pattern matched but we know we need to resume
-        if not bookmark_applied:
-            # Use a generic slide ID based on progress percentage
-            progress = attempt.progress_percentage or 0
-            if progress > 75:
-                default_slide = "slide_75"  # Near the end
-            elif progress > 50:
-                default_slide = "slide_50"  # Middle
-            elif progress > 25:
-                default_slide = "slide_25"  # Quarter way
+        # Case 1: Rise 360 format with lessons/ in lesson_location
+        if attempt.lesson_location and 'lessons/' in attempt.lesson_location:
+            # Extract lesson ID from lesson_location if it contains the lessons pattern
+            lesson_id = attempt.lesson_location.split('lessons/')[-1] if 'lessons/' in attempt.lesson_location else ''
+            # Validate that lesson_id is not empty and not just '/' or '#/'
+            lesson_id = lesson_id.strip('/#').strip()
+            if lesson_id and len(lesson_id) > 3:  # Must be a real lesson ID, not just empty or '/'
+                hash_fragment = f'#/lessons/{lesson_id}'
+                logger.info(f" SCORM (Rise 360): Set lesson hash fragment: #/lessons/{lesson_id}")
+                bookmark_applied = True
             else:
-                default_slide = "slide_1"   # Beginning
-                
-            attempt.lesson_location = default_slide
-            hash_fragment = f'#{default_slide}'
-            attempt.save()
-            logger.info(f" SCORM Resume: Created default location '{default_slide}' based on progress {progress}%")
-            bookmark_applied = True
-            
-    # Case 4: Always ensure resume works
-    if resume_needed and not bookmark_applied:
-        # Final fallback - use slide_1 as a safe default
-        attempt.lesson_location = 'slide_1'
-        hash_fragment = '#slide_1'
-        attempt.save()
-        logger.info(f" SCORM Resume: Created failsafe default location 'slide_1'")
+                logger.warning(f" SCORM (Rise 360): Invalid lesson_id extracted: '{lesson_id}' from '{attempt.lesson_location}'")
+        
+        # Case 2: No specific lesson, start from beginning
+        if not bookmark_applied:
+            # Rise 360 will handle navigation on its own
+            logger.info(f" SCORM (Rise 360): No lesson bookmark, starting from beginning")
+        
+        # Add hash fragment if we have one
+        if hash_fragment:
+            content_url += hash_fragment
+            logger.info(f" SCORM (Rise 360): Final URL: {content_url}")
+        else:
+            logger.info(f" SCORM (Rise 360): Final URL (no hash): {content_url}")
     
-    # CRITICAL FIX: Add hash fragment ONLY ONCE at the end
-    if hash_fragment:
-        content_url += hash_fragment
-        logger.info(f" SCORM: Final content URL with hash: {content_url}")
+    else:
+        # STORYLINE/CAPTIVATE/GENERIC HANDLING: Use query parameters for resume
+        # Add resume parameters BEFORE hash fragment (correct URL structure)
+        if resume_needed:
+            content_url += '&resume=true'
+            if attempt.lesson_location:
+                content_url += f'&location={attempt.lesson_location}'
+            if attempt.suspend_data:
+                content_url += f'&suspend_data={attempt.suspend_data[:100]}'  # First 100 chars
+            logger.info(f" SCORM ({package_type}): Added resume parameters to content URL")
+        
+        # Handle bookmark/hash fragments for non-Rise packages
+        hash_fragment = None
+        bookmark_applied = False
+        
+        # Case 1: Regular bookmark with or without hash
+        if attempt.lesson_location:
+            # Handle lesson locations (avoid double hash)
+            if attempt.lesson_location.startswith('#'):
+                hash_fragment = attempt.lesson_location  # Already has hash
+            else:
+                hash_fragment = f'#{attempt.lesson_location}'  # Add hash
+            logger.info(f" SCORM ({package_type}): Set location hash fragment: {hash_fragment}")
+            bookmark_applied = True
+        
+        # Case 2: Extract bookmark from suspend_data if no direct bookmark exists
+        elif attempt.suspend_data and resume_needed:
+            # Try to extract location from suspend_data
+            import re
+            
+            # Common patterns for bookmarks in suspend_data
+            bookmark_patterns = [
+                r'current_slide[=:]([^&]+)',        # current_slide=slide3
+                r'current_location[=:]([^&]+)',      # current_location=slide3
+                r'bookmark[=:]([^&]+)',              # bookmark=slide3
+                r'\"bookmark\"[=:]\"([^\"]+)\"',     # "bookmark":"slide3"
+                r'\"slide\"[=:]\"([^\"]+)\"',        # "slide":"slide3"
+                r'\"location\"[=:]\"([^\"]+)\"',     # "location":"slide3"
+                r'currentSlide[=:]([^&]+)',          # currentSlide=slide3
+                r'slideId[=:]([^&]+)'                # slideId=slide3
+            ]
+            
+            # Try all patterns
+            for pattern in bookmark_patterns:
+                match = re.search(pattern, attempt.suspend_data)
+                if match:
+                    extracted_location = match.group(1).strip()
+                    if extracted_location:
+                        # Set location in attempt
+                        attempt.lesson_location = extracted_location
+                        hash_fragment = f'#{extracted_location}'
+                        attempt.save()
+                        logger.info(f" SCORM ({package_type}): Extracted bookmark '{extracted_location}' from suspend_data")
+                        bookmark_applied = True
+                        break
+            
+            # If no pattern matched but we know we need to resume
+            if not bookmark_applied:
+                # Use a generic slide ID based on progress percentage
+                progress = attempt.progress_percentage or 0
+                if progress > 75:
+                    default_slide = "slide_75"  # Near the end
+                elif progress > 50:
+                    default_slide = "slide_50"  # Middle
+                elif progress > 25:
+                    default_slide = "slide_25"  # Quarter way
+                else:
+                    default_slide = "slide_1"   # Beginning
+                    
+                attempt.lesson_location = default_slide
+                hash_fragment = f'#{default_slide}'
+                attempt.save()
+                logger.info(f" SCORM ({package_type}): Created default location '{default_slide}' based on progress {progress}%")
+                bookmark_applied = True
+                
+        # Case 3: Always ensure resume works
+        if resume_needed and not bookmark_applied:
+            # Final fallback - use slide_1 as a safe default
+            attempt.lesson_location = 'slide_1'
+            hash_fragment = '#slide_1'
+            attempt.save()
+            logger.info(f" SCORM ({package_type}): Created failsafe default location 'slide_1'")
+        
+        # Add hash fragment ONLY ONCE at the end
+        if hash_fragment:
+            content_url += hash_fragment
+            logger.info(f" SCORM ({package_type}): Final content URL with hash: {content_url}")
     
     context = {
         'topic': topic,
@@ -371,9 +397,9 @@ def scorm_view(request, topic_id):
         'is_instructor_or_admin': is_instructor_or_admin,
     }
     
-    # ARCHITECTURAL IMPROVEMENT: Detect package type and use appropriate player template
+    # ARCHITECTURAL IMPROVEMENT: Use appropriate player template based on detected package type
     # This simplifies maintenance - each player handles ONE type of SCORM package
-    package_type = _detect_scorm_package_type(scorm_package)
+    # Note: package_type was already detected earlier for URL generation
     template_map = {
         'rise360': 'scorm/player_rise360.html',
         'storyline': 'scorm/player_storyline.html',
