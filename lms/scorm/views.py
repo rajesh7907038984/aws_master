@@ -581,9 +581,12 @@ def scorm_content(request, topic_id, path):
                     api_endpoint = f'/scorm/api/{attempt_id}/'
                     api_injection = f'''
 <script>
-// SCORM API that connects to the real API endpoint
-// CRITICAL: Uses SYNCHRONOUS XHR to support legacy SCORM content that expects immediate return values
-window.API = window.API_1484_11 = {{
+// CRITICAL FIX: SCORM API must be available immediately for Rise 360
+// Rise 360 checks for API on page load, so we set it up synchronously
+(function() {{
+    // SCORM API that connects to the real API endpoint
+    // CRITICAL: Uses SYNCHRONOUS XHR to support legacy SCORM content that expects immediate return values
+    window.API = window.API_1484_11 = {{
     _apiEndpoint: '{api_endpoint}',
     _lastError: '0',
     
@@ -741,14 +744,22 @@ window.API = window.API_1484_11 = {{
         return 'true'; 
     }}
 }};
+    
+    // CRITICAL: Ensure API is available immediately for Rise 360
+    console.log('[SCORM] API initialized with', Object.keys(window.API).length, 'functions');
+    console.log('[SCORM] API endpoint:', this._apiEndpoint);
+}})();
 </script>
 '''
                     
                     # Fix relative paths in SCORM content
                     html_content = fix_scorm_relative_paths(html_content, topic_id)
                     
-                    # Inject before </head> or at beginning of <body>
-                    if '</head>' in html_content:
+                    # CRITICAL FIX: Inject API at the very beginning of <head> for Rise 360 compatibility
+                    # Rise 360 checks for API immediately, so it must be available before any other scripts
+                    if '<head>' in html_content:
+                        html_content = html_content.replace('<head>', '<head>' + api_injection)
+                    elif '</head>' in html_content:
                         html_content = html_content.replace('</head>', api_injection + '</head>')
                     elif '<body' in html_content:
                         import re
@@ -756,15 +767,41 @@ window.API = window.API_1484_11 = {{
                     else:
                         html_content = api_injection + html_content
                     
-                    # Add API availability check
+                    # Add immediate API availability and Rise 360 compatibility
                     api_check = '''
 <script>
-// Ensure API is available immediately
-if (typeof window.API === 'undefined') {
-    console.error('[SCORM] API not found - this will cause SCORM warnings');
-} else {
-    console.log('[SCORM] API successfully loaded with', Object.keys(window.API).length, 'functions');
-}
+// CRITICAL FIX: Ensure API is available immediately for Rise 360
+// Rise 360 checks for API immediately on load, so we need to set it up before any other scripts run
+(function() {
+    // Set up API immediately
+    if (typeof window.API === 'undefined') {
+        console.error('[SCORM] API not found - this will cause SCORM warnings');
+    } else {
+        console.log('[SCORM] API successfully loaded with', Object.keys(window.API).length, 'functions');
+    }
+    
+    // Rise 360 specific: Ensure API is available on window object
+    if (window.API) {
+        window.API_1484_11 = window.API;
+        console.log('[SCORM] Rise 360 compatibility: API_1484_11 set');
+    }
+    
+    // Additional Rise 360 compatibility
+    if (typeof window.parent !== 'undefined' && window.parent !== window) {
+        window.parent.API = window.API;
+        window.parent.API_1484_11 = window.API_1484_11;
+        console.log('[SCORM] Parent window API set for Rise 360');
+    }
+})();
+
+// Ensure API is available on DOM ready
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof window.API !== 'undefined') {
+        console.log('[SCORM] API confirmed available on DOM ready');
+    } else {
+        console.error('[SCORM] API still not available on DOM ready');
+    }
+});
 </script>
 '''
                     html_content = html_content.replace('</script>', '</script>' + api_check)
