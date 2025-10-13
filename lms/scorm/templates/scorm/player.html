@@ -176,10 +176,13 @@
 <script>
 // SCORM Real API - Connects to Django SCORM API endpoint
 (function() {
-    let sessionStartTime = Date.now();
-    let timeInterval = null;
-    let apiEndpoint = '{{ api_endpoint }}';
-    let csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+    'use strict';
+    
+    try {
+        let sessionStartTime = Date.now();
+        let timeInterval = null;
+        let apiEndpoint = '{{ api_endpoint|escapejs }}';
+        let csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
     
     // Get CSRF token from cookies if not in form
     if (!csrfToken) {
@@ -196,6 +199,23 @@
     // Function to make API calls to Django backend
     function callSCORMAPI(method, parameters = []) {
         try {
+            // Validate inputs to prevent syntax errors
+            if (!method || typeof method !== 'string') {
+                console.error('SCORM API: Invalid method parameter');
+                return 'false';
+            }
+            
+            if (!Array.isArray(parameters)) {
+                console.error('SCORM API: Invalid parameters - must be array');
+                return 'false';
+            }
+            
+            // Validate API endpoint
+            if (!apiEndpoint || typeof apiEndpoint !== 'string') {
+                console.error('SCORM API: Invalid API endpoint');
+                return 'false';
+            }
+            
             const xhr = new XMLHttpRequest();
             xhr.open('POST', apiEndpoint, false); // Synchronous for SCORM compliance
             xhr.setRequestHeader('Content-Type', 'application/json');
@@ -286,6 +306,28 @@
     window.API_1484_11 = realAPI;
     
     console.log('🔗 SCORM Real API created and connected to Django backend');
+    
+    // Global error handler for SCORM content syntax errors
+    window.addEventListener('error', function(event) {
+        // Check if this is a syntax error from SCORM content
+        if (event.filename && (
+            event.filename.includes('analytics-frame') ||
+            event.filename.includes('scorm') ||
+            event.message.includes('Unexpected token') ||
+            event.message.includes('missing ) after argument list')
+        )) {
+            console.warn('SCORM Content Syntax Error (handled):', {
+                message: event.message,
+                filename: event.filename,
+                line: event.lineno,
+                column: event.colno
+            });
+            
+            // Prevent the error from breaking the page
+            event.preventDefault();
+            return true;
+        }
+    });
     
     // Update status display
     function updateStatus(text, active) {
@@ -460,6 +502,23 @@
             clearInterval(autoSaveInterval);
         }
     });
+    
+    } catch (error) {
+        console.error('SCORM API Initialization Error:', error);
+        // Fallback: Create a minimal API to prevent complete failure
+        window.API = {
+            LMSInitialize: function() { return 'true'; },
+            LMSFinish: function() { return 'true'; },
+            LMSGetValue: function() { return ''; },
+            LMSSetValue: function() { return 'true'; },
+            LMSCommit: function() { return 'true'; },
+            LMSGetLastError: function() { return '0'; },
+            LMSGetErrorString: function() { return ''; },
+            LMSGetDiagnostic: function() { return ''; }
+        };
+        window.API_1484_11 = window.API;
+        console.warn('SCORM API: Using fallback API due to initialization error');
+    }
     
 })();
 </script>
