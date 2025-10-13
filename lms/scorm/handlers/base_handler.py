@@ -369,6 +369,18 @@ class BaseScormAPIHandler:
             elif element == 'cmi.suspend_data':
                 self.attempt.suspend_data = value
                 self.attempt.save()  # Immediate save for suspend data
+            elif element == 'cmi.progress_measure':
+                # CRITICAL FIX: Convert progress_measure (0-1) to progress_percentage (0-100)
+                # This is essential for Rise 360 progress bar to persist correctly
+                try:
+                    if value and str(value).strip():
+                        progress_value = Decimal(str(value))
+                        if 0 <= progress_value <= 1:
+                            self.attempt.progress_percentage = progress_value * 100
+                            logger.info(f"💾 [PROGRESS] Updated progress_percentage to {self.attempt.progress_percentage}% from progress_measure {progress_value}")
+                            self.attempt.save()  # Immediate save for progress
+                except Exception as e:
+                    logger.error(f"Error updating progress_percentage from progress_measure: {e}")
     
     def _commit_data(self):
         """Save attempt data to database"""
