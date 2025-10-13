@@ -1871,12 +1871,45 @@ class ScormAPIHandlerEnhanced:
                     is_completed = self.attempt.completion_status == 'completed'
                     is_passed = self.attempt.success_status == 'passed'
                 
+                # ENHANCED AUTO-COMPLETION LOGIC
+                # Check if learner has achieved passing score based on mastery score
+                should_auto_complete = False
+                auto_completion_reason = ""
+                
+                if self.attempt.score_raw is not None and self.attempt.score_raw > 0:
+                    mastery_score = self.attempt.scorm_package.mastery_score
+                    if mastery_score is not None:
+                        passing_score = float(mastery_score)
+                    else:
+                        passing_score = 70.0  # Default passing score
+                    
+                    has_passed = float(self.attempt.score_raw) >= passing_score
+                    
+                    if has_passed and not is_completed:
+                        should_auto_complete = True
+                        auto_completion_reason = f"Learner achieved passing score {self.attempt.score_raw}% (required: {passing_score}%)"
+                        logger.info(f"🎯 AUTO-COMPLETION: {auto_completion_reason} - triggering auto-completion")
+                        
+                        # Update SCORM attempt status to reflect completion
+                        self.attempt.lesson_status = 'passed'
+                        self.attempt.completion_status = 'completed'
+                        self.attempt.success_status = 'passed'
+                        self.attempt.cmi_data['cmi.core.lesson_status'] = 'passed'
+                        if self.version != '1.2':
+                            self.attempt.cmi_data['cmi.completion_status'] = 'completed'
+                            self.attempt.cmi_data['cmi.success_status'] = 'passed'
+                        self.attempt.save(update_fields=['lesson_status', 'completion_status', 'success_status', 'cmi_data'])
+                
                 # Update completion status
-                if is_completed and not progress.completed:
+                if (is_completed or should_auto_complete) and not progress.completed:
                     progress.completed = True
                     progress.completion_method = 'scorm'
                     progress.completed_at = timezone.now()
-                    logger.info("✅ TOPIC_PROGRESS: Marked as completed for topic %s", topic.id)
+                    
+                    if should_auto_complete:
+                        logger.info(f"✅ TOPIC_PROGRESS: Auto-completed for topic %s - {auto_completion_reason}", topic.id)
+                    else:
+                        logger.info("✅ TOPIC_PROGRESS: Marked as completed for topic %s", topic.id)
                 
                 # CRITICAL FIX: Always update scores when available, regardless of completion status
                 if self.attempt.score_raw is not None:

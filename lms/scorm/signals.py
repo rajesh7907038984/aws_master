@@ -21,6 +21,7 @@ def dynamic_score_processor(sender, instance, created, **kwargs):
     """
     DYNAMIC SCORE PROCESSOR - Automatically handles all SCORM formats
     Uses centralized ScormScoreSyncService for consistent score synchronization
+    Enhanced with auto-completion logic when passmark is achieved
     """
     # Import the sync service
     from .score_sync_service import ScormScoreSyncService
@@ -49,6 +50,36 @@ def dynamic_score_processor(sender, instance, created, **kwargs):
             logger.info(f"✅ SYNC: Successfully synchronized score for attempt {instance.id}")
         else:
             logger.info(f"ℹ️  SYNC: No score synchronization needed for attempt {instance.id}")
+        
+        # ENHANCED AUTO-COMPLETION CHECK
+        # Check if we should trigger auto-completion based on score
+        if instance.score_raw is not None and instance.score_raw > 0:
+            # Check if learner has achieved passing score
+            mastery_score = instance.scorm_package.mastery_score
+            if mastery_score is not None:
+                passing_score = float(mastery_score)
+            else:
+                passing_score = 70.0  # Default passing score
+            
+            has_passed = float(instance.score_raw) >= passing_score
+            scorm_completed = instance.lesson_status in ['passed', 'failed', 'completed']
+            
+            # Trigger auto-completion if learner achieved passing score
+            if has_passed and not scorm_completed:
+                logger.info(f"🎯 AUTO-COMPLETION: Learner achieved passing score {instance.score_raw}% (required: {passing_score}%) - triggering auto-completion")
+                
+                # Update SCORM attempt status to reflect completion
+                instance.lesson_status = 'passed'
+                instance.completion_status = 'completed'
+                instance.success_status = 'passed'
+                instance.save(update_fields=['lesson_status', 'completion_status', 'success_status'])
+                
+                # Trigger topic progress update
+                _update_topic_progress(instance, instance.score_raw)
+                
+            elif scorm_completed:
+                # SCORM already reported completion, just update topic progress
+                _update_topic_progress(instance, instance.score_raw)
         
     except Exception as e:
         logger.error(f"❌ SYNC: Error synchronizing attempt {instance.id}: {str(e)}")
@@ -181,7 +212,7 @@ def _extract_score_from_data(decoded_data):
 
 
 def _update_topic_progress(attempt, score_value):
-    """Update TopicProgress with extracted score - Only when SCORM is completed"""
+    """Update TopicProgress with extracted score - Auto-completion when passmark is achieved"""
     try:
         from courses.models import TopicProgress
         
@@ -192,15 +223,7 @@ def _update_topic_progress(attempt, score_value):
             topic=topic
         )
         
-        # CRITICAL FIX: Only update scores when SCORM is completed
-        # Check completion status
-        is_completed = attempt.lesson_status in ['passed', 'failed', 'completed']
-        
-        if not is_completed:
-            logger.info(f"📊 AUTO-EXTRACT: SCORM not completed yet (status: {attempt.lesson_status}) - skipping TopicProgress score update")
-            return
-        
-        # Update last score
+        # Update scores regardless of completion status
         old_last = topic_progress.last_score
         old_best = topic_progress.best_score
         
@@ -210,15 +233,42 @@ def _update_topic_progress(attempt, score_value):
         if not topic_progress.best_score or float(score_value) > topic_progress.best_score:
             topic_progress.best_score = float(score_value)
         
-        # Mark as completed
-        if not topic_progress.completed:
+        # ENHANCED AUTO-COMPLETION LOGIC
+        # Check if learner has achieved passing score based on mastery score
+        mastery_score = attempt.scorm_package.mastery_score
+        if mastery_score is not None:
+            # Use the defined mastery score from SCORM package
+            passing_score = float(mastery_score)
+        else:
+            # Default to 70% if no mastery score is defined
+            passing_score = 70.0
+        
+        # Check if current score meets or exceeds the passing requirement
+        has_passed = float(score_value) >= passing_score
+        
+        # Check completion status from SCORM
+        scorm_completed = attempt.lesson_status in ['passed', 'failed', 'completed']
+        
+        # Auto-complete if either SCORM reports completion OR learner achieved passing score
+        should_complete = scorm_completed or has_passed
+        
+        if should_complete and not topic_progress.completed:
             topic_progress.completed = True
             topic_progress.completion_method = 'scorm'
             topic_progress.completed_at = timezone.now()
+            
+            # Log the completion reason
+            if scorm_completed:
+                logger.info(f"📊 AUTO-COMPLETE: SCORM reported completion (status: {attempt.lesson_status}) - TopicProgress marked as completed")
+            elif has_passed:
+                logger.info(f"📊 AUTO-COMPLETE: Learner achieved passing score {score_value}% (required: {passing_score}%) - TopicProgress marked as completed")
         
         topic_progress.save()
         
-        logger.info(f"📊 AUTO-EXTRACT: SCORM completed - Updated TopicProgress - last_score: {old_last} → {topic_progress.last_score}, best_score: {old_best} → {topic_progress.best_score}")
+        if should_complete:
+            logger.info(f"📊 AUTO-EXTRACT: SCORM completed - Updated TopicProgress - last_score: {old_last} → {topic_progress.last_score}, best_score: {old_best} → {topic_progress.best_score}")
+        else:
+            logger.info(f"📊 AUTO-EXTRACT: Score updated but not yet passing - last_score: {old_last} → {topic_progress.last_score}, best_score: {old_best} → {topic_progress.best_score} (required: {passing_score}%)")
         
     except Exception as e:
         logger.error(f"Error updating TopicProgress: {e}")
