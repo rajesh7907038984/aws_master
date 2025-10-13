@@ -412,13 +412,19 @@ def scorm_api(request, attempt_id):
             else:
                 return JsonResponse({"error": "Preview attempt not found"}, status=404)
         else:
-            # Get real attempt from database
+            # Get real attempt from database with related data
             try:
-                attempt = ScormAttempt.objects.get(id=attempt_id)
+                attempt = ScormAttempt.objects.select_related(
+                    'scorm_package',
+                    'scorm_package__topic',
+                    'user'
+                ).get(id=attempt_id)
+                # Refresh to ensure we have the absolute latest data (lesson_location, suspend_data, progress)
+                attempt.refresh_from_db()
             except ScormAttempt.DoesNotExist:
                 return JsonResponse({"error": "Attempt not found"}, status=404)
         
-        # Initialize API handler
+        # Initialize API handler with fresh data
         from .api_handler import ScormAPIHandler
         api_handler = ScormAPIHandler(attempt)
         

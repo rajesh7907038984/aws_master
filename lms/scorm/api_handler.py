@@ -231,11 +231,17 @@ class ScormAPIHandler:
             
             if not self.initialized and not was_initialized:
                 logger.warning(f"SCORM API Terminate called before initialization - auto-initializing for attempt {self.attempt.id}")
-                # Auto-initialize the session
+                # CRITICAL: Refresh from DB first to get latest saved data (lesson_location, suspend_data, progress)
+                try:
+                    self.attempt.refresh_from_db()
+                    logger.info(f"Refreshed attempt data from database before auto-initialization")
+                except Exception as e:
+                    logger.warning(f"Could not refresh attempt from DB: {e}")
+                # Auto-initialize the session with fresh data
                 if not self.attempt.cmi_data or len(self.attempt.cmi_data) == 0:
                     self.attempt.cmi_data = self._initialize_cmi_data()
                 self.initialized = True
-                logger.info(f"Auto-initialized SCORM session for attempt {self.attempt.id}")
+                logger.info(f"Auto-initialized SCORM session with latest data for attempt {self.attempt.id}")
         
         self.initialized = False
         self.last_error = '0'
@@ -825,11 +831,17 @@ class ScormAPIHandler:
             # Auto-initialize if not already initialized to ensure data can be saved
             if not self.initialized and not was_initialized:
                 logger.warning(f"SCORM API Commit called before initialization - auto-initializing for attempt {self.attempt.id}")
-                # Auto-initialize the session
+                # CRITICAL: Refresh from DB first to get latest saved data (lesson_location, suspend_data, progress)
+                try:
+                    self.attempt.refresh_from_db()
+                    logger.info(f"Refreshed attempt data from database before auto-initialization")
+                except Exception as e:
+                    logger.warning(f"Could not refresh attempt from DB: {e}")
+                # Auto-initialize the session with fresh data
                 if not self.attempt.cmi_data or len(self.attempt.cmi_data) == 0:
                     self.attempt.cmi_data = self._initialize_cmi_data()
                 self.initialized = True
-                logger.info(f"Auto-initialized SCORM session for attempt {self.attempt.id}")
+                logger.info(f"Auto-initialized SCORM session with latest data for attempt {self.attempt.id}")
         
         try:
             self._commit_data()
