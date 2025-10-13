@@ -142,7 +142,14 @@ def scorm_view_storyline(request, topic_id):
             logger.info(f"Storyline: Setting entry='ab-initio' (fresh start)")
     
     # Generate content URL using Django proxy (for iframe compatibility)
-    content_url = f'/scorm/content/{topic_id}/{scorm_package.launch_url}?attempt_id={attempt_id}'
+    # CRITICAL FIX: Properly handle launch_url to avoid double paths
+    launch_path = scorm_package.launch_url.strip()
+    if not launch_path:
+        launch_path = 'index.html'  # Default fallback
+    # Remove leading slash if present to avoid double slashes
+    if launch_path.startswith('/'):
+        launch_path = launch_path[1:]
+    content_url = f'/scorm/content/{topic_id}/{launch_path}?attempt_id={attempt_id}'
     
     # Check if resume is needed
     resume_needed = attempt.entry == 'resume' or (attempt.lesson_status != 'not_attempted' and attempt.lesson_status != 'not attempted')
