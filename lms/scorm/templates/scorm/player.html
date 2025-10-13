@@ -230,23 +230,47 @@
         <strong>Note:</strong> Please use the "Save & Exit" button above to accurately save your progress. In some cases, the "Exit" option inside your course window may not work.
     </div>
 
-    <!-- CRITICAL FIX: Create SCORM API BEFORE iframe loads -->
-    <!-- Storyline/Rise content checks for API immediately on load -->
+    <!-- CRITICAL FIX: Create FULL FUNCTIONAL SCORM API BEFORE iframe loads -->
+    <!-- Rise/Storyline content checks for API immediately and needs working methods -->
     <script>
-        // SCORM API must be created BEFORE iframe loads
-        // This ensures content can find window.parent.API immediately
-        console.log('🚀 Creating SCORM API placeholder BEFORE iframe loads');
+        // CRITICAL FIX: Create the FULL API before iframe loads (not a stub)
+        // Rise 360 checks for API methods immediately on load
+        // If it finds an empty object, it rejects it and shows "unable to find LMS API"
+        console.log('🚀 Creating FULL FUNCTIONAL SCORM API BEFORE iframe loads');
+        console.log('   This ensures Rise/Storyline can call methods immediately');
         
-        // Create placeholder object that will be populated by the real API
-        // This ensures Storyline finds window.API immediately but uses real methods later
+        // Create the real API with all methods working
         if (!window.API) {
-            // Create empty object that will be populated with real methods
-            window.API = {};
-            window.API_1484_11 = {};
-            window.API._placeholder = true;
-            window.API_1484_11._placeholder = true;
-            console.log('✅ SCORM API placeholder created');
-            console.log('   Real API methods will be added before iframe completes loading');
+            window.API = createScormAPI();
+            window.API_1484_11 = createScormAPI();
+            
+            // Set initialization flags
+            window.API._initialized = false;
+            window.API_1484_11._initialized = false;
+            
+            // Add API discovery helper (SCORM standard)
+            window.API_1484_11.findAPI = window.API.findAPI = function(win) {
+                var findAPITries = 0;
+                while ((win.API == null) && (win.parent != null) && (win.parent != win)) {
+                    findAPITries++;
+                    if (findAPITries > 7) {
+                        console.error('❌ SCORM API not found after 7 tries');
+                        return null;
+                    }
+                    win = win.parent;
+                }
+                console.log('✅ SCORM API found in', findAPITries, 'tries');
+                return win.API;
+            };
+            
+            console.log('✅ FULL SCORM API created and ready:');
+            console.log('   window.API:', typeof window.API);
+            console.log('   window.API_1484_11:', typeof window.API_1484_11);
+            console.log('   window.API.LMSInitialize:', typeof window.API.LMSInitialize);
+            console.log('   window.API.LMSGetValue:', typeof window.API.LMSGetValue);
+            console.log('   window.API.LMSSetValue:', typeof window.API.LMSSetValue);
+            console.log('   window.API.LMSCommit:', typeof window.API.LMSCommit);
+            console.log('🎯 Rise/Storyline can now find and use the API immediately!');
         }
     </script>
 
@@ -1755,42 +1779,11 @@
             }
         }
         
-        // CRITICAL FIX: Replace stub API with full functional API
-        // The stub was created before iframe loaded so content could find it
-        // Now we replace it with the real API that makes backend calls
-        console.log('🔄 Replacing API stub with full functional API...');
-        window.API = createScormAPI();
-        window.API_1484_11 = createScormAPI();
-        
-        // Add defensive programming to handle null object errors
-        window.API._initialized = false;
-        window.API_1484_11._initialized = false;
-        
-        // CRITICAL FIX: Explicitly log API availability for debugging
-        console.log('✅ Full SCORM API now active (replaces stub):');
-        console.log('   window.API:', typeof window.API);
-        console.log('   window.API_1484_11:', typeof window.API_1484_11);
-        console.log('   window.API.LMSInitialize:', typeof window.API.LMSInitialize);
-        console.log('   window.API.LMSGetValue:', typeof window.API.LMSGetValue);
-        console.log('   window.API.LMSSetValue:', typeof window.API.LMSSetValue);
-        console.log('   window.API.LMSCommit:', typeof window.API.LMSCommit);
-        console.log('🎯 Storyline/Rise can now call these methods and data will be saved to backend!');
-        
-        // SCORM Standard: Add API discovery helper function
-        // This helps Storyline/Rise content find the API following SCORM spec
-        window.API_1484_11.findAPI = window.API.findAPI = function(win) {
-            var findAPITries = 0;
-            while ((win.API == null) && (win.parent != null) && (win.parent != win)) {
-                findAPITries++;
-                if (findAPITries > 7) {
-                    console.error('❌ SCORM API not found after 7 tries');
-                    return null;
-                }
-                win = win.parent;
-            }
-            console.log('✅ SCORM API found in', findAPITries, 'tries');
-            return win.API;
-        };
+        // Note: API is already created BEFORE iframe loads (see earlier in code)
+        // This ensures Rise/Storyline can find it immediately
+        console.log('✅ SCORM API was created before iframe loaded');
+        console.log('   Rise/Storyline can now call LMSSetValue, LMSCommit, etc.');
+        console.log('   Section completion and progress should save correctly!');
         
         // ✅ CRITICAL FIX FOR RISE VIDEOS: Initialize IMMEDIATELY, no delay
         // Rise video packages check for suspend_data/lesson_location BEFORE calling Initialize
