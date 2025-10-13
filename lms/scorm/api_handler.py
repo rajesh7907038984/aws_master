@@ -437,16 +437,18 @@ class ScormAPIHandler:
                     
                     # Store bookmark data immediately
                     self.attempt.cmi_data[element] = value
-                    logger.info(f"SCORM API SetValue({element}, {value}) - stored before initialization")
+                    logger.info(f"📍 [BOOKMARK] SetValue({element}, {value[:100] if isinstance(value, str) and len(value) > 100 else value}) - stored before initialization")
                     
                     # Also store in model fields for persistence
                     if element in ['cmi.core.lesson_location', 'cmi.location']:
                         # CRITICAL: Truncate if exceeds database field limit (1000 chars)
                         self.attempt.lesson_location = value[:1000] if value else value
+                        logger.info(f"📍 [BOOKMARK] Saved lesson_location to database: '{self.attempt.lesson_location}'")
                         if len(value) > 1000:
                             logger.warning(f"lesson_location truncated from {len(value)} to 1000 chars")
                     elif element == 'cmi.suspend_data':
                         self.attempt.suspend_data = value
+                        logger.info(f"📍 [BOOKMARK] Saved suspend_data to database: {len(value)} chars")
                     
                     # Save immediately for persistence
                     self.attempt.save()
@@ -633,7 +635,17 @@ class ScormAPIHandler:
                         # CRITICAL FIX: Store suspend data in both CMI data and model fields
                         self.attempt.suspend_data = value
                         self.attempt.cmi_data['cmi.suspend_data'] = value
-                        logger.info(f"[TRACKING] Suspend data updated (SCORM 1.2): {len(value)} chars")
+                        logger.info(f"📍 [BOOKMARK] Suspend data updated (SCORM 1.2): {len(value)} chars")
+                        
+                        # CRITICAL FIX: Extract bookmark from suspend_data if lesson_location is empty
+                        # Many Storyline packages store bookmark data ONLY in suspend_data
+                        if value and (not self.attempt.lesson_location or self.attempt.lesson_location == ''):
+                            extracted_bookmark = self._extract_bookmark_from_suspend_data(value)
+                            if extracted_bookmark:
+                                self.attempt.lesson_location = extracted_bookmark
+                                self.attempt.cmi_data['cmi.core.lesson_location'] = extracted_bookmark
+                                logger.info(f"📍 [BOOKMARK] Extracted bookmark from suspend_data: '{extracted_bookmark}'")
+                        
                         # ENHANCED: Parse and sync progress from suspend data
                         self._parse_and_sync_suspend_data(value)
                         
@@ -647,10 +659,10 @@ class ScormAPIHandler:
                             
                             # Save with all critical fields
                             self.attempt.save(update_fields=[
-                                'suspend_data', 'cmi_data', 'entry', 'lesson_status', 
+                                'suspend_data', 'lesson_location', 'cmi_data', 'entry', 'lesson_status', 
                                 'last_accessed', 'progress_percentage'
                             ])
-                            logger.info(f"[TRACKING]  Suspend data saved to database (SCORM 1.2)")
+                            logger.info(f"📍 [BOOKMARK]  Suspend data + bookmark saved to database (SCORM 1.2)")
                             
                             # Force sync to TopicProgress
                             self._force_sync_to_topic_progress()
@@ -1024,6 +1036,13 @@ class ScormAPIHandler:
                     self.attempt.suspend_data = str(cmi_suspend)
                     new_suspend_len = len(self.attempt.suspend_data)
                     logger.info(f"[SYNC] Updated suspend_data from CMI: {new_suspend_len} chars (was: {old_suspend_len} chars)")
+                    
+                    # CRITICAL FIX: Extract bookmark from suspend_data if lesson_location is empty
+                    if not self.attempt.lesson_location or self.attempt.lesson_location == '':
+                        extracted_bookmark = self._extract_bookmark_from_suspend_data(self.attempt.suspend_data)
+                        if extracted_bookmark:
+                            self.attempt.lesson_location = extracted_bookmark
+                            logger.info(f"📍 [SYNC] Extracted bookmark from suspend_data: '{extracted_bookmark}'")
                     
                     # Parse suspend data for progress information
                     self._parse_and_sync_suspend_data(self.attempt.suspend_data)
@@ -1585,6 +1604,82 @@ class ScormAPIHandler:
             
         except Exception as e:
             logger.error(f"Error updating progress calculation: {str(e)}")
+    
+    def _extract_bookmark_from_suspend_data(self, suspend_data):
+        """
+        Extract bookmark/location from suspend_data
+        Many SCORM packages (especially Storyline) store bookmark data ONLY in suspend_data
+        """
+        try:
+            if not suspend_data or len(suspend_data) < 10:
+                return None
+            
+            import re
+            
+            # Common patterns for bookmarks in suspend_data
+            bookmark_patterns = [
+                # Storyline patterns
+                r'"slide"[:\s]*"([^"]+)"',          # "slide":"slideID"
+                r'"slideId"[:\s]*"([^"]+)"',        # "slideId":"slideID"
+                r'"currentSlide"[:\s]*"([^"]+)"',   # "currentSlide":"slideID"
+                r'"bookmark"[:\s]*"([^"]+)"',       # "bookmark":"slideID"
+                r'"location"[:\s]*"([^"]+)"',       # "location":"slideID"
+                r'slide[=:]([^&,\s"]+)',            # slide=slideID or slide:slideID
+                r'currentSlide[=:]([^&,\s"]+)',     # currentSlide=slideID
+                r'bookmark[=:]([^&,\s"]+)',         # bookmark=slideID
+                # Rise 360 patterns
+                r'#/?lessons/([a-zA-Z0-9_-]+)',     # #/lessons/lessonID
+                r'lessonId[=:]([^&,\s"]+)',         # lessonId=lessonID
+                # Generic patterns
+                r'"currentPage"[:\s]*"([^"]+)"',    # "currentPage":"pageID"
+                r'"lastVisited"[:\s]*"([^"]+)"',    # "lastVisited":"pageID"
+            ]
+            
+            # Try all patterns
+            for pattern in bookmark_patterns:
+                match = re.search(pattern, suspend_data)
+                if match:
+                    extracted = match.group(1).strip()
+                    if extracted and len(extracted) > 0 and len(extracted) < 500:  # Reasonable bookmark length
+                        logger.info(f"📍 [BOOKMARK EXTRACT] Found bookmark using pattern '{pattern}': '{extracted}'")
+                        return extracted
+            
+            # If no pattern matched, try JSON parsing
+            try:
+                import json
+                data = json.loads(suspend_data)
+                
+                # Check common JSON fields
+                bookmark_fields = ['slide', 'slideId', 'currentSlide', 'bookmark', 'location', 
+                                 'currentPage', 'lastVisited', 'lessonId', 'sceneId']
+                
+                for field in bookmark_fields:
+                    if field in data and data[field]:
+                        extracted = str(data[field])
+                        if extracted and len(extracted) > 0 and len(extracted) < 500:
+                            logger.info(f"📍 [BOOKMARK EXTRACT] Found bookmark in JSON field '{field}': '{extracted}'")
+                            return extracted
+                
+                # Check nested objects
+                if isinstance(data, dict):
+                    for key, value in data.items():
+                        if isinstance(value, dict):
+                            for nested_field in bookmark_fields:
+                                if nested_field in value and value[nested_field]:
+                                    extracted = str(value[nested_field])
+                                    if extracted and len(extracted) > 0 and len(extracted) < 500:
+                                        logger.info(f"📍 [BOOKMARK EXTRACT] Found bookmark in nested JSON '{key}.{nested_field}': '{extracted}'")
+                                        return extracted
+            except (json.JSONDecodeError, ValueError):
+                # Not valid JSON, patterns already tried above
+                pass
+            
+            logger.info(f"📍 [BOOKMARK EXTRACT] No bookmark found in suspend_data ({len(suspend_data)} chars)")
+            return None
+            
+        except Exception as e:
+            logger.error(f"📍 [BOOKMARK EXTRACT] Error extracting bookmark: {str(e)}")
+            return None
     
     def _parse_and_sync_suspend_data(self, suspend_data):
         """Parse suspend data and immediately sync progress to backend"""
