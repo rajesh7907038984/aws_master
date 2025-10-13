@@ -368,17 +368,20 @@
                     function syncWithRetry(retryCount = 0) {
                         console.log('[Captivate] Starting database sync... (attempt ' + (retryCount + 1) + ')');
                         
-                        // BUG FIX: Use FormData instead of raw urlencoded string
-                        const formData = new FormData();
-                        formData.append('attempt_id', '{{ attempt.id|default:attempt_id }}');
+                        // CRITICAL FIX: Use URLSearchParams for proper form encoding
+                        const attemptId = '{{ attempt.id|default:attempt_id }}';
+                        console.log('[Captivate] Syncing attempt ID:', attemptId);
+                        
+                        const formData = new URLSearchParams();
+                        formData.append('attempt_id', attemptId);
                         
                         fetch('{% url "scorm:sync_on_exit" %}', {
                             method: 'POST',
                             headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded',
                                 'X-CSRFToken': '{{ csrf_token }}'
-                                // Let browser set proper Content-Type with boundary
                             },
-                            body: formData
+                            body: formData.toString()
                         })
                         .then(response => {
                             if (!response.ok) {

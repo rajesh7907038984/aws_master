@@ -916,21 +916,24 @@ document.addEventListener('DOMContentLoaded', function() {
                         syncWithRetry();
                     }
                     
-                    // BUG FIX: Improved sync function with better error handling
+                    // CRITICAL FIX: Improved sync function with URLSearchParams for proper form encoding
                     function syncWithRetry(retryCount = 0) {
                         console.log('[Rise 360] Starting database sync... (attempt ' + (retryCount + 1) + ')');
                         
-                        // Format the attempt_id parameter with proper encoding
-                        const formData = new FormData();
-                        formData.append('attempt_id', '{{ attempt.id|default:attempt_id }}');
+                        // CRITICAL FIX: Use URLSearchParams for proper form encoding
+                        const attemptId = '{{ attempt.id|default:attempt_id }}';
+                        console.log('[Rise 360] Syncing attempt ID:', attemptId);
+                        
+                        const formData = new URLSearchParams();
+                        formData.append('attempt_id', attemptId);
                         
                         fetch('{% url "scorm:sync_on_exit" %}', {
                             method: 'POST',
                             headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded',
                                 'X-CSRFToken': '{{ csrf_token }}'
-                                // Intentionally NOT setting Content-Type to let the browser set it with boundary
                             },
-                            body: formData // Use FormData instead of manually constructing urlencoded string
+                            body: formData.toString()
                         })
                         .then(response => {
                             if (!response.ok) {

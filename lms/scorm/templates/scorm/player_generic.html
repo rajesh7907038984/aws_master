@@ -336,34 +336,80 @@
                             console.log('[SCORM] Forcing final commit before sync...');
                             
                             try {
-                                // CRITICAL FIX: Force capture lesson_location before exit
+                                // CRITICAL FIX: Try to get data from iframe first, then force capture
+                                let capturedData = {
+                                    location: '',
+                                    suspend: '',
+                                    status: '',
+                                    score: ''
+                                };
+                                
+                                // Try to access SCORM API from iframe content
+                                try {
+                                    const scormFrame = document.getElementById('scormFrame');
+                                    if (scormFrame && scormFrame.contentWindow) {
+                                        const frameAPI = scormFrame.contentWindow.API || scormFrame.contentWindow.API_1484_11;
+                                        if (frameAPI) {
+                                            console.log('[SCORM] Found API in iframe, reading current state...');
+                                            if (frameAPI.LMSGetValue) {
+                                                capturedData.location = frameAPI.LMSGetValue('cmi.core.lesson_location') || '';
+                                                capturedData.suspend = frameAPI.LMSGetValue('cmi.suspend_data') || '';
+                                                capturedData.status = frameAPI.LMSGetValue('cmi.core.lesson_status') || '';
+                                                capturedData.score = frameAPI.LMSGetValue('cmi.core.score.raw') || '';
+                                            } else if (frameAPI.GetValue) {
+                                                capturedData.location = frameAPI.GetValue('cmi.location') || '';
+                                                capturedData.suspend = frameAPI.GetValue('cmi.suspend_data') || '';
+                                                capturedData.status = frameAPI.GetValue('cmi.completion_status') || '';
+                                                capturedData.score = frameAPI.GetValue('cmi.score.raw') || '';
+                                            }
+                                            console.log('[SCORM] Captured from iframe:', {
+                                                location: capturedData.location,
+                                                suspendLength: capturedData.suspend.length,
+                                                status: capturedData.status,
+                                                score: capturedData.score
+                                            });
+                                        }
+                                    }
+                                } catch (iframeError) {
+                                    console.warn('[SCORM] Could not access iframe API (cross-origin?):', iframeError);
+                                }
+                                
+                                // Force capture lesson_location before exit using parent API
                                 // Get current lesson_location and immediately set it again to ensure it's saved
                                 if (window.API && window.API.LMSGetValue && window.API.LMSSetValue) {
-                                    const currentLocation = window.API.LMSGetValue('cmi.core.lesson_location');
+                                    const currentLocation = window.API.LMSGetValue('cmi.core.lesson_location') || capturedData.location;
                                     if (currentLocation && currentLocation !== '') {
                                         console.log('[SCORM] Forcing lesson_location save:', currentLocation);
                                         window.API.LMSSetValue('cmi.core.lesson_location', currentLocation);
+                                    } else {
+                                        console.warn('[SCORM] WARNING: No lesson_location to save!');
                                     }
                                     
                                     // Also capture suspend_data
-                                    const currentSuspend = window.API.LMSGetValue('cmi.suspend_data');
+                                    const currentSuspend = window.API.LMSGetValue('cmi.suspend_data') || capturedData.suspend;
                                     if (currentSuspend && currentSuspend !== '') {
-                                        console.log('[SCORM] Forcing suspend_data save:', currentSuspend.substring(0, 50) + '...');
+                                        console.log('[SCORM] Forcing suspend_data save: ' + currentSuspend.length + ' chars');
                                         window.API.LMSSetValue('cmi.suspend_data', currentSuspend);
+                                    } else {
+                                        console.warn('[SCORM] WARNING: No suspend_data to save!');
                                     }
                                 }
                                 if (window.API_1484_11 && window.API_1484_11.GetValue && window.API_1484_11.SetValue) {
-                                    const currentLocation = window.API_1484_11.GetValue('cmi.location');
+                                    const currentLocation = window.API_1484_11.GetValue('cmi.location') || capturedData.location;
                                     if (currentLocation && currentLocation !== '') {
                                         console.log('[SCORM] Forcing lesson_location save (2004):', currentLocation);
                                         window.API_1484_11.SetValue('cmi.location', currentLocation);
+                                    } else {
+                                        console.warn('[SCORM] WARNING: No lesson_location to save (2004)!');
                                     }
                                     
                                     // Also capture suspend_data
-                                    const currentSuspend = window.API_1484_11.GetValue('cmi.suspend_data');
+                                    const currentSuspend = window.API_1484_11.GetValue('cmi.suspend_data') || capturedData.suspend;
                                     if (currentSuspend && currentSuspend !== '') {
-                                        console.log('[SCORM] Forcing suspend_data save (2004):', currentSuspend.substring(0, 50) + '...');
+                                        console.log('[SCORM] Forcing suspend_data save (2004): ' + currentSuspend.length + ' chars');
                                         window.API_1484_11.SetValue('cmi.suspend_data', currentSuspend);
+                                    } else {
+                                        console.warn('[SCORM] WARNING: No suspend_data to save (2004)!');
                                     }
                                 }
                                 
@@ -401,17 +447,20 @@
                     function syncWithRetry(retryCount = 0) {
                         console.log('[SCORM] Starting database sync... (attempt ' + (retryCount + 1) + ')');
                         
-                        // BUG FIX: Use FormData instead of raw urlencoded string
-                        const formData = new FormData();
-                        formData.append('attempt_id', '{{ attempt.id|default:attempt_id }}');
+                        // CRITICAL FIX: Use URLSearchParams for proper form encoding
+                        const attemptId = '{{ attempt.id|default:attempt_id }}';
+                        console.log('[SCORM] Syncing attempt ID:', attemptId);
+                        
+                        const formData = new URLSearchParams();
+                        formData.append('attempt_id', attemptId);
                         
                         fetch('{% url "scorm:sync_on_exit" %}', {
                             method: 'POST',
                             headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded',
                                 'X-CSRFToken': '{{ csrf_token }}'
-                                // Let browser set proper Content-Type with boundary
                             },
-                            body: formData // Use FormData instead of manual urlencoded string
+                            body: formData.toString()
                         })
                         .then(response => {
                             if (!response.ok) {
