@@ -51,7 +51,7 @@ class Command(BaseCommand):
         incomplete_only = options['incomplete_only']
         
         self.stdout.write(
-            self.style.SUCCESS(' SCORM Event Tracking Analysis')
+            self.style.SUCCESS('🔍 SCORM Event Tracking Analysis')
         )
         
         # Build filters
@@ -73,7 +73,7 @@ class Command(BaseCommand):
         ).select_related('user', 'scorm_package__topic').order_by('-last_accessed')
         
         total_attempts = attempts.count()
-        self.stdout.write(f" Found {total_attempts} SCORM attempts")
+        self.stdout.write(f"📊 Found {total_attempts} SCORM attempts")
         
         if total_attempts == 0:
             self.stdout.write(self.style.WARNING("No SCORM attempts found matching criteria"))
@@ -87,27 +87,27 @@ class Command(BaseCommand):
         
         for attempt in attempts:
             self.stdout.write(f"\n{'=' * 60}")
-            self.stdout.write(f" Attempt ID: {attempt.id}")
+            self.stdout.write(f"🔍 Attempt ID: {attempt.id}")
             self.stdout.write(f"👤 User: {attempt.user.username} (ID: {attempt.user.id})")
             self.stdout.write(f"📚 Topic: {attempt.scorm_package.topic.title} (ID: {attempt.scorm_package.topic.id})")
             self.stdout.write(f"📅 Started: {attempt.started_at}")
             self.stdout.write(f"⏰ Last Accessed: {attempt.last_accessed}")
-            self.stdout.write(f" Status: {attempt.lesson_status}")
-            self.stdout.write(f" Score: {attempt.score_raw}")
+            self.stdout.write(f"🎯 Status: {attempt.lesson_status}")
+            self.stdout.write(f"📊 Score: {attempt.score_raw}")
             self.stdout.write(f"🔄 Entry Mode: {attempt.entry}")
             
             # Analyze bookmark data
             has_bookmark = bool(attempt.lesson_location or attempt.suspend_data)
-            self.stdout.write(f" Has Resume Data: {has_bookmark}")
+            self.stdout.write(f"🔖 Has Resume Data: {has_bookmark}")
             
             if has_bookmark:
                 self.stdout.write(f"  📍 Lesson Location: {repr(attempt.lesson_location)}")
-                self.stdout.write(f"   Suspend Data: {len(attempt.suspend_data) if attempt.suspend_data else 0} chars")
+                self.stdout.write(f"  💾 Suspend Data: {len(attempt.suspend_data) if attempt.suspend_data else 0} chars")
                 
                 # Check if this is a legitimate resume scenario
                 if attempt.entry == 'resume':
                     resume_working += 1
-                    self.stdout.write(f"   Resume: Working correctly (entry=resume)")
+                    self.stdout.write(f"  ✅ Resume: Working correctly (entry=resume)")
                 else:
                     self.stdout.write(f"  ⚠️  Resume: Entry mode is '{attempt.entry}' but should be 'resume'")
             
@@ -124,17 +124,17 @@ class Command(BaseCommand):
                 
                 if has_interaction_evidence:
                     legitimate_completions += 1
-                    self.stdout.write(f"   Completion: Appears legitimate (has interaction evidence)")
+                    self.stdout.write(f"  ✅ Completion: Appears legitimate (has interaction evidence)")
                 else:
                     false_completions += 1
-                    self.stdout.write(f"   Completion: Suspicious (no interaction evidence)")
+                    self.stdout.write(f"  ❌ Completion: Suspicious (no interaction evidence)")
                     self.stdout.write(f"    - Total time: {attempt.total_time}")
                     self.stdout.write(f"    - Session duration: {(attempt.last_accessed - attempt.started_at).total_seconds()} seconds")
                     self.stdout.write(f"    - Suspend data: {len(attempt.suspend_data) if attempt.suspend_data else 0} chars")
             
             # Check exit mode
             if attempt.exit_mode:
-                self.stdout.write(f" Exit Mode: {attempt.exit_mode}")
+                self.stdout.write(f"🚪 Exit Mode: {attempt.exit_mode}")
                 if attempt.exit_mode == 'logout' and attempt.lesson_status == 'incomplete':
                     navigation_exits += 1
                     self.stdout.write(f"  ℹ️  User navigated away (good - preserved incomplete state)")
@@ -153,11 +153,11 @@ class Command(BaseCommand):
         # Summary
         self.stdout.write(f"\n{'=' * 60}")
         self.stdout.write(self.style.SUCCESS("📈 SCORM Event Analysis Summary"))
-        self.stdout.write(f"   Total attempts analyzed: {total_attempts}")
-        self.stdout.write(f"   Resume working correctly: {resume_working}")
-        self.stdout.write(f"   Legitimate completions: {legitimate_completions}")
-        self.stdout.write(f"   Suspicious completions: {false_completions}")
-        self.stdout.write(f"   Navigation exits: {navigation_exits}")
+        self.stdout.write(f"  📊 Total attempts analyzed: {total_attempts}")
+        self.stdout.write(f"  🔖 Resume working correctly: {resume_working}")
+        self.stdout.write(f"  ✅ Legitimate completions: {legitimate_completions}")
+        self.stdout.write(f"  ❌ Suspicious completions: {false_completions}")
+        self.stdout.write(f"  🚪 Navigation exits: {navigation_exits}")
         
         if false_completions > 0:
             self.stdout.write(self.style.ERROR(f"\n⚠️  {false_completions} suspicious completions detected!"))
@@ -165,7 +165,7 @@ class Command(BaseCommand):
             self.stdout.write("Consider investigating these attempts manually.")
         
         if incomplete_only and resume_working > 0:
-            self.stdout.write(self.style.SUCCESS(f"\n Resume functionality appears to be working for {resume_working} attempts"))
+            self.stdout.write(self.style.SUCCESS(f"\n✅ Resume functionality appears to be working for {resume_working} attempts"))
         elif incomplete_only and resume_working == 0:
             self.stdout.write(self.style.WARNING("\n⚠️  No working resume attempts found"))
             

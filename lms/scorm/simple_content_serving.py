@@ -34,14 +34,14 @@ def test_simple_content_serving():
         print(f"   Response status: {response.status_code}")
         
         if response.status_code == 200:
-            print("    Content serving working")
+            print("   ✅ Content serving working")
             return True
         else:
-            print(f"    Content serving failed: {response.status_code}")
+            print(f"   ❌ Content serving failed: {response.status_code}")
             return False
             
     except Exception as e:
-        print(f"    Error: {e}")
+        print(f"   ❌ Error: {e}")
         return False
 
 if __name__ == "__main__":

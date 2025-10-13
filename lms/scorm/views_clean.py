@@ -369,7 +369,7 @@ window.API = window.API_1484_11 = {
                     content = html_content.encode('utf-8')
                     content_type = 'text/html; charset=utf-8'
                     
-                    logger.info(f" Injected SCORM API into {path}")
+                    logger.info(f"✅ Injected SCORM API into {path}")
                 
                 response_obj = HttpResponse(content, content_type=content_type)
                 response_obj['Access-Control-Allow-Origin'] = '*'

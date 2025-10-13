@@ -98,7 +98,7 @@ class Command(BaseCommand):
                                 package.save()
                                 self.stdout.write(
                                     self.style.SUCCESS(
-                                        f"    Fixed: {old_score} -> {possible_percentage}%"
+                                        f"   ✅ Fixed: {old_score} -> {possible_percentage}%"
                                     )
                                 )
                                 issues_found += 1
@@ -133,7 +133,7 @@ class Command(BaseCommand):
                             attempt.score_raw = Decimal(str(cmi_score_val))
                             attempt.save()
                             self.stdout.write(
-                                self.style.SUCCESS(f"    Set score_raw = {cmi_score_val}")
+                                self.style.SUCCESS(f"   ✅ Set score_raw = {cmi_score_val}")
                             )
                     elif abs(float(attempt.score_raw) - cmi_score_val) > 0.01:
                         issues.append(
@@ -144,7 +144,7 @@ class Command(BaseCommand):
                             attempt.score_raw = Decimal(str(cmi_score_val))
                             attempt.save()
                             self.stdout.write(
-                                self.style.SUCCESS(f"    Fixed score_raw = {cmi_score_val}")
+                                self.style.SUCCESS(f"   ✅ Fixed score_raw = {cmi_score_val}")
                             )
                 except:
                     pass
@@ -195,7 +195,7 @@ class Command(BaseCommand):
                     )
                     if fix_mode:
                         ScormScoreSyncService.sync_score(attempt)
-                        self.stdout.write(self.style.SUCCESS("    Created TopicProgress"))
+                        self.stdout.write(self.style.SUCCESS("   ✅ Created TopicProgress"))
                     sync_issues += 1
                 elif topic_progress.last_score != attempt_score:
                     self.stdout.write(
@@ -204,7 +204,7 @@ class Command(BaseCommand):
                     )
                     if fix_mode:
                         ScormScoreSyncService.sync_score(attempt, force=True)
-                        self.stdout.write(self.style.SUCCESS("    Synced score"))
+                        self.stdout.write(self.style.SUCCESS("   ✅ Synced score"))
                     sync_issues += 1
         
         self.stdout.write(f"\nScore sync issues found: {sync_issues}")
@@ -268,7 +268,7 @@ class Command(BaseCommand):
                                 ScormScoreSyncService.sync_score(first_attempt, force=True)
                                 self.stdout.write(
                                     self.style.SUCCESS(
-                                        f"    Fixed first attempt score: {cmi_score}"
+                                        f"   ✅ Fixed first attempt score: {cmi_score}"
                                     )
                                 )
                             except:

@@ -51,7 +51,7 @@ class Command(BaseCommand):
         show_all = options['show_all']
         
         self.stdout.write(
-            self.style.SUCCESS(' SCORM Score Debug Analysis')
+            self.style.SUCCESS('🔍 SCORM Score Debug Analysis')
         )
         
         # Build query filters
@@ -69,7 +69,7 @@ class Command(BaseCommand):
         ).select_related('user', 'scorm_package__topic').order_by('-started_at')
         
         total_attempts = attempts.count()
-        self.stdout.write(f" Analyzing {total_attempts} SCORM attempts")
+        self.stdout.write(f"📊 Analyzing {total_attempts} SCORM attempts")
         
         if total_attempts == 0:
             self.stdout.write(self.style.WARNING("No SCORM attempts found"))
@@ -93,7 +93,7 @@ class Command(BaseCommand):
             # Check 1: ScormAttempt has score but no TopicProgress
             if attempt.score_raw and not topic_progress:
                 has_issues = True
-                issues.append(" ScormAttempt has score but TopicProgress doesn't exist")
+                issues.append("❌ ScormAttempt has score but TopicProgress doesn't exist")
                 missing_topic_progress += 1
             
             # Check 2: Score mismatches between ScormAttempt and TopicProgress
@@ -126,11 +126,11 @@ class Command(BaseCommand):
                 if has_issues:
                     issues_found += 1
                     
-                self.stdout.write(f"\n{'' if has_issues else ''} Attempt ID: {attempt.id}")
+                self.stdout.write(f"\n{'🔴' if has_issues else '✅'} Attempt ID: {attempt.id}")
                 self.stdout.write(f"  👤 User: {attempt.user.username} (ID: {attempt.user.id})")
                 self.stdout.write(f"  📚 Topic: {attempt.scorm_package.topic.title} (ID: {attempt.scorm_package.topic.id})")
                 self.stdout.write(f"  📅 Started: {attempt.started_at}")
-                self.stdout.write(f"   SCORM Data:")
+                self.stdout.write(f"  📊 SCORM Data:")
                 self.stdout.write(f"    - Score: {attempt.score_raw}")
                 self.stdout.write(f"    - Status: {attempt.lesson_status}")
                 self.stdout.write(f"    - Last Accessed: {attempt.last_accessed}")
@@ -150,7 +150,7 @@ class Command(BaseCommand):
                     self.stdout.write(f"    - Sync Method: {progress_data.get('sync_method', 'unknown')}")
                     self.stdout.write(f"    - Last Updated: {progress_data.get('last_updated', 'unknown')}")
                 else:
-                    self.stdout.write(f"  📈 TopicProgress:  Not found")
+                    self.stdout.write(f"  📈 TopicProgress: ❌ Not found")
                 
                 if issues:
                     self.stdout.write(f"  🚨 Issues:")
@@ -159,17 +159,17 @@ class Command(BaseCommand):
         
         # Summary
         self.stdout.write(self.style.SUCCESS(f"\n📈 Debug Analysis Complete!"))
-        self.stdout.write(f"   Total attempts analyzed: {total_attempts}")
-        self.stdout.write(f"   Attempts with issues: {issues_found}")
+        self.stdout.write(f"  📊 Total attempts analyzed: {total_attempts}")
+        self.stdout.write(f"  🔴 Attempts with issues: {issues_found}")
         self.stdout.write(f"  ⚠️  Score mismatches: {score_mismatches}")
-        self.stdout.write(f"   Missing TopicProgress: {missing_topic_progress}")
+        self.stdout.write(f"  ❌ Missing TopicProgress: {missing_topic_progress}")
         self.stdout.write(f"  🔄 Sync issues: {sync_issues}")
         
         if issues_found > 0:
             self.stdout.write(self.style.WARNING(f"\n⚠️  Found {issues_found} attempts with issues"))
             self.stdout.write("Run 'python manage.py sync_scorm_scores' to fix these issues")
         else:
-            self.stdout.write(self.style.SUCCESS("\n No issues found - all SCORM scores are properly synchronized!"))
+            self.stdout.write(self.style.SUCCESS("\n✅ No issues found - all SCORM scores are properly synchronized!"))
         
         # Additional recommendations
         if score_mismatches > 0 or missing_topic_progress > 0:

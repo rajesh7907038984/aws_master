@@ -81,7 +81,7 @@ def diagnose_package(package_id):
     print()
     
     # Check if extracted path exists
-    print(f" Storage Check:")
+    print(f"📁 Storage Check:")
     try:
         exists = default_storage.exists(package.extracted_path)
         if exists:
@@ -166,7 +166,7 @@ def diagnose_package(package_id):
     print()
     
     # Check for common issues
-    print(f" Common Issues Check:")
+    print(f"🔍 Common Issues Check:")
     issues_found = False
     
     # Check for JavaScript files

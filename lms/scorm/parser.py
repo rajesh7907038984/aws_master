@@ -15,7 +15,6 @@ import uuid
 import json
 from .validators import validate_scorm_package, ScormValidationError
 from .mastery_score_handler import MasteryScoreExtractor
-from .package_analyzer import ScormPackageAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -173,14 +172,6 @@ class ScormParser:
                             logger.info(f"Using {entry_point} as launch file: {self.launch_url}")
                             break
             
-            # DYNAMIC ANALYSIS: Analyze package type and characteristics
-            logger.info(" Analyzing SCORM package characteristics...")
-            raw_manifest_str = self.manifest_data.get('raw_manifest', '')
-            package_metadata = ScormPackageAnalyzer.analyze_package(
-                self.manifest_data,
-                raw_manifest_str
-            )
-            
             return {
                 'version': self.version,
                 'launch_url': self.launch_url,
@@ -190,8 +181,7 @@ class ScormParser:
                 'title': self.manifest_data.get('title', 'SCORM Course'),
                 'description': self.manifest_data.get('description', ''),
                 'mastery_score': self.manifest_data.get('mastery_score'),
-                'extracted_files': extracted_files,
-                'package_metadata': package_metadata  # Dynamic package analysis
+                'extracted_files': extracted_files
             }
     
     def _parse_manifest(self, manifest_content):

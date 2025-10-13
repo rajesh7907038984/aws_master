@@ -86,12 +86,10 @@ def scorm_content_simple(request, topic_id, path):
         try:
             # Get content from S3
             content_path = f"{scorm_package.extracted_path}/{path}"
-            # Note: For S3 storage, exists() is overridden to always return False to avoid permission issues
-            # So we'll try to open the file directly and handle errors appropriately
-            try:
+            if default_storage.exists(content_path):
                 content = default_storage.open(content_path).read().decode('utf-8')
-            except Exception as storage_error:
-                # Fallback to S3 URL if direct storage access fails
+            else:
+                # Fallback to S3 URL
                 import requests
                 response = requests.get(s3_url)
                 content = response.text

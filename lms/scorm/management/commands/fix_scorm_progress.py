@@ -127,8 +127,8 @@ class Command(BaseCommand):
                         })
                         topic_progress.save()
                         
-                        self.stdout.write(f' Fixed progress: {progress_percentage}%')
-                        self.stdout.write(f' Updated TopicProgress')
+                        self.stdout.write(f'✅ Fixed progress: {progress_percentage}%')
+                        self.stdout.write(f'✅ Updated TopicProgress')
                     except TopicProgress.DoesNotExist:
                         self.stdout.write('⚠️  No TopicProgress found')
                     
@@ -138,4 +138,4 @@ class Command(BaseCommand):
                 self.stdout.write('⚠️  No suspend data found')
                 
         except Exception as e:
-            self.stdout.write(f' Error fixing attempt: {str(e)}')
+            self.stdout.write(f'❌ Error fixing attempt: {str(e)}')

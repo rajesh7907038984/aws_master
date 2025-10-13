@@ -3,946 +3,465 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ topic.title }} - SCORM Content</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f5f5f5;
-            height: 100vh;
-            overflow: hidden;
-        }
-        
-        .scorm-header {
-            background: #fff;
-            border-bottom: 1px solid #e0e0e0;
-            padding: 1rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        
-        .scorm-title {
-            font-size: 1.2rem;
-            font-weight: 600;
-            color: #333;
-        }
-        
-        .scorm-actions {
-            display: flex;
-            gap: 0.5rem;
-        }
-        
-        .btn {
-            padding: 0.5rem 1rem;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            background: #6c757d;
-            color: white;
-        }
-        
-        .btn:hover {
-            opacity: 0.9;
-        }
-        
-        .scorm-note {
-            background: #e3f2fd;
-            border-left: 4px solid #2196f3;
-            padding: 12px 20px;
-            font-size: 13px;
-            color: #1565c0;
-        }
-        
-        .scorm-container {
-            height: calc(100vh - 80px);
-            position: relative;
-        }
-        
-        .scorm-iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-            background: white;
-            display: block;
-        }
-        
-        .loading-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(255, 255, 255, 0.95);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            transition: opacity 0.3s ease;
-        }
-        
-        .loading-overlay.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-        
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #4caf50;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .loading-text {
-            margin-top: 1rem;
-            font-size: 1.1rem;
-            color: #666;
-        }
-        
-        .preview-badge {
-            background: #ffc107;
-            color: #000;
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-    </style>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>{{ scorm_package.title }} - SCORM Player</title>
+    {% load static %}
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+    
+    .scorm-player-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        flex-direction: column;
+        background: #1f2937;
+    }
+    
+    .scorm-header {
+        background: #111827;
+        padding: 12px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        z-index: 1000;
+    }
+    
+    .scorm-title {
+        font-size: 16px;
+        font-weight: 600;
+        margin: 0;
+    }
+    
+    .scorm-status {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        font-size: 14px;
+    }
+    
+    .status-indicator {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #6b7280;
+    }
+    
+    .status-dot.active {
+        background: #10b981;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+    
+    .scorm-actions {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .btn-exit {
+        background: #ef4444;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background 0.2s;
+    }
+    
+    .btn-exit:hover {
+        background: #dc2626;
+    }
+    
+    .scorm-content {
+        flex: 1;
+        position: relative;
+        background: white;
+    }
+    
+    #scorm-frame {
+        width: 100%;
+        height: 100%;
+        min-height: 600px;
+        border: none;
+        display: block;
+        background: white;
+    }
+    
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #1f2937;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+    }
+    
+    .loading-overlay.hidden {
+        display: none;
+    }
+    
+    .loading-spinner {
+        width: 48px;
+        height: 48px;
+        border: 4px solid #374151;
+        border-top-color: #3b82f6;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
 </head>
 <body>
+<div class="scorm-player-container">
+    {% csrf_token %}
     <div class="scorm-header">
-        <div>
-            <h1 class="scorm-title">{{ topic.title }}</h1>
-            {% if preview_mode %}
-            <span class="preview-badge">PREVIEW MODE</span>
-            {% endif %}
+        <h1 class="scorm-title">{{ scorm_package.title }}</h1>
+        
+        <div class="scorm-status">
+            <div class="status-indicator">
+                <div class="status-dot" id="connection-status"></div>
+                <span id="status-text">Loading...</span>
+            </div>
+            <div class="status-indicator">
+                <span>Time: <span id="time-display">00:00:00</span></span>
+            </div>
         </div>
+        
         <div class="scorm-actions">
-            <button type="button" id="saveExitBtn" class="btn" title="Save your progress and return to course">Save & Exit</button>
+            <button class="btn-exit" onclick="exitPlayer()">Exit</button>
         </div>
     </div>
-
-    <!-- SCORM API for all packages -->
-    <script>
-        const API_ENDPOINT = '{{ api_endpoint }}';
-        const ATTEMPT_ID = '{{ attempt.id|default:attempt_id }}';
-        const IS_PREVIEW = {% if preview_mode %}true{% else %}false{% endif %};
-        
-        console.log('📦 Universal SCORM Player - Initializing...');
-        
-        function getCookie(name) {
-            let cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                const cookies = document.cookie.split(';');
-                for (let i = 0; i < cookies.length; i++) {
-                    const cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                        break;
-                    }
-                }
-            }
-            return cookieValue;
-        }
-        
-        function makeSCORMCall(method, parameters) {
-            try {
-                console.log(`[SCORM] Making API call: ${method}, endpoint: ${API_ENDPOINT}`);
-                const xhr = new XMLHttpRequest();
-                xhr.open('POST', API_ENDPOINT, false);
-                xhr.setRequestHeader('Content-Type', 'application/json');
-                xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
-                
-                const payload = JSON.stringify({
-                    method: method,
-                    parameters: parameters || []
-                });
-                console.log(`[SCORM] Request payload:`, payload);
-                
-                xhr.send(payload);
-                
-                console.log(`[SCORM] Response status: ${xhr.status}`);
-                console.log(`[SCORM] Response text:`, xhr.responseText);
-                
-                if (xhr.status === 200) {
-                    const data = JSON.parse(xhr.responseText);
-                    console.log(`[SCORM] Parsed response:`, data);
-                    if (data.result !== undefined) {
-                        console.log(`[SCORM] ${method} -> ${data.result}`);
-                        return data.result;
-                    }
-                    if (data.success && data.result !== undefined) {
-                        console.log(`[SCORM] ${method} -> ${data.result}`);
-                        return data.result;
-                    }
-                }
-                console.warn(`[SCORM] ${method} failed - status: ${xhr.status}, returning false`);
-                return method.includes('Get') ? '' : 'false';
-            } catch (error) {
-                console.error(`[SCORM] ${method} error:`, error);
-                console.error(`[SCORM] Error stack:`, error.stack);
-                return method.includes('Get') ? '' : 'false';
-            }
-        }
-        
-        // SCORM 1.2 API
-        window.API = {
-            LMSInitialize: function(param) { 
-                console.log('[SCORM 1.2] LMSInitialize called from content');
-                return makeSCORMCall('LMSInitialize', [param]); 
-            },
-            LMSFinish: function(param) { 
-                console.log('[SCORM 1.2] LMSFinish called - triggering exit');
-                const result = makeSCORMCall('LMSFinish', [param]);
-                setTimeout(function() {
-                    console.log('[SCORM] Auto-triggering Save & Exit button');
-                    const saveExitBtn = document.getElementById('saveExitBtn');
-                    if (saveExitBtn) {
-                        saveExitBtn.click();
-                    }
-                }, 500);
-                return result;
-            },
-            LMSGetValue: function(element) { 
-                const result = makeSCORMCall('LMSGetValue', [element]);
-                return result || '';
-            },
-            LMSSetValue: function(element, value) { 
-                console.log('[SCORM 1.2] LMSSetValue:', element, '=', value);
-                return makeSCORMCall('LMSSetValue', [element, value]); 
-            },
-            LMSCommit: function(param) { 
-                console.log('[SCORM 1.2] LMSCommit called');
-                return makeSCORMCall('LMSCommit', [param]); 
-            },
-            LMSGetLastError: function() { return '0'; },
-            LMSGetErrorString: function(code) { return 'No error'; },
-            LMSGetDiagnostic: function(code) { return ''; }
-        };
-        
-        // SCORM 2004 API
-        window.API_1484_11 = {
-            Initialize: function(param) { 
-                console.log('[SCORM 2004] Initialize called from content');
-                return makeSCORMCall('Initialize', [param]); 
-            },
-            Terminate: function(param) { 
-                console.log('[SCORM 2004] Terminate called - triggering exit');
-                const result = makeSCORMCall('Terminate', [param]);
-                setTimeout(function() {
-                    console.log('[SCORM] Auto-triggering Save & Exit button');
-                    const saveExitBtn = document.getElementById('saveExitBtn');
-                    if (saveExitBtn) {
-                        saveExitBtn.click();
-                    }
-                }, 500);
-                return result;
-            },
-            GetValue: function(element) { 
-                const result = makeSCORMCall('GetValue', [element]);
-                return result || '';
-            },
-            SetValue: function(element, value) { 
-                console.log('[SCORM 2004] SetValue:', element, '=', value);
-                return makeSCORMCall('SetValue', [element, value]); 
-            },
-            Commit: function(param) { 
-                console.log('[SCORM 2004] Commit called');
-                return makeSCORMCall('Commit', [param]); 
-            },
-            GetLastError: function() { return '0'; },
-            GetErrorString: function(code) { return 'No error'; },
-            GetDiagnostic: function(code) { return ''; }
-        };
-        
-        // CRITICAL: API Finder Functions for SCORM content
-        // These functions help SCORM content find the API in parent windows
-        function findAPI(win) {
-            var findAttempts = 0;
-            var maxAttempts = 500;
-            
-            while ((win.API == null) && (win.parent != null) && (win.parent != win)) {
-                findAttempts++;
-                if (findAttempts > maxAttempts) {
-                    console.log('[SCORM] API search exceeded max attempts');
-                    return null;
-                }
-                win = win.parent;
-            }
-            return win.API;
-        }
-        
-        function findAPI_1484_11(win) {
-            var findAttempts = 0;
-            var maxAttempts = 500;
-            
-            while ((win.API_1484_11 == null) && (win.parent != null) && (win.parent != win)) {
-                findAttempts++;
-                if (findAttempts > maxAttempts) {
-                    console.log('[SCORM] API_1484_11 search exceeded max attempts');
-                    return null;
-                }
-                win = win.parent;
-            }
-            return win.API_1484_11;
-        }
-        
-        function getAPI() {
-            var theAPI = findAPI(window);
-            if ((theAPI == null) && (window.opener != null) && (typeof(window.opener) != "undefined")) {
-                theAPI = findAPI(window.opener);
-            }
-            if (theAPI == null) {
-                console.log('[SCORM] Unable to find SCORM 1.2 API');
-            }
-            return theAPI;
-        }
-        
-        function getAPI_1484_11() {
-            var theAPI = findAPI_1484_11(window);
-            if ((theAPI == null) && (window.opener != null) && (typeof(window.opener) != "undefined")) {
-                theAPI = findAPI_1484_11(window.opener);
-            }
-            if (theAPI == null) {
-                console.log('[SCORM] Unable to find SCORM 2004 API');
-            }
-            return theAPI;
-        }
-        
-        // Expose API finder functions globally for SCORM content
-        window.getAPI = getAPI;
-        window.getAPI_1484_11 = getAPI_1484_11;
-        window.findAPI = findAPI;
-        window.findAPI_1484_11 = findAPI_1484_11;
-        
-        console.log('✅ Universal SCORM API ready!');
-        console.log('[SCORM] API available at window.API');
-        console.log('[SCORM] API_1484_11 available at window.API_1484_11');
-        console.log('[SCORM] API finder functions available: getAPI(), getAPI_1484_11()');
-        
-        // CRITICAL: Listen for postMessage from iframe content
-        window.addEventListener('message', function(event) {
-            try {
-                var data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-                
-                if (!data || typeof data !== 'object') {
-                    return;
-                }
-                
-                console.log('[SCORM] Received message from iframe:', data);
-                
-                if (data.type === 'SCORM_EXIT' || data.type === 'SCORM_FINISH' || data.type === 'SCORM_TERMINATE') {
-                    console.log('[SCORM] Exit action detected from iframe content');
-                    
-                    setTimeout(function() {
-                        const saveExitBtn = document.getElementById('saveExitBtn');
-                        if (saveExitBtn && !saveExitBtn.disabled) {
-                            console.log('[SCORM] Triggering Save & Exit from iframe message');
-                            saveExitBtn.click();
-                        }
-                    }, 500);
-                }
-                
-                if (data.type === 'SCORM_API_CALL' && data.method) {
-                    console.log('[SCORM] API call from iframe:', data.method, data.parameters);
-                    
-                    var result = makeSCORMCall(data.method, data.parameters || []);
-                    
-                    if (event.source && event.source.postMessage) {
-                        event.source.postMessage({
-                            type: 'SCORM_API_RESPONSE',
-                            method: data.method,
-                            result: result,
-                            requestId: data.requestId
-                        }, '*');
-                    }
-                }
-            } catch (e) {
-                if (e.name !== 'SyntaxError') {
-                    console.error('[SCORM] Error processing iframe message:', e);
-                }
-            }
-        }, false);
-        
-        console.log('[SCORM] PostMessage listener enabled for iframe communication');
-        
-    </script>
-
-    <div class="scorm-container">
-        <div id="loadingOverlay" class="loading-overlay">
-            <div class="spinner"></div>
-            <div class="loading-text">Loading SCORM content...</div>
+    
+    <div class="scorm-content">
+        <div class="loading-overlay" id="loading-overlay">
+            <div class="loading-spinner"></div>
+            <div style="color: white; margin-top: 20px; font-size: 14px;">Loading assessment content...</div>
         </div>
-        <iframe 
-            id="scormFrame"
-            name="scormFrame"
-            class="scorm-iframe" 
-            src="{{ content_url }}"
-            allow="fullscreen; autoplay; encrypted-media; scripts"
-            allowfullscreen="true"
-            webkitallowfullscreen="true"
-            mozallowfullscreen="true">
-        </iframe>
+        <iframe id="scorm-frame" 
+                src="{{ launch_url }}" 
+                allow="autoplay; fullscreen; camera; microphone; encrypted-media"
+                loading="eager"
+                importance="high"
+                sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads allow-modals"
+                referrerpolicy="no-referrer-when-downgrade"></iframe>
     </div>
+</div>
 
-    <script>
-        // Auto-save every 30 seconds
-        let autoSaveInterval = null;
-        let commitCount = 0;
-        let lastCompletionStatus = '';
-        let lastLessonStatus = '';
-        let hasAutoExited = false;
-        
-        function performAutoCommit() {
-            try {
-                if (window.API && window.API.LMSCommit) {
-                    const result = window.API.LMSCommit('');
-                    commitCount++;
-                    console.log(`[SCORM] Auto-commit #${commitCount} (1.2) - Result: ${result}`);
-                }
-                if (window.API_1484_11 && window.API_1484_11.Commit) {
-                    const result = window.API_1484_11.Commit('');
-                    console.log(`[SCORM] Auto-commit #${commitCount} (2004) - Result: ${result}`);
-                }
-            } catch (e) {
-                console.error('[SCORM] Error in auto-commit:', e);
+<script>
+// SCORM Real API - Connects to Django SCORM API endpoint
+(function() {
+    let sessionStartTime = Date.now();
+    let timeInterval = null;
+    let apiEndpoint = '{{ api_endpoint }}';
+    let csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+    
+    // Get CSRF token from cookies if not in form
+    if (!csrfToken) {
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            const [name, value] = cookie.trim().split('=');
+            if (name === 'csrftoken') {
+                csrfToken = value;
+                break;
             }
         }
-        
-        function checkCompletionStatus() {
-            try {
-                let shouldExit = false;
-                let reason = '';
-                
-                if (window.API && window.API.LMSGetValue) {
-                    const status = window.API.LMSGetValue('cmi.core.lesson_status');
-                    if (status && status !== lastLessonStatus) {
-                        console.log('[SCORM] Lesson status changed:', lastLessonStatus, '->', status);
-                        lastLessonStatus = status;
-                        
-                        if (status === 'completed' || status === 'passed' || status === 'failed') {
-                            shouldExit = true;
-                            reason = 'SCORM 1.2 status: ' + status;
-                        }
-                    }
+    }
+    
+    // Function to make API calls to Django backend
+    function callSCORMAPI(method, parameters = []) {
+        try {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', apiEndpoint, false); // Synchronous for SCORM compliance
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.setRequestHeader('X-CSRFToken', csrfToken);
+            
+            const data = JSON.stringify({
+                method: method,
+                parameters: parameters
+            });
+            
+            xhr.send(data);
+            
+            if (xhr.status === 200) {
+                const response = JSON.parse(xhr.responseText);
+                if (response.success) {
+                    return response.result;
+                } else {
+                    console.error('SCORM API Error:', response.error);
+                    return 'false';
                 }
-                
-                if (window.API_1484_11 && window.API_1484_11.GetValue) {
-                    const completion = window.API_1484_11.GetValue('cmi.completion_status');
-                    const success = window.API_1484_11.GetValue('cmi.success_status');
-                    
-                    if (completion && completion !== lastCompletionStatus) {
-                        console.log('[SCORM] Completion status changed:', lastCompletionStatus, '->', completion);
-                        lastCompletionStatus = completion;
-                        
-                        if (completion === 'completed' || success === 'passed' || success === 'failed') {
-                            shouldExit = true;
-                            reason = 'SCORM 2004 completion: ' + completion + ', success: ' + success;
-                        }
-                    }
-                }
-                
-                if (shouldExit && !hasAutoExited) {
-                    console.log('[SCORM] Auto-exit triggered:', reason);
-                    hasAutoExited = true;
-                    
-                    setTimeout(function() {
-                        console.log('[SCORM] Content marked as complete, waiting 3 seconds before auto-exit...');
-                    }, 3000);
-                }
-            } catch (e) {
-                console.error('[SCORM] Error checking completion status:', e);
-            }
-        }
-        
-        // Start auto-save after iframe loads
-        document.getElementById('scormFrame').addEventListener('load', function() {
-            console.log('✅ SCORM content loaded');
-            
-            // Hide loading overlay
-            const loadingOverlay = document.getElementById('loadingOverlay');
-            if (loadingOverlay) {
-                loadingOverlay.classList.add('hidden');
-                setTimeout(function() {
-                    loadingOverlay.style.display = 'none';
-                }, 300);
-            }
-            
-            // Enable periodic auto-save
-            if (!autoSaveInterval) {
-                autoSaveInterval = setInterval(function() {
-                    performAutoCommit();
-                    checkCompletionStatus();
-                }, 30000);
-                console.log('[SCORM] Auto-save enabled: saving every 30 seconds');
-            }
-            
-            // Also check completion status every 5 seconds for faster exit detection
-            setInterval(checkCompletionStatus, 5000);
-            
-            console.log('[SCORM] Content loaded. Progress will auto-save every 30 seconds.');
-            
-            // Try to inject exit button detector into iframe (if not cross-origin)
-            try {
-                const iframe = document.getElementById('scormFrame');
-                const iframeWindow = iframe.contentWindow;
-                const iframeDocument = iframe.contentDocument || iframeWindow.document;
-                
-                if (iframeDocument) {
-                    console.log('[SCORM] Injecting exit button detector...');
-                    
-                    const script = iframeDocument.createElement('script');
-                    script.textContent = `
-                        (function() {
-                            console.log('[SCORM Content] Exit detector initialized');
-                            
-                            function detectExitAction(event) {
-                                var target = event.target;
-                                var text = target.textContent || target.innerText || target.value || '';
-                                var href = target.href || '';
-                                var onclick = target.getAttribute('onclick') || '';
-                                
-                                text = text.toLowerCase().trim();
-                                href = href.toLowerCase();
-                                onclick = onclick.toLowerCase();
-                                
-                                var isExitButton = (
-                                    text.includes('exit') ||
-                                    text.includes('close') ||
-                                    text.includes('finish') ||
-                                    text.includes('complete') ||
-                                    text.includes('done') ||
-                                    href.includes('exit') ||
-                                    onclick.includes('exit') ||
-                                    onclick.includes('close')
-                                );
-                                
-                                if (isExitButton) {
-                                    console.log('[SCORM Content] Exit button detected:', text, href);
-                                    
-                                    try {
-                                        window.parent.postMessage({
-                                            type: 'SCORM_EXIT',
-                                            source: 'exit_button_click',
-                                            text: text
-                                        }, '*');
-                                    } catch (e) {
-                                        console.error('[SCORM Content] Failed to notify parent:', e);
-                                    }
-                                }
-                            }
-                            
-                            document.addEventListener('click', detectExitAction, true);
-                            
-                            var originalFinish = window.API && window.API.LMSFinish;
-                            if (originalFinish) {
-                                window.API.LMSFinish = function() {
-                                    console.log('[SCORM Content] LMSFinish intercepted');
-                                    window.parent.postMessage({ type: 'SCORM_FINISH' }, '*');
-                                    return originalFinish.apply(this, arguments);
-                                };
-                            }
-                            
-                            var originalTerminate = window.API_1484_11 && window.API_1484_11.Terminate;
-                            if (originalTerminate) {
-                                window.API_1484_11.Terminate = function() {
-                                    console.log('[SCORM Content] Terminate intercepted');
-                                    window.parent.postMessage({ type: 'SCORM_TERMINATE' }, '*');
-                                    return originalTerminate.apply(this, arguments);
-                                };
-                            }
-                        })();
-                    `;
-                    
-                    iframeDocument.head.appendChild(script);
-                    console.log('[SCORM] Exit button detector injected successfully');
-                }
-            } catch (crossOriginError) {
-                console.warn('[SCORM] Could not inject exit detector (cross-origin):', crossOriginError.message);
-                console.log('[SCORM] Relying on SCORM API calls for exit detection');
-            }
-        });
-        
-        // Save & Exit button handler
-        function attachSaveExitButton() {
-            const saveExitBtn = document.getElementById('saveExitBtn');
-            if (saveExitBtn && !saveExitBtn.hasAttribute('data-listener-attached')) {
-                saveExitBtn.addEventListener('click', function() {
-                    console.log('[SCORM] Save & Exit');
-                    
-                    saveExitBtn.disabled = true;
-                    saveExitBtn.textContent = 'Saving...';
-                    
-                    // Clear auto-save interval
-                    if (autoSaveInterval) {
-                        clearInterval(autoSaveInterval);
-                    }
-                    
-                    // CRITICAL FIX: Initialize SCORM API if not already initialized
-                    // Some SCORM content doesn't call Initialize, so we need to do it manually
-                    try {
-                        if (window.API && window.API.LMSInitialize) {
-                            const initResult = window.API.LMSInitialize('');
-                            console.log('[SCORM] Manual Initialize result:', initResult);
-                        }
-                        if (window.API_1484_11 && window.API_1484_11.Initialize) {
-                            const initResult = window.API_1484_11.Initialize('');
-                            console.log('[SCORM 2004] Manual Initialize result:', initResult);
-                        }
-                    } catch (e) {
-                        console.warn('[SCORM] Initialize warning:', e);
-                    }
-                    
-                    // Now try to commit
-                    try {
-                        if (window.API && window.API.LMSCommit) {
-                            const commitResult = window.API.LMSCommit('');
-                            console.log('[SCORM] SCORM 1.2 data committed, result:', commitResult);
-                        }
-                        if (window.API_1484_11 && window.API_1484_11.Commit) {
-                            const commitResult = window.API_1484_11.Commit('');
-                            console.log('[SCORM] SCORM 2004 data committed, result:', commitResult);
-                        }
-                    } catch (e) {
-                        console.error('[SCORM] Commit error:', e);
-                    }
-                    
-                    // Force final commit
-                    function forceFinalCommit() {
-                        return new Promise(function(resolve) {
-                            console.log('[SCORM] Forcing final commit before sync...');
-                            
-                            try {
-                                let capturedData = {
-                                    location: '',
-                                    suspend: '',
-                                    status: '',
-                                    score: ''
-                                };
-                                
-                                // Try to access SCORM API from iframe content
-                                try {
-                                    const scormFrame = document.getElementById('scormFrame');
-                                    if (scormFrame && scormFrame.contentWindow) {
-                                        const frameAPI = scormFrame.contentWindow.API || scormFrame.contentWindow.API_1484_11;
-                                        if (frameAPI) {
-                                            console.log('[SCORM] Found API in iframe, reading current state...');
-                                            if (frameAPI.LMSGetValue) {
-                                                capturedData.location = frameAPI.LMSGetValue('cmi.core.lesson_location') || '';
-                                                capturedData.suspend = frameAPI.LMSGetValue('cmi.suspend_data') || '';
-                                                capturedData.status = frameAPI.LMSGetValue('cmi.core.lesson_status') || '';
-                                                capturedData.score = frameAPI.LMSGetValue('cmi.core.score.raw') || '';
-                                            } else if (frameAPI.GetValue) {
-                                                capturedData.location = frameAPI.GetValue('cmi.location') || '';
-                                                capturedData.suspend = frameAPI.GetValue('cmi.suspend_data') || '';
-                                                capturedData.status = frameAPI.GetValue('cmi.completion_status') || '';
-                                                capturedData.score = frameAPI.GetValue('cmi.score.raw') || '';
-                                            }
-                                            console.log('[SCORM] Captured from iframe:', {
-                                                location: capturedData.location,
-                                                suspendLength: capturedData.suspend.length,
-                                                status: capturedData.status,
-                                                score: capturedData.score
-                                            });
-                                        }
-                                    }
-                                } catch (iframeError) {
-                                    console.warn('[SCORM] Could not access iframe API (cross-origin?):', iframeError);
-                                }
-                                
-                                // Force capture lesson_location before exit
-                                if (window.API && window.API.LMSGetValue && window.API.LMSSetValue) {
-                                    const currentLocation = window.API.LMSGetValue('cmi.core.lesson_location') || capturedData.location;
-                                    if (currentLocation && currentLocation !== '') {
-                                        console.log('[SCORM] Forcing lesson_location save:', currentLocation);
-                                        window.API.LMSSetValue('cmi.core.lesson_location', currentLocation);
-                                    }
-                                    
-                                    const currentSuspend = window.API.LMSGetValue('cmi.suspend_data') || capturedData.suspend;
-                                    if (currentSuspend && currentSuspend !== '') {
-                                        console.log('[SCORM] Forcing suspend_data save: ' + currentSuspend.length + ' chars');
-                                        window.API.LMSSetValue('cmi.suspend_data', currentSuspend);
-                                    }
-                                }
-                                if (window.API_1484_11 && window.API_1484_11.GetValue && window.API_1484_11.SetValue) {
-                                    const currentLocation = window.API_1484_11.GetValue('cmi.location') || capturedData.location;
-                                    if (currentLocation && currentLocation !== '') {
-                                        console.log('[SCORM] Forcing lesson_location save (2004):', currentLocation);
-                                        window.API_1484_11.SetValue('cmi.location', currentLocation);
-                                    }
-                                    
-                                    const currentSuspend = window.API_1484_11.GetValue('cmi.suspend_data') || capturedData.suspend;
-                                    if (currentSuspend && currentSuspend !== '') {
-                                        console.log('[SCORM] Forcing suspend_data save (2004): ' + currentSuspend.length + ' chars');
-                                        window.API_1484_11.SetValue('cmi.suspend_data', currentSuspend);
-                                    }
-                                }
-                                
-                                // CRITICAL FIX: Sequential commits with proper timing
-                                // Each commit needs to complete before the next one starts
-                                console.log('[SCORM] Starting sequential commits...');
-                                
-                                if (window.API && window.API.LMSCommit) {
-                                    console.log('[SCORM] Commit 1/3...');
-                                    const commitResult1 = window.API.LMSCommit('');
-                                    console.log('[SCORM] Commit 1 result:', commitResult1);
-                                    
-                                    setTimeout(function() {
-                                        console.log('[SCORM] Commit 2/3...');
-                                        const commitResult2 = window.API.LMSCommit('');
-                                        console.log('[SCORM] Commit 2 result:', commitResult2);
-                                        
-                                        setTimeout(function() {
-                                            console.log('[SCORM] Commit 3/3...');
-                                            const commitResult3 = window.API.LMSCommit('');
-                                            console.log('[SCORM] Commit 3 result:', commitResult3);
-                                        }, 300);
-                                    }, 300);
-                                }
-                                
-                                if (window.API_1484_11 && window.API_1484_11.Commit) {
-                                    console.log('[SCORM 2004] Commit 1/3...');
-                                    const commitResult1 = window.API_1484_11.Commit('');
-                                    console.log('[SCORM 2004] Commit 1 result:', commitResult1);
-                                    
-                                    setTimeout(function() {
-                                        console.log('[SCORM 2004] Commit 2/3...');
-                                        const commitResult2 = window.API_1484_11.Commit('');
-                                        console.log('[SCORM 2004] Commit 2 result:', commitResult2);
-                                        
-                                        setTimeout(function() {
-                                            console.log('[SCORM 2004] Commit 3/3...');
-                                            const commitResult3 = window.API_1484_11.Commit('');
-                                            console.log('[SCORM 2004] Commit 3 result:', commitResult3);
-                                        }, 300);
-                                    }, 300);
-                                }
-                                
-                                // CRITICAL FIX: Wait longer to ensure all commits complete
-                                // 3 commits × 300ms delay + 500ms buffer = 1400ms total
-                                console.log('[SCORM] Waiting 1500ms for all commits to complete...');
-                                setTimeout(resolve, 1500);
-                            } catch (e) {
-                                console.error('[SCORM] Error in final commit:', e);
-                                setTimeout(resolve, 400);
-                            }
-                        });
-                    }
-                    
-                    // Verify data before sync
-                    function verifyDataBeforeSync() {
-                        console.log('[SCORM] Verifying data before database sync...');
-                        
-                        let verification = {
-                            hasLocation: false,
-                            hasSuspend: false,
-                            hasStatus: false,
-                            locationValue: '',
-                            suspendLength: 0,
-                            statusValue: ''
-                        };
-                        
-                        try {
-                            if (window.API && window.API.LMSGetValue) {
-                                verification.locationValue = window.API.LMSGetValue('cmi.core.lesson_location') || '';
-                                verification.suspendLength = (window.API.LMSGetValue('cmi.suspend_data') || '').length;
-                                verification.statusValue = window.API.LMSGetValue('cmi.core.lesson_status') || '';
-                                verification.hasLocation = verification.locationValue !== '';
-                                verification.hasSuspend = verification.suspendLength > 0;
-                                verification.hasStatus = verification.statusValue !== '' && verification.statusValue !== 'not attempted';
-                            } else if (window.API_1484_11 && window.API_1484_11.GetValue) {
-                                verification.locationValue = window.API_1484_11.GetValue('cmi.location') || '';
-                                verification.suspendLength = (window.API_1484_11.GetValue('cmi.suspend_data') || '').length;
-                                verification.statusValue = window.API_1484_11.GetValue('cmi.completion_status') || '';
-                                verification.hasLocation = verification.locationValue !== '';
-                                verification.hasSuspend = verification.suspendLength > 0;
-                                verification.hasStatus = verification.statusValue !== '' && verification.statusValue !== 'incomplete';
-                            }
-                            
-                            console.log('[SCORM] Data verification results:', verification);
-                            
-                            if (verification.hasSuspend || verification.hasLocation) {
-                                console.log('✅ [SCORM] Data verification PASSED - ready to sync');
-                                return true;
-                            } else {
-                                console.warn('⚠️ [SCORM] Data verification FAILED - no bookmark or suspend data found');
-                                return false;
-                            }
-                        } catch (e) {
-                            console.error('[SCORM] Error during data verification:', e);
-                            return false;
-                        }
-                    }
-                    
-                    // Sync to database
-                    function syncWithRetry(retryCount = 0) {
-                        // CRITICAL FIX: Verify data before syncing, but limit retries to prevent infinite loop
-                        const dataVerified = verifyDataBeforeSync();
-                        if (!dataVerified && retryCount < 3) {
-                            console.warn('[SCORM] Data not verified, retry ' + (retryCount + 1) + '/3...');
-                            setTimeout(function() {
-                                syncWithRetry(retryCount + 1);
-                            }, 500);
-                            return;
-                        }
-                        
-                        // After 3 retries, proceed anyway (might be preview or content didn't track)
-                        if (!dataVerified && retryCount >= 3) {
-                            console.warn('⚠️ [SCORM] Proceeding with sync after 3 failed verifications');
-                            console.warn('⚠️ [SCORM] This usually means the SCORM content did not send tracking data');
-                        }
-                        
-                        console.log('[SCORM] Starting database sync... (attempt ' + (retryCount + 1) + ')');
-                        
-                        const attemptId = '{{ attempt.id|default:attempt_id }}';
-                        console.log('[SCORM] Syncing attempt ID:', attemptId);
-                        
-                        const formData = new URLSearchParams();
-                        formData.append('attempt_id', attemptId);
-                        
-                        fetch('{% url "scorm:sync_on_exit" %}', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/x-www-form-urlencoded',
-                                'X-CSRFToken': '{{ csrf_token }}'
-                            },
-                            body: formData.toString()
-                        })
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error('HTTP ' + response.status);
-                            }
-                            return response.json();
-                        })
-                        .then(data => {
-                            console.log('✅ [SCORM] Database sync successful:', data);
-                            
-                            // CRITICAL FIX: Verify data was actually saved before redirecting
-                            const dataIntegrity = {
-                                hasSuspendData: data.suspend_data_length > 0,
-                                hasBookmark: data.bookmark_length > 0,
-                                hasProgress: data.progress > 0,
-                                hasStatus: data.status && data.status !== 'not_attempted'
-                            };
-                            
-                            console.log('📊 [SCORM] Data integrity check:', dataIntegrity);
-                            const passedChecks = Object.values(dataIntegrity).filter(Boolean).length;
-                            
-                            if (passedChecks > 0) {
-                                console.log('✅ [SCORM] Data integrity PASSED (' + passedChecks + '/4 checks)');
-                                console.log('📍 [SCORM] Bookmark saved: ' + (data.bookmark_length || 0) + ' chars');
-                                console.log('💾 [SCORM] Suspend data saved: ' + (data.suspend_data_length || 0) + ' chars');
-                                console.log('📈 [SCORM] Progress saved: ' + (data.progress || 0) + '%');
-                                console.log('✅ [SCORM] Status saved: ' + (data.status || 'not_attempted'));
-                                
-                                saveExitBtn.textContent = '✅ All Data Saved!';
-                                
-                                // Wait a bit longer to ensure database transaction is fully committed
-                                setTimeout(function() {
-                                    console.log('🔄 [SCORM] Redirecting to topic view...');
-                                    window.location.href = '{% url "courses:topic_view" topic.id %}';
-                                }, 1500);
-                            } else {
-                                console.warn('⚠️ [SCORM] Data integrity check FAILED - no data was saved');
-                                console.warn('⚠️ [SCORM] This might indicate the SCORM content did not send any tracking data');
-                                
-                                saveExitBtn.textContent = '⚠️ No data to save';
-                                
-                                // Still redirect, but inform user
-                                setTimeout(function() {
-                                    console.log('🔄 [SCORM] Redirecting anyway (no data to save)...');
-                                    window.location.href = '{% url "courses:topic_view" topic.id %}';
-                                }, 2000);
-                            }
-                        })
-                        .catch(error => {
-                            console.error('[SCORM] Database sync error:', error);
-                            
-                            if (retryCount < 2) {
-                                console.log('[SCORM] Retrying sync in 1 second...');
-                                saveExitBtn.textContent = 'Retrying...';
-                                setTimeout(function() {
-                                    syncWithRetry(retryCount + 1);
-                                }, 1000);
-                            } else {
-                                console.error('[SCORM] All sync attempts failed, redirecting anyway');
-                                saveExitBtn.textContent = 'Sync failed - Redirecting...';
-                                setTimeout(function() {
-                                    window.location.href = '{% url "courses:topic_view" topic.id %}';
-                                }, 1500);
-                            }
-                        });
-                    }
-                    
-                    // Force final commit before sync
-                    forceFinalCommit().then(function() {
-                        syncWithRetry();
-                    });
-                });
-                saveExitBtn.setAttribute('data-listener-attached', 'true');
-                console.log('[SCORM] Save & Exit button listener attached');
-            }
-        }
-        
-        // Attach button with retry logic
-        let retryCount = 0;
-        const maxRetries = 50;
-        
-        function attachWithRetry() {
-            const saveExitBtn = document.getElementById('saveExitBtn');
-            if (saveExitBtn) {
-                attachSaveExitButton();
-            } else if (retryCount < maxRetries) {
-                retryCount++;
-                setTimeout(attachWithRetry, 100);
             } else {
-                console.error('[SCORM] Save & Exit button not found after maximum retries');
+                console.error('SCORM API HTTP Error:', xhr.status);
+                return 'false';
+            }
+        } catch (error) {
+            console.error('SCORM API Exception:', error);
+            return 'false';
+        }
+    }
+    
+    // Create the real SCORM API that communicates with Django
+    const realAPI = {
+        // SCORM 1.2 API
+        LMSInitialize: function(param) { 
+            console.log('SCORM API: LMSInitialize called');
+            updateStatus('Initializing...', true);
+            startTimer();
+            const result = callSCORMAPI('Initialize', [param]);
+            if (result === 'true') {
+                updateStatus('Content Initialized', true);
+            }
+            return result;
+        },
+        LMSFinish: function(param) { 
+            console.log('🏁 SCORM API: LMSFinish called');
+            const result = callSCORMAPI('Terminate', [param]);
+            if (result === 'true') {
+                updateStatus('Content Finished', false);
+                stopTimer();
+            }
+            return result;
+        },
+        LMSGetValue: function(element) { 
+            console.log('📖 SCORM API: LMSGetValue(' + element + ')');
+            return callSCORMAPI('GetValue', [element]);
+        },
+        LMSSetValue: function(element, value) { 
+            console.log('💾 SCORM API: LMSSetValue(' + element + ', ' + value + ')');
+            return callSCORMAPI('SetValue', [element, value]);
+        },
+        LMSCommit: function(param) { 
+            console.log('SCORM API: LMSCommit called');
+            return callSCORMAPI('Commit', [param]);
+        },
+        LMSGetLastError: function() { 
+            return callSCORMAPI('GetLastError', []);
+        },
+        LMSGetErrorString: function(errorCode) { 
+            return callSCORMAPI('GetErrorString', [errorCode]);
+        },
+        LMSGetDiagnostic: function(errorCode) { 
+            return callSCORMAPI('GetDiagnostic', [errorCode]);
+        },
+        
+        // SCORM 2004 API (aliases)
+        Initialize: function(param) { return this.LMSInitialize(param); },
+        Terminate: function(param) { return this.LMSFinish(param); },
+        GetValue: function(element) { return this.LMSGetValue(element); },
+        SetValue: function(element, value) { return this.LMSSetValue(element, value); },
+        Commit: function(param) { return this.LMSCommit(param); },
+        GetLastError: function() { return this.LMSGetLastError(); },
+        GetErrorString: function(errorCode) { return this.LMSGetErrorString(errorCode); },
+        GetDiagnostic: function(errorCode) { return this.LMSGetDiagnostic(errorCode); }
+    };
+    
+    // Expose the real API globally for SCORM content to find
+    window.API = realAPI;
+    window.API_1484_11 = realAPI;
+    
+    console.log('🔗 SCORM Real API created and connected to Django backend');
+    
+    // Update status display
+    function updateStatus(text, active) {
+        const statusText = document.getElementById('status-text');
+        const statusDot = document.getElementById('connection-status');
+        
+        if (statusText) statusText.textContent = text;
+        if (statusDot) {
+            if (active) {
+                statusDot.classList.add('active');
+            } else {
+                statusDot.classList.remove('active');
             }
         }
+    }
+    
+    // Timer functions
+    function startTimer() {
+        if (timeInterval) return;
         
-        // Attach immediately if DOM ready, otherwise wait for DOMContentLoaded
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', attachWithRetry);
-        } else {
-            attachWithRetry();
+        timeInterval = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - sessionStartTime) / 1000);
+            const hours = Math.floor(elapsed / 3600);
+            const minutes = Math.floor((elapsed % 3600) / 60);
+            const seconds = elapsed % 60;
+            
+            const display = document.getElementById('time-display');
+            if (display) {
+                display.textContent = 
+                    `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            }
+        }, 1000);
+    }
+    
+    function stopTimer() {
+        if (timeInterval) {
+            clearInterval(timeInterval);
+            timeInterval = null;
         }
-        
-        // Auto-save on page unload
-        window.addEventListener('beforeunload', function() {
-            if (autoSaveInterval) {
-                clearInterval(autoSaveInterval);
+    }
+    
+    // Exit player
+    window.exitPlayer = function() {
+        if (confirm('Are you sure you want to exit? Your progress will be saved.')) {
+            console.log('🚪 EXIT: User initiated exit');
+            
+            // Force the SCORM content to finish and save data
+            try {
+                // Try to get the SCORM API from the iframe
+                const iframe = document.getElementById('scorm-frame');
+                if (iframe && iframe.contentWindow && iframe.contentWindow.API) {
+                    const API = iframe.contentWindow.API;
+                    console.log('📝 EXIT: Calling LMSCommit to save pending data');
+                    API.LMSCommit('');
+                    console.log('🏁 EXIT: Calling LMSFinish to terminate session');
+                    API.LMSFinish('');
+                } else {
+                    // Call our API stub
+                    console.log('📝 EXIT: Using parent API to save data');
+                    if (window.API_1484_11 && window.API_1484_11.Commit) {
+                        window.API_1484_11.Commit('');
+                        window.API_1484_11.Terminate('');
+                    } else if (window.API && window.API.LMSCommit) {
+                        window.API.LMSCommit('');
+                        window.API.LMSFinish('');
+                    }
+                }
+            } catch (e) {
+                console.error('❌ EXIT: Error saving SCORM data:', e);
             }
             
-            try {
-                if (window.API && window.API.LMSCommit) window.API.LMSCommit('');
-                if (window.API_1484_11 && window.API_1484_11.Commit) window.API_1484_11.Commit('');
-            } catch (e) {
-                console.error('[SCORM] Auto-save error:', e);
-            }
-        });
+            stopTimer();
+            
+            // Small delay to ensure API calls complete
+            setTimeout(() => {
+                window.location.href = '{% url "courses:topic_view" topic.id %}';
+            }, 500);
+        }
+    };
+    
+    // Auto-save when page is about to unload (user closes tab, navigates away, etc)
+    window.addEventListener('beforeunload', function(e) {
+        console.log('⚠️ UNLOAD: Page is closing, attempting to save SCORM data');
         
-        // Visibility change handler
-        document.addEventListener('visibilitychange', function() {
-            if (document.hidden) {
-                console.log('[SCORM] Tab hidden - saving data...');
-                performAutoCommit();
+        try {
+            // Try to commit any pending data
+            const iframe = document.getElementById('scorm-frame');
+            if (iframe && iframe.contentWindow && iframe.contentWindow.API) {
+                const API = iframe.contentWindow.API;
+                console.log('📝 UNLOAD: Calling LMSCommit');
+                API.LMSCommit('');
+            } else if (window.API_1484_11 && window.API_1484_11.Commit) {
+                window.API_1484_11.Commit('');
+            } else if (window.API && window.API.LMSCommit) {
+                window.API.LMSCommit('');
             }
-        });
-    </script>
+        } catch (err) {
+            console.error('❌ UNLOAD: Error saving data:', err);
+        }
+    });
+    
+    // Handle iframe load
+    const scormFrame = document.getElementById('scorm-frame');
+    let loadTimeout;
+    
+    scormFrame.addEventListener('load', function() {
+        clearTimeout(loadTimeout);
+        const loadingOverlay = document.getElementById('loading-overlay');
+        if (loadingOverlay) {
+            loadingOverlay.classList.add('hidden');
+        }
+        
+        updateStatus('Ready', true);
+        
+        console.log('SCORM content loaded with stub API available');
+    });
+    
+    // Add timeout for loading - increased for complex SCORM packages
+    loadTimeout = setTimeout(() => {
+        console.info('SCORM content is still loading - large course packages may take longer');
+        updateStatus('Loading course content (this may take a moment for large courses)...', true);
+    }, 15000);
+    
+    // Add additional status update for very large packages
+    setTimeout(() => {
+        if (loadTimeout) {
+            updateStatus('Loading assessment questions and resources...', true);
+        }
+    }, 5000);
+    
+    // Handle iframe errors
+    scormFrame.addEventListener('error', function(e) {
+        console.error('SCORM frame error:', e);
+        updateStatus('Error loading content', false);
+        const loadingOverlay = document.getElementById('loading-overlay');
+        if (loadingOverlay) {
+            loadingOverlay.innerHTML = '<div style="color: white; text-align: center;"><h3>Error Loading SCORM Content</h3><p>Please refresh the page or contact support.</p></div>';
+        }
+    });
+    
+    // Initial status
+    updateStatus('Loading content...', true);
+    
+    // Auto-save mechanism: periodically commit SCORM data
+    // This ensures scores are saved even if SCORM content doesn't call Commit properly
+    let autoSaveInterval = setInterval(() => {
+        try {
+            // Try to commit any pending data from the iframe
+            const iframe = document.getElementById('scorm-frame');
+            if (iframe && iframe.contentWindow && iframe.contentWindow.API) {
+                const API = iframe.contentWindow.API;
+                // Check if there's an active session
+                if (API.initialized || (API.LMSGetValue && API.LMSGetValue('cmi.core.lesson_status'))) {
+                    console.log('💾 AUTO-SAVE: Committing SCORM data');
+                    API.LMSCommit('');
+                }
+            } else if (window.API && window.API.LMSCommit) {
+                console.log('💾 AUTO-SAVE: Committing via parent API');
+                window.API.LMSCommit('');
+            } else if (window.API_1484_11 && window.API_1484_11.Commit) {
+                console.log('💾 AUTO-SAVE: Committing via SCORM 2004 API');
+                window.API_1484_11.Commit('');
+            }
+        } catch (err) {
+            console.debug('AUTO-SAVE: No active session or error:', err.message);
+        }
+    }, 30000); // Auto-save every 30 seconds
+    
+    // Clear auto-save on unload
+    window.addEventListener('beforeunload', function() {
+        if (autoSaveInterval) {
+            clearInterval(autoSaveInterval);
+        }
+    });
+    
+})();
+</script>
 </body>
 </html>

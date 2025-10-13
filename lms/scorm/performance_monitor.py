@@ -103,16 +103,16 @@ class SCORMPerformanceMonitor:
         recommendations = []
         
         if avg_load_time > 5.0:
-            recommendations.append(" CRITICAL: Average load time is over 5 seconds")
+            recommendations.append("🔴 CRITICAL: Average load time is over 5 seconds")
             recommendations.append("   - Enable CloudFront CDN for S3 content")
             recommendations.append("   - Implement aggressive caching")
             recommendations.append("   - Optimize SCORM package size")
         elif avg_load_time > 3.0:
-            recommendations.append(" WARNING: Average load time is over 3 seconds")
+            recommendations.append("🟡 WARNING: Average load time is over 3 seconds")
             recommendations.append("   - Consider enabling CloudFront CDN")
             recommendations.append("   - Increase cache duration")
         else:
-            recommendations.append(" GOOD: Average load time is under 3 seconds")
+            recommendations.append("🟢 GOOD: Average load time is under 3 seconds")
         
         # Check for specific issues
         slow_tests = [test for test in successful_tests if test['load_time'] > 5.0]

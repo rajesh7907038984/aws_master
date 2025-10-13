@@ -72,7 +72,7 @@ class Command(BaseCommand):
         ).select_related('user', 'scorm_package__topic').order_by('user', 'scorm_package__topic', '-started_at')
         
         total_attempts = attempts_with_scores.count()
-        self.stdout.write(f" Found {total_attempts} SCORM attempts with scores")
+        self.stdout.write(f"📊 Found {total_attempts} SCORM attempts with scores")
         
         if total_attempts == 0:
             self.stdout.write(self.style.WARNING("No SCORM attempts with scores found"))
@@ -91,7 +91,7 @@ class Command(BaseCommand):
                 attempts_by_user_topic[key] = attempt
             # Keep the latest attempt (already ordered by -started_at)
         
-        self.stdout.write(f" Processing {len(attempts_by_user_topic)} unique user-topic combinations")
+        self.stdout.write(f"📋 Processing {len(attempts_by_user_topic)} unique user-topic combinations")
         
         for (user_id, topic_id), attempt in attempts_by_user_topic.items():
             try:
@@ -127,7 +127,7 @@ class Command(BaseCommand):
                     
                     if created:
                         self.stdout.write(
-                            f" Created TopicProgress for user {attempt.user.username}, topic {attempt.scorm_package.topic.title} "
+                            f"✅ Created TopicProgress for user {attempt.user.username}, topic {attempt.scorm_package.topic.title} "
                             f"with score {attempt.score_raw}"
                         )
                         created_count += 1
@@ -200,7 +200,7 @@ class Command(BaseCommand):
             except Exception as e:
                 self.stdout.write(
                     self.style.ERROR(
-                        f" Error processing attempt {attempt.id} for user {attempt.user.username}: {str(e)}"
+                        f"❌ Error processing attempt {attempt.id} for user {attempt.user.username}: {str(e)}"
                     )
                 )
                 error_count += 1
@@ -208,20 +208,20 @@ class Command(BaseCommand):
         
         # Summary
         self.stdout.write(self.style.SUCCESS("\n📈 SCORM Score Synchronization Complete!"))
-        self.stdout.write(f"   Created: {created_count}")
+        self.stdout.write(f"  ✅ Created: {created_count}")
         self.stdout.write(f"  🔄 Updated: {updated_count}")
         self.stdout.write(f"  ⏭️  Skipped: {skipped_count}")
         if error_count > 0:
-            self.stdout.write(self.style.ERROR(f"   Errors: {error_count}"))
+            self.stdout.write(self.style.ERROR(f"  ❌ Errors: {error_count}"))
         
         total_processed = created_count + updated_count + skipped_count
-        self.stdout.write(f"   Total processed: {total_processed}")
+        self.stdout.write(f"  📊 Total processed: {total_processed}")
         
         if dry_run:
             self.stdout.write(self.style.WARNING("\n⚠️  This was a DRY RUN - no changes were made to the database"))
             self.stdout.write("Run without --dry-run to apply these changes")
         else:
-            self.stdout.write(self.style.SUCCESS(f"\n Successfully synchronized {created_count + updated_count} SCORM scores"))
+            self.stdout.write(self.style.SUCCESS(f"\n✅ Successfully synchronized {created_count + updated_count} SCORM scores"))
             
             # Clear caches
             from django.core.cache import cache

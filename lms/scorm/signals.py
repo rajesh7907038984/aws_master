@@ -12,40 +12,8 @@ from django.dispatch import receiver
 from django.core.cache import cache
 from django.utils import timezone
 from .dynamic_score_processor import auto_process_scorm_score
-from .package_analyzer import ScormPackageAnalyzer
 
 logger = logging.getLogger(__name__)
-
-
-@receiver(post_save, sender='scorm.ScormPackage')
-def auto_analyze_scorm_package(sender, instance, created, **kwargs):
-    """
-    Automatically analyze new SCORM packages to ensure auto-scoring is enabled
-    """
-    if created:
-        try:
-            logger.info(f" Auto-analyzing new SCORM package: {instance.title}")
-            
-            # Get manifest content for analysis
-            manifest_content = None
-            if instance.manifest_data:
-                manifest_content = instance.manifest_data.get('raw_manifest', '')
-            
-            # Analyze package
-            package_metadata = ScormPackageAnalyzer.analyze_package(
-                instance.manifest_data or {},
-                manifest_content
-            )
-            
-            # Update package metadata
-            instance.package_metadata = package_metadata
-            instance.save()
-            
-            auto_scoring = package_metadata.get('needs_auto_scoring', False)
-            logger.info(f" Package analysis complete - Auto-scoring: {auto_scoring}")
-            
-        except Exception as e:
-            logger.error(f" Failed to auto-analyze package {instance.id}: {str(e)}")
 
 
 @receiver(post_save, sender='scorm.ScormAttempt')
@@ -78,12 +46,12 @@ def dynamic_score_processor(sender, instance, created, **kwargs):
         success = ScormScoreSyncService.sync_score(instance)
         
         if success:
-            logger.info(f" SYNC: Successfully synchronized score for attempt {instance.id}")
+            logger.info(f"✅ SYNC: Successfully synchronized score for attempt {instance.id}")
         else:
             logger.info(f"ℹ️  SYNC: No score synchronization needed for attempt {instance.id}")
         
     except Exception as e:
-        logger.error(f" SYNC: Error synchronizing attempt {instance.id}: {str(e)}")
+        logger.error(f"❌ SYNC: Error synchronizing attempt {instance.id}: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
     finally:
@@ -226,11 +194,10 @@ def _update_topic_progress(attempt, score_value):
         
         # CRITICAL FIX: Only update scores when SCORM is completed
         # Check completion status
-        # FIXED: Mark as completed if passed, completed, OR failed (student attempted the content)
-        is_completed = attempt.lesson_status in ['passed', 'completed', 'failed']
+        is_completed = attempt.lesson_status in ['passed', 'failed', 'completed']
         
         if not is_completed:
-            logger.info(f" AUTO-EXTRACT: SCORM not completed yet (status: {attempt.lesson_status}) - skipping TopicProgress score update")
+            logger.info(f"📊 AUTO-EXTRACT: SCORM not completed yet (status: {attempt.lesson_status}) - skipping TopicProgress score update")
             return
         
         # Update last score
@@ -251,7 +218,7 @@ def _update_topic_progress(attempt, score_value):
         
         topic_progress.save()
         
-        logger.info(f" AUTO-EXTRACT: SCORM completed - Updated TopicProgress - last_score: {old_last} → {topic_progress.last_score}, best_score: {old_best} → {topic_progress.best_score}")
+        logger.info(f"📊 AUTO-EXTRACT: SCORM completed - Updated TopicProgress - last_score: {old_last} → {topic_progress.last_score}, best_score: {old_best} → {topic_progress.best_score}")
         
     except Exception as e:
         logger.error(f"Error updating TopicProgress: {e}")

@@ -215,17 +215,14 @@
         </div>
         <div class="scorm-actions">
             <a href="#" id="backToTopicBtn" class="btn btn-secondary" onclick="handleBackToTopic(event); return false;">
-                Save & Exit
+                ← Back to Topic
             </a>
         </div>
     </div>
     
-    <div class="scorm-note" style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 20px; margin: 0; font-size: 13px; color: #92400e;">
-        <strong>Note:</strong> Please use the "Save & Exit" button above to accurately save your progress. In some cases, the "Exit" option inside your course window may not work.
-    </div>
 
     <div class="scorm-container">
-        <div class="loading" id="loading">Loading SCORM content...</div>
+        <div class="loading" id="loading">⏳ Loading SCORM content...</div>
         <iframe 
             id="scormFrame"
             class="scorm-iframe" 
@@ -240,15 +237,8 @@
     <script>
         // SCORM API Integration
         const API_ENDPOINT = '{{ api_endpoint }}';
-        const ATTEMPT_ID = '{{ attempt.id|default:attempt_id }}';
+        const ATTEMPT_ID = '{{ attempt.id }}';
         const IS_PREVIEW = {{ preview_mode|yesno:"true,false" }};
-        
-        // Safety check for attempt ID
-        if (!ATTEMPT_ID || ATTEMPT_ID === 'None') {
-            console.error('CRITICAL: No valid attempt ID found');
-            alert('Error: Unable to initialize SCORM session. Please refresh the page and try again.');
-            window.location.href = '{% url "courses:topic_view" topic.id %}';
-        }
         
         // Track API calls for debugging
         let apiCallCount = 0;
@@ -261,132 +251,52 @@
         function createScormAPI() {
             return {
                 Initialize: function(param) {
-                    try {
-                        return makeApiCallSync('Initialize', [param]);
-                    } catch (error) {
-                        console.error('SCORM Initialize error:', error);
-                        return 'false';
-                    }
+                    return makeApiCallSync('Initialize', [param]);
                 },
                 LMSInitialize: function(param) {
-                    try {
-                        return makeApiCallSync('LMSInitialize', [param]);
-                    } catch (error) {
-                        console.error('SCORM LMSInitialize error:', error);
-                        return 'false';
-                    }
+                    return makeApiCallSync('LMSInitialize', [param]);
                 },
                 Terminate: function(param) {
-                    try {
-                        return makeApiCallSync('Terminate', [param]);
-                    } catch (error) {
-                        console.error('SCORM Terminate error:', error);
-                        return 'false';
-                    }
+                    return makeApiCallSync('Terminate', [param]);
                 },
                 LMSFinish: function(param) {
-                    try {
-                        return makeApiCallSync('LMSFinish', [param]);
-                    } catch (error) {
-                        console.error('SCORM LMSFinish error:', error);
-                        return 'false';
-                    }
+                    return makeApiCallSync('LMSFinish', [param]);
                 },
                 GetValue: function(element) {
-                    try {
-                        return makeApiCallWithCache('GetValue', [element]);
-                    } catch (error) {
-                        console.error('SCORM GetValue error:', error);
-                        return '';
-                    }
+                    return makeApiCallWithCache('GetValue', [element]);
                 },
                 LMSGetValue: function(element) {
-                    try {
-                        return makeApiCallWithCache('LMSGetValue', [element]);
-                    } catch (error) {
-                        console.error('SCORM LMSGetValue error:', error);
-                        return '';
-                    }
+                    return makeApiCallWithCache('LMSGetValue', [element]);
                 },
                 SetValue: function(element, value) {
-                    try {
-                        return makeApiCallSync('SetValue', [element, value]);
-                    } catch (error) {
-                        console.error('SCORM SetValue error:', error);
-                        return 'false';
-                    }
+                    return makeApiCallSync('SetValue', [element, value]);
                 },
                 LMSSetValue: function(element, value) {
-                    try {
-                        return makeApiCallSync('LMSSetValue', [element, value]);
-                    } catch (error) {
-                        console.error('SCORM LMSSetValue error:', error);
-                        return 'false';
-                    }
+                    return makeApiCallSync('LMSSetValue', [element, value]);
                 },
                 Commit: function(param) {
-                    try {
-                        return makeApiCallSync('Commit', [param]);
-                    } catch (error) {
-                        console.error('SCORM Commit error:', error);
-                        return 'false';
-                    }
+                    return makeApiCallSync('Commit', [param]);
                 },
                 LMSCommit: function(param) {
-                    try {
-                        return makeApiCallSync('LMSCommit', [param]);
-                    } catch (error) {
-                        console.error('SCORM LMSCommit error:', error);
-                        return 'false';
-                    }
+                    return makeApiCallSync('LMSCommit', [param]);
                 },
                 GetLastError: function() {
-                    try {
-                        return makeApiCallWithCache('GetLastError', []);
-                    } catch (error) {
-                        console.error('SCORM GetLastError error:', error);
-                        return '0';
-                    }
+                    return makeApiCallWithCache('GetLastError', []);
                 },
                 LMSGetLastError: function() {
-                    try {
-                        return makeApiCallWithCache('LMSGetLastError', []);
-                    } catch (error) {
-                        console.error('SCORM LMSGetLastError error:', error);
-                        return '0';
-                    }
+                    return makeApiCallWithCache('LMSGetLastError', []);
                 },
                 GetErrorString: function(errorCode) {
-                    try {
-                        return makeApiCallSync('GetErrorString', [errorCode]);
-                    } catch (error) {
-                        console.error('SCORM GetErrorString error:', error);
-                        return 'No error';
-                    }
+                    return makeApiCallSync('GetErrorString', [errorCode]);
                 },
                 LMSGetErrorString: function(errorCode) {
-                    try {
-                        return makeApiCallSync('LMSGetErrorString', [errorCode]);
-                    } catch (error) {
-                        console.error('SCORM LMSGetErrorString error:', error);
-                        return 'No error';
-                    }
+                    return makeApiCallSync('LMSGetErrorString', [errorCode]);
                 },
                 GetDiagnostic: function(errorCode) {
-                    try {
-                        return makeApiCallSync('GetDiagnostic', [errorCode]);
-                    } catch (error) {
-                        console.error('SCORM GetDiagnostic error:', error);
-                        return 'No error';
-                    }
+                    return makeApiCallSync('GetDiagnostic', [errorCode]);
                 },
                 LMSGetDiagnostic: function(errorCode) {
-                    try {
-                        return makeApiCallSync('LMSGetDiagnostic', [errorCode]);
-                    } catch (error) {
-                        console.error('SCORM LMSGetDiagnostic error:', error);
-                        return 'No error';
-                    }
+                    return makeApiCallSync('LMSGetDiagnostic', [errorCode]);
                 }
             };
         }
@@ -696,482 +606,9 @@
             } catch (e) {
                 // Cross-origin, can't inject directly
                 console.log('Cross-origin iframe, API will be available via parent window');
-                
-                // ENHANCED: For cross-origin SCORM content, use postMessage communication
-                setupCrossOriginExitHandling();
-            }
-            
-            // Start slide detection for slide-based SCORM content
-            setTimeout(() => {
-                detectSlideChanges();
-                console.log('Slide detection started for slide-based SCORM content');
-            }, 1000);
-            
-            // ENHANCED: Monitor iframe URL changes for completion pages
-            monitorIframeUrlChanges();
-            
-        // ENHANCED: Monitor slide progress for better tracking
-        monitorSlideProgress();
-        
-        // ENHANCED: Detect package type and set up specific monitoring based on metadata
-        detectAndSetupPackageSpecificMonitoring();
-        
-        // ENHANCED: Load existing section progress for sidebar indicators
-        loadExistingSectionProgress();
-            
-            // Add instant sync on user interaction
-            document.addEventListener('click', function() {
-                if (totalActiveSeconds > 0) {
-                    syncTimeToServer();
-                }
-            });
-            
-            document.addEventListener('keydown', function() {
-                if (totalActiveSeconds > 0) {
-                    syncTimeToServer();
-                }
-            });
-            
-            // Also sync when iframe content changes
-            const iframe = document.getElementById('scormFrame');
-            if (iframe) {
-                iframe.addEventListener('load', function() {
-                    setTimeout(() => {
-                        syncTimeToServer();
-                    }, 500);
-                });
             }
         }
         
-        // ENHANCED: Cross-origin exit handling for SCORM content
-        function setupCrossOriginExitHandling() {
-            console.log('🔧 Setting up cross-origin exit handling...');
-            
-            // Listen for messages from SCORM content
-            window.addEventListener('message', function(event) {
-                if (event.data && typeof event.data === 'object') {
-                    if (event.data.action === 'exit' || event.data.type === 'exit') {
-                        console.log(' Exit message received from SCORM content');
-                        handleBackToTopic({ preventDefault: function() {} });
-                    } else if (event.data.type === 'scorm_resume' && event.data.action === 'navigate_to_location') {
-                        console.log('RESUME: Received resume navigation request:', event.data.lesson_location);
-                        // Handle resume navigation from SCORM content
-                        if (event.data.lesson_location) {
-                            const iframe = document.getElementById('scormFrame');
-                            if (iframe) {
-                                iframe.src = event.data.lesson_location;
-                                console.log(' RESUME: Navigated iframe to resume location');
-                            }
-                        }
-                    }
-                } else if (event.data === 'exit') {
-                    console.log(' Exit message received from SCORM content (string)');
-                    handleBackToTopic({ preventDefault: function() {} });
-                }
-            });
-            
-            // Try to inject a simple exit handler into the iframe via postMessage
-            const iframe = document.getElementById('scormFrame');
-            if (iframe && iframe.contentWindow) {
-                try {
-                    // Send a message to the iframe with exit handling instructions
-                    iframe.contentWindow.postMessage({
-                        type: 'scorm_exit_handler',
-                        action: 'setup',
-                        exitFunction: `
-                            // Auto-detect and override exit buttons
-                            function setupExitButtons() {
-                                const buttons = document.querySelectorAll('button, input[type="button"], a[role="button"]');
-                                buttons.forEach(btn => {
-                                    const text = (btn.textContent || btn.value || '').toLowerCase();
-                                    if (text.includes('exit') || text.includes('move on') || text.includes('final assessment')) {
-                                        btn.onclick = function(e) {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            window.parent.postMessage({action: 'exit', type: 'exit'}, '*');
-                                            return false;
-                                        };
-                                        console.log('Exit button overridden:', btn);
-                                    }
-                                });
-                            }
-                            
-                            // Run immediately and on DOM changes
-                            setupExitButtons();
-                            const observer = new MutationObserver(setupExitButtons);
-                            observer.observe(document.body, { childList: true, subtree: true });
-                        `
-                    }, '*');
-                    
-                    console.log(' Cross-origin exit handler setup sent to iframe');
-                } catch (e) {
-                    console.log('Could not send exit handler to iframe:', e.message);
-                }
-            }
-        }
-        
-        // ENHANCED: Monitor slide progress and section completion for better tracking
-        function monitorSlideProgress() {
-            console.log(' Monitoring slide progress and section completion...');
-            
-            const iframe = document.getElementById('scormFrame');
-            if (!iframe) return;
-            
-            let lastSlideId = '';
-            let slideStartTime = Date.now();
-            let sectionProgress = {};
-            
-            // Monitor slide changes every 2 seconds
-            setInterval(() => {
-                try {
-                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                    if (!iframeDoc) return;
-                    
-                    // Look for slide indicators in the content
-                    const slideIndicators = iframeDoc.querySelectorAll('[data-slide], .slide, .slide-container, [class*="slide"]');
-                    let currentSlideId = '';
-                    
-                    if (slideIndicators.length > 0) {
-                        // Get the active/current slide
-                        const activeSlide = iframeDoc.querySelector('.slide.active, .slide.current, [data-slide].active, [data-slide].current');
-                        if (activeSlide) {
-                            currentSlideId = activeSlide.getAttribute('data-slide') || 
-                                           activeSlide.className || 
-                                           activeSlide.id || 
-                                           'slide_' + Array.from(slideIndicators).indexOf(activeSlide);
-                        } else {
-                            // Fallback: use first visible slide
-                            currentSlideId = slideIndicators[0].getAttribute('data-slide') || 
-                                           slideIndicators[0].className || 
-                                           slideIndicators[0].id || 
-                                           'slide_' + 0;
-                        }
-                    }
-                    
-                    // ENHANCED: Look for section completion indicators
-                    const sectionElements = iframeDoc.querySelectorAll('[data-section], .section, .lesson, [class*="section"], [class*="lesson"]');
-                    sectionElements.forEach(section => {
-                        const sectionId = section.getAttribute('data-section') || 
-                                        section.getAttribute('id') || 
-                                        section.className || 
-                                        'section_' + Array.from(sectionElements).indexOf(section);
-                        
-                        // Check if section is completed
-                        const isCompleted = section.classList.contains('completed') || 
-                                          section.classList.contains('finished') || 
-                                          section.classList.contains('passed') ||
-                                          section.getAttribute('data-completed') === 'true' ||
-                                          section.querySelector('.completed, .finished, .passed');
-                        
-                        if (isCompleted && !sectionProgress[sectionId]) {
-                            sectionProgress[sectionId] = {
-                                completed: true,
-                                timestamp: new Date().toISOString(),
-                                timeSpent: Math.round((Date.now() - slideStartTime) / 1000)
-                            };
-                            
-                            console.log(` Section completed: ${sectionId}`);
-                            
-                            // Update sidebar progress indicators
-                            updateSidebarProgress(sectionId, true);
-                        }
-                    });
-                    
-                    // If slide changed, track the time spent on previous slide
-                    if (currentSlideId && currentSlideId !== lastSlideId) {
-                        if (lastSlideId) {
-                            const timeSpent = Math.round((Date.now() - slideStartTime) / 1000);
-                            console.log(` Slide changed: ${lastSlideId} -> ${currentSlideId} (spent ${timeSpent}s)`);
-                            
-                            // Update slide time tracking
-                            if (window.slideTimeTracker) {
-                                window.slideTimeTracker[lastSlideId] = (window.slideTimeTracker[lastSlideId] || 0) + timeSpent;
-                            }
-                        }
-                        
-                        lastSlideId = currentSlideId;
-                        slideStartTime = Date.now();
-                    }
-                    
-                    // Update progress percentage based on slide completion
-                    if (window.slideTimeTracker && Object.keys(window.slideTimeTracker).length > 0) {
-                        const totalSlides = slideIndicators.length;
-                        const completedSlides = Object.keys(window.slideTimeTracker).length;
-                        const progressPercentage = totalSlides > 0 ? Math.round((completedSlides / totalSlides) * 100) : 0;
-                        
-                        console.log(` Progress: ${completedSlides}/${totalSlides} slides (${progressPercentage}%)`);
-                        
-                        // Update SCORM progress if available
-                        if (window.API && window.API.LMSSetValue) {
-                            window.API.LMSSetValue('cmi.core.lesson_status', progressPercentage >= 100 ? 'completed' : 'incomplete');
-                        }
-                    }
-                    
-                    // ENHANCED: Save section progress to suspend data
-                    if (Object.keys(sectionProgress).length > 0) {
-                        saveSectionProgress(sectionProgress);
-                    }
-                    
-                } catch (error) {
-                    console.log('Slide progress monitoring error:', error.message);
-                }
-            }, 2000);
-        }
-        
-        // ENHANCED: Update sidebar progress indicators
-        function updateSidebarProgress(sectionId, isCompleted) {
-            try {
-                // Look for sidebar elements that match the section
-                const sidebarElements = document.querySelectorAll('.sidebar-item, .nav-item, .section-item, [data-section-id]');
-                sidebarElements.forEach(element => {
-                    const elementId = element.getAttribute('data-section-id') || 
-                                    element.getAttribute('id') || 
-                                    element.textContent.toLowerCase().trim();
-                    
-                    if (elementId.includes(sectionId.toLowerCase()) || 
-                        sectionId.toLowerCase().includes(elementId)) {
-                        
-                        if (isCompleted) {
-                            // Add completed indicator
-                            element.classList.add('completed', 'section-completed');
-                            
-                            // Add blue tick or checkmark
-                            let indicator = element.querySelector('.progress-indicator, .completion-indicator');
-                            if (!indicator) {
-                                indicator = document.createElement('span');
-                                indicator.className = 'progress-indicator completed';
-                                indicator.innerHTML = '✓';
-                                indicator.style.color = '#007bff';
-                                indicator.style.fontWeight = 'bold';
-                                element.appendChild(indicator);
-                            }
-                            
-                            console.log(` Updated sidebar for section: ${sectionId}`);
-                        }
-                    }
-                });
-            } catch (error) {
-                console.log('Error updating sidebar progress:', error.message);
-            }
-        }
-        
-        // ENHANCED: Save section progress to SCORM data
-        function saveSectionProgress(sectionProgress) {
-            try {
-                if (window.API && window.API.LMSGetValue && window.API.LMSSetValue) {
-                    // Get current suspend data
-                    let suspendData = {};
-                    try {
-                        const currentSuspendData = window.API.LMSGetValue('cmi.suspend_data');
-                        if (currentSuspendData) {
-                            suspendData = JSON.parse(currentSuspendData);
-                        }
-                    } catch (e) {
-                        console.log('Could not parse current suspend data');
-                    }
-                    
-                    // Add section progress
-                    suspendData.sections = sectionProgress;
-                    suspendData.lastUpdated = new Date().toISOString();
-                    
-                    // Save back to SCORM
-                    window.API.LMSSetValue('cmi.suspend_data', JSON.stringify(suspendData));
-                    
-                    console.log(' Saved section progress to SCORM:', sectionProgress);
-                }
-            } catch (error) {
-                console.log('Error saving section progress:', error.message);
-            }
-        }
-        
-        // ENHANCED: Load existing section progress for sidebar indicators
-        function loadExistingSectionProgress() {
-            console.log(' Loading existing section progress...');
-            
-            try {
-                if (window.API && window.API.LMSGetValue) {
-                    // Get suspend data with section progress
-                    const suspendData = window.API.LMSGetValue('cmi.suspend_data');
-                    if (suspendData) {
-                        const parsedData = JSON.parse(suspendData);
-                        
-                        if (parsedData.sections) {
-                            console.log(' Found existing section progress:', parsedData.sections);
-                            
-                            // Update sidebar for each completed section
-                            Object.keys(parsedData.sections).forEach(sectionId => {
-                                const sectionData = parsedData.sections[sectionId];
-                                if (sectionData.completed) {
-                                    updateSidebarProgress(sectionId, true);
-                                    console.log(` Restored progress for section: ${sectionId}`);
-                                }
-                            });
-                        }
-                    }
-                }
-            } catch (error) {
-                console.log('Error loading existing section progress:', error.message);
-            }
-        }
-        
-        // ENHANCED: Detect and setup package-specific monitoring based on metadata
-        function detectAndSetupPackageSpecificMonitoring() {
-            console.log(' Setting up package-specific monitoring...');
-            
-            // Get package metadata from server
-            const packageMetadata = {{ scorm_package.package_metadata|default:"{}"|safe }};
-            const packageType = packageMetadata.package_type || 'unknown';
-            const scoringMethod = packageMetadata.scoring_method || 'unknown';
-            
-            console.log(' Package Metadata:', {
-                packageType: packageType,
-                scoringMethod: scoringMethod
-            });
-            
-            const iframe = document.getElementById('scormFrame');
-            if (!iframe) return;
-            
-            // Wait for iframe to load
-            iframe.onload = function() {
-                try {
-                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                    if (iframeDoc) {
-                        
-                        if (packageType === 'articulate_storyline' && scoringMethod === 'slide_completion') {
-                            // ARTICULATE STORYLINE: Enhanced slide monitoring
-                            console.log(' Setting up Articulate Storyline monitoring...');
-                            
-                            const storylineElements = iframeDoc.querySelectorAll('[class*="storyline"], [id*="storyline"], .slide, [data-slide], .scene, [data-scene]');
-                            
-                            if (storylineElements.length > 0) {
-                                console.log(' Articulate Storyline package detected with', storylineElements.length, 'slide elements');
-                                
-                                storylineElements.forEach((element, index) => {
-                                    const slideId = element.id || element.getAttribute('data-slide') || `storyline-slide-${index}`;
-                                    
-                                    // Monitor for slide completion indicators
-                                    const observer = new MutationObserver((mutations) => {
-                                        mutations.forEach((mutation) => {
-                                            if (mutation.type === 'attributes') {
-                                                const isCompleted = element.classList.contains('completed') || 
-                                                                 element.classList.contains('finished') || 
-                                                                 element.classList.contains('passed') ||
-                                                                 element.getAttribute('data-completed') === 'true';
-                                                
-                                                if (isCompleted) {
-                                                    console.log(' Storyline slide completed:', slideId);
-                                                    
-                                                    // Update slide time tracker
-                                                    if (!window.slideTimeTracker[slideId]) {
-                                                        window.slideTimeTracker[slideId] = 5000; // Minimum 5 seconds for completed slide
-                                                    }
-                                                    
-                                                    // Update SCORM status
-                                                    if (window.API && window.API.LMSSetValue) {
-                                                        window.API.LMSSetValue('cmi.core.lesson_status', 'incomplete');
-                                                    }
-                                                }
-                                            }
-                                        });
-                                    });
-                                    
-                                    observer.observe(element, { 
-                                        attributes: true, 
-                                        attributeFilter: ['class', 'data-completed', 'data-status'] 
-                                    });
-                                });
-                            }
-                            
-                        } else if (packageType === 'generic') {
-                            // GENERIC SCORM: Standard monitoring
-                            console.log(' Setting up generic SCORM monitoring...');
-                            
-                            // Generic SCORM packages use standard completion detection
-                            // No special slide monitoring needed
-                            
-                        } else {
-                            // UNKNOWN TYPE: Default monitoring
-                            console.log(' Setting up default monitoring for unknown package type...');
-                        }
-                    }
-                } catch (e) {
-                    console.log('Cannot access iframe for package-specific monitoring:', e.message);
-                }
-            };
-        }
-        
-        // ENHANCED: Monitor iframe URL changes for completion pages
-        function monitorIframeUrlChanges() {
-            console.log(' Monitoring iframe URL changes for completion pages...');
-            
-            const iframe = document.getElementById('scormFrame');
-            if (!iframe) return;
-            
-            let lastUrl = '';
-            
-            // Check for completion pages periodically
-            const checkCompletion = () => {
-                try {
-                    const currentUrl = iframe.contentWindow.location.href;
-                    if (currentUrl !== lastUrl) {
-                        lastUrl = currentUrl;
-                        console.log(' Iframe URL changed:', currentUrl);
-                        
-                        // ENHANCED: Check if this looks like a completion page for different SCORM types
-                        const completionPatterns = [
-                            /completion/i, /complete/i, /finished/i, /done/i,
-                            /final/i, /summary/i, /results/i, /assessment/i,
-                            /good job/i, /congratulations/i, /well done/i,
-                            /slide.*complete/i, /lesson.*complete/i, /module.*complete/i,
-                            /end.*course/i, /course.*complete/i, /training.*complete/i
-                        ];
-                        
-                        const isCompletionPage = completionPatterns.some(pattern => 
-                            pattern.test(currentUrl) || pattern.test(document.title)
-                        );
-                        
-                        if (isCompletionPage) {
-                            console.log(' Completion page detected! Setting up exit button override...');
-                            
-                            // Try to override exit buttons on completion page
-                            setTimeout(() => {
-                                try {
-                                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                                    if (iframeDoc) {
-                                        const buttons = iframeDoc.querySelectorAll('button, input[type="button"], a[role="button"]');
-                                        buttons.forEach(btn => {
-                                            const text = (btn.textContent || btn.value || '').toLowerCase();
-                                            if (text.includes('exit') || text.includes('move on') || text.includes('final assessment')) {
-                                                btn.onclick = function(e) {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    console.log(' Exit button clicked - triggering Save & Exit');
-                                                    handleBackToTopic({ preventDefault: function() {} });
-                                                    return false;
-                                                };
-                                                console.log(' Exit button overridden:', btn);
-                                            }
-                                        });
-                                    }
-                                } catch (e) {
-                                    console.log('Could not access iframe content for exit button override');
-                                }
-                            }, 1000);
-                        }
-                    }
-                } catch (e) {
-                    // Cross-origin access denied - this is expected
-                }
-            };
-            
-            // Check every 2 seconds
-            setInterval(checkCompletion, 2000);
-            
-            // Also check on iframe load events
-            iframe.addEventListener('load', () => {
-                setTimeout(checkCompletion, 500);
-            });
-        }
         
         // Disabled asset preloading for better initial load performance
         function preloadSCORMAssets() {
@@ -1218,20 +655,9 @@
                 // Set API on iframe window
                 const iframeWindow = doc.defaultView || doc.parentWindow;
                 if (iframeWindow) {
-                    try {
-                        // Test if we can access the iframe window and it's not cross-origin
-                        const iframe = document.getElementById('scormFrame');
-                        if (iframe && iframe.contentWindow && 
-                            iframe.contentWindow.location.origin === window.location.origin) {
-                            iframeWindow.API = api;
-                            iframeWindow.API_1484_11 = api;
-                            console.log('SCORM API injected into iframe');
-                        } else {
-                            console.log('Cannot inject SCORM API - iframe is cross-origin');
-                        }
-                    } catch (e) {
-                        console.log('Cannot inject SCORM API into iframe (cross-origin):', e.message);
-                    }
+                    iframeWindow.API = api;
+                    iframeWindow.API_1484_11 = api;
+                    console.log('SCORM API injected into iframe');
                     
                     // Also inject bookmark data if available
                     injectBookmarkData(iframeWindow);
@@ -1239,13 +665,13 @@
                     // Add enhanced exit button communication helpers
                     // This allows SCORM content to easily trigger exit via: window.scormExit() or parent.scormExit()
                     iframeWindow.scormExit = function() {
-                        console.log(' scormExit() called from SCORM iframe - triggering Save & Exit...');
+                        console.log('🚪 scormExit() called from SCORM iframe - triggering Back to Topic...');
                         try {
                             // Commit data (don't terminate for resume capability)
                             if (window.parent && window.parent.API) {
                                 if (window.parent.API.LMSCommit) {
                                     window.parent.API.LMSCommit('');
-                                    console.log(' SCORM data committed');
+                                    console.log('✅ SCORM data committed');
                                 }
                                 if (window.parent.API_1484_11 && window.parent.API_1484_11.Commit) {
                                     window.parent.API_1484_11.Commit('');
@@ -1254,14 +680,14 @@
                             // Send exit message to parent
                             window.parent.postMessage({ action: 'exit', type: 'exit' }, '*');
                         } catch (error) {
-                            console.error(' Error in scormExit:', error);
+                            console.error('❌ Error in scormExit:', error);
                             window.parent.postMessage('exit', '*');
                         }
                     };
                     
                     // Also add a completion helper for when assessment is truly complete
                     iframeWindow.scormComplete = function() {
-                        console.log(' scormComplete() called from SCORM iframe - marking as complete...');
+                        console.log('✅ scormComplete() called from SCORM iframe - marking as complete...');
                         try {
                             // Commit and terminate session
                             if (window.parent && window.parent.API) {
@@ -1283,13 +709,13 @@
                             // Send completion message to parent
                             window.parent.postMessage({ action: 'complete', type: 'assessment_complete' }, '*');
                         } catch (error) {
-                            console.error(' Error in scormComplete:', error);
+                            console.error('❌ Error in scormComplete:', error);
                             window.parent.postMessage('complete_assessment', '*');
                         }
                     };
                     
                     // Log that helpers are available
-                    console.log(' SCORM helpers injected: window.scormExit() and window.scormComplete() are available in iframe');
+                    console.log('✅ SCORM helpers injected: window.scormExit() and window.scormComplete() are available in iframe');
                 }
             } catch (e) {
                 console.log('Could not inject API into iframe:', e.message);
@@ -1314,7 +740,7 @@
                 bookmarkElements.forEach(element => {
                     makeApiCall('GetValue', [element]).then(result => {
                         if (result && result !== '' && result !== 'false') {
-                            console.log(` RESUME: Injecting bookmark data: ${element} = ${result.substring(0, 100)}${result.length > 100 ? '...' : ''}`);
+                            console.log(`🔖 RESUME: Injecting bookmark data: ${element} = ${result.substring(0, 100)}${result.length > 100 ? '...' : ''}`);
                             hasBookmarkData = true;
                             
                             // Store in iframe window for immediate access
@@ -1325,47 +751,14 @@
                             if (element === 'cmi.core.lesson_location' || element === 'cmi.location') {
                                 lessonLocation = result;
                                 
-                                // ENHANCED: Navigate iframe to the bookmarked location for proper resume
+                                // Try to navigate iframe to the bookmarked location if it's a URL/path
+                                // This helps SCORM packages that don't properly handle lesson_location internally
                                 if (lessonLocation && lessonLocation.length > 0) {
-                                    console.log(' RESUME: Found lesson location:', lessonLocation);
-                                    
                                     // Check if it looks like a valid bookmark (contains file extension or anchor)
                                     if (lessonLocation.includes('.html') || lessonLocation.includes('#') || lessonLocation.includes('?')) {
-                                        console.log(' RESUME: Navigating iframe to bookmarked location:', lessonLocation);
-                                        
-                                        // Wait for iframe to be ready, then navigate
-                                        setTimeout(() => {
-                                            try {
-                                                const iframe = document.getElementById('scormFrame');
-                                                if (iframe && iframe.contentWindow) {
-                                                    // Construct the full URL for navigation
-                                                    let resumeUrl = lessonLocation;
-                                                    
-                                                    // If it's a relative path, make it absolute
-                                                    if (!resumeUrl.startsWith('http') && !resumeUrl.startsWith('/')) {
-                                                        const currentSrc = iframe.src;
-                                                        const baseUrl = currentSrc.substring(0, currentSrc.lastIndexOf('/') + 1);
-                                                        resumeUrl = baseUrl + resumeUrl;
-                                                    }
-                                                    
-                                                    console.log(' RESUME: Navigating to:', resumeUrl);
-                                                    
-                                                    // Navigate the iframe to the resume location
-                                                    iframe.src = resumeUrl;
-                                                    
-                                                    // Also try to set the location via postMessage for modern SCORM packages
-                                                    iframe.contentWindow.postMessage({
-                                                        type: 'scorm_resume',
-                                                        lesson_location: lessonLocation,
-                                                        action: 'navigate_to_location'
-                                                    }, '*');
-                                                    
-                                                    console.log(' RESUME: Iframe navigation initiated');
-                                                }
-                                            } catch (e) {
-                                                console.log('⚠️ RESUME: Could not navigate iframe:', e.message);
-                                            }
-                                        }, 1000); // Wait 1 second for iframe to be ready
+                                        console.log('🔖 RESUME: Attempting to navigate iframe to bookmarked location:', lessonLocation);
+                                        // Note: This will only work if the SCORM package structure allows direct navigation
+                                        // Most modern SCORM packages handle this internally via GetValue
                                     }
                                 }
                             }
@@ -1378,9 +771,9 @@
                 // Log if no bookmark data found
                 setTimeout(() => {
                     if (!hasBookmarkData) {
-                        console.log(' RESUME: No bookmark data found - starting from beginning');
+                        console.log('🔖 RESUME: No bookmark data found - starting from beginning');
                     } else {
-                        console.log(' RESUME: Bookmark data injected successfully. SCORM content should resume from saved location.');
+                        console.log('🔖 RESUME: Bookmark data injected successfully. SCORM content should resume from saved location.');
                     }
                 }, 500);
             } catch (e) {
@@ -1392,29 +785,13 @@
         window.API = createScormAPI();
         window.API_1484_11 = createScormAPI();
         
-        // Add defensive programming to handle null object errors
-        window.API._initialized = false;
-        window.API_1484_11._initialized = false;
-        
-        // OPTIMIZATION: Faster API initialization with better error handling
+        // OPTIMIZATION: Faster API initialization
         setTimeout(() => {
             if (window.API && !window.API._initialized) {
                 console.log('Auto-initializing SCORM API...');
-                try {
-                    const initResult = window.API.LMSInitialize('');
-                    console.log('SCORM 1.2 Initialize result:', initResult);
-                    window.API._initialized = true;
-                } catch (error) {
-                    console.error('SCORM 1.2 Initialize error:', error);
-                }
-                
-                try {
-                    const initResult2004 = window.API_1484_11.Initialize('');
-                    console.log('SCORM 2004 Initialize result:', initResult2004);
-                    window.API_1484_11._initialized = true;
-                } catch (error) {
-                    console.error('SCORM 2004 Initialize error:', error);
-                }
+                window.API.LMSInitialize('');
+                window.API_1484_11.Initialize('');
+                window.API._initialized = true;
             }
         }, 300); // Reduced from 1000ms to 300ms
         
@@ -1484,7 +861,7 @@
         
         // CRITICAL FIX: Force extract score from SCORM API state before exit (SECURE - no iframe access)
         function forceExtractScore() {
-            console.log(' Attempting to force extract score from SCORM API...');
+            console.log('🔍 Attempting to force extract score from SCORM API...');
             
             try {
                 let extractedScore = null;
@@ -1494,7 +871,7 @@
                     const scoreRaw = window.API._cache['cmi.core.score.raw'] || window.API._cache['cmi.score.raw'];
                     if (scoreRaw && scoreRaw !== '') {
                         extractedScore = parseFloat(scoreRaw);
-                        console.log(` Found score in API cache: ${extractedScore}`);
+                        console.log(`✅ Found score in API cache: ${extractedScore}`);
                     }
                 }
                 
@@ -1504,7 +881,7 @@
                         const scoreRaw = window.API.LMSGetValue('cmi.core.score.raw');
                         if (scoreRaw && scoreRaw !== '' && scoreRaw !== 'false') {
                             extractedScore = parseFloat(scoreRaw);
-                            console.log(` Found score via LMSGetValue: ${extractedScore}`);
+                            console.log(`✅ Found score via LMSGetValue: ${extractedScore}`);
                         }
                     } catch (e) {
                         console.log('LMSGetValue failed:', e.message);
@@ -1517,7 +894,7 @@
                         const scoreRaw = window.API_1484_11.GetValue('cmi.score.raw');
                         if (scoreRaw && scoreRaw !== '' && scoreRaw !== 'false') {
                             extractedScore = parseFloat(scoreRaw);
-                            console.log(` Found score via SCORM 2004 API: ${extractedScore}`);
+                            console.log(`✅ Found score via SCORM 2004 API: ${extractedScore}`);
                         }
                     } catch (e) {
                         console.log('SCORM 2004 GetValue failed:', e.message);
@@ -1526,7 +903,7 @@
                 
                 // If score found, ensure it's committed to database
                 if (extractedScore !== null && extractedScore >= 0 && extractedScore <= 100) {
-                    console.log(` Extracted score from SCORM API: ${extractedScore}`);
+                    console.log(`🎯 Extracted score from SCORM API: ${extractedScore}`);
                     
                     // Check if this is different from what's already stored
                     let currentScore = null;
@@ -1541,11 +918,11 @@
                     
                     // Score is already in SCORM API, just make sure it's committed
                     if (currentScore !== null && currentScore === extractedScore) {
-                        console.log(` Score ${currentScore} is already set in SCORM API`);
+                        console.log(`✅ Score ${currentScore} is already set in SCORM API`);
                         // Just commit to ensure it's saved
                         if (window.API && window.API._initialized) {
                             window.API.LMSCommit('');
-                            console.log(' Score committed to ensure database save');
+                            console.log('✅ Score committed to ensure database save');
                         }
                     }
                     
@@ -1560,16 +937,16 @@
                 return extractedScore;
                 
             } catch (error) {
-                console.error(' Error extracting score:', error);
+                console.error('❌ Error extracting score:', error);
                 return null;
             }
         }
         
-        // FIXED: Handle "Save & Exit" button click - save progress without forcing completion
+        // FIXED: Handle "Back to Topic" button click - save progress without forcing completion
         function handleBackToTopic(event) {
             event.preventDefault();
             isExiting = true;  // Flag that user is exiting properly
-            console.log(' Save & Exit button clicked - saving bookmark data for resume...');
+            console.log('🔖 Back to Topic button clicked - saving bookmark data for resume...');
             
             // Show user feedback
             const backBtn = document.getElementById('backToTopicBtn');
@@ -1598,19 +975,19 @@
                     // Set session_time via SCORM API - this will trigger _update_total_time on commit
                     if (window.API && window.API.LMSSetValue) {
                         window.API.LMSSetValue('cmi.core.session_time', sessionTime);
-                        console.log(' Set SCORM 1.2 session_time:', sessionTime);
+                        console.log('✅ Set SCORM 1.2 session_time:', sessionTime);
                     }
                     if (window.API_1484_11 && window.API_1484_11.SetValue) {
                         window.API_1484_11.SetValue('cmi.session_time', 'PT' + Math.floor(totalActiveSeconds / 3600) + 'H' + 
                                                     Math.floor((totalActiveSeconds % 3600) / 60) + 'M' + 
                                                     (totalActiveSeconds % 60) + 'S');
-                        console.log(' Set SCORM 2004 session_time');
+                        console.log('✅ Set SCORM 2004 session_time');
                     }
                 } else {
                     console.log('⏱️ No client-side time to sync (totalActiveSeconds:', typeof totalActiveSeconds !== 'undefined' ? totalActiveSeconds : 'undefined', ')');
                 }
             } catch (error) {
-                console.error(' Error setting session_time:', error);
+                console.error('❌ Error setting session_time:', error);
             }
             
             // CRITICAL: Force save current navigation state for resume
@@ -1625,7 +1002,7 @@
                 
                 // If SCORM content has set a location, use it
                 if (currentLocation && currentLocation !== '' && currentLocation !== 'false') {
-                    console.log(' Using lesson_location already set by SCORM content:', currentLocation);
+                    console.log('🔖 Using lesson_location already set by SCORM content:', currentLocation);
                 } else {
                     // Otherwise, try to extract from iframe URL
                     const iframe = document.getElementById('scormFrame'); // FIXED: Changed from 'scormContent' to 'scormFrame'
@@ -1638,7 +1015,7 @@
                             const urlParts = currentUrl.split('#');
                             if (urlParts.length > 1) {
                                 const bookmark = 'index.html#' + urlParts[1];
-                                console.log(' Extracted bookmark from iframe URL hash:', bookmark);
+                                console.log('🔖 Extracted bookmark from iframe URL hash:', bookmark);
                                 
                                 // Set lesson location for resume
                                 if (window.API && window.API.LMSSetValue) {
@@ -1652,7 +1029,7 @@
                                 const queryMatch = currentUrl.match(/[\?&]slide=([^&]+)/);
                                 if (queryMatch) {
                                     const bookmark = 'index.html?slide=' + queryMatch[1];
-                                    console.log(' Extracted bookmark from iframe URL query:', bookmark);
+                                    console.log('🔖 Extracted bookmark from iframe URL query:', bookmark);
                                     
                                     if (window.API && window.API.LMSSetValue) {
                                         window.API.LMSSetValue('cmi.core.lesson_location', bookmark);
@@ -1669,7 +1046,7 @@
                                     
                                     if (filename && filename !== 'index.html' && filename.length > 0) {
                                         const bookmark = filename + urlObj.search + urlObj.hash;
-                                        console.log(' Extracted bookmark from iframe pathname:', bookmark);
+                                        console.log('🔖 Extracted bookmark from iframe pathname:', bookmark);
                                         
                                         if (window.API && window.API.LMSSetValue) {
                                             window.API.LMSSetValue('cmi.core.lesson_location', bookmark);
@@ -1693,7 +1070,7 @@
             // Call SCORM commit (but NOT terminate) to save current progress for resume
             if (window.API && window.API._initialized) {
                 try {
-                    console.log(' Committing SCORM bookmark data for resume...');
+                    console.log('🔖 Committing SCORM bookmark data for resume...');
                     
                     // CRITICAL FIX: Calculate and set score for both quiz-based and slide-based SCORM content
                     try {
@@ -1703,119 +1080,15 @@
                             window.API_1484_11.GetValue('cmi.score.raw') : '';
                         let currentScore = scoreRaw12 || scoreRaw2004;
                         
-                        // ENHANCED: If no explicit score is set, try to calculate from slide completion or progress data
-                        // Handle different SCORM package types appropriately
+                        // If no explicit score is set, try to calculate from slide completion or progress data
                         if (!currentScore || currentScore === '' || currentScore === 'false') {
-                            console.log(' No explicit score found, checking for slide completion data...');
+                            console.log('📊 No explicit score found, checking for slide completion data...');
                             
-                            // PRIORITY 1: Check if we have actual results page score
-                            if (resultsPageDetected && actualScoreFromResults !== null) {
-                                currentScore = actualScoreFromResults;
-                                console.log(' Using actual score from results page: {}%'.format(actualScoreFromResults));
-                            } else {
-                                // Method 1: Try to extract from suspend_data (slide completion tracking)
-                                const suspendData12 = window.API.LMSGetValue ? window.API.LMSGetValue('cmi.core.suspend_data') : '';
-                                const suspendData2004 = window.API_1484_11 && window.API_1484_11.GetValue ? 
-                                    window.API_1484_11.GetValue('cmi.suspend_data') : '';
-                                const suspendData = suspendData12 || suspendData2004;
-                                
-                                // Check if we have client-side slide tracking data
-                                if (Object.keys(slideTimeTracker).length > 0) {
-                                    const totalSlides = Object.keys(slideTimeTracker).length;
-                                    const slidesWithTime = Object.values(slideTimeTracker).filter(time => time > 10).length; // Slides with >10 seconds
-                                    
-                                    // IMPROVED: More accurate progress calculation
-                                    let progressScore = 0;
-                                    
-                                    if (totalSlides > 0) {
-                                        // Calculate based on actual slide completion
-                                        progressScore = Math.round((slidesWithTime / totalSlides) * 100);
-                                        
-                                        // ENHANCED: Handle different SCORM package types for completion
-                                        // Use package metadata to determine the correct behavior
-                                        const packageMetadata = {{ scorm_package.package_metadata|default:"{}"|safe }};
-                                        const packageType = packageMetadata.package_type || 'unknown';
-                                        const scoringMethod = packageMetadata.scoring_method || 'unknown';
-                                        
-                                        // Determine if this is an Articulate Storyline package
-                                        const isArticulateStoryline = packageType === 'articulate_storyline' && 
-                                                                     scoringMethod === 'slide_completion';
-                                        
-                                        console.log(' Package Type Detection:', {
-                                            packageType: packageType,
-                                            scoringMethod: scoringMethod,
-                                            isArticulateStoryline: isArticulateStoryline
-                                        });
-                                        
-                                        if (isArticulateStoryline && progressScore < 100) {
-                                            console.log(' Articulate Storyline: Partial progress detected: {}% ({} slides completed out of {})'.format(progressScore, slidesWithTime, totalSlides));
-                                            console.log('⚠️ Not saving partial progress - user needs to complete all slides for final score');
-                                            
-                                            // For partial progress, don't set a final score
-                                            // Just track progress in suspend_data for resume
-                                            const progressData = {
-                                                totalSlides: totalSlides,
-                                                completedSlides: slidesWithTime,
-                                                progressPercentage: progressScore,
-                                                timestamp: new Date().toISOString(),
-                                                status: 'in_progress'
-                                            };
-                                            
-                                            if (window.API && window.API.LMSSetValue) {
-                                                window.API.LMSSetValue('cmi.suspend_data', JSON.stringify(progressData));
-                                                window.API.LMSSetValue('cmi.core.lesson_status', 'incomplete');
-                                                console.log(' Saved progress data for resume (not final score)');
-                                            }
-                                            
-                                            // Don't set currentScore for partial progress
-                                            currentScore = null;
-                                        } else if (packageType === 'generic' && progressScore >= 30) {
-                                            // For generic packages, allow partial completion (30% threshold)
-                                            currentScore = progressScore;
-                                            console.log(' Generic SCORM: Partial completion accepted: {}%'.format(progressScore));
-                                            
-                                            // Set lesson status based on score
-                                            if (window.API && window.API.LMSSetValue) {
-                                                if (progressScore >= 70) {
-                                                    window.API.LMSSetValue('cmi.core.lesson_status', 'passed');
-                                                } else {
-                                                    window.API.LMSSetValue('cmi.core.lesson_status', 'completed');
-                                                }
-                                            }
-                                        } else if (packageType === 'unknown' && progressScore >= 50) {
-                                            // For unknown packages, use default 50% threshold
-                                            currentScore = progressScore;
-                                            console.log(' Unknown SCORM: Partial completion accepted: {}%'.format(progressScore));
-                                            
-                                            // Set lesson status based on score
-                                            if (window.API && window.API.LMSSetValue) {
-                                                if (progressScore >= 70) {
-                                                    window.API.LMSSetValue('cmi.core.lesson_status', 'passed');
-                                                } else {
-                                                    window.API.LMSSetValue('cmi.core.lesson_status', 'completed');
-                                                }
-                                            }
-                                        } else {
-                                            // All slides completed - this is a valid final score
-                                            currentScore = 100;
-                                            console.log(' All slides completed - marking as PASSED (100%)');
-                                            
-                                            // Set lesson status to passed for slide-based content
-                                            if (window.API && window.API.LMSSetValue) {
-                                                window.API.LMSSetValue('cmi.core.lesson_status', 'passed');
-                                                window.API.LMSSetValue('cmi.core.score.raw', '100');
-                                                console.log(' Set lesson_status to passed and score to 100');
-                                            }
-                                            if (window.API_1484_11 && window.API_1484_11.SetValue) {
-                                                window.API_1484_11.SetValue('cmi.completion_status', 'completed');
-                                                window.API_1484_11.SetValue('cmi.success_status', 'passed');
-                                                window.API_1484_11.SetValue('cmi.score.raw', '100');
-                                                console.log(' Set SCORM 2004 completion and success status');
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            // Method 1: Try to extract from suspend_data (slide completion tracking)
+                            const suspendData12 = window.API.LMSGetValue ? window.API.LMSGetValue('cmi.core.suspend_data') : '';
+                            const suspendData2004 = window.API_1484_11 && window.API_1484_11.GetValue ? 
+                                window.API_1484_11.GetValue('cmi.suspend_data') : '';
+                            const suspendData = suspendData12 || suspendData2004;
                             
                             if (suspendData && suspendData.length > 10) {
                                 // Try to decode JSON-encoded suspend_data first
@@ -1825,7 +1098,7 @@
                                     if (suspendJson.d && Array.isArray(suspendJson.d)) {
                                         // Decode the data array to string
                                         decodedData = String.fromCharCode(...suspendJson.d.filter(x => x < 256));
-                                        console.log(' Decoded JSON suspend_data, length:', decodedData.length);
+                                        console.log('📊 Decoded JSON suspend_data, length:', decodedData.length);
                                     }
                                 } catch (e) {
                                     // If not JSON, use raw suspend_data
@@ -1846,7 +1119,7 @@
                                         const progressMatch = decodedData.match(pattern);
                                         if (progressMatch) {
                                             currentScore = progressMatch[1];
-                                            console.log(' Calculated score from progress in suspend_data:', currentScore);
+                                            console.log('📊 Calculated score from progress in suspend_data:', currentScore);
                                             break;
                                         }
                                     }
@@ -1877,7 +1150,7 @@
                                                     
                                                     if (total > 0) {
                                                         currentScore = Math.round((completed / total) * 100);
-                                                        console.log(' Calculated score from slides:', completed, '/', total, '=', currentScore + '%');
+                                                        console.log('📊 Calculated score from slides:', completed, '/', total, '=', currentScore + '%');
                                                         break;
                                                     }
                                                 } catch (e) {
@@ -1897,7 +1170,7 @@
                                     const progressValue = parseFloat(progressMeasure);
                                     if (!isNaN(progressValue) && progressValue >= 0 && progressValue <= 1) {
                                         currentScore = Math.round(progressValue * 100);
-                                        console.log(' Calculated score from progress_measure:', currentScore);
+                                        console.log('📊 Calculated score from progress_measure:', currentScore);
                                     }
                                 }
                             }
@@ -1913,7 +1186,7 @@
                                             // Estimate progress based on current slide (this is approximate)
                                             const estimatedTotal = 10; // Assume 10 slides total if we can't determine total
                                             currentScore = Math.min(Math.round((currentSlide / estimatedTotal) * 100), 100);
-                                            console.log(' Estimated score from lesson_location slide', currentSlide + ':', currentScore + '%');
+                                            console.log('📊 Estimated score from lesson_location slide', currentSlide + ':', currentScore + '%');
                                         }
                                     }
                                 }
@@ -1924,7 +1197,7 @@
                         if (currentScore && currentScore !== '' && currentScore !== 'false') {
                             const scoreValue = parseFloat(currentScore);
                             if (!isNaN(scoreValue) && scoreValue >= 0 && scoreValue <= 100) {
-                                console.log(' Setting score before exit:', scoreValue);
+                                console.log('📊 Setting score before exit:', scoreValue);
                                 
                                 // Force set the score to ensure it's saved
                                 if (window.API && window.API.LMSSetValue) {
@@ -1935,15 +1208,15 @@
                                     // Also set scaled score
                                     window.API_1484_11.SetValue('cmi.score.scaled', (scoreValue / 100).toString());
                                 }
-                                console.log(' Score set successfully');
+                                console.log('✅ Score set successfully');
                             } else {
                                 console.log('⚠️ Invalid score value:', scoreValue);
                             }
                         } else {
-                            console.log(' No score available to save');
+                            console.log('📊 No score available to save');
                         }
                     } catch (e) {
-                        console.error(' Error calculating/setting score:', e);
+                        console.error('❌ Error calculating/setting score:', e);
                     }
                     
                     // Only commit current data - don't terminate (which triggers completion logic)
@@ -1955,7 +1228,7 @@
                         console.log('SCORM 2004 Commit result:', commitResult2004);
                     }
                     
-                    console.log(' SCORM bookmark data saved for resume');
+                    console.log('✅ SCORM bookmark data saved for resume');
                     scormDataSaved = true;  // Mark that data has been saved
                     
                     // CRITICAL: Trigger backend sync to update TopicProgress with time/attempts
@@ -1965,31 +1238,31 @@
                             'Content-Type': 'application/x-www-form-urlencoded',
                             'X-CSRFToken': '{{ csrf_token }}'
                         },
-                        body: 'attempt_id={{ attempt.id|default:attempt_id }}'
+                        body: 'attempt_id={{ attempt.id }}'
                     })
                     .then(response => response.json())
                     .then(data => {
                         console.log('🔄 Backend sync result:', data);
                     })
                     .catch(error => {
-                        console.error(' Backend sync error:', error);
+                        console.error('❌ Backend sync error:', error);
                     })
                     .finally(() => {
                         // Redirect after sync attempt (success or failure)
                         setTimeout(() => {
-                            console.log(' Redirecting to topic view...');
+                            console.log('🔖 Redirecting to topic view...');
                             window.location.href = '{% url "courses:topic_view" topic.id %}';
                         }, 300);
                     });
                 } catch (error) {
-                    console.error(' SCORM Commit error:', error);
+                    console.error('❌ SCORM Commit error:', error);
                     // Still redirect even if commit fails
                     setTimeout(() => {
                         window.location.href = '{% url "courses:topic_view" topic.id %}';
                     }, 300);
                 }
             } else {
-                console.log(' SCORM API not initialized, triggering backend sync anyway...');
+                console.log('🔖 SCORM API not initialized, triggering backend sync anyway...');
                 
                 // Still trigger backend sync even if SCORM API wasn't initialized
                 fetch('{% url "scorm:sync_on_exit" %}', {
@@ -1998,14 +1271,14 @@
                         'Content-Type': 'application/x-www-form-urlencoded',
                         'X-CSRFToken': '{{ csrf_token }}'
                     },
-                    body: 'attempt_id={{ attempt.id|default:attempt_id }}'
+                    body: 'attempt_id={{ attempt.id }}'
                 })
                 .then(response => response.json())
                 .then(data => {
                     console.log('🔄 Backend sync result:', data);
                 })
                 .catch(error => {
-                    console.error(' Backend sync error:', error);
+                    console.error('❌ Backend sync error:', error);
                 })
                 .finally(() => {
                     window.location.href = '{% url "courses:topic_view" topic.id %}';
@@ -2028,14 +1301,14 @@
                 if (message === 'complete_assessment' || message === 'lesson_complete' || 
                     message === 'course_complete' || message.includes('quiz_complete') ||
                     message === 'scorm_complete' || message.includes('assessment_complete')) {
-                    console.log(' Received completion message from SCORM content:', event.data);
+                    console.log('✅ Received completion message from SCORM content:', event.data);
                     shouldComplete = true;
                 }
                 // Check for exit messages (save and go back without forcing completion)
                 else if (message.includes('exit') || message.includes('terminate') || 
                          message.includes('finish') || message.includes('close') || 
                          message === 'back' || message === 'return') {
-                    console.log(' Received exit message from SCORM content:', event.data);
+                    console.log('🚪 Received exit message from SCORM content:', event.data);
                     shouldExit = true;
                 }
             } else if (event.data && typeof event.data === 'object') {
@@ -2045,21 +1318,21 @@
                 if (event.data.action === 'complete' || event.data.action === 'course_complete' ||
                     event.data.type === 'assessment_complete' || event.data.type === 'lesson_complete' ||
                     event.data.status === 'completed' || event.data.completed === true) {
-                    console.log(' Received structured completion message from SCORM content:', event.data);
+                    console.log('✅ Received structured completion message from SCORM content:', event.data);
                     shouldComplete = true;
                 }
                 // Check for exit actions
                 else if (event.data.action === 'exit' || event.data.action === 'terminate' || 
                          event.data.action === 'finish' || event.data.action === 'close' ||
                          event.data.action === 'back' || event.data.type === 'exit') {
-                    console.log(' Received structured exit message from SCORM content:', event.data);
+                    console.log('🚪 Received structured exit message from SCORM content:', event.data);
                     shouldExit = true;
                 }
             }
             
             // Handle completion (terminate session and redirect)
             if (shouldComplete) {
-                console.log(' Processing completion request from SCORM content...');
+                console.log('✅ Processing completion request from SCORM content...');
                 
                 // FIXED: Don't force extract score - let SCORM content report score naturally
                 // For real completions, the SCORM content should have already set the score via SetValue
@@ -2099,11 +1372,11 @@
                     window.location.href = '{% url "courses:topic_view" topic.id %}';
                 }, 1000);
             }
-            // Handle exit (trigger Save & Exit functionality without completion)
+            // Handle exit (trigger Back to Topic functionality without completion)
             else if (shouldExit) {
-                console.log(' SCORM content exit button clicked - triggering Save & Exit functionality...');
+                console.log('🚪 SCORM content exit button clicked - triggering Back to Topic functionality...');
                 
-                // Trigger the same functionality as the Save & Exit button
+                // Trigger the same functionality as the Back to Topic button
                 // This will save progress, bookmark, and score without forcing completion
                 const fakeEvent = { preventDefault: function() {} };
                 handleBackToTopic(fakeEvent);
@@ -2116,7 +1389,7 @@
         
         // Add beforeunload event to capture score even when users close browser
         window.addEventListener('beforeunload', function(event) {
-            // If user is already exiting properly via Save & Exit, don't interfere
+            // If user is already exiting properly via Back to Topic, don't interfere
             if (isExiting || scormDataSaved) {
                 return;
             }
@@ -2135,7 +1408,7 @@
                         window.API_1484_11.Commit('');
                     }
                     
-                    console.log(' Emergency SCORM data save attempted');
+                    console.log('✅ Emergency SCORM data save attempted');
                     scormDataSaved = true;
                     
                     // Also try to force a synchronous API call to ensure data is sent
@@ -2147,12 +1420,12 @@
                         }));
                     }
                 } catch (error) {
-                    console.error(' Emergency SCORM save failed:', error);
+                    console.error('❌ Emergency SCORM save failed:', error);
                 }
             }
             
             // Show warning message to user  
-            const warningMessage = 'Note: Please use the "Save & Exit" button above to accurately save your progress. In some cases, the "Exit" option inside your course window may not work';
+            const warningMessage = '⚠️ WARNING: Closing this window directly may cause your quiz score and progress to be lost!\\n\\nTo ensure your score is saved properly, please click the "← Back to Topic" button instead.\\n\\nDo you really want to close without saving?';
             
             // Set the beforeunload message (browsers will show their own dialog)
             event.preventDefault();
@@ -2172,9 +1445,9 @@
                         if (window.API_1484_11) {
                             window.API_1484_11.Commit('');
                         }
-                        console.log(' Progress saved on page hide');
+                        console.log('✅ Progress saved on page hide');
                     } catch (error) {
-                        console.error(' Failed to save on page hide:', error);
+                        console.error('❌ Failed to save on page hide:', error);
                     }
                 }
             }
@@ -2342,18 +1615,11 @@
                     const iframeDoc = iframe.contentDocument;
                     const iframeWindow = iframe.contentWindow;
                     
-                    // Only inject if not cross-origin and iframe is accessible
-                    try {
-                        // Test if we can access the iframe content and it's not cross-origin
-                        if (iframeDoc.readyState === 'complete' && iframeWindow && 
-                            iframe.contentWindow.location.href !== 'about:blank' &&
-                            !iframe.contentWindow.location.href.startsWith('blob:') &&
-                            iframe.contentWindow.location.origin === window.location.origin) {
-                            // Inject comprehensive exit button handler script
-                            const script = iframeDoc.createElement('script');
-                            script.textContent = `
-                                (function() {
-                                    console.log('SCORM Exit Button Handler injected into iframe');
+                    // Inject comprehensive exit button handler script
+                    const script = iframeDoc.createElement('script');
+                    script.textContent = `
+                        (function() {
+                            console.log('SCORM Exit Button Handler injected into iframe');
                             
                             // Enhanced exit button detection and handling
                             function handleExitButtons() {
@@ -2388,24 +1654,11 @@
                                             const buttons = document.querySelectorAll(selector);
                                             buttons.forEach(button => {
                                                 const buttonText = button.textContent || button.value || '';
-                                                const buttonTitle = button.getAttribute('title') || '';
-                                                const buttonAriaLabel = button.getAttribute('aria-label') || '';
-                                                const buttonClass = button.className || '';
-                                                
-                                                // ENHANCED: More comprehensive exit button detection
                                                 if (buttonText.toLowerCase().includes('exit') || 
-                                                    buttonTitle.toLowerCase().includes('exit') ||
-                                                    buttonAriaLabel.toLowerCase().includes('exit') ||
-                                                    buttonClass.toLowerCase().includes('exit') ||
                                                     button.classList.contains('courseExit') ||
                                                     button.classList.contains('courseExit--standard') ||
                                                     button.getAttribute('data-action') === 'exit' ||
-                                                    button.getAttribute('data-exit') === 'true' ||
-                                                    // Check for completion page patterns
-                                                    buttonText.toLowerCase().includes('move on') ||
-                                                    buttonText.toLowerCase().includes('final assessment') ||
-                                                    buttonText.toLowerCase().includes('complete') ||
-                                                    buttonText.toLowerCase().includes('finish')) {
+                                                    button.getAttribute('data-exit') === 'true') {
                                                     
                                                     console.log('Found exit button in iframe:', button);
                                                     buttonsFound++;
@@ -2418,7 +1671,7 @@
                                                         e.preventDefault();
                                                         e.stopPropagation();
                                                         
-                                                        console.log(' EXIT button clicked in SCORM iframe - triggering Save & Exit...');
+                                                        console.log('🚪 EXIT button clicked in SCORM iframe - triggering Back to Topic...');
                                                         
                                                         // Show user feedback
                                                         const originalText = newButton.textContent || newButton.value;
@@ -2430,18 +1683,18 @@
                                                         try {
                                                             // Try to call parent window's SCORM API
                                                             if (window.parent && window.parent.API) {
-                                                                console.log(' Committing SCORM data (not terminating - for resume)...');
+                                                                console.log('🔖 Committing SCORM data (not terminating - for resume)...');
                                                                 
                                                                 // Only commit current progress - don't terminate
                                                                 if (window.parent.API.LMSCommit) {
                                                                     window.parent.API.LMSCommit('');
-                                                                    console.log(' SCORM 1.2 data committed');
+                                                                    console.log('✅ SCORM 1.2 data committed');
                                                                 }
                                                                 
                                                                 // Also commit SCORM 2004 if available
                                                                 if (window.parent.API_1484_11 && window.parent.API_1484_11.Commit) {
                                                                     window.parent.API_1484_11.Commit('');
-                                                                    console.log(' SCORM 2004 data committed');
+                                                                    console.log('✅ SCORM 2004 data committed');
                                                                 }
                                                                 
                                                                 // Send exit message to parent (not completion)
@@ -2451,13 +1704,13 @@
                                                                     type: 'exit'
                                                                 }, '*');
                                                                 
-                                                                console.log(' Exit message sent to parent - progress saved for resume');
+                                                                console.log('🚪 Exit message sent to parent - progress saved for resume');
                                                             } else {
                                                                 console.log('Parent SCORM API not available, sending exit message...');
                                                                 window.parent.postMessage('exit', '*');
                                                             }
                                                         } catch (error) {
-                                                            console.error(' Error calling SCORM API:', error);
+                                                            console.error('❌ Error calling SCORM API:', error);
                                                             // Still send exit message
                                                             window.parent.postMessage('exit', '*');
                                                         }
@@ -2503,15 +1756,7 @@
                     `;
                     iframeDoc.head.appendChild(script);
                     
-                            console.log('Enhanced exit button handler injected into iframe');
-                        } else {
-                            console.log('Cannot inject exit button handler - iframe not ready or cross-origin');
-                        }
-                    } catch (e) {
-                        console.log('Could not inject exit button handler into iframe (cross-origin):', e.message);
-                    }
-                } else {
-                    console.log('Cannot access iframe content - likely cross-origin');
+                    console.log('Enhanced exit button handler injected into iframe');
                 }
             } catch (e) {
                 console.log('Could not inject exit button handler into iframe (cross-origin):', e.message);
@@ -2531,12 +1776,6 @@
         let isPageVisible = !document.hidden;
         let heartbeatInterval = null;
         let lastSyncTime = null;
-        let slideStartTime = new Date();
-        let currentSlide = '';
-        let slideTimeTracker = {};
-        let syncDebounceTimer = null;
-        let resultsPageDetected = false;
-        let actualScoreFromResults = null;
         
         // Format seconds into SCORM time format (hhhh:mm:ss.ss)
         function formatScormTime(totalSeconds) {
@@ -2573,7 +1812,7 @@
                 }
             });
             
-            // Enhanced heartbeat: Update time every 10 seconds for better accuracy
+            // Heartbeat: Update time every 30 seconds
             heartbeatInterval = setInterval(function() {
                 if (isPageVisible) {
                     const now = new Date();
@@ -2583,329 +1822,29 @@
                         totalActiveSeconds += activeSeconds;
                         lastHeartbeatTime = now;
                         
-                        // Detect slide changes
-                        detectSlideChanges();
-                        
-                        // Track slide-specific time
-                        if (currentSlide) {
-                            if (!slideTimeTracker[currentSlide]) {
-                                slideTimeTracker[currentSlide] = 0;
-                            }
-                            slideTimeTracker[currentSlide] += activeSeconds;
-                        }
-                        
                         console.log('⏱️ Time tracking heartbeat: ' + formatTimeDisplay(totalActiveSeconds));
                         
-                        // Check slide completion on every heartbeat
-                        checkSlideCompletion();
-                        
-                        // Sync to server instantly for immediate time tracking
-                        syncTimeToServer();
-                        lastSyncTime = now;
+                        // Sync to server every 5 minutes
+                        if (!lastSyncTime || (now - lastSyncTime) > 300000) {
+                            syncTimeToServer();
+                            lastSyncTime = now;
+                        }
                     } else if (activeSeconds >= 60) {
                         // Large time gap detected - user probably idle
                         lastHeartbeatTime = now;
                     }
                 }
-            }, 10000); // Every 10 seconds for better accuracy
+            }, 30000); // Every 30 seconds
             
-            // Enhanced slide detection for slide-based SCORM content
-            function detectSlideChanges() {
-                try {
-                    const iframe = document.getElementById('scormFrame');
-                    if (iframe && iframe.contentWindow) {
-                        // Try to detect slide changes in iframe
-                        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                        if (iframeDoc) {
-                            // Look for common slide indicators
-                            const slideIndicators = [
-                                '.slide', '.slide-container', '.slide-wrapper',
-                                '.story-slide', '.story-slide-container',
-                                '[data-slide]', '[data-slide-id]',
-                                '.current-slide', '.active-slide'
-                            ];
-                            
-                            let newSlide = '';
-                            for (const selector of slideIndicators) {
-                                const element = iframeDoc.querySelector(selector);
-                                if (element) {
-                                    newSlide = element.getAttribute('data-slide') || 
-                                              element.getAttribute('data-slide-id') ||
-                                              element.className ||
-                                              selector;
-                                    break;
-                                }
-                            }
-                            
-                            // Also check URL hash changes
-                            if (!newSlide && iframe.contentWindow.location) {
-                                const hash = iframe.contentWindow.location.hash;
-                                if (hash && hash !== currentSlide) {
-                                    newSlide = hash;
-                                }
-                            }
-                            
-                            if (newSlide && newSlide !== currentSlide) {
-                                // Slide changed - track time spent on previous slide
-                                if (currentSlide && slideTimeTracker[currentSlide]) {
-                                    console.log(' Slide "{}" completed in {}s'.format(currentSlide, slideTimeTracker[currentSlide]));
-                                }
-                                
-                                currentSlide = newSlide;
-                                slideStartTime = new Date();
-                                console.log(' New slide detected: {}'.format(currentSlide));
-                                
-                                // Sync immediately when slide changes
-                                syncTimeToServer();
-                                
-                                // Check if all slides are completed (for slide-based content)
-                                checkSlideCompletion();
-                            }
-                        }
-                    }
-                } catch (e) {
-                    // Cross-origin or other issues - ignore
-                }
-            }
-            
-            // Detect results page and extract actual score
-            function detectResultsPage() {
-                try {
-                    const iframe = document.getElementById('scormFrame');
-                    if (iframe && iframe.contentWindow) {
-                        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                        if (iframeDoc) {
-                            // Look for common results page indicators
-                            const resultsIndicators = [
-                                '.results', '.result-page', '.completion-page',
-                                '.summary', '.score-page', '.final-page',
-                                '[data-results]', '[data-completion]',
-                                '.progress-complete', '.course-complete'
-                            ];
-                            
-                            let resultsElement = null;
-                            for (const selector of resultsIndicators) {
-                                resultsElement = iframeDoc.querySelector(selector);
-                                if (resultsElement) break;
-                            }
-                            
-                            // Also check for results in URL
-                            const currentUrl = iframe.contentWindow.location.href;
-                            const resultsUrlPatterns = [
-                                /results?/i, /completion/i, /summary/i, 
-                                /final/i, /complete/i, /score/i
-                            ];
-                            
-                            const isResultsUrl = resultsUrlPatterns.some(pattern => pattern.test(currentUrl));
-                            
-                            if (resultsElement || isResultsUrl) {
-                                console.log(' Results page detected!');
-                                resultsPageDetected = true;
-                                
-                                // Try to extract actual score from results page
-                                extractActualScore(iframeDoc, resultsElement);
-                            }
-                        }
-                    }
-                } catch (e) {
-                    // Cross-origin or other issues - ignore
-                }
-            }
-            
-            // Extract actual score from results page
-            function extractActualScore(doc, resultsElement) {
-                try {
-                    // Look for score patterns in various formats
-                    const scorePatterns = [
-                        // Percentage patterns
-                        /(\d+)%/, /(\d+)\s*percent/, /(\d+)\s*%/,
-                        // Score patterns  
-                        /score[:\s]*(\d+)/i, /result[:\s]*(\d+)/i,
-                        /completion[:\s]*(\d+)/i, /progress[:\s]*(\d+)/i,
-                        // Number patterns
-                        /(\d+)\s*out\s*of\s*(\d+)/i, /(\d+)\s*\/\s*(\d+)/i
-                    ];
-                    
-                    let extractedScore = null;
-                    
-                    // Search in results element first
-                    if (resultsElement) {
-                        const resultsText = resultsElement.textContent || resultsElement.innerText || '';
-                        for (const pattern of scorePatterns) {
-                            const match = resultsText.match(pattern);
-                            if (match) {
-                                if (match[2]) {
-                                    // Handle "X out of Y" format
-                                    extractedScore = Math.round((parseInt(match[1]) / parseInt(match[2])) * 100);
-                                } else {
-                                    extractedScore = parseInt(match[1]);
-                                }
-                                break;
-                            }
-                        }
-                    }
-                    
-                    // Search in entire document if not found in results element
-                    if (!extractedScore) {
-                        const docText = doc.body ? doc.body.textContent || doc.body.innerText : '';
-                        for (const pattern of scorePatterns) {
-                            const match = docText.match(pattern);
-                            if (match) {
-                                if (match[2]) {
-                                    extractedScore = Math.round((parseInt(match[1]) / parseInt(match[2])) * 100);
-                                } else {
-                                    extractedScore = parseInt(match[1]);
-                                }
-                                break;
-                            }
-                        }
-                    }
-                    
-                    // Also check for data attributes
-                    if (!extractedScore && resultsElement) {
-                        const dataScore = resultsElement.getAttribute('data-score') || 
-                                        resultsElement.getAttribute('data-completion') ||
-                                        resultsElement.getAttribute('data-result');
-                        if (dataScore) {
-                            extractedScore = parseInt(dataScore);
-                        }
-                    }
-                    
-                    if (extractedScore && extractedScore >= 0 && extractedScore <= 100) {
-                        actualScoreFromResults = extractedScore;
-                        console.log(' Actual score extracted from results page: {}%'.format(extractedScore));
-                        
-                        // Set the actual score in SCORM API
-                        if (window.API && window.API.LMSSetValue) {
-                            window.API.LMSSetValue('cmi.core.score.raw', extractedScore.toString());
-                            if (extractedScore >= 70) {
-                                window.API.LMSSetValue('cmi.core.lesson_status', 'passed');
-                            } else {
-                                window.API.LMSSetValue('cmi.core.lesson_status', 'failed');
-                            }
-                            console.log(' Set actual score in SCORM 1.2: {}%'.format(extractedScore));
-                        }
-                        
-                        if (window.API_1484_11 && window.API_1484_11.SetValue) {
-                            window.API_1484_11.SetValue('cmi.score.raw', extractedScore.toString());
-                            if (extractedScore >= 70) {
-                                window.API_1484_11.SetValue('cmi.completion_status', 'completed');
-                                window.API_1484_11.SetValue('cmi.success_status', 'passed');
-                            } else {
-                                window.API_1484_11.SetValue('cmi.completion_status', 'completed');
-                                window.API_1484_11.SetValue('cmi.success_status', 'failed');
-                            }
-                            console.log(' Set actual score in SCORM 2004: {}%'.format(extractedScore));
-                        }
-                        
-                        // Commit the actual score
-                        if (window.API && window.API.LMSCommit) {
-                            window.API.LMSCommit('');
-                        }
-                        if (window.API_1484_11 && window.API_1484_11.Commit) {
-                            window.API_1484_11.Commit('');
-                        }
-                        
-                        return true;
-                    }
-                } catch (error) {
-                    console.error(' Error extracting actual score:', error);
-                }
-                return false;
-            }
-            
-            // Check if all slides are completed for slide-based SCORM content
-            function checkSlideCompletion() {
-                try {
-                    // First check if we have actual results page score
-                    if (resultsPageDetected && actualScoreFromResults !== null) {
-                        console.log(' Using actual score from results page: {}%'.format(actualScoreFromResults));
-                        return; // Already handled in extractActualScore
-                    }
-                    
-                    // Check for results page first
-                    detectResultsPage();
-                    
-                    // If results page detected, don't override with slide completion
-                    if (resultsPageDetected) {
-                        return;
-                    }
-                    
-                    // Fallback to slide completion logic
-                    const totalSlides = Object.keys(slideTimeTracker).length;
-                    const slidesWithTime = Object.values(slideTimeTracker).filter(time => time > 10).length;
-                    
-                    if (totalSlides > 0) {
-                        const completionPercentage = Math.round((slidesWithTime / totalSlides) * 100);
-                        
-                        if (slidesWithTime >= totalSlides) {
-                            // All slides completed - mark as passed
-                            console.log(' All slides completed! Marking as PASSED (100%)');
-                            
-                            // Set score to 100%
-                            if (window.API && window.API.LMSSetValue) {
-                                window.API.LMSSetValue('cmi.core.score.raw', '100');
-                                window.API.LMSSetValue('cmi.core.lesson_status', 'passed');
-                                console.log(' Set SCORM 1.2: score=100, status=passed');
-                            }
-                            
-                            if (window.API_1484_11 && window.API_1484_11.SetValue) {
-                                window.API_1484_11.SetValue('cmi.score.raw', '100');
-                                window.API_1484_11.SetValue('cmi.completion_status', 'completed');
-                                window.API_1484_11.SetValue('cmi.success_status', 'passed');
-                                console.log(' Set SCORM 2004: score=100, completion=completed, success=passed');
-                            }
-                            
-                            // Commit the changes
-                            if (window.API && window.API.LMSCommit) {
-                                window.API.LMSCommit('');
-                            }
-                            if (window.API_1484_11 && window.API_1484_11.Commit) {
-                                window.API_1484_11.Commit('');
-                            }
-                            
-                            console.log(' SCORM content automatically marked as PASSED (100%)');
-                        } else {
-                            // Partial completion - don't set final score
-                            console.log(' Partial completion: {}% ({} slides completed out of {})'.format(completionPercentage, slidesWithTime, totalSlides));
-                            console.log('⚠️ Not setting final score for partial completion');
-                            
-                            // Save progress for resume but don't set final score
-                            const progressData = {
-                                                totalSlides: totalSlides,
-                                                completedSlides: slidesWithTime,
-                                                progressPercentage: completionPercentage,
-                                                timestamp: new Date().toISOString(),
-                                                status: 'in_progress'
-                                            };
-                            
-                            if (window.API && window.API.LMSSetValue) {
-                                window.API.LMSSetValue('cmi.suspend_data', JSON.stringify(progressData));
-                                window.API.LMSSetValue('cmi.core.lesson_status', 'incomplete');
-                                console.log(' Saved progress for resume (no final score)');
-                            }
-                        }
-                    }
-                } catch (error) {
-                    console.error(' Error checking slide completion:', error);
-                }
-            }
-            
-            // Sync time to server via custom endpoint with debounce
+            // Sync time to server via custom endpoint
             function syncTimeToServer() {
                 if (IS_PREVIEW) {
                     console.log('⏱️ Preview mode - skipping time sync');
                     return;
                 }
                 
-                // Debounce sync calls to avoid too many API requests
-                if (syncDebounceTimer) {
-                    clearTimeout(syncDebounceTimer);
-                }
-                
-                syncDebounceTimer = setTimeout(() => {
-                    const scormTime = formatScormTime(totalActiveSeconds);
-                    console.log('⏱️ Syncing time to server: ' + scormTime);
+                const scormTime = formatScormTime(totalActiveSeconds);
+                console.log('⏱️ Syncing time to server: ' + scormTime);
                 
                 // Send time via SCORM API if not already set by content
                 try {
@@ -2919,35 +1858,16 @@
                         if (window.API && window.API._initialized) {
                             // Set the session time
                             window.API.SetValue('cmi.core.session_time', scormTime);
-                            
-                            // Also set total time
-                            window.API.SetValue('cmi.core.total_time', scormTime);
-                            
-                            // Set lesson location for slide-based content
-                            if (currentSlide) {
-                                window.API.SetValue('cmi.core.lesson_location', currentSlide);
-                            }
-                            
-                            // Set suspend data with slide tracking info
-                            const slideData = {
-                                slides: slideTimeTracker,
-                                currentSlide: currentSlide,
-                                totalTime: totalActiveSeconds,
-                                timestamp: new Date().toISOString()
-                            };
-                            window.API.SetValue('cmi.suspend_data', JSON.stringify(slideData));
-                            
                             window.API.LMSCommit('');
                             
-                            console.log(' Time synced to SCORM: ' + scormTime);
+                            console.log('✅ Time synced to SCORM: ' + scormTime);
                         }
                     } else {
                         console.log('✓ SCORM content is reporting time: ' + currentSessionTime);
                     }
                 } catch (error) {
-                    console.error(' Error syncing time:', error);
+                    console.error('❌ Error syncing time:', error);
                 }
-                }, 1000); // 1 second debounce
             }
             
             // Format for display
@@ -2996,7 +1916,7 @@
                 };
             }
             
-            console.log(' Enhanced time tracking active - will sync every 5 minutes');
+            console.log('✅ Enhanced time tracking active - will sync every 5 minutes');
         })();
         
         // Debug info for instructors

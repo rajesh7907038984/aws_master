@@ -1,1 +1,0 @@
-# SCORM management commands

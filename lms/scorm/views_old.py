@@ -1276,7 +1276,7 @@ def scorm_player_direct(request, topic_id):
     base_s3_url = "https://{}.s3.{}.amazonaws.com/media/{}".format(bucket_name, region, scorm_package.extracted_path)
     direct_s3_url = "{}/{}".format(base_s3_url, scorm_package.launch_url)
     
-    logger.info(" Direct S3 URL generated: {}".format(direct_s3_url))
+    logger.info("🎯 Direct S3 URL generated: {}".format(direct_s3_url))
     
     # Skip S3 verification for faster loading - let browser handle any 404s
     # This saves ~100-200ms per request by avoiding S3 API call
@@ -1363,7 +1363,7 @@ def scorm_content_proxy(request, attempt_id, path):
                 api_injection = '''
 <script>
 // Injected SCORM API for Direct S3 Content
-console.log(' SCORM API injected into content');
+console.log('🎯 SCORM API injected into content');
 window.API = window.API_1484_11 = {
     Initialize: function(param) { 
         console.log('API: Initialize'); 
@@ -1442,7 +1442,7 @@ window.API = window.API_1484_11 = {
         return "No error"; 
     }
 };
-console.log(' SCORM API ready for content');
+console.log('✅ SCORM API ready for content');
 </script>
 '''
                 
@@ -1461,7 +1461,7 @@ console.log(' SCORM API ready for content');
                 content = html_content.encode('utf-8')
                 content_type = 'text/html; charset=utf-8'
                 
-                logger.info(" Injected SCORM API into {}".format(path))
+                logger.info("✅ Injected SCORM API into {}".format(path))
             
             # Create HTTP response
             response_obj = HttpResponse(content, content_type=content_type)

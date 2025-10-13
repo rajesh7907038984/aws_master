@@ -119,7 +119,7 @@ var API = {
                     arcname = file_path.relative_to(scorm_dir)
                     zipf.write(file_path, arcname)
         
-        print(f" Created test SCORM package: {zip_path}")
+        print(f"✅ Created test SCORM package: {zip_path}")
         return zip_path
 
 def upload_and_extract_package():
@@ -130,7 +130,7 @@ def upload_and_extract_package():
         # Get existing package
         package = ScormPackage.objects.first()
         if not package:
-            print(" No SCORM package found")
+            print("❌ No SCORM package found")
             return False
         
         # Create test package
@@ -144,7 +144,7 @@ def upload_and_extract_package():
         package_file_name = f"scorm_packages/test_scorm_{package.id}.zip"
         package.package_file.save(package_file_name, ContentFile(zip_content))
         
-        print(f" Uploaded package to S3: {package_file_name}")
+        print(f"✅ Uploaded package to S3: {package_file_name}")
         
         # Now extract it
         from scorm.parser import ScormParser
@@ -158,42 +158,42 @@ def upload_and_extract_package():
         package.mastery_score = package_data.get('mastery_score')
         package.save()
         
-        print(f" Package extracted successfully")
+        print(f"✅ Package extracted successfully")
         print(f"   Extracted Path: {package.extracted_path}")
         print(f"   Launch URL: {package.launch_url}")
         
         return True
         
     except Exception as e:
-        print(f" Error uploading/extracting package: {e}")
+        print(f"❌ Error uploading/extracting package: {e}")
         return False
 
 def verify_extraction():
     """Verify the package was extracted correctly"""
-    print(" Verifying extraction...")
+    print("🔍 Verifying extraction...")
     
     try:
         package = ScormPackage.objects.first()
         
         # Check if extracted path exists
         if default_storage.exists(package.extracted_path):
-            print(f" Extracted path exists: {package.extracted_path}")
+            print(f"✅ Extracted path exists: {package.extracted_path}")
         else:
-            print(f" Extracted path does not exist: {package.extracted_path}")
+            print(f"❌ Extracted path does not exist: {package.extracted_path}")
             return False
         
         # Check if launch file exists
         launch_file_path = f"{package.extracted_path}/{package.launch_url}"
         if default_storage.exists(launch_file_path):
-            print(f" Launch file exists: {package.launch_url}")
+            print(f"✅ Launch file exists: {package.launch_url}")
         else:
-            print(f" Launch file does not exist: {package.launch_url}")
+            print(f"❌ Launch file does not exist: {package.launch_url}")
             return False
         
         # List some files in the extracted directory
         try:
             dirs, files = default_storage.listdir(package.extracted_path)
-            print(f" Found {len(files)} files in extracted directory")
+            print(f"✅ Found {len(files)} files in extracted directory")
             for file in files[:5]:  # Show first 5 files
                 print(f"   - {file}")
         except Exception as e:
@@ -202,7 +202,7 @@ def verify_extraction():
         return True
         
     except Exception as e:
-        print(f" Error verifying extraction: {e}")
+        print(f"❌ Error verifying extraction: {e}")
         return False
 
 if __name__ == "__main__":
@@ -212,8 +212,8 @@ if __name__ == "__main__":
     
     if upload_and_extract_package():
         if verify_extraction():
-            print("\n Test SCORM package created and extracted successfully!")
+            print("\n🎉 Test SCORM package created and extracted successfully!")
         else:
             print("\n⚠️  Package created but extraction verification failed")
     else:
-        print("\n Failed to create test SCORM package")
+        print("\n❌ Failed to create test SCORM package")
