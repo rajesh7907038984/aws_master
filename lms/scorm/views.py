@@ -679,6 +679,66 @@ window.API = window.API_1484_11 = {{
     }},
     LMSGetDiagnostic: function(code) {{ 
         return this._makeAPICall('GetDiagnostic', [code]); 
+    }},
+    
+    // Additional SCORM functions that some content may require
+    CommitData: function() {{ 
+        return this._makeAPICall('Commit', []); 
+    }},
+    ConcedeControl: function() {{ 
+        return 'true'; 
+    }},
+    CreateResponseIdentifier: function() {{ 
+        return 'response_' + Date.now(); 
+    }},
+    Finish: function() {{ 
+        return this._makeAPICall('Terminate', []); 
+    }},
+    GetDataChunk: function() {{ 
+        return ''; 
+    }},
+    GetStatus: function() {{ 
+        return this._makeAPICall('GetValue', ['cmi.core.lesson_status']); 
+    }},
+    MatchingResponse: function() {{ 
+        return 'true'; 
+    }},
+    RecordFillInInteraction: function() {{ 
+        return 'true'; 
+    }},
+    RecordMatchingInteraction: function() {{ 
+        return 'true'; 
+    }},
+    RecordMultipleChoiceInteraction: function() {{ 
+        return 'true'; 
+    }},
+    ResetStatus: function() {{ 
+        return 'true'; 
+    }},
+    SetBookmark: function(bookmark) {{ 
+        return this._makeAPICall('SetValue', ['cmi.core.lesson_location', bookmark]); 
+    }},
+    SetDataChunk: function(data) {{ 
+        return this._makeAPICall('SetValue', ['cmi.suspend_data', data]); 
+    }},
+    SetFailed: function() {{ 
+        return this._makeAPICall('SetValue', ['cmi.core.lesson_status', 'failed']); 
+    }},
+    SetLanguagePreference: function(lang) {{ 
+        return 'true'; 
+    }},
+    SetPassed: function() {{ 
+        return this._makeAPICall('SetValue', ['cmi.core.lesson_status', 'passed']); 
+    }},
+    SetReachedEnd: function() {{ 
+        return this._makeAPICall('SetValue', ['cmi.core.lesson_status', 'completed']); 
+    }},
+    SetScore: function(score) {{ 
+        return this._makeAPICall('SetValue', ['cmi.core.score.raw', score]); 
+    }},
+    WriteToDebug: function(message) {{ 
+        console.log('[SCORM Debug]', message);
+        return 'true'; 
     }}
 }};
 </script>
@@ -696,10 +756,25 @@ window.API = window.API_1484_11 = {{
                     else:
                         html_content = api_injection + html_content
                     
+                    # Add API availability check
+                    api_check = '''
+<script>
+// Ensure API is available immediately
+if (typeof window.API === 'undefined') {
+    console.error('[SCORM] API not found - this will cause SCORM warnings');
+} else {
+    console.log('[SCORM] API successfully loaded with', Object.keys(window.API).length, 'functions');
+}
+</script>
+'''
+                    html_content = html_content.replace('</script>', '</script>' + api_check)
+                    
                     content = html_content.encode('utf-8')
                     content_type = 'text/html; charset=utf-8'
                     
-                    logger.info(f" Injected SCORM API into {path}")
+                    logger.info(f"✅ Injected SCORM API into {path} with attempt_id={attempt_id}")
+                    logger.info(f"   API endpoint: {api_endpoint}")
+                    logger.info(f"   Content length: {len(html_content)} chars")
                 
                 response_obj = HttpResponse(content, content_type=content_type)
                 response_obj['Access-Control-Allow-Origin'] = '*'
