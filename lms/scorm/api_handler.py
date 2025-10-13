@@ -459,16 +459,23 @@ class ScormAPIHandler:
     
     def commit(self):
         """LMSCommit / Commit"""
-        if not self.initialized:
+        # CRITICAL FIX: Check if session was EVER initialized (not just in current request)
+        # Each API call creates a new handler instance, so self.initialized doesn't persist
+        # Instead, check if CMI data exists (created during first Initialize)
+        was_initialized = bool(self.attempt.cmi_data and len(self.attempt.cmi_data) > 0)
+        
+        if not self.initialized and not was_initialized:
             self.last_error = '301'
+            logger.warning(f"SCORM API Commit called before any initialization for attempt {self.attempt.id}")
             return 'false'
         
         try:
             self._commit_data()
             self.last_error = '0'
+            logger.info(f"SCORM API Commit successful for attempt {self.attempt.id}")
             return 'true'
         except Exception as e:
-            logger.error(f"Error committing data: {str(e)}")
+            logger.error(f"Error committing data for attempt {self.attempt.id}: {str(e)}")
             self.last_error = '101'
             return 'false'
     
