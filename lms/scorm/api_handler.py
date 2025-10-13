@@ -330,7 +330,10 @@ class ScormAPIHandler:
                 
                 # Also store in model fields for persistence
                 if element in ['cmi.core.lesson_location', 'cmi.location']:
-                    self.attempt.lesson_location = value
+                    # CRITICAL: Truncate if exceeds database field limit (1000 chars)
+                    self.attempt.lesson_location = value[:1000] if value else value
+                    if len(value) > 1000:
+                        logger.warning(f"lesson_location truncated from {len(value)} to 1000 chars")
                 elif element == 'cmi.suspend_data':
                     self.attempt.suspend_data = value
                 
@@ -625,7 +628,7 @@ class ScormAPIHandler:
                 # This ensures user interactions are captured in gradebook
                 if not sync_success:
                     # Update last_accessed to ensure interaction is recorded
-                    from django.utils import timezone
+                    # (timezone already imported at module level)
                     self.attempt.last_accessed = timezone.now()
                     self.attempt.save()
                     
