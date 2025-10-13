@@ -233,24 +233,20 @@ def scorm_view(request, topic_id):
                 scorm_package=scorm_package
             ).order_by('-attempt_number').first()
             
-            if last_attempt and last_attempt.lesson_status in ['completed', 'passed']:
-                # Create new attempt if last one was completed
-                attempt_number = last_attempt.attempt_number + 1
-                attempt = ScormAttempt.objects.create(
-                    user=request.user,
-                    scorm_package=scorm_package,
-                    attempt_number=attempt_number
-                )
-            elif last_attempt:
-                # Continue existing attempt
+            if last_attempt:
+                # CRITICAL FIX: Always resume existing attempt to preserve progress and location
+                # This ensures learners can always return to their last saved location
+                # even after completing the course
                 attempt = last_attempt
+                logger.info(f"✅ SCORM Resume: Continuing existing attempt {attempt.attempt_number} for user {request.user.username}")
             else:
-                # Create first attempt
+                # Create first attempt only if no previous attempt exists
                 attempt = ScormAttempt.objects.create(
                     user=request.user,
                     scorm_package=scorm_package,
                     attempt_number=1
                 )
+                logger.info(f"✅ SCORM: Created new attempt {attempt.attempt_number} for user {request.user.username}")
         
         attempt_id = attempt.id
         attempt.is_preview = False  # Mark as real attempt
@@ -488,7 +484,11 @@ def scorm_api(request, attempt_id):
             # COMPREHENSIVE FIX: More robust handler selection with caching to prevent race conditions
             # Use cache to ensure consistent handler selection for the same attempt
             cache_key = f'scorm_handler_type_{attempt_id}'
-            handler_type = cache.get(cache_key)
+            try:
+                handler_type = cache.get(cache_key)
+            except Exception as cache_error:
+                logger.warning(f"Cache error, using legacy handler: {cache_error}")
+                handler_type = 'legacy'
             
             if handler_type == 'specialized':
                 # Use specialized handler (cached decision)
@@ -499,7 +499,10 @@ def scorm_api(request, attempt_id):
                     logger.error(f"⚠️ Error with cached specialized handler, falling back to legacy: {e}")
                     handler = ScormAPIHandler(attempt)
                     # Update cache for future requests
-                    cache.set(cache_key, 'legacy', 3600)  # Cache for 1 hour
+                    try:
+                        cache.set(cache_key, 'legacy', 3600)  # Cache for 1 hour
+                    except Exception as cache_set_error:
+                        logger.warning(f"Cache set error: {cache_set_error}")
                     logger.info(f"Using legacy ScormAPIHandler for attempt {attempt_id} (cache updated)")
             elif handler_type == 'legacy':
                 # Use legacy handler (cached decision)
@@ -511,18 +514,27 @@ def scorm_api(request, attempt_id):
                     try:
                         handler = get_handler_for_attempt(attempt)
                         # Cache the decision for future requests
-                        cache.set(cache_key, 'specialized', 3600)  # Cache for 1 hour
+                        try:
+                            cache.set(cache_key, 'specialized', 3600)  # Cache for 1 hour
+                        except Exception as cache_set_error:
+                            logger.warning(f"Cache set error: {cache_set_error}")
                         logger.info(f"✅ Using specialized handler ({handler.get_handler_name()}) for attempt {attempt_id} (cached)")
                     except Exception as e:
                         logger.error(f"⚠️ Error with new handler, falling back to legacy: {e}")
                         handler = ScormAPIHandler(attempt)
                         # Cache the decision for future requests
-                        cache.set(cache_key, 'legacy', 3600)  # Cache for 1 hour
+                        try:
+                            cache.set(cache_key, 'legacy', 3600)  # Cache for 1 hour
+                        except Exception as cache_set_error:
+                            logger.warning(f"Cache set error: {cache_set_error}")
                         logger.info(f"Using legacy ScormAPIHandler for attempt {attempt_id} (cached)")
                 else:
                     handler = ScormAPIHandler(attempt)
                     # Cache the decision for future requests
-                    cache.set(cache_key, 'legacy', 3600)  # Cache for 1 hour
+                    try:
+                        cache.set(cache_key, 'legacy', 3600)  # Cache for 1 hour
+                    except Exception as cache_set_error:
+                        logger.warning(f"Cache set error: {cache_set_error}")
                     logger.info(f"Using legacy ScormAPIHandler for attempt {attempt_id} (cached)")
         
         # Route to appropriate API method
@@ -865,7 +877,7 @@ def scorm_content(request, topic_id, path):
         window.API._initialized) {
         console.log('[SCORM] API already loaded and initialized, skipping duplicate injection');
         return;
-    }}
+    }
     
     // If API exists but not initialized, clean it up first
     if (window.API && typeof window.API !== 'undefined' && 
@@ -874,13 +886,13 @@ def scorm_content(request, topic_id, path):
         try {
             delete window.API;
             delete window.API_1484_11;
-        } catch (e) {{
+        } catch (e) {
             console.error('[SCORM] Error cleaning up API:', e);
             // Fallback: set to null if delete fails
             window.API = null;
             window.API_1484_11 = null;
-        }}
-    }}
+        }
+    }
     
     // SCORM API that connects to the real API endpoint
     // CRITICAL: Uses modern async/await to avoid synchronous XHR deprecation
@@ -906,11 +918,11 @@ def scorm_content(request, topic_id, path):
                 if (cookie.substring(0, name.length + 1) === (name + '=')) {
                     cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
                     break;
-                }}
-            }}
-        }}
+                }
+            }
+        }
         return cookieValue;
-    }},
+    },
     
     _makeAPICall: function(method, parameters) {
         try {
@@ -1106,7 +1118,7 @@ def scorm_content(request, topic_id, path):
         console.log('[SCORM Debug]', message);
         return 'true';
     }
-}};
+};
     
     // CRITICAL: Ensure API is available immediately for Rise 360
     console.log('[SCORM] API initialized with', Object.keys(window.API).length, 'functions');
@@ -1154,12 +1166,12 @@ def scorm_content(request, topic_id, path):
                 GetLastError: function() { return '101'; },
                 GetErrorString: function() { return 'API initialization failed'; },
                 GetDiagnostic: function() { return 'API initialization error: ' + setupError.message; }
-            }};
+            };
             
             window.API_1484_11 = window.API;
             console.error('[SCORM] Created emergency fallback API');
-        }}
-    }}
+        }
+    }
 }})();
 
     // ENHANCED: Auto-detect SCORM content initialization
