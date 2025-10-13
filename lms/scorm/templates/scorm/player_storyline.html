@@ -34,34 +34,6 @@
             color: #333;
         }
         
-        .progress-container {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            min-width: 200px;
-        }
-        
-        .progress-bar-wrapper {
-            flex: 1;
-            height: 8px;
-            background: #e0e0e0;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-        
-        .progress-bar-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #9c27b0, #7b1fa2);
-            width: 0%;
-            transition: width 0.3s ease;
-        }
-        
-        .progress-text {
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: #666;
-            min-width: 45px;
-        }
         
         .scorm-actions {
             display: flex;
@@ -120,12 +92,6 @@
             {% if preview_mode %}
             <span class="preview-badge">PREVIEW MODE</span>
             {% endif %}
-        </div>
-        <div class="progress-container">
-            <div class="progress-bar-wrapper">
-                <div id="progressBarFill" class="progress-bar-fill"></div>
-            </div>
-            <span id="progressText" class="progress-text">0%</span>
         </div>
         <div class="scorm-actions">
             <button type="button" id="saveExitBtn" class="btn">Save & Exit</button>
@@ -331,59 +297,6 @@
         
         console.log('✅ Storyline SCORM API ready!');
         
-        // Progress tracking for Storyline
-        let lastProgressUpdate = 0;
-        
-        function updateProgressBar() {
-            try {
-                let progress = 0;
-                let progressSource = 'none';
-                
-                // Priority 1: Check completion status
-                const status = window.API.LMSGetValue('cmi.core.lesson_status');
-                if (status === 'completed' || status === 'passed') {
-                    progress = 100;
-                    progressSource = 'status';
-                }
-                
-                // Priority 2: Check progress_measure (Storyline may report this)
-                if (progress === 0) {
-                    const progressMeasure = window.API.LMSGetValue('cmi.progress_measure');
-                    if (progressMeasure && progressMeasure !== '' && parseFloat(progressMeasure) > 0) {
-                        progress = Math.round(parseFloat(progressMeasure) * 100);
-                        progressSource = 'progress_measure';
-                    }
-                }
-                
-                // Priority 3: Storyline reports progress via score
-                if (progress === 0) {
-                    const scoreRaw = window.API.LMSGetValue('cmi.core.score.raw');
-                    const scoreMax = window.API.LMSGetValue('cmi.core.score.max');
-                    if (scoreRaw && scoreMax && parseFloat(scoreMax) > 0) {
-                        progress = Math.round((parseFloat(scoreRaw) / parseFloat(scoreMax)) * 100);
-                        progressSource = 'score';
-                    }
-                }
-                
-                // Priority 4: Check if started (minimal progress indicator)
-                if (progress === 0 && (status === 'incomplete' || status === 'browsed')) {
-                    progress = 5; // Started but no specific progress data
-                    progressSource = 'status_incomplete';
-                }
-                
-                // Update UI
-                if (progress !== lastProgressUpdate && progress >= 0 && progress <= 100) {
-                    document.getElementById('progressBarFill').style.width = progress + '%';
-                    document.getElementById('progressText').textContent = progress + '%';
-                    lastProgressUpdate = progress;
-                    console.log('[Storyline Progress] ' + progress + '% (source: ' + progressSource + ')');
-                }
-            } catch (e) {
-                console.error('[Storyline Progress] Error:', e);
-            }
-        }
-        
-        setInterval(updateProgressBar, 1000);
     </script>
 
     <div class="scorm-container">
@@ -457,13 +370,18 @@
                     
                     function syncAndExit(retryCount = 0) {
                         console.log('[Storyline] Starting database sync... (attempt ' + (retryCount + 1) + ')');
+                        
+                        // BUG FIX: Use FormData instead of raw urlencoded string
+                        const formData = new FormData();
+                        formData.append('attempt_id', '{{ attempt.id|default:attempt_id }}');
+                        
                         fetch('{% url "scorm:sync_on_exit" %}', {
                             method: 'POST',
                             headers: {
-                                'Content-Type': 'application/x-www-form-urlencoded',
                                 'X-CSRFToken': getCookie('csrftoken')
+                                // Let browser set proper Content-Type with boundary
                             },
-                            body: 'attempt_id={{ attempt.id|default:attempt_id }}'
+                            body: formData // Use FormData instead of manual urlencoded string
                         })
                         .then(response => {
                             if (!response.ok) {
@@ -490,10 +408,10 @@
                             
                             saveExitBtn.textContent = 'Saved! (' + passedChecks + '/4 checks passed)';
                             
-                            // Give extra time for database to finalize write
+                            // BUG FIX: Give more time for database to finalize write
                             setTimeout(function() {
                                 window.location.href = '{% url "courses:topic_view" topic.id %}';
-                            }, 1000);
+                            }, 2000); // Increased from 1000ms to 2000ms for safety
                         })
                         .catch(error => {
                             console.error('[Storyline] Database sync error:', error);
@@ -544,6 +462,27 @@
         } else {
             attachWithRetry();
         }
+        
+        // CRITICAL FIX: Listen for messages from content for exit requests
+        window.addEventListener('message', function(event) {
+            try {
+                if (event.data && (event.data.type === 'exit' || 
+                                  event.data.type === 'rise360Exit' || 
+                                  event.data === 'exit' || 
+                                  event.data === 'close' || 
+                                  event.data === 'scorm:exit')) {
+                    console.log('[Storyline] Received exit message from content');
+                    // Find the Save & Exit button and click it
+                    var saveExitBtn = document.getElementById('saveExitBtn');
+                    if (saveExitBtn) {
+                        console.log('[Storyline] Triggering Save & Exit button');
+                        saveExitBtn.click();
+                    }
+                }
+            } catch (e) {
+                console.error('[Storyline] Error handling message event:', e);
+            }
+        });
         
         window.addEventListener('beforeunload', function() {
             console.log('[Storyline] Auto-save quiz state');

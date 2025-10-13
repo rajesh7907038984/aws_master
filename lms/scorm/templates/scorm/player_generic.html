@@ -34,34 +34,6 @@
             color: #333;
         }
         
-        .progress-container {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            min-width: 200px;
-        }
-        
-        .progress-bar-wrapper {
-            flex: 1;
-            height: 8px;
-            background: #e0e0e0;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-        
-        .progress-bar-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #4caf50, #45a049);
-            width: 0%;
-            transition: width 0.3s ease;
-        }
-        
-        .progress-text {
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: #666;
-            min-width: 45px;
-        }
         
         .scorm-actions {
             display: flex;
@@ -161,12 +133,6 @@
             <span class="preview-badge">PREVIEW MODE</span>
             {% endif %}
         </div>
-        <div class="progress-container">
-            <div class="progress-bar-wrapper">
-                <div id="progressBarFill" class="progress-bar-fill"></div>
-            </div>
-            <span id="progressText" class="progress-text">0%</span>
-        </div>
         <div class="scorm-actions">
             <button type="button" id="saveExitBtn" class="btn">Save & Exit</button>
         </div>
@@ -236,13 +202,17 @@
                     console.log('[SCORM] Data saved, syncing to database...');
                     
                     // Call the same sync endpoint as Save & Exit button
+                    // BUG FIX: Use FormData instead of raw urlencoded string
+                    const formData = new FormData();
+                    formData.append('attempt_id', '{{ attempt.id|default:attempt_id }}');
+                    
                     fetch('{% url "scorm:sync_on_exit" %}', {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
                             'X-CSRFToken': getCookie('csrftoken')
+                            // Let browser set proper Content-Type with boundary
                         },
-                        body: 'attempt_id={{ attempt.id|default:attempt_id }}'
+                        body: formData // Use FormData instead of manual urlencoded string
                     })
                     .then(response => response.json())
                     .then(data => {
@@ -299,13 +269,17 @@
                     console.log('[SCORM] Data saved, syncing to database...');
                     
                     // Call the same sync endpoint as Save & Exit button
+                    // BUG FIX: Use FormData instead of raw urlencoded string
+                    const formData = new FormData();
+                    formData.append('attempt_id', '{{ attempt.id|default:attempt_id }}');
+                    
                     fetch('{% url "scorm:sync_on_exit" %}', {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
                             'X-CSRFToken': getCookie('csrftoken')
+                            // Let browser set proper Content-Type with boundary
                         },
-                        body: 'attempt_id={{ attempt.id|default:attempt_id }}'
+                        body: formData // Use FormData instead of manual urlencoded string
                     })
                     .then(response => response.json())
                     .then(data => {
@@ -353,70 +327,6 @@
         
         console.log('✅ Generic SCORM API ready!');
         
-        // Progress tracking system
-        let lastProgressUpdate = 0;
-        
-        function updateProgressBar() {
-            try {
-                // Try multiple sources for progress calculation in priority order
-                let progress = 0;
-                let progressSource = 'none';
-                
-                // Priority 1: Check lesson_status for completion first
-                const status = window.API.LMSGetValue('cmi.core.lesson_status');
-                if (status === 'completed' || status === 'passed') {
-                    progress = 100;
-                    progressSource = 'status';
-                }
-                
-                // Priority 2: Check progress_measure (SCORM 2004) - most accurate for partial progress
-                if (progress === 0 && window.API_1484_11) {
-                    const progressMeasure = window.API_1484_11.GetValue('cmi.progress_measure');
-                    if (progressMeasure && progressMeasure !== '' && parseFloat(progressMeasure) > 0) {
-                        progress = Math.round(parseFloat(progressMeasure) * 100);
-                        progressSource = 'progress_measure_2004';
-                    }
-                }
-                
-                // Priority 3: Check progress_measure via SCORM 1.2 API (custom extension)
-                if (progress === 0) {
-                    const progressMeasure12 = window.API.LMSGetValue('cmi.progress_measure');
-                    if (progressMeasure12 && progressMeasure12 !== '' && parseFloat(progressMeasure12) > 0) {
-                        progress = Math.round(parseFloat(progressMeasure12) * 100);
-                        progressSource = 'progress_measure_1.2';
-                    }
-                }
-                
-                // Priority 4: Check score (most reliable for quizzes)
-                if (progress === 0) {
-                    const scoreRaw = window.API.LMSGetValue('cmi.core.score.raw');
-                    const scoreMax = window.API.LMSGetValue('cmi.core.score.max');
-                    if (scoreRaw && scoreMax && parseFloat(scoreMax) > 0) {
-                        progress = Math.round((parseFloat(scoreRaw) / parseFloat(scoreMax)) * 100);
-                        progressSource = 'score';
-                    }
-                }
-                
-                // Priority 5: Check if started (minimal progress indicator)
-                if (progress === 0 && (status === 'incomplete' || status === 'browsed')) {
-                    progress = 5; // Started but no specific progress data
-                    progressSource = 'status_incomplete';
-                }
-                
-                // Update UI if progress changed
-                if (progress !== lastProgressUpdate && progress >= 0 && progress <= 100) {
-                    document.getElementById('progressBarFill').style.width = progress + '%';
-                    document.getElementById('progressText').textContent = progress + '%';
-                    lastProgressUpdate = progress;
-                    console.log('[Progress] Updated to ' + progress + '% (source: ' + progressSource + ')');
-                }
-            } catch (e) {
-                console.error('[Progress] Error updating progress:', e);
-            }
-        }
-        
-        // Update progress every second for better responsiveness
-        setInterval(updateProgressBar, 1000);
     </script>
 
     <div class="scorm-container">
@@ -473,6 +383,26 @@
                 autoSaveInterval = setInterval(performAutoCommit, 5000);
                 console.log('[SCORM] Auto-save started (every 5 seconds)');
             }
+            
+            // CRITICAL FIX: Initialize Exit Assessment Button Fix in iframe
+            try {
+                const iframe = document.getElementById('scormFrame');
+                if (iframe && iframe.contentWindow) {
+                    // Add global variables for the exit assessment fix script
+                    iframe.contentWindow.SCORM_ATTEMPT_ID = '{{ attempt.id|default:attempt_id }}';
+                    iframe.contentWindow.SCORM_TOPIC_URL = '{% url "courses:topic_view" topic.id %}';
+                    
+                    // Inject the exit assessment fix script
+                    const script = iframe.contentDocument.createElement('script');
+                    script.src = '/static/scorm/exit_assessment_fix.js?v=1';
+                    script.onload = function() {
+                        console.log('[SCORM] Exit Assessment Button Fix loaded in iframe');
+                    };
+                    iframe.contentDocument.head.appendChild(script);
+                }
+            } catch (e) {
+                console.error('[SCORM] Error initializing Exit Assessment Button Fix:', e);
+            }
         });
         
         // FIXED: Save & Exit button handler with proper event attachment and DB sync
@@ -507,13 +437,18 @@
                     // CRITICAL FIX: Sync to database before redirect with retry logic
                     function syncWithRetry(retryCount = 0) {
                         console.log('[SCORM] Starting database sync... (attempt ' + (retryCount + 1) + ')');
+                        
+                        // BUG FIX: Use FormData instead of raw urlencoded string
+                        const formData = new FormData();
+                        formData.append('attempt_id', '{{ attempt.id|default:attempt_id }}');
+                        
                         fetch('{% url "scorm:sync_on_exit" %}', {
                             method: 'POST',
                             headers: {
-                                'Content-Type': 'application/x-www-form-urlencoded',
                                 'X-CSRFToken': '{{ csrf_token }}'
+                                // Let browser set proper Content-Type with boundary
                             },
-                            body: 'attempt_id={{ attempt.id|default:attempt_id }}'
+                            body: formData // Use FormData instead of manual urlencoded string
                         })
                         .then(response => {
                             if (!response.ok) {
@@ -588,6 +523,27 @@
         } else {
             attachWithRetry();
         }
+        
+        // CRITICAL FIX: Listen for messages from content for exit requests
+        window.addEventListener('message', function(event) {
+            try {
+                if (event.data && (event.data.type === 'exit' || 
+                                  event.data.type === 'rise360Exit' || 
+                                  event.data === 'exit' || 
+                                  event.data === 'close' || 
+                                  event.data === 'scorm:exit')) {
+                    console.log('[SCORM Generic] Received exit message from content');
+                    // Find the Save & Exit button and click it
+                    var saveExitBtn = document.getElementById('saveExitBtn');
+                    if (saveExitBtn) {
+                        console.log('[SCORM Generic] Triggering Save & Exit button');
+                        saveExitBtn.click();
+                    }
+                }
+            } catch (e) {
+                console.error('[SCORM Generic] Error handling message event:', e);
+            }
+        });
         
         window.addEventListener('beforeunload', function() {
             // Clear auto-save interval

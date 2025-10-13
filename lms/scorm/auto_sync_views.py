@@ -154,6 +154,8 @@ def sync_on_exit(request):
     """
     attempt_id = None
     try:
+        # FIX: Log raw request data to debug AJAX issues
+        logger.info(f"sync_on_exit called with POST data: {dict(request.POST)}")
         attempt_id = request.POST.get('attempt_id')
         
         if not attempt_id:

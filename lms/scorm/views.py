@@ -33,7 +33,7 @@ try:
     logger.info("New specialized SCORM handlers loaded successfully")
 except ImportError as e:
     USE_NEW_HANDLERS = False
-    logger.warning(f"New handlers not available, using legacy handler: {e}")
+    logger.warning("New handlers not available, using legacy handler: {}".format(e))
 
 
 def _detect_scorm_package_type(scorm_package):
@@ -823,29 +823,32 @@ def scorm_content(request, topic_id, path):
                     logger.warning(f"SCORM Content: Using fallback attempt_id: {attempt_id}")
                
                 api_endpoint = f'/scorm/api/{attempt_id}/'
-                api_injection = f'''
+                
+                # Generate the JavaScript code with the actual attempt_id value
+                # Fix JavaScript syntax errors in API injection
+                api_injection = '''
 <script>
 // CRITICAL FIX: SCORM API must be available immediately for Rise 360
 // Rise 360 checks for API on page load, so we set it up synchronously
-(function() {{
+(function() {
     // Prevent multiple API loading with more robust checking
     if (window.API && 
         typeof window.API !== 'undefined' && 
         window.API_1484_11 && 
         typeof window.API_1484_11 !== 'undefined' && 
-        window.API._initialized) {{
+        window.API._initialized) {
         console.log('[SCORM] API already loaded and initialized, skipping duplicate injection');
         return;
     }}
     
     // If API exists but not initialized, clean it up first
     if (window.API && typeof window.API !== 'undefined' && 
-        window.API_1484_11 && typeof window.API_1484_11 !== 'undefined') {{
+        window.API_1484_11 && typeof window.API_1484_11 !== 'undefined') {
         console.log('[SCORM] Cleaning up existing API before re-initialization');
-        try {{
+        try {
             delete window.API;
             delete window.API_1484_11;
-        }} catch (e) {{
+        } catch (e) {{
             console.error('[SCORM] Error cleaning up API:', e);
             // Fallback: set to null if delete fails
             window.API = null;
@@ -855,10 +858,10 @@ def scorm_content(request, topic_id, path):
     
     // SCORM API that connects to the real API endpoint
     // CRITICAL: Uses modern async/await to avoid synchronous XHR deprecation
-    try {{
+    try {
         // Create API with robust error handling
-        window.API = window.API_1484_11 = {{
-            _apiEndpoint: '/scorm/api/{attempt_id}/',
+        window.API = window.API_1484_11 = {
+            _apiEndpoint: '/scorm/api/' + attempt_id + '/',
             _lastError: '0',
             _initialized: false,
             _initPromise: null,
@@ -868,13 +871,13 @@ def scorm_content(request, topic_id, path):
             _lastErrorMessage: '',
             _apiReady: true,
     
-    _getCookie: function(name) {{
+    _getCookie: function(name) {
         let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {{
+        if (document.cookie && document.cookie !== '') {
             const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {{
+            for (let i = 0; i < cookies.length; i++) {
                 const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {{
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
                     cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
                     break;
                 }}
@@ -883,8 +886,8 @@ def scorm_content(request, topic_id, path):
         return cookieValue;
     }},
     
-    _makeAPICall: function(method, parameters) {{
-        try {{
+    _makeAPICall: function(method, parameters) {
+        try {
             // CRITICAL FIX: Use synchronous XMLHttpRequest for SCORM compatibility
             // SCORM content expects synchronous API calls
             console.log('[SCORM API] Making API call:', method, parameters);
@@ -894,147 +897,147 @@ def scorm_content(request, topic_id, path):
             xhr.setRequestHeader('Content-Type', 'application/json');
             xhr.setRequestHeader('X-CSRFToken', this._getCookie('csrftoken'));
             
-            const requestData = JSON.stringify({{ method: method, parameters: parameters || [] }});
+            const requestData = JSON.stringify({ method: method, parameters: parameters || [] }});
             console.log('[SCORM API] Sending request:', requestData);
             xhr.send(requestData);
             
             console.log('[SCORM API] Response status:', xhr.status);
             console.log('[SCORM API] Response text:', xhr.responseText);
             
-            if (xhr.status === 200) {{
+            if (xhr.status === 200) {
                 const data = JSON.parse(xhr.responseText);
-                if (data.success) {{
+                if (data.success) {
                     // ALWAYS log SetValue calls for debugging progress saving
-                    if (method === 'SetValue' && parameters && parameters.length >= 2) {{
+                    if (method === 'SetValue' && parameters && parameters.length >= 2) {
                         console.log('[SCORM API] ✅ SetValue SUCCESS:', parameters[0], '=', parameters[1], '->', data.result);
                     }} else if (method === 'Initialize' || method === 'Terminate' || method === 'Commit') {{
                         console.log('[SCORM API] ✅ ' + method + ' SUCCESS -> ' + data.result);
                     }}
                     return data.result;
-                }} else {{
+                } else {
                     console.error('[SCORM API] ❌ ' + method + ' FAILED:', data.error);
                     this._lastError = data.error_code || '101';
                     return 'false';
                 }}
-            }} else {{
+            } else {
                 console.error('[SCORM API] ❌ HTTP ERROR:', xhr.status, xhr.responseText);
                 this._lastError = '101';
                 return 'false';
             }}
-        }} catch (e) {{
+        } catch (e) {{
             console.error('[SCORM API] ❌ EXCEPTION:', e);
             this._lastError = '101';
             return 'false';
         }}
     }},
     
-    Initialize: function(param) { 
-        return this._makeAPICall('Initialize', [param]); 
+    Initialize: function(param) {
+        return this._makeAPICall('Initialize', [param]);
     },
-            LMSInitialize: function(param) { 
-        return this._makeAPICall('Initialize', [param]); 
+            LMSInitialize: function(param) {
+        return this._makeAPICall('Initialize', [param]);
     },
-    Terminate: function(param) { 
-        return this._makeAPICall('Terminate', [param]); 
+    Terminate: function(param) {
+        return this._makeAPICall('Terminate', [param]);
     },
-    LMSFinish: function(param) { 
-        return this._makeAPICall('Terminate', [param]); 
+    LMSFinish: function(param) {
+        return this._makeAPICall('Terminate', [param]);
     },
-    GetValue: function(element) { 
-        return this._makeAPICall('GetValue', [element]); 
+    GetValue: function(element) {
+        return this._makeAPICall('GetValue', [element]);
     },
-    LMSGetValue: function(element) { 
-        return this._makeAPICall('GetValue', [element]); 
+    LMSGetValue: function(element) {
+        return this._makeAPICall('GetValue', [element]);
     },
-    SetValue: function(element, value) { 
-        return this._makeAPICall('SetValue', [element, value]); 
+    SetValue: function(element, value) {
+        return this._makeAPICall('SetValue', [element, value]);
     },
-    LMSSetValue: function(element, value) { 
-        return this._makeAPICall('SetValue', [element, value]); 
+    LMSSetValue: function(element, value) {
+        return this._makeAPICall('SetValue', [element, value]);
     },
-    Commit: function(param) { 
-        return this._makeAPICall('Commit', [param]); 
+    Commit: function(param) {
+        return this._makeAPICall('Commit', [param]);
     },
-    LMSCommit: function(param) { 
-        return this._makeAPICall('Commit', [param]); 
+    LMSCommit: function(param) {
+        return this._makeAPICall('Commit', [param]);
     },
-    GetLastError: function() { 
-        return this._lastError; 
+    GetLastError: function() {
+        return this._lastError;
     },
-    LMSGetLastError: function() { 
-        return this._lastError; 
+    LMSGetLastError: function() {
+        return this._lastError;
     },
-    GetErrorString: function(code) { 
-        return this._makeAPICall('GetErrorString', [code]); 
+    GetErrorString: function(code) {
+        return this._makeAPICall('GetErrorString', [code]);
     },
-    LMSGetErrorString: function(code) { 
-        return this._makeAPICall('GetErrorString', [code]); 
+    LMSGetErrorString: function(code) {
+        return this._makeAPICall('GetErrorString', [code]);
     },
-    GetDiagnostic: function(code) { 
-        return this._makeAPICall('GetDiagnostic', [code]); 
+    GetDiagnostic: function(code) {
+        return this._makeAPICall('GetDiagnostic', [code]);
     },
-    LMSGetDiagnostic: function(code) { 
-        return this._makeAPICall('GetDiagnostic', [code]); 
+    LMSGetDiagnostic: function(code) {
+        return this._makeAPICall('GetDiagnostic', [code]);
     },
     
     // Additional SCORM functions that some content may require
-    CommitData: function() { 
-        return this._makeAPICall('Commit', []); 
+    CommitData: function() {
+        return this._makeAPICall('Commit', []);
     },
-    ConcedeControl: function() { 
-        return 'true'; 
+    ConcedeControl: function() {
+        return 'true';
     },
-    CreateResponseIdentifier: function() { 
-        return 'response_' + Date.now(); 
+    CreateResponseIdentifier: function() {
+        return 'response_' + Date.now();
     },
-    Finish: function() { 
-        return this._makeAPICall('Terminate', []); 
+    Finish: function() {
+        return this._makeAPICall('Terminate', []);
     },
-    GetDataChunk: function() { 
-        return ''; 
+    GetDataChunk: function() {
+        return '';
     },
-    GetStatus: function() { 
-        return this._makeAPICall('GetValue', ['cmi.core.lesson_status']); 
+    GetStatus: function() {
+        return this._makeAPICall('GetValue', ['cmi.core.lesson_status']);
     },
-    MatchingResponse: function() { 
-        return 'true'; 
+    MatchingResponse: function() {
+        return 'true';
     },
-    RecordFillInInteraction: function() { 
-        return 'true'; 
+    RecordFillInInteraction: function() {
+        return 'true';
     },
-    RecordMatchingInteraction: function() { 
-        return 'true'; 
+    RecordMatchingInteraction: function() {
+        return 'true';
     },
-    RecordMultipleChoiceInteraction: function() { 
-        return 'true'; 
+    RecordMultipleChoiceInteraction: function() {
+        return 'true';
     },
-    ResetStatus: function() { 
-        return 'true'; 
+    ResetStatus: function() {
+        return 'true';
     },
-    SetBookmark: function(bookmark) { 
-        return this._makeAPICall('SetValue', ['cmi.core.lesson_location', bookmark]); 
+    SetBookmark: function(bookmark) {
+        return this._makeAPICall('SetValue', ['cmi.core.lesson_location', bookmark]);
     },
-    SetDataChunk: function(data) { 
-        return this._makeAPICall('SetValue', ['cmi.suspend_data', data]); 
+    SetDataChunk: function(data) {
+        return this._makeAPICall('SetValue', ['cmi.suspend_data', data]);
     },
-    SetFailed: function() { 
-        return this._makeAPICall('SetValue', ['cmi.core.lesson_status', 'failed']); 
+    SetFailed: function() {
+        return this._makeAPICall('SetValue', ['cmi.core.lesson_status', 'failed']);
     },
-    SetLanguagePreference: function(lang) { 
-        return 'true'; 
+    SetLanguagePreference: function(lang) {
+        return 'true';
     },
-    SetPassed: function() { 
-        return this._makeAPICall('SetValue', ['cmi.core.lesson_status', 'passed']); 
+    SetPassed: function() {
+        return this._makeAPICall('SetValue', ['cmi.core.lesson_status', 'passed']);
     },
-    SetReachedEnd: function() { 
-        return this._makeAPICall('SetValue', ['cmi.core.lesson_status', 'completed']); 
+    SetReachedEnd: function() {
+        return this._makeAPICall('SetValue', ['cmi.core.lesson_status', 'completed']);
     },
-    SetScore: function(score) { 
-        return this._makeAPICall('SetValue', ['cmi.core.score.raw', score]); 
+    SetScore: function(score) {
+        return this._makeAPICall('SetValue', ['cmi.core.score.raw', score]);
     },
-    WriteToDebug: function(message) { 
+    WriteToDebug: function(message) {
         console.log('[SCORM Debug]', message);
-        return 'true'; 
+        return 'true';
     }
 }};
     
@@ -1042,27 +1045,27 @@ def scorm_content(request, topic_id, path):
     console.log('[SCORM] API initialized with', Object.keys(window.API).length, 'functions');
     console.log('[SCORM] API endpoint:', window.API._apiEndpoint);
     
-    }} catch (setupError) {{
+    } catch (setupError) {{
         // Handle initialization errors gracefully
         console.error('[SCORM] Critical error during API setup:', setupError);
         
         // Create minimal fallback API to prevent crashes
         if (!window.API) {{
-            window.API = {{
+            window.API = {
                 _apiEndpoint: '/scorm/api/fallback/',
                 _lastError: '101',
                 _initialized: false,
                 _errorState: true,
                 
                 // Minimal required methods
-                Initialize: function() {{ return 'false'; }},
-                Terminate: function() {{ return 'false'; }},
-                GetValue: function() {{ return ''; }},
-                SetValue: function() {{ return 'false'; }},
-                Commit: function() {{ return 'false'; }},
-                GetLastError: function() {{ return '101'; }},
-                GetErrorString: function() {{ return 'API initialization failed'; }},
-                GetDiagnostic: function() {{ return 'API initialization error: ' + setupError.message; }}
+                Initialize: function() { return 'false'; },
+                Terminate: function() { return 'false'; },
+                GetValue: function() { return ''; },
+                SetValue: function() { return 'false'; },
+                Commit: function() { return 'false'; },
+                GetLastError: function() { return '101'; },
+                GetErrorString: function() { return 'API initialization failed'; },
+                GetDiagnostic: function() { return 'API initialization error: ' + setupError.message; }
             }};
             
             window.API_1484_11 = window.API;
@@ -1072,6 +1075,10 @@ def scorm_content(request, topic_id, path):
 }})();
 </script>
 '''
+                
+                # Replace attempt_id in the JavaScript code
+                api_injection = api_injection.replace('_apiEndpoint: \'/scorm/api/\' + attempt_id + \'/\',', 
+                                               f"_apiEndpoint: '/scorm/api/{attempt_id}/',")
                 
                 # Fix relative paths in SCORM content
                 html_content = fix_scorm_relative_paths(html_content, topic_id)
@@ -1159,18 +1166,20 @@ def scorm_content(request, topic_id, path):
         // Function to handle exit button clicks
         function handleExitClick(event) {
             console.log('[SCORM] Exit button clicked in content');
-            event.preventDefault();
-            event.stopPropagation();
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
             
             // Try to call SCORM API first
             try {
                 if (window.API && window.API.LMSFinish) {
                     console.log('[SCORM] Calling LMSFinish...');
-                    const result = window.API.LMSFinish('');
+                    var result = window.API.LMSFinish('');
                     console.log('[SCORM] LMSFinish result:', result);
                 } else if (window.API && window.API.Terminate) {
                     console.log('[SCORM] Calling Terminate...');
-                    const result = window.API.Terminate('');
+                    var result = window.API.Terminate('');
                     console.log('[SCORM] Terminate result:', result);
                 }
             } catch (e) {
@@ -1382,13 +1391,13 @@ def scorm_content(request, topic_id, path):
         console.log('[SCORM] Redirecting back to topic view...');
         
         // Try to get the topic view URL from various sources
-        let topicUrl = null;
+        var topicUrl = null;
         
         // Method 1: Extract topic ID from current SCORM URL
-        const currentUrl = window.location.href;
-        const topicMatch = currentUrl.match(/\/scorm\/content\/(\d+)\//);
+        var currentUrl = window.location.href;
+        var topicMatch = currentUrl.match(/\/scorm\/content\/(\d+)\//);
         if (topicMatch) {
-            const topicId = topicMatch[1];
+            var topicId = topicMatch[1];
             topicUrl = '/scorm/view/' + topicId + '/';
             console.log('[SCORM] Found topic ID from URL:', topicId);
         }
@@ -1397,10 +1406,10 @@ def scorm_content(request, topic_id, path):
         if (!topicUrl && window.parent && window.parent !== window) {
             try {
                 // Get the referrer URL to determine topic
-                const referrer = document.referrer;
+                var referrer = document.referrer;
                 if (referrer) {
                     // Extract topic ID from referrer
-                    const topicMatch = referrer.match(/\/scorm\/view\/(\d+)/);
+                    var topicMatch = referrer.match(/\/scorm\/view\/(\d+)/);
                     if (topicMatch) {
                         topicUrl = '/scorm/view/' + topicMatch[1] + '/';
                         console.log('[SCORM] Found topic ID from referrer:', topicMatch[1]);
@@ -1413,8 +1422,18 @@ def scorm_content(request, topic_id, path):
         
         // Method 3: Try to get topic URL from current URL parameters
         if (!topicUrl) {
-            const urlParams = new URLSearchParams(window.location.search);
-            const topicId = urlParams.get('topic_id');
+            // Use a simpler approach to get URL params for better compatibility
+            function getParameterByName(name, url) {
+                if (!url) url = window.location.search;
+                name = name.replace(/[\[\]]/g, '\\$&');
+                var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
+                    results = regex.exec(url);
+                if (!results) return null;
+                if (!results[2]) return '';
+                return decodeURIComponent(results[2].replace(/\+/g, ' '));
+            }
+            
+            var topicId = getParameterByName('topic_id');
             if (topicId) {
                 topicUrl = '/scorm/view/' + topicId + '/';
                 console.log('[SCORM] Found topic ID from parameters:', topicId);
@@ -1441,10 +1460,10 @@ def scorm_content(request, topic_id, path):
     
     function enhanceExitButtons() {
         // CRITICAL FIX: Enhanced exit button detection with cross-origin support
-        const doc = this.document || document;
+        var doc = this.document || document;
         
         // Look for ALL possible Exit button patterns in SCORM content
-        const exitSelectors = [
+        var exitSelectors = [
             // Articulate Storyline/Rise buttons
             'button[data-acc-text*="Exit" i]',
             'button[data-acc-text*="Save & Exit" i]',
@@ -1527,39 +1546,42 @@ def scorm_content(request, topic_id, path):
             '#stop-button'
         ];
         
-        exitSelectors.forEach(selector => {
+        for (var s = 0; s < exitSelectors.length; s++) {
             try {
-                const elements = doc.querySelectorAll(selector);
-                elements.forEach(element => {
+                var selector = exitSelectors[s];
+                var elements = doc.querySelectorAll(selector);
+                for (var j = 0; j < elements.length; j++) {
+                    var element = elements[j];
                     if (!element.hasAttribute('data-scorm-enhanced')) {
                         element.setAttribute('data-scorm-enhanced', 'true');
                         
                         // Add click handler for Exit functionality
                         element.addEventListener('click', function(e) {
-                            console.log('[SCORM] Exit button clicked inside content');
+                            console.log('[SCORM] Exit button clicked - triggering Save & Exit button');
                             
                             // Prevent default behavior
                             e.preventDefault();
                             e.stopPropagation();
                             
-                            // Call SCORM API to save and exit
-                            if (window.API && window.API.LMSFinish) {
-                                console.log('[SCORM] Calling LMSFinish...');
-                                window.API.LMSFinish('').then(function(result) {
-                                    console.log('[SCORM] LMSFinish result:', result);
-                                    // Redirect back to course after SCORM termination
-                                    redirectToCourse();
-                                });
-                            } else if (window.API && window.API.Terminate) {
-                                console.log('[SCORM] Calling Terminate...');
-                                window.API.Terminate('').then(function(result) {
-                                    console.log('[SCORM] Terminate result:', result);
-                                    // Redirect back to course after SCORM termination
-                                    redirectToCourse();
-                                });
-                            } else {
-                                console.warn('[SCORM] No SCORM API available for Exit');
-                                // Still redirect even if no API
+                            // Simple approach: trigger parent page's Save & Exit button
+                            try {
+                                // Try to find Save & Exit button in parent window
+                                if (window.parent && window.parent !== window) {
+                                    var parentExitBtn = window.parent.document.getElementById('saveExitBtn');
+                                    if (parentExitBtn) {
+                                        console.log('[SCORM] Found parent Save & Exit button, triggering click');
+                                        parentExitBtn.click();
+                                        return false;
+                                    }
+                                }
+                                
+                                // If we can't find the button, use regular exit
+                                if (window.API && window.API.LMSCommit) {
+                                    window.API.LMSCommit('');
+                                }
+                                redirectToCourse();
+                            } catch (ex) {
+                                console.log('[SCORM] Error triggering Save & Exit:', ex);
                                 redirectToCourse();
                             }
                             
@@ -1568,32 +1590,32 @@ def scorm_content(request, topic_id, path):
                         
                         console.log('[SCORM] Enhanced Exit button:', element);
                     }
-                });
+                }
             } catch (e) {
                 // Silently handle unsupported selectors to avoid console spam
             }
-        });
+        }
         
         // Also look for text-based Exit buttons (only clickable elements)
-        const clickableElements = doc.querySelectorAll('button, a, [role="button"]');
-        clickableElements.forEach(element => {
-            const text = element.textContent ? element.textContent.trim().toLowerCase() : '';
+        var clickableElements = doc.querySelectorAll('button, a, [role="button"]');
+        for (var i = 0; i < clickableElements.length; i++) {
+            var element = clickableElements[i];
+            var text = element.textContent ? element.textContent.trim().toLowerCase() : '';
             // Check for ALL possible exit-related text patterns
-            const isExitButton = (
+            var isExitButton = (
                 text === 'exit' || text === 'exit course' || text === 'close' || 
                 text === 'save & exit' || text === 'save and exit' || text === 'save exit' ||
                 text === 'finish' || text === 'complete' || text === 'done' || 
                 text === 'end' || text === 'quit' || text === 'stop' ||
                 text === 'finish course' || text === 'complete course' || text === 'end course' ||
                 text === 'close course' || text === 'quit course' || text === 'stop course' ||
-                (text.includes('save') && text.includes('exit')) ||
-                (text.includes('save') && text.includes('exit')) ||
-                (text.includes('finish') && text.includes('course')) ||
-                (text.includes('complete') && text.includes('course')) ||
-                (text.includes('end') && text.includes('course')) ||
-                (text.includes('close') && text.includes('course')) ||
-                (text.includes('quit') && text.includes('course')) ||
-                (text.includes('stop') && text.includes('course'))
+                (text.indexOf('save') !== -1 && text.indexOf('exit') !== -1) ||
+                (text.indexOf('finish') !== -1 && text.indexOf('course') !== -1) ||
+                (text.indexOf('complete') !== -1 && text.indexOf('course') !== -1) ||
+                (text.indexOf('end') !== -1 && text.indexOf('course') !== -1) ||
+                (text.indexOf('close') !== -1 && text.indexOf('course') !== -1) ||
+                (text.indexOf('quit') !== -1 && text.indexOf('course') !== -1) ||
+                (text.indexOf('stop') !== -1 && text.indexOf('course') !== -1)
             );
             
             if (isExitButton && !element.hasAttribute('data-scorm-enhanced')) {
@@ -1601,26 +1623,36 @@ def scorm_content(request, topic_id, path):
                 element.style.cursor = 'pointer';
                 
                 element.addEventListener('click', function(e) {
-                    console.log('[SCORM] Text Exit button clicked:', element.textContent.trim());
+                    console.log('[SCORM] Text Exit button clicked - triggering Save & Exit button');
                     e.preventDefault();
                     e.stopPropagation();
                     
-                    if (window.API && window.API.LMSFinish) {
-                        window.API.LMSFinish('').then(function(result) {
-                            redirectToCourse();
-                        });
-                    } else if (window.API && window.API.Terminate) {
-                        window.API.Terminate('').then(function(result) {
-                            redirectToCourse();
-                        });
-                    } else {
+                    // Simple approach: trigger parent page's Save & Exit button
+                    try {
+                        // Try to find Save & Exit button in parent window
+                        if (window.parent && window.parent !== window) {
+                            var parentExitBtn = window.parent.document.getElementById('saveExitBtn');
+                            if (parentExitBtn) {
+                                console.log('[SCORM] Found parent Save & Exit button, triggering click');
+                                parentExitBtn.click();
+                                return false;
+                            }
+                        }
+                        
+                        // If we can't find the button, use regular exit
+                        if (window.API && window.API.LMSCommit) {
+                            window.API.LMSCommit('');
+                        }
+                        redirectToCourse();
+                    } catch (ex) {
+                        console.log('[SCORM] Error triggering Save & Exit:', ex);
                         redirectToCourse();
                     }
                     
                     return false;
                 });
             }
-        });
+        }
     }
     
     // Run immediately and on DOM ready

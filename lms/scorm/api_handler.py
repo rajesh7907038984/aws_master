@@ -345,10 +345,10 @@ class ScormAPIHandler:
                 self.last_error = '0'
                 logger.info(f"SCORM API GetValue({element}) - returning: '{value}'")
                 return str(value)
-        except Exception as e:
-            logger.error(f"Error getting value for {element}: {str(e)}")
-            self.last_error = '101'
-            return ''
+            except Exception as e:
+                logger.error(f"Error getting value for {element}: {str(e)}")
+                self.last_error = '101'
+                return ''
     
     def set_value(self, element, value):
         """LMSSetValue / SetValue"""
@@ -374,221 +374,221 @@ class ScormAPIHandler:
                     self.last_error = '402'  # Invalid set value
                     return 'false'
             
-            # Validate numeric values
-            if element in ['cmi.core.score.raw', 'cmi.score.raw', 'cmi.core.score.min', 'cmi.score.min', 
-                          'cmi.core.score.max', 'cmi.score.max', 'cmi.score.scaled', 'cmi.progress_measure']:
-                if value_str and value_str.strip():
-                    try:
-                        float(value_str)
-                    except (ValueError, TypeError):
-                        logger.warning(f"Invalid numeric value for {element}: {value_str}")
-                        self.last_error = '405'  # Incorrect data type
-                        return 'false'
-            # CRITICAL FIX: Handle bookmark data storage before initialization
-            if not self.initialized and element in ['cmi.core.lesson_location', 'cmi.location', 'cmi.suspend_data']:
-                # Ensure CMI data exists
-                if not self.attempt.cmi_data:
-                    self.attempt.cmi_data = {}
+                # Validate numeric values
+                if element in ['cmi.core.score.raw', 'cmi.score.raw', 'cmi.core.score.min', 'cmi.score.min', 
+                              'cmi.core.score.max', 'cmi.score.max', 'cmi.score.scaled', 'cmi.progress_measure']:
+                    if value_str and value_str.strip():
+                        try:
+                            float(value_str)
+                        except (ValueError, TypeError):
+                            logger.warning(f"Invalid numeric value for {element}: {value_str}")
+                            self.last_error = '405'  # Incorrect data type
+                            return 'false'
+                # CRITICAL FIX: Handle bookmark data storage before initialization
+                if not self.initialized and element in ['cmi.core.lesson_location', 'cmi.location', 'cmi.suspend_data']:
+                    # Ensure CMI data exists
+                    if not self.attempt.cmi_data:
+                        self.attempt.cmi_data = {}
+                    
+                    # Store bookmark data immediately
+                    self.attempt.cmi_data[element] = value
+                    logger.info(f"SCORM API SetValue({element}, {value}) - stored before initialization")
+                    
+                    # Also store in model fields for persistence
+                    if element in ['cmi.core.lesson_location', 'cmi.location']:
+                        # CRITICAL: Truncate if exceeds database field limit (1000 chars)
+                        self.attempt.lesson_location = value[:1000] if value else value
+                        if len(value) > 1000:
+                            logger.warning(f"lesson_location truncated from {len(value)} to 1000 chars")
+                    elif element == 'cmi.suspend_data':
+                        self.attempt.suspend_data = value
+                    
+                    # Save immediately for persistence
+                    self.attempt.save()
+                    self.last_error = '0'
+                    return 'true'
                 
-                # Store bookmark data immediately
+                # FIXED: Add size limits to prevent unbounded data growth
+                # Limit suspend_data to 1MB, other values to 10KB
+                value_str = str(value)
+                if element in ['cmi.suspend_data']:
+                    max_size = 1024 * 1024  # 1MB
+                    if len(value_str) > max_size:
+                        logger.warning(f"SetValue({element}) exceeds {max_size} bytes, truncating from {len(value_str)}")
+                        value = value_str[:max_size]
+                else:
+                    max_size = 10240  # 10KB for regular fields
+                    if len(value_str) > max_size:
+                        logger.warning(f"SetValue({element}) exceeds {max_size} bytes, truncating from {len(value_str)}")
+                        value = value_str[:max_size]
+                
+                # Store the value
                 self.attempt.cmi_data[element] = value
-                logger.info(f"SCORM API SetValue({element}, {value}) - stored before initialization")
                 
-                # Also store in model fields for persistence
-                if element in ['cmi.core.lesson_location', 'cmi.location']:
-                    # CRITICAL: Truncate if exceeds database field limit (1000 chars)
-                    self.attempt.lesson_location = value[:1000] if value else value
-                    if len(value) > 1000:
-                        logger.warning(f"lesson_location truncated from {len(value)} to 1000 chars")
-                elif element == 'cmi.suspend_data':
-                    self.attempt.suspend_data = value
+                # Log SetValue for important elements
+                if element in ['cmi.core.lesson_location', 'cmi.location', 'cmi.suspend_data', 'cmi.core.lesson_status', 'cmi.core.score.raw', 'cmi.score.raw']:
+                    if element in ['cmi.suspend_data'] and len(str(value)) > 100:
+                        logger.info(f"💾 SCORM SetValue({element}) - stored {len(str(value))} chars")
+                    else:
+                        logger.info(f"💾 SCORM SetValue({element}, {str(value)[:100]}) - stored successfully")
                 
-                # Save immediately for persistence
-                self.attempt.save()
+                # Handle interactions, objectives, and comments tracking
+                self._handle_detailed_tracking(element, value)
+                
+                # Standard SCORM bookmark handling - lesson_location is already stored in the model
+                
+                # Update model fields based on element
+                if self.version == '1.2':
+                    if element == 'cmi.core.lesson_status':
+                        self.attempt.lesson_status = value
+                        self._update_completion_from_status(value)
+                    elif element == 'cmi.core.score.raw':
+                        try:
+                            self.attempt.score_raw = Decimal(value) if value and str(value).strip() else None
+                        except (ValueError, TypeError):
+                            logger.warning(f"Invalid score.raw value: {value}")
+                            self.last_error = '405'  # Incorrect data type
+                            return 'false'
+                    elif element == 'cmi.core.score.max':
+                        try:
+                            self.attempt.score_max = Decimal(value) if value and str(value).strip() else None
+                        except (ValueError, TypeError):
+                            logger.warning(f"Invalid score.max value: {value}")
+                            self.last_error = '405'  # Incorrect data type
+                            return 'false'
+                    elif element == 'cmi.core.score.min':
+                        try:
+                            self.attempt.score_min = Decimal(value) if value and str(value).strip() else None
+                        except (ValueError, TypeError):
+                            logger.warning(f"Invalid score.min value: {value}")
+                            self.last_error = '405'  # Incorrect data type
+                            return 'false'
+                    elif element == 'cmi.core.lesson_location':
+                        # CRITICAL FIX: Store bookmark data in both CMI data and model fields
+                        self.attempt.lesson_location = value
+                        self.attempt.cmi_data['cmi.core.lesson_location'] = value
+                        logger.info(f"[TRACKING] Lesson location updated (SCORM 1.2): {value[:50]}...")
+                        # Enhanced slide tracking
+                        self._update_slide_tracking(value)
+                        # IMMEDIATE SAVE: Bookmark is critical for resume, save immediately
+                        try:
+                            self.attempt.save()
+                            logger.info(f"[TRACKING] Lesson location saved to database (SCORM 1.2)")
+                        except Exception as e:
+                            logger.error(f"[TRACKING] Error saving lesson location (SCORM 1.2): {str(e)}")
+                    elif element == 'cmi.core.session_time':
+                        self.attempt.session_time = value
+                        self._update_total_time(value)
+                    elif element == 'cmi.core.exit':
+                        self.attempt.exit_mode = value
+                    elif element == 'cmi.suspend_data':
+                        # CRITICAL FIX: Store suspend data in both CMI data and model fields
+                        self.attempt.suspend_data = value
+                        self.attempt.cmi_data['cmi.suspend_data'] = value
+                        logger.info(f"[TRACKING] Suspend data updated (SCORM 1.2): {len(value)} chars")
+                        # ENHANCED: Parse and sync progress from suspend data
+                        self._parse_and_sync_suspend_data(value)
+                        # IMMEDIATE SAVE: Suspend data is critical for resume, save immediately
+                        try:
+                            self.attempt.save()
+                            logger.info(f"[TRACKING] Suspend data saved to database (SCORM 1.2)")
+                        except Exception as e:
+                            logger.error(f"[TRACKING] Error saving suspend data (SCORM 1.2): {str(e)}")
+                else:  # SCORM 2004
+                    if element == 'cmi.completion_status':
+                        self.attempt.completion_status = value
+                        if value == 'completed':
+                            self.attempt.completed_at = timezone.now()
+                    elif element == 'cmi.success_status':
+                        self.attempt.success_status = value
+                    elif element == 'cmi.score.raw':
+                        try:
+                            self.attempt.score_raw = Decimal(value) if value and str(value).strip() else None
+                        except (ValueError, TypeError):
+                            logger.warning(f"Invalid score.raw value: {value}")
+                            self.last_error = '405'  # Incorrect data type
+                            return 'false'
+                    elif element == 'cmi.score.max':
+                        try:
+                            self.attempt.score_max = Decimal(value) if value and str(value).strip() else None
+                        except (ValueError, TypeError):
+                            logger.warning(f"Invalid score.max value: {value}")
+                            self.last_error = '405'  # Incorrect data type
+                            return 'false'
+                    elif element == 'cmi.score.min':
+                        try:
+                            self.attempt.score_min = Decimal(value) if value and str(value).strip() else None
+                        except (ValueError, TypeError):
+                            logger.warning(f"Invalid score.min value: {value}")
+                            self.last_error = '405'  # Incorrect data type
+                            return 'false'
+                    elif element == 'cmi.score.scaled':
+                        try:
+                            scaled_value = Decimal(value) if value and str(value).strip() else None
+                            # SCORM 2004 scaled scores should be between -1 and 1
+                            if scaled_value is not None and (scaled_value < -1 or scaled_value > 1):
+                                logger.warning(f"Score.scaled out of range (-1 to 1): {value}")
+                                self.last_error = '405'  # Incorrect data type
+                                return 'false'
+                            self.attempt.score_scaled = scaled_value
+                        except (ValueError, TypeError):
+                            logger.warning(f"Invalid score.scaled value: {value}")
+                            self.last_error = '405'  # Incorrect data type
+                            return 'false'
+                    elif element == 'cmi.progress_measure':
+                        try:
+                            progress_value = Decimal(value) if value and str(value).strip() else None
+                            # SCORM 2004 progress_measure should be between 0 and 1
+                            if progress_value is not None and (progress_value < 0 or progress_value > 1):
+                                logger.warning(f"Progress_measure out of range (0 to 1): {value}")
+                                self.last_error = '405'  # Incorrect data type
+                                return 'false'
+                            # Convert to progress_percentage (0-1 -> 0-100)
+                            if progress_value is not None:
+                                self.attempt.progress_percentage = progress_value * 100
+                                logger.info(f"Updated progress_percentage to {self.attempt.progress_percentage}% from progress_measure {progress_value}")
+                        except (ValueError, TypeError):
+                            logger.warning(f"Invalid progress_measure value: {value}")
+                            self.last_error = '405'  # Incorrect data type
+                            return 'false'
+                    elif element == 'cmi.location':
+                        # CRITICAL FIX: Store bookmark data in both CMI data and model fields
+                        self.attempt.lesson_location = value
+                        self.attempt.cmi_data['cmi.location'] = value
+                        logger.info(f"[TRACKING] Lesson location updated (SCORM 2004): {value[:50]}...")
+                        # Enhanced slide tracking
+                        self._update_slide_tracking(value)
+                        # IMMEDIATE SAVE: Bookmark is critical for resume, save immediately
+                        try:
+                            self.attempt.save()
+                            logger.info(f"[TRACKING] Lesson location saved to database (SCORM 2004)")
+                        except Exception as e:
+                            logger.error(f"[TRACKING] Error saving lesson location (SCORM 2004): {str(e)}")
+                    elif element == 'cmi.session_time':
+                        self.attempt.session_time = value
+                        self._update_total_time(value)
+                    elif element == 'cmi.exit':
+                        self.attempt.exit_mode = value
+                    elif element == 'cmi.suspend_data':
+                        # CRITICAL FIX: Store suspend data in both CMI data and model fields
+                        self.attempt.suspend_data = value
+                        self.attempt.cmi_data['cmi.suspend_data'] = value
+                        logger.info(f"[TRACKING] Suspend data updated (SCORM 2004): {len(value)} chars")
+                        # ENHANCED: Parse and sync progress from suspend data
+                        self._parse_and_sync_suspend_data(value)
+                        # IMMEDIATE SAVE: Suspend data is critical for resume, save immediately
+                        try:
+                            self.attempt.save()
+                            logger.info(f"[TRACKING] Suspend data saved to database (SCORM 2004)")
+                        except Exception as e:
+                            logger.error(f"[TRACKING] Error saving suspend data (SCORM 2004): {str(e)}")
+                
                 self.last_error = '0'
                 return 'true'
-            
-            # FIXED: Add size limits to prevent unbounded data growth
-            # Limit suspend_data to 1MB, other values to 10KB
-            value_str = str(value)
-            if element in ['cmi.suspend_data']:
-                max_size = 1024 * 1024  # 1MB
-                if len(value_str) > max_size:
-                    logger.warning(f"SetValue({element}) exceeds {max_size} bytes, truncating from {len(value_str)}")
-                    value = value_str[:max_size]
-            else:
-                max_size = 10240  # 10KB for regular fields
-                if len(value_str) > max_size:
-                    logger.warning(f"SetValue({element}) exceeds {max_size} bytes, truncating from {len(value_str)}")
-                    value = value_str[:max_size]
-            
-            # Store the value
-            self.attempt.cmi_data[element] = value
-            
-            # Log SetValue for important elements
-            if element in ['cmi.core.lesson_location', 'cmi.location', 'cmi.suspend_data', 'cmi.core.lesson_status', 'cmi.core.score.raw', 'cmi.score.raw']:
-                if element in ['cmi.suspend_data'] and len(str(value)) > 100:
-                    logger.info(f"💾 SCORM SetValue({element}) - stored {len(str(value))} chars")
-                else:
-                    logger.info(f"💾 SCORM SetValue({element}, {str(value)[:100]}) - stored successfully")
-            
-            # Handle interactions, objectives, and comments tracking
-            self._handle_detailed_tracking(element, value)
-            
-            # Standard SCORM bookmark handling - lesson_location is already stored in the model
-            
-            # Update model fields based on element
-            if self.version == '1.2':
-                if element == 'cmi.core.lesson_status':
-                    self.attempt.lesson_status = value
-                    self._update_completion_from_status(value)
-                elif element == 'cmi.core.score.raw':
-                    try:
-                        self.attempt.score_raw = Decimal(value) if value and str(value).strip() else None
-                    except (ValueError, TypeError):
-                        logger.warning(f"Invalid score.raw value: {value}")
-                        self.last_error = '405'  # Incorrect data type
-                        return 'false'
-                elif element == 'cmi.core.score.max':
-                    try:
-                        self.attempt.score_max = Decimal(value) if value and str(value).strip() else None
-                    except (ValueError, TypeError):
-                        logger.warning(f"Invalid score.max value: {value}")
-                        self.last_error = '405'  # Incorrect data type
-                        return 'false'
-                elif element == 'cmi.core.score.min':
-                    try:
-                        self.attempt.score_min = Decimal(value) if value and str(value).strip() else None
-                    except (ValueError, TypeError):
-                        logger.warning(f"Invalid score.min value: {value}")
-                        self.last_error = '405'  # Incorrect data type
-                        return 'false'
-                elif element == 'cmi.core.lesson_location':
-                    # CRITICAL FIX: Store bookmark data in both CMI data and model fields
-                    self.attempt.lesson_location = value
-                    self.attempt.cmi_data['cmi.core.lesson_location'] = value
-                    logger.info(f"[TRACKING] Lesson location updated (SCORM 1.2): {value[:50]}...")
-                    # Enhanced slide tracking
-                    self._update_slide_tracking(value)
-                    # IMMEDIATE SAVE: Bookmark is critical for resume, save immediately
-                    try:
-                        self.attempt.save()
-                        logger.info(f"[TRACKING] Lesson location saved to database (SCORM 1.2)")
-                    except Exception as e:
-                        logger.error(f"[TRACKING] Error saving lesson location (SCORM 1.2): {str(e)}")
-                elif element == 'cmi.core.session_time':
-                    self.attempt.session_time = value
-                    self._update_total_time(value)
-                elif element == 'cmi.core.exit':
-                    self.attempt.exit_mode = value
-                elif element == 'cmi.suspend_data':
-                    # CRITICAL FIX: Store suspend data in both CMI data and model fields
-                    self.attempt.suspend_data = value
-                    self.attempt.cmi_data['cmi.suspend_data'] = value
-                    logger.info(f"[TRACKING] Suspend data updated (SCORM 1.2): {len(value)} chars")
-                    # ENHANCED: Parse and sync progress from suspend data
-                    self._parse_and_sync_suspend_data(value)
-                    # IMMEDIATE SAVE: Suspend data is critical for resume, save immediately
-                    try:
-                        self.attempt.save()
-                        logger.info(f"[TRACKING] Suspend data saved to database (SCORM 1.2)")
-                    except Exception as e:
-                        logger.error(f"[TRACKING] Error saving suspend data (SCORM 1.2): {str(e)}")
-            else:  # SCORM 2004
-                if element == 'cmi.completion_status':
-                    self.attempt.completion_status = value
-                    if value == 'completed':
-                        self.attempt.completed_at = timezone.now()
-                elif element == 'cmi.success_status':
-                    self.attempt.success_status = value
-                elif element == 'cmi.score.raw':
-                    try:
-                        self.attempt.score_raw = Decimal(value) if value and str(value).strip() else None
-                    except (ValueError, TypeError):
-                        logger.warning(f"Invalid score.raw value: {value}")
-                        self.last_error = '405'  # Incorrect data type
-                        return 'false'
-                elif element == 'cmi.score.max':
-                    try:
-                        self.attempt.score_max = Decimal(value) if value and str(value).strip() else None
-                    except (ValueError, TypeError):
-                        logger.warning(f"Invalid score.max value: {value}")
-                        self.last_error = '405'  # Incorrect data type
-                        return 'false'
-                elif element == 'cmi.score.min':
-                    try:
-                        self.attempt.score_min = Decimal(value) if value and str(value).strip() else None
-                    except (ValueError, TypeError):
-                        logger.warning(f"Invalid score.min value: {value}")
-                        self.last_error = '405'  # Incorrect data type
-                        return 'false'
-                elif element == 'cmi.score.scaled':
-                    try:
-                        scaled_value = Decimal(value) if value and str(value).strip() else None
-                        # SCORM 2004 scaled scores should be between -1 and 1
-                        if scaled_value is not None and (scaled_value < -1 or scaled_value > 1):
-                            logger.warning(f"Score.scaled out of range (-1 to 1): {value}")
-                            self.last_error = '405'  # Incorrect data type
-                            return 'false'
-                        self.attempt.score_scaled = scaled_value
-                    except (ValueError, TypeError):
-                        logger.warning(f"Invalid score.scaled value: {value}")
-                        self.last_error = '405'  # Incorrect data type
-                        return 'false'
-                elif element == 'cmi.progress_measure':
-                    try:
-                        progress_value = Decimal(value) if value and str(value).strip() else None
-                        # SCORM 2004 progress_measure should be between 0 and 1
-                        if progress_value is not None and (progress_value < 0 or progress_value > 1):
-                            logger.warning(f"Progress_measure out of range (0 to 1): {value}")
-                            self.last_error = '405'  # Incorrect data type
-                            return 'false'
-                        # Convert to progress_percentage (0-1 -> 0-100)
-                        if progress_value is not None:
-                            self.attempt.progress_percentage = progress_value * 100
-                            logger.info(f"Updated progress_percentage to {self.attempt.progress_percentage}% from progress_measure {progress_value}")
-                    except (ValueError, TypeError):
-                        logger.warning(f"Invalid progress_measure value: {value}")
-                        self.last_error = '405'  # Incorrect data type
-                        return 'false'
-                elif element == 'cmi.location':
-                    # CRITICAL FIX: Store bookmark data in both CMI data and model fields
-                    self.attempt.lesson_location = value
-                    self.attempt.cmi_data['cmi.location'] = value
-                    logger.info(f"[TRACKING] Lesson location updated (SCORM 2004): {value[:50]}...")
-                    # Enhanced slide tracking
-                    self._update_slide_tracking(value)
-                    # IMMEDIATE SAVE: Bookmark is critical for resume, save immediately
-                    try:
-                        self.attempt.save()
-                        logger.info(f"[TRACKING] Lesson location saved to database (SCORM 2004)")
-                    except Exception as e:
-                        logger.error(f"[TRACKING] Error saving lesson location (SCORM 2004): {str(e)}")
-                elif element == 'cmi.session_time':
-                    self.attempt.session_time = value
-                    self._update_total_time(value)
-                elif element == 'cmi.exit':
-                    self.attempt.exit_mode = value
-                elif element == 'cmi.suspend_data':
-                    # CRITICAL FIX: Store suspend data in both CMI data and model fields
-                    self.attempt.suspend_data = value
-                    self.attempt.cmi_data['cmi.suspend_data'] = value
-                    logger.info(f"[TRACKING] Suspend data updated (SCORM 2004): {len(value)} chars")
-                    # ENHANCED: Parse and sync progress from suspend data
-                    self._parse_and_sync_suspend_data(value)
-                    # IMMEDIATE SAVE: Suspend data is critical for resume, save immediately
-                    try:
-                        self.attempt.save()
-                        logger.info(f"[TRACKING] Suspend data saved to database (SCORM 2004)")
-                    except Exception as e:
-                        logger.error(f"[TRACKING] Error saving suspend data (SCORM 2004): {str(e)}")
-            
-            self.last_error = '0'
-            return 'true'
-        except Exception as e:
-            logger.error(f"Error setting value for {element}: {str(e)}")
-            self.last_error = '101'
-            return 'false'
+            except Exception as e:
+                logger.error(f"Error setting value for {element}: {str(e)}")
+                self.last_error = '101'
+                return 'false'
     
     def commit(self):
         """LMSCommit / Commit"""
@@ -904,99 +904,99 @@ class ScormAPIHandler:
                 # Set flag to prevent signal from processing this
                 self.attempt._skip_signal = True
                 try:
-                # CRITICAL FIX: Ensure all tracking fields are properly set before save
-                # This fixes the issue where progress_percentage, suspend_data, etc. remain at default values
+                    # CRITICAL FIX: Ensure all tracking fields are properly set before save
+                    # This fixes the issue where progress_percentage, suspend_data, etc. remain at default values
+                    
+                    # 1. Ensure JSON fields are never None
+                    if self.attempt.completed_slides is None:
+                        self.attempt.completed_slides = []
+                    if self.attempt.navigation_history is None:
+                        self.attempt.navigation_history = []
+                    if self.attempt.detailed_tracking is None:
+                        self.attempt.detailed_tracking = {}
+                    if self.attempt.session_data is None:
+                        self.attempt.session_data = {}
+                    if self.attempt.cmi_data is None:
+                        self.attempt.cmi_data = {}
                 
-                # 1. Ensure JSON fields are never None
-                if self.attempt.completed_slides is None:
-                    self.attempt.completed_slides = []
-                if self.attempt.navigation_history is None:
-                    self.attempt.navigation_history = []
-                if self.attempt.detailed_tracking is None:
-                    self.attempt.detailed_tracking = {}
-                if self.attempt.session_data is None:
-                    self.attempt.session_data = {}
-                if self.attempt.cmi_data is None:
-                    self.attempt.cmi_data = {}
+                    # 2. Extract and sync tracking data from CMI data
+                    self._sync_tracking_from_cmi_data()
+                    
+                    # 3. Add commit timestamp to detailed tracking
+                    if not self.attempt.detailed_tracking:
+                        self.attempt.detailed_tracking = {}
+                    
+                    self.attempt.detailed_tracking.update({
+                        'last_commit_timestamp': timezone.now().isoformat(),
+                        'commit_count': self.attempt.detailed_tracking.get('commit_count', 0) + 1,
+                        'data_integrity_check': {
+                            'has_suspend_data': bool(self.attempt.suspend_data),
+                            'has_lesson_location': bool(self.attempt.lesson_location),
+                            'has_score': self.attempt.score_raw is not None,
+                            'has_status': self.attempt.lesson_status not in ['not_attempted', 'not attempted'],
+                            'progress_percentage': float(self.attempt.progress_percentage) if self.attempt.progress_percentage else 0
+                        }
+                    })
                 
-                # 2. Extract and sync tracking data from CMI data
-                self._sync_tracking_from_cmi_data()
+                    # 4. Log the tracking data being saved
+                    logger.info(f"[COMMIT] Saving tracking data for attempt {self.attempt.id}:")
+                    logger.info(f"  - Progress: {self.attempt.progress_percentage}%")
+                    logger.info(f"  - Suspend Data: {len(self.attempt.suspend_data) if self.attempt.suspend_data else 0} chars")
+                    logger.info(f"  - Completed Slides: {len(self.attempt.completed_slides) if self.attempt.completed_slides else 0}")
+                    logger.info(f"  - Total Slides: {self.attempt.total_slides}")
+                    logger.info(f"  - Lesson Location: {self.attempt.lesson_location[:50] if self.attempt.lesson_location else 'None'}...")
+                    logger.info(f"  - Lesson Status: {self.attempt.lesson_status}")
+                    logger.info(f"  - Completion Status: {self.attempt.completion_status}")
+                    logger.info(f"  - Success Status: {self.attempt.success_status}")
+                    logger.info(f"  - Score Raw: {self.attempt.score_raw}")
+                    logger.info(f"  - Score Max: {self.attempt.score_max}")
+                    logger.info(f"  - Score Scaled: {self.attempt.score_scaled}")
+                    logger.info(f"  - Time Spent: {self.attempt.time_spent_seconds}s")
+                    logger.info(f"  - Total Time: {self.attempt.total_time}")
+                    logger.info(f"  - CMI Data Size: {len(str(self.attempt.cmi_data)) if self.attempt.cmi_data else 0} chars")
                 
-                # 3. Add commit timestamp to detailed tracking
-                if not self.attempt.detailed_tracking:
-                    self.attempt.detailed_tracking = {}
+                    # 5. Save to database with explicit field list for safety
+                    # This ensures all critical fields are saved
+                    self.attempt.save()
+                    logger.info(f"[COMMIT] ✅ Successfully saved attempt {self.attempt.id} to database")
+                    
+                    # 6. Verify the save was successful by checking a few critical fields
+                    self.attempt.refresh_from_db()
+                    logger.info(f"[COMMIT] ✅ Verification after save:")
+                    logger.info(f"  - Suspend data still present: {len(self.attempt.suspend_data) if self.attempt.suspend_data else 0} chars")
+                    logger.info(f"  - Bookmark still present: {len(self.attempt.lesson_location) if self.attempt.lesson_location else 0} chars")
+                    logger.info(f"  - Score still present: {self.attempt.score_raw}")
+                    logger.info(f"  - Status still present: {self.attempt.lesson_status}")
                 
-                self.attempt.detailed_tracking.update({
-                    'last_commit_timestamp': timezone.now().isoformat(),
-                    'commit_count': self.attempt.detailed_tracking.get('commit_count', 0) + 1,
-                    'data_integrity_check': {
-                        'has_suspend_data': bool(self.attempt.suspend_data),
-                        'has_lesson_location': bool(self.attempt.lesson_location),
-                        'has_score': self.attempt.score_raw is not None,
-                        'has_status': self.attempt.lesson_status not in ['not_attempted', 'not attempted'],
-                        'progress_percentage': float(self.attempt.progress_percentage) if self.attempt.progress_percentage else 0
-                    }
-                })
-                
-                # 4. Log the tracking data being saved
-                logger.info(f"[COMMIT] Saving tracking data for attempt {self.attempt.id}:")
-                logger.info(f"  - Progress: {self.attempt.progress_percentage}%")
-                logger.info(f"  - Suspend Data: {len(self.attempt.suspend_data) if self.attempt.suspend_data else 0} chars")
-                logger.info(f"  - Completed Slides: {len(self.attempt.completed_slides) if self.attempt.completed_slides else 0}")
-                logger.info(f"  - Total Slides: {self.attempt.total_slides}")
-                logger.info(f"  - Lesson Location: {self.attempt.lesson_location[:50] if self.attempt.lesson_location else 'None'}...")
-                logger.info(f"  - Lesson Status: {self.attempt.lesson_status}")
-                logger.info(f"  - Completion Status: {self.attempt.completion_status}")
-                logger.info(f"  - Success Status: {self.attempt.success_status}")
-                logger.info(f"  - Score Raw: {self.attempt.score_raw}")
-                logger.info(f"  - Score Max: {self.attempt.score_max}")
-                logger.info(f"  - Score Scaled: {self.attempt.score_scaled}")
-                logger.info(f"  - Time Spent: {self.attempt.time_spent_seconds}s")
-                logger.info(f"  - Total Time: {self.attempt.total_time}")
-                logger.info(f"  - CMI Data Size: {len(str(self.attempt.cmi_data)) if self.attempt.cmi_data else 0} chars")
-                
-                # 5. Save to database with explicit field list for safety
-                # This ensures all critical fields are saved
-                self.attempt.save()
-                logger.info(f"[COMMIT] ✅ Successfully saved attempt {self.attempt.id} to database")
-                
-                # 6. Verify the save was successful by checking a few critical fields
-                self.attempt.refresh_from_db()
-                logger.info(f"[COMMIT] ✅ Verification after save:")
-                logger.info(f"  - Suspend data still present: {len(self.attempt.suspend_data) if self.attempt.suspend_data else 0} chars")
-                logger.info(f"  - Bookmark still present: {len(self.attempt.lesson_location) if self.attempt.lesson_location else 0} chars")
-                logger.info(f"  - Score still present: {self.attempt.score_raw}")
-                logger.info(f"  - Status still present: {self.attempt.lesson_status}")
-                
-                # 7. Use centralized sync service for score synchronization
-                # This is critical for ensuring all user interactions are tracked
-                from .score_sync_service import ScormScoreSyncService
-                
-                # COMPREHENSIVE FIX: Handle first attempt scoring issues
-                # This fixes the bug where first attempts don't save scores properly
-                
-                # Check if this is a first attempt with meaningful data but no score
-                is_first_attempt = self.attempt.attempt_number == 1
-                has_meaningful_data = (self.attempt.suspend_data and len(self.attempt.suspend_data) > 100) or \
-                                     (self.attempt.progress_percentage and self.attempt.progress_percentage > 10)
-                                     
-                if is_first_attempt and has_meaningful_data and self.attempt.score_raw is None:
-                    # Check for score in CMI data that might not have been synced
-                    cmi_score = None
-                    if self.attempt.cmi_data:
-                        cmi_score = self.attempt.cmi_data.get('cmi.score.raw') or \
-                                   self.attempt.cmi_data.get('cmi.core.score.raw')
-                        
-                    if cmi_score is not None and cmi_score != '':
-                        try:
-                            # Found score in CMI data - use it
-                            score_val = float(cmi_score)
-                            if 0 <= score_val <= 100:
-                                self.attempt.score_raw = score_val
-                                logger.info(f"[COMMIT] ✅ FIRST ATTEMPT FIX: Extracted score {score_val} from CMI data")
-                                self.attempt.save()
-                        except (ValueError, TypeError):
-                            pass
+                    # 7. Use centralized sync service for score synchronization
+                    # This is critical for ensuring all user interactions are tracked
+                    from .score_sync_service import ScormScoreSyncService
+                    
+                    # COMPREHENSIVE FIX: Handle first attempt scoring issues
+                    # This fixes the bug where first attempts don't save scores properly
+                    
+                    # Check if this is a first attempt with meaningful data but no score
+                    is_first_attempt = self.attempt.attempt_number == 1
+                    has_meaningful_data = (self.attempt.suspend_data and len(self.attempt.suspend_data) > 100) or \
+                                        (self.attempt.progress_percentage and self.attempt.progress_percentage > 10)
+                                         
+                    if is_first_attempt and has_meaningful_data and self.attempt.score_raw is None:
+                        # Check for score in CMI data that might not have been synced
+                        cmi_score = None
+                        if self.attempt.cmi_data:
+                            cmi_score = self.attempt.cmi_data.get('cmi.score.raw') or \
+                                      self.attempt.cmi_data.get('cmi.core.score.raw')
+                            
+                        if cmi_score is not None and cmi_score != '':
+                            try:
+                                # Found score in CMI data - use it
+                                score_val = float(cmi_score)
+                                if 0 <= score_val <= 100:
+                                    self.attempt.score_raw = score_val
+                                    logger.info(f"[COMMIT] ✅ FIRST ATTEMPT FIX: Extracted score {score_val} from CMI data")
+                                    self.attempt.save()
+                            except (ValueError, TypeError):
+                                pass
                     
                     # If still no score but has completion evidence, use dynamic processor
                     if self.attempt.score_raw is None and self.attempt.suspend_data:
@@ -1011,48 +1011,48 @@ class ScormAPIHandler:
                                 self.attempt.save()
                         except Exception as e:
                             logger.error(f"[COMMIT] Error extracting score from suspend_data: {e}")
-                
-                # Now sync score with potentially fixed data
-                sync_success = ScormScoreSyncService.sync_score(self.attempt, force=True)
-                logger.info(f"[COMMIT] Score sync result for attempt {self.attempt.id}: {'✅ Success' if sync_success else '⚠️ Skipped'}")
-                
-                # Always try to sync even if no explicit score
-                # This ensures user interactions are captured in gradebook
-                if not sync_success:
-                    # Update last_accessed to ensure interaction is recorded
-                    self.attempt.last_accessed = timezone.now()
-                    self.attempt.save()
                     
-                    # Try sync again with updated timestamp
+                    # Now sync score with potentially fixed data
                     sync_success = ScormScoreSyncService.sync_score(self.attempt, force=True)
-                    logger.info(f"[COMMIT] Retry score sync with updated timestamp: {'✅ Success' if sync_success else '⚠️ Skipped'}")
+                    logger.info(f"[COMMIT] Score sync result for attempt {self.attempt.id}: {'✅ Success' if sync_success else '⚠️ Skipped'}")
+                    
+                    # Always try to sync even if no explicit score
+                    # This ensures user interactions are captured in gradebook
+                    if not sync_success:
+                        # Update last_accessed to ensure interaction is recorded
+                        self.attempt.last_accessed = timezone.now()
+                        self.attempt.save()
+                        
+                        # Try sync again with updated timestamp
+                        sync_success = ScormScoreSyncService.sync_score(self.attempt, force=True)
+                        logger.info(f"[COMMIT] Retry score sync with updated timestamp: {'✅ Success' if sync_success else '⚠️ Skipped'}")
+                    
+                    # 8. Clear relevant caches to ensure fresh data
+                    from django.core.cache import cache
+                    if self.attempt.scorm_package and self.attempt.scorm_package.topic:
+                        topic = self.attempt.scorm_package.topic
+                        from courses.models import CourseTopic
+                        course_topics = CourseTopic.objects.filter(topic=topic)
+                        for ct in course_topics:
+                            cache.delete(f'gradebook_course_{ct.course.id}')
+                        cache.delete(f'topic_progress_{topic.id}_{self.attempt.user.id}')
                 
-                # 8. Clear relevant caches to ensure fresh data
-                from django.core.cache import cache
-                if self.attempt.scorm_package and self.attempt.scorm_package.topic:
-                    topic = self.attempt.scorm_package.topic
-                    from courses.models import CourseTopic
-                    course_topics = CourseTopic.objects.filter(topic=topic)
-                    for ct in course_topics:
-                        cache.delete(f'gradebook_course_{ct.course.id}')
-                    cache.delete(f'topic_progress_{topic.id}_{self.attempt.user.id}')
-                
-            except Exception as e:
-                logger.error(f"[COMMIT] ❌ Error saving tracking data: {str(e)}")
-                import traceback
-                logger.error(traceback.format_exc())
-                # Try a basic save as fallback
-                try:
-                    self.attempt.save()
-                    logger.info(f"[COMMIT] ⚠️ Fallback save successful for attempt {self.attempt.id}")
-                except Exception as fallback_error:
-                    logger.error(f"[COMMIT] ❌ Fallback save also failed: {str(fallback_error)}")
-            finally:
-                # Clean up the flag
-                if hasattr(self.attempt, '_skip_signal'):
-                    delattr(self.attempt, '_skip_signal')
-        else:
-            logger.info("Preview attempt - skipping database save")
+                except Exception as e:
+                    logger.error(f"[COMMIT] ❌ Error saving tracking data: {str(e)}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+                    # Try a basic save as fallback
+                    try:
+                        self.attempt.save()
+                        logger.info(f"[COMMIT] ⚠️ Fallback save successful for attempt {self.attempt.id}")
+                    except Exception as fallback_error:
+                        logger.error(f"[COMMIT] ❌ Fallback save also failed: {str(fallback_error)}")
+                finally:
+                    # Clean up the flag
+                    if hasattr(self.attempt, '_skip_signal'):
+                        delattr(self.attempt, '_skip_signal')
+            else:
+                logger.info("Preview attempt - skipping database save")
     
     def _update_topic_progress(self):
         """Update related TopicProgress based on SCORM data"""

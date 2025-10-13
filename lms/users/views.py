@@ -9109,22 +9109,17 @@ def branch_login(request, branch_slug=None):
         return ip
     
     client_ip = get_client_ip(request)
-    try:
-        def dummy_get_response(request):
-            return None
-    except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
-        
-        Session_status = {
-            'warning_level': 'none',
-            'failure_count': 0,
-            'remaining_attempts': 5,
-            'max_attempts': 5,
-            'lockout_minutes': 0,
-            'remaining_time': 0,
-            'is_blocked': False
-        }
+    
+    # Initialize Session_status with default values
+    Session_status = {
+        'warning_level': 'none',
+        'failure_count': 0,
+        'remaining_attempts': 5,
+        'max_attempts': 5,
+        'lockout_minutes': 0,
+        'remaining_time': 0,
+        'is_blocked': False
+    }
     
     # Get branch context if branch_slug is provided
     if branch_slug:

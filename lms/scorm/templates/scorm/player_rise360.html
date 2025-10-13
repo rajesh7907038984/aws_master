@@ -34,34 +34,6 @@
             color: #333;
         }
         
-        .progress-container {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            min-width: 200px;
-        }
-        
-        .progress-bar-wrapper {
-            flex: 1;
-            height: 8px;
-            background: #e0e0e0;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-        
-        .progress-bar-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #f59e0b, #d97706);
-            width: 0%;
-            transition: width 0.3s ease;
-        }
-        
-        .progress-text {
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: #666;
-            min-width: 45px;
-        }
         
         .scorm-actions {
             display: flex;
@@ -169,12 +141,6 @@
             <span class="preview-badge">PREVIEW MODE</span>
             {% endif %}
         </div>
-        <div class="progress-container">
-            <div class="progress-bar-wrapper">
-                <div id="progressBarFill" class="progress-bar-fill"></div>
-            </div>
-            <span id="progressText" class="progress-text">0%</span>
-        </div>
         <div class="scorm-actions">
             <button type="button" id="saveExitBtn" class="btn">Save & Exit</button>
         </div>
@@ -201,9 +167,9 @@
             console.error('[Rise 360] Using fallback configuration due to missing parameters');
             
             // Continue with fallback config
+            console.log('🎯 Rise 360 Player - Initializing with fallback config...');
         } else {
-        
-        console.log('🎯 Rise 360 Player - Initializing...');
+            console.log('🎯 Rise 360 Player - Initializing...');
         
         // Get CSRF token
         function getCookie(name) {
@@ -225,6 +191,13 @@
         const apiCallCache = new Map();
         const CACHE_DURATION = 2000; // 2 seconds cache
         
+        // Track API failures to implement exponential backoff
+        const apiFailures = {
+            count: 0,
+            lastFailure: 0,
+            backoffTime: 1000 // Start with 1 second
+        };
+        
         function makeRiseAPICall(method, parameters) {
             try {
                 // Create cache key
@@ -235,27 +208,95 @@
                 if (method.includes('Get') && apiCallCache.has(cacheKey)) {
                     const cached = apiCallCache.get(cacheKey);
                     if (now - cached.timestamp < CACHE_DURATION) {
-                        console.log(`[Rise 360 API] ${method} -> cached result`);
                         return cached.result;
                     } else {
                         apiCallCache.delete(cacheKey);
                     }
                 }
                 
+                // CRITICAL FIX: Implement exponential backoff for API calls
+                // If we've had recent failures, check if we should wait before making another call
+                if (apiFailures.count > 0) {
+                    const timeSinceLastFailure = now - apiFailures.lastFailure;
+                    if (timeSinceLastFailure < apiFailures.backoffTime) {
+                        console.log(`[Rise 360 API] Backing off for ${apiFailures.backoffTime - timeSinceLastFailure}ms more`);
+                        
+                        // Return cached value if available, or empty value
+                        if (method.includes('Get')) {
+                            // For read operations during backoff, try to use a longer-lived cache
+                            const cachedValues = Array.from(apiCallCache.entries())
+                                .filter(([key]) => key.startsWith(method))
+                                .map(([_, value]) => value);
+                            
+                            if (cachedValues.length > 0) {
+                                // Use the most recent cached value from any similar call
+                                const mostRecent = cachedValues.sort((a, b) => b.timestamp - a.timestamp)[0];
+                                console.log(`[Rise 360 API] Using alternative cached value during backoff`);
+                                return mostRecent.result;
+                            }
+                            
+                            // Use a default empty value for gets
+                            return '';
+                        }
+                        
+                        // For write operations, return false during backoff
+                        return 'false';
+                    } else {
+                        // If enough time has passed since the last failure, reset backoff
+                        if (timeSinceLastFailure > 10000) { // 10 seconds with no failures
+                            apiFailures.count = 0;
+                            apiFailures.backoffTime = 1000;
+                            console.log(`[Rise 360 API] Reset backoff after 10s with no failures`);
+                        }
+                    }
+                }
+                
+                // CRITICAL FIX: Use a timeout for synchronous XHR to prevent browser lockups
                 const xhr = new XMLHttpRequest();
+                let timedOut = false;
+                
+                // Prepare data early to avoid unnecessary processing if timeout occurs
+                const requestData = JSON.stringify({
+                    method: method,
+                    parameters: parameters || []
+                });
+                
+                try {
                 xhr.open('POST', API_ENDPOINT, false); // Synchronous for SCORM compatibility
                 xhr.setRequestHeader('Content-Type', 'application/json');
                 xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
                 
-                xhr.send(JSON.stringify({
-                    method: method,
-                    parameters: parameters || []
-                }));
+                    // Add custom headers to help with debugging server-side
+                    xhr.setRequestHeader('X-Rise360-Method', method);
+                    xhr.setRequestHeader('X-Rise360-Client-Timestamp', now.toString());
+                    
+                    // Send with timeout monitoring in another thread
+                    setTimeout(() => {
+                        if (!xhr.status) { // If still no response
+                            timedOut = true;
+                            console.error(`[Rise 360 API] Request timeout for ${method}`);
+                            
+                            // Record failure for backoff
+                            apiFailures.count++;
+                            apiFailures.lastFailure = Date.now();
+                            apiFailures.backoffTime = Math.min(apiFailures.backoffTime * 2, 30000); // Max 30 seconds
+                        }
+                    }, 3000); // 3 second timeout
+                    
+                    xhr.send(requestData);
+                    
+                    if (timedOut) {
+                        // If timeout was detected
+                        return method.includes('Get') ? '' : 'false';
+                    }
                 
                 if (xhr.status === 200) {
                     const data = JSON.parse(xhr.responseText);
                     if (data.success) {
-                        console.log(`[Rise 360 API] ${method} -> ${data.result}`);
+                            // Successful response - reset failure count
+                            if (apiFailures.count > 0) {
+                                apiFailures.count = Math.max(0, apiFailures.count - 1); // Gradually reduce failures
+                            }
                         
                         // Cache read-only results
                         if (method.includes('Get')) {
@@ -267,15 +308,31 @@
                         
                         return data.result;
                     } else {
-                        console.error(`[Rise 360 API] ${method} failed:`, data.error);
+                            console.error(`[Rise 360 API] ${method} failed:`, data.error || 'Unknown error');
                         return method.includes('Get') ? '' : 'false';
                     }
                 } else {
                     console.error(`[Rise 360 API] HTTP ${xhr.status}`);
+                        
+                        // Record failure for backoff
+                        apiFailures.count++;
+                        apiFailures.lastFailure = Date.now();
+                        apiFailures.backoffTime = Math.min(apiFailures.backoffTime * 2, 30000); // Max 30 seconds
+                        
                     return method.includes('Get') ? '' : 'false';
                 }
-            } catch (error) {
-                console.error(`[Rise 360 API] ${method} error:`, error);
+                } catch (innerError) {
+                    console.error(`[Rise 360 API] XHR inner error:`, innerError);
+                    
+                    // Record failure for backoff
+                    apiFailures.count++;
+                    apiFailures.lastFailure = Date.now();
+                    apiFailures.backoffTime = Math.min(apiFailures.backoffTime * 2, 30000); // Max 30 seconds
+                    
+                    return method.includes('Get') ? '' : 'false';
+                }
+            } catch (outerError) {
+                console.error(`[Rise 360 API] ${method} outer error:`, outerError);
                 return method.includes('Get') ? '' : 'false';
             }
         }
@@ -300,23 +357,149 @@
             }, 100);
         }
         
-        // Rise 360 SCORM API - Simple and focused with instant save
+        // Storage for important SCORM data to prevent data loss
+        const scormDataCache = {
+            // Commonly used SCORM data elements
+            'cmi.core.lesson_location': '',
+            'cmi.core.lesson_status': 'incomplete',
+            'cmi.core.score.raw': '0',
+            'cmi.core.score.min': '0',
+            'cmi.core.score.max': '100',
+            'cmi.suspend_data': '',
+            'cmi.core.entry': 'ab-initio',
+            'cmi.core.exit': '',
+            'cmi.progress_measure': '0',
+            
+            // Session tracking
+            lastSave: Date.now(),
+            pendingSync: false,
+            saveInterval: null,
+            
+            // Initialize tracking
+            init: function() {
+                // Set up periodic auto-save
+                if (!this.saveInterval) {
+                    this.saveInterval = setInterval(() => {
+                        // Only save if there are pending changes
+                        if (this.pendingSync) {
+                            console.log('[Rise 360] Auto-saving cached SCORM data...');
+                            this.saveToAPI();
+                            this.pendingSync = false;
+                        }
+                    }, 30000); // 30 seconds
+                }
+            },
+            
+            // Update a data element
+            update: function(element, value) {
+                if (this[element] !== value) {
+                    this[element] = value;
+                    this.pendingSync = true;
+                    this.lastSave = Date.now();
+                }
+                return true;
+            },
+            
+            // Get a data element
+            get: function(element) {
+                return this[element] || '';
+            },
+            
+            // Save all pending data to the API
+            saveToAPI: function() {
+                console.log('[Rise 360] Saving cached data to API...');
+                const elements = [
+                    'cmi.core.lesson_location',
+                    'cmi.core.lesson_status',
+                    'cmi.core.score.raw',
+                    'cmi.core.exit',
+                    'cmi.suspend_data',
+                    'cmi.progress_measure'
+                ];
+                
+                elements.forEach(element => {
+                    const value = this[element];
+                    if (value) {
+                        try {
+                            makeRiseAPICall('LMSSetValue', [element, value]);
+                        } catch (e) {
+                            console.error(`[Rise 360] Error saving ${element}:`, e);
+                        }
+                    }
+                });
+                
+                try {
+                    makeRiseAPICall('LMSCommit', ['']);
+                } catch (e) {
+                    console.error('[Rise 360] Error committing data:', e);
+                }
+            }
+        };
+        
+        // Initialize the data cache
+        scormDataCache.init();
+        
+        // Enhanced Rise 360 SCORM API with error handling and fallbacks
         window.API = {
             LMSInitialize: function(param) {
                 console.log('[Rise 360] Initialize');
-                return makeRiseAPICall('LMSInitialize', [param]);
+                try {
+                    const result = makeRiseAPICall('LMSInitialize', [param]);
+                    
+                    // Load initial values into cache for resilience
+                    setTimeout(() => {
+                        try {
+                            // Get important values to cache
+                            const elements = [
+                                'cmi.core.lesson_location',
+                                'cmi.core.lesson_status',
+                                'cmi.core.score.raw',
+                                'cmi.core.score.max',
+                                'cmi.core.score.min',
+                                'cmi.suspend_data',
+                                'cmi.core.entry',
+                                'cmi.progress_measure'
+                            ];
+                            
+                            elements.forEach(element => {
+                                try {
+                                    const value = makeRiseAPICall('LMSGetValue', [element]);
+                                    if (value) {
+                                        scormDataCache[element] = value;
+                                    }
+                                } catch (e) {
+                                    console.warn(`[Rise 360] Couldn't load initial value for ${element}:`, e);
+                                }
+                            });
+                        } catch (e) {
+                            console.error('[Rise 360] Error loading initial cache values:', e);
+                        }
+                    }, 1000);
+                    
+                    return result;
+                } catch (e) {
+                    console.error('[Rise 360] Initialize error:', e);
+                    return 'true'; // Return success to prevent content from breaking
+                }
             },
             
             LMSFinish: function(param) {
                 console.log('[Rise 360] Finish - EXIT COURSE button clicked inside content');
+                try {
+                    // Save any pending cached data first
+                    if (scormDataCache.pendingSync) {
+                        scormDataCache.saveToAPI();
+                        scormDataCache.pendingSync = false;
+                    }
+                    
+                    // Then call the API
                 const result = makeRiseAPICall('LMSFinish', [param]);
                 
-                // CRITICAL FIX: Sync to database before redirect (same as Save & Exit button)
-                if (result === 'true') {
-                    console.log('[Rise 360] Data saved, syncing to database...');
-                    
-                    // Call the same sync endpoint as Save & Exit button
-                    fetch('{% url "scorm:sync_on_exit" %}', {
+                    // Enhanced sync logic with retry mechanism
+                    function syncToServer(attemptCount = 0) {
+                        console.log(`[Rise 360] Syncing to database (attempt ${attemptCount + 1})...`);
+                        
+                        return fetch('{% url "scorm:sync_on_exit" %}', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/x-www-form-urlencoded',
@@ -324,10 +507,17 @@
                         },
                         body: 'attempt_id={{ attempt.id|default:attempt_id }}'
                     })
-                    .then(response => response.json())
-                    .then(data => {
-                        console.log('[Rise 360] Database sync successful, redirecting...');
-                        // Force redirect from top window to bypass iframe restrictions
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP ${response.status}`);
+                            }
+                            return response.json();
+                        });
+                    }
+                    
+                    // Function to redirect safely
+                    function safeRedirect() {
+                        console.log('[Rise 360] Redirecting to topic view...');
                         try {
                             if (window.top && window.top !== window) {
                                 window.top.location.href = '{% url "courses:topic_view" topic.id %}';
@@ -338,33 +528,61 @@
                             }
                         } catch (e) {
                             // Fallback if cross-origin restrictions
-                            console.log('[Rise 360] Cross-origin restriction, trying fallback redirect');
+                            console.log('[Rise 360] Cross-origin restriction, using fallback redirect');
                             window.location.href = '{% url "courses:topic_view" topic.id %}';
                         }
+                    }
+                    
+                    // CRITICAL FIX: Sync to database before redirect with retry
+                    if (result === 'true') {
+                        console.log('[Rise 360] Data saved, syncing to database...');
+                        
+                        // Try to sync with retries
+                        syncToServer(0)
+                            .then(data => {
+                                console.log('[Rise 360] Database sync successful:', data);
+                                // Delay redirect briefly for stable session state
+                                setTimeout(safeRedirect, 500);
                     })
                     .catch(error => {
                         console.error('[Rise 360] Database sync error:', error);
-                        // Still redirect even if sync fails
-                        setTimeout(function() {
-                            try {
-                                if (window.top && window.top !== window) {
-                                    window.top.location.href = '{% url "courses:topic_view" topic.id %}';
-                                } else if (window.parent && window.parent !== window) {
-                                    window.parent.location.href = '{% url "courses:topic_view" topic.id %}';
+                                
+                                // Try once more
+                                syncToServer(1)
+                                    .then(data => {
+                                        console.log('[Rise 360] Database sync retry successful');
+                                        setTimeout(safeRedirect, 500);
+                                    })
+                                    .catch(error => {
+                                        console.error('[Rise 360] Database sync retry failed:', error);
+                                        // Still redirect even if sync fails after retry
+                                        setTimeout(safeRedirect, 1000);
+                                    });
+                            });
                                 } else {
-                                    window.location.href = '{% url "courses:topic_view" topic.id %}';
-                                }
+                        // Even if LMSFinish failed, try to sync data and redirect
+                        console.warn('[Rise 360] LMSFinish failed, attempting database sync anyway');
+                        syncToServer(0)
+                            .then(() => setTimeout(safeRedirect, 500))
+                            .catch(() => setTimeout(safeRedirect, 1000));
+                    }
+                    
+                    return result || 'true'; // Return success to prevent content from breaking
                             } catch (e) {
+                    console.error('[Rise 360] Finish error:', e);
+                    
+                    // Critical: still try to redirect even if there was an error
+                    setTimeout(() => {
                                 window.location.href = '{% url "courses:topic_view" topic.id %}';
-                            }
-                        }, 500);
-                    });
-                }
+                    }, 1000);
                 
-                return result;
+                    return 'true'; // Return success to prevent content from breaking
+                }
             },
             
             LMSGetValue: function(element) {
+                // Enhanced caching for resilience
+                try {
                 // Add debouncing to prevent rapid API calls
                 const now = Date.now();
                 const lastCallKey = `last_${element}`;
@@ -374,66 +592,103 @@
                 if (now - lastCall < 100) {
                     const cachedKey = `cached_${element}`;
                     if (window[cachedKey]) {
-                        console.log(`[Rise 360] GetValue(${element}) = cached ${window[cachedKey]}`);
                         return window[cachedKey];
                     }
                 }
                 
+                    // Try to get from API first
                 const value = makeRiseAPICall('LMSGetValue', [element]);
                 
                 // Cache the result
                 window[lastCallKey] = now;
                 window[`cached_${element}`] = value;
+                    
+                    // Also update our resilient cache
+                    if (value) {
+                        scormDataCache[element] = value;
+                    }
                 
                 // Rise 360 needs these for resume
-                if (element === 'cmi.core.lesson_location' || element === 'cmi.core.entry') {
+                    if ((element === 'cmi.core.lesson_location' || element === 'cmi.core.entry') && value) {
                     console.log(`[Rise 360] GetValue(${element}) = ${value}`);
                 }
+                    
                 return value;
+                } catch (e) {
+                    console.error(`[Rise 360] GetValue(${element}) error:`, e);
+                    
+                    // RESILIENCE: Fall back to our cache if API call failed
+                    const cachedValue = scormDataCache[element] || '';
+                    console.log(`[Rise 360] Using cached value for ${element}: ${cachedValue}`);
+                    return cachedValue;
+                }
             },
             
             LMSSetValue: function(element, value) {
+                try {
+                    // CRITICAL: Always update our cache first for resilience
+                    scormDataCache.update(element, value);
+                    
                 // Rise 360 saves bookmark as it navigates
                 if (element === 'cmi.core.lesson_location') {
-                    console.log(`[Rise 360] SetValue: Bookmark = ${value.substring(0, 50)}...`);
+                        const shortValue = value.length > 50 ? value.substring(0, 50) + '...' : value;
+                        console.log(`[Rise 360] SetValue: Bookmark = ${shortValue}`);
                 }
+                    
+                    // Then call the API
                 const result = makeRiseAPICall('LMSSetValue', [element, value]);
                 
-                // INSTANT SAVE: Commit immediately after setting any value
+                    // INSTANT SAVE: Commit immediately after setting important values
                 if (result === 'true') {
+                        // OPTIMIZATION: Only instant commit for critical values
+                        const criticalElements = [
+                            'cmi.core.lesson_location',
+                            'cmi.core.lesson_status',
+                            'cmi.core.score.raw',
+                            'cmi.core.exit',
+                            'cmi.suspend_data'
+                        ];
+                        
+                        if (criticalElements.includes(element)) {
                     instantCommit();
+                        }
                     
-                    // CRITICAL FIX: Update progress immediately when SCORM values change
-                    // This ensures the sidebar progress updates in real-time
-                    if (element === 'cmi.core.lesson_location' || 
-                        element === 'cmi.progress_measure' || 
-                        element === 'cmi.core.lesson_status' ||
-                        element === 'cmi.core.score.raw') {
-                        console.log('[Rise 360] SCORM value changed, updating progress immediately');
-                        setTimeout(updateProgressBar, 100); // Small delay to ensure value is saved
-                    }
                 }
                 
                 return result;
+                } catch (e) {
+                    console.error(`[Rise 360] SetValue(${element}) error:`, e);
+                    // Return success to prevent content from breaking
+                    return 'true';
+                }
             },
             
             LMSCommit: function(param) {
                 console.log('[Rise 360] Commit');
+                try {
                 clearTimeout(commitDebounceTimer); // Clear any pending debounced commit
                 pendingCommit = false;
+                    
+                    // Reset cache pending flag since we're committing now
+                    scormDataCache.pendingSync = false;
+                    
                 return makeRiseAPICall('LMSCommit', [param]);
+                } catch (e) {
+                    console.error('[Rise 360] Commit error:', e);
+                    return 'true'; // Return success to prevent content from breaking
+                }
             },
             
             LMSGetLastError: function() {
-                return '0';
+                return '0'; // Always return "no error" for maximum compatibility
             },
             
             LMSGetErrorString: function(code) {
-                return 'No error';
+                return 'No error'; // Always return "no error" for maximum compatibility
             },
             
             LMSGetDiagnostic: function(code) {
-                return '';
+                return ''; // Return empty string for maximum compatibility
             }
         };
         
@@ -537,15 +792,6 @@
                 if (result === 'true') {
                     instantCommit();
                     
-                    // CRITICAL FIX: Update progress immediately when SCORM values change
-                    // This ensures the sidebar progress updates in real-time
-                    if (element === 'cmi.location' || 
-                        element === 'cmi.progress_measure' || 
-                        element === 'cmi.completion_status' ||
-                        element === 'cmi.score.raw') {
-                        console.log('[Rise 360] SCORM 2004 value changed, updating progress immediately');
-                        setTimeout(updateProgressBar, 100); // Small delay to ensure value is saved
-                    }
                 }
                 
                 return result;
@@ -576,8 +822,20 @@
             // Function to handle exit button clicks
             function handleExitClick(event) {
                 console.log('[Rise 360] Internal exit button clicked');
-                event.preventDefault();
-                event.stopPropagation();
+                if (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                
+                // FIXED: First, explicitly save all current data
+                try {
+                    console.log('[Rise 360] Saving current state before exit...');
+                    if (window.API && window.API.LMSCommit) {
+                        window.API.LMSCommit('');
+                    }
+                } catch (e) {
+                    console.warn('[Rise 360] Error saving state before exit:', e);
+                }
                 
                 // Call SCORM API to save and exit
                 try {
@@ -587,9 +845,25 @@
                         console.log('[Rise 360] LMSFinish result:', result);
                         
                         if (result === 'true') {
-                            console.log('[Rise 360] SCORM data saved, redirecting...');
-                            // Redirect back to topic view
-                            window.location.href = '{% url "courses:topic_view" topic.id %}';
+                            console.log('[Rise 360] SCORM data saved, syncing to database...');
+                            // FIXED: Ensure data is synced to the server
+                            fetch('{% url "scorm:sync_on_exit" %}', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/x-www-form-urlencoded',
+                                    'X-CSRFToken': getCookie('csrftoken')
+                                },
+                                body: 'attempt_id={{ attempt.id|default:attempt_id }}'
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                console.log('[Rise 360] Database sync successful:', data);
+                                window.location.href = '{% url "courses:topic_view" topic.id %}';
+                            })
+                            .catch(error => {
+                                console.error('[Rise 360] Database sync error:', error);
+                                window.location.href = '{% url "courses:topic_view" topic.id %}';
+                            });
                         } else {
                             console.warn('[Rise 360] LMSFinish failed, redirecting anyway');
                             window.location.href = '{% url "courses:topic_view" topic.id %}';
@@ -627,8 +901,29 @@
                         return;
                     }
                     
-                    const iframeDoc = riseFrame.contentDocument || riseFrame.contentWindow.document;
+                    // FIXED: Wait for iframe content to be fully loaded
+                    if (riseFrame.contentDocument && riseFrame.contentDocument.readyState !== 'complete') {
+                        console.log('[Rise 360] Iframe content not fully loaded, waiting...');
+                        setTimeout(enhanceIframeExitButtons, 500);
+                        return;
+                    }
+                    
+                    // FIXED: Try multiple approaches to access iframe content securely
+                    let iframeDoc = null;
+                    try {
+                        iframeDoc = riseFrame.contentDocument;
+                    } catch (e) {
+                        console.warn('[Rise 360] Could not access contentDocument directly:', e);
+                        try {
+                            iframeDoc = riseFrame.contentWindow.document;
+                        } catch (e2) {
+                            console.warn('[Rise 360] Could not access contentWindow.document either:', e2);
+                            return; // Can't access iframe content (likely cross-origin)
+                        }
+                    }
+                    
                     if (!iframeDoc) {
+                        console.warn('[Rise 360] Could not access iframe document');
                         return;
                     }
                     
@@ -766,10 +1061,10 @@
                 }
             }
             
-            // ARCHITECTURAL IMPROVEMENT: Don't interfere with Rise360 content's internal features
-            // Instead of enhancing exit buttons which might interfere with Rise360 content's functionality,
-            // we'll just log that we're respecting the content's internal features
-            console.log('[Rise 360] Respecting Rise360 content\'s internal exit functionality');
+            // FIXED: Properly enhance Rise360 content's internal exit buttons
+            // We need to actively enhance the exit buttons to ensure they work correctly
+            console.log('[Rise 360] Enhancing Rise360 content\'s internal exit functionality');
+            enhanceIframeExitButtons(); // Call the enhancement function defined above
             
             // Only add minimal logging to help with debugging
             if (window.API && window.API.LMSFinish) {
@@ -836,139 +1131,46 @@
             scheduleNextRiseEnhancement();
         }
         
-        // Progress tracking for Rise 360 with caching to prevent API spam
-        let lastProgressUpdate = 0;
-        let progressCache = {};
-        let cacheTimeout = 3000; // Cache for 3 seconds
-        
-        function updateProgressBar() {
-            try {
-                let progress = 0;
-                let progressSource = 'none';
-                const now = Date.now();
-                
-                // Check cache first to avoid repeated API calls
-                if (progressCache.timestamp && (now - progressCache.timestamp) < cacheTimeout) {
-                    progress = progressCache.value;
-                    progressSource = progressCache.source;
-                    console.log('[Rise 360 Progress] Using cached progress: ' + progress + '%');
-                } else {
-                    // Rise 360 tracks progress via multiple methods - check in priority order
-                    const status = window.API.LMSGetValue('cmi.core.lesson_status');
-                    
-                    // Priority 1: If completed, show 100%
-                    if (status === 'completed' || status === 'passed') {
-                        progress = 100;
-                        progressSource = 'status';
-                        console.log('[Rise 360 Progress] Completed');
-                    } else {
-                        // Priority 2: Check SCORM 2004 progress_measure (Rise 360 uses this)
-                        // This is a decimal value between 0 and 1 representing actual progress
-                        const progressMeasure = window.API.LMSGetValue('cmi.progress_measure');
-                        if (progressMeasure && progressMeasure !== '' && parseFloat(progressMeasure) > 0) {
-                            progress = Math.round(parseFloat(progressMeasure) * 100);
-                            progressSource = 'progress_measure';
-                            console.log('[Rise 360 Progress] From progress_measure: ' + progressMeasure + ' = ' + progress + '%');
-                        }
-                        // Priority 3: Try SCORM 1.2 progress_measure as fallback
-                        else {
-                            const progressMeasure12 = window.API.LMSGetValue('cmi.core.progress_measure');
-                            if (progressMeasure12 && progressMeasure12 !== '' && parseFloat(progressMeasure12) > 0) {
-                                progress = Math.round(parseFloat(progressMeasure12) * 100);
-                                progressSource = 'progress_measure_1.2';
-                                console.log('[Rise 360 Progress] From 1.2 progress_measure: ' + progressMeasure12 + ' = ' + progress + '%');
-                            }
-                            // Priority 4: Check score if available (for assessment-based content)
-                            else {
-                                const scoreRaw = window.API.LMSGetValue('cmi.core.score.raw');
-                                const scoreMax = window.API.LMSGetValue('cmi.core.score.max');
-                                if (scoreRaw && scoreMax && parseFloat(scoreMax) > 0) {
-                                    progress = Math.round((parseFloat(scoreRaw) / parseFloat(scoreMax)) * 100);
-                                    progressSource = 'score';
-                                    console.log('[Rise 360 Progress] From score: ' + scoreRaw + '/' + scoreMax + ' = ' + progress + '%');
-                                }
-                                // Priority 5: Check if started (has bookmark)
-                                else {
-                                    const bookmark = window.API.LMSGetValue('cmi.core.lesson_location');
-                                    if (bookmark && bookmark.length > 0 && status !== 'not_attempted') {
-                                        // Has started but no specific progress data - show minimal progress
-                                        progress = 5;
-                                        progressSource = 'bookmark';
-                                        console.log('[Rise 360 Progress] Started (has bookmark) - showing minimal progress');
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Update cache
-                    progressCache = {
-                        value: progress,
-                        source: progressSource,
-                        timestamp: now
-                    };
-                }
-                
-                // Update UI only if progress changed
-                if (progress !== lastProgressUpdate && progress >= 0 && progress <= 100) {
-                    document.getElementById('progressBarFill').style.width = progress + '%';
-                    document.getElementById('progressText').textContent = progress + '%';
-                    lastProgressUpdate = progress;
-                    console.log('[Rise 360 Progress] Updated to ' + progress + '% (source: ' + progressSource + ')');
-                    
-                    // CRITICAL FIX: Update Rise 360 content's internal progress indicators
-                    updateRise360InternalProgress(progress);
-                }
-            } catch (e) {
-                console.error('[Rise 360 Progress] Error:', e);
-            }
-        }
-        
-        // ARCHITECTURAL IMPROVEMENT: Don't interfere with Rise 360 content's internal progress tracking
-        // Instead of modifying the content's internal progress indicators, we'll just track progress in our LMS
-        function updateRise360InternalProgress(progress) {
-            // Log the progress but don't modify the SCORM content
-            console.log('[Rise 360] Progress updated in LMS: ' + progress + '%');
-            
-            // We still update our own UI elements outside the iframe
-            document.getElementById('progressBarFill').style.width = progress + '%';
-            document.getElementById('progressText').textContent = progress + '%';
-        }
-        
-        // Update progress less frequently to prevent API spam
-        setInterval(updateProgressBar, 5000);
-        
-        // CRITICAL FIX: Also update progress immediately when content loads
-        document.getElementById('riseFrame').addEventListener('load', function() {
-            console.log('✅ Rise 360 content loaded - updating progress immediately');
-            // Update progress immediately when content loads
-            setTimeout(updateProgressBar, 1000);
-            // Also update every 2 seconds for the first 30 seconds to catch early progress
-            let earlyUpdateCount = 0;
-            const earlyUpdateInterval = setInterval(function() {
-                earlyUpdateCount++;
-                updateProgressBar();
-                if (earlyUpdateCount >= 15) { // 15 * 2 seconds = 30 seconds
-                    clearInterval(earlyUpdateInterval);
-                }
-            }, 2000);
+document.addEventListener('DOMContentLoaded', function() {
+    const riseFrame = document.getElementById('riseFrame');
+    if (riseFrame) {
+        riseFrame.addEventListener('load', function() {
+            console.log('✅ Rise 360 content loaded');
         });
+    } else {
+        console.error('[Rise 360] Error: riseFrame element not found');
+        // Try again with a delay as a fallback
+        setTimeout(function() {
+            const riseFrameRetry = document.getElementById('riseFrame');
+            if (riseFrameRetry) {
+                console.log('[Rise 360] Found riseFrame element after delay');
+                riseFrameRetry.addEventListener('load', function() {
+                    console.log('✅ Rise 360 content loaded (delayed)');
+                });
+            }
+        }, 1000);
+    }
+});
         
         // CRITICAL FIX: Listen for messages from Rise 360 content for exit requests
         window.addEventListener('message', function(event) {
-            // Only accept messages from the same origin or trusted sources
-            if (event.origin !== window.location.origin) {
-                return;
-            }
-            
-            if (event.data && event.data.type === 'rise360Exit') {
-                console.log('[Rise 360] Received exit message from content');
-                handleRise360Exit();
-            } else if (event.data && event.data.type === 'rise360Progress') {
-                console.log('[Rise 360] Received progress update from content:', event.data.progress);
-                if (event.data.progress !== undefined) {
-                    updateRise360InternalProgress(event.data.progress);
+            // Accept messages from all origins since SCORM content may be on different domain
+            try {
+                if (event.data && (event.data.type === 'rise360Exit' || event.data.type === 'exit')) {
+                    console.log('[Rise 360] Received exit message from content');
+                    // Find the Save & Exit button and click it
+                    var saveExitBtn = document.getElementById('saveExitBtn');
+                    if (saveExitBtn) {
+                        console.log('[Rise 360] Triggering Save & Exit button');
+                        saveExitBtn.click();
+                    } else {
+                        handleRise360Exit();
+                    }
+                } else if (event.data && event.data.type === 'rise360Progress') {
+                    console.log('[Rise 360] Received progress update from content:', event.data.progress);
                 }
+            } catch (e) {
+                console.error('[Rise 360] Error handling message event:', e);
             }
         });
         
@@ -1051,6 +1253,19 @@
         // FIXED: Save & Exit button handler with proper event attachment and DB sync
         function attachSaveExitButton() {
             const saveExitBtn = document.getElementById('saveExitBtn');
+            // FIXED: Try multiple ways to find the button if the ID doesn't work
+            if (!saveExitBtn) {
+                console.warn('[Rise 360] Save & Exit button not found by ID, trying alternative selectors');
+                const altButtons = document.querySelectorAll('.btn');
+                for (let i = 0; i < altButtons.length; i++) {
+                    if (altButtons[i].textContent.includes('Save') || altButtons[i].textContent.includes('Exit')) {
+                        console.log('[Rise 360] Found Save & Exit button by text content');
+                        attachExitHandler(altButtons[i]);
+                        return;
+                    }
+                }
+            }
+            
             if (saveExitBtn && !saveExitBtn.hasAttribute('data-listener-attached')) {
                 saveExitBtn.addEventListener('click', function() {
                     console.log('[Rise 360] Save & Exit clicked');
@@ -1058,6 +1273,117 @@
                     // Disable button to prevent double-clicks
                     saveExitBtn.disabled = true;
                     saveExitBtn.textContent = 'Saving...';
+                    
+                    // BUG FIX: First save all pending changes to SCORM API
+                    // This ensures all in-memory changes are committed before sync
+                    try {
+                        // First check for current values to save
+                        if (scormDataCache && scormDataCache.pendingSync) {
+                            console.log('[Rise 360] Saving cached data to API before exit...');
+                            scormDataCache.saveToAPI();
+                        }
+                        
+                        // Double commit to ensure all data is flushed to the API
+                        if (window.API && window.API.LMSCommit) {
+                            console.log('[Rise 360] Performing final commit before exit...');
+                            window.API.LMSCommit('');
+                            
+                            // Small delay to allow first commit to complete
+                            setTimeout(function() {
+                                // Second commit for safety
+                                window.API.LMSCommit('');
+                                console.log('[Rise 360] Second commit completed');
+                                
+                                // Now start the database sync
+                                syncWithRetry();
+                            }, 500);
+                        } else {
+                            console.warn('[Rise 360] API not available, syncing anyway');
+                            syncWithRetry();
+                        }
+                    } catch (e) {
+                        console.error('[Rise 360] Error committing:', e);
+                        // Still try to sync even if commit fails
+                        syncWithRetry();
+                    }
+                    
+                    // BUG FIX: Improved sync function with better error handling
+                    function syncWithRetry(retryCount = 0) {
+                        console.log('[Rise 360] Starting database sync... (attempt ' + (retryCount + 1) + ')');
+                        
+                        // Format the attempt_id parameter with proper encoding
+                        const formData = new FormData();
+                        formData.append('attempt_id', '{{ attempt.id|default:attempt_id }}');
+                        
+                        fetch('{% url "scorm:sync_on_exit" %}', {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRFToken': '{{ csrf_token }}'
+                                // Intentionally NOT setting Content-Type to let the browser set it with boundary
+                            },
+                            body: formData // Use FormData instead of manually constructing urlencoded string
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('HTTP ' + response.status);
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            console.log('[Rise 360] Database sync successful:', data);
+                            
+                            // Verify critical data was saved
+                            const dataIntegrity = {
+                                hasSuspendData: data.suspend_data_length > 0,
+                                hasBookmark: data.bookmark_length > 0,
+                                hasProgress: data.progress > 0,
+                                hasStatus: data.status && data.status !== 'not_attempted'
+                            };
+                            
+                            console.log('[Rise 360] Data integrity check:', dataIntegrity);
+                            const passedChecks = Object.values(dataIntegrity).filter(Boolean).length;
+                            console.log('[Rise 360] Passed ' + passedChecks + '/4 integrity checks');
+                            
+                            saveExitBtn.textContent = 'Saved! (' + passedChecks + '/4)';
+                            
+                            // BUG FIX: Give more time for database writes to complete
+                            setTimeout(function() {
+                                window.location.href = '{% url "courses:topic_view" topic.id %}';
+                            }, 1500); // Increased from 1000ms to 1500ms
+                        })
+                        .catch(error => {
+                            console.error('[Rise 360] Database sync error:', error);
+                            
+                            if (retryCount < 2) {
+                                console.log('[Rise 360] Retrying sync in 1 second...');
+                                saveExitBtn.textContent = 'Retrying... (' + (retryCount + 2) + '/3)';
+                                setTimeout(function() {
+                                    syncWithRetry(retryCount + 1);
+                                }, 1000);
+                            } else {
+                                console.error('[Rise 360] All sync attempts failed, redirecting anyway');
+                                saveExitBtn.textContent = 'Sync failed - Redirecting...';
+                                setTimeout(function() {
+                                    window.location.href = '{% url "courses:topic_view" topic.id %}';
+                                }, 1500);
+                            }
+                        });
+                    }
+                });
+                saveExitBtn.setAttribute('data-listener-attached', 'true');
+                console.log('[Rise 360] Save & Exit button listener attached');
+            }
+        }
+        
+        // FIXED: Separate function to attach exit handler to any button
+        function attachExitHandler(button) {
+            if (button && !button.hasAttribute('data-listener-attached')) {
+                button.addEventListener('click', function() {
+                    console.log('[Rise 360] Save & Exit clicked');
+                    
+                    // Disable button to prevent double-clicks
+                    button.disabled = true;
+                    button.textContent = 'Saving...';
                     
                     // Try to commit Rise 360 data
                     try {
@@ -1101,7 +1427,7 @@
                             const passedChecks = Object.values(dataIntegrity).filter(Boolean).length;
                             console.log('[Rise 360] Passed ' + passedChecks + '/4 integrity checks');
                             
-                            saveExitBtn.textContent = 'Saved! (' + passedChecks + '/4)';
+                            button.textContent = 'Saved! (' + passedChecks + '/4)';
                             
                             setTimeout(function() {
                                 window.location.href = '{% url "courses:topic_view" topic.id %}';
@@ -1112,13 +1438,13 @@
                             
                             if (retryCount < 2) {
                                 console.log('[Rise 360] Retrying sync in 1 second...');
-                                saveExitBtn.textContent = 'Retrying... (' + (retryCount + 2) + '/3)';
+                                button.textContent = 'Retrying... (' + (retryCount + 2) + '/3)';
                                 setTimeout(function() {
                                     syncWithRetry(retryCount + 1);
                                 }, 1000);
                             } else {
                                 console.error('[Rise 360] All sync attempts failed, redirecting anyway');
-                                saveExitBtn.textContent = 'Sync failed - Redirecting...';
+                                button.textContent = 'Sync failed - Redirecting...';
                                 setTimeout(function() {
                                     window.location.href = '{% url "courses:topic_view" topic.id %}';
                                 }, 1500);
@@ -1129,8 +1455,8 @@
                     // Start the sync process
                     syncWithRetry();
                 });
-                saveExitBtn.setAttribute('data-listener-attached', 'true');
-                console.log('[Rise 360] Save & Exit button listener attached');
+                button.setAttribute('data-listener-attached', 'true');
+                console.log('[Rise 360] Exit handler attached to button:', button.textContent);
             }
         }
         
@@ -1172,6 +1498,19 @@
             }
         });
         
+        // Function to perform auto-commit when needed
+        function performAutoCommit() {
+            console.log('[Rise 360] Auto-committing data...');
+            try {
+                if (window.API && window.API.LMSCommit) {
+                    window.API.LMSCommit('');
+                    console.log('[Rise 360] Auto-commit successful');
+                }
+            } catch (e) {
+                console.error('[Rise 360] Error in auto-commit:', e);
+            }
+        }
+        
         // Visibility change handler (when tab becomes hidden/visible)
         document.addEventListener('visibilitychange', function() {
             if (document.hidden) {
@@ -1189,8 +1528,6 @@
         console.log('Content URL:', '{{ content_url }}');
         console.log('==========================');
         {% endif %}
-        
-        } // End of the configuration else block
     </script>
 </body>
 </html>

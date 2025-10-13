@@ -407,13 +407,13 @@ class BaseScormAPIHandler:
             elif element == 'cmi.core.lesson_location':
                 self.attempt.lesson_location = value
                 self.attempt.save()  # Immediate save for bookmarks
-                elif element == 'cmi.suspend_data':
-                    self.attempt.suspend_data = value
-                    
-                    # CRITICAL FIX: Extract progress information from suspend_data
-                    self._extract_progress_from_suspend_data(value)
-                    
-                    self.attempt.save()  # Immediate save for suspend data
+            elif element == 'cmi.suspend_data':
+                self.attempt.suspend_data = value
+                
+                # CRITICAL FIX: Extract progress information from suspend_data
+                self._extract_progress_from_suspend_data(value)
+                
+                self.attempt.save()  # Immediate save for suspend data
             elif element in ['cmi.progress_measure', 'cmi.core.progress_measure']:
                 # CRITICAL FIX: Support progress_measure for SCORM 1.2 (custom extension for Rise 360)
                 # Convert progress_measure (0-1) to progress_percentage (0-100)
@@ -437,13 +437,13 @@ class BaseScormAPIHandler:
             elif element == 'cmi.location':
                 self.attempt.lesson_location = value
                 self.attempt.save()  # Immediate save for bookmarks
-                elif element == 'cmi.suspend_data':
-                    self.attempt.suspend_data = value
-                    
-                    # CRITICAL FIX: Extract progress information from suspend_data
-                    self._extract_progress_from_suspend_data(value)
-                    
-                    self.attempt.save()  # Immediate save for suspend data
+            elif element == 'cmi.suspend_data':
+                self.attempt.suspend_data = value
+                
+                # CRITICAL FIX: Extract progress information from suspend_data
+                self._extract_progress_from_suspend_data(value)
+                
+                self.attempt.save()  # Immediate save for suspend data
             elif element == 'cmi.progress_measure':
                 # CRITICAL FIX: Convert progress_measure (0-1) to progress_percentage (0-100)
                 # This is essential for Rise 360 progress bar to persist correctly

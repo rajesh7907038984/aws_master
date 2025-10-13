@@ -34,34 +34,6 @@
             color: #333;
         }
         
-        .progress-container {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            min-width: 200px;
-        }
-        
-        .progress-bar-wrapper {
-            flex: 1;
-            height: 8px;
-            background: #e0e0e0;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-        
-        .progress-bar-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #ff9800, #f57c00);
-            width: 0%;
-            transition: width 0.3s ease;
-        }
-        
-        .progress-text {
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: #666;
-            min-width: 45px;
-        }
         
         .scorm-actions {
             display: flex;
@@ -120,12 +92,6 @@
             {% if preview_mode %}
             <span class="preview-badge">PREVIEW MODE</span>
             {% endif %}
-        </div>
-        <div class="progress-container">
-            <div class="progress-bar-wrapper">
-                <div id="progressBarFill" class="progress-bar-fill"></div>
-            </div>
-            <span id="progressText" class="progress-text">0%</span>
         </div>
         <div class="scorm-actions">
             <button type="button" id="saveExitBtn" class="btn">Save & Exit</button>
@@ -352,59 +318,6 @@
         
         console.log('✅ Captivate SCORM API ready!');
         
-        // Progress tracking for Captivate
-        let lastProgressUpdate = 0;
-        
-        function updateProgressBar() {
-            try {
-                let progress = 0;
-                let progressSource = 'none';
-                
-                // Priority 1: Check completion status
-                const status = window.API.LMSGetValue('cmi.core.lesson_status');
-                if (status === 'completed' || status === 'passed') {
-                    progress = 100;
-                    progressSource = 'status';
-                }
-                
-                // Priority 2: Check progress_measure (Captivate may report this)
-                if (progress === 0) {
-                    const progressMeasure = window.API.LMSGetValue('cmi.progress_measure');
-                    if (progressMeasure && progressMeasure !== '' && parseFloat(progressMeasure) > 0) {
-                        progress = Math.round(parseFloat(progressMeasure) * 100);
-                        progressSource = 'progress_measure';
-                    }
-                }
-                
-                // Priority 3: Captivate reports progress via score
-                if (progress === 0) {
-                    const scoreRaw = window.API.LMSGetValue('cmi.core.score.raw');
-                    const scoreMax = window.API.LMSGetValue('cmi.core.score.max');
-                    if (scoreRaw && scoreMax && parseFloat(scoreMax) > 0) {
-                        progress = Math.round((parseFloat(scoreRaw) / parseFloat(scoreMax)) * 100);
-                        progressSource = 'score';
-                    }
-                }
-                
-                // Priority 4: Check if started (minimal progress indicator)
-                if (progress === 0 && (status === 'incomplete' || status === 'browsed')) {
-                    progress = 5; // Started but no specific progress data
-                    progressSource = 'status_incomplete';
-                }
-                
-                // Update UI
-                if (progress !== lastProgressUpdate && progress >= 0 && progress <= 100) {
-                    document.getElementById('progressBarFill').style.width = progress + '%';
-                    document.getElementById('progressText').textContent = progress + '%';
-                    lastProgressUpdate = progress;
-                    console.log('[Captivate Progress] ' + progress + '% (source: ' + progressSource + ')');
-                }
-            } catch (e) {
-                console.error('[Captivate Progress] Error:', e);
-            }
-        }
-        
-        setInterval(updateProgressBar, 1000);
     </script>
 
     <div class="scorm-container">
@@ -536,6 +449,27 @@
         } else {
             attachWithRetry();
         }
+        
+        // CRITICAL FIX: Listen for messages from content for exit requests
+        window.addEventListener('message', function(event) {
+            try {
+                if (event.data && (event.data.type === 'exit' || 
+                                  event.data.type === 'rise360Exit' || 
+                                  event.data === 'exit' || 
+                                  event.data === 'close' || 
+                                  event.data === 'scorm:exit')) {
+                    console.log('[Captivate] Received exit message from content');
+                    // Find the Save & Exit button and click it
+                    var saveExitBtn = document.getElementById('saveExitBtn');
+                    if (saveExitBtn) {
+                        console.log('[Captivate] Triggering Save & Exit button');
+                        saveExitBtn.click();
+                    }
+                }
+            } catch (e) {
+                console.error('[Captivate] Error handling message event:', e);
+            }
+        });
         
         window.addEventListener('beforeunload', function() {
             console.log('[Captivate] Auto-save');
