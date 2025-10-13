@@ -434,6 +434,32 @@
                         console.error('[SCORM] Commit error:', e);
                     }
                     
+                    // CRITICAL FIX: Force final API calls before sync
+                    function forceFinalCommit() {
+                        return new Promise(function(resolve) {
+                            console.log('[SCORM] Forcing final commit before sync...');
+                            
+                            try {
+                                // Force a final commit to ensure all data is saved
+                                if (window.API && window.API.LMSCommit) {
+                                    const commitResult = window.API.LMSCommit('');
+                                    console.log('[SCORM] Final LMSCommit result:', commitResult);
+                                }
+                                if (window.API_1484_11 && window.API_1484_11.Commit) {
+                                    const commitResult = window.API_1484_11.Commit('');
+                                    console.log('[SCORM] Final Commit (2004) result:', commitResult);
+                                }
+                                
+                                // Add a small delay to ensure API calls complete
+                                setTimeout(resolve, 500);
+                            } catch (e) {
+                                console.error('[SCORM] Error in final commit:', e);
+                                // Continue anyway
+                                setTimeout(resolve, 200);
+                            }
+                        });
+                    }
+                    
                     // CRITICAL FIX: Sync to database before redirect with retry logic
                     function syncWithRetry(retryCount = 0) {
                         console.log('[SCORM] Starting database sync... (attempt ' + (retryCount + 1) + ')');
@@ -493,7 +519,10 @@
                         });
                     }
                     
-                    syncWithRetry();
+                    // CRITICAL FIX: Force final commit before sync
+                    forceFinalCommit().then(function() {
+                        syncWithRetry();
+                    });
                 });
                 saveExitBtn.setAttribute('data-listener-attached', 'true');
                 console.log('[SCORM] Save & Exit button listener attached');

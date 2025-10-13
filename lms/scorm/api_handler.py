@@ -490,8 +490,15 @@ class ScormAPIHandler:
                         self._parse_and_sync_suspend_data(value)
                         # IMMEDIATE SAVE: Suspend data is critical for resume, save immediately
                         try:
-                            self.attempt.save()
+                            # CRITICAL FIX: Use update_fields to avoid race conditions
+                            self.attempt.save(update_fields=['suspend_data', 'cmi_data', 'last_accessed'])
                             logger.info(f"[TRACKING] Suspend data saved to database (SCORM 1.2)")
+                            
+                            # Force sync score if we have meaningful progress
+                            if len(value) > 100:  # Meaningful suspend data
+                                from .score_sync_service import ScormScoreSyncService
+                                ScormScoreSyncService.sync_score(self.attempt, force=True)
+                                logger.info(f"[TRACKING] Force sync triggered for suspend data update")
                         except Exception as e:
                             logger.error(f"[TRACKING] Error saving suspend data (SCORM 1.2): {str(e)}")
                 else:  # SCORM 2004
@@ -578,8 +585,15 @@ class ScormAPIHandler:
                         self._parse_and_sync_suspend_data(value)
                         # IMMEDIATE SAVE: Suspend data is critical for resume, save immediately
                         try:
-                            self.attempt.save()
+                            # CRITICAL FIX: Use update_fields to avoid race conditions
+                            self.attempt.save(update_fields=['suspend_data', 'cmi_data', 'last_accessed'])
                             logger.info(f"[TRACKING] Suspend data saved to database (SCORM 2004)")
+                            
+                            # Force sync score if we have meaningful progress
+                            if len(value) > 100:  # Meaningful suspend data
+                                from .score_sync_service import ScormScoreSyncService
+                                ScormScoreSyncService.sync_score(self.attempt, force=True)
+                                logger.info(f"[TRACKING] Force sync triggered for suspend data update")
                         except Exception as e:
                             logger.error(f"[TRACKING] Error saving suspend data (SCORM 2004): {str(e)}")
                 

@@ -1303,24 +1303,44 @@ document.addEventListener('DOMContentLoaded', function() {
                             scormDataCache.saveToAPI();
                         }
                         
-                        // Double commit to ensure all data is flushed to the API
-                        if (window.API && window.API.LMSCommit) {
-                            console.log('[Rise 360] Performing final commit before exit...');
-                            window.API.LMSCommit('');
-                            
-                            // Small delay to allow first commit to complete
-                            setTimeout(function() {
-                                // Second commit for safety
-                                window.API.LMSCommit('');
-                                console.log('[Rise 360] Second commit completed');
+                        // CRITICAL FIX: Force final API calls before sync
+                        function forceFinalCommit() {
+                            return new Promise(function(resolve) {
+                                console.log('[Rise 360] Forcing final commit before sync...');
                                 
-                                // Now start the database sync
-                                syncWithRetry();
-                            }, 500);
-                        } else {
-                            console.warn('[Rise 360] API not available, syncing anyway');
-                            syncWithRetry();
+                                try {
+                                    // Double commit to ensure all data is flushed to the API
+                                    if (window.API && window.API.LMSCommit) {
+                                        console.log('[Rise 360] Performing final commit before exit...');
+                                        const commitResult1 = window.API.LMSCommit('');
+                                        console.log('[Rise 360] First commit result:', commitResult1);
+                                        
+                                        // Small delay before second commit
+                                        setTimeout(function() {
+                                            // Second commit for safety
+                                            const commitResult2 = window.API.LMSCommit('');
+                                            console.log('[Rise 360] Second commit result:', commitResult2);
+                                            
+                                            // Final delay to ensure API calls complete
+                                            setTimeout(resolve, 300);
+                                        }, 300);
+                                    } else {
+                                        console.warn('[Rise 360] API not available');
+                                        setTimeout(resolve, 100);
+                                    }
+                                } catch (e) {
+                                    console.error('[Rise 360] Error in final commit:', e);
+                                    // Continue anyway
+                                    setTimeout(resolve, 100);
+                                }
+                            });
                         }
+                        
+                        // Execute final commit then sync
+                        forceFinalCommit().then(function() {
+                            console.log('[Rise 360] Final commit complete, starting database sync...');
+                            syncWithRetry();
+                        });
                     } catch (e) {
                         console.error('[Rise 360] Error committing:', e);
                         // Still try to sync even if commit fails

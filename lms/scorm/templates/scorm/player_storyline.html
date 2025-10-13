@@ -359,34 +359,44 @@
                         clearInterval(autoSaveInterval);
                     }
                     
-                    // CRITICAL FIX: Perform multiple commits to ensure all quiz data is saved
-                    try {
-                        if (window.API && window.API.LMSCommit) {
-                            // First commit to save current state
-                            const commitResult1 = window.API.LMSCommit('');
-                            console.log('[Storyline] First commit result:', commitResult1);
+                    // CRITICAL FIX: Force final API calls before sync
+                    function forceFinalCommit() {
+                        return new Promise(function(resolve) {
+                            console.log('[Storyline] Forcing final commit before sync...');
                             
-                            // Small delay to allow database write
-                            setTimeout(function() {
-                                // Second commit to ensure all data is flushed
-                                const commitResult2 = window.API.LMSCommit('');
-                                console.log('[Storyline] Second commit result:', commitResult2);
-                                
-                                // Another small delay before database sync
-                                setTimeout(function() {
-                                    // Now sync to database with proper wait time
-                                    syncAndExit();
-                                }, 500);
-                            }, 500);
-                        } else {
-                            console.warn('[Storyline] API not available, syncing anyway');
-                            syncAndExit();
-                        }
-                    } catch (e) {
-                        console.error('[Storyline] Commit error:', e);
-                        // Still try to sync even if commit fails
-                        syncAndExit();
+                            try {
+                                // Perform multiple commits to ensure all quiz data is saved
+                                if (window.API && window.API.LMSCommit) {
+                                    // First commit to save current state
+                                    const commitResult1 = window.API.LMSCommit('');
+                                    console.log('[Storyline] First commit result:', commitResult1);
+                                    
+                                    // Small delay to allow database write
+                                    setTimeout(function() {
+                                        // Second commit to ensure all data is flushed
+                                        const commitResult2 = window.API.LMSCommit('');
+                                        console.log('[Storyline] Second commit result:', commitResult2);
+                                        
+                                        // Final delay to ensure API calls complete
+                                        setTimeout(resolve, 300);
+                                    }, 300);
+                                } else {
+                                    console.warn('[Storyline] API not available');
+                                    setTimeout(resolve, 100);
+                                }
+                            } catch (e) {
+                                console.error('[Storyline] Error in final commit:', e);
+                                // Continue anyway
+                                setTimeout(resolve, 100);
+                            }
+                        });
                     }
+                    
+                    // Execute final commit then sync
+                    forceFinalCommit().then(function() {
+                        console.log('[Storyline] Final commit complete, starting database sync...');
+                        syncAndExit();
+                    });
                     
                     function syncAndExit(retryCount = 0) {
                         console.log('[Storyline] Starting database sync... (attempt ' + (retryCount + 1) + ')');

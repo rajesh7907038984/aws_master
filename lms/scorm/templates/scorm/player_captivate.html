@@ -372,17 +372,30 @@
                         clearInterval(autoSaveInterval);
                     }
                     
-                    try {
-                        if (window.API && window.API.LMSCommit) {
-                            window.API.LMSCommit('');
-                            console.log('[Captivate] SCORM 1.2 data committed');
-                        }
-                        if (window.API_1484_11 && window.API_1484_11.Commit) {
-                            window.API_1484_11.Commit('');
-                            console.log('[Captivate] SCORM 2004 data committed');
-                        }
-                    } catch (e) {
-                        console.error('[Captivate] Commit error:', e);
+                    // CRITICAL FIX: Force final API calls before sync
+                    function forceFinalCommit() {
+                        return new Promise(function(resolve) {
+                            console.log('[Captivate] Forcing final commit before sync...');
+                            
+                            try {
+                                // Force a final commit to ensure all data is saved
+                                if (window.API && window.API.LMSCommit) {
+                                    const commitResult = window.API.LMSCommit('');
+                                    console.log('[Captivate] SCORM 1.2 commit result:', commitResult);
+                                }
+                                if (window.API_1484_11 && window.API_1484_11.Commit) {
+                                    const commitResult = window.API_1484_11.Commit('');
+                                    console.log('[Captivate] SCORM 2004 commit result:', commitResult);
+                                }
+                                
+                                // Add a delay to ensure API calls complete
+                                setTimeout(resolve, 500);
+                            } catch (e) {
+                                console.error('[Captivate] Error in final commit:', e);
+                                // Continue anyway
+                                setTimeout(resolve, 200);
+                            }
+                        });
                     }
                     
                     // CRITICAL FIX: Sync to database before redirect with retry logic
@@ -439,7 +452,11 @@
                         });
                     }
                     
-                    syncWithRetry();
+                    // Execute final commit then sync
+                    forceFinalCommit().then(function() {
+                        console.log('[Captivate] Final commit complete, starting database sync...');
+                        syncWithRetry();
+                    });
                 });
                 saveExitBtn.setAttribute('data-listener-attached', 'true');
                 console.log('[Captivate] Save & Exit button listener attached');
