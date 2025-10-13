@@ -91,6 +91,8 @@ def dynamic_score_processor(sender, instance, created, **kwargs):
     """
     DYNAMIC SCORE PROCESSOR - Automatically handles all SCORM formats
     Uses centralized ScormScoreSyncService for consistent score synchronization
+    
+    FIXED: Better recursion prevention using raw update instead of save
     """
     # Import the sync service
     from .score_sync_service import ScormScoreSyncService
@@ -99,35 +101,27 @@ def dynamic_score_processor(sender, instance, created, **kwargs):
     if created:
         return
     
-    # Skip if this save was triggered by the API handler or another signal
-    if (getattr(instance, '_updating_from_api_handler', False) or
-        getattr(instance, '_updating_from_signal', False) or
-        getattr(instance, '_signal_processing', False)):
-        logger.info(f"🔄 SYNC: Skipping signal for attempt {instance.id} - update in progress by another component")
+    # Skip if this save was triggered by the API handler or another component
+    # Use a single consistent flag
+    if getattr(instance, '_skip_signal', False):
         return
     
     try:
-        # Use a flag to prevent recursive signal calls
-        instance._signal_processing = True
-        
-        logger.info(f"🔄 SYNC: Processing score synchronization for attempt {instance.id}...")
+        logger.debug(f"SYNC: Processing score synchronization for attempt {instance.id}...")
         
         # Use the centralized sync service
+        # The sync service will use update() instead of save() to avoid triggering signals
         success = ScormScoreSyncService.sync_score(instance)
         
         if success:
-            logger.info(f" SYNC: Successfully synchronized score for attempt {instance.id}")
+            logger.info(f"SYNC: Successfully synchronized score for attempt {instance.id}")
         else:
-            logger.info(f"ℹ️  SYNC: No score synchronization needed for attempt {instance.id}")
+            logger.debug(f"SYNC: No score synchronization needed for attempt {instance.id}")
         
     except Exception as e:
-        logger.error(f" SYNC: Error synchronizing attempt {instance.id}: {str(e)}")
+        logger.error(f"SYNC: Error synchronizing attempt {instance.id}: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
-    finally:
-        # Clean up the flag
-        if hasattr(instance, '_signal_processing'):
-            delattr(instance, '_signal_processing')
 
 
 def _decode_suspend_data(suspend_data):

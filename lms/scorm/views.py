@@ -29,10 +29,10 @@ logger = logging.getLogger(__name__)
 try:
     from .handlers import get_handler_for_attempt
     USE_NEW_HANDLERS = True
-    logger.info("✅ New specialized SCORM handlers loaded successfully")
+    logger.info("New specialized SCORM handlers loaded successfully")
 except ImportError as e:
     USE_NEW_HANDLERS = False
-    logger.warning(f"⚠️  New handlers not available, using legacy handler: {e}")
+    logger.warning(f"New handlers not available, using legacy handler: {e}")
 
 
 def _detect_scorm_package_type(scorm_package):
@@ -222,29 +222,35 @@ def scorm_view(request, topic_id):
         logger.info(f"Created preview attempt {attempt_id} for user {request.user.username} on topic {topic_id}")
     else:
         # Normal mode: Get or create actual database attempt for user tracking
-        last_attempt = ScormAttempt.objects.filter(
-            user=request.user,
-            scorm_package=scorm_package
-        ).order_by('-attempt_number').first()
+        # FIXED: Use transaction and select_for_update to prevent race conditions
+        from django.db import transaction
         
-        if last_attempt and last_attempt.lesson_status in ['completed', 'passed']:
-            # Create new attempt if last one was completed
-            attempt_number = last_attempt.attempt_number + 1
-            attempt = ScormAttempt.objects.create(
+        with transaction.atomic():
+            # Lock the rows to prevent concurrent creation
+            last_attempt = ScormAttempt.objects.select_for_update().filter(
                 user=request.user,
-                scorm_package=scorm_package,
-                attempt_number=attempt_number
-            )
-        elif last_attempt:
-            # Continue existing attempt
-            attempt = last_attempt
-        else:
-            # Create first attempt
-            attempt = ScormAttempt.objects.create(
-                user=request.user,
-                scorm_package=scorm_package,
-                attempt_number=1
-            )
+                scorm_package=scorm_package
+            ).order_by('-attempt_number').first()
+            
+            if last_attempt and last_attempt.lesson_status in ['completed', 'passed']:
+                # Create new attempt if last one was completed
+                attempt_number = last_attempt.attempt_number + 1
+                attempt = ScormAttempt.objects.create(
+                    user=request.user,
+                    scorm_package=scorm_package,
+                    attempt_number=attempt_number
+                )
+            elif last_attempt:
+                # Continue existing attempt
+                attempt = last_attempt
+            else:
+                # Create first attempt
+                attempt = ScormAttempt.objects.create(
+                    user=request.user,
+                    scorm_package=scorm_package,
+                    attempt_number=1
+                )
+        
         attempt_id = attempt.id
         attempt.is_preview = False  # Mark as real attempt
     
@@ -434,10 +440,13 @@ def scorm_content(request, topic_id, path):
     Serve SCORM content files from S3
     Proxies content to maintain same-origin policy for API access
     Handles multiple SCORM package structures with intelligent fallback
+    FIXED: Added caching to avoid repeated S3 path resolution
     """
+    from django.core.cache import cache
+    
     try:
         # CRITICAL DEBUG: Log the incoming request
-        logger.info(f"🔍 SCORM Content Request - Topic: {topic_id}, Path: '{path}'")
+        logger.debug(f"SCORM Content Request - Topic: {topic_id}, Path: '{path}'")
         
         topic = get_object_or_404(Topic, id=topic_id)
         
@@ -449,8 +458,12 @@ def scorm_content(request, topic_id, path):
         
         # CRITICAL FIX: If path is empty or ends with /, use the launch_url
         if not path or path.endswith('/'):
-            logger.info(f"⚠️  Path is empty or directory, using launch_url: {scorm_package.launch_url}")
+            logger.debug(f"Path is empty or directory, using launch_url: {scorm_package.launch_url}")
             path = scorm_package.launch_url
+        
+        # FIXED: Check cache first for successful S3 path
+        cache_key = f"scorm_s3_path:{topic_id}:{path}"
+        successful_key = cache.get(cache_key)
         
         # Use boto3 directly to fetch content (authenticated access)
         import boto3
@@ -465,64 +478,79 @@ def scorm_content(request, topic_id, path):
             
         bucket_name = settings.AWS_STORAGE_BUCKET_NAME
         
-        # CRITICAL FIX: Try multiple S3 path combinations to handle different SCORM structures
-        # Different authoring tools (Rise, Storyline, etc.) create different folder structures
-        path_attempts = []
-        
-        # Attempt 1: Direct path (for files at root level like story.html)
-        path_attempts.append(f"media/{scorm_package.extracted_path}/{path}")
-        
-        # Attempt 2: Without media/ prefix (for some S3 configurations)
-        path_attempts.append(f"{scorm_package.extracted_path}/{path}")
-        
-        # Attempt 3: If path contains subdirectories, try without the first directory
-        # (handles cases where launch_url includes directory like "scormcontent/index.html")
-        if '/' in path:
-            path_parts = path.split('/', 1)
-            if len(path_parts) > 1:
-                path_attempts.append(f"media/{scorm_package.extracted_path}/{path_parts[1]}")
-                path_attempts.append(f"{scorm_package.extracted_path}/{path_parts[1]}")
-        
-        # Attempt 4: Try with scormcontent/ prefix (for Rise packages)
-        if not path.startswith('scormcontent/'):
-            path_attempts.append(f"media/{scorm_package.extracted_path}/scormcontent/{path}")
-            path_attempts.append(f"{scorm_package.extracted_path}/scormcontent/{path}")
-        
-        # Attempt 5: Try with just the filename (for deeply nested structures)
-        if '/' in path:
-            filename = path.split('/')[-1]
-            path_attempts.append(f"media/{scorm_package.extracted_path}/{filename}")
-            path_attempts.append(f"{scorm_package.extracted_path}/{filename}")
-        
-        # Remove duplicates while preserving order
-        seen = set()
-        unique_paths = []
-        for p in path_attempts:
-            if p not in seen:
-                seen.add(p)
-                unique_paths.append(p)
-        
-        logger.info(f"🔍 SCORM Content - Topic: {topic_id}, Requested Path: '{path}'")
-        logger.info(f"📦 Package - Launch URL: '{scorm_package.launch_url}', Extracted Path: '{scorm_package.extracted_path}'")
-        logger.info(f"🔄 Will try {len(unique_paths)} path combinations")
-        
-        # Try each path until one works
         content = None
-        successful_key = None
-        for attempt_num, s3_key in enumerate(unique_paths, 1):
+        
+        # Try cached path first
+        if successful_key:
             try:
-                logger.info(f"Attempt {attempt_num}/{len(unique_paths)}: {s3_key}")
-                response = s3_client.get_object(Bucket=bucket_name, Key=s3_key)
+                logger.debug(f"Trying cached S3 path: {successful_key}")
+                response = s3_client.get_object(Bucket=bucket_name, Key=successful_key)
                 content = response['Body'].read()
-                successful_key = s3_key
-                logger.info(f"✅ Successfully fetched content from: {s3_key}")
-                break
-            except s3_client.exceptions.NoSuchKey:
-                logger.debug(f"❌ Path not found: {s3_key}")
-                continue
+                logger.debug(f"✅ Content loaded from cached path")
             except Exception as e:
-                logger.debug(f"❌ Error trying {s3_key}: {str(e)}")
-                continue
+                logger.debug(f"Cached path failed: {str(e)}, trying alternatives")
+                content = None
+                successful_key = None
+                cache.delete(cache_key)
+        
+        # If cache miss or failed, try multiple paths
+        if content is None:
+            # Build path attempts
+            path_attempts = []
+            
+            # Attempt 1: Direct path (for files at root level like story.html)
+            path_attempts.append(f"media/{scorm_package.extracted_path}/{path}")
+            
+            # Attempt 2: Without media/ prefix (for some S3 configurations)
+            path_attempts.append(f"{scorm_package.extracted_path}/{path}")
+            
+            # Attempt 3: If path contains subdirectories, try without the first directory
+            if '/' in path:
+                path_parts = path.split('/', 1)
+                if len(path_parts) > 1:
+                    path_attempts.append(f"media/{scorm_package.extracted_path}/{path_parts[1]}")
+                    path_attempts.append(f"{scorm_package.extracted_path}/{path_parts[1]}")
+            
+            # Attempt 4: Try with scormcontent/ prefix (for Rise packages)
+            if not path.startswith('scormcontent/'):
+                path_attempts.append(f"media/{scorm_package.extracted_path}/scormcontent/{path}")
+                path_attempts.append(f"{scorm_package.extracted_path}/scormcontent/{path}")
+            
+            # Attempt 5: Try with just the filename (for deeply nested structures)
+            if '/' in path:
+                filename = path.split('/')[-1]
+                path_attempts.append(f"media/{scorm_package.extracted_path}/{filename}")
+                path_attempts.append(f"{scorm_package.extracted_path}/{filename}")
+            
+            # Remove duplicates while preserving order
+            seen = set()
+            unique_paths = []
+            for p in path_attempts:
+                if p not in seen:
+                    seen.add(p)
+                    unique_paths.append(p)
+            
+            logger.debug(f"SCORM Content - Topic: {topic_id}, Requested Path: '{path}'")
+            logger.debug(f"Package - Launch URL: '{scorm_package.launch_url}', Extracted Path: '{scorm_package.extracted_path}'")
+            logger.debug(f"Will try {len(unique_paths)} path combinations")
+            
+            # Try each path until one works
+            for attempt_num, s3_key in enumerate(unique_paths, 1):
+                try:
+                    logger.debug(f"Attempt {attempt_num}/{len(unique_paths)}: {s3_key}")
+                    response = s3_client.get_object(Bucket=bucket_name, Key=s3_key)
+                    content = response['Body'].read()
+                    successful_key = s3_key
+                    logger.debug(f"✅ Successfully fetched content from: {s3_key}")
+                    # Cache successful path for 1 hour
+                    cache.set(cache_key, successful_key, 3600)
+                    break
+                except s3_client.exceptions.NoSuchKey:
+                    logger.debug(f"Path not found: {s3_key}")
+                    continue
+                except Exception as e:
+                    logger.debug(f"Error trying {s3_key}: {str(e)}")
+                    continue
         
         # If no path worked, return detailed error
         if content is None:

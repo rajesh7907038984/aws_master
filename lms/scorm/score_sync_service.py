@@ -39,6 +39,7 @@ class ScormScoreSyncService:
             from .models import ScormAttempt
             
             # Get the related topic
+            # FIXED: Use select_related to avoid N+1 queries
             if not hasattr(scorm_attempt, 'scorm_package') or not scorm_attempt.scorm_package.topic:
                 logger.warning(f"ScormAttempt {scorm_attempt.id} has no associated topic")
                 return False
@@ -46,7 +47,8 @@ class ScormScoreSyncService:
             topic = scorm_attempt.scorm_package.topic
             
             # Get or create TopicProgress
-            topic_progress, created = TopicProgress.objects.get_or_create(
+            # FIXED: Use select_related for foreign keys
+            topic_progress, created = TopicProgress.objects.select_related('user', 'topic').get_or_create(
                 user=scorm_attempt.user,
                 topic=topic,
                 defaults={
@@ -165,17 +167,22 @@ class ScormScoreSyncService:
         CRITICAL: Only sync when there's actual completion or a real SCORM score
         DO NOT sync just because user viewed the content!
         """
-        # ✅ PERMANENT FIX: Only sync if actually completed or passed
-        if attempt.lesson_status in ['completed', 'passed', 'failed']:
+        # ✅ STRICT FIX: Only sync if actually completed or passed (NOT failed without score)
+        if attempt.lesson_status in ['completed', 'passed']:
             logger.info(f"Syncing attempt {attempt.id} - Status: {attempt.lesson_status}")
             return True
         
-        # ✅ PERMANENT FIX: Only sync if there's a REAL score from SCORM content
+        # For failed status, only sync if there's an actual score
+        if attempt.lesson_status == 'failed' and attempt.score_raw is not None and attempt.score_raw > 0:
+            logger.info(f"Syncing attempt {attempt.id} - Failed with score: {attempt.score_raw}")
+            return True
+        
+        # ✅ STRICT FIX: Only sync if there's a REAL score from SCORM content (must be > 0)
         if attempt.score_raw is not None and attempt.score_raw > 0:
             logger.info(f"Syncing attempt {attempt.id} - Has real score: {attempt.score_raw}")
             return True
         
-        # ✅ PERMANENT FIX: Check for REAL score in CMI data (from SCORM content)
+        # ✅ STRICT FIX: Check for REAL score in CMI data (from SCORM content)
         if attempt.cmi_data:
             cmi_score = attempt.cmi_data.get('cmi.score.raw') or attempt.cmi_data.get('cmi.core.score.raw')
             if cmi_score is not None and cmi_score != '':
@@ -191,6 +198,7 @@ class ScormScoreSyncService:
         # ❌ DO NOT sync just because user accessed content
         # ❌ DO NOT sync just because there's time spent
         # ❌ DO NOT sync just because there's suspend_data
+        # ❌ DO NOT sync just because there's progress percentage
         # ✅ ONLY sync when there's ACTUAL completion or REAL scores
         
         logger.debug(f"NOT syncing attempt {attempt.id} - No completion or real score")
@@ -234,43 +242,14 @@ class ScormScoreSyncService:
                 except:
                     pass
         
-        # Priority 3: Progress percentage (for both completed and in-progress)
-        # This handles slide-based SCORM content that tracks completion by slides
-        # CRITICAL FIX: Only use progress_percentage if it's reasonable and not suspiciously high
-        if attempt.progress_percentage:
+        # Priority 3: Progress percentage - ONLY if actually completed
+        # STRICT FIX: Don't use progress as score unless truly completed
+        if attempt.progress_percentage and attempt.lesson_status in ['completed', 'passed']:
             progress_score = float(attempt.progress_percentage)
-            # Only use progress as score if it's reasonable (0-100)
+            # Only use progress as score if it's reasonable (0-100) AND content is completed
             if 0 <= progress_score <= 100:
-                # Check if package needs auto-scoring adjustment
-                package_metadata = attempt.scorm_package.package_metadata or {}
-                needs_auto_scoring = package_metadata.get('needs_auto_scoring', False)
-                
-                # CRITICAL FIX: Only trust 100% progress if we have evidence of actual completion
-                if progress_score == 100:
-                    has_evidence_of_completion = (
-                        attempt.lesson_status in ['completed', 'passed'] or
-                        (attempt.completed_slides and attempt.total_slides and 
-                         len(attempt.completed_slides) >= attempt.total_slides) or
-                        (attempt.suspend_data and 'completed=true' in attempt.suspend_data.lower())
-                    )
-                    
-                    if has_evidence_of_completion:
-                        scores.append(progress_score)
-                        logger.info(f"Using progress_percentage as score with completion evidence: {progress_score}% for attempt {attempt.id}")
-                    else:
-                        logger.warning(f"Progress shows 100% but no evidence of actual completion for attempt {attempt.id} - ignoring")
-                        # Don't use the 100% progress if there's no evidence of completion
-                else:
-                    # For non-100% progress, apply auto-scoring if needed
-                    if needs_auto_scoring and progress_score > 0:
-                        # Auto-scoring: multiply by 10 for better tracking
-                        adjusted_score = min(progress_score * 10, 100)
-                        scores.append(adjusted_score)
-                        logger.info(f"Auto-scoring applied: {progress_score}% -> {adjusted_score}% for attempt {attempt.id}")
-                    else:
-                        # For non-100% progress, trust it
-                        scores.append(progress_score)
-                        logger.info(f"Using progress_percentage as score: {progress_score}% for attempt {attempt.id}")
+                scores.append(progress_score)
+                logger.info(f"Using progress_percentage as score (content completed): {progress_score}% for attempt {attempt.id}")
         
         # Priority 4: Calculate from slide completion (for slide-based SCORM)
         if not scores and attempt.completed_slides and attempt.total_slides:

@@ -340,6 +340,29 @@ class ScormAPIHandler:
             return 'false'
         
         try:
+            # FIXED: Add input validation to prevent malicious data
+            if value is None:
+                value = ''
+            
+            # Convert to string and check for basic validity
+            value_str = str(value)
+            
+            # Prevent script injection attempts
+            if '<script' in value_str.lower() or 'javascript:' in value_str.lower():
+                logger.warning(f"Potential script injection attempt blocked: {element}")
+                self.last_error = '402'  # Invalid set value
+                return 'false'
+            
+            # Validate numeric values
+            if element in ['cmi.core.score.raw', 'cmi.score.raw', 'cmi.core.score.min', 'cmi.score.min', 
+                          'cmi.core.score.max', 'cmi.score.max', 'cmi.score.scaled', 'cmi.progress_measure']:
+                if value_str and value_str.strip():
+                    try:
+                        float(value_str)
+                    except (ValueError, TypeError):
+                        logger.warning(f"Invalid numeric value for {element}: {value_str}")
+                        self.last_error = '405'  # Incorrect data type
+                        return 'false'
             # CRITICAL FIX: Handle bookmark data storage before initialization
             if not self.initialized and element in ['cmi.core.lesson_location', 'cmi.location', 'cmi.suspend_data']:
                 # Ensure CMI data exists
@@ -363,6 +386,20 @@ class ScormAPIHandler:
                 self.attempt.save()
                 self.last_error = '0'
                 return 'true'
+            
+            # FIXED: Add size limits to prevent unbounded data growth
+            # Limit suspend_data to 1MB, other values to 10KB
+            value_str = str(value)
+            if element in ['cmi.suspend_data']:
+                max_size = 1024 * 1024  # 1MB
+                if len(value_str) > max_size:
+                    logger.warning(f"SetValue({element}) exceeds {max_size} bytes, truncating from {len(value_str)}")
+                    value = value_str[:max_size]
+            else:
+                max_size = 10240  # 10KB for regular fields
+                if len(value_str) > max_size:
+                    logger.warning(f"SetValue({element}) exceeds {max_size} bytes, truncating from {len(value_str)}")
+                    value = value_str[:max_size]
             
             # Store the value
             self.attempt.cmi_data[element] = value
@@ -840,7 +877,7 @@ class ScormAPIHandler:
         # Only save to database if not a preview attempt
         if not getattr(self.attempt, 'is_preview', False):
             # Set flag to prevent signal from processing this
-            self.attempt._updating_from_api_handler = True
+            self.attempt._skip_signal = True
             try:
                 # CRITICAL FIX: Ensure all tracking fields are properly set before save
                 # This fixes the issue where progress_percentage, suspend_data, etc. remain at default values
@@ -897,8 +934,8 @@ class ScormAPIHandler:
                 logger.error(traceback.format_exc())
             finally:
                 # Clean up the flag
-                if hasattr(self.attempt, '_updating_from_api_handler'):
-                    delattr(self.attempt, '_updating_from_api_handler')
+                if hasattr(self.attempt, '_skip_signal'):
+                    delattr(self.attempt, '_skip_signal')
         else:
             logger.info("Preview attempt - skipping database save")
     

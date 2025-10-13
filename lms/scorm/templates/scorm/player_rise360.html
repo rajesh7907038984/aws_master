@@ -174,15 +174,21 @@
             },
             
             LMSFinish: function(param) {
-                console.log('[Rise 360] Finish - EXIT COURSE button clicked');
+                console.log('[Rise 360] Finish - EXIT COURSE button clicked inside content');
                 const result = makeRiseAPICall('LMSFinish', [param]);
                 
-                // CRITICAL FIX: Auto-redirect when content calls LMSFinish (EXIT button)
-                // Wait 500ms for data to save, then redirect
+                // FIXED: Redirect parent window, not iframe
                 if (result === 'true') {
-                    console.log('[Rise 360] Data saved, redirecting to course page...');
+                    console.log('[Rise 360] Data saved, redirecting parent window...');
                     setTimeout(function() {
-                        window.location.href = '{% url "courses:topic_view" topic.id %}';
+                        // Check if we're in an iframe
+                        if (window.parent && window.parent !== window) {
+                            // We're in an iframe, redirect parent
+                            window.parent.location.href = '{% url "courses:topic_view" topic.id %}';
+                        } else {
+                            // We're not in an iframe, redirect normally
+                            window.location.href = '{% url "courses:topic_view" topic.id %}';
+                        }
                     }, 500);
                 }
                 
@@ -230,14 +236,21 @@
                 return window.API.LMSInitialize(param);
             },
             Terminate: function(param) {
-                console.log('[Rise 360] Terminate - EXIT COURSE button clicked (SCORM 2004)');
+                console.log('[Rise 360] Terminate - EXIT COURSE button clicked inside content (SCORM 2004)');
                 const result = makeRiseAPICall('Terminate', [param]);
                 
-                // CRITICAL FIX: Auto-redirect when content calls Terminate (EXIT button)
+                // FIXED: Redirect parent window, not iframe
                 if (result === 'true') {
-                    console.log('[Rise 360] Data saved, redirecting to course page...');
+                    console.log('[Rise 360] Data saved, redirecting parent window...');
                     setTimeout(function() {
-                        window.location.href = '{% url "courses:topic_view" topic.id %}';
+                        // Check if we're in an iframe
+                        if (window.parent && window.parent !== window) {
+                            // We're in an iframe, redirect parent
+                            window.parent.location.href = '{% url "courses:topic_view" topic.id %}';
+                        } else {
+                            // We're not in an iframe, redirect normally
+                            window.location.href = '{% url "courses:topic_view" topic.id %}';
+                        }
                     }, 500);
                 }
                 
@@ -288,16 +301,43 @@
         // Save every 30 seconds to prevent data loss
         let autoSaveInterval = null;
         let commitCount = 0;
+        let failedCommits = 0;
+        let lastSuccessfulCommit = Date.now();
         
         function performAutoCommit() {
             try {
                 if (window.API && window.API.LMSCommit) {
                     const result = window.API.LMSCommit('');
                     commitCount++;
-                    console.log(`[Rise 360] Auto-commit #${commitCount} - Result: ${result}`);
+                    
+                    if (result === 'true') {
+                        console.log(`[Rise 360] Auto-commit #${commitCount} - Success`);
+                        lastSuccessfulCommit = Date.now();
+                        failedCommits = 0;
+                    } else {
+                        failedCommits++;
+                        console.warn(`[Rise 360] Auto-commit #${commitCount} - Failed (${failedCommits} failures)`);
+                        
+                        // If 3 consecutive failures, show warning
+                        if (failedCommits >= 3) {
+                            const minutesSinceSuccess = Math.floor((Date.now() - lastSuccessfulCommit) / 60000);
+                            console.error(`[Rise 360] WARNING: ${failedCommits} consecutive save failures (${minutesSinceSuccess} min since last success)`);
+                            
+                            // Show user-friendly warning
+                            if (failedCommits === 3) {
+                                alert('Warning: Your progress may not be saving properly. Please click "Save & Exit" when you finish.');
+                            }
+                        }
+                    }
                 }
             } catch (e) {
+                failedCommits++;
                 console.error('[Rise 360] Error in auto-commit:', e);
+                
+                // Show critical error after 5 failures
+                if (failedCommits >= 5) {
+                    console.error('[Rise 360] CRITICAL: Multiple save failures detected');
+                }
             }
         }
         

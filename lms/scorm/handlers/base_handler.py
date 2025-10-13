@@ -217,6 +217,28 @@ class BaseScormAPIHandler:
             return 'false'
         
         try:
+            # FIXED: Add input validation
+            if value is None:
+                value = ''
+            
+            value_str = str(value)
+            
+            # Prevent script injection
+            if '<script' in value_str.lower() or 'javascript:' in value_str.lower():
+                logger.warning(f"Script injection attempt blocked: {element}")
+                self.last_error = '402'
+                return 'false'
+            
+            # Validate numeric values
+            if element in ['cmi.core.score.raw', 'cmi.score.raw', 'cmi.core.score.min', 'cmi.score.min',
+                          'cmi.core.score.max', 'cmi.score.max', 'cmi.score.scaled', 'cmi.progress_measure']:
+                if value_str and value_str.strip():
+                    try:
+                        float(value_str)
+                    except (ValueError, TypeError):
+                        logger.warning(f"Invalid numeric value for {element}: {value_str}")
+                        self.last_error = '405'
+                        return 'false'
             # Handle pre-init bookmark storage
             if not self.initialized and element in ['cmi.core.lesson_location', 'cmi.location', 'cmi.suspend_data']:
                 if not self.attempt.cmi_data:
@@ -231,6 +253,19 @@ class BaseScormAPIHandler:
                 self.attempt.save()
                 self.last_error = '0'
                 return 'true'
+            
+            # FIXED: Add size limits to prevent unbounded data growth
+            value_str = str(value)
+            if element in ['cmi.suspend_data']:
+                max_size = 1024 * 1024  # 1MB
+                if len(value_str) > max_size:
+                    logger.warning(f"SetValue({element}) exceeds {max_size} bytes, truncating")
+                    value = value_str[:max_size]
+            else:
+                max_size = 10240  # 10KB
+                if len(value_str) > max_size:
+                    logger.warning(f"SetValue({element}) exceeds {max_size} bytes, truncating")
+                    value = value_str[:max_size]
             
             # Store value
             self.attempt.cmi_data[element] = value
@@ -340,7 +375,7 @@ class BaseScormAPIHandler:
         self.attempt.last_accessed = timezone.now()
         
         if not getattr(self.attempt, 'is_preview', False):
-            self.attempt._updating_from_api_handler = True
+            self.attempt._skip_signal = True
             try:
                 # Ensure JSON fields are never None
                 if self.attempt.completed_slides is None:
@@ -368,8 +403,8 @@ class BaseScormAPIHandler:
                 import traceback
                 logger.error(traceback.format_exc())
             finally:
-                if hasattr(self.attempt, '_updating_from_api_handler'):
-                    delattr(self.attempt, '_updating_from_api_handler')
+                if hasattr(self.attempt, '_skip_signal'):
+                    delattr(self.attempt, '_skip_signal')
     
     def _sync_tracking_from_cmi_data(self):
         """

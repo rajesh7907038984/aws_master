@@ -9,8 +9,11 @@ const pendingRequests = new Map();
 const CACHE_DURATION = 30000; // 30 seconds
 let apiCallCount = 0;
 
-// Make API call to Django backend with caching and request deduplication
-async function makeApiCall(method, parameters) {
+// FIXED: Make API call with retry logic for transient failures
+async function makeApiCall(method, parameters, retryCount = 0) {
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 1000; // 1 second
+    
     try {
         // Create cache key for this request
         const cacheKey = `${method}_${JSON.stringify(parameters)}`;
@@ -18,8 +21,13 @@ async function makeApiCall(method, parameters) {
         // Check cache first for read-only operations
         if (['GetValue', 'LMSGetValue', 'GetLastError', 'LMSGetLastError', 'GetErrorString', 'LMSGetErrorString', 'GetDiagnostic', 'LMSGetDiagnostic'].includes(method)) {
             if (apiCache.has(cacheKey)) {
-                console.log(`[SCORM API] ${method} -> cached result`);
-                return apiCache.get(cacheKey);
+                const cached = apiCache.get(cacheKey);
+                if (cached.expiry && Date.now() < cached.expiry) {
+                    console.log(`[SCORM API] ${method} -> cached result`);
+                    return cached.value;
+                } else {
+                    apiCache.delete(cacheKey);
+                }
             }
         }
         
@@ -80,7 +88,14 @@ async function makeApiCall(method, parameters) {
         return await requestPromise;
         
     } catch (error) {
-        console.error(`[SCORM API] ${method} error:`, error);
+        // FIXED: Retry logic for transient failures
+        if (retryCount < MAX_RETRIES) {
+            console.warn(`[SCORM API] ${method} failed (attempt ${retryCount + 1}/${MAX_RETRIES}), retrying...`);
+            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * (retryCount + 1)));
+            return makeApiCall(method, parameters, retryCount + 1);
+        }
+        
+        console.error(`[SCORM API] ${method} error after ${MAX_RETRIES} retries:`, error);
         return 'false';
     }
 }
