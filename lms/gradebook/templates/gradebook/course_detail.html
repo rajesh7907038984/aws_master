@@ -1792,7 +1792,7 @@
                               Completed
                             {% endif %}
                           </span>
-                        {% elif score_data.success_status == 'in_progress' or score_data.last_accessed %}
+                        {% elif score_data.in_progress or score_data.has_bookmark %}
                           <!-- Show resume button for learners who have started but not passed -->
                           <span class="grade-score grade-none">In Progress</span>
                           {% if user.role == 'learner' %}

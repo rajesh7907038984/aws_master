@@ -1949,12 +1949,55 @@
             }, 15000); // 15 second emergency fallback only
             
             // ✅ SCORM BEST PRACTICE: Check if Rise/Storyline (self-managing)
+            // CRITICAL FIX: Always extract and save bookmark data, even for Rise packages
+            // Some Rise packages don't call SetValue during video playback
             if (IS_SELF_MANAGING) {
                 const contentType = IS_RISE_PACKAGE ? 'Rise' : 'Storyline';
-                console.log(`✅ ${contentType} detected - Save & Exit will only commit (no interference)`);
-                console.log(`   ${contentType} has already set all tracking data via its own API calls`);
+                console.log(`✅ ${contentType} detected - checking if bookmark data was set...`);
                 
-                // For self-managing content: ONLY call LMSCommit() to save what they've already set
+                // CRITICAL FIX: Check if Rise has actually set lesson_location
+                let hasBookmark = false;
+                try {
+                    let currentLocation = '';
+                    if (window.API && window.API.LMSGetValue) {
+                        currentLocation = window.API.LMSGetValue('cmi.core.lesson_location');
+                    } else if (window.API_1484_11 && window.API_1484_11.GetValue) {
+                        currentLocation = window.API_1484_11.GetValue('cmi.location');
+                    }
+                    
+                    hasBookmark = currentLocation && currentLocation !== '' && currentLocation !== 'false';
+                    console.log(`   Has bookmark data: ${hasBookmark}, location: "${currentLocation}"`);
+                    
+                    // CRITICAL FIX: If no bookmark, try to extract from iframe URL
+                    if (!hasBookmark) {
+                        console.log('   ⚠️  No bookmark set by SCORM content - forcing extraction from iframe URL...');
+                        const iframe = document.getElementById('scormFrame');
+                        if (iframe && iframe.contentWindow) {
+                            try {
+                                const currentUrl = iframe.contentWindow.location.href;
+                                const urlParts = currentUrl.split('#');
+                                if (urlParts.length > 1) {
+                                    const bookmark = 'index.html#' + urlParts[1];
+                                    console.log('   📌 Extracted bookmark from hash:', bookmark);
+                                    if (window.API && window.API.LMSSetValue) {
+                                        window.API.LMSSetValue('cmi.core.lesson_location', bookmark);
+                                        hasBookmark = true;
+                                    }
+                                    if (window.API_1484_11 && window.API_1484_11.SetValue) {
+                                        window.API_1484_11.SetValue('cmi.location', bookmark);
+                                        hasBookmark = true;
+                                    }
+                                }
+                            } catch (e) {
+                                console.log('   Could not extract iframe location:', e.message);
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('❌ Bookmark check error:', error);
+                }
+                
+                // Commit the data (with or without bookmark)
                 try {
                     if (window.API && window.API._initialized && window.API.LMSCommit) {
                         const commitResult = window.API.LMSCommit('');
@@ -1968,13 +2011,13 @@
                     console.error('❌ Commit error:', error);
                 }
                 
-                // Redirect immediately (content has already saved everything)
+                // Redirect after commit
                 clearTimeout(emergencyFallbackTimeout);
                 console.log('✅ Redirecting to topic view...');
                 setTimeout(() => {
                     window.location.href = '{% url "courses:topic_view" topic.id %}';
                 }, 500);
-                return; // Exit early - don't run client-side tracking logic below
+                return; // Exit early - don't run additional tracking logic below
             }
             
             // ⚙️ For generic SCORM content only: Run client-side tracking helpers

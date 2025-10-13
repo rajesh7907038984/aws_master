@@ -728,7 +728,10 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                         'topic_progress': topic_progress,
                                         'completion_status': completion_status,
                                         'success_status': success_status,
-                                        'completed': topic_progress.completed
+                                        'completed': topic_progress.completed,
+                                        'in_progress': topic_progress.last_accessed and not topic_progress.completed,
+                                        'has_bookmark': bool(topic_progress.bookmark or (topic_progress.progress_data and (topic_progress.progress_data.get('lesson_location') or topic_progress.progress_data.get('suspend_data')))),
+                                        'last_accessed': topic_progress.last_accessed  # For template compatibility
                                     }
                                 else:
                                     student_scores[activity_id] = {
