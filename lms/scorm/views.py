@@ -1104,9 +1104,12 @@ def scorm_content(request, topic_id, path):
         });
     }
     
-    // Run immediately and on DOM ready
-    enhanceExitButtons();
-    document.addEventListener('DOMContentLoaded', enhanceExitButtons);
+    // CRITICAL FIX: Only run enhancement once to prevent duplicates
+    if (!window.scormEnhancementRun) {
+        window.scormEnhancementRun = true;
+        enhanceExitButtons();
+        document.addEventListener('DOMContentLoaded', enhanceExitButtons);
+    }
     
     // CRITICAL FIX: Prevent infinite loops with global flag
     if (window.scormEnhancementActive) {

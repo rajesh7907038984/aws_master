@@ -932,8 +932,11 @@
                 }
             }
             
-            // Try to enhance exit buttons immediately
-            enhanceIframeExitButtons();
+            // CRITICAL FIX: Only run enhancement once to prevent duplicates
+            if (!window.rise360EnhancementRun) {
+                window.rise360EnhancementRun = true;
+                enhanceIframeExitButtons();
+            }
             
             // CRITICAL FIX: Prevent infinite loops with global flag
             if (window.rise360EnhancementActive) {
