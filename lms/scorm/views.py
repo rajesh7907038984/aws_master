@@ -18,12 +18,21 @@ from django.utils import timezone
 from django.conf import settings
 
 from .models import ScormPackage, ScormAttempt
-from .api_handler import ScormAPIHandler
+from .api_handler import ScormAPIHandler  # Keep for fallback
 from .preview_handler import ScormPreviewHandler
 from .s3_direct import scorm_s3
 from courses.models import Topic
 
 logger = logging.getLogger(__name__)
+
+# NEW: Import specialized handlers with safe fallback
+try:
+    from .handlers import get_handler_for_attempt
+    USE_NEW_HANDLERS = True
+    logger.info("✅ New specialized SCORM handlers loaded successfully")
+except ImportError as e:
+    USE_NEW_HANDLERS = False
+    logger.warning(f"⚠️  New handlers not available, using legacy handler: {e}")
 
 
 def _detect_scorm_package_type(scorm_package):
@@ -364,8 +373,18 @@ def scorm_api(request, attempt_id):
             handler = ScormPreviewHandler(attempt)
             logger.info(f"Using preview handler for attempt {attempt_id}")
         else:
-            handler = ScormAPIHandler(attempt)
-            logger.info(f"Using regular handler for attempt {attempt_id}")
+            # NEW: Use specialized handlers if available, fallback to legacy
+            if USE_NEW_HANDLERS:
+                try:
+                    handler = get_handler_for_attempt(attempt)
+                    logger.info(f"✅ Using specialized handler ({handler.get_handler_name()}) for attempt {attempt_id}")
+                except Exception as e:
+                    logger.error(f"⚠️  Error with new handler, falling back to legacy: {e}")
+                    handler = ScormAPIHandler(attempt)
+                    logger.info(f"Using legacy ScormAPIHandler for attempt {attempt_id}")
+            else:
+                handler = ScormAPIHandler(attempt)
+                logger.info(f"Using legacy ScormAPIHandler for attempt {attempt_id}")
         
         # Route to appropriate API method
         if method == 'Initialize' or method == 'LMSInitialize':

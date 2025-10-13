@@ -126,10 +126,13 @@ class ScormAPIHandler:
             # Update lesson_status to incomplete if still not_attempted
             if self.attempt.lesson_status == 'not_attempted':
                 self.attempt.lesson_status = 'incomplete'
-            logger.info(f"SCORM Resume: bookmark={has_bookmark}, suspend_data={has_suspend_data}, lesson_location='{self.attempt.lesson_location}'")
+            logger.info(f"🔄 SCORM RESUME MODE: bookmark={has_bookmark}, suspend_data={has_suspend_data}")
+            logger.info(f"   lesson_location='{self.attempt.lesson_location}'")
+            logger.info(f"   suspend_data length={len(self.attempt.suspend_data)} chars")
+            logger.info(f"   Setting entry='resume', status='incomplete'")
         else:
             self.attempt.entry = 'ab-initio'
-            logger.info(f"SCORM Fresh start: no bookmark data")
+            logger.info(f"🆕 SCORM FRESH START: no saved data (lesson_location={has_bookmark}, suspend_data={has_suspend_data})")
         
         if self.version == '1.2':
             # CRITICAL FIX: Always set entry mode in CMI data
@@ -274,8 +277,9 @@ class ScormAPIHandler:
             
             value = self.attempt.cmi_data.get(element, '')
             
-            # Log the retrieved value for debugging
-            logger.info(f"SCORM API GetValue({element}) - raw value from cmi_data: '{value}'")
+            # Log the retrieved value for debugging (only log important elements to avoid spam)
+            if element in ['cmi.core.entry', 'cmi.entry', 'cmi.core.lesson_location', 'cmi.location', 'cmi.suspend_data', 'cmi.core.lesson_status']:
+                logger.info(f"📖 SCORM GetValue({element}) - raw value from cmi_data: '{value[:100] if isinstance(value, str) else value}'")
             
             # Ensure critical elements have proper defaults if empty or whitespace
             if not value or str(value).strip() == '':
@@ -362,7 +366,13 @@ class ScormAPIHandler:
             
             # Store the value
             self.attempt.cmi_data[element] = value
-            logger.info(f"SCORM API SetValue({element}, {value}) - stored successfully")
+            
+            # Log SetValue for important elements
+            if element in ['cmi.core.lesson_location', 'cmi.location', 'cmi.suspend_data', 'cmi.core.lesson_status', 'cmi.core.score.raw', 'cmi.score.raw']:
+                if element in ['cmi.suspend_data'] and len(str(value)) > 100:
+                    logger.info(f"💾 SCORM SetValue({element}) - stored {len(str(value))} chars")
+                else:
+                    logger.info(f"💾 SCORM SetValue({element}, {str(value)[:100]}) - stored successfully")
             
             # Handle interactions, objectives, and comments tracking
             self._handle_detailed_tracking(element, value)
