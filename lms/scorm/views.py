@@ -264,6 +264,15 @@ def scorm_view(request, topic_id):
     # Rise expects the hash in the URL on initial load to jump to the saved slide
     content_url = f'/scorm/content/{topic_id}/{scorm_package.launch_url}?attempt_id={attempt_id}'
     
+    # ENHANCED: Add resume parameters to help SCORM content detect resume mode
+    if attempt.entry == 'resume' or (attempt.lesson_status != 'not_attempted' and attempt.lesson_status != 'not attempted'):
+        content_url += '&resume=true'
+        if attempt.lesson_location:
+            content_url += f'&location={attempt.lesson_location}'
+        if attempt.suspend_data:
+            content_url += f'&suspend_data={attempt.suspend_data[:100]}'  # First 100 chars
+        logger.info(f"✅ SCORM Resume: Added resume parameters to content URL")
+    
     # COMPREHENSIVE RESUME FIX: Handle all bookmark formats with fallbacks
     resume_needed = attempt.entry == 'resume' or (attempt.lesson_status != 'not_attempted' and attempt.lesson_status != 'not attempted')
     bookmark_applied = False
@@ -1140,7 +1149,7 @@ def scorm_content(request, topic_id, path):
     }}
 }})();
 
-// ENHANCED: Auto-detect SCORM content initialization
+    // ENHANCED: Auto-detect SCORM content initialization
 (function() {
     var initAttempts = 0;
     var maxAttempts = 10;
@@ -1190,6 +1199,68 @@ def scorm_content(request, topic_id, path):
         detectAndInitializeSCORM();
     } else {
         window.addEventListener('load', detectAndInitializeSCORM);
+    }
+})();
+
+// ENHANCED: Auto-resume functionality to skip START screen
+(function() {
+    function autoResumeSCORM() {
+        // Check if this is a resume scenario
+        var urlParams = new URLSearchParams(window.location.search);
+        var isResume = urlParams.get('resume') === 'true';
+        var location = urlParams.get('location');
+        var suspendData = urlParams.get('suspend_data');
+        
+        if (isResume) {
+            console.log('[SCORM] Resume mode detected - attempting to skip START screen');
+            
+            // Look for START button and auto-click it after a delay
+            var startButton = document.querySelector('button[class*=\"start\"], button[class*=\"Start\"], button:contains(\"START\"), a[class*=\"start\"], a[class*=\"Start\"]');
+            if (!startButton) {
+                // Try alternative selectors
+                var buttons = document.querySelectorAll('button, a, [role=\"button\"]');
+                for (var i = 0; i < buttons.length; i++) {
+                    var text = buttons[i].textContent ? buttons[i].textContent.trim() : '';
+                    if (text.toLowerCase() === 'start' || text.toLowerCase() === 'begin') {
+                        startButton = buttons[i];
+                        break;
+                    }
+                }
+            }
+            
+            if (startButton) {
+                console.log('[SCORM] Found START button - auto-clicking in 2 seconds');
+                setTimeout(function() {
+                    try {
+                        startButton.click();
+                        console.log('[SCORM] ✅ Auto-clicked START button for resume');
+                    } catch (e) {
+                        console.error('[SCORM] Error auto-clicking START button:', e);
+                    }
+                }, 2000);
+            } else {
+                console.log('[SCORM] No START button found - content may already be resumed');
+            }
+            
+            // Also try to trigger any resume functions
+            if (typeof window.resumeCourse === 'function') {
+                setTimeout(function() {
+                    try {
+                        window.resumeCourse();
+                        console.log('[SCORM] Called resumeCourse function');
+                    } catch (e) {
+                        console.error('[SCORM] Error calling resumeCourse:', e);
+                    }
+                }, 1000);
+            }
+        }
+    }
+    
+    // Run auto-resume after page load
+    if (document.readyState === 'complete') {
+        autoResumeSCORM();
+    } else {
+        window.addEventListener('load', autoResumeSCORM);
     }
 })();
 </script>
