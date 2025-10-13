@@ -26,6 +26,49 @@ from courses.models import Topic
 logger = logging.getLogger(__name__)
 
 
+def _detect_scorm_package_type(scorm_package):
+    """
+    Detect the type of SCORM package to use the appropriate player template
+    Returns: 'rise360', 'storyline', 'captivate', or 'generic'
+    """
+    try:
+        launch_url = scorm_package.launch_url.lower()
+        manifest_data = scorm_package.manifest_data or {}
+        
+        # Check for Rise 360 (most common pattern)
+        if 'scormcontent/index.html' in launch_url or 'index.html#/lessons/' in launch_url:
+            # Additional Rise 360 checks
+            if manifest_data:
+                # Rise 360 typically has a specific structure in manifest
+                resources = manifest_data.get('resources', [])
+                for resource in resources:
+                    if isinstance(resource, dict):
+                        href = resource.get('href', '').lower()
+                        if 'scormcontent' in href and 'lib/' in href:
+                            return 'rise360'
+            return 'rise360'
+        
+        # Check for Articulate Storyline
+        if 'story.html' in launch_url or 'story_html5.html' in launch_url:
+            return 'storyline'
+        
+        # Check for Adobe Captivate
+        if manifest_data:
+            title = str(manifest_data.get('title', '')).lower()
+            if 'captivate' in title or 'adobe' in title:
+                return 'captivate'
+        
+        if 'captivate' in launch_url or 'multiscreen.html' in launch_url:
+            return 'captivate'
+        
+        # Default to generic SCORM player
+        return 'generic'
+        
+    except Exception as e:
+        logger.error(f"Error detecting SCORM package type: {str(e)}")
+        return 'generic'
+
+
 def fix_scorm_relative_paths(html_content, topic_id):
     """
     Fix relative paths in SCORM content to use Django proxy URLs
@@ -220,7 +263,20 @@ def scorm_view(request, topic_id):
         'is_instructor_or_admin': is_instructor_or_admin,
     }
     
-    response = render(request, 'scorm/player.html', context)
+    # ARCHITECTURAL IMPROVEMENT: Detect package type and use appropriate player template
+    # This simplifies maintenance - each player handles ONE type of SCORM package
+    package_type = _detect_scorm_package_type(scorm_package)
+    template_map = {
+        'rise360': 'scorm/player_rise360.html',
+        'storyline': 'scorm/player_storyline.html',
+        'captivate': 'scorm/player_captivate.html',
+        'generic': 'scorm/player_generic.html',
+    }
+    
+    template_name = template_map.get(package_type, 'scorm/player.html')
+    logger.info(f"Using {template_name} for package type: {package_type}")
+    
+    response = render(request, template_name, context)
     
     # Set permissive CSP headers for SCORM content
     response['Content-Security-Policy'] = (
