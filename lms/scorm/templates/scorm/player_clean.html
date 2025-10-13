@@ -228,7 +228,7 @@
             class="scorm-iframe" 
             src="{{ content_url }}"
             allow="fullscreen; autoplay; encrypted-media; microphone; camera"
-            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
+            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals"
             onload="handleFrameLoad()"
             onerror="handleFrameError()">
         </iframe>
@@ -658,6 +658,26 @@
                     iframeWindow.API = api;
                     iframeWindow.API_1484_11 = api;
                     console.log('SCORM API injected into iframe');
+                    
+                    // Fix string table localization issues
+                    if (iframeWindow.StringTable) {
+                        iframeWindow.StringTable = iframeWindow.StringTable || {};
+                        // Add missing string table entries
+                        iframeWindow.StringTable.PREV = iframeWindow.StringTable.PREV || 'Previous';
+                        iframeWindow.StringTable.NEXT = iframeWindow.StringTable.NEXT || 'Next';
+                        iframeWindow.StringTable.SUBMIT = iframeWindow.StringTable.SUBMIT || 'Submit';
+                        console.log('String table entries added to fix localization errors');
+                    }
+                    
+                    // Fix progress tracking undefined error
+                    if (iframeWindow.progress === undefined) {
+                        iframeWindow.progress = {
+                            current: 0,
+                            total: 100,
+                            percentage: 0
+                        };
+                        console.log('Progress tracking object initialized');
+                    }
                     
                     // Also inject bookmark data if available
                     injectBookmarkData(iframeWindow);
@@ -1918,6 +1938,55 @@
             
             console.log('✅ Enhanced time tracking active - will sync every 5 minutes');
         })();
+        
+        // Global error handler for SCORM content
+        window.addEventListener('error', function(event) {
+            console.log('SCORM Error caught:', event.error);
+            
+            // Handle specific SCORM-related errors
+            if (event.error && event.error.message) {
+                const message = event.error.message.toLowerCase();
+                
+                // Fix string table errors
+                if (message.includes('string table') || message.includes('prev') || message.includes('next') || message.includes('submit')) {
+                    console.log('String table error detected - attempting to fix...');
+                    try {
+                        // Try to fix string table in iframe
+                        const iframe = document.getElementById('scormFrame');
+                        if (iframe && iframe.contentWindow) {
+                            if (iframe.contentWindow.StringTable) {
+                                iframe.contentWindow.StringTable.PREV = iframe.contentWindow.StringTable.PREV || 'Previous';
+                                iframe.contentWindow.StringTable.NEXT = iframe.contentWindow.StringTable.NEXT || 'Next';
+                                iframe.contentWindow.StringTable.SUBMIT = iframe.contentWindow.StringTable.SUBMIT || 'Submit';
+                                console.log('String table fixed in iframe');
+                            }
+                        }
+                    } catch (e) {
+                        console.log('Could not fix string table (cross-origin):', e.message);
+                    }
+                }
+                
+                // Fix progress tracking errors
+                if (message.includes('progress') && message.includes('undefined')) {
+                    console.log('Progress tracking error detected - attempting to fix...');
+                    try {
+                        const iframe = document.getElementById('scormFrame');
+                        if (iframe && iframe.contentWindow) {
+                            if (iframe.contentWindow.progress === undefined) {
+                                iframe.contentWindow.progress = {
+                                    current: 0,
+                                    total: 100,
+                                    percentage: 0
+                                };
+                                console.log('Progress tracking object created in iframe');
+                            }
+                        }
+                    } catch (e) {
+                        console.log('Could not fix progress tracking (cross-origin):', e.message);
+                    }
+                }
+            }
+        });
         
         // Debug info for instructors
         {% if is_instructor_or_admin %}
