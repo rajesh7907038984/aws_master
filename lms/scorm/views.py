@@ -831,6 +831,10 @@ def scorm_content(request, topic_id, path):
 // CRITICAL FIX: SCORM API must be available immediately for Rise 360
 // Rise 360 checks for API on page load, so we set it up synchronously
 (function() {
+    // ENHANCED: Add debugging and monitoring
+    window.SCORM_DEBUG = true;
+    window.SCORM_API_CALLS = [];
+    
     // Prevent multiple API loading with more robust checking
     if (window.API && 
         typeof window.API !== 'undefined' && 
@@ -892,14 +896,34 @@ def scorm_content(request, topic_id, path):
             // SCORM content expects synchronous API calls
             console.log('[SCORM API] Making API call:', method, parameters);
             
+            // Store API call for debugging
+            if (window.SCORM_API_CALLS) {
+                window.SCORM_API_CALLS.push({
+                    method: method,
+                    parameters: parameters,
+                    timestamp: new Date().toISOString()
+                });
+            }
+            
             const xhr = new XMLHttpRequest();
             xhr.open('POST', this._apiEndpoint, false); // false = synchronous
             xhr.setRequestHeader('Content-Type', 'application/json');
             xhr.setRequestHeader('X-CSRFToken', this._getCookie('csrftoken'));
             
-            const requestData = JSON.stringify({ method: method, parameters: parameters || [] }});
+            const requestData = JSON.stringify({ method: method, parameters: parameters || [] });
             console.log('[SCORM API] Sending request:', requestData);
-            xhr.send(requestData);
+            
+            // ENHANCED: Add timeout handling
+            xhr.timeout = 10000; // 10 second timeout
+            
+            try {
+                xhr.send(requestData);
+            } catch (sendError) {
+                console.error('[SCORM API] ❌ Failed to send request:', sendError);
+                // Store data locally as fallback
+                this._storeDataLocally(method, parameters);
+                return 'true'; // Return success to prevent SCORM content from breaking
+            }
             
             console.log('[SCORM API] Response status:', xhr.status);
             console.log('[SCORM API] Response text:', xhr.responseText);
@@ -910,26 +934,47 @@ def scorm_content(request, topic_id, path):
                     // ALWAYS log SetValue calls for debugging progress saving
                     if (method === 'SetValue' && parameters && parameters.length >= 2) {
                         console.log('[SCORM API] ✅ SetValue SUCCESS:', parameters[0], '=', parameters[1], '->', data.result);
-                    }} else if (method === 'Initialize' || method === 'Terminate' || method === 'Commit') {{
+                    } else if (method === 'Initialize' || method === 'Terminate' || method === 'Commit') {
                         console.log('[SCORM API] ✅ ' + method + ' SUCCESS -> ' + data.result);
-                    }}
+                    }
                     return data.result;
                 } else {
                     console.error('[SCORM API] ❌ ' + method + ' FAILED:', data.error);
                     this._lastError = data.error_code || '101';
                     return 'false';
-                }}
+                }
             } else {
                 console.error('[SCORM API] ❌ HTTP ERROR:', xhr.status, xhr.responseText);
                 this._lastError = '101';
+                // Store data locally as fallback
+                this._storeDataLocally(method, parameters);
                 return 'false';
-            }}
-        } catch (e) {{
+            }
+        } catch (e) {
             console.error('[SCORM API] ❌ EXCEPTION:', e);
             this._lastError = '101';
+            // Store data locally as fallback
+            this._storeDataLocally(method, parameters);
             return 'false';
-        }}
-    }},
+        }
+    },
+    
+    _storeDataLocally: function(method, parameters) {
+        // Store failed API calls in localStorage for later sync
+        try {
+            const failedCalls = JSON.parse(localStorage.getItem('scorm_failed_calls') || '[]');
+            failedCalls.push({
+                method: method,
+                parameters: parameters,
+                timestamp: new Date().toISOString(),
+                attempt_id: this._apiEndpoint.match(/\/(\d+)\//)[1]
+            });
+            localStorage.setItem('scorm_failed_calls', JSON.stringify(failedCalls));
+            console.log('[SCORM API] Stored failed call locally for later sync');
+        } catch (e) {
+            console.error('[SCORM API] Failed to store data locally:', e);
+        }
+    },
     
     Initialize: function(param) {
         return this._makeAPICall('Initialize', [param]);
@@ -1045,6 +1090,27 @@ def scorm_content(request, topic_id, path):
     console.log('[SCORM] API initialized with', Object.keys(window.API).length, 'functions');
     console.log('[SCORM] API endpoint:', window.API._apiEndpoint);
     
+    // ENHANCED: Add auto-sync for failed calls
+    window.API._syncFailedCalls = function() {
+        try {
+            const failedCalls = JSON.parse(localStorage.getItem('scorm_failed_calls') || '[]');
+            if (failedCalls.length > 0) {
+                console.log('[SCORM] Found', failedCalls.length, 'failed calls to sync');
+                failedCalls.forEach(function(call) {
+                    window.API._makeAPICall(call.method, call.parameters);
+                });
+                localStorage.removeItem('scorm_failed_calls');
+            }
+        } catch (e) {
+            console.error('[SCORM] Error syncing failed calls:', e);
+        }
+    };
+    
+    // Sync failed calls after initialization
+    setTimeout(function() {
+        window.API._syncFailedCalls();
+    }, 1000);
+    
     } catch (setupError) {{
         // Handle initialization errors gracefully
         console.error('[SCORM] Critical error during API setup:', setupError);
@@ -1073,6 +1139,59 @@ def scorm_content(request, topic_id, path):
         }}
     }}
 }})();
+
+// ENHANCED: Auto-detect SCORM content initialization
+(function() {
+    var initAttempts = 0;
+    var maxAttempts = 10;
+    
+    function detectAndInitializeSCORM() {
+        initAttempts++;
+        
+        // Look for common SCORM content patterns
+        var scormIndicators = [
+            'doInitialize',
+            'SCORMInit',
+            'loadPage',
+            'startCourse',
+            'pipwerks',
+            'ScormProcessInitialize',
+            'doLMSInitialize'
+        ];
+        
+        var foundIndicator = false;
+        for (var i = 0; i < scormIndicators.length; i++) {
+            if (typeof window[scormIndicators[i]] === 'function') {
+                foundIndicator = true;
+                console.log('[SCORM] Found SCORM indicator:', scormIndicators[i]);
+                break;
+            }
+        }
+        
+        // If SCORM content detected but not initialized, try to initialize
+        if (foundIndicator && window.API && !window.API._initialized) {
+            console.log('[SCORM] Auto-initializing SCORM...');
+            try {
+                var result = window.API.Initialize('');
+                console.log('[SCORM] Auto-initialization result:', result);
+            } catch (e) {
+                console.error('[SCORM] Auto-initialization error:', e);
+            }
+        }
+        
+        // Continue checking
+        if (initAttempts < maxAttempts) {
+            setTimeout(detectAndInitializeSCORM, 1000);
+        }
+    }
+    
+    // Start detection after page load
+    if (document.readyState === 'complete') {
+        detectAndInitializeSCORM();
+    } else {
+        window.addEventListener('load', detectAndInitializeSCORM);
+    }
+})();
 </script>
 '''
                 
@@ -1136,6 +1255,86 @@ def scorm_content(request, topic_id, path):
             console.log('[SCORM] Cannot set top API (cross-origin)');
         }
     }
+    
+    // ENHANCED: Create API finder function that SCORM content can use
+    window.getAPI = function() {
+        return window.API;
+    };
+    
+    window.getAPIHandle = function() {
+        if (window.API) return window.API;
+        if (window.parent && window.parent.API) return window.parent.API;
+        if (window.top && window.top.API) return window.top.API;
+        return null;
+    };
+    
+    // ENHANCED: Add Articulate-specific API detection
+    window.GetAPI = function() {
+        return window.API;
+    };
+    
+    // ENHANCED: Create pipwerks SCORM wrapper compatibility
+    window.pipwerks = window.pipwerks || {};
+    window.pipwerks.SCORM = {
+        version: "1.2",
+        handleCompletionStatus: true,
+        handleExitMode: true,
+        API: {
+            handle: window.API,
+            find: function() { return window.API; },
+            get: function() { return window.API; },
+            getHandle: function() { return window.API; }
+        },
+        connection: {
+            isActive: false,
+            initialize: function() {
+                if (window.API && !this.isActive) {
+                    var result = window.API.Initialize('');
+                    this.isActive = (result === 'true');
+                    return this.isActive;
+                }
+                return false;
+            },
+            terminate: function() {
+                if (window.API && this.isActive) {
+                    var result = window.API.Terminate('');
+                    this.isActive = false;
+                    return (result === 'true');
+                }
+                return false;
+            }
+        },
+        data: {
+            get: function(param) {
+                if (window.API) return window.API.GetValue(param);
+                return '';
+            },
+            set: function(param, value) {
+                if (window.API) return window.API.SetValue(param, value);
+                return 'false';
+            },
+            save: function() {
+                if (window.API) return window.API.Commit('');
+                return 'false';
+            }
+        },
+        debug: {
+            getCode: function() {
+                if (window.API) return window.API.GetLastError();
+                return '0';
+            },
+            getInfo: function(code) {
+                if (window.API) return window.API.GetErrorString(code);
+                return '';
+            },
+            getDiagnosticInfo: function(code) {
+                if (window.API) return window.API.GetDiagnostic(code);
+                return '';
+            }
+        }
+    };
+    
+    console.log('[SCORM] Enhanced API detection and compatibility layer installed');
     
     // CRITICAL: Log API availability for debugging
     console.log('[SCORM] API available at:');
@@ -1926,6 +2125,65 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('[SCORM] API still not available on DOM ready');
     }
 });
+
+// ENHANCED: Auto-save mechanism
+(function() {
+    var autoSaveInterval = 30000; // 30 seconds
+    var lastActivity = Date.now();
+    var autoSaveTimer = null;
+    
+    function trackActivity() {
+        lastActivity = Date.now();
+    }
+    
+    // Track user activity
+    document.addEventListener('click', trackActivity);
+    document.addEventListener('keypress', trackActivity);
+    document.addEventListener('mousemove', trackActivity);
+    
+    function autoSave() {
+        // Only save if there was recent activity
+        if (Date.now() - lastActivity < 60000) { // Activity in last minute
+            if (window.API && window.API._initialized && typeof window.API.Commit === 'function') {
+                console.log('[SCORM] Auto-saving progress...');
+                try {
+                    var result = window.API.Commit('');
+                    console.log('[SCORM] Auto-save result:', result);
+                } catch (e) {
+                    console.error('[SCORM] Auto-save error:', e);
+                }
+            }
+        }
+    }
+    
+    // Start auto-save timer
+    autoSaveTimer = setInterval(autoSave, autoSaveInterval);
+    
+    // Save on page unload
+    window.addEventListener('beforeunload', function(e) {
+        if (window.API && window.API._initialized) {
+            console.log('[SCORM] Saving on page unload...');
+            try {
+                window.API.Commit('');
+                window.API.Terminate('');
+            } catch (error) {
+                console.error('[SCORM] Error saving on unload:', error);
+            }
+        }
+    });
+    
+    // Save on visibility change (tab switch)
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden && window.API && window.API._initialized) {
+            console.log('[SCORM] Saving on tab switch...');
+            try {
+                window.API.Commit('');
+            } catch (error) {
+                console.error('[SCORM] Error saving on tab switch:', error);
+            }
+        }
+    });
+})();
 </script>
 '''
                 html_content = html_content.replace('</script>', '</script>' + api_check)

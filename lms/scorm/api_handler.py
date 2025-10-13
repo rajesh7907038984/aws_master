@@ -124,6 +124,13 @@ class ScormAPIHandler:
             
             self.initialized = True
             self.last_error = '0'
+            
+            # ENHANCED: Log initialization with user details
+            logger.info(f"[SCORM INIT] ✅ Initializing SCORM API for:")
+            logger.info(f"  - User: {self.attempt.user.username} ({self.attempt.user.get_full_name()})")
+            logger.info(f"  - Attempt ID: {self.attempt.id}")
+            logger.info(f"  - Package: {self.attempt.scorm_package.title}")
+            logger.info(f"  - Version: {self.version}")
         
         # CRITICAL FIX: Ensure CMI data is properly initialized with resume data BEFORE any GetValue calls
         if not self.attempt.cmi_data:
