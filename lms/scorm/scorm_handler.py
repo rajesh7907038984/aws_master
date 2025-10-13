@@ -9,6 +9,7 @@ import mimetypes
 import os
 from datetime import datetime, timedelta
 from decimal import Decimal
+from urllib.parse import quote as urlquote
 
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
@@ -319,9 +320,12 @@ def scorm_view(request, topic_id):
     if resume_needed:
         content_url += '&resume=true'
         if attempt.lesson_location:
-            content_url += f'&location={attempt.lesson_location}'
+            encoded_location = urlquote(attempt.lesson_location, safe='')
+            content_url += f'&location={encoded_location}'
         if attempt.suspend_data:
-            content_url += f'&suspend_data={attempt.suspend_data[:100]}'
+            # Include only a short, URL-safe preview of suspend_data to avoid breaking the query string
+            encoded_suspend = urlquote(attempt.suspend_data[:100], safe='')
+            content_url += f'&suspend_data={encoded_suspend}'
     
     # Handle bookmarks
     hash_fragment = None
