@@ -868,20 +868,32 @@
         // Enhanced automated score detection and capture
         function startAutoScoreCapture() {
             console.log('🎯 Starting automated score capture mechanism...');
+            console.log('📊 Monitoring SCORM content for score changes...');
             
             autoScoreCaptureInterval = setInterval(() => {
                 try {
+                    console.log(`🔍 Auto score capture attempt ${scoreCaptureAttempts + 1}/${MAX_SCORE_CAPTURE_ATTEMPTS}`);
+                    
                     // Method 1: Check SCORM API for score
                     let detectedScore = checkScormApiForScore();
+                    if (detectedScore) {
+                        console.log('✅ Score found via SCORM API:', detectedScore);
+                    }
                     
                     // Method 2: Check iframe content for score patterns
                     if (!detectedScore) {
                         detectedScore = checkIframeForScore();
+                        if (detectedScore) {
+                            console.log('✅ Score found via iframe content:', detectedScore);
+                        }
                     }
                     
                     // Method 3: Check for completion indicators
                     if (!detectedScore) {
                         detectedScore = checkForCompletionIndicators();
+                        if (detectedScore) {
+                            console.log('✅ Score found via completion indicators:', detectedScore);
+                        }
                     }
                     
                     if (detectedScore && detectedScore !== lastDetectedScore) {
@@ -890,6 +902,8 @@
                         
                         // Automatically save the score
                         autoSaveScore(detectedScore);
+                    } else if (!detectedScore) {
+                        console.log('ℹ️ No score detected in this attempt');
                     }
                     
                     scoreCaptureAttempts++;
@@ -901,7 +915,7 @@
                 } catch (error) {
                     console.error('❌ Error in auto score capture:', error);
                 }
-            }, 3000); // Check every 3 seconds
+            }, 2000); // Check every 2 seconds for faster detection
         }
         
         function checkScormApiForScore() {
@@ -936,11 +950,37 @@
             try {
                 const iframe = document.getElementById('scormFrame');
                 if (iframe && iframe.contentWindow) {
-                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    // Enhanced iframe content checking with multiple methods
+                    let iframeText = '';
+                    let iframeHtml = '';
+                    
+                    try {
+                        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                        iframeText = iframeDoc.body ? iframeDoc.body.innerText : '';
+                        iframeHtml = iframeDoc.body ? iframeDoc.body.innerHTML : '';
+                    } catch (e) {
+                        console.log('⚠️ Cannot access iframe content directly, trying alternative methods...');
+                        
+                        // Alternative method: Check iframe URL for score parameters
+                        const iframeUrl = iframe.src;
+                        const urlParams = new URLSearchParams(iframeUrl.split('?')[1] || '');
+                        const scoreParam = urlParams.get('score') || urlParams.get('result') || urlParams.get('percentage');
+                        if (scoreParam && !isNaN(scoreParam)) {
+                            const score = parseInt(scoreParam);
+                            if (score >= 0 && score <= 100) {
+                                console.log('🎯 Score found in iframe URL:', score);
+                                return score;
+                            }
+                        }
+                        
+                        // Try to get text content from iframe using postMessage
+                        iframe.contentWindow.postMessage({action: 'getContent'}, '*');
+                        return null;
+                    }
                     
                     // Look for common score patterns in the iframe content
                     const scorePatterns = [
-                        // Look for percentage scores
+                        // Look for percentage scores (most common)
                         /(\d+)%/g,
                         // Look for score displays
                         /score[:\s]*(\d+)/gi,
@@ -948,15 +988,23 @@
                         /(\d+)\s*out\s*of\s*\d+/gi,
                         // Look for completion indicators
                         /completed[:\s]*(\d+)/gi,
-                        /passed[:\s]*(\d+)/gi
+                        /passed[:\s]*(\d+)/gi,
+                        // Look for specific score text patterns
+                        /your\s*score[:\s]*(\d+)/gi,
+                        /final\s*score[:\s]*(\d+)/gi,
+                        /assessment\s*score[:\s]*(\d+)/gi
                     ];
                     
-                    const iframeText = iframeDoc.body ? iframeDoc.body.innerText : '';
                     console.log('🔍 Checking iframe content for score patterns...');
+                    console.log('📄 Iframe text length:', iframeText.length);
+                    
+                    // Check both text and HTML content
+                    const contentToCheck = iframeText + ' ' + iframeHtml;
                     
                     for (const pattern of scorePatterns) {
-                        const matches = iframeText.match(pattern);
+                        const matches = contentToCheck.match(pattern);
                         if (matches) {
+                            console.log('🎯 Pattern matches found:', matches);
                             for (const match of matches) {
                                 const scoreMatch = match.match(/(\d+)/);
                                 if (scoreMatch) {
@@ -968,6 +1016,24 @@
                                 }
                             }
                         }
+                    }
+                    
+                    // Additional check: Look for specific score-related elements
+                    try {
+                        const scoreElements = iframeDoc.querySelectorAll('[class*=\"score\"], [id*=\"score\"], [class*=\"result\"], [id*=\"result\"]');
+                        for (const element of scoreElements) {
+                            const text = element.textContent || element.innerText || '';
+                            const scoreMatch = text.match(/(\d+)/);
+                            if (scoreMatch) {
+                                const score = parseInt(scoreMatch[1]);
+                                if (score >= 0 && score <= 100) {
+                                    console.log('🎯 Score found in score element:', score);
+                                    return score;
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.log('⚠️ Cannot access iframe elements:', e.message);
                     }
                 }
             } catch (error) {
