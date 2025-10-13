@@ -332,61 +332,92 @@ class ScormAPIHandlerEnhanced:
         self.initialized = False
         self.last_error = '0'
         
-        # CRITICAL FIX: Set exit mode to indicate proper termination
-        self.attempt.exit_mode = 'logout'
+        # CRITICAL FIX: Set exit mode based on CMI data or default to logout
+        # Check if exit mode was already set by the SCORM content or frontend
+        current_exit_mode = ''
         if self.version == '1.2':
-            self.attempt.cmi_data['cmi.core.exit'] = 'logout'
+            current_exit_mode = self.attempt.cmi_data.get('cmi.core.exit', '')
         else:
-            self.attempt.cmi_data['cmi.exit'] = 'logout'
+            current_exit_mode = self.attempt.cmi_data.get('cmi.exit', '')
         
-        # CRITICAL FIX: Only mark as completed if SCORM content explicitly set completion status
-        # Don't automatically complete just because terminate was called (user might have navigated away)
+        # Use the exit mode set by content/frontend, or default to logout
+        exit_mode = current_exit_mode if current_exit_mode else 'logout'
+        self.attempt.exit_mode = exit_mode
+        
+        if self.version == '1.2':
+            self.attempt.cmi_data['cmi.core.exit'] = exit_mode
+        else:
+            self.attempt.cmi_data['cmi.exit'] = exit_mode
+            
+        logger.info("TERMINATE: Exit mode set to '%s' (from CMI: '%s')", exit_mode, current_exit_mode)
+        
+        # CRITICAL FIX: Handle termination based on exit mode and content state
+        # For "logout" exit mode (Back to Topic button), preserve all data but don't force completion
         
         # Check if SCORM content explicitly set lesson_status via SetValue calls
         explicit_status_set = hasattr(self.attempt, '_explicit_status_set') and self.attempt._explicit_status_set
         
-        if not self.attempt.lesson_status or self.attempt.lesson_status == 'not_attempted':
+        # Special handling for "logout" exit mode (Back to Topic button)
+        if exit_mode == 'logout':
+            logger.info("TERMINATE: Logout exit mode detected - preserving data without forcing completion")
+            
+            # For logout mode, only update status if content explicitly set it
             if explicit_status_set:
-                # SCORM content explicitly set status - trust it
-                logger.info("TERMINATE: SCORM content explicitly set lesson_status - trusting content decision")
-            elif self.attempt.score_raw is not None and self.attempt.score_raw > 0:
-                # Only set completion status if we have a real score AND evidence of actual interaction
-                has_real_interaction = (
-                    self.attempt.lesson_location or  # Has bookmark data
-                    (self.attempt.suspend_data and len(self.attempt.suspend_data) > 100) or  # Has substantial progress data
-                    self.attempt.total_time != '0000:00:00.00'  # Has spent time
-                )
-                
-                if has_real_interaction:
-                    mastery_score = self.attempt.scorm_package.mastery_score or 70
-                    if self.attempt.score_raw >= mastery_score:
-                        self.attempt.lesson_status = 'passed'
-                        status_to_set = 'passed'
-                    else:
-                        self.attempt.lesson_status = 'failed'  
-                        status_to_set = 'failed'
-                    logger.info("TERMINATE: Set lesson_status to %s based on score %s with evidence of interaction (mastery: %s)", 
-                               status_to_set, self.attempt.score_raw, mastery_score)
+                logger.info("TERMINATE: SCORM content explicitly set lesson_status during session - preserving it")
+            elif self.attempt.lesson_status in ['not_attempted', '', None]:
+                # If no status was set, mark as incomplete to indicate progress was made
+                self.attempt.lesson_status = 'incomplete'
+                if self.version == '1.2':
+                    self.attempt.cmi_data['cmi.core.lesson_status'] = 'incomplete'
                 else:
-                    # Score found but no evidence of real interaction - mark as incomplete
+                    self.attempt.cmi_data['cmi.completion_status'] = 'incomplete'
+                logger.info("TERMINATE: Set lesson_status to 'incomplete' for logout exit (preserving progress)")
+            else:
+                logger.info("TERMINATE: Preserving existing lesson_status '%s' for logout exit", self.attempt.lesson_status)
+        else:
+            # For other exit modes, use the original completion logic
+            if not self.attempt.lesson_status or self.attempt.lesson_status == 'not_attempted':
+                if explicit_status_set:
+                    # SCORM content explicitly set status - trust it
+                    logger.info("TERMINATE: SCORM content explicitly set lesson_status - trusting content decision")
+                elif self.attempt.score_raw is not None and self.attempt.score_raw > 0:
+                    # Only set completion status if we have a real score AND evidence of actual interaction
+                    has_real_interaction = (
+                        self.attempt.lesson_location or  # Has bookmark data
+                        (self.attempt.suspend_data and len(self.attempt.suspend_data) > 100) or  # Has substantial progress data
+                        self.attempt.total_time != '0000:00:00.00'  # Has spent time
+                    )
+                    
+                    if has_real_interaction:
+                        mastery_score = self.attempt.scorm_package.mastery_score or 70
+                        if self.attempt.score_raw >= mastery_score:
+                            self.attempt.lesson_status = 'passed'
+                            status_to_set = 'passed'
+                        else:
+                            self.attempt.lesson_status = 'failed'  
+                            status_to_set = 'failed'
+                        logger.info("TERMINATE: Set lesson_status to %s based on score %s with evidence of interaction (mastery: %s)", 
+                                   status_to_set, self.attempt.score_raw, mastery_score)
+                    else:
+                        # Score found but no evidence of real interaction - mark as incomplete
+                        self.attempt.lesson_status = 'incomplete'
+                        status_to_set = 'incomplete'
+                        logger.warning("TERMINATE: Score %s found but no evidence of real interaction - marking as incomplete to prevent false completion", 
+                                     self.attempt.score_raw)
+                else:
+                    # No score or insufficient interaction - mark as incomplete (user probably just navigated away)
                     self.attempt.lesson_status = 'incomplete'
                     status_to_set = 'incomplete'
-                    logger.warning("TERMINATE: Score %s found but no evidence of real interaction - marking as incomplete to prevent false completion", 
-                                 self.attempt.score_raw)
-            else:
-                # No score or insufficient interaction - mark as incomplete (user probably just navigated away)
-                self.attempt.lesson_status = 'incomplete'
-                status_to_set = 'incomplete'
-                logger.info("TERMINATE: No score or insufficient interaction - marking as incomplete (user likely navigated away)")
-            
-            # Update CMI data only if status was determined
-            if 'status_to_set' in locals():
-                if self.version == '1.2':
-                    self.attempt.cmi_data['cmi.core.lesson_status'] = status_to_set
-                else:
-                    self.attempt.cmi_data['cmi.completion_status'] = status_to_set
-                    if status_to_set in ['passed', 'failed']:
-                        self.attempt.cmi_data['cmi.success_status'] = status_to_set
+                    logger.info("TERMINATE: No score or insufficient interaction - marking as incomplete (user likely navigated away)")
+                
+                # Update CMI data only if status was determined
+                if 'status_to_set' in locals():
+                    if self.version == '1.2':
+                        self.attempt.cmi_data['cmi.core.lesson_status'] = status_to_set
+                    else:
+                        self.attempt.cmi_data['cmi.completion_status'] = status_to_set
+                        if status_to_set in ['passed', 'failed']:
+                            self.attempt.cmi_data['cmi.success_status'] = status_to_set
         
         # Save all data
         self._commit_data()
@@ -1648,6 +1679,18 @@ class ScormAPIHandlerEnhanced:
                     
                     # Update last accessed timestamp
                     self.attempt.last_accessed = timezone.now()
+                    
+                    # CRITICAL FIX: Set session end time if this is a termination call
+                    # Check if this commit is happening during termination (exit_mode is set)
+                    if self.attempt.exit_mode and not self.attempt.session_end_time:
+                        self.attempt.session_end_time = timezone.now()
+                        logger.info("💾 _COMMIT_DATA: Set session_end_time for termination with exit_mode: %s", self.attempt.exit_mode)
+                    
+                    # CRITICAL FIX: Set completion timestamp for completed/passed/failed attempts
+                    if (self.attempt.lesson_status in ['completed', 'passed', 'failed'] and 
+                        not self.attempt.completed_at):
+                        self.attempt.completed_at = timezone.now()
+                        logger.info("💾 _COMMIT_DATA: Set completed_at for lesson_status: %s", self.attempt.lesson_status)
                     
                     logger.info("💾 _COMMIT_DATA: Before save (score_raw=%s, type=%s, bookmark=%s)", 
                                self.attempt.score_raw, type(self.attempt.score_raw),

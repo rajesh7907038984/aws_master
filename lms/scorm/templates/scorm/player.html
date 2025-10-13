@@ -1528,10 +1528,10 @@
                 console.log('Bookmark extraction error:', error.message);
             }
             
-            // Call SCORM commit (but NOT terminate) to save current progress for resume
+            // CRITICAL FIX: Call SCORM commit AND terminate to ensure all data is properly saved
             if (window.API && window.API._initialized) {
                 try {
-                    console.log('🔖 Committing SCORM bookmark data for resume...');
+                    console.log('🔖 Saving SCORM data with proper termination for complete data persistence...');
                     
                     // CRITICAL FIX: Calculate and set score for both quiz-based and slide-based SCORM content
                     try {
@@ -1680,7 +1680,17 @@
                         console.error('❌ Error calculating/setting score:', e);
                     }
                     
-                    // Only commit current data - don't terminate (which triggers completion logic)
+                    // CRITICAL FIX: Set exit mode to indicate proper user-initiated exit
+                    if (window.API.LMSSetValue) {
+                        window.API.LMSSetValue('cmi.core.exit', 'logout');
+                        console.log('✅ Set SCORM 1.2 exit mode to logout');
+                    }
+                    if (window.API_1484_11 && window.API_1484_11.SetValue) {
+                        window.API_1484_11.SetValue('cmi.exit', 'logout');
+                        console.log('✅ Set SCORM 2004 exit mode to logout');
+                    }
+                    
+                    // First commit to save all current data
                     const commitResult = window.API.LMSCommit('');
                     console.log('SCORM 1.2 Commit result:', commitResult);
                     
@@ -1689,7 +1699,21 @@
                         console.log('SCORM 2004 Commit result:', commitResult2004);
                     }
                     
-                    console.log('✅ SCORM bookmark data saved for resume');
+                    // CRITICAL FIX: Call terminate to ensure complete data persistence
+                    // This ensures all tracking data (bookmark, score, progress, time) is properly saved
+                    console.log('🔚 Calling SCORM Terminate to finalize all tracking data...');
+                    
+                    if (window.API.LMSFinish) {
+                        const finishResult = window.API.LMSFinish('');
+                        console.log('SCORM 1.2 Finish result:', finishResult);
+                    }
+                    
+                    if (window.API_1484_11 && window.API_1484_11.Terminate) {
+                        const terminateResult = window.API_1484_11.Terminate('');
+                        console.log('SCORM 2004 Terminate result:', terminateResult);
+                    }
+                    
+                    console.log('✅ SCORM data completely saved with proper termination');
                     scormDataSaved = true;  // Mark that data has been saved
                     
                     // CRITICAL: Trigger backend sync to update TopicProgress with time/attempts
