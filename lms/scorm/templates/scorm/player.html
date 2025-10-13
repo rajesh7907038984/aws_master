@@ -364,9 +364,7 @@
         
         
         // SCORM API Integration
-        const API_ENDPOINT = '{{ api_endpoint }}';
-        const ATTEMPT_ID = '{{ attempt.id|default:attempt_id }}';
-        const IS_PREVIEW = {% if preview_mode %}true{% else %}false{% endif %};
+        // Note: API_ENDPOINT, ATTEMPT_ID, IS_PREVIEW already declared in stub above
         const CONTENT_URL = '{{ content_url }}';  // ✅ Detect package type from URL
         const IS_RISE_PACKAGE = CONTENT_URL.includes('scormcontent/index.html');
         const IS_STORYLINE_PACKAGE = CONTENT_URL.includes('story.html');
