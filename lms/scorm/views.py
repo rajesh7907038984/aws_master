@@ -318,11 +318,40 @@ def scorm_view(request, topic_id):
         launch_url = scorm_package.launch_url or 'index.html'
         if launch_url.startswith('/'):
             launch_url = launch_url[1:]  # Remove leading slash if present
+        
+        # Get lesson ID from database if available, default to empty
+        lesson_id = ""
+        if hasattr(attempt, 'lesson_location') and attempt.lesson_location and '#/lessons/' in attempt.lesson_location:
+            lesson_id = attempt.lesson_location
+        elif hasattr(attempt, 'cmi_data') and attempt.cmi_data:
+            # Try to get from SCORM 1.2 cmi data
+            if scorm_package.version == '1.2' and 'cmi.core.lesson_location' in attempt.cmi_data:
+                location = attempt.cmi_data.get('cmi.core.lesson_location', '')
+                if '#/lessons/' in location:
+                    lesson_id = location
+            # Try to get from SCORM 2004 cmi data
+            elif 'cmi.location' in attempt.cmi_data:
+                location = attempt.cmi_data.get('cmi.location', '')
+                if '#/lessons/' in location:
+                    lesson_id = location
+        
         content_url = f"/scorm/content/{topic_id}/scormcontent/{launch_url}"
+        # Only add hash fragment if it contains a lesson ID
+        if '#/lessons/' in lesson_id:
+            lesson_hash = lesson_id if lesson_id.startswith('#') else f"#{lesson_id}"
+            content_url = f"{content_url}{lesson_hash}"
+        
         logger.info(f"Generated content URL: {content_url}")
     except Exception as e:
         logger.error(f"Error generating content URL: {str(e)}")
         content_url = f"/scorm/content/{topic_id}/scormcontent/index.html"
+        # Try to add lesson ID even in fallback mode
+        try:
+            if hasattr(attempt, 'lesson_location') and attempt.lesson_location and '#/lessons/' in attempt.lesson_location:
+                lesson_hash = attempt.lesson_location if attempt.lesson_location.startswith('#') else f"#{attempt.lesson_location}"
+                content_url = f"{content_url}{lesson_hash}"
+        except Exception as lesson_err:
+            logger.error(f"Error adding lesson ID to fallback URL: {str(lesson_err)}")
     
     context = {
         'topic': topic,
