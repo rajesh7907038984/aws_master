@@ -738,7 +738,9 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
                 'false8AW8QPPYYR2DX8SZQAz',  # Another corrupted pattern
                 'Zg1Dar5WT23Zvitoeex6FHxrBf',  # Base64-like corrupted data
                 'mPMtQ4aqQ7+9aJbFTShLB0xGyc6Ajacl9OYxiHHH60Rxk0OJ',  # More corrupted data
-                '49ni43oj0BtebD+mS+TvHBqdmJQ='  # Base64-like ending
+                '49ni43oj0BtebD+mS+TvHBqdmJQ=',  # Base64-like ending
+                'scormcontent/false',  # Common corrupted pattern from SCORM content
+                'scormcontent/false8AW8QPPYYR2DX8SZQAz'  # Full corrupted pattern
             ]
             
             # Check if path contains any malformed patterns
@@ -746,8 +748,12 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
             
             if is_malformed:
                 logger.error(f"🚨 MALFORMED PATH DETECTED: path='{path}', request_path='{request.path}', query_params='{request.GET}'")
-                # Return a proper error response with fallback to launch file
-                return HttpResponse('Invalid or corrupted file path detected. Redirecting to course content.', status=400)
+                # Redirect to the main SCORM view instead of showing error
+                from django.http import HttpResponseRedirect
+                from django.urls import reverse
+                redirect_url = reverse('scorm:view', kwargs={'topic_id': topic_id})
+                logger.info(f"🔧 REDIRECTING: Malformed path '{path}' -> SCORM view '{redirect_url}'")
+                return HttpResponseRedirect(redirect_url)
             
             # Check for suspicious path characteristics
             if (len(path) > 200 or  # Path too long
@@ -846,13 +852,13 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
                             path = alt_path
                             break
                     else:
-                        # No valid alternative found, return error with helpful message
+                        # No valid alternative found, redirect to SCORM view
                         logger.error(f"❌ NO VALID FALLBACK: No valid HTML files found for package {scorm_package.id}")
-                        return HttpResponse(
-                            f'SCORM content file not found: {path}. Please contact support if this issue persists.',
-                            status=404,
-                            content_type='text/plain'
-                        )
+                        from django.http import HttpResponseRedirect
+                        from django.urls import reverse
+                        redirect_url = reverse('scorm:view', kwargs={'topic_id': topic_id})
+                        logger.info(f"🔧 FALLBACK REDIRECT: No valid files found -> SCORM view '{redirect_url}'")
+                        return HttpResponseRedirect(redirect_url)
                 else:
                     # For non-HTML files, return 404
                     logger.error(f"❌ NON-HTML FILE NOT FOUND: {path}")
