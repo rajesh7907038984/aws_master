@@ -35,11 +35,22 @@ class AuthFixValidator {
         this.isValidating = true;
         
         try {
-            // Check if user is authenticated
+            // Only validate if we're on an authenticated page
             const authElements = document.querySelectorAll('[data-auth-required]');
+            const authRequiredPage = document.body.classList.contains('authenticated') || 
+                                    document.body.hasAttribute('data-requires-auth') ||
+                                    authElements.length > 0;
+            
+            // Skip validation on public pages (login, register, etc.)
+            if (!authRequiredPage || window.location.pathname.includes('/login/') || 
+                window.location.pathname.includes('/register/')) {
+                this.handleAuthSuccess();
+                return;
+            }
+            
             const isAuthenticated = this.checkAuthenticationStatus();
             
-            if (!isAuthenticated && authElements.length > 0) {
+            if (!isAuthenticated) {
                 this.handleAuthFailure();
             } else {
                 this.handleAuthSuccess();
@@ -53,12 +64,30 @@ class AuthFixValidator {
     }
 
     checkAuthenticationStatus() {
-        // Check for authentication indicators
+        // Check for Django session cookie - the most reliable indicator
+        const sessionCookie = this.getSessionCookie();
+        if (sessionCookie) {
+            return true;
+        }
+        
+        // Fallback checks for authentication indicators
         const authToken = this.getAuthToken();
         const userSession = this.getUserSession();
         const csrfToken = this.getCSRFToken();
         
         return !!(authToken || userSession || csrfToken);
+    }
+    
+    getSessionCookie() {
+        // Check for Django's session cookie (lms_sessionid or sessionid)
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            const [name, value] = cookie.trim().split('=');
+            if (name === 'lms_sessionid' || name === 'sessionid') {
+                return value;
+            }
+        }
+        return null;
     }
 
     getAuthToken() {
