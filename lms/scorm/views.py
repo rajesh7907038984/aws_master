@@ -382,7 +382,7 @@ def scorm_view(request, topic_id):
             # Get the last hash part (in case there are multiple # characters)
             lesson_id = '#' + hash_parts[-1] if hash_parts[-1] else ''
         
-        content_url = f"/scorm/content/{topic_id}/scormcontent/{launch_url}"
+        content_url = f"/scorm/content/{topic_id}/{launch_url}"
         # Only add hash fragment if it contains a lesson ID
         if lesson_id and '#/lessons/' in lesson_id:
             content_url = f"{content_url}{lesson_id}"
@@ -390,7 +390,7 @@ def scorm_view(request, topic_id):
         logger.info(f"Generated content URL: {content_url}")
     except Exception as e:
         logger.error(f"Error generating content URL: {str(e)}")
-        content_url = f"/scorm/content/{topic_id}/scormcontent/index.html"
+        content_url = f"/scorm/content/{topic_id}/index.html"
         # Try to add lesson ID even in fallback mode
         try:
             # Check URL parameter first, then database
