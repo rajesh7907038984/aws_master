@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.db import transaction
 from datetime import timedelta
 from scorm.models import ScormAttempt, ScormPackage
-from scorm.score_sync_service import ScormScoreSyncService
+from scorm.simple_data_handler import ScormDataHandler
 from courses.models import TopicProgress
 import logging
 
@@ -143,7 +143,8 @@ class Command(BaseCommand):
                     try:
                         with transaction.atomic():
                             # Force sync the score
-                            sync_success = ScormScoreSyncService.sync_score(attempt, force=True)
+                            handler = ScormDataHandler(attempt)
+                            sync_success = handler.force_sync()
                             if sync_success:
                                 stats['issues_fixed'] += 1
                                 stats['synced_successfully'] += 1
@@ -163,7 +164,7 @@ class Command(BaseCommand):
             else:
                 # No issues, but try sync anyway to ensure consistency
                 try:
-                    sync_success = ScormScoreSyncService.sync_score(attempt)
+                    sync_success = handler = ScormDataHandler(attempt); handler.force_sync()
                     stats['synced_successfully' if sync_success else 'sync_failed'] += 1
                 except Exception as e:
                     stats['sync_failed'] += 1

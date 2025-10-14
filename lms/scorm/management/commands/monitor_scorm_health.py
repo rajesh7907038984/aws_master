@@ -114,9 +114,9 @@ class Command(BaseCommand):
             )
             
             if auto_fix:
-                from scorm.score_sync_service import ScormScoreSyncService
+                from scorm.simple_data_handler import ScormDataHandler
                 for attempt in inconsistent_attempts:
-                    ScormScoreSyncService.sync_score(attempt, force=True)
+                    handler = ScormDataHandler(attempt); handler.force_sync()
                     fixes_applied += 1
                     self.stdout.write(f'    Synced scores for attempt {attempt.id}')
         else:

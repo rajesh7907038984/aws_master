@@ -6,7 +6,7 @@ import logging
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from scorm.models import ScormAttempt, ScormPackage
-from scorm.score_sync_service import ScormScoreSyncService
+from scorm.simple_data_handler import ScormDataHandler
 from courses.models import TopicProgress, Course
 
 logger = logging.getLogger(__name__)
@@ -98,7 +98,8 @@ class Command(BaseCommand):
                 
                 if dry_run:
                     # Just show what would be done
-                    score = ScormScoreSyncService._extract_best_score(attempt)
+                    # Use simple approach to get score from attempt
+                    score = float(attempt.score_raw) if attempt.score_raw else None
                     if score is not None:
                         self.stdout.write(self.style.SUCCESS(f"  Would sync score: {score}"))
                     else:
@@ -107,7 +108,8 @@ class Command(BaseCommand):
                 
                 # Perform sync
                 with transaction.atomic():
-                    if ScormScoreSyncService.sync_score(attempt, force=True):
+                    handler = ScormDataHandler(attempt)
+                    if handler.force_sync():
                         synced += 1
                         
                         # Show updated state
@@ -144,7 +146,8 @@ class Command(BaseCommand):
         """Fix score for a specific user-topic combination"""
         self.stdout.write(f"\nFixing score for User ID: {user_id}, Topic ID: {topic_id}")
         
-        result = ScormScoreSyncService.verify_score_consistency(user_id, topic_id)
+        # Simple consistency check and fix
+        result = self._verify_simple_consistency(user_id, topic_id)
         
         self.stdout.write(f"SCORM Score: {result['scorm_score']}")
         self.stdout.write(f"TopicProgress Score: {result['topic_progress_score']}")
@@ -154,3 +157,62 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING(f"Dry run - would perform: {result['action_taken']}"))
         else:
             self.stdout.write(self.style.SUCCESS(f"Action: {result['action_taken']}"))
+    
+    def _verify_simple_consistency(self, user_id, topic_id):
+        """Simple consistency check between SCORM attempt and TopicProgress"""
+        try:
+            from courses.models import Topic
+            
+            topic = Topic.objects.get(id=topic_id)
+            
+            # Get latest SCORM attempt
+            latest_attempt = ScormAttempt.objects.filter(
+                user_id=user_id,
+                scorm_package=topic.scorm_package
+            ).order_by('-last_accessed').first()
+            
+            if not latest_attempt:
+                return {
+                    'consistent': False,
+                    'scorm_score': None,
+                    'topic_progress_score': None,
+                    'action_taken': 'No SCORM attempt found'
+                }
+            
+            # Get TopicProgress
+            topic_progress = TopicProgress.objects.filter(
+                user_id=user_id,
+                topic_id=topic_id
+            ).first()
+            
+            # Extract scores
+            scorm_score = float(latest_attempt.score_raw) if latest_attempt.score_raw else None
+            topic_score = float(topic_progress.last_score) if topic_progress and topic_progress.last_score else None
+            
+            # Check consistency
+            consistent = scorm_score == topic_score
+            
+            if not consistent and scorm_score is not None:
+                # Fix the inconsistency
+                handler = ScormDataHandler(latest_attempt)
+                if handler.force_sync():
+                    action_taken = 'Score synchronized successfully'
+                else:
+                    action_taken = 'Failed to synchronize score'
+            else:
+                action_taken = 'Scores are already consistent'
+            
+            return {
+                'consistent': consistent,
+                'scorm_score': scorm_score,
+                'topic_progress_score': topic_score,
+                'action_taken': action_taken
+            }
+            
+        except Exception as e:
+            return {
+                'consistent': False,
+                'scorm_score': None,
+                'topic_progress_score': None,
+                'action_taken': f'Error: {str(e)}'
+            }

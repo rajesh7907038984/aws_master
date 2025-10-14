@@ -95,10 +95,11 @@ class ScormRealTimeValidationMiddleware:
                 if needs_fix:
                     logger.info(f"Real-time Validator: Fixing attempt {attempt.id} for user {request.user.username}")
                     
-                    # Use the dynamic processor
-                    from .dynamic_score_processor import auto_process_scorm_score
+                    # Use simple data handler for fixing
+                    from .simple_data_handler import ScormDataHandler
                     
-                    if auto_process_scorm_score(attempt):
+                    handler = ScormDataHandler(attempt)
+                    if handler.force_sync():
                         fixes_applied += 1
                         logger.info(f"Real-time Validator: Fixed attempt {attempt.id}")
             

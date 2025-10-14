@@ -33,28 +33,28 @@ class ScormLogger:
     @staticmethod
     def log_api_call(method, parameters, attempt_id, user_id=None):
         """Log SCORM API calls with context"""
-        logger.info(f"📞 SCORM API: {method} | attempt_id={attempt_id} | user_id={user_id} | params={parameters[:2] if len(parameters) > 2 else parameters}")
+        logger.info(f"SCORM API: {method} | attempt_id={attempt_id} | user_id={user_id} | params={parameters[:2] if len(parameters) > 2 else parameters}")
     
     @staticmethod
     def log_score_sync(attempt_id, old_score, new_score, status):
         """Log score synchronization events"""
-        logger.info(f"📊 SCORE SYNC: attempt_id={attempt_id} | {old_score} → {new_score} | status={status}")
+        logger.info(f"SCORE SYNC: attempt_id={attempt_id} | {old_score} -> {new_score} | status={status}")
     
     @staticmethod
     def log_content_access(topic_id, path, user_id=None, success=True):
         """Log content access events"""
-        status = "✅" if success else "❌"
+        status = "SUCCESS" if success else "FAILURE"
         logger.info(f"{status} CONTENT ACCESS: topic_id={topic_id} | path={path} | user_id={user_id}")
     
     @staticmethod
     def log_performance(operation, duration_ms, details=""):
         """Log performance metrics"""
-        logger.info(f"⚡ PERFORMANCE: {operation} took {duration_ms}ms {details}")
+        logger.info(f"PERFORMANCE: {operation} took {duration_ms}ms {details}")
     
     @staticmethod
     def log_error(operation, error, context=""):
         """Log errors with context"""
-        logger.error(f"❌ ERROR in {operation}: {str(error)} | context: {context}")
+        logger.error(f"ERROR in {operation}: {str(error)} | context: {context}")
 
 
 
@@ -72,13 +72,14 @@ def scorm_view(request, topic_id):
     """
     Main SCORM content viewer - SECURE ACCESS ONLY
     Requires authentication for all SCORM content access
+    Authentication is MANDATORY to track learner progress and save data to the database
     """
-    # SECURITY FIX: Require authentication for all SCORM content
+    # CRITICAL: Authentication is required for tracking learner data
     if not request.user.is_authenticated:
-        messages.error(request, "You must be logged in to access SCORM content.")
+        messages.error(request, "You must be logged in to access SCORM content and save your progress.")
+        # Store the requested URL in session for redirect after login
+        request.session['redirect_after_login'] = request.get_full_path()
         return redirect('users:login')
-    
-    is_authenticated = True
     
     # OPTIMIZATION: Optimize database queries with select_related
     topic = get_object_or_404(
@@ -86,26 +87,17 @@ def scorm_view(request, topic_id):
         id=topic_id
     )
     
-    # CRITICAL FIX: Handle permission check for both authenticated and non-authenticated users
-    if is_authenticated:
-        # Check if user has permission to access this topic's course
-        if not topic.user_has_access(request.user):
-            messages.error(request, "You need to be enrolled in this course to access the SCORM content.")
-            try:
-                from courses.models import CourseTopic
-                course_topic = CourseTopic.objects.filter(topic=topic).first()
-                if course_topic:
-                    return redirect('courses:course_view', course_id=course_topic.course.id)
-            except Exception:
-                pass
-            return redirect('courses:course_list')
-    else:
-        # For non-authenticated users, check if this is a public course or embedded content
-        # Allow access if it's a public course or if it's being accessed via embedded URL
-        if hasattr(topic.course, 'is_public') and not topic.course.is_public:
-            # If it's not a public course, redirect to login
-            messages.info(request, "Please log in to access this SCORM content.")
-            return redirect('users:login')
+    # Check if user has permission to access this topic's course
+    if not topic.user_has_access(request.user):
+        messages.error(request, "You need to be enrolled in this course to access the SCORM content.")
+        try:
+            from courses.models import CourseTopic
+            course_topic = CourseTopic.objects.filter(topic=topic).first()
+            if course_topic:
+                return redirect('courses:course_view', course_id=course_topic.course.id)
+        except Exception:
+            pass
+        return redirect('courses:course_list')
     
     # Check if topic has SCORM package (already loaded with select_related)
     if not hasattr(topic, 'scorm_package') or not topic.scorm_package:
@@ -211,48 +203,16 @@ def scorm_view(request, topic_id):
         
         logger.info(f"Created preview attempt {attempt_id} for user {request.user.username if is_authenticated else 'guest'} on topic {topic_id}")
     else:
-        # CRITICAL FIX: Handle both authenticated and non-authenticated users
-        if is_authenticated:
-            # Normal mode: Get or create actual database attempt for user tracking
-            # Optimize database queries with select_related
-            last_attempt = ScormAttempt.objects.select_related('scorm_package', 'user').filter(
-                user=request.user,
-                scorm_package=scorm_package
-            ).order_by('-attempt_number').first()
-        else:
-            # For non-authenticated users, create a temporary attempt
-            attempt_id = f"guest_{uuid.uuid4()}"
-            attempt = type('ScormAttempt', (), {
-                'id': attempt_id,
-                'user': None,
-                'scorm_package': scorm_package,
-                'attempt_number': 1,
-                'lesson_status': 'not_attempted',
-                'lesson_location': '',
-                'suspend_data': '',
-                'entry': 'ab-initio',
-                'exit_mode': '',
-                'cmi_data': {},
-                'started_at': timezone.now(),
-                'last_accessed': timezone.now(),
-                'completed_at': None,
-                'is_preview': False,
-            })()
-            
-            # Store guest attempt in session for API access
-            request.session[f'scorm_guest_{attempt_id}'] = {
-                'id': attempt_id,
-                'user_id': None,
-                'scorm_package_id': scorm_package.id,
-                'is_preview': False,
-                'created_at': timezone.now().isoformat(),
-            }
-            
-            logger.info(f"Created guest attempt {attempt_id} for topic {topic_id}")
-            attempt_id = attempt.id
+        # CRITICAL: Authentication is required for proper tracking
+        # Normal mode: Get or create actual database attempt for user tracking
+        # Optimize database queries with select_related
+        last_attempt = ScormAttempt.objects.select_related('scorm_package', 'user').filter(
+            user=request.user,
+            scorm_package=scorm_package
+        ).order_by('-attempt_number').first()
         
-        # Handle authenticated user logic
-        if is_authenticated:
+        # Always handle as authenticated user since login is required
+        if True:  # Keep the indent structure
             # CRITICAL FIX: Only create new attempt for truly completed courses, not partial completions
             # For Rise 360 courses, 'completed' status might mean one lesson completed, not entire course
             should_create_new_attempt = False
@@ -292,8 +252,9 @@ def scorm_view(request, topic_id):
                 logger.info(f"Created new attempt {attempt.id} (previous status: {last_attempt.lesson_status}, completed: {last_attempt.completed_at is not None})")
                 
                 # Sync any existing scores for consistency
-                from .score_sync_service import ScormScoreSyncService
-                ScormScoreSyncService.sync_score(attempt)
+                from .simple_data_handler import ScormDataHandler
+                handler = ScormDataHandler(attempt)
+                handler.force_sync()
             elif last_attempt:
                 # Continue existing incomplete attempt - ensure resume data is loaded
                 attempt = last_attempt
@@ -459,13 +420,14 @@ def scorm_view(request, topic_id):
     return response
 
 
+@login_required
 @csrf_exempt
 @require_http_methods(["POST", "OPTIONS"])
 def scorm_api(request, attempt_id):
     """
-    SCORM API endpoint
+    SCORM API endpoint - REQUIRES AUTHENTICATION
     Handles all SCORM API calls from content
-    Supports both regular attempts and preview mode
+    Authentication is MANDATORY to save tracking data to database
     """
     # Handle OPTIONS request for CORS preflight
     if request.method == "OPTIONS":
@@ -475,24 +437,40 @@ def scorm_api(request, attempt_id):
         response['Access-Control-Allow-Headers'] = 'Content-Type, X-CSRFToken'
         return response
     
-    # CRITICAL: Log all incoming API requests for debugging
-    logger.info(f"🔵 SCORM API CALLED: attempt_id={attempt_id}, method={request.method}, path={request.path}, content_type={request.content_type}")
-    logger.info(f"🔵 Headers: {dict(request.headers)}")
-    logger.info(f"🔵 Body preview: {request.body[:200] if request.body else 'Empty'}")
+    # CRITICAL: Verify authentication for API calls
+    if not request.user.is_authenticated:
+        logger.error(f"Unauthorized SCORM API call for attempt {attempt_id}")
+        return JsonResponse({'error': 'Authentication required to save progress'}, status=401)
     
-    # FIXED: Proper authentication for SCORM API calls with optimized query
+    # CRITICAL: Log all incoming API requests for debugging
+    logger.info(f"SCORM API CALLED: user={request.user.username}, attempt_id={attempt_id}, method={request.method}, content_type={request.content_type}")
+    logger.info(f"Body preview: {request.body[:200] if request.body else 'Empty'}")
+    
+    # CRITICAL: Proper authentication and ownership verification for SCORM API calls
     try:
-        attempt = ScormAttempt.objects.select_related('user', 'scorm_package').get(id=attempt_id)
-        logger.info(f"🔵 SCORM API: Found attempt {attempt_id} for user {attempt.user.username}")
-        # Verify user owns this attempt
-        if not request.user.is_authenticated or attempt.user != request.user:
-            logger.warning(f"❌ UNAUTHORIZED: User {request.user} tried to access attempt {attempt_id} owned by {attempt.user}")
-            return JsonResponse({'error': 'Unauthorized'}, status=401)
+        # First check if this is a real database attempt (not preview/guest)
+        if attempt_id.startswith('preview_') or attempt_id.startswith('guest_'):
+            # Handle preview attempts for instructors/admins only
+            if attempt_id.startswith('preview_'):
+                if not (hasattr(request.user, 'role') and request.user.role in ['instructor', 'admin', 'superadmin', 'globaladmin']):
+                    logger.warning(f"Non-instructor tried to use preview mode: {request.user.username}")
+                    return JsonResponse({'error': 'Preview mode requires instructor privileges'}, status=403)
+                # Continue with preview handling below
+            else:
+                # Guest attempts are no longer supported - require authentication
+                logger.error(f"Guest attempt {attempt_id} blocked - authentication required")
+                return JsonResponse({'error': 'Authentication required to track progress'}, status=401)
+        else:
+            # Regular database attempt - verify ownership
+            attempt = ScormAttempt.objects.select_related('user', 'scorm_package').get(id=attempt_id)
+            logger.info(f"SCORM API: Found attempt {attempt_id} for user {attempt.user.username}")
+            # Verify user owns this attempt
+            if attempt.user != request.user:
+                logger.warning(f"UNAUTHORIZED: User {request.user.username} tried to access attempt {attempt_id} owned by {attempt.user.username}")
+                return JsonResponse({'error': 'You can only access your own SCORM attempts'}, status=403)
     except ScormAttempt.DoesNotExist:
-        logger.error(f"❌ SCORM API: Attempt {attempt_id} not found")
-        response = JsonResponse({'error': 'Attempt not found'}, status=404)
-        response['Access-Control-Allow-Origin'] = '*'
-        return response
+        logger.error(f"SCORM API: Attempt {attempt_id} not found in database")
+        return JsonResponse({'error': 'Attempt not found - please refresh the page'}, status=404)
     
     try:
         # Check if this is a preview attempt first
@@ -575,16 +553,14 @@ def scorm_api(request, attempt_id):
             })()
             
             # Verify user owns this preview attempt
-            if preview_data['user_id'] != request.user.id:
-                return JsonResponse({'error': 'Unauthorized'}, status=403)
+            if preview_data.get('user_id') != request.user.id:
+                logger.warning(f"User {request.user.username} tried to access preview attempt owned by user_id {preview_data.get('user_id')}")
+                return JsonResponse({'error': 'You can only access your own preview attempts'}, status=403)
                 
         else:
-            # Regular mode: Get database attempt
-            attempt = get_object_or_404(ScormAttempt, id=attempt_id)
-            
-            # Verify user owns this attempt
-            if attempt.user != request.user:
-                return JsonResponse({'error': 'Unauthorized'}, status=403)
+            # Regular mode: Database attempt already retrieved and verified above
+            # No need to get it again since we already have it from the authentication check
+            pass  # attempt is already set from the authentication block above
         
         # Parse request
         try:
@@ -593,10 +569,10 @@ def scorm_api(request, attempt_id):
             parameters = data.get('parameters', [])
             
             # CRITICAL: Enhanced logging for ALL API calls
-            logger.info(f"📞 SCORM API CALL: method={method}, params={parameters[:2] if len(parameters) > 2 else parameters}, attempt={attempt_id}")
+            logger.info(f"SCORM API CALL: method={method}, params={parameters[:2] if len(parameters) > 2 else parameters}, attempt={attempt_id}")
             ScormLogger.log_api_call(method, parameters, attempt_id, request.user.id if request.user.is_authenticated else None)
         except json.JSONDecodeError as e:
-            logger.error(f"❌ SCORM API: Invalid JSON in request body: {e}")
+            logger.error(f"SCORM API: Invalid JSON in request body: {e}")
             return JsonResponse({'success': False, 'error': 'Invalid JSON'}, status=400)
         
         # Initialize appropriate API handler with session persistence
@@ -625,6 +601,8 @@ def scorm_api(request, attempt_id):
             if result == 'true' and not is_preview:
                 session_key = f'scorm_initialized_{attempt_id}'
                 request.session[session_key] = True
+                request.session.modified = True  # Explicitly mark session as modified
+                request.session.save()  # Force session save
                 logger.info(f"Stored initialized state in session for attempt {attempt_id}")
         elif method == 'Terminate' or method == 'LMSFinish':
             result = handler.terminate()
@@ -639,13 +617,13 @@ def scorm_api(request, attempt_id):
         elif method == 'SetValue' or method == 'LMSSetValue':
             element = parameters[0] if len(parameters) > 0 else ''
             value = parameters[1] if len(parameters) > 1 else ''
-            logger.info(f"📝 SetValue called: element={element}, value={value}")
+            logger.info(f"SetValue called: element={element}, value={value}")
             result = handler.set_value(element, value)
-            logger.info(f"📝 SetValue result: {result}")
+            logger.info(f"SetValue result: {result}")
         elif method == 'Commit' or method == 'LMSCommit':
-            logger.info(f"💾 Commit called for attempt {attempt_id}")
+            logger.info(f"Commit called for attempt {attempt_id}")
             result = handler.commit()
-            logger.info(f"💾 Commit result: {result}")
+            logger.info(f"Commit result: {result}")
         elif method == 'GetLastError' or method == 'LMSGetLastError':
             result = handler.get_last_error()
         elif method == 'GetErrorString' or method == 'LMSGetErrorString':
@@ -679,9 +657,9 @@ def scorm_api(request, attempt_id):
         return response
         
     except Exception as e:
-        logger.error(f"❌ SCORM API error: {str(e)}")
+        logger.error(f"SCORM API error: {str(e)}")
         import traceback
-        logger.error(f"❌ Traceback: {traceback.format_exc()}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         response = JsonResponse({
             'success': False,
             'error': str(e)
@@ -693,24 +671,21 @@ def scorm_api(request, attempt_id):
         return response
 
 
+@login_required
 def scorm_content(request, topic_id=None, path=None, attempt_id=None):
     """
     Serve SCORM content files from S3 with optimized loading
     Uses direct S3 URLs for maximum performance
     Handles both topic_id and attempt_id parameters for backward compatibility
-    Supports both authenticated and non-authenticated access for embedded content
+    REQUIRES AUTHENTICATION to ensure tracking data is properly saved
     """
     try:
-        # Handle both authenticated and non-authenticated access
-        is_authenticated = request.user.is_authenticated
+        # CRITICAL: Authentication is required for SCORM content access
+        if not request.user.is_authenticated:
+            logger.warning(f"Unauthorized access attempt to SCORM content: topic_id={topic_id}, path={path}")
+            return HttpResponse('Authentication required to access SCORM content', status=401)
         
-        # For non-authenticated users, check if this is embedded content
-        if not is_authenticated:
-            # Allow access to embedded SCORM content without authentication
-            # This is needed for iframe embedding and external access
-            logger.info(f"Non-authenticated access to SCORM content: topic_id={topic_id}, path={path}")
-        else:
-            logger.info(f"Authenticated access to SCORM content: user={request.user.username}, topic_id={topic_id}, path={path}")
+        logger.info(f"Authenticated access to SCORM content: user={request.user.username}, topic_id={topic_id}, path={path}")
         # Handle both topic_id and attempt_id parameters for backward compatibility
         current_attempt_id = None
         if attempt_id is not None and topic_id is None:
@@ -728,20 +703,23 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
             # Use topic_id directly - need to get the current attempt for this user
             topic = get_object_or_404(Topic.objects.select_related('scorm_package'), id=topic_id)
             
-            # SECURITY FIX: Verify user has access to this topic (only for authenticated users)
-            if is_authenticated and not topic.user_has_access(request.user):
+            # SECURITY FIX: Verify user has access to this topic
+            if not topic.user_has_access(request.user):
+                logger.warning(f"User {request.user.username} attempted to access topic {topic_id} without permission")
                 return HttpResponse('Access denied - You do not have permission to access this content', status=403)
             
             # Get the current attempt for this user and topic
             from .models import ScormAttempt
             try:
-                if is_authenticated:
-                    current_attempt = ScormAttempt.objects.filter(
-                        user=request.user,
-                        scorm_package__topic=topic
-                    ).order_by('-attempt_number').first()
-                    if current_attempt:
-                        current_attempt_id = current_attempt.id
+                # Always get attempt for authenticated user
+                current_attempt = ScormAttempt.objects.filter(
+                    user=request.user,
+                    scorm_package__topic=topic
+                ).order_by('-attempt_number').first()
+                if current_attempt:
+                    current_attempt_id = current_attempt.id
+                else:
+                    logger.warning(f"No attempt found for user {request.user.username} on topic {topic_id}")
             except Exception as e:
                 logger.error(f"Error getting current attempt for topic {topic_id}: {str(e)}")
         
@@ -1144,13 +1122,20 @@ def scorm_debug(request, attempt_id):
         }, status=500)
 
 
+@login_required
 @csrf_exempt
 @require_http_methods(["POST"])
 def scorm_emergency_save(request):
     """
-    Emergency save endpoint for SCORM data
+    Emergency save endpoint for SCORM data - REQUIRES AUTHENTICATION
     Used when browser is closing or user navigates away
+    Ensures all tracking data is properly saved to database
     """
+    # CRITICAL: Authentication is required to save data
+    if not request.user.is_authenticated:
+        logger.error("Unauthorized emergency save attempt")
+        return JsonResponse({'error': 'Authentication required to save progress'}, status=401)
+    
     try:
         data = json.loads(request.body)
         attempt_id = data.get('attempt_id')
@@ -1158,15 +1143,22 @@ def scorm_emergency_save(request):
         if not attempt_id:
             return JsonResponse({'error': 'No attempt_id provided'}, status=400)
         
+        # Skip preview/guest attempts
+        if attempt_id.startswith('preview_') or attempt_id.startswith('guest_'):
+            logger.info(f"Skipping emergency save for preview/guest attempt: {attempt_id}")
+            return JsonResponse({'success': True, 'message': 'Preview/guest data not saved to database'})
+        
         attempt = get_object_or_404(ScormAttempt, id=attempt_id)
         
         # Verify user owns this attempt
-        if request.user.is_authenticated and attempt.user != request.user:
-            return JsonResponse({'error': 'Unauthorized'}, status=403)
+        if attempt.user != request.user:
+            logger.warning(f"User {request.user.username} tried to save data for attempt owned by {attempt.user.username}")
+            return JsonResponse({'error': 'You can only save your own attempts'}, status=403)
         
-        # Force score sync
-        from .score_sync_service import ScormScoreSyncService
-        sync_result = ScormScoreSyncService.sync_score(attempt, force=True)
+        # Force score sync using simple data handler
+        from .simple_data_handler import ScormDataHandler
+        handler = ScormDataHandler(attempt)
+        sync_result = handler.force_sync()
         
         logger.info(f"Emergency save for attempt {attempt_id}: sync_result={sync_result}")
         
@@ -1188,7 +1180,8 @@ def scorm_emergency_save(request):
 @require_http_methods(["GET"])
 def scorm_content_simple(request, topic_id, path):
     """
-    Simplified SCORM content serving without complex JavaScript injection
+    Simplified SCORM content serving - REQUIRES AUTHENTICATION
+    Ensures tracking data can be properly saved
     
     IMPORTANT: For old URLs like /scorm/direct/31/scormcontent/index.html,
     redirect to the proper /scorm/view/ endpoint which handles SCORM properly.
@@ -1319,17 +1312,25 @@ window.API = {
         return HttpResponse('Error loading content', status=500)
 
 
+@login_required
+@require_http_methods(["GET"])
 def scorm_tracking_report(request, attempt_id):
     """
     Comprehensive SCORM tracking report with all detailed data
+    REQUIRES AUTHENTICATION to access tracking data
     """
+    # CRITICAL: Authentication check
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Authentication required to view tracking reports'}, status=401)
+    
     try:
         attempt = get_object_or_404(ScormAttempt, id=attempt_id)
         
         # Verify user owns this attempt or is instructor/admin
         if (attempt.user != request.user and 
             not (hasattr(request.user, 'role') and request.user.role in ['instructor', 'admin', 'superadmin', 'globaladmin'])):
-            return JsonResponse({'error': 'Unauthorized'}, status=403)
+            logger.warning(f"User {request.user.username} tried to view tracking report for attempt owned by {attempt.user.username}")
+            return JsonResponse({'error': 'You can only view your own tracking reports unless you are an instructor'}, status=403)
         
         # Calculate time spent in different formats
         time_spent_hours = attempt.time_spent_seconds / 3600 if attempt.time_spent_seconds else 0

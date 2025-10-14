@@ -6,7 +6,7 @@ from decimal import Decimal
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from scorm.models import ScormPackage, ScormAttempt
-from scorm.score_sync_service import ScormScoreSyncService
+from scorm.simple_data_handler import ScormDataHandler
 from courses.models import TopicProgress
 
 logger = logging.getLogger(__name__)
@@ -194,7 +194,7 @@ class Command(BaseCommand):
                         f"(User: {attempt.user.username}, Topic: {topic.title})"
                     )
                     if fix_mode:
-                        ScormScoreSyncService.sync_score(attempt)
+                        handler = ScormDataHandler(attempt); handler.force_sync()
                         self.stdout.write(self.style.SUCCESS("   ✅ Created TopicProgress"))
                     sync_issues += 1
                 elif topic_progress.last_score != attempt_score:
@@ -203,7 +203,7 @@ class Command(BaseCommand):
                         f"ScormAttempt={attempt_score}, TopicProgress={topic_progress.last_score}"
                     )
                     if fix_mode:
-                        ScormScoreSyncService.sync_score(attempt, force=True)
+                        handler = ScormDataHandler(attempt); handler.force_sync()
                         self.stdout.write(self.style.SUCCESS("   ✅ Synced score"))
                     sync_issues += 1
         
@@ -265,7 +265,7 @@ class Command(BaseCommand):
                             try:
                                 first_attempt.score_raw = Decimal(str(float(cmi_score)))
                                 first_attempt.save()
-                                ScormScoreSyncService.sync_score(first_attempt, force=True)
+                                handler = ScormDataHandler(first_attempt); handler.force_sync()
                                 self.stdout.write(
                                     self.style.SUCCESS(
                                         f"   ✅ Fixed first attempt score: {cmi_score}"

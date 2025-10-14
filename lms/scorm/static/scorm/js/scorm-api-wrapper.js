@@ -76,6 +76,13 @@
             const result = makeAPICall('LMSInitialize', [parameter]);
             if (result === 'true') {
                 config.initialized = true;
+                // On init, try to pull resume data so content can resume immediately
+                try {
+                    const entry = API.LMSGetValue('cmi.core.entry');
+                    const loc = API.LMSGetValue('cmi.core.lesson_location');
+                    const sus = API.LMSGetValue('cmi.suspend_data');
+                    log(`Resume check: entry=${entry}, location=${loc?.slice?.(0,120) || ''}, suspend_data_len=${(sus||'').length}`);
+                } catch (e) {}
             }
             return result;
         },
@@ -101,8 +108,10 @@
             // Send to backend
             const result = makeAPICall('LMSSetValue', [element, value]);
             
-            // Auto-commit for certain critical values
-            if (element === 'cmi.core.lesson_status' || element === 'cmi.core.score.raw') {
+            // Auto-commit for critical values including bookmarking
+            const isBookmark = (element === 'cmi.core.lesson_location' || element === 'cmi.suspend_data');
+            const isCritical = (element === 'cmi.core.lesson_status' || element === 'cmi.core.score.raw');
+            if (isBookmark || isCritical) {
                 log('Auto-committing critical data');
                 setTimeout(() => {
                     makeAPICall('LMSCommit', ['']);
@@ -113,6 +122,8 @@
         },
         
         LMSCommit: function(parameter) {
+            // Ensure exit is set to suspend before commit to enable resume
+            try { API.LMSSetValue('cmi.core.exit', 'suspend'); } catch (e) {}
             log('LMSCommit called - saving data to backend');
             return makeAPICall('LMSCommit', [parameter]);
         },
@@ -159,6 +170,13 @@
                 element = element.replace('cmi.learner_', 'cmi.core.student_');
             } else if (element === 'cmi.location') {
                 element = 'cmi.core.lesson_location';
+            } else if (element === 'cmi.exit') {
+                // Map exit to 1.2 and prefer suspend
+                element = 'cmi.core.exit';
+                if (value !== 'suspend' && value !== "") {
+                    // Force suspend for resume unless course explicitly clears it
+                    value = 'suspend';
+                }
             } else if (element === 'cmi.completion_status') {
                 element = 'cmi.core.lesson_status';
                 // Map SCORM 2004 completion_status to SCORM 1.2 lesson_status
@@ -173,6 +191,7 @@
         },
         
         Commit: function(parameter) {
+            try { API.LMSSetValue('cmi.core.exit', 'suspend'); } catch (e) {}
             return API.LMSCommit(parameter);
         },
         
