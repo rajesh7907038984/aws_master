@@ -299,7 +299,8 @@
                 const iframeDoc = frame.contentDocument || frame.contentWindow.document;
                 if (iframeDoc) {
                     injectScormAPI(iframeDoc);
-                    injectExitButtonHandler();
+                    // DISABLED: Let SCORM handle its own exit buttons
+                    // injectExitButtonHandler();
                     
                     // NON-INTRUSIVE APPROACH: Only provide API, don't interfere with content
                     setTimeout(() => {
@@ -2217,8 +2218,8 @@
         function injectExitButtonHandler() {
         }
         
-        // Start the main exit button handler
-        handleExitButtonClicks();
+        // DISABLED: Let SCORM handle its own exit flow to internal pages like bye.html
+        // handleExitButtonClicks();
         
         // ADDITIONAL FALLBACK: Direct text-based exit button detection
         function detectExitButtonsByText() {
