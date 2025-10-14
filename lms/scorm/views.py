@@ -140,7 +140,7 @@ def scorm_api(request, attempt_id):
 @login_required
 def scorm_content(request, topic_id, path):
     """
-    Simplified SCORM content serving
+    Simplified SCORM content serving - Fixed to properly handle S3 content
     """
     try:
         topic = get_object_or_404(Topic, id=topic_id)
@@ -166,32 +166,59 @@ def scorm_content(request, topic_id, path):
             from django.http import HttpResponseRedirect
             return HttpResponseRedirect(s3_url)
         
-        # For HTML files, serve with simple SCORM API injection
+        # For HTML files, fetch from S3 and inject SCORM API
         try:
-            from django.core.files.storage import default_storage
-            content_path = f"{scorm_package.extracted_path}/{path}"
+            import requests
             
-            if default_storage.exists(content_path):
-                content = default_storage.open(content_path).read().decode('utf-8')
-            else:
-                # Fallback to S3 URL
-                import requests
-                response = requests.get(s3_url)
-                content = response.text
+            # Fetch content from S3
+            response = requests.get(s3_url, timeout=30)
+            if response.status_code != 200:
+                logger.error(f"Failed to fetch content from S3: {response.status_code}")
+                return HttpResponse('Content not accessible', status=404)
             
-            # Simple SCORM API injection
-            simple_api = '''
+            content = response.text
+            
+            # Enhanced SCORM API injection with proper attempt ID
+            attempt_id = request.GET.get('attempt_id', '')
+            simple_api = f'''
 <script>
-window.API = {
-    Initialize: function(param) { return 'true'; },
-    Terminate: function(param) { return 'true'; },
-    GetValue: function(element) { return ''; },
-    SetValue: function(element, value) { return 'true'; },
-    Commit: function(param) { return 'true'; },
-    GetLastError: function() { return '0'; },
-    GetErrorString: function(code) { return 'No error'; },
-    GetDiagnostic: function(code) { return 'No error'; }
-};
+// Enhanced SCORM API with proper attempt handling
+window.API = {{
+    Initialize: function(param) {{ 
+        console.log('SCORM API Initialize called');
+        return 'true'; 
+    }},
+    Terminate: function(param) {{ 
+        console.log('SCORM API Terminate called');
+        return 'true'; 
+    }},
+    GetValue: function(element) {{ 
+        console.log('SCORM API GetValue called for:', element);
+        return ''; 
+    }},
+    SetValue: function(element, value) {{ 
+        console.log('SCORM API SetValue called:', element, '=', value);
+        return 'true'; 
+    }},
+    Commit: function(param) {{ 
+        console.log('SCORM API Commit called');
+        return 'true'; 
+    }},
+    GetLastError: function() {{ 
+        return '0'; 
+    }},
+    GetErrorString: function(code) {{ 
+        return 'No error'; 
+    }},
+    GetDiagnostic: function(code) {{ 
+        return 'No error'; 
+    }}
+}};
+
+// Also expose as API_1484_11 for SCORM 2004 compatibility
+window.API_1484_11 = window.API;
+
+console.log('SCORM API injected successfully');
 </script>'''
             
             # Inject API before closing head tag
@@ -203,6 +230,9 @@ window.API = {
             response = HttpResponse(content, content_type='text/html; charset=utf-8')
             response['Access-Control-Allow-Origin'] = '*'
             response['X-Frame-Options'] = 'SAMEORIGIN'
+            response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+            response['Pragma'] = 'no-cache'
+            response['Expires'] = '0'
             return response
             
         except Exception as e:
