@@ -230,7 +230,8 @@
             allow="fullscreen; autoplay; encrypted-media; microphone; camera"
             sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
             onload="handleFrameLoad()"
-            onerror="handleFrameError()">
+            onerror="handleFrameError()"
+            style="display: none;">
         </iframe>
     </div>
 
@@ -240,20 +241,42 @@
             const loading = document.getElementById('loading');
             const frame = document.getElementById('scormFrame');
             
+            console.log('SCORM content loaded successfully');
+            
+            // Hide loading indicator
             if (loading) {
                 loading.style.display = 'none';
+                loading.style.visibility = 'hidden';
+                console.log('✅ Loading indicator hidden');
             }
             
+            // Show SCORM frame
             if (frame) {
                 frame.style.display = 'block';
+                frame.style.visibility = 'visible';
+                console.log('✅ SCORM frame displayed');
             }
-            
-            console.log('SCORM content loaded successfully');
             
             // OPTIMIZATION: Preload only essential data for faster initial load
             setTimeout(() => {
                 preloadCommonAPI();
             }, 300); // Faster preloading
+            
+            // FALLBACK: Ensure loading indicator is hidden even if onload doesn't fire properly
+            setTimeout(() => {
+                const loading = document.getElementById('loading');
+                const frame = document.getElementById('scormFrame');
+                if (loading && loading.style.display !== 'none') {
+                    console.log('🔄 Fallback: Hiding loading indicator');
+                    loading.style.display = 'none';
+                    loading.style.visibility = 'hidden';
+                }
+                if (frame && frame.style.display !== 'block') {
+                    console.log('🔄 Fallback: Showing SCORM frame');
+                    frame.style.display = 'block';
+                    frame.style.visibility = 'visible';
+                }
+            }, 5000); // Fallback after 5 seconds
             
             // Inject SCORM API into iframe if possible
             try {
@@ -1860,6 +1883,7 @@
             let shouldComplete = false;
             let shouldExit = false;
             
+            // Handle both string and object messages
             if (event.data && typeof event.data === 'string') {
                 const message = event.data.toLowerCase();
                 
@@ -2038,13 +2062,14 @@
             startAutoScoreCapture();
         }, 5000); // Start after 5 seconds to allow SCORM content to load
         
-        // STREAMLINED: Exit button handling - Enhanced for courseExit support
+        // ENHANCED: Exit button handling - Fixed to prevent conflicts and improve detection
         function handleExitButtonClicks() {
             function fixExitButtons() {
                 const exitButtonSelectors = [
                     '.courseExit', '.courseExit--standard', '.courseExit--overview', '.courseExit--mobile',
                     'button[class*="exit"]', 'a[class*="exit"]', 'button[class*="courseExit"]', 'a[class*="courseExit"]',
-                    '[data-action="exit"]', '[data-action="courseExit"]', '.exit-button', '#exit-button'
+                    '[data-action="exit"]', '[data-action="courseExit"]', '.exit-button', '#exit-button',
+                    'input[type="button"]', 'input[type="submit"]', 'button', 'a'
                 ];
                 
                 let buttonsFound = 0;
@@ -2060,12 +2085,16 @@
                             if (iframeExitButtons.length > 0) {
                                 console.log(`🚪 Found ${iframeExitButtons.length} exit button(s) in iframe`);
                                 iframeExitButtons.forEach(button => {
-                                    button.addEventListener('click', function(e) {
-                                        console.log('🚪 IFRAME EXIT button clicked - sending message to parent...');
-                                        // Send exit message to parent
-                                        window.parent.postMessage({action: 'courseExit', type: 'exit'}, '*');
-                                        window.parent.postMessage('exit_assessment', '*');
-                                    });
+                                    // Check if handler already attached
+                                    if (!button.hasAttribute('data-exit-handler-attached')) {
+                                        button.addEventListener('click', function(e) {
+                                            console.log('🚪 IFRAME EXIT button clicked - sending message to parent...');
+                                            // Send exit message to parent
+                                            window.parent.postMessage({action: 'courseExit', type: 'exit'}, '*');
+                                            window.parent.postMessage('exit_assessment', '*');
+                                        });
+                                        button.setAttribute('data-exit-handler-attached', 'true');
+                                    }
                                 });
                                 buttonsFound += iframeExitButtons.length;
                             }
@@ -2076,37 +2105,79 @@
                     }
                 }
                 
-                // Check parent page for exit buttons
+                // Check parent page for exit buttons - ENHANCED DETECTION
                 exitButtonSelectors.forEach(selector => {
                     try {
                         document.querySelectorAll(selector).forEach(button => {
+                            // Skip if handler already attached
+                            if (button.hasAttribute('data-exit-handler-attached')) {
+                                return;
+                            }
+                            
                             const buttonText = (button.textContent || button.value || '').toLowerCase();
-                            if (buttonText.includes('exit') || button.classList.contains('courseExit') || 
-                                buttonText.includes('exit assessment')) {
-                                console.log('🚪 Found exit button:', button);
+                            const buttonId = (button.id || '').toLowerCase();
+                            const buttonClass = (button.className || '').toLowerCase();
+                            
+                            // Enhanced text matching for EXIT ASSESSMENT - More comprehensive
+                            const isExitButton = (
+                                buttonText.includes('exit') || 
+                                buttonText.includes('exit assessment') ||
+                                buttonText.includes('exit course') ||
+                                buttonText.includes('finish') ||
+                                buttonText.includes('finish assessment') ||
+                                buttonText.includes('complete') ||
+                                buttonText.includes('complete assessment') ||
+                                buttonText.includes('close') ||
+                                buttonText.includes('close course') ||
+                                buttonText.includes('back') ||
+                                buttonText.includes('return') ||
+                                buttonClass.includes('exit') ||
+                                buttonClass.includes('courseexit') ||
+                                buttonClass.includes('finish') ||
+                                buttonClass.includes('complete') ||
+                                buttonId.includes('exit') ||
+                                buttonId.includes('finish') ||
+                                buttonId.includes('complete') ||
+                                button.classList.contains('courseExit') ||
+                                button.classList.contains('exit-button') ||
+                                button.classList.contains('finish-button') ||
+                                button.classList.contains('complete-button') ||
+                                (button.hasAttribute('data-action') && button.getAttribute('data-action').toLowerCase().includes('exit')) ||
+                                (button.hasAttribute('data-exit') && button.getAttribute('data-exit') === 'true') ||
+                                (button.hasAttribute('onclick') && button.getAttribute('onclick').toLowerCase().includes('exit'))
+                            );
+                            
+                            if (isExitButton) {
+                                console.log('🚪 Found exit button:', button, 'Text:', buttonText);
                                 buttonsFound++;
                                 
-                                const newButton = button.cloneNode(true);
-                                button.parentNode.replaceChild(newButton, button);
-                                
-                                newButton.addEventListener('click', function(e) {
+                                // FIXED: Don't replace button, just add event listener
+                                button.addEventListener('click', function(e) {
                                     e.preventDefault();
                                     e.stopPropagation();
                                     console.log('🚪 EXIT button clicked - using Back to Topic logic...');
                                     
-                                    newButton.textContent = 'Saving & Exiting...';
-                                    newButton.disabled = true;
+                                    // Show user feedback
+                                    const originalText = button.textContent || button.value;
+                                    if (button.tagName === 'INPUT') {
+                                        button.value = 'Saving & Exiting...';
+                                    } else {
+                                        button.textContent = 'Saving & Exiting...';
+                                    }
+                                    button.disabled = true;
                                     
                                     // Use the same reliable logic as Back to Topic button
                                     const fakeEvent = { preventDefault: function() {} };
                                     handleBackToTopic(fakeEvent);
                                 });
                                 
+                                // Mark as handled to prevent duplicate handlers
+                                button.setAttribute('data-exit-handler-attached', 'true');
                                 console.log('Exit button handler attached successfully');
                             }
                         });
                     } catch (e) {
-                        // Ignore selector errors
+                        console.log('Selector error for', selector, ':', e.message);
                     }
                 });
                 
@@ -2117,8 +2188,46 @@
             
             // Initial fix and periodic check
             fixExitButtons();
-            const interval = setInterval(fixExitButtons, 5000);
+            const interval = setInterval(fixExitButtons, 3000); // Check every 3 seconds
             setTimeout(() => clearInterval(interval), 120000); // Stop after 2 minutes
+            
+            // Also add a more aggressive detection for dynamically loaded content
+            const observer = new MutationObserver(function(mutations) {
+                let shouldCheck = false;
+                mutations.forEach(function(mutation) {
+                    if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                        // Check if any new buttons were added
+                        for (let node of mutation.addedNodes) {
+                            if (node.nodeType === 1) { // Element node
+                                if (node.tagName === 'BUTTON' || node.tagName === 'INPUT' || node.tagName === 'A') {
+                                    shouldCheck = true;
+                                    break;
+                                }
+                                // Also check if any child elements are buttons
+                                if (node.querySelectorAll && node.querySelectorAll('button, input, a').length > 0) {
+                                    shouldCheck = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                });
+                if (shouldCheck) {
+                    console.log('🚪 New buttons detected, checking for exit buttons...');
+                    fixExitButtons();
+                }
+            });
+            
+            // Start observing for new buttons
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+            
+            // Stop observing after 2 minutes
+            setTimeout(() => {
+                observer.disconnect();
+            }, 120000);
         }
         
         // STREAMLINED: Exit button handler - delegates to main handler
@@ -2128,6 +2237,63 @@
         
         // Start the main exit button handler
         handleExitButtonClicks();
+        
+        // ADDITIONAL FALLBACK: Direct text-based exit button detection
+        function detectExitButtonsByText() {
+            // Look for any element containing "EXIT ASSESSMENT" text
+            const allElements = document.querySelectorAll('*');
+            let foundExitButtons = 0;
+            
+            allElements.forEach(element => {
+                const text = (element.textContent || element.value || '').trim();
+                if (text && (
+                    text.toLowerCase().includes('exit assessment') ||
+                    text.toLowerCase().includes('exit course') ||
+                    text.toLowerCase().includes('finish assessment') ||
+                    text.toLowerCase().includes('complete assessment')
+                )) {
+                    // Check if this element is clickable
+                    if (element.tagName === 'BUTTON' || element.tagName === 'INPUT' || 
+                        element.tagName === 'A' || element.onclick || 
+                        element.style.cursor === 'pointer' || 
+                        element.classList.contains('clickable')) {
+                        
+                        if (!element.hasAttribute('data-exit-handler-attached')) {
+                            console.log('🚪 Found exit button by text:', element, 'Text:', text);
+                            foundExitButtons++;
+                            
+                            element.addEventListener('click', function(e) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                console.log('🚪 EXIT button clicked (text-based detection) - using Back to Topic logic...');
+                                
+                                // Show user feedback
+                                if (element.tagName === 'INPUT') {
+                                    element.value = 'Saving & Exiting...';
+                                } else {
+                                    element.textContent = 'Saving & Exiting...';
+                                }
+                                element.disabled = true;
+                                
+                                // Use the same reliable logic as Back to Topic button
+                                const fakeEvent = { preventDefault: function() {} };
+                                handleBackToTopic(fakeEvent);
+                            });
+                            
+                            element.setAttribute('data-exit-handler-attached', 'true');
+                        }
+                    }
+                }
+            });
+            
+            if (foundExitButtons > 0) {
+                console.log(`🚪 Found ${foundExitButtons} exit button(s) by text detection`);
+            }
+        }
+        
+        // Run text-based detection periodically
+        setTimeout(detectExitButtonsByText, 2000);
+        setInterval(detectExitButtonsByText, 5000);
         
         // REMOVED: Old redundant exit button code cleaned up
         
