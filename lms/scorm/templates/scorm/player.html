@@ -321,6 +321,7 @@
             class="scorm-iframe" 
             src="{{ content_url }}"
             allow="fullscreen; autoplay; encrypted-media; microphone; camera"
+            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
             onload="handleFrameLoad()"
             onerror="handleFrameError()"
             style="display: none;">
@@ -402,7 +403,6 @@
         function createScormAPI() {
             return {
                 Initialize: function(param) {
-                    console.log('🔵 SCORM API CALLED: Initialize');
                     return makeApiCallSync('Initialize', [param]);
                 },
                 LMSInitialize: function(param) {
@@ -447,23 +447,15 @@
                     return makeApiCallWithCache('LMSGetValue', [element]);
                 },
                 SetValue: function(element, value) {
-                    if (element.includes('score')) {
-                        console.log(`🎯 SCORM API: SetValue("${element}", "${value}")`);
-                    }
                     return makeApiCallSync('SetValue', [element, value]);
                 },
                 LMSSetValue: function(element, value) {
-                    if (element.includes('score')) {
-                        console.log(`🎯 SCORM API: LMSSetValue("${element}", "${value}")`);
-                    }
                     return makeApiCallSync('LMSSetValue', [element, value]);
                 },
                 Commit: function(param) {
-                    console.log('💾 SCORM API: Commit called');
                     return makeApiCallSync('Commit', [param]);
                 },
                 LMSCommit: function(param) {
-                    console.log('💾 SCORM API: LMSCommit called');
                     return makeApiCallSync('LMSCommit', [param]);
                 },
                 GetLastError: function() {
@@ -638,9 +630,6 @@
         
         // CRITICAL FIX: Enhanced synchronous wrapper for SCORM API calls with proper resume support
         function makeApiCallSync(method, parameters) {
-            // CRITICAL: Log every API call attempt for debugging
-            console.log('[SCORM API] 🔵 makeApiCallSync called:', method, parameters);
-            
             try {
                 // CRITICAL FIX: For ALL API methods that need to persist data, make actual API calls
                 // This includes: Initialize, Terminate, Commit, SetValue, GetValue
@@ -676,26 +665,18 @@
                     
                     // Make synchronous API call using XMLHttpRequest
                     try {
-                        console.log('[SCORM API] 📤 Sending XHR to:', API_ENDPOINT, 'method:', method);
-                        
                         const xhr = new XMLHttpRequest();
                         xhr.open('POST', API_ENDPOINT, false); // Synchronous request
                         xhr.setRequestHeader('Content-Type', 'application/json');
                         xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
                         
-                        const payload = JSON.stringify({
+                        xhr.send(JSON.stringify({
                             method: method,
                             parameters: parameters
-                        });
-                        
-                        console.log('[SCORM API] 📦 Payload:', payload);
-                        xhr.send(payload);
-                        
-                        console.log('[SCORM API] 📥 XHR Response:', xhr.status, xhr.responseText);
+                        }));
                         
                         if (xhr.status === 200) {
                             const response = JSON.parse(xhr.responseText);
-                            console.log('[SCORM API] ✅ Parsed response:', response);
                             if (response.success) {
                                 const result = response.result;
                                 
@@ -909,6 +890,19 @@
         // Set up global SCORM API for parent window
         window.API = createScormAPI();
         window.API_1484_11 = createScormAPI();
+        
+        // CRITICAL: Also expose API in multiple locations for Rise 360 compatibility
+        window.parent.API = window.API;
+        window.parent.API_1484_11 = window.API_1484_11;
+        window.top.API = window.API;
+        window.top.API_1484_11 = window.API_1484_11;
+        
+        // CRITICAL: Mark API as initialized
+        window.API._initialized = true;
+        window.API_1484_11._initialized = true;
+        
+        console.log('✅ SCORM API EXPOSED: window.API, parent.API, top.API');
+        console.log('✅ API Methods:', Object.keys(window.API).slice(0, 5).join(', '));
         
         // OPTIMIZATION: Faster API initialization
         setTimeout(() => {
