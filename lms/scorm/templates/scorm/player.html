@@ -167,10 +167,10 @@
         function initializeSCORMImmediately() {
             if (window.ScormAPIWrapper && !scormAPIReady) {
                 console.log('Initializing SCORM API immediately...');
-                window.ScormAPIWrapper.init({{ attempt_id }});
+                window.ScormAPIWrapper.init({{ attempt_id|default:"null" }});
                 window.ScormAPIWrapper.exposeAPIs();
                 scormAPIReady = true;
-                console.log('SCORM API initialized immediately for attempt {{ attempt_id }}');
+                console.log('SCORM API initialized immediately for attempt {{ attempt_id|default:"null" }}');
                 
                 // CRITICAL: Ensure API is available in the current window context
                 // SCORM content looks for API in the same window
@@ -270,10 +270,10 @@
             
             if (window.ScormAPIWrapper) {
                 // Initialize with attempt ID
-                window.ScormAPIWrapper.init({{ attempt_id }});
+                window.ScormAPIWrapper.init({{ attempt_id|default:"null" }});
                 window.ScormAPIWrapper.exposeAPIs();
                 
-                console.log('SCORM API Wrapper ready for attempt {{ attempt_id }}');
+                console.log('SCORM API Wrapper ready for attempt {{ attempt_id|default:"null" }}');
                 updateStatus('SCORM API ready');
                 
                 // CRITICAL FIX: Ensure APIs are available in parent window for iframe access
@@ -408,8 +408,8 @@
                     
                     // Then load SCORM content
                     setTimeout(() => {
-                        scormFrame.src = '{{ content_url }}';
-                        console.log('SCORM content URL loaded in frameset:', '{{ content_url }}');
+                        scormFrame.src = '{{ content_url|default:"about:blank" }}';
+                        console.log('SCORM content URL loaded in frameset:', '{{ content_url|default:"about:blank" }}');
                     }, 100);
                 }
             }
