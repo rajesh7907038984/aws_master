@@ -2276,7 +2276,9 @@ function applyFilters() {
     
     // Filter activity columns
     activityHeaders.forEach((header, colIndex) => {
-        if (colIndex === 0 || header.classList.contains('assignment-total')) return; // Skip student name and total columns
+        // Skip non-activity columns (student name, total, outcomes)
+        // Only process columns that have activity-header class
+        if (!header.classList.contains('activity-header')) return;
         
         const activityTitle = header.textContent.toLowerCase();
         const activityTypeLabels = header.querySelectorAll('.activity-type-label');
