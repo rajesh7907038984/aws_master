@@ -351,20 +351,18 @@ def scorm_view(request, topic_id):
     
     response = render(request, 'scorm/player.html', context)
     
-    # Set permissive CSP headers
+    # Set permissive CSP headers for SCORM content
     response['Content-Security-Policy'] = (
-        "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://*.amazonaws.com *; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'unsafe-hashes' https://*.amazonaws.com *; "
-        "worker-src 'self' blob: data: https://*.amazonaws.com *; "
-        "style-src 'self' 'unsafe-inline' https://*.amazonaws.com *; "
-        "img-src 'self' data: blob: https://*.amazonaws.com *; "
-        "font-src 'self' data: https://*.amazonaws.com *; "
-        "connect-src 'self' https://*.amazonaws.com *; "
-        "media-src 'self' data: blob: https://*.amazonaws.com *; "
-        "frame-src 'self' https://*.amazonaws.com *; "
-        "object-src 'none'; "
-        "base-uri 'self'; "
-        "form-action 'self'"
+        "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; "
+        "script-src * 'unsafe-inline' 'unsafe-eval' data: blob:; "
+        "worker-src * blob: data:; "
+        "style-src * 'unsafe-inline'; "
+        "img-src * data: blob:; "
+        "font-src * data:; "
+        "connect-src *; "
+        "media-src * data: blob:; "
+        "frame-src *; "
+        "object-src 'none'"
     )
     
     response['X-Frame-Options'] = 'SAMEORIGIN'
