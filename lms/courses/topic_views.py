@@ -100,7 +100,7 @@ def topic_view(request, topic_id):
         # Get all topics for this course that the user can access
         if request.user.is_authenticated and request.user.role == 'learner':
             # For learners, exclude draft topics and restricted topics
-            all_course_topics = Topic.objects.filter(
+            all_course_topics = Topic.objects.select_related('scorm_package').filter(
                 coursetopic__course=course
             ).exclude(
                 status='draft'
