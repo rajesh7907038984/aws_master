@@ -200,7 +200,7 @@ class MigrationDependencyFixer:
             'lms_messages',
             'lms_notifications',
             'lms_outcomes',
-            'lms_media',
+            # 'lms_media',  # Removed - using S3 storage instead
             'role_management',
             'reports',
             'account_settings',

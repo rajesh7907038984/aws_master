@@ -291,14 +291,8 @@ def upload_media_file(request):
         
         # Register file in media database for tracking
         try:
-            from lms_media.utils import register_media_file
-            register_media_file(
-                file_path=saved_path,
-                uploaded_by=request.user,
-                source_type='editor_upload',
-                filename=original_name,
-                description=f'Uploaded via TinyMCE editor on {timezone.now().date()}'
-            )
+            # Media file registration handled via S3 storage
+            pass
         except Exception as e:
             logger.error(f"Error registering media file: {str(e)}")
             # Continue with upload even if registration fails

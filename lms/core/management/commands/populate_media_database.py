@@ -5,7 +5,7 @@ from datetime import datetime
 from django.core.management.base import BaseCommand
 from django.conf import settings
 from django.utils import timezone
-from lms_media.models import MediaFile
+# from lms_media.models import MediaFile  # Removed - using S3 storage instead
 import mimetypes
 
 logger = logging.getLogger(__name__)

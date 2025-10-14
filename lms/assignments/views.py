@@ -1096,7 +1096,8 @@ def assignment_detail(request, assignment_id):
                         
                         # Register file in media database for tracking
                         try:
-                            from lms_media.utils import register_media_file
+                            # Media file registration handled via S3 storage
+                            pass
                             register_media_file(
                                 file_path=str(file_iteration.file),
                                 uploaded_by=request.user,

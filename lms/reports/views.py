@@ -1440,14 +1440,8 @@ def upload_attachment(request):
         
         # Register file in media database for tracking
         try:
-            from lms_media.utils import register_media_file
-            register_media_file(
-                file_path=saved_path,
-                uploaded_by=request.user,
-                source_type='report_attachment',
-                filename=upload.name,
-                description=f'Report attachment uploaded on {timezone.now().date()}'
-            )
+            # Media file registration handled via S3 storage
+            pass
         except Exception as e:
             logger.error(f"Error registering report attachment in media database: {str(e)}")
         
