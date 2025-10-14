@@ -1,7 +1,6 @@
 """
-SCORM Signals - Dynamic Score Processing
-Automatically detects and processes SCORM scores using adaptive patterns
-Works for all SCORM authoring tools and formats - fully dynamic
+SCORM Signals - Simplified Score Processing
+Basic SCORM score synchronization following global standards
 """
 import logging
 import re
@@ -11,7 +10,6 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.core.cache import cache
 from django.utils import timezone
-from .dynamic_score_processor import auto_process_scorm_score
 
 logger = logging.getLogger(__name__)
 

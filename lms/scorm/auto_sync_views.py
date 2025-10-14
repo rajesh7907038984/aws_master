@@ -9,8 +9,7 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
-from .dynamic_score_processor import auto_process_scorm_score
-from .real_time_validator import ScormScoreValidator
+# Removed complex dynamic score processor - using simplified approach
 from .models import ScormAttempt
 from .score_sync_service import ScormScoreSyncService
 from courses.models import TopicProgress, CourseTopic

@@ -190,6 +190,361 @@ def has_scorm_progress(registration):
     return False
 
 @register.simple_tag
+def get_activity_best_score(activity, student_id, grades, quiz_attempts, scorm_registrations=None):
+    """
+    Get the BEST score data for a specific activity and student (highest score achieved)
+    Usage: {% get_activity_best_score activity student.id grades quiz_attempts scorm_registrations as score_data %}
+    """
+    try:
+        from decimal import Decimal
+        student_id = int(student_id)
+        
+        if activity['type'] == 'assignment':
+            # Look for assignment grade for this student and assignment
+            best_grade = None
+            best_score = None
+            
+            for grade in grades:
+                if grade.student_id == student_id and grade.assignment_id == activity['object'].id:
+                    # Check if grade is excused
+                    if getattr(grade, 'excused', False):
+                        return {
+                            'score': None,
+                            'max_score': activity['max_score'],
+                            'excused': True,
+                            'date': grade.updated_at,
+                            'type': 'assignment',
+                            'object': activity['object'],
+                            'submission': grade.submission,
+                            'is_best_score': True
+                        }
+                    else:
+                        # Track the best score
+                        if grade.score is not None:
+                            if best_score is None or grade.score > best_score:
+                                best_score = grade.score
+                                best_grade = grade
+            
+            if best_grade:
+                # Check if submission is late for graded assignments too
+                is_late = False
+                assignment = activity['object']
+                if best_grade.submission and assignment.due_date and best_grade.submission.submitted_at:
+                    is_late = best_grade.submission.submitted_at > assignment.due_date
+                
+                return {
+                    'score': best_grade.score,
+                    'max_score': activity['max_score'],
+                    'date': best_grade.updated_at,
+                    'type': 'assignment',
+                    'object': activity['object'],
+                    'submission': best_grade.submission,
+                    'is_late': is_late,
+                    'is_best_score': True
+                }
+            
+            # If no Grade record found, check for AssignmentSubmission directly
+            from assignments.models import AssignmentSubmission
+            submission = AssignmentSubmission.objects.filter(
+                assignment=activity['object'],
+                user_id=student_id
+            ).order_by('-submitted_at').first()
+            
+            if submission:
+                # Determine submission status
+                status = 'submitted'
+                is_late = False
+                
+                if submission.grade is None:
+                    status = 'submitted'
+                elif submission.grade >= activity['max_score'] * 0.7:  # 70% passing threshold
+                    status = 'passed'
+                else:
+                    status = 'failed'
+                
+                if submission.submitted_at and activity['object'].due_date:
+                    is_late = submission.submitted_at > activity['object'].due_date
+                    if is_late and status not in ['returned', 'excused'] and submission.grade is not None:
+                        status = 'late'
+                
+                # Return submission data even if not graded yet
+                return {
+                    'score': submission.grade,  # May be None if not graded
+                    'max_score': activity['max_score'],
+                    'date': submission.submitted_at,
+                    'type': 'assignment',
+                    'object': activity['object'],
+                    'submission': submission,
+                    'status': status,
+                    'is_late': is_late,
+                    'is_best_score': True
+                }
+            
+            return {'score': None, 'max_score': activity['max_score'], 'type': 'assignment', 'object': activity['object'], 'is_best_score': True}
+            
+        elif activity['type'] == 'quiz':
+            # Look for quiz attempts for this student and quiz - find the BEST score
+            best_attempt = None
+            best_score = None
+            
+            for attempt in quiz_attempts:
+                if attempt.user_id == student_id and attempt.quiz_id == activity['object'].id:
+                    if attempt.score is not None:
+                        if best_score is None or attempt.score > best_score:
+                            best_score = attempt.score
+                            best_attempt = attempt
+            
+            if best_attempt:
+                # Check if quiz has a rubric and if there's a rubric evaluation
+                quiz = activity['object']
+                final_score = best_attempt.score
+                score_source = 'auto'  # Default to auto calculation
+                max_score = activity['max_score']
+                
+                if quiz.rubric:
+                    try:
+                        # Import here to avoid circular imports
+                        from quiz.models import QuizRubricEvaluation
+                        
+                        # Check if there's a rubric evaluation for this attempt
+                        rubric_evaluations = QuizRubricEvaluation.objects.filter(
+                            quiz_attempt=best_attempt
+                        )
+                        
+                        if rubric_evaluations.exists():
+                            # Calculate total rubric score (convert float to Decimal for consistency)
+                            rubric_total = sum(Decimal(str(evaluation.points)) for evaluation in rubric_evaluations)
+                            final_score = rubric_total
+                            score_source = 'rubric'
+                            # Use rubric total_points as max_score when rubric evaluation exists
+                            max_score = quiz.rubric.total_points
+                    except Exception as e:
+                        # If there's any error getting rubric evaluation, fall back to auto score
+                        pass
+                else:
+                    # For non-rubric quizzes, best_attempt.score is a percentage (0-100)
+                    # Keep as percentage for consistent display
+                    final_score = best_attempt.score
+                    max_score = 100
+                
+                return {
+                    'score': final_score,
+                    'max_score': max_score,
+                    'date': best_attempt.end_time or best_attempt.start_time,
+                    'type': 'quiz',
+                    'object': activity['object'],
+                    'attempt': best_attempt,
+                    'score_source': score_source,  # Track whether it's from rubric or auto calculation
+                    'is_best_score': True
+                }
+            return {'score': None, 'max_score': activity['max_score'], 'type': 'quiz', 'object': activity['object'], 'is_best_score': True}
+            
+        elif activity['type'] == 'discussion':
+            # Check for discussion rubric evaluations
+            discussion = activity['object']
+            max_score = discussion.rubric.total_points if discussion.rubric else 0
+            
+            if discussion.rubric:
+                try:
+                    # Import here to avoid circular imports
+                    from lms_rubrics.models import RubricEvaluation
+                    
+                    # Get all evaluations for this student and discussion
+                    evaluations = RubricEvaluation.objects.filter(
+                        rubric=discussion.rubric,
+                        student_id=student_id,
+                        content_type__model='discussion',
+                        object_id=discussion.id
+                    ).order_by('-created_at')
+                    
+                    if evaluations.exists():
+                        total_score = sum(evaluation.points for evaluation in evaluations)
+                        latest_evaluation = evaluations.order_by('-created_at').first()
+                        
+                        return {
+                            'score': total_score,
+                            'max_score': max_score,
+                            'date': latest_evaluation.created_at,
+                            'type': 'discussion',
+                            'object': discussion,
+                            'evaluations': evaluations,
+                            'is_best_score': True
+                        }
+                except Exception as e:
+                    # If there's any error getting discussion evaluations, fall back to no score
+                    pass
+            
+            return {
+                'score': None,
+                'max_score': max_score,
+                'type': 'discussion',
+                'object': discussion,
+                'is_best_score': True
+            }
+            
+        elif activity['type'] == 'conference':
+            # Check for conference rubric evaluations
+            conference = activity['object']
+            max_score = conference.rubric.total_points if conference.rubric else 0
+            
+            if conference.rubric:
+                try:
+                    # Import here to avoid circular imports
+                    from conferences.models import ConferenceRubricEvaluation, ConferenceAttendance
+                    
+                    # Check if student attended the conference
+                    attendance = ConferenceAttendance.objects.filter(
+                        conference=conference,
+                        user_id=student_id
+                    ).first()
+                    
+                    if attendance:
+                        # Get all evaluations for this student and conference
+                        evaluations = ConferenceRubricEvaluation.objects.filter(
+                            conference=conference,
+                            student_id=student_id
+                        ).order_by('-created_at')
+                        
+                        if evaluations.exists():
+                            total_score = sum(evaluation.points for evaluation in evaluations)
+                            latest_evaluation = evaluations.order_by('-created_at').first()
+                            
+                            return {
+                                'score': total_score,
+                                'max_score': max_score,
+                                'date': latest_evaluation.created_at,
+                                'type': 'conference',
+                                'object': conference,
+                                'attendance': attendance,
+                                'evaluations': evaluations,
+                                'is_best_score': True
+                            }
+                except Exception as e:
+                    # If there's any error getting conference evaluations, fall back to no score
+                    pass
+            
+            return {
+                'score': None,
+                'max_score': max_score,
+                'type': 'conference',
+                'object': conference,
+                'is_best_score': True
+            }
+            
+        elif activity['type'] == 'scorm':
+            # SCORM packages - check registrations for scores
+            best_registration = None
+            best_score = None
+            
+            if scorm_registrations:
+                for registration in scorm_registrations:
+                    if (registration.user_id == student_id and 
+                        registration.scorm_package_id == activity['object'].id):
+                        
+                        if registration.score is not None:
+                            if best_score is None or registration.score > best_score:
+                                best_score = registration.score
+                                best_registration = registration
+            
+            if best_registration:
+                # Check if registration has meaningful progress
+                if has_scorm_progress(best_registration):
+                    # Get SCORM package mastery score
+                    scorm_package = activity['object']
+                    mastery_score = float(scorm_package.mastery_score) if scorm_package.mastery_score else 70.0
+                    
+                    # Get user's achieved score
+                    user_score = float(best_registration.score) if best_registration.score else 0.0
+                    
+                    # Determine if user passed
+                    is_passed = user_score >= mastery_score
+                    
+                    return {
+                        'score': user_score,
+                        'max_score': 100.0,  # SCORM scores are always 0-100
+                        'date': best_registration.created_at,
+                        'type': 'scorm',
+                        'object': activity['object'],
+                        'registration': best_registration,
+                        'mastery_score': mastery_score,      # Required passing score
+                        'user_achieved_score': user_score,   # User's total score
+                        'is_passed': is_passed,              # Did user pass?
+                        'is_best_score': True
+                    }
+                # If registration exists but no progress, treat as not started and don't return registration data
+                return {
+                    'score': None,
+                    'max_score': 100.0,
+                    'type': 'scorm',
+                    'object': activity['object'],
+                    'mastery_score': float(activity['object'].mastery_score) if activity['object'].mastery_score else 70.0,
+                    'user_achieved_score': None,
+                    'is_passed': False,
+                    'is_best_score': True
+                }
+            return {
+                'score': None,
+                'max_score': 100.0,
+                'type': 'scorm',
+                'object': activity['object'],
+                'mastery_score': float(activity['object'].mastery_score) if activity['object'].mastery_score else 70.0,
+                'user_achieved_score': None,
+                'is_passed': False,
+                'is_best_score': True
+            }
+            
+        elif activity['type'] == 'scorm_topic':
+            # SCORM topics - check TopicProgress for scores
+            from courses.models import TopicProgress
+            
+            topic_progress = TopicProgress.objects.filter(
+                topic=activity['object'],
+                user_id=student_id
+            ).first()
+            
+            if topic_progress and (topic_progress.last_score is not None or topic_progress.completed or topic_progress.attempts > 0 or topic_progress.last_accessed):
+                # Get SCORM package mastery score from the topic's SCORM package
+                mastery_score = 70.0  # Default mastery score
+                if hasattr(activity['object'], 'scorm_package') and activity['object'].scorm_package:
+                    mastery_score = float(activity['object'].scorm_package.mastery_score) if activity['object'].scorm_package.mastery_score else 70.0
+                
+                # Get user's achieved score
+                user_score = float(topic_progress.last_score) if topic_progress.last_score else 0.0
+                
+                # Determine if user passed
+                is_passed = user_score >= mastery_score
+                
+                return {
+                    'score': user_score,
+                    'max_score': 100.0,  # SCORM scores are always 0-100
+                    'date': topic_progress.last_accessed or topic_progress.created_at,
+                    'type': 'scorm_topic',
+                    'object': activity['object'],
+                    'topic_progress': topic_progress,
+                    'mastery_score': mastery_score,      # Required passing score
+                    'user_achieved_score': user_score,   # User's total score
+                    'is_passed': is_passed,              # Did user pass?
+                    'completed': topic_progress.completed,
+                    'attempts': topic_progress.attempts,
+                    'is_best_score': True
+                }
+            return {
+                'score': None,
+                'max_score': 100.0,
+                'type': 'scorm_topic',
+                'object': activity['object'],
+                'mastery_score': 70.0,  # Default mastery score
+                'user_achieved_score': None,
+                'is_passed': False,
+                'is_best_score': True
+            }
+        
+        return {'score': None, 'max_score': 0, 'type': 'unknown', 'is_best_score': True}
+        
+    except Exception as e:
+        return {'score': None, 'max_score': 0, 'type': 'error', 'error': str(e), 'is_best_score': True}
+
+@register.simple_tag
 def get_activity_score(activity, student_id, grades, quiz_attempts, scorm_registrations=None):
     """
     Get the score data for a specific activity and student
@@ -411,36 +766,48 @@ def get_activity_score(activity, student_id, grades, quiz_attempts, scorm_regist
                     if registration.package.id == activity['object'].id and registration.user_id == student_id:
                         # Only return registration data if there's actual progress
                         if has_scorm_progress(registration):
-                            # Extract additional SCORM data
-                            scorm_status = getattr(registration, 'lesson_status', None) or registration.completion_status
-                            progress_percentage = getattr(registration, 'progress_percentage', None)
+                            # Get SCORM package mastery score
+                            scorm_package = activity['object']
+                            mastery_score = float(scorm_package.mastery_score) if scorm_package.mastery_score else 70.0
+                            
+                            # Get user's achieved score
+                            user_score = float(registration.score) if registration.score else 0.0
+                            
+                            # Determine if user passed
+                            is_passed = user_score >= mastery_score
                             
                             return {
-                                'score': registration.score,
-                                'max_score': activity['max_score'],
+                                'score': user_score,
+                                'max_score': 100.0,  # SCORM scores are always 0-100
                                 'date': registration.created_at,
                                 'type': 'scorm',
                                 'object': activity['object'],
                                 'registration': registration,
+                                'mastery_score': mastery_score,      # Required passing score
+                                'user_achieved_score': user_score,   # User's total score
+                                'is_passed': is_passed,              # Did user pass?
                                 'completion_status': registration.completion_status,
-                                'success_status': registration.success_status,
-                                'scorm_status': scorm_status,
-                                'progress_percentage': progress_percentage,
                                 'in_progress': registration.completion_status == 'incomplete' and registration.last_accessed is not None,
                                 'has_bookmark': bool(getattr(registration, 'lesson_location', None))
                             }
                         # If registration exists but no progress, treat as not started and don't return registration data
                         return {
                             'score': None,
-                            'max_score': activity['max_score'],
+                            'max_score': 100.0,
                             'type': 'scorm',
-                            'object': activity['object']
+                            'object': activity['object'],
+                            'mastery_score': float(activity['object'].mastery_score) if activity['object'].mastery_score else 70.0,
+                            'user_achieved_score': None,
+                            'is_passed': False
                         }
             return {
                 'score': None,
-                'max_score': activity['max_score'],
+                'max_score': 100.0,
                 'type': 'scorm',
-                'object': activity['object']
+                'object': activity['object'],
+                'mastery_score': float(activity['object'].mastery_score) if activity['object'].mastery_score else 70.0,
+                'user_achieved_score': None,
+                'is_passed': False
             }
             
         elif activity['type'] == 'scorm_topic':
@@ -454,42 +821,32 @@ def get_activity_score(activity, student_id, grades, quiz_attempts, scorm_regist
                 ).first()
                 
                 if topic_progress and (topic_progress.last_score is not None or topic_progress.completed or topic_progress.attempts > 0 or topic_progress.last_accessed):
+                    # Get SCORM package mastery score from the topic's SCORM package
+                    mastery_score = 70.0  # Default mastery score
+                    if hasattr(activity['object'], 'scorm_package') and activity['object'].scorm_package:
+                        mastery_score = float(activity['object'].scorm_package.mastery_score) if activity['object'].scorm_package.mastery_score else 70.0
+                    
+                    # Get user's achieved score
+                    user_score = float(topic_progress.last_score) if topic_progress.last_score else 0.0
+                    
+                    # Determine if user passed
+                    is_passed = user_score >= mastery_score
+                    
                     # Calculate completion status
                     completion_status = 'completed' if topic_progress.completed else 'incomplete'
                     
-                    # Determine success status based on score
-                    success_status = 'unknown'
-                    if topic_progress.last_score is not None:
-                        # Consider passed if score is 70% or higher
-                        if float(topic_progress.last_score) >= 70:
-                            success_status = 'passed'
-                        else:
-                            success_status = 'failed'
-                    elif topic_progress.completed:
-                        success_status = 'passed'
-                    elif (topic_progress.attempts > 0 or topic_progress.last_accessed) and not topic_progress.completed:
-                        # Learner has attempted/accessed but not completed - consider as failed
-                        success_status = 'failed'
-                    
-                    # Extract SCORM-specific data from progress_data
-                    scorm_status = None
-                    progress_percentage = None
-                    if topic_progress.progress_data:
-                        scorm_status = topic_progress.progress_data.get('scorm_status') or topic_progress.progress_data.get('lesson_status')
-                        progress_percentage = topic_progress.progress_data.get('progress_percentage')
-                    
                     return {
-                        'score': float(topic_progress.last_score) if topic_progress.last_score else None,
-                        'max_score': activity['max_score'],
+                        'score': user_score,
+                        'max_score': 100.0,  # SCORM scores are always 0-100
                         'date': topic_progress.last_accessed,
                         'type': 'scorm_topic',
                         'object': activity['object'],
                         'topic_progress': topic_progress,
+                        'mastery_score': mastery_score,      # Required passing score
+                        'user_achieved_score': user_score,   # User's total score
+                        'is_passed': is_passed,              # Did user pass?
                         'completion_status': completion_status,
-                        'success_status': success_status,
                         'completed': topic_progress.completed,
-                        'scorm_status': scorm_status,
-                        'progress_percentage': progress_percentage,
                         'in_progress': not topic_progress.completed and topic_progress.last_accessed is not None,
                         'has_bookmark': bool(topic_progress.progress_data and topic_progress.progress_data.get('lesson_location'))
                     }
@@ -498,9 +855,12 @@ def get_activity_score(activity, student_id, grades, quiz_attempts, scorm_regist
             
             return {
                 'score': None,
-                'max_score': activity['max_score'],
+                'max_score': 100.0,
                 'type': 'scorm_topic',
-                'object': activity['object']
+                'object': activity['object'],
+                'mastery_score': 70.0,  # Default mastery score
+                'user_achieved_score': None,
+                'is_passed': False
             }
             
     except (ValueError, AttributeError, TypeError):

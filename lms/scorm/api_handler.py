@@ -8,6 +8,7 @@ import logging
 from datetime import datetime, timedelta
 from decimal import Decimal
 from django.utils import timezone
+from django.db import transaction
 
 logger = logging.getLogger(__name__)
 
@@ -18,13 +19,11 @@ class ScormAPIHandler:
     Implements both SCORM 1.2 (API) and SCORM 2004 (API_1484_11) standards
     """
     
-    # SCORM 1.2 Error codes
-    SCORM_12_ERRORS = {
+    # Basic SCORM error codes
+    SCORM_ERRORS = {
         '0': 'No error',
         '101': 'General exception',
         '201': 'Invalid argument error',
-        '202': 'Element cannot have children',
-        '203': 'Element not an array',
         '301': 'Not initialized',
         '401': 'Not implemented error',
         '402': 'Invalid set value',
@@ -555,8 +554,9 @@ class ScormAPIHandler:
         seconds = total_seconds % 60
         return f"{hours:04d}:{minutes:02d}:{seconds:05.2f}"
     
+    @transaction.atomic
     def _commit_data(self):
-        """Save attempt data to database"""
+        """Save attempt data to database with proper transaction handling"""
         self.attempt.last_accessed = timezone.now()
         
         # Only save to database if not a preview attempt
@@ -564,7 +564,12 @@ class ScormAPIHandler:
             # Set flag to prevent signal from processing this
             self.attempt._updating_from_api_handler = True
             try:
+                # FIX: Save attempt first
                 self.attempt.save()
+                
+                # FIX: Add small delay before sync to ensure data is committed
+                import time
+                time.sleep(0.1)  # 100ms delay to ensure data is committed
                 
                 # Use centralized sync service for score synchronization
                 from .score_sync_service import ScormScoreSyncService
