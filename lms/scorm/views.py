@@ -325,21 +325,32 @@ def scorm_view(request, topic_id):
         if launch_url.startswith('scormcontent/'):
             launch_url = launch_url[13:]  # Remove "scormcontent/" prefix (13 characters)
         
-        # Get lesson ID from database if available, default to empty
+        # Get lesson ID from URL parameter first (for redirects), then from database
         lesson_id = ""
-        if hasattr(attempt, 'lesson_location') and attempt.lesson_location and '#/lessons/' in attempt.lesson_location:
-            lesson_id = attempt.lesson_location
-        elif hasattr(attempt, 'cmi_data') and attempt.cmi_data:
-            # Try to get from SCORM 1.2 cmi data
-            if scorm_package.version == '1.2' and 'cmi.core.lesson_location' in attempt.cmi_data:
-                location = attempt.cmi_data.get('cmi.core.lesson_location', '')
-                if '#/lessons/' in location:
-                    lesson_id = location
-            # Try to get from SCORM 2004 cmi data
-            elif 'cmi.location' in attempt.cmi_data:
-                location = attempt.cmi_data.get('cmi.location', '')
-                if '#/lessons/' in location:
-                    lesson_id = location
+        
+        # Check for lesson_id in URL parameters (from redirects)
+        url_lesson_id = request.GET.get('lesson_id', '')
+        if url_lesson_id and '#/lessons/' in url_lesson_id:
+            lesson_id = url_lesson_id
+            logger.info(f"Using lesson ID from URL parameter: {lesson_id}")
+        else:
+            # Get lesson ID from database if available
+            if hasattr(attempt, 'lesson_location') and attempt.lesson_location and '#/lessons/' in attempt.lesson_location:
+                lesson_id = attempt.lesson_location
+                logger.info(f"Using lesson ID from database lesson_location: {lesson_id}")
+            elif hasattr(attempt, 'cmi_data') and attempt.cmi_data:
+                # Try to get from SCORM 1.2 cmi data
+                if scorm_package.version == '1.2' and 'cmi.core.lesson_location' in attempt.cmi_data:
+                    location = attempt.cmi_data.get('cmi.core.lesson_location', '')
+                    if '#/lessons/' in location:
+                        lesson_id = location
+                        logger.info(f"Using lesson ID from SCORM 1.2 cmi_data: {lesson_id}")
+                # Try to get from SCORM 2004 cmi data
+                elif 'cmi.location' in attempt.cmi_data:
+                    location = attempt.cmi_data.get('cmi.location', '')
+                    if '#/lessons/' in location:
+                        lesson_id = location
+                        logger.info(f"Using lesson ID from SCORM 2004 cmi_data: {lesson_id}")
         
         # CRITICAL FIX: Clean lesson_id to ensure it only contains the hash fragment
         # Remove any filename prefix like "index.html#" to prevent duplication
@@ -360,13 +371,20 @@ def scorm_view(request, topic_id):
         content_url = f"/scorm/content/{topic_id}/scormcontent/index.html"
         # Try to add lesson ID even in fallback mode
         try:
-            if hasattr(attempt, 'lesson_location') and attempt.lesson_location and '#/lessons/' in attempt.lesson_location:
+            # Check URL parameter first, then database
+            url_lesson_id = request.GET.get('lesson_id', '')
+            if url_lesson_id and '#/lessons/' in url_lesson_id:
+                lesson_hash = url_lesson_id
+                content_url = f"{content_url}{lesson_hash}"
+                logger.info(f"Added lesson ID from URL parameter to fallback URL: {lesson_hash}")
+            elif hasattr(attempt, 'lesson_location') and attempt.lesson_location and '#/lessons/' in attempt.lesson_location:
                 lesson_location = attempt.lesson_location
                 # Clean lesson location to get only hash fragment
                 if '#' in lesson_location:
                     hash_parts = lesson_location.split('#')
                     lesson_hash = '#' + hash_parts[-1] if hash_parts[-1] else ''
                     content_url = f"{content_url}{lesson_hash}"
+                    logger.info(f"Added lesson ID from database to fallback URL: {lesson_hash}")
         except Exception as lesson_err:
             logger.error(f"Error adding lesson ID to fallback URL: {str(lesson_err)}")
     
@@ -679,11 +697,11 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
                 response_obj = HttpResponse(cached_content, content_type='text/html; charset=utf-8')
                 response_obj['Access-Control-Allow-Origin'] = '*'
                 response_obj['X-Frame-Options'] = 'SAMEORIGIN'
-                response_obj['Cache-Control'] = 'public, max-age=3600'  # Cache for 1 hour
+                response_obj['Cache-Control'] = 'public, max-age=86400, immutable'  # Cache for 24 hours
                 return response_obj
             
             # Fetch from S3 with optimized timeout
-            response = requests.get(s3_url, timeout=5)
+            response = requests.get(s3_url, timeout=30)
             response.raise_for_status()
             
             content = response.content
@@ -904,7 +922,7 @@ setInterval(enhanceExitButtons, 3000);
             response_obj['Access-Control-Allow-Origin'] = '*'
             response_obj['X-Frame-Options'] = 'SAMEORIGIN'
             # OPTIMIZATION: Enable browser caching for better performance
-            response_obj['Cache-Control'] = 'public, max-age=3600'  # Cache for 1 hour
+            response_obj['Cache-Control'] = 'public, max-age=86400, immutable'  # Cache for 24 hours
             # SECURITY HEADERS
             response_obj['X-Content-Type-Options'] = 'nosniff'
             response_obj['X-XSS-Protection'] = '1; mode=block'
