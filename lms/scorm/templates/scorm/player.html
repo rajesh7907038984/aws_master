@@ -2186,20 +2186,24 @@
                             // Function to handle exit button clicks
                             function handleExitClick(e) {
                                 const target = e.target;
-                                const buttonText = (target.textContent || target.value || target.innerText || '').toLowerCase();
+                                const buttonText = (target.textContent || target.value || target.innerText || '').toLowerCase().trim();
                                 const buttonId = (target.id || '').toLowerCase();
                                 const buttonClass = (target.className || '').toLowerCase();
                                 
-                                // Check if this is an exit button
+                                // FIXED: Much more specific exit button detection - only actual exit/finish course buttons
+                                // This prevents blocking normal interactive buttons inside SCORM content
                                 const isExitButton = (
-                                    buttonText.includes('exit') || 
-                                    buttonText.includes('finish') ||
-                                    buttonText.includes('complete') ||
-                                    buttonText.includes('close') ||
-                                    buttonId.includes('exit') ||
-                                    buttonId.includes('finish') ||
-                                    buttonClass.includes('exit') ||
-                                    buttonClass.includes('finish')
+                                    buttonText === 'exit' || 
+                                    buttonText === 'exit course' || 
+                                    buttonText === 'exit assessment' ||
+                                    buttonText === 'finish course' ||
+                                    buttonText === 'close course' ||
+                                    buttonId === 'exit' ||
+                                    buttonId === 'exitbutton' ||
+                                    buttonId === 'exit-button' ||
+                                    buttonId === 'finish-course' ||
+                                    buttonClass.includes('course-exit') ||
+                                    buttonClass.includes('exit-course-btn')
                                 );
                                 
                                 if (isExitButton) {
@@ -2231,8 +2235,9 @@
                                 }
                             }
                             
-                            // Add click listener to document (capture phase to intercept before default)
-                            document.addEventListener('click', handleExitClick, true);
+                            // FIXED: Use bubbling phase instead of capture to allow normal button clicks
+                            // This prevents blocking interactive buttons inside SCORM content
+                            document.addEventListener('click', handleExitClick, false);
                             
                             // Also monitor for navigation to exit/goodbye pages
                             document.addEventListener('click', function(e) {
@@ -2308,33 +2313,25 @@
                         const buttonId = (button.id || '').toLowerCase();
                         const buttonClass = (button.className || '').toLowerCase();
                         
-                        // Enhanced text matching for EXIT ASSESSMENT - More comprehensive
+                        // FIXED: More specific exit button detection to avoid blocking normal interactive buttons
                         const isExitButton = (
-                                buttonText.includes('exit') || 
-                                buttonText.includes('exit assessment') ||
-                                buttonText.includes('exit course') ||
-                                buttonText.includes('finish') ||
-                                buttonText.includes('finish assessment') ||
-                                buttonText.includes('complete') ||
-                                buttonText.includes('complete assessment') ||
-                                buttonText.includes('close') ||
-                                buttonText.includes('close course') ||
-                                buttonText.includes('back') ||
-                                buttonText.includes('return') ||
-                                buttonClass.includes('exit') ||
-                                buttonClass.includes('courseexit') ||
-                                buttonClass.includes('finish') ||
-                                buttonClass.includes('complete') ||
-                                buttonId.includes('exit') ||
-                                buttonId.includes('finish') ||
-                                buttonId.includes('complete') ||
-                                
-                                button.classList.contains('exit-button') ||
-                                button.classList.contains('finish-button') ||
-                                button.classList.contains('complete-button') ||
-                                (button.hasAttribute('data-action') && button.getAttribute('data-action').toLowerCase().includes('exit')) ||
-                                (button.hasAttribute('data-exit') && button.getAttribute('data-exit') === 'true') ||
-                                (button.hasAttribute('onclick') && button.getAttribute('onclick').toLowerCase().includes('exit'))
+                                buttonText === 'exit' ||
+                                buttonText === 'exit assessment' ||
+                                buttonText === 'exit course' ||
+                                buttonText === 'exit activity' ||
+                                buttonText === 'finish course' ||
+                                buttonText === 'close course' ||
+                                buttonId === 'exit' ||
+                                buttonId === 'exitbutton' ||
+                                buttonId === 'exit-button' ||
+                                buttonId === 'exit-course' ||
+                                buttonId === 'finish-course' ||
+                                buttonClass.includes('course-exit') ||
+                                buttonClass.includes('exit-course-btn') ||
+                                button.classList.contains('exit-course-button') ||
+                                button.classList.contains('finish-course-button') ||
+                                (button.hasAttribute('data-action') && button.getAttribute('data-action') === 'exit-course') ||
+                                (button.hasAttribute('data-exit') && button.getAttribute('data-exit') === 'true')
                             );
                             
                         if (isExitButton) {
