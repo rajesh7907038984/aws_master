@@ -146,45 +146,46 @@ def get_scorm_topic(scorm_package):
         return None
 
 @register.simple_tag
-def has_scorm_progress(registration):
+def has_scorm_progress(attempt):
     """
-    Check if a SCORM registration represents actual progress (not just an initial registration)
+    Check if a SCORM attempt represents actual progress (not just an initial attempt)
+    Uses ScormAttempt model fields
     """
-    if not registration:
+    if not attempt:
         return False
     
     # Consider it progress if any of these conditions are met:
     # 1. Has been accessed (last_accessed is set) - this indicates user actually opened the content
     # 2. Has spent some time (more than 0 seconds) - this indicates user interaction
-    # 3. Completion status is completed or passed - this indicates actual completion
-    # 4. Has a score AND last_accessed (score without access suggests programmatic assignment)
+    # 3. Lesson status is completed or passed - this indicates actual completion
+    # 4. Has a score_raw AND last_accessed (score without access suggests programmatic assignment)
     
     # First check: User actually accessed the content
-    if registration.last_accessed:
+    if attempt.last_accessed:
         return True
     
     # Second check: User spent time on the content
-    if registration.total_time and registration.total_time > 0:
+    if attempt.total_time and attempt.total_time != '0000:00:00.00':
         return True
     
     # Third check: Content is completed or passed (regardless of access time)
-    if registration.completion_status in ['completed', 'passed']:
+    if attempt.lesson_status in ['completed', 'passed', 'failed']:
         return True
         
-    # Fourth check: Has a score AND was accessed (prevents false positives from programmatic scores)
-    if registration.score and registration.score > 0 and registration.last_accessed:
+    # Fourth check: Has a score_raw AND was accessed (prevents false positives from programmatic scores)
+    if attempt.score_raw and attempt.score_raw > 0 and attempt.last_accessed:
         return True
     
     # Check if there's meaningful progress data that indicates actual user interaction
-    if registration.progress_data and isinstance(registration.progress_data, dict):
+    if attempt.cmi_data and isinstance(attempt.cmi_data, dict):
         # Look for meaningful progress indicators that suggest user interaction
-        if registration.progress_data.get('progress', 0) > 0:
+        if attempt.cmi_data.get('progress', 0) > 0:
             return True
-        if registration.progress_data.get('completion_percent', 0) > 0:
+        if attempt.cmi_data.get('completion_percent', 0) > 0:
             return True
         # Only consider scorm_sync if there's also evidence of user interaction
-        if (registration.progress_data.get('scorm_sync', False) and 
-            (registration.last_accessed or registration.total_time > 0)):
+        if (attempt.cmi_data.get('scorm_sync', False) and 
+            (attempt.last_accessed or attempt.total_time != '0000:00:00.00')):
             return True
     
     return False
@@ -432,29 +433,36 @@ def get_activity_best_score(activity, student_id, grades, quiz_attempts, scorm_r
             }
             
         elif activity['type'] == 'scorm':
-            # SCORM packages - check registrations for scores
-            best_registration = None
+            # SCORM packages - check scorm_attempts for scores (using ScormAttempt model)
+            best_attempt = None
             best_score = None
             
-            if scorm_registrations:
-                for registration in scorm_registrations:
-                    if (registration.user_id == student_id and 
-                        registration.scorm_package_id == activity['object'].id):
+            if scorm_registrations:  # This is actually scorm_attempts in the context
+                for attempt in scorm_registrations:
+                    if (attempt.user_id == student_id and 
+                        attempt.scorm_package_id == activity['object'].id):
                         
-                        if registration.score is not None:
-                            if best_score is None or registration.score > best_score:
-                                best_score = registration.score
-                                best_registration = registration
+                        # Use score_raw field from ScormAttempt model
+                        if attempt.score_raw is not None:
+                            if best_score is None or attempt.score_raw > best_score:
+                                best_score = attempt.score_raw
+                                best_attempt = attempt
             
-            if best_registration:
-                # Check if registration has meaningful progress
-                if has_scorm_progress(best_registration):
+            if best_attempt:
+                # Check if attempt has meaningful progress (check completion status)
+                has_progress = (
+                    best_attempt.last_accessed or
+                    best_attempt.lesson_status in ['completed', 'passed', 'failed', 'incomplete'] or
+                    best_attempt.score_raw is not None
+                )
+                
+                if has_progress:
                     # Get SCORM package mastery score
                     scorm_package = activity['object']
                     mastery_score = float(scorm_package.mastery_score) if scorm_package.mastery_score else 70.0
                     
-                    # Get user's achieved score
-                    user_score = float(best_registration.score) if best_registration.score else 0.0
+                    # Get user's achieved score from score_raw
+                    user_score = float(best_attempt.score_raw) if best_attempt.score_raw is not None else 0.0
                     
                     # Determine if user passed
                     is_passed = user_score >= mastery_score
@@ -462,16 +470,18 @@ def get_activity_best_score(activity, student_id, grades, quiz_attempts, scorm_r
                     return {
                         'score': user_score,
                         'max_score': 100.0,  # SCORM scores are always 0-100
-                        'date': best_registration.created_at,
+                        'date': best_attempt.last_accessed or best_attempt.started_at,
                         'type': 'scorm',
                         'object': activity['object'],
-                        'registration': best_registration,
+                        'attempt': best_attempt,  # Changed from registration to attempt
                         'mastery_score': mastery_score,      # Required passing score
                         'user_achieved_score': user_score,   # User's total score
                         'is_passed': is_passed,              # Did user pass?
+                        'lesson_status': best_attempt.lesson_status,
+                        'completion_status': best_attempt.completion_status,
                         'is_best_score': True
                     }
-                # If registration exists but no progress, treat as not started and don't return registration data
+                # If attempt exists but no progress, treat as not started and don't return attempt data
                 return {
                     'score': None,
                     'max_score': 100.0,
@@ -760,18 +770,25 @@ def get_activity_score(activity, student_id, grades, quiz_attempts, scorm_regist
             }
             
         elif activity['type'] == 'scorm':
-            # SCORM packages - check registrations for scores
-            if scorm_registrations:
-                for registration in scorm_registrations:
-                    if registration.package.id == activity['object'].id and registration.user_id == student_id:
-                        # Only return registration data if there's actual progress
-                        if has_scorm_progress(registration):
+            # SCORM packages - check scorm_attempts for scores (using ScormAttempt model)
+            if scorm_registrations:  # This is actually scorm_attempts in the context
+                for attempt in scorm_registrations:
+                    if attempt.scorm_package_id == activity['object'].id and attempt.user_id == student_id:
+                        # Check if attempt has meaningful progress
+                        has_progress = (
+                            attempt.last_accessed or
+                            attempt.lesson_status in ['completed', 'passed', 'failed', 'incomplete'] or
+                            attempt.score_raw is not None
+                        )
+                        
+                        # Only return attempt data if there's actual progress
+                        if has_progress:
                             # Get SCORM package mastery score
                             scorm_package = activity['object']
                             mastery_score = float(scorm_package.mastery_score) if scorm_package.mastery_score else 70.0
                             
-                            # Get user's achieved score
-                            user_score = float(registration.score) if registration.score else 0.0
+                            # Get user's achieved score from score_raw
+                            user_score = float(attempt.score_raw) if attempt.score_raw is not None else 0.0
                             
                             # Determine if user passed
                             is_passed = user_score >= mastery_score
@@ -779,18 +796,19 @@ def get_activity_score(activity, student_id, grades, quiz_attempts, scorm_regist
                             return {
                                 'score': user_score,
                                 'max_score': 100.0,  # SCORM scores are always 0-100
-                                'date': registration.created_at,
+                                'date': attempt.last_accessed or attempt.started_at,
                                 'type': 'scorm',
                                 'object': activity['object'],
-                                'registration': registration,
+                                'attempt': attempt,  # Changed from registration to attempt
                                 'mastery_score': mastery_score,      # Required passing score
                                 'user_achieved_score': user_score,   # User's total score
                                 'is_passed': is_passed,              # Did user pass?
-                                'completion_status': registration.completion_status,
-                                'in_progress': registration.completion_status == 'incomplete' and registration.last_accessed is not None,
-                                'has_bookmark': bool(getattr(registration, 'lesson_location', None))
+                                'completion_status': attempt.completion_status,
+                                'lesson_status': attempt.lesson_status,
+                                'in_progress': attempt.lesson_status == 'incomplete' and attempt.last_accessed is not None,
+                                'has_bookmark': bool(getattr(attempt, 'lesson_location', None))
                             }
-                        # If registration exists but no progress, treat as not started and don't return registration data
+                        # If attempt exists but no progress, treat as not started and don't return attempt data
                         return {
                             'score': None,
                             'max_score': 100.0,
@@ -1012,21 +1030,21 @@ def calculate_student_total(student_id, activities, grades, quiz_attempts, scorm
                     total_possible += activity_max_score
                             
                 elif activity['type'] == 'scorm':
-                    # Look for SCORM registrations for this student and package
-                    if scorm_registrations:
-                        for registration in scorm_registrations:
-                            if registration.package.id == activity['object'].id and registration.user_id == student_id:
-                                # Only include score if the SCORM activity has a score
-                                if registration.score is not None:
+                    # Look for SCORM attempts for this student and package (using ScormAttempt model)
+                    if scorm_registrations:  # This is actually scorm_attempts in the context
+                        for attempt in scorm_registrations:
+                            if attempt.scorm_package_id == activity['object'].id and attempt.user_id == student_id:
+                                # Only include score if the SCORM activity has a score (use score_raw)
+                                if attempt.score_raw is not None:
                                     # Convert the score to a percentage of max_score (SCORM scores are typically 0-100)
-                                    score_percentage = Decimal(str(registration.score)) / Decimal('100')
+                                    score_percentage = Decimal(str(attempt.score_raw)) / Decimal('100')
                                     activity_score = score_percentage * activity_max_score
                                     
                                     # Add to total only if completed or passed
-                                    if (registration.completion_status in ['completed', 'passed'] and 
-                                        registration.success_status != 'failed'):
+                                    if (attempt.lesson_status in ['completed', 'passed'] and 
+                                        attempt.lesson_status != 'failed'):
                                         total_earned += activity_score
-                                break  # Use the first matching registration
+                                break  # Use the first matching attempt
                     
                     # Add total possible points for SCORM
                     total_possible += activity_max_score
@@ -1076,14 +1094,15 @@ def calculate_student_total(student_id, activities, grades, quiz_attempts, scorm
 @register.simple_tag
 def get_scorm_registration(scorm_registrations, package_id):
     """
-    Get the first SCORM registration for a specific package
+    Get the first SCORM attempt for a specific package (using ScormAttempt model)
     Usage: {% get_scorm_registration scorm_registrations activity.object.id as registration %}
+    Note: scorm_registrations is actually scorm_attempts in the context
     """
     try:
         package_id = int(package_id)
-        for registration in scorm_registrations:
-            if registration.package.id == package_id:
-                return registration
+        for attempt in scorm_registrations:  # This is actually scorm_attempts
+            if attempt.scorm_package_id == package_id:
+                return attempt
         return None
     except (ValueError, AttributeError, TypeError):
         return None
@@ -1139,19 +1158,20 @@ def should_hide_course(student_id, course_id, student_courses_with_activities, u
 @register.simple_tag
 def get_scorm_registration_for_topic(scorm_registrations, student_id, topic_id):
     """
-    Get the SCORM registration for a specific student and topic
+    Get the SCORM attempt for a specific student and topic (using ScormAttempt model)
     Usage: {% get_scorm_registration_for_topic scorm_registrations student.id topic.id as registration %}
+    Note: scorm_registrations is actually scorm_attempts in the context
     """
     try:
         student_id = int(student_id)
         topic_id = int(topic_id)
         
-        for registration in scorm_registrations:
-            if registration.user_id == student_id:
-                # Get the topic associated with this registration
-                topic = get_scorm_topic(registration.package)
+        for attempt in scorm_registrations:  # This is actually scorm_attempts
+            if attempt.user_id == student_id:
+                # Get the topic associated with this attempt's scorm_package
+                topic = get_scorm_topic(attempt.scorm_package)
                 if topic and topic.id == topic_id:
-                    return registration
+                    return attempt
         return None
     except (ValueError, AttributeError, TypeError):
         return None 
@@ -1683,9 +1703,9 @@ def get_activity_status_text(activity_type, score_data):
             return 'Not Evaluated'
     
     elif activity_type == 'scorm':
-        if score_data.get('score') and score_data.get('completion_status') == 'completed':
+        if score_data.get('score') and score_data.get('lesson_status') in ['completed', 'passed']:
             return 'Completed'
-        elif score_data.get('registration'):
+        elif score_data.get('attempt'):  # Changed from 'registration' to 'attempt'
             return 'In Progress'
         else:
             return 'Not Started'
