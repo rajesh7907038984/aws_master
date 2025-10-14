@@ -75,6 +75,10 @@
             height: 100%;
             border: none;
             display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
         }
         
         .loading-overlay {
@@ -139,6 +143,31 @@
     
     <script>
         console.log('SCORM Player initialized');
+        
+        // CRITICAL FIX: Prevent popup windows and ensure content loads in same window
+        // Override window.open to prevent popups
+        const originalWindowOpen = window.open;
+        window.open = function(url, name, specs) {
+            console.log('Blocked popup attempt:', url);
+            // Instead of opening popup, navigate in same window or iframe
+            if (url && url !== 'about:blank') {
+                const iframe = document.getElementById('scormIframe');
+                if (iframe) {
+                    iframe.src = url;
+                    console.log('Redirected popup to iframe:', url);
+                }
+            }
+            return null; // Return null to indicate popup was blocked
+        };
+        
+        // Override target="_blank" links to open in same window
+        document.addEventListener('click', function(e) {
+            if (e.target.tagName === 'A' && e.target.target === '_blank') {
+                e.preventDefault();
+                e.target.target = '_self';
+                console.log('Redirected _blank link to same window:', e.target.href);
+            }
+        });
         
         // Initialize SCORM API Wrapper - PREVENT DUPLICATION
         let scormInitialized = false;
@@ -210,16 +239,41 @@
                 loadingOverlay.style.display = 'none';
             }, 500);
             
-            // Inject API into iframe if needed
+            // CRITICAL FIX: Inject popup prevention into iframe content
             try {
                 const iframeWindow = iframe.contentWindow;
-                if (iframeWindow && !iframeWindow.API) {
-                    iframeWindow.API = window.API;
-                    iframeWindow.API_1484_11 = window.API_1484_11;
-                    console.log('APIs injected into iframe');
+                const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
+                
+                if (iframeWindow && iframeDocument) {
+                    // Override window.open in iframe to prevent popups
+                    iframeWindow.open = function(url, name, specs) {
+                        console.log('Blocked iframe popup attempt:', url);
+                        // Navigate within the iframe instead
+                        if (url && url !== 'about:blank') {
+                            iframe.src = url;
+                            console.log('Redirected iframe popup to iframe src:', url);
+                        }
+                        return null;
+                    };
+                    
+                    // Override target="_blank" links in iframe
+                    iframeDocument.addEventListener('click', function(e) {
+                        if (e.target.tagName === 'A' && e.target.target === '_blank') {
+                            e.preventDefault();
+                            e.target.target = '_self';
+                            console.log('Redirected iframe _blank link to same window:', e.target.href);
+                        }
+                    });
+                    
+                    // Inject SCORM APIs into iframe
+                    if (!iframeWindow.API) {
+                        iframeWindow.API = window.API;
+                        iframeWindow.API_1484_11 = window.API_1484_11;
+                        console.log('APIs injected into iframe');
+                    }
                 }
             } catch (e) {
-                console.log('Cross-origin iframe - APIs available globally');
+                console.log('Cross-origin iframe - APIs available globally, popup prevention may be limited');
             }
         });
         
@@ -232,6 +286,11 @@
                 } else if (event.data.action === 'complete') {
                     console.log('Completion message received from SCORM content');
                     updateStatus('Course completed!');
+                } else if (event.data.action === 'openWindow' || event.data.type === 'popup') {
+                    // Block popup requests from SCORM content
+                    console.log('Blocked popup request from SCORM content:', event.data);
+                    event.preventDefault();
+                    event.stopPropagation();
                 }
             }
         });
