@@ -220,24 +220,11 @@
         </div>
     </div>
     
-
-    <div class="scorm-container">
-        <div class="loading" id="loading">⏳ Loading SCORM content...</div>
-        <iframe 
-            id="scormFrame"
-            class="scorm-iframe" 
-            src="{{ content_url }}"
-            allow="fullscreen; autoplay; encrypted-media; microphone; camera"
-            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
-            onload="handleFrameLoad()"
-            onerror="handleFrameError()"
-            style="display: none;">
-        </iframe>
-    </div>
-
     <script>
-        // CRITICAL FIX: Define iframe handlers first to ensure they're available when iframe loads
-        function handleFrameLoad() {
+        // CRITICAL FIX: Define iframe load handlers BEFORE iframe element
+        // These functions will be called by the iframe onload/onerror attributes
+        window.handleFrameLoad = function() {
+            console.log('handleFrameLoad called');
             const loading = document.getElementById('loading');
             const frame = document.getElementById('scormFrame');
             
@@ -257,10 +244,46 @@
                 console.log('✅ SCORM frame displayed');
             }
             
+            // Call additional initialization after a short delay
+            setTimeout(function() {
+                if (typeof initScormExtensions === 'function') {
+                    initScormExtensions();
+                }
+            }, 500);
+        };
+        
+        window.handleFrameError = function() {
+            console.error('Failed to load SCORM content');
+            const loading = document.getElementById('loading');
+            if (loading) {
+                loading.innerHTML = '❌ Failed to load SCORM content. Please refresh the page.';
+            }
+        };
+    </script>
+
+    <div class="scorm-container">
+        <div class="loading" id="loading">⏳ Loading SCORM content...</div>
+        <iframe 
+            id="scormFrame"
+            class="scorm-iframe" 
+            src="{{ content_url }}"
+            allow="fullscreen; autoplay; encrypted-media; microphone; camera"
+            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
+            onload="handleFrameLoad()"
+            onerror="handleFrameError()"
+            style="display: none;">
+        </iframe>
+    </div>
+
+    <script>
+        // Additional SCORM initialization functions
+        function initScormExtensions() {
+            const frame = document.getElementById('scormFrame');
+            
             // OPTIMIZATION: Preload only essential data for faster initial load
             setTimeout(() => {
                 preloadCommonAPI();
-            }, 300); // Faster preloading
+            }, 300);
             
             // FALLBACK: Ensure loading indicator is hidden even if onload doesn't fire properly
             setTimeout(() => {
@@ -276,14 +299,13 @@
                     frame.style.display = 'block';
                     frame.style.visibility = 'visible';
                 }
-            }, 5000); // Fallback after 5 seconds
+            }, 5000);
             
             // Inject SCORM API into iframe if possible
             try {
                 const iframeDoc = frame.contentDocument || frame.contentWindow.document;
                 if (iframeDoc) {
                     injectScormAPI(iframeDoc);
-                    // Also inject exit button handler
                     injectExitButtonHandler();
                     
                     // CRITICAL FIX: Inject courseExit handler directly into iframe
@@ -291,19 +313,16 @@
                         try {
                             const iframeWindow = frame.contentWindow;
                             if (iframeWindow) {
-                                // Inject courseExit functionality into the iframe
                                 const script = iframeWindow.document.createElement('script');
                                 script.textContent = `
                                     console.log('🚪 Injecting courseExit handler into SCORM content...');
                                     
-                                    // Override any existing courseExit functionality
                                     window.courseExit = function() {
                                         console.log('🚪 courseExit() called - sending exit message to parent');
                                         parent.postMessage({action: 'courseExit', type: 'exit'}, '*');
                                         parent.postMessage('exit_assessment', '*');
                                     };
                                     
-                                    // Look for and enhance existing exit buttons
                                     function enhanceExitButtons() {
                                         const exitSelectors = [
                                             '.courseExit', '.courseExit--standard', '.courseExit--overview', '.courseExit--mobile',
@@ -320,7 +339,7 @@
                                                         e.stopPropagation();
                                                         console.log('🚪 Enhanced exit button clicked');
                                                         window.courseExit();
-                                                    }, true); // Use capture phase
+                                                    }, true);
                                                     buttonsEnhanced++;
                                                 });
                                             } catch (e) {
@@ -328,7 +347,6 @@
                                             }
                                         });
                                         
-                                        // Also look for buttons by text content
                                         document.querySelectorAll('button, a, input[type="button"]').forEach(element => {
                                             const text = (element.textContent || element.value || '').toLowerCase();
                                             if (text.includes('exit assessment') || text.includes('exit course') || 
@@ -349,14 +367,12 @@
                                         }
                                     }
                                     
-                                    // Run enhancement when DOM is ready
                                     if (document.readyState === 'loading') {
                                         document.addEventListener('DOMContentLoaded', enhanceExitButtons);
                                     } else {
                                         enhanceExitButtons();
                                     }
                                     
-                                    // Also run periodically to catch dynamically created buttons
                                     setInterval(enhanceExitButtons, 3000);
                                 `;
                                 iframeWindow.document.head.appendChild(script);
@@ -365,19 +381,10 @@
                         } catch (e) {
                             console.log('⚠️ Could not inject courseExit handler (cross-origin):', e.message);
                         }
-                    }, 2000); // Wait 2 seconds for iframe to fully load
+                    }, 2000);
                 }
             } catch (e) {
-                // Cross-origin, can't inject directly
                 console.log('Cross-origin iframe, API will be available via parent window');
-            }
-        }
-        
-        function handleFrameError() {
-            console.error('Failed to load SCORM content');
-            const loading = document.getElementById('loading');
-            if (loading) {
-                loading.innerHTML = '❌ Failed to load SCORM content. Please refresh the page.';
             }
         }
         
