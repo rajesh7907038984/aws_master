@@ -185,169 +185,181 @@ class ScormScoreSyncService:
     def _extract_best_score(attempt: 'ScormAttempt') -> Optional[float]:
         """
         Extract the best available score from a SCORM attempt
-        Checks multiple sources in priority order
+        Checks multiple sources in priority order with enhanced error handling
         """
         scores = []
         
-        # Priority 1: Direct score_raw field
-        if attempt.score_raw is not None:
-            scores.append(float(attempt.score_raw))
-        
-        # Priority 2: CMI data scores
-        if attempt.cmi_data:
-            # SCORM 2004
-            cmi_score = attempt.cmi_data.get('cmi.score.raw')
-            if cmi_score is not None:
-                try:
-                    scores.append(float(cmi_score))
-                except:
-                    pass
+        try:
+            logger.info(f"🔍 EXTRACTING SCORE: Starting score extraction for attempt {attempt.id}")
             
-            # SCORM 1.2
-            core_score = attempt.cmi_data.get('cmi.core.score.raw')
-            if core_score is not None:
-                try:
-                    scores.append(float(core_score))
-                except:
-                    pass
+            # Priority 1: Direct score_raw field
+            if attempt.score_raw is not None:
+                scores.append(float(attempt.score_raw))
+        
+            # Priority 2: CMI data scores
+            if attempt.cmi_data:
+                # SCORM 2004
+                cmi_score = attempt.cmi_data.get('cmi.score.raw')
+                if cmi_score is not None:
+                    try:
+                        scores.append(float(cmi_score))
+                    except:
+                        pass
+                
+                # SCORM 1.2
+                core_score = attempt.cmi_data.get('cmi.core.score.raw')
+                if core_score is not None:
+                    try:
+                        scores.append(float(core_score))
+                    except:
+                        pass
+                
+                # Scaled score (convert from 0-1 to 0-100)
+                scaled_score = attempt.cmi_data.get('cmi.score.scaled') or attempt.cmi_data.get('cmi.core.score.scaled')
+                if scaled_score is not None:
+                    try:
+                        scores.append(float(scaled_score) * 100)
+                    except:
+                        pass
             
-            # Scaled score (convert from 0-1 to 0-100)
-            scaled_score = attempt.cmi_data.get('cmi.score.scaled') or attempt.cmi_data.get('cmi.core.score.scaled')
-            if scaled_score is not None:
+            # Priority 3: Progress percentage (for both completed and in-progress)
+            # This handles slide-based SCORM content that tracks completion by slides
+            if attempt.progress_percentage:
+                progress_score = float(attempt.progress_percentage)
+                # Only use progress as score if it's reasonable (0-100)
+                if 0 <= progress_score <= 100:
+                    scores.append(progress_score)
+                    logger.info(f"Using progress_percentage as score: {progress_score}% for attempt {attempt.id}")
+            
+            # Priority 4: Calculate from slide completion (for slide-based SCORM)
+            if not scores and attempt.completed_slides and attempt.total_slides:
                 try:
-                    scores.append(float(scaled_score) * 100)
-                except:
-                    pass
-        
-        # Priority 3: Progress percentage (for both completed and in-progress)
-        # This handles slide-based SCORM content that tracks completion by slides
-        if attempt.progress_percentage:
-            progress_score = float(attempt.progress_percentage)
-            # Only use progress as score if it's reasonable (0-100)
-            if 0 <= progress_score <= 100:
-                scores.append(progress_score)
-                logger.info(f"Using progress_percentage as score: {progress_score}% for attempt {attempt.id}")
-        
-        # Priority 4: Calculate from slide completion (for slide-based SCORM)
-        if not scores and attempt.completed_slides and attempt.total_slides:
-            try:
-                # Extract completed slides count
-                if isinstance(attempt.completed_slides, list):
-                    completed_count = len(attempt.completed_slides)
-                else:
-                    completed_count = len(attempt.completed_slides.split(',')) if attempt.completed_slides else 0
-                
-                total_slides = int(attempt.total_slides)
-                if total_slides > 0:
-                    slide_completion_score = (completed_count / total_slides) * 100
-                    scores.append(slide_completion_score)
-                    logger.info(f"Calculated score from slides: {completed_count}/{total_slides} = {slide_completion_score}% for attempt {attempt.id}")
-            except Exception as e:
-                logger.warning(f"Could not calculate score from slides for attempt {attempt.id}: {e}")
-        
-        # Priority 5: Extract from suspend_data (enhanced for multiple SCORM package types)
-        if not scores and attempt.suspend_data and len(attempt.suspend_data) > 10:
-            try:
-                import re
-                import json
-                
-                # Try to decode JSON-encoded suspend_data first
-                decoded_data = None
+                    # Extract completed slides count
+                    if isinstance(attempt.completed_slides, list):
+                        completed_count = len(attempt.completed_slides)
+                    else:
+                        completed_count = len(attempt.completed_slides.split(',')) if attempt.completed_slides else 0
+                    
+                    total_slides = int(attempt.total_slides)
+                    if total_slides > 0:
+                        slide_completion_score = (completed_count / total_slides) * 100
+                        scores.append(slide_completion_score)
+                        logger.info(f"Calculated score from slides: {completed_count}/{total_slides} = {slide_completion_score}% for attempt {attempt.id}")
+                except Exception as e:
+                    logger.warning(f"Could not calculate score from slides for attempt {attempt.id}: {e}")
+            
+            # Priority 5: Extract from suspend_data (enhanced for multiple SCORM package types)
+            if not scores and attempt.suspend_data and len(attempt.suspend_data) > 10:
                 try:
-                    suspend_json = json.loads(attempt.suspend_data)
-                    if 'd' in suspend_json and isinstance(suspend_json['d'], list):
-                        # Decode the data array to string
-                        decoded_data = ''.join([chr(x) for x in suspend_json['d'] if x < 256])
-                        logger.info(f"Decoded JSON suspend_data for attempt {attempt.id}, length: {len(decoded_data)}")
-                except:
-                    # If not JSON, use raw suspend_data
-                    decoded_data = attempt.suspend_data
-                
-                if decoded_data:
-                    # Look for progress patterns in decoded data
-                    progress_patterns = [
-                        r'progress[=:](\d+)',
-                        r'"progress":\s*(\d+)',
-                        r'progress["\']?\s*:\s*(\d+)',
-                        r'completion[=:](\d+)',
-                        r'completion["\']?\s*:\s*(\d+)'
-                    ]
+                    import re
+                    import json
+                    logger.info(f"🔍 SUSPEND DATA: Analyzing suspend_data for attempt {attempt.id} (length: {len(attempt.suspend_data)})")
                     
-                    for pattern in progress_patterns:
-                        progress_match = re.search(pattern, decoded_data, re.IGNORECASE)
-                        if progress_match:
-                            suspend_score = float(progress_match.group(1))
-                            if 0 <= suspend_score <= 100:
-                                scores.append(suspend_score)
-                                logger.info(f"Extracted score from suspend_data pattern '{pattern}': {suspend_score}% for attempt {attempt.id}")
-                                break
+                    # Try to decode JSON-encoded suspend_data first
+                    decoded_data = None
+                    try:
+                        suspend_json = json.loads(attempt.suspend_data)
+                        if 'd' in suspend_json and isinstance(suspend_json['d'], list):
+                            # Decode the data array to string
+                            decoded_data = ''.join([chr(x) for x in suspend_json['d'] if x < 256])
+                            logger.info(f"Decoded JSON suspend_data for attempt {attempt.id}, length: {len(decoded_data)}")
+                    except:
+                        # If not JSON, use raw suspend_data
+                        decoded_data = attempt.suspend_data
                     
-                    # If no progress found, look for slide completion patterns
-                    if not scores:
-                        slide_patterns = [
-                            r'completed_slides[=:]([^&]+).*?total_slides[=:](\d+)',
-                            r'"completed_slides":\s*"([^"]+)".*?"total_slides":\s*(\d+)',
-                            r'completed[=:]([^&]+).*?total[=:](\d+)',
-                            r'slides_completed[=:]([^&]+).*?slides_total[=:](\d+)'
+                    if decoded_data:
+                        # Look for progress patterns in decoded data
+                        progress_patterns = [
+                            r'progress[=:](\d+)',
+                            r'"progress":\s*(\d+)',
+                            r'progress["\']?\s*:\s*(\d+)',
+                            r'completion[=:](\d+)',
+                            r'completion["\']?\s*:\s*(\d+)'
                         ]
                         
-                        for pattern in slide_patterns:
-                            slide_match = re.search(pattern, decoded_data, re.IGNORECASE | re.DOTALL)
-                            if slide_match:
+                        for pattern in progress_patterns:
+                            progress_match = re.search(pattern, decoded_data, re.IGNORECASE)
+                            if progress_match:
+                                suspend_score = float(progress_match.group(1))
+                                if 0 <= suspend_score <= 100:
+                                    scores.append(suspend_score)
+                                    logger.info(f"Extracted score from suspend_data pattern '{pattern}': {suspend_score}% for attempt {attempt.id}")
+                                    break
+                        
+                        # If no progress found, look for slide completion patterns
+                        if not scores:
+                            slide_patterns = [
+                                r'completed_slides[=:]([^&]+).*?total_slides[=:](\d+)',
+                                r'"completed_slides":\s*"([^"]+)".*?"total_slides":\s*(\d+)',
+                                r'completed[=:]([^&]+).*?total[=:](\d+)',
+                                r'slides_completed[=:]([^&]+).*?slides_total[=:](\d+)'
+                            ]
+                            
+                            for pattern in slide_patterns:
+                                slide_match = re.search(pattern, decoded_data, re.IGNORECASE | re.DOTALL)
+                                if slide_match:
+                                    try:
+                                        completed_str = slide_match.group(1)
+                                        total = int(slide_match.group(2))
+                                        
+                                        # Parse completed slides
+                                        if ',' in completed_str:
+                                            completed = len([s for s in completed_str.split(',') if s.strip()])
+                                        else:
+                                            completed = 1 if completed_str.strip() else 0
+                                        
+                                        if total > 0:
+                                            slide_score = round((completed / total) * 100, 2)
+                                            scores.append(slide_score)
+                                            logger.info(f"Calculated score from suspend_data pattern '{pattern}': {completed}/{total} = {slide_score}% for attempt {attempt.id}")
+                                            break
+                                    except Exception as e:
+                                        logger.warning(f"Error parsing slide pattern '{pattern}' for attempt {attempt.id}: {e}")
+                                        continue
+                except Exception as e:
+                    logger.warning(f"❌ SUSPEND DATA ERROR: Could not extract score from suspend_data for attempt {attempt.id}: {e}")
+                    # Log the first 200 characters of suspend_data for debugging
+                    logger.debug(f"SUSPEND DATA PREVIEW: {attempt.suspend_data[:200]}...")
+            
+            # Priority 6: Check CMI data for progress information
+            if not scores and attempt.cmi_data:
+                try:
+                    # Check for progress in CMI data
+                    progress_keys = [
+                        'cmi.progress_measure',
+                        'cmi.core.progress_measure', 
+                        'cmi.completion_threshold',
+                        'cmi.core.completion_threshold'
+                    ]
+                    
+                    for key in progress_keys:
+                        if key in attempt.cmi_data:
+                            progress_value = attempt.cmi_data[key]
+                            if progress_value and progress_value != '':
                                 try:
-                                    completed_str = slide_match.group(1)
-                                    total = int(slide_match.group(2))
-                                    
-                                    # Parse completed slides
-                                    if ',' in completed_str:
-                                        completed = len([s for s in completed_str.split(',') if s.strip()])
-                                    else:
-                                        completed = 1 if completed_str.strip() else 0
-                                    
-                                    if total > 0:
-                                        slide_score = round((completed / total) * 100, 2)
-                                        scores.append(slide_score)
-                                        logger.info(f"Calculated score from suspend_data pattern '{pattern}': {completed}/{total} = {slide_score}% for attempt {attempt.id}")
+                                    progress_float = float(progress_value)
+                                    if 0 <= progress_float <= 1:
+                                        cmi_score = round(progress_float * 100, 2)
+                                        scores.append(cmi_score)
+                                        logger.info(f"Using CMI {key}: {cmi_score}% for attempt {attempt.id}")
                                         break
-                                except Exception as e:
-                                    logger.warning(f"Error parsing slide pattern '{pattern}' for attempt {attempt.id}: {e}")
+                                    elif 0 <= progress_float <= 100:
+                                        scores.append(round(progress_float, 2))
+                                        logger.info(f"Using CMI {key}: {progress_float}% for attempt {attempt.id}")
+                                        break
+                                except:
                                     continue
-            except Exception as e:
-                logger.warning(f"Could not extract score from suspend_data for attempt {attempt.id}: {e}")
-        
-        # Priority 6: Check CMI data for progress information
-        if not scores and attempt.cmi_data:
-            try:
-                # Check for progress in CMI data
-                progress_keys = [
-                    'cmi.progress_measure',
-                    'cmi.core.progress_measure', 
-                    'cmi.completion_threshold',
-                    'cmi.core.completion_threshold'
-                ]
-                
-                for key in progress_keys:
-                    if key in attempt.cmi_data:
-                        progress_value = attempt.cmi_data[key]
-                        if progress_value and progress_value != '':
-                            try:
-                                progress_float = float(progress_value)
-                                if 0 <= progress_float <= 1:
-                                    cmi_score = round(progress_float * 100, 2)
-                                    scores.append(cmi_score)
-                                    logger.info(f"Using CMI {key}: {cmi_score}% for attempt {attempt.id}")
-                                    break
-                                elif 0 <= progress_float <= 100:
-                                    scores.append(round(progress_float, 2))
-                                    logger.info(f"Using CMI {key}: {progress_float}% for attempt {attempt.id}")
-                                    break
-                            except:
-                                continue
-            except Exception as e:
-                logger.warning(f"Could not extract from CMI data for attempt {attempt.id}: {e}")
-        
-        # Return the highest score found
-        return max(scores) if scores else None
+                except Exception as e:
+                    logger.warning(f"Could not extract from CMI data for attempt {attempt.id}: {e}")
+            
+            # Return the highest score found
+            best_score = max(scores) if scores else None
+            logger.info(f"✅ SCORE EXTRACTION: Found {len(scores)} scores, best: {best_score} for attempt {attempt.id}")
+            return best_score
+            
+        except Exception as e:
+            logger.error(f"❌ SCORE EXTRACTION ERROR: Failed to extract score for attempt {attempt.id}: {str(e)}")
+            return None
     
     @staticmethod
     def _parse_scorm_time(time_str: str) -> int:

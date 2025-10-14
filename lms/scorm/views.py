@@ -26,6 +26,38 @@ from courses.models import Topic
 
 logger = logging.getLogger(__name__)
 
+# Configure detailed logging for SCORM operations
+class ScormLogger:
+    """Enhanced logging for SCORM operations"""
+    
+    @staticmethod
+    def log_api_call(method, parameters, attempt_id, user_id=None):
+        """Log SCORM API calls with context"""
+        logger.info(f"📞 SCORM API: {method} | attempt_id={attempt_id} | user_id={user_id} | params={parameters[:2] if len(parameters) > 2 else parameters}")
+    
+    @staticmethod
+    def log_score_sync(attempt_id, old_score, new_score, status):
+        """Log score synchronization events"""
+        logger.info(f"📊 SCORE SYNC: attempt_id={attempt_id} | {old_score} → {new_score} | status={status}")
+    
+    @staticmethod
+    def log_content_access(topic_id, path, user_id=None, success=True):
+        """Log content access events"""
+        status = "✅" if success else "❌"
+        logger.info(f"{status} CONTENT ACCESS: topic_id={topic_id} | path={path} | user_id={user_id}")
+    
+    @staticmethod
+    def log_performance(operation, duration_ms, details=""):
+        """Log performance metrics"""
+        logger.info(f"⚡ PERFORMANCE: {operation} took {duration_ms}ms {details}")
+    
+    @staticmethod
+    def log_error(operation, error, context=""):
+        """Log errors with context"""
+        logger.error(f"❌ ERROR in {operation}: {str(error)} | context: {context}")
+
+
+
 
 @login_required
 def scorm_view(request, topic_id):
@@ -442,8 +474,8 @@ def scorm_api(request, attempt_id):
         method = data.get('method')
         parameters = data.get('parameters', [])
         
-        # Log all API calls
-        logger.info(f"📞 SCORM API CALL: method={method}, parameters={parameters[:2] if len(parameters) > 2 else parameters}, attempt_id={attempt_id}")
+        # Enhanced logging for API calls
+        ScormLogger.log_api_call(method, parameters, attempt_id, request.user.id if request.user.is_authenticated else None)
         
         # Initialize appropriate API handler WITHOUT caching to ensure fresh data
         if is_preview:
