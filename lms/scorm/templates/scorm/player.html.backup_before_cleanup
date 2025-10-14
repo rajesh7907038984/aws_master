@@ -727,6 +727,8 @@
                                     window.parent.API_1484_11.Commit('');
                                 }
                             }
+//                             // Send exit message to parent
+//                             window.parent.postMessage({ action: 'exit', type: 'exit' }, '*');
 //                         } catch (error) {
 //                             window.parent.postMessage('exit', '*');
 //                         }
@@ -1853,6 +1855,116 @@
             }
         }
         
+//         // Enhanced message listener for iframe exit communication
+//         window.addEventListener('message', function(event) {
+//             
+//             // Handle exit messages from SCORM content
+//             let shouldComplete = false;
+//             let shouldExit = false;
+//             
+//             // Handle both string and object messages
+//             if (event.data && typeof event.data === 'string') {
+//                 const message = event.data.toLowerCase();
+//                 
+//                 // Check for completion messages (full completion)
+//                 if (message === 'complete_assessment' || message === 'lesson_complete' || 
+//                     message === 'course_complete' || message.includes('quiz_complete') ||
+//                     message === 'scorm_complete' || message.includes('assessment_complete')) {
+//                     shouldComplete = true;
+//                 }
+//                 // Check for exit messages (save and go back without forcing completion) - ENHANCED
+//                 else if (message.includes('exit') || message.includes('terminate') || 
+//                          message.includes('finish') || message.includes('close') || 
+//                          message === 'back' || message === 'return' || 
+//                          message.includes('courseexit') || message === 'exit_assessment' ||
+//                          message === 'courseexit' || message === 'exit' || 
+//                          message.includes('course exit') || message.includes('exit course') ||
+//                          message.includes('course') || message.includes('assessment')) {
+//                     shouldExit = true;
+//                 }
+//             } else if (event.data && typeof event.data === 'object') {
+//                 // Handle structured messages
+//                 
+//                 // Check for completion actions
+//                 if (event.data.action === 'complete' || event.data.action === 'course_complete' ||
+//                     event.data.type === 'assessment_complete' || event.data.type === 'lesson_complete' ||
+//                     event.data.status === 'completed' || event.data.completed === true) {
+//                     shouldComplete = true;
+//                 }
+//                 // Check for exit actions - Enhanced for courseExit support
+//                 else if (event.data.action === 'exit' || event.data.action === 'terminate' || 
+//                          event.data.action === 'finish' || event.data.action === 'close' ||
+//                          event.data.action === 'back' || event.data.type === 'exit' ||
+//                          event.data.action === 'courseExit' || event.data.type === 'courseExit' ||
+//                          event.data.command === 'exit' || event.data.command === 'courseExit') {
+//                     shouldExit = true;
+//                 }
+//                 // Special handling for course:ready and other course events
+//                 else if (event.data.type === 'course:ready') {
+//                     // Course is ready, no action needed but good to log
+//                 }
+//             }
+//             
+// //             // FALLBACK: If no specific pattern matched, check for any exit-related content
+// //             if (!shouldComplete && !shouldExit) {
+// //                 const messageStr = String(event.data).toLowerCase();
+// //                 if (messageStr.includes('exit') || messageStr.includes('course') || 
+// //                     messageStr.includes('finish') || messageStr.includes('close') ||
+// //                     messageStr.includes('back') || messageStr.includes('return')) {
+// //                     shouldExit = true;
+// //                 }
+// //             }
+//             
+//             // Handle completion (terminate session and redirect)
+//             if (shouldComplete) {
+//                 
+//                 // FIXED: Don't force extract score - let SCORM content report score naturally
+//                 // For real completions, the SCORM content should have already set the score via SetValue
+//                 
+//                 // Ensure all SCORM data is saved and properly terminated for completion
+//                 if (window.API && window.API._initialized) {
+//                     try {
+//                         
+//                         // Force commit any pending data
+//                         if (window.API.LMSCommit) {
+//                             window.API.LMSCommit('');
+//                         }
+//                         if (window.API_1484_11 && window.API_1484_11.Commit) {
+//                             window.API_1484_11.Commit('');
+//                         }
+//                         
+//                         // Terminate the session (this should be safe now since it's explicit completion)
+//                         if (window.API.LMSFinish) {
+//                             const result = window.API.LMSFinish('');
+//                         }
+//                         if (window.API_1484_11 && window.API_1484_11.Terminate) {
+//                             window.API_1484_11.Terminate('');
+//                         }
+//                         
+//                     } catch (error) {
+//                     }
+//                 }
+//                 
+//                 // Redirect to topic view after a short delay to ensure data is saved
+//                 setTimeout(() => {
+//                     window.location.href = '{% url "courses:topic_view" topic.id %}';
+//                 }, 1000);
+//             }
+// //             // Handle exit messages from SCORM content
+// //             else if (shouldExit) {
+// //                 
+// //                 // Prevent multiple rapid clicks
+// //                 if (exitButtonClicked) {
+// //                     return;
+// //                 }
+// //                 exitButtonClicked = true;
+// //                 
+// //                 // Trigger the same functionality as the Back to Topic button
+// //                 // This will save progress, bookmark, and score without forcing completion
+// //                 const fakeEvent = { preventDefault: function() {} };
+// //                 handleBackToTopic(fakeEvent);
+// //             }
+//         });
         
         // CRITICAL FIX: Prevent window close without saving SCORM data
         let scormDataSaved = false;
