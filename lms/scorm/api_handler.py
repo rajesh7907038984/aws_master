@@ -300,12 +300,11 @@ class ScormAPIHandler:
                 elif element == 'cmi.suspend_data':
                     self.attempt.suspend_data = value
                 
-                # ENHANCED TRACKING: Force save to database with transaction
-                with transaction.atomic():
-                    self.attempt.save(update_fields=[
-                        'cmi_data', 'lesson_location', 'suspend_data', 'last_accessed'
-                    ])
-                    logger.info(f"💾 TRACKING DATA SAVED: {element} = {value} for attempt {self.attempt.id}")
+                # ENHANCED TRACKING: Force save to database
+                self.attempt.save(update_fields=[
+                    'cmi_data', 'lesson_location', 'suspend_data', 'last_accessed'
+                ])
+                logger.info(f"💾 TRACKING DATA SAVED: {element} = {value} for attempt {self.attempt.id}")
                 
                 self.last_error = '0'
                 return 'true'
@@ -355,9 +354,8 @@ class ScormAPIHandler:
                     # ENHANCED BOOKMARK: Force immediate save for bookmark data
                     logger.info(f"🔖 BOOKMARK SAVED: lesson_location='{value}' for attempt {self.attempt.id}")
                     # Force save bookmark data immediately
-                    with transaction.atomic():
-                        self.attempt.save(update_fields=['lesson_location', 'cmi_data', 'last_accessed'])
-                        logger.info(f"💾 BOOKMARK PERSISTED: lesson_location saved to database")
+                    self.attempt.save(update_fields=['lesson_location', 'cmi_data', 'last_accessed'])
+                    logger.info(f"💾 BOOKMARK PERSISTED: lesson_location saved to database")
                 elif element == 'cmi.core.session_time':
                     self.attempt.session_time = value
                     self._update_total_time(value)
@@ -372,9 +370,8 @@ class ScormAPIHandler:
                     # ENHANCED BOOKMARK: Force immediate save for suspend data
                     logger.info(f"🔖 SUSPEND DATA SAVED: suspend_data='{value[:50]}...' for attempt {self.attempt.id}")
                     # Force save suspend data immediately
-                    with transaction.atomic():
-                        self.attempt.save(update_fields=['suspend_data', 'cmi_data', 'last_accessed'])
-                        logger.info(f"💾 SUSPEND DATA PERSISTED: suspend_data saved to database")
+                    self.attempt.save(update_fields=['suspend_data', 'cmi_data', 'last_accessed'])
+                    logger.info(f"💾 SUSPEND DATA PERSISTED: suspend_data saved to database")
             else:  # SCORM 2004
                 if element == 'cmi.completion_status':
                     self.attempt.completion_status = value
@@ -425,9 +422,8 @@ class ScormAPIHandler:
                     # ENHANCED BOOKMARK: Force immediate save for bookmark data
                     logger.info(f"🔖 BOOKMARK SAVED: location='{value}' for attempt {self.attempt.id}")
                     # Force save bookmark data immediately
-                    with transaction.atomic():
-                        self.attempt.save(update_fields=['lesson_location', 'cmi_data', 'last_accessed'])
-                        logger.info(f"💾 BOOKMARK PERSISTED: location saved to database")
+                    self.attempt.save(update_fields=['lesson_location', 'cmi_data', 'last_accessed'])
+                    logger.info(f"💾 BOOKMARK PERSISTED: location saved to database")
                 elif element == 'cmi.session_time':
                     self.attempt.session_time = value
                     self._update_total_time(value)
@@ -442,9 +438,8 @@ class ScormAPIHandler:
                     # ENHANCED BOOKMARK: Force immediate save for suspend data
                     logger.info(f"🔖 SUSPEND DATA SAVED: suspend_data='{value[:50]}...' for attempt {self.attempt.id}")
                     # Force save suspend data immediately
-                    with transaction.atomic():
-                        self.attempt.save(update_fields=['suspend_data', 'cmi_data', 'last_accessed'])
-                        logger.info(f"💾 SUSPEND DATA PERSISTED: suspend_data saved to database")
+                    self.attempt.save(update_fields=['suspend_data', 'cmi_data', 'last_accessed'])
+                    logger.info(f"💾 SUSPEND DATA PERSISTED: suspend_data saved to database")
             
             self.last_error = '0'
             return 'true'
@@ -593,10 +588,10 @@ class ScormAPIHandler:
         seconds = total_seconds % 60
         return f"{hours:04d}:{minutes:02d}:{seconds:05.2f}"
     
-    @transaction.atomic
     def _commit_data(self):
         """Save attempt data to database with proper transaction handling
         ENHANCED: Ensures all tracking data is properly saved to database
+        FIXED: Removed @transaction.atomic decorator to prevent nested transaction issues
         """
         logger.info(f"💾 COMMIT: Starting commit for attempt {self.attempt.id}")
         logger.info(f"💾 COMMIT: score_raw BEFORE save = {self.attempt.score_raw}")
@@ -620,10 +615,6 @@ class ScormAPIHandler:
                     'total_slides'
                 ])
                 logger.info(f"💾 COMMIT: Saved! score_raw AFTER save = {self.attempt.score_raw}")
-                
-                # CRITICAL FIX: Force transaction commit with connection.commit()
-                from django.db import connection
-                connection.commit()
                 
                 # Verify it was saved
                 self.attempt.refresh_from_db()
