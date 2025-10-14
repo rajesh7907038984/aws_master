@@ -516,17 +516,24 @@ def scorm_api(request, attempt_id):
         }, status=500)
 
 
-@login_required
 def scorm_content(request, topic_id=None, path=None, attempt_id=None):
     """
-    Serve SCORM content files from S3 with optimized loading - SECURE ACCESS ONLY
+    Serve SCORM content files from S3 with optimized loading
     Uses direct S3 URLs for maximum performance
     Handles both topic_id and attempt_id parameters for backward compatibility
+    Supports both authenticated and non-authenticated access for embedded content
     """
     try:
-        # SECURITY FIX: Require authentication for all SCORM content
-        if not request.user.is_authenticated:
-            return HttpResponse('Authentication required', status=401)
+        # Handle both authenticated and non-authenticated access
+        is_authenticated = request.user.is_authenticated
+        
+        # For non-authenticated users, check if this is embedded content
+        if not is_authenticated:
+            # Allow access to embedded SCORM content without authentication
+            # This is needed for iframe embedding and external access
+            logger.info(f"Non-authenticated access to SCORM content: topic_id={topic_id}, path={path}")
+        else:
+            logger.info(f"Authenticated access to SCORM content: user={request.user.username}, topic_id={topic_id}, path={path}")
         # Handle both topic_id and attempt_id parameters for backward compatibility
         current_attempt_id = None
         if attempt_id is not None and topic_id is None:
@@ -544,13 +551,14 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
             # Use topic_id directly - need to get the current attempt for this user
             topic = get_object_or_404(Topic.objects.select_related('scorm_package'), id=topic_id)
             
-            # SECURITY FIX: Verify user has access to this topic
-            if not topic.user_has_access(request.user):
+            # SECURITY FIX: Verify user has access to this topic (only for authenticated users)
+            if is_authenticated and not topic.user_has_access(request.user):
                 return HttpResponse('Access denied - You do not have permission to access this content', status=403)
+            
             # Get the current attempt for this user and topic
             from .models import ScormAttempt
             try:
-                if request.user.is_authenticated:
+                if is_authenticated:
                     current_attempt = ScormAttempt.objects.filter(
                         user=request.user,
                         scorm_package__topic=topic
