@@ -1036,8 +1036,8 @@ if (window.API || window.API_1484_11) {{
 
 // Configuration
 const SCORM_CONFIG = {{
-    attemptId: {api_attempt_id},
-    apiEndpoint: '/scorm/api/{api_attempt_id}/',
+    attemptId: "{api_attempt_id}",
+    apiEndpoint: "/scorm/api/{api_attempt_id}/",
     debug: true
 }};
 
@@ -1049,7 +1049,7 @@ function log(message) {{
 }}
 
 function makeAPICall(method, parameters = []) {{
-    log(`Making API call: ${{method}} with params: ${{JSON.stringify(parameters)}}`);
+    log('Making API call: ' + method + ' with params: ' + JSON.stringify(parameters));
     
     try {{
         const xhr = new XMLHttpRequest();
@@ -1066,14 +1066,14 @@ function makeAPICall(method, parameters = []) {{
         
         if (xhr.status === 200) {{
             const response = JSON.parse(xhr.responseText);
-            log(`API call result: ${{response.result}}, error: ${{response.error_code || '0'}}`);
+            log('API call result: ' + response.result + ', error: ' + (response.error_code || '0'));
             return response.result || 'false';
         }} else {{
-            log(`API call failed: HTTP ${{xhr.status}}`);
+            log('API call failed: HTTP ' + xhr.status);
             return 'false';
         }}
     }} catch (error) {{
-        log(`API call error: ${{error.message}}`);
+        log('API call error: ' + error.message);
         return 'false';
     }}
 }}
@@ -1108,12 +1108,12 @@ window.API = {{
     }},
     
     LMSGetValue: function(element) {{
-        log(`LMSGetValue called for: ${{element}}`);
+        log('LMSGetValue called for: ' + element);
         return makeAPICall('LMSGetValue', [element]);
     }},
     
     LMSSetValue: function(element, value) {{
-        log(`LMSSetValue called: ${{element}} = ${{value}}`);
+        log('LMSSetValue called: ' + element + ' = ' + value);
         const result = makeAPICall('LMSSetValue', [element, value]);
         
         // Auto-commit for critical values
@@ -1164,12 +1164,12 @@ window.API_1484_11 = {{
     }},
     
     GetValue: function(element) {{
-        log(`GetValue called for: ${{element}} (SCORM 2004)`);
+        log('GetValue called for: ' + element + ' (SCORM 2004)');
         return makeAPICall('GetValue', [element]);
     }},
     
     SetValue: function(element, value) {{
-        log(`SetValue called: ${{element}} = ${{value}} (SCORM 2004)`);
+        log('SetValue called: ' + element + ' = ' + value + ' (SCORM 2004)');
         const result = makeAPICall('SetValue', [element, value]);
         
         // Auto-commit for critical values
