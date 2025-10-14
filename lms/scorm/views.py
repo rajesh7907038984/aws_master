@@ -1023,195 +1023,195 @@ window.courseExit = function() {
                     # Get the current attempt ID for API communication
                     api_attempt_id = current_attempt_id or 'null'
                     logger.info(f"Injecting SCORM API with attempt_id: {api_attempt_id} for path: {path}")
-                    api_injection = f'''
+                    api_injection = '''
 <script>
 // REAL SCORM API - Communicates with LMS backend
 // Version: 5.0 - Permanent solution for SCORM data saving
-console.log('[SCORM] Real API bridge loaded for content - attempt {api_attempt_id}');
+console.log('[SCORM] Real API bridge loaded for content - attempt ''' + str(api_attempt_id) + '''');
 
 // Prevent API duplication - only define if not already exists
-if (window.API || window.API_1484_11) {{
+if (window.API || window.API_1484_11) {
     console.log('[SCORM] API already exists, skipping injection');
-}} else {{
+} else {
 
 // Configuration
-const SCORM_CONFIG = {{
-    attemptId: "{api_attempt_id}",
-    apiEndpoint: "/scorm/api/{api_attempt_id}/",
+const SCORM_CONFIG = {
+    attemptId: "''' + str(api_attempt_id) + '''",
+    apiEndpoint: "/scorm/api/''' + str(api_attempt_id) + '''/",
     debug: true
-}};
+};
 
 // Helper functions
-function log(message) {{
-    if (SCORM_CONFIG.debug) {{
+function log(message) {
+    if (SCORM_CONFIG.debug) {
         console.log('[SCORM API] ' + message);
-    }}
-}}
+    }
+}
 
-function makeAPICall(method, parameters = []) {{
+function makeAPICall(method, parameters = []) {
     log('Making API call: ' + method + ' with params: ' + JSON.stringify(parameters));
     
-    try {{
+    try {
         const xhr = new XMLHttpRequest();
         xhr.open('POST', SCORM_CONFIG.apiEndpoint, false); // Synchronous for SCORM compliance
         xhr.setRequestHeader('Content-Type', 'application/json');
         xhr.setRequestHeader('X-CSRFToken', getCsrfToken());
         
-        const requestData = {{
+        const requestData = {
             method: method,
             parameters: parameters
-        }};
+        };
         
         xhr.send(JSON.stringify(requestData));
         
-        if (xhr.status === 200) {{
+        if (xhr.status === 200) {
             const response = JSON.parse(xhr.responseText);
             log('API call result: ' + response.result + ', error: ' + (response.error_code || '0'));
             return response.result || 'false';
-        }} else {{
+        } else {
             log('API call failed: HTTP ' + xhr.status);
             return 'false';
-        }}
-    }} catch (error) {{
+        }
+    } catch (error) {
         log('API call error: ' + error.message);
         return 'false';
-    }}
-}}
+    }
+}
 
-function getCsrfToken() {{
+function getCsrfToken() {
     const cookies = document.cookie.split(';');
-    for (let cookie of cookies) {{
+    for (let cookie of cookies) {
         const [name, value] = cookie.trim().split('=');
-        if (name === 'csrftoken') {{
+        if (name === 'csrftoken') {
             return decodeURIComponent(value);
-        }}
-    }}
+        }
+    }
     return '';
-}}
+}
 
 // SCORM 1.2 API Implementation
-window.API = {{
-    LMSInitialize: function(parameter) {{
+window.API = {
+    LMSInitialize: function(parameter) {
         log('LMSInitialize called');
         const result = makeAPICall('LMSInitialize', [parameter]);
-        if (result === 'true') {{
+        if (result === 'true') {
             log('SCORM initialized successfully');
-        }}
+        }
         return result;
-    }},
+    },
     
-    LMSFinish: function(parameter) {{
+    LMSFinish: function(parameter) {
         log('LMSFinish called');
         const result = makeAPICall('LMSFinish', [parameter]);
         log('SCORM terminated');
         return result;
-    }},
+    },
     
-    LMSGetValue: function(element) {{
+    LMSGetValue: function(element) {
         log('LMSGetValue called for: ' + element);
         return makeAPICall('LMSGetValue', [element]);
-    }},
+    },
     
-    LMSSetValue: function(element, value) {{
+    LMSSetValue: function(element, value) {
         log('LMSSetValue called: ' + element + ' = ' + value);
         const result = makeAPICall('LMSSetValue', [element, value]);
         
         // Auto-commit for critical values
-        if (element === 'cmi.core.lesson_status' || element === 'cmi.core.score.raw') {{
+        if (element === 'cmi.core.lesson_status' || element === 'cmi.core.score.raw') {
             log('Auto-committing critical data');
-            setTimeout(() => {{
+            setTimeout(() => {
                 makeAPICall('LMSCommit', ['']);
-            }}, 100);
-        }}
+            }, 100);
+        }
         
         return result;
-    }},
+    },
     
-    LMSCommit: function(parameter) {{
+    LMSCommit: function(parameter) {
         log('LMSCommit called');
         return makeAPICall('LMSCommit', [parameter]);
-    }},
+    },
     
-    LMSGetLastError: function() {{
+    LMSGetLastError: function() {
         return makeAPICall('LMSGetLastError', []);
-    }},
+    },
     
-    LMSGetErrorString: function(errorCode) {{
+    LMSGetErrorString: function(errorCode) {
         return makeAPICall('LMSGetErrorString', [errorCode]);
-    }},
+    },
     
-    LMSGetDiagnostic: function(errorCode) {{
+    LMSGetDiagnostic: function(errorCode) {
         return makeAPICall('LMSGetDiagnostic', [errorCode]);
-    }}
-}};
+    }
+};
 
 // SCORM 2004 API Implementation
-window.API_1484_11 = {{
-    Initialize: function(parameter) {{
+window.API_1484_11 = {
+    Initialize: function(parameter) {
         log('Initialize called (SCORM 2004)');
         const result = makeAPICall('Initialize', [parameter]);
-        if (result === 'true') {{
+        if (result === 'true') {
             log('SCORM 2004 initialized successfully');
-        }}
+        }
         return result;
-    }},
+    },
     
-    Terminate: function(parameter) {{
+    Terminate: function(parameter) {
         log('Terminate called (SCORM 2004)');
         const result = makeAPICall('Terminate', [parameter]);
         log('SCORM 2004 terminated');
         return result;
-    }},
+    },
     
-    GetValue: function(element) {{
+    GetValue: function(element) {
         log('GetValue called for: ' + element + ' (SCORM 2004)');
         return makeAPICall('GetValue', [element]);
-    }},
+    },
     
-    SetValue: function(element, value) {{
+    SetValue: function(element, value) {
         log('SetValue called: ' + element + ' = ' + value + ' (SCORM 2004)');
         const result = makeAPICall('SetValue', [element, value]);
         
         // Auto-commit for critical values
-        if (element === 'cmi.completion_status' || element === 'cmi.score.raw') {{
+        if (element === 'cmi.completion_status' || element === 'cmi.score.raw') {
             log('Auto-committing critical data (SCORM 2004)');
-            setTimeout(() => {{
+            setTimeout(() => {
                 makeAPICall('Commit', ['']);
-            }}, 100);
-        }}
+            }, 100);
+        }
         
         return result;
-    }},
+    },
     
-    Commit: function(parameter) {{
+    Commit: function(parameter) {
         log('Commit called (SCORM 2004)');
         return makeAPICall('Commit', [parameter]);
-    }},
+    },
     
-    GetLastError: function() {{
+    GetLastError: function() {
         return makeAPICall('GetLastError', []);
-    }},
+    },
     
-    GetErrorString: function(errorCode) {{
+    GetErrorString: function(errorCode) {
         return makeAPICall('GetErrorString', [errorCode]);
-    }},
+    },
     
-    GetDiagnostic: function(errorCode) {{
+    GetDiagnostic: function(errorCode) {
         return makeAPICall('GetDiagnostic', [errorCode]);
-    }}
-}};
+    }
+};
 
 // Enhanced exit button support
-window.courseExit = function() {{
+window.courseExit = function() {
     log('courseExit() called - sending exit message to parent');
-    if (window.parent && window.parent !== window) {{
-        window.parent.postMessage({{action: 'courseExit', type: 'exit'}}, '*');
+    if (window.parent && window.parent !== window) {
+        window.parent.postMessage({action: 'courseExit', type: 'exit'}, '*');
         window.parent.postMessage('exit_assessment', '*');
-    }}
-}};
+    }
+};
 
 log('SCORM API injection complete - ready for communication with LMS');
-}} // End of API definition conditional
+} // End of API definition conditional
 </script>'''
                 
                 # Inject before </head> or at beginning of <body>
