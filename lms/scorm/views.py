@@ -18,8 +18,7 @@ from django.utils import timezone
 from django.conf import settings
 
 from .models import ScormPackage, ScormAttempt
-# from .api_handler import ScormAPIHandler  # DISABLED: Using enhanced handler only
-from .api_handler_enhanced import ScormAPIHandlerEnhanced
+from .api_handler import ScormAPIHandler
 from .preview_handler import ScormPreviewHandler
 from .s3_direct import scorm_s3
 from courses.models import Topic
@@ -317,13 +316,13 @@ def scorm_view(request, topic_id):
     try:
         # Ensure launch_url is properly formatted
         launch_url = scorm_package.launch_url or 'index.html'
-        if not launch_url.startswith('/'):
-            launch_url = '/' + launch_url
-        content_url = f"/scorm/content/{topic_id}{launch_url}"
+        if launch_url.startswith('/'):
+            launch_url = launch_url[1:]  # Remove leading slash if present
+        content_url = f"/scorm/content/{topic_id}/scormcontent/{launch_url}"
         logger.info(f"Generated content URL: {content_url}")
     except Exception as e:
         logger.error(f"Error generating content URL: {str(e)}")
-        content_url = f"/scorm/content/{topic_id}/index.html"
+        content_url = f"/scorm/content/{topic_id}/scormcontent/index.html"
     
     context = {
         'topic': topic,
@@ -482,18 +481,11 @@ def scorm_api(request, attempt_id):
             handler = ScormPreviewHandler(attempt)
             logger.info(f"Using preview handler for attempt {attempt_id}")
         else:
-            # CRITICAL FIX: Removed handler caching to prevent stale data issues
-            # Each request gets a fresh handler with current database state
-            # This ensures:
-            # 1. Accurate score tracking
-            # 2. Proper progress updates
-            # 3. Working resume functionality with correct bookmark/suspend data
-            
-            # IMPORTANT: Refresh attempt from database to get latest data
+            # Refresh attempt from database to get latest data
             attempt.refresh_from_db()
             
-            handler = ScormAPIHandlerEnhanced(attempt)
-            logger.info(f"Created fresh enhanced handler for attempt {attempt_id} with latest database state")
+            handler = ScormAPIHandler(attempt)
+            logger.info(f"Created fresh handler for attempt {attempt_id} with latest database state")
         
         # Route to appropriate API method
         if method == 'Initialize' or method == 'LMSInitialize':
