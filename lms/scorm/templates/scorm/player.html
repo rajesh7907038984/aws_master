@@ -321,7 +321,6 @@
             class="scorm-iframe" 
             src="{{ content_url }}"
             allow="fullscreen; autoplay; encrypted-media; microphone; camera"
-            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation allow-top-navigation-by-user-activation allow-modals"
             onload="handleFrameLoad()"
             onerror="handleFrameError()"
             style="display: none;">
@@ -403,6 +402,7 @@
         function createScormAPI() {
             return {
                 Initialize: function(param) {
+                    console.log('🔵 SCORM API CALLED: Initialize');
                     return makeApiCallSync('Initialize', [param]);
                 },
                 LMSInitialize: function(param) {
@@ -447,15 +447,23 @@
                     return makeApiCallWithCache('LMSGetValue', [element]);
                 },
                 SetValue: function(element, value) {
+                    if (element.includes('score')) {
+                        console.log(`🎯 SCORM API: SetValue("${element}", "${value}")`);
+                    }
                     return makeApiCallSync('SetValue', [element, value]);
                 },
                 LMSSetValue: function(element, value) {
+                    if (element.includes('score')) {
+                        console.log(`🎯 SCORM API: LMSSetValue("${element}", "${value}")`);
+                    }
                     return makeApiCallSync('LMSSetValue', [element, value]);
                 },
                 Commit: function(param) {
+                    console.log('💾 SCORM API: Commit called');
                     return makeApiCallSync('Commit', [param]);
                 },
                 LMSCommit: function(param) {
+                    console.log('💾 SCORM API: LMSCommit called');
                     return makeApiCallSync('LMSCommit', [param]);
                 },
                 GetLastError: function() {
