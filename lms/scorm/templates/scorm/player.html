@@ -130,7 +130,7 @@
             <div class="loading-overlay" id="loadingOverlay">
                 <div class="loading-spinner"></div>
             </div>
-            <iframe id="scormIframe" class="scorm-iframe" src="{{ content_url }}"></iframe>
+            <iframe id="scormIframe" class="scorm-iframe" src="about:blank"></iframe>
         </div>
         
         <div class="status-bar">
@@ -143,6 +143,23 @@
     
     <script>
         console.log('SCORM Player initialized');
+        
+        // CRITICAL FIX: Initialize SCORM API immediately to prevent timing issues
+        // This ensures API is available before SCORM content loads
+        let scormAPIReady = false;
+        
+        function initializeSCORMImmediately() {
+            if (window.ScormAPIWrapper && !scormAPIReady) {
+                console.log('Initializing SCORM API immediately...');
+                window.ScormAPIWrapper.init({{ attempt_id }});
+                window.ScormAPIWrapper.exposeAPIs();
+                scormAPIReady = true;
+                console.log('SCORM API initialized immediately for attempt {{ attempt_id }}');
+            }
+        }
+        
+        // Initialize API immediately
+        initializeSCORMImmediately();
         
         // CRITICAL FIX: Prevent popup windows and ensure content loads in same window
         // Override window.open to prevent popups
@@ -224,26 +241,64 @@
                 initializeSCORM();
             });
             
-            // CRITICAL: Poll for API availability to ensure SCORM content can find it
-            let apiPollCount = 0;
-            const maxApiPolls = 50; // Poll for up to 5 seconds
-            
-            const pollForAPI = function() {
-                apiPollCount++;
+            // CRITICAL: Ensure API is available before iframe loads
+            // This prevents the "Error initializing communications with LMS" dialog
+            const ensureAPIReady = function() {
                 if (window.API && window.API_1484_11) {
-                    console.log('SCORM API confirmed available after', apiPollCount, 'polls');
-                    updateStatus('SCORM API confirmed ready');
-                } else if (apiPollCount < maxApiPolls) {
-                    console.log('Polling for SCORM API...', apiPollCount);
-                    setTimeout(pollForAPI, 100);
-                } else {
-                    console.error('SCORM API not available after', maxApiPolls, 'polls');
-                    updateStatus('SCORM API initialization failed');
+                    console.log('SCORM API confirmed ready - content should initialize successfully');
+                    updateStatus('SCORM API ready - content should load without errors');
+                    
+                    // CRITICAL: Make sure APIs are available in all contexts
+                    if (window.parent && window.parent !== window) {
+                        window.parent.API = window.API;
+                        window.parent.API_1484_11 = window.API_1484_11;
+                        console.log('APIs exposed to parent window for SCORM content');
+                    }
+                    
+                    return true;
                 }
+                return false;
             };
             
-            // Start polling after a short delay
-            setTimeout(pollForAPI, 200);
+            // Check immediately
+            if (!ensureAPIReady()) {
+                // Poll for API availability
+                let apiPollCount = 0;
+                const maxApiPolls = 100; // Poll for up to 10 seconds
+                
+                const pollForAPI = function() {
+                    apiPollCount++;
+                    if (ensureAPIReady()) {
+                        console.log('SCORM API confirmed available after', apiPollCount, 'polls');
+                        // CRITICAL: Load iframe content only after API is ready
+                        loadSCORMContent();
+                    } else if (apiPollCount < maxApiPolls) {
+                        console.log('Polling for SCORM API...', apiPollCount);
+                        setTimeout(pollForAPI, 100);
+                    } else {
+                        console.error('SCORM API not available after', maxApiPolls, 'polls');
+                        updateStatus('SCORM API initialization failed');
+                        // Load content anyway as fallback
+                        loadSCORMContent();
+                    }
+                };
+                
+                // Start polling immediately
+                setTimeout(pollForAPI, 50);
+            } else {
+                // API is ready, load content immediately
+                loadSCORMContent();
+            }
+            
+            // Function to load SCORM content only after API is ready
+            function loadSCORMContent() {
+                console.log('Loading SCORM content with API ready...');
+                const iframe = document.getElementById('scormIframe');
+                if (iframe) {
+                    iframe.src = '{{ content_url }}';
+                    console.log('SCORM content URL loaded:', '{{ content_url }}');
+                }
+            }
         }
         
         // Handle iframe loading - PREVENT DUPLICATION
