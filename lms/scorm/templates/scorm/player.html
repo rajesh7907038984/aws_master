@@ -227,6 +227,32 @@
             const loading = document.getElementById('loading');
             const frame = document.getElementById('scormFrame');
             
+            // CRITICAL FIX: Check if iframe loaded an exit/goodbye page
+            try {
+                if (frame && frame.contentWindow && frame.contentWindow.location) {
+                    const iframeUrl = frame.contentWindow.location.href;
+                    
+                    // If loaded goodbye/exit page, redirect to topic view
+                    if (iframeUrl.includes('goodbye.html') || 
+                        iframeUrl.includes('exit.html') ||
+                        iframeUrl.includes('thankyou.html') ||
+                        iframeUrl.includes('complete.html') ||
+                        iframeUrl.includes('finished.html')) {
+                        
+                        console.log('[Frame Load] Detected exit page load:', iframeUrl);
+                        
+                        // Trigger exit handler
+                        if (!exitButtonClicked) {
+                            exitButtonClicked = true;
+                            const fakeEvent = { preventDefault: function() {} };
+                            handleBackToTopic(fakeEvent);
+                        }
+                        return;
+                    }
+                }
+            } catch (e) {
+                // Cross-origin error is expected, ignore
+            }
             
             // Hide loading indicator
             if (loading) {
@@ -248,8 +274,40 @@
             }, 500);
         };
         
+        // CRITICAL FIX: Handle iframe navigation errors (403, 404, etc.)
         window.handleFrameError = function() {
+            const frame = document.getElementById('scormFrame');
             const loading = document.getElementById('loading');
+            
+            console.log('[Frame Error] Iframe failed to load');
+            
+            // Check if this is an exit page that failed to load (403/404)
+            try {
+                if (frame && frame.src) {
+                    const frameSrc = frame.src.toLowerCase();
+                    
+                    if (frameSrc.includes('goodbye.html') || 
+                        frameSrc.includes('exit.html') ||
+                        frameSrc.includes('thankyou.html') ||
+                        frameSrc.includes('complete.html') ||
+                        frameSrc.includes('finished.html')) {
+                        
+                        console.log('[Frame Error] Exit page failed to load (403/404), redirecting to topic view');
+                        
+                        // This is an exit page that failed to load - redirect to topic
+                        if (!exitButtonClicked) {
+                            exitButtonClicked = true;
+                            const fakeEvent = { preventDefault: function() {} };
+                            handleBackToTopic(fakeEvent);
+                        }
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.error('[Frame Error]', e);
+            }
+            
+            // Show error message for other errors
             if (loading) {
                 loading.innerHTML = '❌ Failed to load SCORM content. Please refresh the page.';
             }
@@ -1862,6 +1920,37 @@
             }
         }
         
+        // CRITICAL FIX: Monitor iframe URL changes for goodbye/exit pages
+        setInterval(function() {
+            const iframe = document.getElementById('scormFrame');
+            if (iframe && iframe.contentWindow) {
+                try {
+                    const iframeUrl = iframe.contentWindow.location.href;
+                    
+                    // Check if iframe navigated to goodbye/exit page
+                    if (iframeUrl.includes('goodbye.html') || 
+                        iframeUrl.includes('exit.html') ||
+                        iframeUrl.includes('thankyou.html') ||
+                        iframeUrl.includes('complete.html') ||
+                        iframeUrl.includes('finished.html')) {
+                        
+                        console.log('[SCORM Monitor] Detected navigation to exit page:', iframeUrl);
+                        
+                        // Prevent multiple rapid redirects
+                        if (!exitButtonClicked) {
+                            exitButtonClicked = true;
+                            
+                            // Trigger exit handler to save data and redirect
+                            const fakeEvent = { preventDefault: function() {} };
+                            handleBackToTopic(fakeEvent);
+                        }
+                    }
+                } catch (e) {
+                    // Cross-origin error is expected, ignore
+                }
+            }
+        }, 500); // Check every 500ms
+        
         // Enhanced message listener for iframe exit communication
         window.addEventListener('message', function(event) {
             
@@ -2117,6 +2206,17 @@
                                     console.log('[SCORM Exit Handler] Exit button clicked:', buttonText);
                                     e.preventDefault();
                                     e.stopPropagation();
+                                    e.stopImmediatePropagation();
+                                    
+                                    // Disable the button to prevent multiple clicks
+                                    if (target.tagName === 'BUTTON' || target.tagName === 'INPUT') {
+                                        target.disabled = true;
+                                        if (target.tagName === 'INPUT') {
+                                            target.value = 'Saving & Exiting...';
+                                        } else {
+                                            target.textContent = 'Saving & Exiting...';
+                                        }
+                                    }
                                     
                                     // Notify parent window via postMessage
                                     if (window.parent) {
@@ -2131,8 +2231,38 @@
                                 }
                             }
                             
-                            // Add click listener to document
+                            // Add click listener to document (capture phase to intercept before default)
                             document.addEventListener('click', handleExitClick, true);
+                            
+                            // Also monitor for navigation to exit/goodbye pages
+                            document.addEventListener('click', function(e) {
+                                const target = e.target;
+                                if (target.tagName === 'A' && target.href) {
+                                    const href = target.href.toLowerCase();
+                                    if (href.includes('goodbye.html') || 
+                                        href.includes('exit.html') ||
+                                        href.includes('thankyou.html') ||
+                                        href.includes('complete.html') ||
+                                        href.includes('finished.html')) {
+                                        
+                                        console.log('[SCORM Exit Handler] Intercepted navigation to exit page:', href);
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        
+                                        // Notify parent to handle exit
+                                        if (window.parent) {
+                                            window.parent.postMessage({
+                                                type: 'SCORM_EXIT_BUTTON_CLICKED',
+                                                action: 'exit',
+                                                source: 'scorm_content',
+                                                exitPage: href
+                                            }, '*');
+                                        }
+                                        
+                                        return false;
+                                    }
+                                }
+                            }, true);
                             
                             console.log('[SCORM Exit Handler] Exit button handler injected successfully via script element');
                         })();
