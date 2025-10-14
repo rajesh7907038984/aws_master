@@ -40,10 +40,11 @@ static_root/
 media/
 
 # Environment variables
-.env
+
 .env.local
 .env.production
 .env.staging
+.env.example
 
 # IDE
 .vscode/

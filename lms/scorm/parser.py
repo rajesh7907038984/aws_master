@@ -14,7 +14,7 @@ import logging
 import uuid
 import json
 from .validators import validate_scorm_package, ScormValidationError
-# Removed complex mastery score handler - using simple default approach
+from .mastery_score_handler import MasteryScoreExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -317,17 +317,16 @@ class ScormParser:
                                             except ValueError:
                                                 pass
                         
-                        # Use simple default mastery score approach
+                        # Use the comprehensive mastery score extractor
                         if 'mastery_score' not in self.manifest_data:
-                            # Try to extract mastery score from manifest
-                            mastery_score = self._extract_simple_mastery_score(manifest_content)
+                            package_filename = getattr(self.uploaded_file, 'name', '')
+                            mastery_score = MasteryScoreExtractor.extract_mastery_score(
+                                manifest_content, 
+                                package_filename
+                            )
                             if mastery_score is not None:
                                 self.manifest_data['mastery_score'] = mastery_score
-                                logger.info(f"Extracted mastery score: {mastery_score}%")
-                            else:
-                                # Use default passing score
-                                self.manifest_data['mastery_score'] = 70.0
-                                logger.info("Using default mastery score: 70%")
+                                logger.info(f"Extracted mastery score using comprehensive handler: {mastery_score}%")
                             else:
                                 logger.info("No mastery score found in SCORM manifest - will use course default")
                         
@@ -573,32 +572,4 @@ class ScormParser:
         except Exception as e:
             logger.error(f"Error handling legacy package: {e}")
             raise ValueError(f"Failed to handle legacy package: {e}")
-    
-    def _extract_simple_mastery_score(self, manifest_content):
-        """Simple mastery score extraction from manifest"""
-        try:
-            import re
-            
-            # Look for common mastery score patterns
-            patterns = [
-                r'<adlcp:masteryscore>(\d+\.?\d*)</adlcp:masteryscore>',
-                r'masteryscore["\s]*:[\s]*(\d+\.?\d*)',
-                r'passing[_\s]*score["\s]*:[\s]*(\d+\.?\d*)',
-                r'mastery[_\s]*score["\s]*:[\s]*(\d+\.?\d*)',
-            ]
-            
-            for pattern in patterns:
-                match = re.search(pattern, manifest_content, re.IGNORECASE)
-                if match:
-                    score = float(match.group(1))
-                    # Convert 0-1 scale to 0-100 if needed
-                    if 0 <= score <= 1:
-                        score = score * 100
-                    if 0 <= score <= 100:
-                        return score
-                        
-        except Exception as e:
-            logger.debug(f"Could not extract mastery score: {str(e)}")
-            
-        return None
 

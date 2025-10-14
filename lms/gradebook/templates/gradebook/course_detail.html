@@ -42,13 +42,12 @@
     background: #f8f9fa;
     position: sticky;
     left: 0;
-    z-index: 30;
+    z-index: 25;
     min-width: 200px;
     border-right: 2px solid #e9ecef;
     padding: 20px 20px;
     white-space: nowrap;
     overflow: hidden;
-    box-shadow: 2px 0 4px rgba(0,0,0,0.1);
   }
   
   .gradebook-table th:last-child {
@@ -82,14 +81,13 @@
     background: #fafbfc;
     position: sticky;
     left: 0;
-    z-index: 20;
+    z-index: 15;
     border-right: 2px solid #e9ecef;
     color: #212529;
     min-width: 200px;
     padding: 18px 20px;
     white-space: nowrap;
     overflow: hidden;
-    box-shadow: 2px 0 4px rgba(0,0,0,0.1);
   }
   
   .gradebook-table td:last-child {
@@ -1016,9 +1014,7 @@
     .gradebook-table th:first-child,
     .gradebook-table td:first-child {
       min-width: 160px;
-      padding: 12px 12px;
-      z-index: 20;
-      box-shadow: 2px 0 4px rgba(0,0,0,0.1);
+      padding: 10px 12px;
     }
     
     .gradebook-table th:last-child,
@@ -1075,8 +1071,6 @@
     .gradebook-table th:first-child,
     .gradebook-table td:first-child {
       min-width: 180px;
-      z-index: 20;
-      box-shadow: 2px 0 4px rgba(0,0,0,0.1);
     }
     
     .gradebook-table th:last-child,
@@ -1842,28 +1836,15 @@
                             </div>
                             
                             <!-- Action buttons -->
-                            {% get_scorm_topic activity.object as scorm_topic %}
                             <div class="action-buttons mt-1">
                               {% if score_data.is_passed %}
-                                {% if scorm_topic %}
-                                  <a href="{% url 'scorm:view' scorm_topic.id %}" class="view-btn retake-btn" style="background-color: #28a745; color: white; font-size: 0.7rem; padding: 2px 6px;">
-                                    RETAKE
-                                  </a>
-                                {% else %}
-                                  <a href="{% url 'courses:topic_view' activity.object.topic.id %}" class="view-btn retake-btn" style="background-color: #28a745; color: white; font-size: 0.7rem; padding: 2px 6px;">
-                                    RETAKE
-                                  </a>
-                                {% endif %}
+                                <a href="{% url 'scorm:view' activity.object.id %}" class="view-btn retake-btn" style="background-color: #28a745; color: white; font-size: 0.7rem; padding: 2px 6px;">
+                                  RETAKE
+                                </a>
                               {% else %}
-                                {% if scorm_topic %}
-                                  <a href="{% url 'scorm:view' scorm_topic.id %}" class="view-btn resume-btn" style="background-color: #dc3545; color: white; font-size: 0.7rem; padding: 2px 6px;">
-                                    RESUME
-                                  </a>
-                                {% else %}
-                                  <a href="{% url 'courses:topic_view' activity.object.topic.id %}" class="view-btn resume-btn" style="background-color: #dc3545; color: white; font-size: 0.7rem; padding: 2px 6px;">
-                                    RESUME
-                                  </a>
-                                {% endif %}
+                                <a href="{% url 'scorm:view' activity.object.id %}" class="view-btn resume-btn" style="background-color: #dc3545; color: white; font-size: 0.7rem; padding: 2px 6px;">
+                                  RESUME
+                                </a>
                               {% endif %}
                             </div>
                           </div>
@@ -2471,8 +2452,6 @@ document.addEventListener('DOMContentLoaded', function() {
         .gradebook-table.compact-mode td:first-child {
             min-width: 160px !important;
             padding: 12px 12px !important;
-            z-index: 20 !important;
-            box-shadow: 2px 0 4px rgba(0,0,0,0.1) !important;
         }
         .gradebook-table.compact-mode th:last-child,
         .gradebook-table.compact-mode td:last-child {

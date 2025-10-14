@@ -7,6 +7,6 @@ class ScormConfig(AppConfig):
     verbose_name = 'SCORM Module'
     
     def ready(self):
-        """App is ready"""
-        pass
+        """Import signals when app is ready"""
+        import scorm.signals  # noqa
 

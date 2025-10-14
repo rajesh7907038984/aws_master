@@ -840,8 +840,7 @@ def calculate_score_display_class(score, max_score):
     """
     Calculate the CSS class for score display based on percentage.
     """
-    # Treat only None as missing; a score of 0 is valid and should be styled as poor
-    if score is None or max_score is None or max_score == 0:
+    if not score or not max_score or max_score == 0:
         return 'grade-none'
     
     # Convert to float to handle decimal.Decimal and float type mixing with error handling

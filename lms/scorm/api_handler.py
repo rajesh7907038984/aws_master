@@ -50,12 +50,6 @@ class ScormAPIHandler:
         self.last_error = '0'
         self.initialized = False
         
-        # CRITICAL: Verify user is authenticated for tracking
-        if hasattr(attempt, 'user') and attempt.user:
-            logger.info(f"ScormAPIHandler initialized for authenticated user: {attempt.user.username}")
-        else:
-            logger.warning(f"ScormAPIHandler initialized without authenticated user - tracking may not work properly")
-        
         # Always ensure CMI data is properly initialized
         if not self.attempt.cmi_data or len(self.attempt.cmi_data) == 0:
             self.attempt.cmi_data = self._initialize_cmi_data()
@@ -64,11 +58,6 @@ class ScormAPIHandler:
     
     def _initialize_cmi_data(self):
         """Initialize CMI data structure based on SCORM version"""
-        # CRITICAL: Ensure user exists for proper tracking
-        if not self.attempt.user:
-            logger.error("Cannot initialize CMI data without authenticated user")
-            raise ValueError("Authentication required to initialize SCORM tracking data")
-        
         if self.version == '1.2':
             return {
                 'cmi.core.student_id': str(self.attempt.user.id),
@@ -115,12 +104,6 @@ class ScormAPIHandler:
         if self.initialized:
             self.last_error = '101'
             logger.warning(f"SCORM API already initialized for attempt {self.attempt.id}")
-            return 'false'
-        
-        # CRITICAL: Verify user authentication before initialization
-        if not self.attempt.user:
-            self.last_error = '101'
-            logger.error("Cannot initialize SCORM API without authenticated user")
             return 'false'
         
         self.initialized = True
@@ -178,7 +161,7 @@ class ScormAPIHandler:
         # CRITICAL FIX: Save the updated data immediately
         self.attempt.save()
         
-        logger.info(f"SCORM API initialized for user {self.attempt.user.username}, attempt {self.attempt.id}, version {self.version}")
+        logger.info(f"SCORM API initialized for attempt {self.attempt.id}, version {self.version}")
         logger.info(f"CMI data keys: {list(self.attempt.cmi_data.keys())}")
         logger.info(f"Bookmark data: location='{self.attempt.lesson_location}', suspend_data='{self.attempt.suspend_data[:50] if self.attempt.suspend_data else 'None'}...'")
         logger.info(f"Resume data in CMI: entry='{self.attempt.cmi_data.get('cmi.core.entry' if self.version == '1.2' else 'cmi.entry')}', location='{self.attempt.cmi_data.get('cmi.core.lesson_location' if self.version == '1.2' else 'cmi.location')}'")
@@ -195,30 +178,12 @@ class ScormAPIHandler:
         self.initialized = False
         self.last_error = '0'
         
-        # CRITICAL FIX: Preserve 'suspend' if content requested resume
-        try:
-            existing_exit = None
-            if self.version == '1.2':
-                existing_exit = self.attempt.cmi_data.get('cmi.core.exit') or ''
-            else:
-                existing_exit = self.attempt.cmi_data.get('cmi.exit') or ''
-        except Exception:
-            existing_exit = ''
-
-        if str(existing_exit).lower() == 'suspend':
-            # Keep suspend so LMS will resume next launch
-            self.attempt.exit_mode = 'suspend'
-            if self.version == '1.2':
-                self.attempt.cmi_data['cmi.core.exit'] = 'suspend'
-            else:
-                self.attempt.cmi_data['cmi.exit'] = 'suspend'
+        # CRITICAL FIX: Set exit mode to indicate proper termination
+        self.attempt.exit_mode = 'logout'
+        if self.version == '1.2':
+            self.attempt.cmi_data['cmi.core.exit'] = 'logout'
         else:
-            # Default to logout when no suspend was set
-            self.attempt.exit_mode = 'logout'
-            if self.version == '1.2':
-                self.attempt.cmi_data['cmi.core.exit'] = 'logout'
-            else:
-                self.attempt.cmi_data['cmi.exit'] = 'logout'
+            self.attempt.cmi_data['cmi.exit'] = 'logout'
         
         # SIMPLIFIED: Update lesson status based on score if available (trust SCORM's native logic)
         if not self.attempt.lesson_status or self.attempt.lesson_status == 'not_attempted':
@@ -312,26 +277,20 @@ class ScormAPIHandler:
     
     def set_value(self, element, value):
         """LMSSetValue / SetValue"""
-        # CRITICAL FIX: Allow critical data to be stored even before initialization
-        allowed_before_init = {
-            'cmi.core.lesson_location', 'cmi.location', 'cmi.suspend_data',
-            'cmi.core.lesson_status', 'cmi.completion_status', 'cmi.success_status',
-            'cmi.core.score.raw', 'cmi.core.score.min', 'cmi.core.score.max',
-            'cmi.score.raw', 'cmi.score.min', 'cmi.score.max', 'cmi.score.scaled'
-        }
-        if not self.initialized and element not in allowed_before_init:
+        # CRITICAL FIX: Allow bookmark data to be stored even before initialization
+        if not self.initialized and element not in ['cmi.core.lesson_location', 'cmi.location', 'cmi.suspend_data']:
             self.last_error = '301'
             logger.warning(f"SCORM API SetValue called before initialization for element: {element}")
             return 'false'
         
         try:
             # CRITICAL FIX: Handle bookmark data storage before initialization
-            if not self.initialized and element in allowed_before_init:
+            if not self.initialized and element in ['cmi.core.lesson_location', 'cmi.location', 'cmi.suspend_data']:
                 # Ensure CMI data exists
                 if not self.attempt.cmi_data:
                     self.attempt.cmi_data = {}
                 
-                # Store value immediately
+                # Store bookmark data immediately
                 self.attempt.cmi_data[element] = value
                 logger.info(f"SCORM API SetValue({element}, {value}) - stored before initialization")
                 
@@ -340,42 +299,9 @@ class ScormAPIHandler:
                     self.attempt.lesson_location = value
                 elif element == 'cmi.suspend_data':
                     self.attempt.suspend_data = value
-                elif element in ['cmi.core.lesson_status', 'cmi.completion_status']:
-                    status_value = value
-                    # Normalize status where possible
-                    if element == 'cmi.completion_status' and value in ['completed', 'incomplete']:
-                        status_value = value
-                    self.attempt.lesson_status = status_value
-                    self._update_completion_from_status(status_value)
-                elif element in ['cmi.core.score.raw', 'cmi.score.raw']:
-                    try:
-                        self.attempt.score_raw = Decimal(value) if value and str(value).strip() else None
-                    except (ValueError, TypeError):
-                        logger.warning(f"Invalid score.raw value before init: {value}")
-                        self.last_error = '405'
-                        return 'false'
-                elif element in ['cmi.core.score.max', 'cmi.score.max']:
-                    try:
-                        self.attempt.score_max = Decimal(value) if value and str(value).strip() else None
-                    except (ValueError, TypeError):
-                        logger.warning(f"Invalid score.max value before init: {value}")
-                        self.last_error = '405'
-                        return 'false'
-                elif element in ['cmi.core.score.min', 'cmi.score.min']:
-                    try:
-                        self.attempt.score_min = Decimal(value) if value and str(value).strip() else None
-                    except (ValueError, TypeError):
-                        logger.warning(f"Invalid score.min value before init: {value}")
-                        self.last_error = '405'
-                        return 'false'
                 
                 # Save immediately for persistence
                 self.attempt.save()
-                # Auto-commit to ensure database persistence and downstream sync
-                try:
-                    self._commit_data()
-                except Exception as commit_err:
-                    logger.warning(f"Auto-commit failed before init for element {element}: {commit_err}")
                 self.last_error = '0'
                 return 'true'
             
@@ -390,13 +316,13 @@ class ScormAPIHandler:
                 if element == 'cmi.core.lesson_status':
                     self.attempt.lesson_status = value
                     self._update_completion_from_status(value)
-                    logger.info(f"SET STATUS: attempt.lesson_status = {self.attempt.lesson_status} (from value '{value}')")
-                    logger.info(f"SET STATUS: Model field updated BEFORE save")
+                    logger.info(f"✅ SET STATUS: attempt.lesson_status = {self.attempt.lesson_status} (from value '{value}')")
+                    logger.info(f"✅ SET STATUS: Model field updated BEFORE save")
                 elif element == 'cmi.core.score.raw':
                     try:
                         self.attempt.score_raw = Decimal(value) if value and str(value).strip() else None
-                        logger.info(f"SET SCORE: attempt.score_raw = {self.attempt.score_raw} (from value '{value}')")
-                        logger.info(f"SET SCORE: Model field updated BEFORE save")
+                        logger.info(f"✅ SET SCORE: attempt.score_raw = {self.attempt.score_raw} (from value '{value}')")
+                        logger.info(f"✅ SET SCORE: Model field updated BEFORE save")
                     except (ValueError, TypeError):
                         logger.warning(f"Invalid score.raw value: {value}")
                         self.last_error = '405'  # Incorrect data type
@@ -491,26 +417,6 @@ class ScormAPIHandler:
                     # ENHANCED: Parse and sync progress from suspend data
                     self._parse_and_sync_suspend_data(value)
             
-            # Use simple data handler for critical elements
-            critical_elements = {
-                'cmi.core.lesson_status', 'cmi.completion_status', 'cmi.success_status',
-                'cmi.core.score.raw', 'cmi.core.score.min', 'cmi.core.score.max',
-                'cmi.score.raw', 'cmi.score.min', 'cmi.score.max', 'cmi.score.scaled',
-                'cmi.core.lesson_location', 'cmi.location', 'cmi.suspend_data'
-            }
-            if element in critical_elements:
-                try:
-                    from .simple_data_handler import ScormDataHandler
-                    handler = ScormDataHandler(self.attempt)
-                    handler.save_data(element, value)
-                except Exception as save_err:
-                    logger.warning(f"Simple data handler failed for element {element}: {save_err}")
-                    # Fallback to commit
-                    try:
-                        self._commit_data()
-                    except Exception as commit_err:
-                        logger.warning(f"Fallback commit also failed for element {element}: {commit_err}")
-            
             self.last_error = '0'
             return 'true'
         except Exception as e:
@@ -521,7 +427,8 @@ class ScormAPIHandler:
     def commit(self):
         """LMSCommit / Commit"""
         if not self.initialized:
-            logger.warning(f"SCORM API Commit called before initialization for attempt {self.attempt.id} - proceeding with safe commit")
+            self.last_error = '301'
+            return 'false'
         
         try:
             self._commit_data()
@@ -660,56 +567,36 @@ class ScormAPIHandler:
     @transaction.atomic
     def _commit_data(self):
         """Save attempt data to database with proper transaction handling"""
-        # CRITICAL: Verify user authentication before saving
-        if not self.attempt.user:
-            logger.error("Cannot save SCORM data without authenticated user")
-            raise ValueError("Authentication required to save SCORM tracking data")
-        
-        logger.info(f"COMMIT: Starting commit for user {self.attempt.user.username}, attempt {self.attempt.id}")
-        logger.info(f"COMMIT: score_raw BEFORE save = {self.attempt.score_raw}")
-        logger.info(f"COMMIT: lesson_status BEFORE save = {self.attempt.lesson_status}")
-        logger.info(f"COMMIT: CMI data keys = {list(self.attempt.cmi_data.keys()) if self.attempt.cmi_data else []}")
+        logger.info(f"💾 COMMIT: Starting commit for attempt {self.attempt.id}")
+        logger.info(f"💾 COMMIT: score_raw BEFORE save = {self.attempt.score_raw}")
         
         self.attempt.last_accessed = timezone.now()
         
-        # Only save to database if not a preview attempt AND user is authenticated
-        if not getattr(self.attempt, 'is_preview', False) and self.attempt.user:
+        # Only save to database if not a preview attempt
+        if not getattr(self.attempt, 'is_preview', False):
             # Set flag to prevent signal from processing this
             self.attempt._updating_from_api_handler = True
             try:
-                # CRITICAL FIX: Save with explicit update_fields for critical data
-                update_fields = [
-                    'score_raw', 'score_max', 'score_min', 'score_scaled',
-                    'lesson_status', 'completion_status', 'success_status',
-                    'lesson_location', 'suspend_data', 'cmi_data',
-                    'last_accessed', 'completed_at', 'total_time', 'session_time',
-                    'time_spent_seconds', 'progress_percentage', 'detailed_tracking'
-                ]
-                self.attempt.save(update_fields=update_fields)
-                logger.info(f"COMMIT: Saved with update_fields!")
+                # CRITICAL FIX: Save attempt with force_insert=False to ensure proper update
+                self.attempt.save(force_insert=False)
+                logger.info(f"💾 COMMIT: Saved! score_raw AFTER save = {self.attempt.score_raw}")
                 
-                # Force database flush without sleep delay
+                # CRITICAL FIX: Force transaction commit with connection.commit()
                 from django.db import connection
-                with connection.cursor() as cursor:
-                    cursor.execute("SELECT 1")  # Force connection
+                connection.commit()
                 
-                # Verify save immediately
-                from .models import ScormAttempt
-                verify_attempt = ScormAttempt.objects.get(id=self.attempt.id)
-                logger.info(f"VERIFY: score_raw in DB = {verify_attempt.score_raw}")
-                logger.info(f"VERIFY: lesson_status in DB = {verify_attempt.lesson_status}")
-                logger.info(f"VERIFY: lesson_location in DB = {verify_attempt.lesson_location}")
+                # Verify it was saved
+                self.attempt.refresh_from_db()
+                logger.info(f"💾 COMMIT: score_raw AFTER refresh = {self.attempt.score_raw}")
                 
-                # Use simple data handler for score synchronization
-                from .simple_data_handler import ScormDataHandler
-                handler = ScormDataHandler(self.attempt)
-                sync_result = handler.force_sync()
-                logger.info(f"SYNC: force_sync result = {sync_result}")
-            except Exception as e:
-                logger.error(f"COMMIT ERROR: {str(e)}")
-                import traceback
-                logger.error(f"TRACEBACK: {traceback.format_exc()}")
-                raise
+                # FIX: Add small delay before sync to ensure data is committed
+                import time
+                time.sleep(0.1)  # 100ms delay to ensure data is committed
+                
+                # Use centralized sync service for score synchronization
+                from .score_sync_service import ScormScoreSyncService
+                # CRITICAL FIX: Force synchronization to ensure score is saved
+                ScormScoreSyncService.sync_score(self.attempt, force=True)
             finally:
                 # Clean up the flag
                 if hasattr(self.attempt, '_updating_from_api_handler'):

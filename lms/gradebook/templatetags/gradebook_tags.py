@@ -466,13 +466,6 @@ def get_activity_best_score(activity, student_id, grades, quiz_attempts, scorm_r
                     
                     # Determine if user passed
                     is_passed = user_score >= mastery_score
-                    # Derive a success_status compatible with template expectations
-                    success_status = 'passed' if is_passed else 'failed'
-                    # Derive in-progress and bookmark flags to match template usage
-                    in_progress = (best_attempt.lesson_status == 'incomplete' and (
-                        bool(best_attempt.last_accessed) or bool(getattr(best_attempt, 'total_time', None))
-                    ))
-                    has_bookmark = bool(getattr(best_attempt, 'lesson_location', None) or getattr(best_attempt, 'suspend_data', None))
                     
                     return {
                         'score': user_score,
@@ -486,9 +479,6 @@ def get_activity_best_score(activity, student_id, grades, quiz_attempts, scorm_r
                         'is_passed': is_passed,              # Did user pass?
                         'lesson_status': best_attempt.lesson_status,
                         'completion_status': best_attempt.completion_status,
-                        'success_status': success_status,
-                        'in_progress': in_progress,
-                        'has_bookmark': has_bookmark,
                         'is_best_score': True
                     }
                 # If attempt exists but no progress, treat as not started and don't return attempt data
@@ -500,7 +490,6 @@ def get_activity_best_score(activity, student_id, grades, quiz_attempts, scorm_r
                     'mastery_score': float(activity['object'].mastery_score) if activity['object'].mastery_score else 70.0,
                     'user_achieved_score': None,
                     'is_passed': False,
-                    'success_status': 'unknown',
                     'is_best_score': True
                 }
             return {
@@ -511,7 +500,6 @@ def get_activity_best_score(activity, student_id, grades, quiz_attempts, scorm_r
                 'mastery_score': float(activity['object'].mastery_score) if activity['object'].mastery_score else 70.0,
                 'user_achieved_score': None,
                 'is_passed': False,
-                'success_status': 'unknown',
                 'is_best_score': True
             }
             
@@ -535,8 +523,6 @@ def get_activity_best_score(activity, student_id, grades, quiz_attempts, scorm_r
                 
                 # Determine if user passed
                 is_passed = user_score >= mastery_score
-                success_status = 'passed' if is_passed else 'failed'
-                in_progress = (not topic_progress.completed and bool(topic_progress.last_accessed))
                 
                 return {
                     'score': user_score,
@@ -550,8 +536,6 @@ def get_activity_best_score(activity, student_id, grades, quiz_attempts, scorm_r
                     'is_passed': is_passed,              # Did user pass?
                     'completed': topic_progress.completed,
                     'attempts': topic_progress.attempts,
-                    'success_status': success_status,
-                    'in_progress': in_progress,
                     'is_best_score': True
                 }
             return {
@@ -562,7 +546,6 @@ def get_activity_best_score(activity, student_id, grades, quiz_attempts, scorm_r
                 'mastery_score': 70.0,  # Default mastery score
                 'user_achieved_score': None,
                 'is_passed': False,
-                'success_status': 'unknown',
                 'is_best_score': True
             }
         
@@ -1630,14 +1613,10 @@ def get_score_display_class(score, max_score):
     Get the CSS class for score display based on percentage.
     Usage: {% get_score_display_class score max_score %}
     """
-    # Treat only None as missing; a score of 0 is valid and should be styled as poor
-    if score is None or max_score is None or max_score == 0:
+    if not score or not max_score or max_score == 0:
         return 'grade-none'
     
-    try:
-        percentage = round((float(score) / float(max_score)) * 100)
-    except (ValueError, TypeError, ZeroDivisionError):
-        return 'grade-none'
+    percentage = round((score / max_score) * 100)
     
     if percentage >= 90:
         return 'grade-excellent'
