@@ -158,6 +158,9 @@ SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 
+# Frame Options - Prevent clickjacking attacks
+X_FRAME_OPTIONS = 'DENY'
+
 # Exempt SCORM content from SSL redirect to prevent iframe resource loading issues
 SECURE_REDIRECT_EXEMPT = [r'^scorm/content/']
 

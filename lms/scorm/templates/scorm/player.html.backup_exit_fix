@@ -1950,20 +1950,20 @@
                     window.location.href = '{% url "courses:topic_view" topic.id %}';
                 }, 1000);
             }
-//             // Handle exit messages from SCORM content
-//             else if (shouldExit) {
-//                 
-//                 // Prevent multiple rapid clicks
-//                 if (exitButtonClicked) {
-//                     return;
-//                 }
-//                 exitButtonClicked = true;
-//                 
-//                 // Trigger the same functionality as the Back to Topic button
-//                 // This will save progress, bookmark, and score without forcing completion
-//                 const fakeEvent = { preventDefault: function() {} };
-//                 handleBackToTopic(fakeEvent);
-//             }
+            // Handle exit messages from SCORM content
+            else if (shouldExit) {
+                
+                // Prevent multiple rapid clicks
+                if (exitButtonClicked) {
+                    return;
+                }
+                exitButtonClicked = true;
+                
+                // Trigger the same functionality as the Back to Topic button
+                // This will save progress, bookmark, and score without forcing completion
+                const fakeEvent = { preventDefault: function() {} };
+                handleBackToTopic(fakeEvent);
+            }
         });
         
         // CRITICAL FIX: Prevent window close without saving SCORM data

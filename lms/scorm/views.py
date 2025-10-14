@@ -710,17 +710,17 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
             import requests
             from django.core.cache import cache
             
-            # Create cache key for this content with version
-            cache_key = f"scorm_content_v3_{scorm_package.id}_{path}_{scorm_package.updated_at.timestamp()}"
-            cached_content = cache.get(cache_key)
-            
-            if cached_content:
-                logger.info(f"Serving cached content for {path}")
-                response_obj = HttpResponse(cached_content, content_type='text/html; charset=utf-8')
-                response_obj['Access-Control-Allow-Origin'] = '*'
-                response_obj['X-Frame-Options'] = 'SAMEORIGIN'
-                response_obj['Cache-Control'] = 'public, max-age=86400, immutable'  # Cache for 24 hours
-                return response_obj
+            # DISABLED: Skip cache check for development
+            # cache_key = f"scorm_content_v3_{scorm_package.id}_{path}_{scorm_package.updated_at.timestamp()}"
+            # cached_content = cache.get(cache_key)
+            # 
+            # if cached_content:
+            #     logger.info(f"Serving cached content for {path}")
+            #     response_obj = HttpResponse(cached_content, content_type='text/html; charset=utf-8')
+            #     response_obj['Access-Control-Allow-Origin'] = '*'
+            #     response_obj['X-Frame-Options'] = 'SAMEORIGIN'
+            #     response_obj['Cache-Control'] = 'no-cache, no-store, must-revalidate'  # No cache for development
+            #     return response_obj
             
             # Fetch from S3 with optimized timeout
             response = requests.get(s3_url, timeout=30)
@@ -787,33 +787,8 @@ window.courseExit = function() {
     }
 };
 
-// Auto-enhance exit buttons when DOM is ready
-function enhanceExitButtons() {
-    const exitButtons = document.querySelectorAll('.courseExit, .courseExit--standard, .courseExit--overview, .courseExit--mobile, button[class*="courseExit"], a[class*="courseExit"]');
-    exitButtons.forEach(button => {
-        button.addEventListener('click', function(e) {
-            console.log('[xAPI] Exit button clicked');
-            window.courseExit();
-        }, true);
-    });
-    
-    // Also check by text content
-    document.querySelectorAll('button, a, input[type="button"]').forEach(element => {
-        const text = (element.textContent || element.value || '').toLowerCase();
-        if (text.includes('exit assessment') || text.includes('exit course') || text === 'exit') {
-            element.addEventListener('click', function(e) {
-                console.log('[xAPI] Text-based exit button clicked');
-                window.courseExit();
-            }, true);
-        }
-    });
-}
-
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', enhanceExitButtons);
-} else {
-    enhanceExitButtons();
-}
+// Let xAPI content handle its own exit buttons naturally
+// Only provide courseExit function if content explicitly calls it
 </script>'''
                 else:
                     # For SCORM 1.2 and 2004 packages, also use minimal injection
@@ -874,50 +849,8 @@ window.courseExit = function() {
     }
 };
 
-// Auto-enhance exit buttons when DOM is ready
-function enhanceExitButtons() {
-    const exitButtons = document.querySelectorAll('.courseExit, .courseExit--standard, .courseExit--overview, .courseExit--mobile, button[class*="courseExit"], a[class*="courseExit"]');
-    let buttonsEnhanced = 0;
-    
-    exitButtons.forEach(button => {
-        // Avoid double-enhancing buttons
-        if (!button.hasAttribute('data-exit-enhanced')) {
-            button.setAttribute('data-exit-enhanced', 'true');
-            button.addEventListener('click', function(e) {
-                console.log('[SCORM] Exit button clicked');
-                window.courseExit();
-            }, true);
-            buttonsEnhanced++;
-        }
-    });
-    
-    // Also check by text content
-    document.querySelectorAll('button, a, input[type="button"]').forEach(element => {
-        const text = (element.textContent || element.value || '').toLowerCase();
-        if ((text.includes('exit assessment') || text.includes('exit course') || text === 'exit') && 
-            !element.hasAttribute('data-exit-enhanced')) {
-            element.setAttribute('data-exit-enhanced', 'true');
-            element.addEventListener('click', function(e) {
-                console.log('[SCORM] Text-based exit button clicked');
-                window.courseExit();
-            }, true);
-            buttonsEnhanced++;
-        }
-    });
-    
-    if (buttonsEnhanced > 0) {
-        console.log('[SCORM] Enhanced ' + buttonsEnhanced + ' exit button(s)');
-    }
-}
-
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', enhanceExitButtons);
-} else {
-    enhanceExitButtons();
-}
-
-// Also run periodically to catch dynamically created buttons
-setInterval(enhanceExitButtons, 3000);
+// Let SCORM content handle its own exit buttons naturally
+// Only provide courseExit function if SCORM explicitly calls it
 </script>'''
                 
                 # Inject before </head> or at beginning of <body>
@@ -937,14 +870,15 @@ setInterval(enhanceExitButtons, 3000);
                 content_type = 'text/html; charset=utf-8'
                 
                 # Cache the processed content for 1 hour
-                cache.set(cache_key, content, 3600)
+                # DISABLED: No server-side cache for development
+                # cache.set(cache_key, content, 3600)
                 logger.info(f"Injected minimal SCORM API into {path} and cached")
             
             response_obj = HttpResponse(content, content_type=content_type)
             response_obj['Access-Control-Allow-Origin'] = '*'
             response_obj['X-Frame-Options'] = 'SAMEORIGIN'
             # OPTIMIZATION: Enable browser caching for better performance
-            response_obj['Cache-Control'] = 'public, max-age=86400, immutable'  # Cache for 24 hours
+            response_obj['Cache-Control'] = 'no-cache, no-store, must-revalidate'  # No cache for development
             # SECURITY HEADERS
             response_obj['X-Content-Type-Options'] = 'nosniff'
             response_obj['X-XSS-Protection'] = '1; mode=block'
