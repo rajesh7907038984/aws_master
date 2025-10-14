@@ -212,17 +212,36 @@
             window.API = API;
             window.API_1484_11 = API_1484_11;
             
+            // CRITICAL FIX: Ensure APIs are available in all window contexts
             if (window.parent && window.parent !== window) {
                 window.parent.API = API;
                 window.parent.API_1484_11 = API_1484_11;
+                log('APIs exposed to parent window');
             }
             
             if (window.top && window.top !== window) {
                 window.top.API = API;
                 window.top.API_1484_11 = API_1484_11;
+                log('APIs exposed to top window');
             }
             
-            log('APIs exposed globally');
+            // CRITICAL: Also expose to window.opener if it exists
+            if (window.opener) {
+                window.opener.API = API;
+                window.opener.API_1484_11 = API_1484_11;
+                log('APIs exposed to opener window');
+            }
+            
+            // CRITICAL: Make sure APIs are available in the current window context
+            // This is essential for SCORM content to find the API
+            if (typeof window.API === 'undefined') {
+                window.API = API;
+            }
+            if (typeof window.API_1484_11 === 'undefined') {
+                window.API_1484_11 = API_1484_11;
+            }
+            
+            log('APIs exposed globally - API available:', typeof window.API, 'API_1484_11 available:', typeof window.API_1484_11);
         },
         
         // Test function

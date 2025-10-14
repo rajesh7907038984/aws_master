@@ -188,10 +188,17 @@
                 console.log('SCORM API Wrapper ready for attempt {{ attempt_id }}');
                 updateStatus('SCORM API ready');
                 
-                // Verify APIs are exposed
+                // CRITICAL FIX: Ensure APIs are available in parent window for iframe access
+                // The SCORM content in iframe looks for API in parent window
                 if (window.API && window.API_1484_11) {
                     console.log('APIs available: window.API and window.API_1484_11');
                     updateStatus('APIs exposed - ready for SCORM content');
+                    
+                    // CRITICAL: Make sure APIs are accessible from iframe
+                    // SCORM content expects to find API in parent window
+                    window.parent.API = window.API;
+                    window.parent.API_1484_11 = window.API_1484_11;
+                    console.log('APIs exposed to parent window for iframe access');
                 } else {
                     console.error('APIs not properly exposed');
                     updateStatus('API initialization failed');
@@ -208,15 +215,35 @@
         if (!window.scormPlayerInitialized) {
             window.scormPlayerInitialized = true;
             
-            // Initialize on load
-            window.addEventListener('load', initializeSCORM);
+            // Initialize immediately
+            initializeSCORM();
             
-            // Also initialize immediately if DOM is already ready
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', initializeSCORM);
-            } else {
+            // Also initialize on load as backup
+            window.addEventListener('load', function() {
+                console.log('Window loaded - re-initializing SCORM API');
                 initializeSCORM();
-            }
+            });
+            
+            // CRITICAL: Poll for API availability to ensure SCORM content can find it
+            let apiPollCount = 0;
+            const maxApiPolls = 50; // Poll for up to 5 seconds
+            
+            const pollForAPI = function() {
+                apiPollCount++;
+                if (window.API && window.API_1484_11) {
+                    console.log('SCORM API confirmed available after', apiPollCount, 'polls');
+                    updateStatus('SCORM API confirmed ready');
+                } else if (apiPollCount < maxApiPolls) {
+                    console.log('Polling for SCORM API...', apiPollCount);
+                    setTimeout(pollForAPI, 100);
+                } else {
+                    console.error('SCORM API not available after', maxApiPolls, 'polls');
+                    updateStatus('SCORM API initialization failed');
+                }
+            };
+            
+            // Start polling after a short delay
+            setTimeout(pollForAPI, 200);
         }
         
         // Handle iframe loading - PREVENT DUPLICATION
@@ -239,7 +266,7 @@
                 loadingOverlay.style.display = 'none';
             }, 500);
             
-            // CRITICAL FIX: Inject popup prevention into iframe content
+            // CRITICAL FIX: Inject popup prevention and ensure API availability
             try {
                 const iframeWindow = iframe.contentWindow;
                 const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
@@ -265,15 +292,32 @@
                         }
                     });
                     
-                    // Inject SCORM APIs into iframe
-                    if (!iframeWindow.API) {
+                    // CRITICAL: Ensure SCORM APIs are available in iframe
+                    // The iframe content needs to find the API in its parent window
+                    if (window.API && window.API_1484_11) {
+                        // Make sure parent window has the APIs
+                        window.parent.API = window.API;
+                        window.parent.API_1484_11 = window.API_1484_11;
+                        
+                        // Also inject into iframe window
                         iframeWindow.API = window.API;
                         iframeWindow.API_1484_11 = window.API_1484_11;
-                        console.log('APIs injected into iframe');
+                        
+                        console.log('SCORM APIs injected into iframe and parent window');
+                        updateStatus('SCORM APIs injected - content should initialize');
+                    } else {
+                        console.error('SCORM APIs not available for iframe injection');
+                        updateStatus('SCORM API injection failed');
                     }
                 }
             } catch (e) {
                 console.log('Cross-origin iframe - APIs available globally, popup prevention may be limited');
+                // Even with cross-origin restrictions, ensure parent window has APIs
+                if (window.API && window.API_1484_11) {
+                    window.parent.API = window.API;
+                    window.parent.API_1484_11 = window.API_1484_11;
+                    console.log('SCORM APIs exposed to parent window for cross-origin access');
+                }
             }
         });
         
