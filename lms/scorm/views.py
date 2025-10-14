@@ -721,10 +721,15 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
     ENHANCED: Requires authentication for all SCORM content access
     """
     try:
-        # ENHANCED AUTHENTICATION: Require authentication for all SCORM content access
+        # ENHANCED AUTHENTICATION: Allow SCORM content access for authenticated users
+        # SCORM content in iframe should be accessible for proper functionality
         if not request.user.is_authenticated:
             logger.warning(f"❌ UNAUTHENTICATED ACCESS: Attempted access to SCORM content without authentication")
-            return HttpResponse('Authentication required to access SCORM content', status=401)
+            # For SCORM content, redirect to login instead of 401 to allow proper iframe handling
+            from django.http import HttpResponseRedirect
+            from django.urls import reverse
+            login_url = reverse('users:login')
+            return HttpResponseRedirect(f"{login_url}?next={request.get_full_path()}")
         
         is_authenticated = True
         logger.info(f"✅ AUTHENTICATED ACCESS: User {request.user.username} (ID: {request.user.id}) accessing SCORM content: topic_id={topic_id}, path={path}")
@@ -1225,7 +1230,7 @@ log('SCORM API injection complete - ready for communication with LMS');
                 if header in response_obj:
                     del response_obj[header]
             
-            # Set comprehensive CSP headers for SCORM content
+            # Set comprehensive CSP headers for SCORM content - CRITICAL FIX
             response_obj['Content-Security-Policy'] = (
                 "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; "
                 "script-src * 'unsafe-inline' 'unsafe-eval' data: blob:; "
@@ -1233,10 +1238,13 @@ log('SCORM API injection complete - ready for communication with LMS');
                 "style-src * 'unsafe-inline'; "
                 "img-src * data: blob:; "
                 "font-src * data:; "
-                "connect-src *; "
+                "connect-src * 'self' https: http:; "
                 "media-src * data: blob:; "
                 "frame-src *; "
-                "object-src 'none'"
+                "object-src 'none'; "
+                "base-uri *; "
+                "form-action *; "
+                "frame-ancestors *"
             )
             
             # CORS headers for cross-origin access

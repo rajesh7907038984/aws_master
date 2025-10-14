@@ -140,8 +140,15 @@
     <script>
         console.log('SCORM Player initialized');
         
-        // Initialize SCORM API Wrapper
-        window.addEventListener('load', function() {
+        // Initialize SCORM API Wrapper - PREVENT DUPLICATION
+        let scormInitialized = false;
+        
+        function initializeSCORM() {
+            if (scormInitialized) {
+                console.log('SCORM already initialized, skipping...');
+                return;
+            }
+            
             console.log('Loading SCORM API Wrapper...');
             
             if (window.ScormAPIWrapper) {
@@ -160,11 +167,23 @@
                     console.error('APIs not properly exposed');
                     updateStatus('API initialization failed');
                 }
+                
+                scormInitialized = true;
             } else {
                 console.error('ScormAPIWrapper not loaded');
                 updateStatus('Failed to load SCORM API wrapper');
             }
-        });
+        }
+        
+        // Initialize on load
+        window.addEventListener('load', initializeSCORM);
+        
+        // Also initialize immediately if DOM is already ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeSCORM);
+        } else {
+            initializeSCORM();
+        }
         
         // Handle iframe loading
         const iframe = document.getElementById('scormIframe');
