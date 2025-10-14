@@ -602,6 +602,88 @@
                     injectScormAPI(iframeDoc);
                     // Also inject exit button handler
                     injectExitButtonHandler();
+                    
+                    // CRITICAL FIX: Inject courseExit handler directly into iframe
+                    setTimeout(() => {
+                        try {
+                            const iframeWindow = iframe.contentWindow;
+                            if (iframeWindow) {
+                                // Inject courseExit functionality into the iframe
+                                const script = iframeWindow.document.createElement('script');
+                                script.textContent = `
+                                    console.log('🚪 Injecting courseExit handler into SCORM content...');
+                                    
+                                    // Override any existing courseExit functionality
+                                    window.courseExit = function() {
+                                        console.log('🚪 courseExit() called - sending exit message to parent');
+                                        parent.postMessage({action: 'courseExit', type: 'exit'}, '*');
+                                        parent.postMessage('exit_assessment', '*');
+                                    };
+                                    
+                                    // Look for and enhance existing exit buttons
+                                    function enhanceExitButtons() {
+                                        const exitSelectors = [
+                                            '.courseExit', '.courseExit--standard', '.courseExit--overview', '.courseExit--mobile',
+                                            'button[class*="courseExit"]', 'a[class*="courseExit"]',
+                                            'button:contains("EXIT ASSESSMENT")', 'a:contains("EXIT ASSESSMENT")'
+                                        ];
+                                        
+                                        let buttonsEnhanced = 0;
+                                        exitSelectors.forEach(selector => {
+                                            try {
+                                                document.querySelectorAll(selector).forEach(button => {
+                                                    console.log('🚪 Enhancing exit button:', button);
+                                                    button.addEventListener('click', function(e) {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        console.log('🚪 Enhanced exit button clicked');
+                                                        window.courseExit();
+                                                    }, true); // Use capture phase
+                                                    buttonsEnhanced++;
+                                                });
+                                            } catch (e) {
+                                                // Ignore selector errors
+                                            }
+                                        });
+                                        
+                                        // Also look for buttons by text content
+                                        document.querySelectorAll('button, a, input[type="button"]').forEach(element => {
+                                            const text = (element.textContent || element.value || '').toLowerCase();
+                                            if (text.includes('exit assessment') || text.includes('exit course') || 
+                                                text === 'exit' || element.classList.contains('courseExit')) {
+                                                console.log('🚪 Found exit button by text:', element);
+                                                element.addEventListener('click', function(e) {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    console.log('🚪 Text-based exit button clicked');
+                                                    window.courseExit();
+                                                }, true);
+                                                buttonsEnhanced++;
+                                            }
+                                        });
+                                        
+                                        if (buttonsEnhanced > 0) {
+                                            console.log('🚪 Enhanced ' + buttonsEnhanced + ' exit button(s) in SCORM content');
+                                        }
+                                    }
+                                    
+                                    // Run enhancement when DOM is ready
+                                    if (document.readyState === 'loading') {
+                                        document.addEventListener('DOMContentLoaded', enhanceExitButtons);
+                                    } else {
+                                        enhanceExitButtons();
+                                    }
+                                    
+                                    // Also run periodically to catch dynamically created buttons
+                                    setInterval(enhanceExitButtons, 3000);
+                                `;
+                                iframeWindow.document.head.appendChild(script);
+                                console.log('✅ courseExit handler injected into SCORM iframe');
+                            }
+                        } catch (e) {
+                            console.log('⚠️ Could not inject courseExit handler (cross-origin):', e.message);
+                        }
+                    }, 2000); // Wait 2 seconds for iframe to fully load
                 }
             } catch (e) {
                 // Cross-origin, can't inject directly
@@ -1792,7 +1874,8 @@
                 // Check for exit messages (save and go back without forcing completion)
                 else if (message.includes('exit') || message.includes('terminate') || 
                          message.includes('finish') || message.includes('close') || 
-                         message === 'back' || message === 'return') {
+                         message === 'back' || message === 'return' || 
+                         message.includes('courseexit') || message === 'exit_assessment') {
                     console.log('🚪 Received exit message from SCORM content:', event.data);
                     shouldExit = true;
                 }
@@ -1806,12 +1889,19 @@
                     console.log('✅ Received structured completion message from SCORM content:', event.data);
                     shouldComplete = true;
                 }
-                // Check for exit actions
+                // Check for exit actions - Enhanced for courseExit support
                 else if (event.data.action === 'exit' || event.data.action === 'terminate' || 
                          event.data.action === 'finish' || event.data.action === 'close' ||
-                         event.data.action === 'back' || event.data.type === 'exit') {
+                         event.data.action === 'back' || event.data.type === 'exit' ||
+                         event.data.action === 'courseExit' || event.data.type === 'courseExit' ||
+                         event.data.command === 'exit' || event.data.command === 'courseExit') {
                     console.log('🚪 Received structured exit message from SCORM content:', event.data);
                     shouldExit = true;
+                }
+                // Special handling for course:ready and other course events
+                else if (event.data.type === 'course:ready') {
+                    console.log('📚 SCORM course is ready');
+                    // Course is ready, no action needed but good to log
                 }
             }
             
@@ -1949,21 +2039,53 @@
             startAutoScoreCapture();
         }, 5000); // Start after 5 seconds to allow SCORM content to load
         
-        // STREAMLINED: Exit button handling
+        // STREAMLINED: Exit button handling - Enhanced for courseExit support
         function handleExitButtonClicks() {
             function fixExitButtons() {
                 const exitButtonSelectors = [
-                    '.courseExit', '.courseExit--standard', 
-                    'button[class*="exit"]', 'a[class*="exit"]',
-                    '[data-action="exit"]', '.exit-button', '#exit-button'
+                    '.courseExit', '.courseExit--standard', '.courseExit--overview', '.courseExit--mobile',
+                    'button[class*="exit"]', 'a[class*="exit"]', 'button[class*="courseExit"]', 'a[class*="courseExit"]',
+                    '[data-action="exit"]', '[data-action="courseExit"]', '.exit-button', '#exit-button',
+                    'button:contains("EXIT ASSESSMENT")', 'a:contains("EXIT ASSESSMENT")',
+                    'button:contains("Exit Assessment")', 'a:contains("Exit Assessment")'
                 ];
                 
                 let buttonsFound = 0;
+                
+                // Also check iframe content for exit buttons
+                const iframe = document.getElementById('scormFrame');
+                if (iframe && iframe.contentWindow) {
+                    try {
+                        const iframeDoc = iframe.contentWindow.document;
+                        if (iframeDoc) {
+                            // Look for exit buttons in iframe
+                            const iframeExitButtons = iframeDoc.querySelectorAll('.courseExit, .courseExit--standard, button[class*="courseExit"], a[class*="courseExit"]');
+                            if (iframeExitButtons.length > 0) {
+                                console.log(`🚪 Found ${iframeExitButtons.length} exit button(s) in iframe`);
+                                iframeExitButtons.forEach(button => {
+                                    button.addEventListener('click', function(e) {
+                                        console.log('🚪 IFRAME EXIT button clicked - sending message to parent...');
+                                        // Send exit message to parent
+                                        window.parent.postMessage({action: 'courseExit', type: 'exit'}, '*');
+                                        window.parent.postMessage('exit_assessment', '*');
+                                    });
+                                });
+                                buttonsFound += iframeExitButtons.length;
+                            }
+                        }
+                    } catch (e) {
+                        // Cross-origin iframe, can't access content directly
+                        console.log('🚪 Cannot access iframe content directly (cross-origin), relying on postMessage');
+                    }
+                }
+                
+                // Check parent page for exit buttons
                 exitButtonSelectors.forEach(selector => {
                     try {
                         document.querySelectorAll(selector).forEach(button => {
                             const buttonText = (button.textContent || button.value || '').toLowerCase();
-                            if (buttonText.includes('exit') || button.classList.contains('courseExit')) {
+                            if (buttonText.includes('exit') || button.classList.contains('courseExit') || 
+                                buttonText.includes('exit assessment')) {
                                 console.log('🚪 Found exit button:', button);
                                 buttonsFound++;
                                 

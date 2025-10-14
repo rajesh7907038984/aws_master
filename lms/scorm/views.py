@@ -622,7 +622,7 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
                     api_injection = '''
 <script>
 // Minimal API bridge for Tin Can/xAPI content
-// Version: 4.0 - Non-intrusive for Articulate Storyline
+// Version: 4.1 - Non-intrusive for Articulate Storyline with exit button support
 console.log('[xAPI] Minimal API bridge loaded');
 
 // Only provide parent window API reference if needed
@@ -659,6 +659,43 @@ if (!window.API && !window.API_1484_11) {
     };
     console.log('[xAPI] Minimal fallback API created');
 }
+
+// Enhanced exit button support for xAPI content
+window.courseExit = function() {
+    console.log('[xAPI] courseExit() called - sending exit message to parent');
+    if (window.parent && window.parent !== window) {
+        window.parent.postMessage({action: 'courseExit', type: 'exit'}, '*');
+        window.parent.postMessage('exit_assessment', '*');
+    }
+};
+
+// Auto-enhance exit buttons when DOM is ready
+function enhanceExitButtons() {
+    const exitButtons = document.querySelectorAll('.courseExit, .courseExit--standard, .courseExit--overview, .courseExit--mobile, button[class*="courseExit"], a[class*="courseExit"]');
+    exitButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            console.log('[xAPI] Exit button clicked');
+            window.courseExit();
+        }, true);
+    });
+    
+    // Also check by text content
+    document.querySelectorAll('button, a, input[type="button"]').forEach(element => {
+        const text = (element.textContent || element.value || '').toLowerCase();
+        if (text.includes('exit assessment') || text.includes('exit course') || text === 'exit') {
+            element.addEventListener('click', function(e) {
+                console.log('[xAPI] Text-based exit button clicked');
+                window.courseExit();
+            }, true);
+        }
+    });
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', enhanceExitButtons);
+} else {
+    enhanceExitButtons();
+}
 </script>'''
                 else:
                     # For SCORM 1.2 and 2004 packages, also use minimal injection
@@ -666,7 +703,7 @@ if (!window.API && !window.API_1484_11) {
                     api_injection = '''
 <script>
 // Lightweight SCORM API - Points to parent window API
-// Version: 4.0 - Simplified for all SCORM types
+// Version: 4.1 - Simplified for all SCORM types with exit button support
 console.log('[SCORM] API bridge loaded for content');
 
 // Try to use parent window's API if available (iframe scenario)
@@ -709,6 +746,60 @@ if (!window.API_1484_11) {
     };
     console.log('[SCORM] Minimal SCORM 2004 fallback API created');
 }
+
+// Enhanced exit button support for SCORM content
+window.courseExit = function() {
+    console.log('[SCORM] courseExit() called - sending exit message to parent');
+    if (window.parent && window.parent !== window) {
+        window.parent.postMessage({action: 'courseExit', type: 'exit'}, '*');
+        window.parent.postMessage('exit_assessment', '*');
+    }
+};
+
+// Auto-enhance exit buttons when DOM is ready
+function enhanceExitButtons() {
+    const exitButtons = document.querySelectorAll('.courseExit, .courseExit--standard, .courseExit--overview, .courseExit--mobile, button[class*="courseExit"], a[class*="courseExit"]');
+    let buttonsEnhanced = 0;
+    
+    exitButtons.forEach(button => {
+        // Avoid double-enhancing buttons
+        if (!button.hasAttribute('data-exit-enhanced')) {
+            button.setAttribute('data-exit-enhanced', 'true');
+            button.addEventListener('click', function(e) {
+                console.log('[SCORM] Exit button clicked');
+                window.courseExit();
+            }, true);
+            buttonsEnhanced++;
+        }
+    });
+    
+    // Also check by text content
+    document.querySelectorAll('button, a, input[type="button"]').forEach(element => {
+        const text = (element.textContent || element.value || '').toLowerCase();
+        if ((text.includes('exit assessment') || text.includes('exit course') || text === 'exit') && 
+            !element.hasAttribute('data-exit-enhanced')) {
+            element.setAttribute('data-exit-enhanced', 'true');
+            element.addEventListener('click', function(e) {
+                console.log('[SCORM] Text-based exit button clicked');
+                window.courseExit();
+            }, true);
+            buttonsEnhanced++;
+        }
+    });
+    
+    if (buttonsEnhanced > 0) {
+        console.log('[SCORM] Enhanced ' + buttonsEnhanced + ' exit button(s)');
+    }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', enhanceExitButtons);
+} else {
+    enhanceExitButtons();
+}
+
+// Also run periodically to catch dynamically created buttons
+setInterval(enhanceExitButtons, 3000);
 </script>'''
                 
                 # Inject before </head> or at beginning of <body>
