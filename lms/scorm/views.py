@@ -974,6 +974,15 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
                 
                 logger.info(f"Injected CSP meta tag and base tag with Django proxy URL: {base_url}")
                 
+                # CRITICAL FIX: Check if API has already been injected to prevent duplication
+                if 'window.API' in html_content and 'window.API_1484_11' in html_content:
+                    logger.info(f"SCORM API already injected in {path}, skipping duplicate injection")
+                    # Still need to set proper headers
+                    response_obj = HttpResponse(content, content_type=content_type)
+                    response_obj['Access-Control-Allow-Origin'] = '*'
+                    response_obj['X-Frame-Options'] = 'SAMEORIGIN'
+                    return response_obj
+                
                 # CRITICAL FIX: For xAPI/Tin Can packages (Articulate Storyline), 
                 # don't inject complex SCORM code - just provide parent API reference
                 if scorm_package.version == 'xapi':

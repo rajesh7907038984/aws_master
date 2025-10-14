@@ -175,23 +175,35 @@
             }
         }
         
-        // Initialize on load
-        window.addEventListener('load', initializeSCORM);
-        
-        // Also initialize immediately if DOM is already ready
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initializeSCORM);
-        } else {
-            initializeSCORM();
+        // CRITICAL FIX: Only initialize once, prevent multiple event listeners
+        if (!window.scormPlayerInitialized) {
+            window.scormPlayerInitialized = true;
+            
+            // Initialize on load
+            window.addEventListener('load', initializeSCORM);
+            
+            // Also initialize immediately if DOM is already ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initializeSCORM);
+            } else {
+                initializeSCORM();
+            }
         }
         
-        // Handle iframe loading
+        // Handle iframe loading - PREVENT DUPLICATION
         const iframe = document.getElementById('scormIframe');
         const loadingOverlay = document.getElementById('loadingOverlay');
+        let iframeLoaded = false;
         
         iframe.addEventListener('load', function() {
+            if (iframeLoaded) {
+                console.log('Iframe already loaded, skipping duplicate handling');
+                return;
+            }
+            
             console.log('SCORM content loaded');
             updateStatus('SCORM content loaded');
+            iframeLoaded = true;
             
             // Hide loading overlay
             setTimeout(() => {
