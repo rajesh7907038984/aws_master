@@ -991,29 +991,6 @@ if (window.parent && window.parent !== window) {
     }
 }
 
-// Minimal fallback API stub (only if no API exists)
-if (!window.API && !window.API_1484_11) {
-    window.API = window.API_1484_11 = {
-        LMSInitialize: function() { return 'true'; },
-        Initialize: function() { return 'true'; },
-        LMSFinish: function() { return 'true'; },
-        Terminate: function() { return 'true'; },
-        LMSGetValue: function(e) { return ''; },
-        GetValue: function(e) { return ''; },
-        LMSSetValue: function(e,v) { return 'true'; },
-        SetValue: function(e,v) { return 'true'; },
-        LMSCommit: function() { return 'true'; },
-        Commit: function() { return 'true'; },
-        LMSGetLastError: function() { return '0'; },
-        GetLastError: function() { return '0'; },
-        LMSGetErrorString: function(c) { return ''; },
-        GetErrorString: function(c) { return ''; },
-        LMSGetDiagnostic: function(c) { return ''; },
-        GetDiagnostic: function(c) { return ''; }
-    };
-    console.log('[xAPI] Minimal fallback API created');
-}
-
 // Enhanced exit button support for xAPI content
 window.courseExit = function() {
     console.log('[xAPI] courseExit() called - sending exit message to parent');
@@ -1037,6 +1014,11 @@ window.courseExit = function() {
 // REAL SCORM API - Communicates with LMS backend
 // Version: 5.0 - Permanent solution for SCORM data saving
 console.log('[SCORM] Real API bridge loaded for content - attempt {api_attempt_id}');
+
+// Prevent API duplication - only define if not already exists
+if (window.API || window.API_1484_11) {{
+    console.log('[SCORM] API already exists, skipping injection');
+}} else {{
 
 // Configuration
 const SCORM_CONFIG = {{
@@ -1215,6 +1197,7 @@ window.courseExit = function() {{
 }};
 
 log('SCORM API injection complete - ready for communication with LMS');
+}} // End of API definition conditional
 </script>'''
                 
                 # Inject before </head> or at beginning of <body>
