@@ -214,7 +214,7 @@
             {% endif %}
         </div>
         <div class="scorm-actions">
-            <a href="#" id="backToTopicBtn" class="btn btn-secondary" onclick="handleBackToTopic(event); return false;">
+            <a href="{% url 'courses:topic_view' topic.id %}" id="backToTopicBtn" class="btn btn-secondary">
                 ← Back to Topic
             </a>
         </div>
