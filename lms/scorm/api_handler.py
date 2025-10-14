@@ -113,11 +113,9 @@ class ScormAPIHandler:
         if not self.attempt.cmi_data:
             self.attempt.cmi_data = self._initialize_cmi_data()
         
-        # CRITICAL FIX: Check for existing bookmark data and set entry mode accordingly
-        has_bookmark_data = bool(self.attempt.lesson_location or self.attempt.suspend_data)
-        
-        if has_bookmark_data:
-            self.attempt.entry = 'resume'
+        # CRITICAL FIX: Always respect the entry mode set by the view
+        # The view has already determined if this should be a resume or new attempt
+        if self.attempt.entry == 'resume':
             logger.info(f"SCORM Resume: lesson_location='{self.attempt.lesson_location}', suspend_data='{self.attempt.suspend_data[:50] if self.attempt.suspend_data else 'None'}...'")
         else:
             self.attempt.entry = 'ab-initio'
@@ -263,9 +261,11 @@ class ScormAPIHandler:
                 elif element == 'cmi.core.lesson_location' or element == 'cmi.location':
                     # CRITICAL FIX: Always return bookmark data from model fields
                     value = self.attempt.lesson_location or ''
+                    logger.info(f"SCORM API GetValue({element}) - returning bookmark: '{value}'")
                 elif element == 'cmi.suspend_data':
                     # CRITICAL FIX: Always return suspend data from model fields
                     value = self.attempt.suspend_data or ''
+                    logger.info(f"SCORM API GetValue({element}) - returning suspend data: '{value[:50] if value else 'None'}...'")
             
             self.last_error = '0'
             logger.info(f"SCORM API GetValue({element}) - returning: '{value}'")
@@ -300,14 +300,19 @@ class ScormAPIHandler:
                 elif element == 'cmi.suspend_data':
                     self.attempt.suspend_data = value
                 
-                # Save immediately for persistence
-                self.attempt.save()
+                # ENHANCED TRACKING: Force save to database with transaction
+                with transaction.atomic():
+                    self.attempt.save(update_fields=[
+                        'cmi_data', 'lesson_location', 'suspend_data', 'last_accessed'
+                    ])
+                    logger.info(f"💾 TRACKING DATA SAVED: {element} = {value} for attempt {self.attempt.id}")
+                
                 self.last_error = '0'
                 return 'true'
             
-            # Store the value
-            self.attempt.cmi_data[element] = value
-            logger.info(f"SCORM API SetValue({element}, {value}) - stored successfully")
+            # ENHANCED TRACKING: Use comprehensive tracking method
+            self.attempt.update_tracking_data(element, value)
+            logger.info(f"SCORM API SetValue({element}, {value}) - stored with enhanced tracking")
             
             # Standard SCORM bookmark handling - lesson_location is already stored in the model
             
@@ -347,6 +352,12 @@ class ScormAPIHandler:
                     self.attempt.cmi_data['cmi.core.lesson_location'] = value
                     # Enhanced slide tracking
                     self._update_slide_tracking(value)
+                    # ENHANCED BOOKMARK: Force immediate save for bookmark data
+                    logger.info(f"🔖 BOOKMARK SAVED: lesson_location='{value}' for attempt {self.attempt.id}")
+                    # Force save bookmark data immediately
+                    with transaction.atomic():
+                        self.attempt.save(update_fields=['lesson_location', 'cmi_data', 'last_accessed'])
+                        logger.info(f"💾 BOOKMARK PERSISTED: lesson_location saved to database")
                 elif element == 'cmi.core.session_time':
                     self.attempt.session_time = value
                     self._update_total_time(value)
@@ -358,6 +369,12 @@ class ScormAPIHandler:
                     self.attempt.cmi_data['cmi.suspend_data'] = value
                     # ENHANCED: Parse and sync progress from suspend data
                     self._parse_and_sync_suspend_data(value)
+                    # ENHANCED BOOKMARK: Force immediate save for suspend data
+                    logger.info(f"🔖 SUSPEND DATA SAVED: suspend_data='{value[:50]}...' for attempt {self.attempt.id}")
+                    # Force save suspend data immediately
+                    with transaction.atomic():
+                        self.attempt.save(update_fields=['suspend_data', 'cmi_data', 'last_accessed'])
+                        logger.info(f"💾 SUSPEND DATA PERSISTED: suspend_data saved to database")
             else:  # SCORM 2004
                 if element == 'cmi.completion_status':
                     self.attempt.completion_status = value
@@ -405,6 +422,12 @@ class ScormAPIHandler:
                     self.attempt.cmi_data['cmi.location'] = value
                     # Enhanced slide tracking
                     self._update_slide_tracking(value)
+                    # ENHANCED BOOKMARK: Force immediate save for bookmark data
+                    logger.info(f"🔖 BOOKMARK SAVED: location='{value}' for attempt {self.attempt.id}")
+                    # Force save bookmark data immediately
+                    with transaction.atomic():
+                        self.attempt.save(update_fields=['lesson_location', 'cmi_data', 'last_accessed'])
+                        logger.info(f"💾 BOOKMARK PERSISTED: location saved to database")
                 elif element == 'cmi.session_time':
                     self.attempt.session_time = value
                     self._update_total_time(value)
@@ -416,6 +439,12 @@ class ScormAPIHandler:
                     self.attempt.cmi_data['cmi.suspend_data'] = value
                     # ENHANCED: Parse and sync progress from suspend data
                     self._parse_and_sync_suspend_data(value)
+                    # ENHANCED BOOKMARK: Force immediate save for suspend data
+                    logger.info(f"🔖 SUSPEND DATA SAVED: suspend_data='{value[:50]}...' for attempt {self.attempt.id}")
+                    # Force save suspend data immediately
+                    with transaction.atomic():
+                        self.attempt.save(update_fields=['suspend_data', 'cmi_data', 'last_accessed'])
+                        logger.info(f"💾 SUSPEND DATA PERSISTED: suspend_data saved to database")
             
             self.last_error = '0'
             return 'true'
@@ -566,7 +595,9 @@ class ScormAPIHandler:
     
     @transaction.atomic
     def _commit_data(self):
-        """Save attempt data to database with proper transaction handling"""
+        """Save attempt data to database with proper transaction handling
+        ENHANCED: Ensures all tracking data is properly saved to database
+        """
         logger.info(f"💾 COMMIT: Starting commit for attempt {self.attempt.id}")
         logger.info(f"💾 COMMIT: score_raw BEFORE save = {self.attempt.score_raw}")
         
@@ -577,8 +608,17 @@ class ScormAPIHandler:
             # Set flag to prevent signal from processing this
             self.attempt._updating_from_api_handler = True
             try:
-                # CRITICAL FIX: Save attempt with force_insert=False to ensure proper update
-                self.attempt.save(force_insert=False)
+                # ENHANCED TRACKING: Save all tracking fields to ensure data persistence
+                self.attempt.save(force_insert=False, update_fields=[
+                    'cmi_data', 'lesson_status', 'completion_status', 'success_status',
+                    'score_raw', 'score_min', 'score_max', 'score_scaled',
+                    'total_time', 'session_time', 'lesson_location', 'suspend_data',
+                    'entry', 'exit_mode', 'last_accessed', 'completed_at',
+                    'completed_slides', 'detailed_tracking', 'last_visited_slide',
+                    'navigation_history', 'progress_percentage', 'session_data',
+                    'session_start_time', 'session_end_time', 'time_spent_seconds',
+                    'total_slides'
+                ])
                 logger.info(f"💾 COMMIT: Saved! score_raw AFTER save = {self.attempt.score_raw}")
                 
                 # CRITICAL FIX: Force transaction commit with connection.commit()
@@ -597,6 +637,10 @@ class ScormAPIHandler:
                 from .score_sync_service import ScormScoreSyncService
                 # CRITICAL FIX: Force synchronization to ensure score is saved
                 ScormScoreSyncService.sync_score(self.attempt, force=True)
+                
+                # ENHANCED TRACKING: Log successful data persistence
+                logger.info(f"✅ TRACKING DATA PERSISTED: All learner progress saved to database for attempt {self.attempt.id}")
+                
             finally:
                 # Clean up the flag
                 if hasattr(self.attempt, '_updating_from_api_handler'):

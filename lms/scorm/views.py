@@ -80,16 +80,20 @@ def scorm_view(request, topic_id):
     
     is_authenticated = True
     
+    # ENHANCED AUTHENTICATION: Log user access for tracking
+    logger.info(f"🔐 SCORM ACCESS: User {request.user.username} (ID: {request.user.id}) accessing topic {topic_id}")
+    
     # OPTIMIZATION: Optimize database queries with select_related
     topic = get_object_or_404(
         Topic.objects.select_related('scorm_package'),
         id=topic_id
     )
     
-    # CRITICAL FIX: Handle permission check for both authenticated and non-authenticated users
+    # ENHANCED AUTHENTICATION: Strict permission check for authenticated users
     if is_authenticated:
         # Check if user has permission to access this topic's course
         if not topic.user_has_access(request.user):
+            logger.warning(f"❌ ACCESS DENIED: User {request.user.username} denied access to topic {topic_id}")
             messages.error(request, "You need to be enrolled in this course to access the SCORM content.")
             try:
                 from courses.models import CourseTopic
@@ -99,6 +103,8 @@ def scorm_view(request, topic_id):
             except Exception:
                 pass
             return redirect('courses:course_list')
+        else:
+            logger.info(f"✅ ACCESS GRANTED: User {request.user.username} has access to topic {topic_id}")
     else:
         # For non-authenticated users, check if this is a public course or embedded content
         # Allow access if it's a public course or if it's being accessed via embedded URL
@@ -298,31 +304,32 @@ def scorm_view(request, topic_id):
                 # Continue existing incomplete attempt - ensure resume data is loaded
                 attempt = last_attempt
                 
+                # CRITICAL FIX: Always set entry mode to 'resume' for existing attempts
+                # This ensures learners return to their last location instead of fresh start
+                attempt.entry = 'resume'
+                
                 # Load resume data into CMI data for proper resume functionality
-                if attempt.lesson_location or attempt.suspend_data:
-                    # Ensure CMI data is properly initialized with resume data
-                    if not attempt.cmi_data:
-                        attempt.cmi_data = {}
-                    
-                    # Load resume data into CMI data
-                    if attempt.lesson_location:
-                        if scorm_package.version == '1.2':
-                            attempt.cmi_data['cmi.core.lesson_location'] = attempt.lesson_location
-                        else:  # SCORM 2004
-                            attempt.cmi_data['cmi.location'] = attempt.lesson_location
-                    
-                    if attempt.suspend_data:
-                        if scorm_package.version == '1.2':
-                            attempt.cmi_data['cmi.suspend_data'] = attempt.suspend_data
-                        else:  # SCORM 2004
-                            attempt.cmi_data['cmi.suspend_data'] = attempt.suspend_data
-                    
-                    # Set entry mode to resume
-                    attempt.entry = 'resume'
+                if not attempt.cmi_data:
+                    attempt.cmi_data = {}
+                
+                # Always load resume data into CMI data, even if empty
+                if attempt.lesson_location:
                     if scorm_package.version == '1.2':
-                        attempt.cmi_data['cmi.core.entry'] = 'resume'
+                        attempt.cmi_data['cmi.core.lesson_location'] = attempt.lesson_location
                     else:  # SCORM 2004
-                        attempt.cmi_data['cmi.entry'] = 'resume'
+                        attempt.cmi_data['cmi.location'] = attempt.lesson_location
+                
+                if attempt.suspend_data:
+                    if scorm_package.version == '1.2':
+                        attempt.cmi_data['cmi.suspend_data'] = attempt.suspend_data
+                    else:  # SCORM 2004
+                        attempt.cmi_data['cmi.suspend_data'] = attempt.suspend_data
+                
+                # CRITICAL FIX: Always set entry mode to resume in CMI data
+                if scorm_package.version == '1.2':
+                    attempt.cmi_data['cmi.core.entry'] = 'resume'
+                else:  # SCORM 2004
+                    attempt.cmi_data['cmi.entry'] = 'resume'
                 
                 # Save the updated attempt
                 attempt.save()
@@ -381,6 +388,9 @@ def scorm_view(request, topic_id):
                     if '#/lessons/' in location:
                         lesson_id = location
                         logger.info(f"Using lesson ID from SCORM 2004 cmi_data: {lesson_id}")
+        
+        # ENHANCED BOOKMARK: Log bookmark data for debugging
+        logger.info(f"🔖 BOOKMARK DEBUG: lesson_id='{lesson_id}', lesson_location='{attempt.lesson_location if hasattr(attempt, 'lesson_location') else 'N/A'}', suspend_data='{attempt.suspend_data[:50] if hasattr(attempt, 'suspend_data') and attempt.suspend_data else 'N/A'}...'")
         
         # CRITICAL FIX: Clean lesson_id to ensure it only contains the hash fragment
         # Remove any filename prefix like "index.html#" to prevent duplication
@@ -459,6 +469,7 @@ def scorm_view(request, topic_id):
     return response
 
 
+@login_required
 @csrf_exempt
 @require_http_methods(["POST", "OPTIONS"])
 def scorm_api(request, attempt_id):
@@ -480,14 +491,23 @@ def scorm_api(request, attempt_id):
     logger.info(f"🔵 Headers: {dict(request.headers)}")
     logger.info(f"🔵 Body preview: {request.body[:200] if request.body else 'Empty'}")
     
-    # FIXED: Proper authentication for SCORM API calls with optimized query
+    # ENHANCED AUTHENTICATION: Strict user verification for SCORM API calls
     try:
         attempt = ScormAttempt.objects.select_related('user', 'scorm_package').get(id=attempt_id)
         logger.info(f"🔵 SCORM API: Found attempt {attempt_id} for user {attempt.user.username}")
-        # Verify user owns this attempt
-        if not request.user.is_authenticated or attempt.user != request.user:
-            logger.warning(f"❌ UNAUTHORIZED: User {request.user} tried to access attempt {attempt_id} owned by {attempt.user}")
-            return JsonResponse({'error': 'Unauthorized'}, status=401)
+        
+        # ENHANCED SECURITY: Verify user authentication and ownership
+        if not request.user.is_authenticated:
+            logger.warning(f"❌ UNAUTHENTICATED: Unauthenticated request to attempt {attempt_id}")
+            return JsonResponse({'error': 'Authentication required'}, status=401)
+        
+        if attempt.user != request.user:
+            logger.warning(f"❌ UNAUTHORIZED: User {request.user.username} (ID: {request.user.id}) tried to access attempt {attempt_id} owned by {attempt.user.username} (ID: {attempt.user.id})")
+            return JsonResponse({'error': 'Unauthorized - You can only access your own attempts'}, status=403)
+        
+        # ENHANCED TRACKING: Log successful API access
+        logger.info(f"✅ SCORM API: User {request.user.username} (ID: {request.user.id}) accessing attempt {attempt_id}")
+        
     except ScormAttempt.DoesNotExist:
         logger.error(f"❌ SCORM API: Attempt {attempt_id} not found")
         response = JsonResponse({'error': 'Attempt not found'}, status=404)
@@ -698,19 +718,16 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
     Serve SCORM content files from S3 with optimized loading
     Uses direct S3 URLs for maximum performance
     Handles both topic_id and attempt_id parameters for backward compatibility
-    Supports both authenticated and non-authenticated access for embedded content
+    ENHANCED: Requires authentication for all SCORM content access
     """
     try:
-        # Handle both authenticated and non-authenticated access
-        is_authenticated = request.user.is_authenticated
+        # ENHANCED AUTHENTICATION: Require authentication for all SCORM content access
+        if not request.user.is_authenticated:
+            logger.warning(f"❌ UNAUTHENTICATED ACCESS: Attempted access to SCORM content without authentication")
+            return HttpResponse('Authentication required to access SCORM content', status=401)
         
-        # For non-authenticated users, check if this is embedded content
-        if not is_authenticated:
-            # Allow access to embedded SCORM content without authentication
-            # This is needed for iframe embedding and external access
-            logger.info(f"Non-authenticated access to SCORM content: topic_id={topic_id}, path={path}")
-        else:
-            logger.info(f"Authenticated access to SCORM content: user={request.user.username}, topic_id={topic_id}, path={path}")
+        is_authenticated = True
+        logger.info(f"✅ AUTHENTICATED ACCESS: User {request.user.username} (ID: {request.user.id}) accessing SCORM content: topic_id={topic_id}, path={path}")
         # Handle both topic_id and attempt_id parameters for backward compatibility
         current_attempt_id = None
         if attempt_id is not None and topic_id is None:
@@ -1144,6 +1161,7 @@ def scorm_debug(request, attempt_id):
         }, status=500)
 
 
+@login_required
 @csrf_exempt
 @require_http_methods(["POST"])
 def scorm_emergency_save(request):
@@ -1319,17 +1337,22 @@ window.API = {
         return HttpResponse('Error loading content', status=500)
 
 
+@login_required
 def scorm_tracking_report(request, attempt_id):
     """
     Comprehensive SCORM tracking report with all detailed data
+    ENHANCED: Provides complete learner progress tracking information
     """
     try:
         attempt = get_object_or_404(ScormAttempt, id=attempt_id)
         
-        # Verify user owns this attempt or is instructor/admin
+        # ENHANCED AUTHENTICATION: Verify user owns this attempt or is instructor/admin
         if (attempt.user != request.user and 
             not (hasattr(request.user, 'role') and request.user.role in ['instructor', 'admin', 'superadmin', 'globaladmin'])):
+            logger.warning(f"❌ UNAUTHORIZED TRACKING ACCESS: User {request.user.username} denied access to tracking report for attempt {attempt_id}")
             return JsonResponse({'error': 'Unauthorized'}, status=403)
+        
+        logger.info(f"📊 TRACKING REPORT: User {request.user.username} accessing tracking data for attempt {attempt_id}")
         
         # Calculate time spent in different formats
         time_spent_hours = attempt.time_spent_seconds / 3600 if attempt.time_spent_seconds else 0
@@ -1406,6 +1429,105 @@ def scorm_tracking_report(request, attempt_id):
         
     except Exception as e:
         logger.error(f"Error generating SCORM tracking report: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["GET"])
+def learner_progress_dashboard(request, user_id=None):
+    """
+    ENHANCED: Comprehensive learner progress dashboard
+    Shows all SCORM tracking data for a specific learner
+    """
+    try:
+        # ENHANCED AUTHENTICATION: Check if user can access this data
+        target_user_id = user_id or request.user.id
+        
+        # Users can only access their own data unless they're instructors/admins
+        if (target_user_id != request.user.id and 
+            not (hasattr(request.user, 'role') and request.user.role in ['instructor', 'admin', 'superadmin', 'globaladmin'])):
+            logger.warning(f"❌ UNAUTHORIZED DASHBOARD ACCESS: User {request.user.username} denied access to dashboard for user {target_user_id}")
+            return JsonResponse({'error': 'Unauthorized'}, status=403)
+        
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        target_user = get_object_or_404(User, id=target_user_id)
+        
+        # Get all SCORM attempts for this user
+        attempts = ScormAttempt.objects.filter(user=target_user).select_related(
+            'scorm_package', 'scorm_package__topic'
+        ).order_by('-started_at')
+        
+        # Calculate comprehensive progress statistics
+        total_attempts = attempts.count()
+        completed_attempts = attempts.filter(lesson_status__in=['completed', 'passed']).count()
+        in_progress_attempts = attempts.filter(lesson_status='incomplete').count()
+        
+        # Calculate total time spent across all attempts
+        total_time_seconds = sum(attempt.time_spent_seconds or 0 for attempt in attempts)
+        total_time_hours = total_time_seconds / 3600
+        
+        # Get recent activity (last 10 attempts)
+        recent_attempts = attempts[:10]
+        
+        # Calculate completion rate
+        completion_rate = (completed_attempts / total_attempts * 100) if total_attempts > 0 else 0
+        
+        # Get detailed progress for each attempt
+        detailed_progress = []
+        for attempt in recent_attempts:
+            progress_data = {
+                'attempt_id': attempt.id,
+                'course_title': attempt.scorm_package.title,
+                'topic_title': attempt.scorm_package.topic.title,
+                'status': attempt.lesson_status,
+                'score': float(attempt.score_raw) if attempt.score_raw else None,
+                'max_score': float(attempt.score_max) if attempt.score_max else 100,
+                'percentage_score': attempt.get_percentage_score(),
+                'time_spent_seconds': attempt.time_spent_seconds,
+                'time_spent_hours': (attempt.time_spent_seconds / 3600) if attempt.time_spent_seconds else 0,
+                'started_at': attempt.started_at.isoformat(),
+                'last_accessed': attempt.last_accessed.isoformat(),
+                'completed_at': attempt.completed_at.isoformat() if attempt.completed_at else None,
+                'progress_percentage': float(attempt.progress_percentage) if attempt.progress_percentage else 0,
+                'completed_slides': attempt.completed_slides,
+                'total_slides': attempt.total_slides,
+                'navigation_history_count': len(attempt.navigation_history) if attempt.navigation_history else 0,
+                'is_passed': attempt.is_passed(),
+            }
+            detailed_progress.append(progress_data)
+        
+        dashboard_data = {
+            'user_info': {
+                'username': target_user.username,
+                'full_name': target_user.get_full_name(),
+                'email': target_user.email,
+                'user_id': target_user.id,
+            },
+            'summary_statistics': {
+                'total_attempts': total_attempts,
+                'completed_attempts': completed_attempts,
+                'in_progress_attempts': in_progress_attempts,
+                'completion_rate': round(completion_rate, 2),
+                'total_time_seconds': total_time_seconds,
+                'total_time_hours': round(total_time_hours, 2),
+            },
+            'detailed_progress': detailed_progress,
+            'recent_activity': recent_attempts.count(),
+        }
+        
+        logger.info(f"📊 LEARNER DASHBOARD: Generated progress dashboard for user {target_user.username}")
+        
+        return JsonResponse({
+            'success': True,
+            'dashboard_data': dashboard_data
+        })
+        
+    except Exception as e:
+        logger.error(f"Error generating learner progress dashboard: {str(e)}")
         return JsonResponse({
             'success': False,
             'error': str(e)
