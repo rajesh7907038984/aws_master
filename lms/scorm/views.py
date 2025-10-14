@@ -733,6 +733,19 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
             if 'text/html' in content_type:
                 html_content = content.decode('utf-8')
                 
+                # CRITICAL FIX: Inject base tag for proper relative path resolution
+                # This ensures all relative URLs (JavaScript, CSS, images) load correctly
+                base_url = scorm_s3.get_base_url(scorm_package)
+                base_tag = f'<base href="{base_url}">'
+                
+                # Inject base tag right after <head> tag
+                if '<head>' in html_content:
+                    html_content = html_content.replace('<head>', f'<head>\n    {base_tag}', 1)
+                elif '<HEAD>' in html_content:
+                    html_content = html_content.replace('<HEAD>', f'<HEAD>\n    {base_tag}', 1)
+                
+                logger.info(f"Injected base tag with URL: {base_url}")
+                
                 # CRITICAL FIX: For xAPI/Tin Can packages (Articulate Storyline), 
                 # don't inject complex SCORM code - just provide parent API reference
                 if scorm_package.version == 'xapi':
