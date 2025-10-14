@@ -33,7 +33,7 @@ AWS_DEPLOYMENT = True
 # Production-specific session overrides (inherits base.py session config)
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # Use database for production
 SESSION_COOKIE_SECURE = True  # Enable secure cookies for HTTPS
-SESSION_SAVE_EVERY_REQUEST = False  # Optimize for production performance
+SESSION_SAVE_EVERY_REQUEST = True  # CRITICAL: Enable session saving to prevent auto-logout
 
 # CSRF configuration - production overrides only
 CSRF_COOKIE_SECURE = True  # Enable secure CSRF cookies for production HTTPS

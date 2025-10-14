@@ -205,7 +205,6 @@ INSTALLED_APPS = [
     'lms_rubrics',
     'individual_learning_plan',
     'lms_notifications',
-    'lms_media',
     'course_reviews',
     
     # Management & Integration
@@ -229,6 +228,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',  # RE-ENABLED FOR PROPER CSRF PROTECTION
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'core.middleware.session_persistence.SessionPersistenceMiddleware',  # Session persistence
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]

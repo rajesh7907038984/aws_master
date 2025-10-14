@@ -212,13 +212,27 @@ class ScormAttempt(models.Model):
         ordering = ['-started_at']
     
     def save(self, *args, **kwargs):
-        """Initialize JSON fields if None"""
+        """Initialize JSON fields if None and ensure tracking data persistence"""
         self.cmi_data = self.cmi_data or {}
         self.completed_slides = self.completed_slides or {}
         self.detailed_tracking = self.detailed_tracking or {}
         self.navigation_history = self.navigation_history or []
         self.session_data = self.session_data or {}
+        
+        # ENHANCED TRACKING: Ensure all tracking data is properly initialized
+        if not self.session_start_time and self.started_at:
+            self.session_start_time = self.started_at
+        
+        # Update last accessed timestamp
+        from django.utils import timezone
+        self.last_accessed = timezone.now()
+        
         super().save(*args, **kwargs)
+        
+        # ENHANCED TRACKING: Log successful save for debugging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"💾 SCORM ATTEMPT SAVED: ID={self.id}, User={self.user.username}, Status={self.lesson_status}, Score={self.score_raw}")
     
     def __str__(self):
         return f"{self.user.username} - {self.scorm_package.title} - Attempt {self.attempt_number}"
@@ -234,6 +248,70 @@ class ScormAttempt(models.Model):
         if self.scorm_package.mastery_score and self.score_raw is not None:
             return self.score_raw >= self.scorm_package.mastery_score
         return self.lesson_status in ['passed', 'completed']
+    
+    def update_tracking_data(self, element, value):
+        """ENHANCED TRACKING: Update comprehensive tracking data for learner progress"""
+        import logging
+        from django.utils import timezone
+        
+        logger = logging.getLogger(__name__)
+        
+        # Update CMI data
+        if not self.cmi_data:
+            self.cmi_data = {}
+        self.cmi_data[element] = value
+        
+        # Track navigation history
+        if element in ['cmi.core.lesson_location', 'cmi.location']:
+            if not self.navigation_history:
+                self.navigation_history = []
+            
+            navigation_entry = {
+                'timestamp': timezone.now().isoformat(),
+                'location': value,
+                'element': element
+            }
+            self.navigation_history.append(navigation_entry)
+            
+            # Keep only last 50 navigation entries
+            if len(self.navigation_history) > 50:
+                self.navigation_history = self.navigation_history[-50:]
+        
+        # Update detailed tracking
+        if not self.detailed_tracking:
+            self.detailed_tracking = {}
+        
+        self.detailed_tracking[element] = {
+            'value': value,
+            'timestamp': timezone.now().isoformat(),
+            'session_time': self.session_time
+        }
+        
+        # Update session data
+        if not self.session_data:
+            self.session_data = {}
+        
+        self.session_data['last_update'] = timezone.now().isoformat()
+        self.session_data['total_updates'] = self.session_data.get('total_updates', 0) + 1
+        
+        # Update time tracking
+        if element in ['cmi.core.total_time', 'cmi.total_time']:
+            self.total_time = value
+        elif element in ['cmi.core.session_time', 'cmi.session_time']:
+            self.session_time = value
+            
+        # Update progress tracking
+        if element in ['cmi.core.lesson_status', 'cmi.completion_status']:
+            if value in ['completed', 'passed']:
+                self.completed_at = timezone.now()
+                self.session_end_time = timezone.now()
+        
+        logger.info(f"📊 TRACKING UPDATED: {element} = {value} for attempt {self.id}")
+        
+        # Save immediately to ensure data persistence
+        self.save()
+        
+        return True
 
 
 # Simplified SCORM models - removed complex interaction and objective tracking

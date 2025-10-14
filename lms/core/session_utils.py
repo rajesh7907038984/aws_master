@@ -86,16 +86,30 @@ def preserve_sessions_during_deployment():
     This should be called before deployment to prevent auto-logout
     """
     try:
-        # Extend all active sessions by 24 hours
-        extended_count = extend_user_sessions(hours=24)
+        # Extend all active sessions by 48 hours (more generous for deployment)
+        extended_count = extend_user_sessions(hours=48)
         
         # Clear old expired sessions to keep database clean
         cleared_count = clear_expired_sessions()
         
-        logger.info(f"Deployment session preservation: Extended {extended_count} sessions, cleared {cleared_count} expired sessions")
+        # Also clear any corrupted sessions that might cause issues
+        from django.contrib.sessions.models import Session
+        from django.utils import timezone
+        
+        # Find and clean up any sessions with invalid data
+        corrupted_count = 0
+        for session in Session.objects.filter(expire_date__gt=timezone.now()):
+            try:
+                session.get_decoded()
+            except Exception:
+                session.delete()
+                corrupted_count += 1
+        
+        logger.info(f"Deployment session preservation: Extended {extended_count} sessions, cleared {cleared_count} expired sessions, removed {corrupted_count} corrupted sessions")
         return {
             'extended_sessions': extended_count,
             'cleared_sessions': cleared_count,
+            'corrupted_sessions': corrupted_count,
             'active_sessions': get_active_session_count()
         }
         

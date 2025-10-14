@@ -1,16 +1,16 @@
 #!/bin/bash
 
 # ==============================================
-# LMS DEPLOYMENT WITH SESSION PRESERVATION
+# LMS DEPLOYMENT SCRIPT WITH AUTO SESSION PRESERVATION
 # ==============================================
-# This script handles deployment while preserving user sessions
+# This script handles deployment while automatically preserving user sessions
 # to prevent auto-logout after deployment
 # ==============================================
 
 set -e  # Exit on error
 
-echo "🚀 LMS Deployment with Session Preservation"
-echo "=========================================="
+echo "🚀 LMS Deployment with Auto Session Preservation"
+echo "=============================================="
 echo "📅 $(date)"
 echo ""
 
@@ -20,11 +20,11 @@ cd "$SCRIPT_DIR"
 
 # Load environment variables
 if [ -f ".env" ]; then
-    echo " Loading environment variables from .env..."
+    echo "📋 Loading environment variables from .env..."
     export $(cat .env | grep -v '^#' | xargs)
-    echo " Environment variables loaded"
+    echo "✅ Environment variables loaded"
 else
-    echo " No .env file found!"
+    echo "❌ No .env file found!"
     echo "   Please run ./setup_server.sh first"
     exit 1
 fi
@@ -38,11 +38,11 @@ echo "🛡️  Pre-deployment session preservation..."
 python manage.py preserve_sessions
 
 if [ $? -ne 0 ]; then
-    echo " Session preservation failed"
+    echo "❌ Session preservation failed"
     exit 1
 fi
 
-echo " Session preservation completed successfully"
+echo "✅ Session preservation completed successfully"
 echo ""
 
 # Additional session health check
@@ -50,11 +50,11 @@ echo "🔍 Running session health check..."
 python manage.py preserve_sessions --check-only
 
 if [ $? -ne 0 ]; then
-    echo " Session health check failed"
+    echo "❌ Session health check failed"
     exit 1
 fi
 
-echo " Session health check passed"
+echo "✅ Session health check passed"
 echo ""
 
 # Run deployment using existing restart script
@@ -63,16 +63,18 @@ echo "🔄 Running deployment..."
 
 if [ $? -eq 0 ]; then
     echo ""
-    echo " Deployment completed successfully!"
+    echo "✅ Deployment completed successfully!"
     echo "   - User sessions preserved"
     echo "   - Server restarted"
     echo "   - No auto-logout issues expected"
     echo ""
-    echo " Session Status:"
+    echo "📊 Session Status:"
     python manage.py preserve_sessions --check-only
+    echo ""
+    echo "🎉 Deployment completed - users should remain logged in!"
 else
     echo ""
-    echo " Deployment failed!"
+    echo "❌ Deployment failed!"
     echo "   Check logs for details"
     exit 1
 fi

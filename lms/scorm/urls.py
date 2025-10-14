@@ -28,6 +28,10 @@ urlpatterns = [
     path('validation-test/', validation_views.validation_test_page, name='validation_test'),
     path('help/', validation_views.scorm_help, name='help'),
     
+    # ENHANCED: Learner progress tracking endpoints
+    path('learner-dashboard/', views.learner_progress_dashboard, name='learner_dashboard'),
+    path('learner-dashboard/<int:user_id>/', views.learner_progress_dashboard, name='learner_dashboard_user'),
+    
     # Dynamic Auto-sync endpoints
     path('auto-sync/trigger/', auto_sync_views.trigger_score_sync, name='trigger_sync'),
     path('auto-sync/health/', auto_sync_views.check_scorm_health, name='health_check'),
