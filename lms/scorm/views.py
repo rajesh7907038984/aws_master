@@ -446,11 +446,11 @@ def scorm_view(request, topic_id):
         if header in response:
             del response[header]
     
-    # CRITICAL FIX: CSP without 'unsafe-eval' for main player page
-    # The iframe will have its own CSP that allows 'unsafe-eval' if needed
+    # CRITICAL FIX: CSP with 'unsafe-eval' for main player page to support SCORM content
+    # SCORM content often requires eval() for proper functionality
     response['Content-Security-Policy'] = (
-        "default-src * 'unsafe-inline' data: blob:; "
-        "script-src * 'unsafe-inline' data: blob:; "
+        "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; "
+        "script-src * 'unsafe-inline' 'unsafe-eval' data: blob:; "
         "worker-src * blob: data:; "
         "style-src * 'unsafe-inline'; "
         "img-src * data: blob:; "

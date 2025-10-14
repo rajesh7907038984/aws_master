@@ -51,7 +51,7 @@ class ActiveTimeTracker {
         
         // Handle page unload
         window.addEventListener('beforeunload', this.handleBeforeUnload);
-        window.addEventListener('unload', this.handleBeforeUnload);
+        window.addEventListener('pagehide', this.handleBeforeUnload);
         
         // Start tracking
         this.startSession();
@@ -301,7 +301,7 @@ class ActiveTimeTracker {
         window.removeEventListener('focus', this.handlePageFocus);
         window.removeEventListener('blur', this.handlePageBlur);
         window.removeEventListener('beforeunload', this.handleBeforeUnload);
-        window.removeEventListener('unload', this.handleBeforeUnload);
+        window.removeEventListener('pagehide', this.handleBeforeUnload);
     }
 }
 
