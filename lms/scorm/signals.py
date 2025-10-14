@@ -120,88 +120,32 @@ def _decode_suspend_data(suspend_data):
 
 
 def _extract_score_from_data(decoded_data):
-    """Extract score from decoded suspend data - ONLY extract actual earned scores, not configuration values"""
+    """Extract score from decoded suspend data - simplified approach"""
     try:
-        # CRITICAL FIX: Be much more selective about score extraction
-        # Don't extract scores unless there's clear evidence of actual completion/interaction
+        # Check for clear completion indicators
+        completion_indicators = ['complete', 'finished', 'done', '"qd"true', 'quiz_complete']
+        has_completion = any(indicator in decoded_data.lower() for indicator in completion_indicators)
         
-        # Check for evidence of actual progress/completion first
-        has_completion_evidence = (
-            'complete' in decoded_data.lower() or
-            'finished' in decoded_data.lower() or
-            'done' in decoded_data.lower() or
-            '"qd"true' in decoded_data or  # Quiz done = true (format 1)
-            'qd":true' in decoded_data or  # Quiz done = true (format 2)  
-            'qd"true' in decoded_data or   # Quiz done = true (format 3)
-            'quiz_complete' in decoded_data.lower() or
-            'assessment_complete' in decoded_data.lower() or
-            'lesson_complete' in decoded_data.lower()
-        )
-        
-        if not has_completion_evidence:
-            logger.info("No completion evidence found in suspend data - not extracting score to prevent false completion")
+        if not has_completion:
+            logger.debug("No completion evidence found in suspend data")
             return None
         
-        # Pattern 1: Look for explicit score with completion context
-        # Only extract if there's clear completion context
-        completion_score_pattern = re.search(r'(?:quiz_score|final_score|earned_score|user_score)"\s*:\s*(\d+\.?\d*)', decoded_data, re.IGNORECASE)
-        if completion_score_pattern:
-            score = float(completion_score_pattern.group(1))
-            if 0 <= score <= 100:
-                logger.info(f"Found explicit completion score: {score}")
-                return score
+        # Look for explicit score patterns
+        score_patterns = [
+            r'(?:quiz_score|final_score|earned_score|user_score)"\s*:\s*(\d+\.?\d*)',
+            r'scors(\d+)',  # Storyline format
+            r'(?:user_score|earned|result)"\s*:\s*(\d+)'
+        ]
         
-        # Pattern 2: Storyline pattern but ONLY if quiz is marked as done
-        if '"qd"true' in decoded_data or 'quiz_done":true' in decoded_data or '"qd":true' in decoded_data or 'qd"true' in decoded_data:
-            logger.info("Quiz marked as done - looking for actual earned score")
-            
-            # Pattern 2a: Look for score in various Storyline formats WITH BETTER FILTERING
-            # Avoid patterns that might be configuration values
-            # Look specifically for patterns that indicate actual earned scores
-            
-            # Check for actual score indicators (not config values)
-            # Example: "scors100" (actual score) vs "ps80" (passing score config)
-            scor_patterns = [
-                r'(?<!p)scors(\d+)',           # scors88 but not pscors88
-                r'(?<!p)scor["\s]*(\d+)',      # scor"88 but not pscor
-                r'actual_score["\s:]*(\d+)',   # actual_score patterns
-                r'earned_score["\s:]*(\d+)',   # earned_score patterns
-            ]
-            
-            for pattern in scor_patterns:
-                scor_match = re.search(pattern, decoded_data)
-                if scor_match:
-                    score = float(scor_match.group(1))
-                    # Additional validation: avoid common config values
-                    if score not in [6, 60, 70, 75, 80, 85, 90, 95] or score == 100:  # 100 is likely a real perfect score
-                        if 0 <= score <= 100:
-                            logger.info(f"Found Storyline quiz score (pattern: {pattern}): {score}")
-                            return score
-            
-            # Pattern 2b: Look for actual user score patterns in completed quiz
-            storyline_pattern = re.search(r'(?:user_score|earned|result)"\s*:\s*(\d+)', decoded_data, re.IGNORECASE)
-            if storyline_pattern:
-                score = float(storyline_pattern.group(1))
+        for pattern in score_patterns:
+            match = re.search(pattern, decoded_data, re.IGNORECASE)
+            if match:
+                score = float(match.group(1))
                 if 0 <= score <= 100:
-                    logger.info(f"Found Storyline completed quiz score: {score}")
+                    logger.info(f"Found completion score: {score}")
                     return score
         
-        # Pattern 3: Look for score with completion percentage
-        if 'progress' in decoded_data and ('100' in decoded_data or 'complete' in decoded_data.lower()):
-            # Only look for actual user scores, avoid configuration values
-            user_score_pattern = re.search(r'(?:user_score|final_result|earned_points)"\s*:\s*(\d+\.?\d*)', decoded_data, re.IGNORECASE)
-            if user_score_pattern:
-                score = float(user_score_pattern.group(1))
-                if 0 <= score <= 100:
-                    logger.info(f"Found progress-based completion score: {score}")
-                    return score
-        
-        # REMOVED: The problematic patterns that were extracting configuration values
-        # - No longer extract standalone "s80" values (these are often thresholds)
-        # - No longer extract generic percentage values without completion context
-        # - No longer extract "score":value without clear completion evidence
-        
-        logger.info("No valid earned score found in suspend data (found possible threshold/config values but no completion evidence)")
+        logger.debug("No valid score found in suspend data")
         return None
         
     except Exception as e:

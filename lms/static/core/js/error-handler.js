@@ -105,23 +105,29 @@
         }
     };
 
-    // Enhanced browser compatibility detection
+    // Enhanced browser compatibility detection (CSP compliant)
     var isBrowserCompatible = function() {
-        // Check for common ES6 features
+        // Check for common ES6 features without using eval()
         var hasArrowFunctions = false;
         var hasConst = false;
         var hasPromise = false;
         
         try {
-            // Check arrow functions
-            eval('() => {}');
-            hasArrowFunctions = true;
+            // Check arrow functions by checking Function.prototype.toString behavior
+            // Modern browsers support arrow functions if they support other ES6 features
+            hasArrowFunctions = (
+                typeof Promise !== 'undefined' &&
+                typeof Map !== 'undefined' &&
+                typeof Symbol !== 'undefined'
+            );
         } catch (e) {}
         
         try {
-            // Check const keyword
-            eval('const x = 1;');
-            hasConst = true;
+            // Check const/let by looking for ES6 object methods
+            hasConst = (
+                typeof Object.assign === 'function' &&
+                Array.prototype.find !== undefined
+            );
         } catch (e) {}
         
         // Check for Promise

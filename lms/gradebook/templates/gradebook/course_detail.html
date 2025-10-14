@@ -1838,11 +1838,11 @@
                             <!-- Action buttons -->
                             <div class="action-buttons mt-1">
                               {% if score_data.is_passed %}
-                                <a href="{% url 'scorm:scorm_launch' activity.object.id %}" class="view-btn retake-btn" style="background-color: #28a745; color: white; font-size: 0.7rem; padding: 2px 6px;">
+                                <a href="{% url 'scorm:view' activity.object.id %}" class="view-btn retake-btn" style="background-color: #28a745; color: white; font-size: 0.7rem; padding: 2px 6px;">
                                   RETAKE
                                 </a>
                               {% else %}
-                                <a href="{% url 'scorm:scorm_launch' activity.object.id %}" class="view-btn resume-btn" style="background-color: #dc3545; color: white; font-size: 0.7rem; padding: 2px 6px;">
+                                <a href="{% url 'scorm:view' activity.object.id %}" class="view-btn resume-btn" style="background-color: #dc3545; color: white; font-size: 0.7rem; padding: 2px 6px;">
                                   RESUME
                                 </a>
                               {% endif %}

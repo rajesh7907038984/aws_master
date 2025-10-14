@@ -212,17 +212,12 @@ class ScormAttempt(models.Model):
         ordering = ['-started_at']
     
     def save(self, *args, **kwargs):
-        """Ensure JSON fields are never None"""
-        if self.cmi_data is None:
-            self.cmi_data = {}
-        if self.completed_slides is None:
-            self.completed_slides = {}
-        if self.detailed_tracking is None:
-            self.detailed_tracking = {}
-        if self.navigation_history is None:
-            self.navigation_history = []
-        if self.session_data is None:
-            self.session_data = {}
+        """Initialize JSON fields if None"""
+        self.cmi_data = self.cmi_data or {}
+        self.completed_slides = self.completed_slides or {}
+        self.detailed_tracking = self.detailed_tracking or {}
+        self.navigation_history = self.navigation_history or []
+        self.session_data = self.session_data or {}
         super().save(*args, **kwargs)
     
     def __str__(self):

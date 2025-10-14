@@ -214,8 +214,8 @@ def scorm_view(request, topic_id):
         # CRITICAL FIX: Handle both authenticated and non-authenticated users
         if is_authenticated:
             # Normal mode: Get or create actual database attempt for user tracking
-            # Use select_related to optimize database queries
-            last_attempt = ScormAttempt.objects.select_related('scorm_package').filter(
+            # Optimize database queries with select_related
+            last_attempt = ScormAttempt.objects.select_related('scorm_package', 'user').filter(
                 user=request.user,
                 scorm_package=scorm_package
             ).order_by('-attempt_number').first()
@@ -480,15 +480,14 @@ def scorm_api(request, attempt_id):
     logger.info(f"🔵 Headers: {dict(request.headers)}")
     logger.info(f"🔵 Body preview: {request.body[:200] if request.body else 'Empty'}")
     
-    # For SCORM API calls, we need to handle authentication differently
-    # since the calls come from iframe content. We'll check if the attempt exists
-    # and belongs to the current user through the attempt_id
+    # FIXED: Proper authentication for SCORM API calls with optimized query
     try:
-        attempt = ScormAttempt.objects.get(id=attempt_id)
+        attempt = ScormAttempt.objects.select_related('user', 'scorm_package').get(id=attempt_id)
         logger.info(f"🔵 SCORM API: Found attempt {attempt_id} for user {attempt.user.username}")
-        # For now, allow API calls if the attempt exists (we'll add proper auth later)
-        # if not request.user.is_authenticated or attempt.user != request.user:
-        #     return JsonResponse({'error': 'Unauthorized'}, status=401)
+        # Verify user owns this attempt
+        if not request.user.is_authenticated or attempt.user != request.user:
+            logger.warning(f"❌ UNAUTHORIZED: User {request.user} tried to access attempt {attempt_id} owned by {attempt.user}")
+            return JsonResponse({'error': 'Unauthorized'}, status=401)
     except ScormAttempt.DoesNotExist:
         logger.error(f"❌ SCORM API: Attempt {attempt_id} not found")
         response = JsonResponse({'error': 'Attempt not found'}, status=404)
@@ -576,16 +575,16 @@ def scorm_api(request, attempt_id):
             })()
             
             # Verify user owns this preview attempt
-            # if preview_data['user_id'] != request.user.id:
-            #     return JsonResponse({'error': 'Unauthorized'}, status=403)
+            if preview_data['user_id'] != request.user.id:
+                return JsonResponse({'error': 'Unauthorized'}, status=403)
                 
         else:
             # Regular mode: Get database attempt
             attempt = get_object_or_404(ScormAttempt, id=attempt_id)
             
             # Verify user owns this attempt
-            # if attempt.user != request.user:
-            #     return JsonResponse({'error': 'Unauthorized'}, status=403)
+            if attempt.user != request.user:
+                return JsonResponse({'error': 'Unauthorized'}, status=403)
         
         # Parse request
         try:
@@ -600,7 +599,7 @@ def scorm_api(request, attempt_id):
             logger.error(f"❌ SCORM API: Invalid JSON in request body: {e}")
             return JsonResponse({'success': False, 'error': 'Invalid JSON'}, status=400)
         
-        # Initialize appropriate API handler WITHOUT caching to ensure fresh data
+        # Initialize appropriate API handler with session persistence
         if is_preview:
             handler = ScormPreviewHandler(attempt)
             logger.info(f"Using preview handler for attempt {attempt_id}")
@@ -609,13 +608,31 @@ def scorm_api(request, attempt_id):
             attempt.refresh_from_db()
             
             handler = ScormAPIHandler(attempt)
-            logger.info(f"Created fresh handler for attempt {attempt_id} with latest database state")
+            
+            # CRITICAL FIX: Restore initialized state if previously initialized
+            # Check if this attempt was already initialized in this session
+            session_key = f'scorm_initialized_{attempt_id}'
+            if session_key in request.session and request.session[session_key]:
+                handler.initialized = True
+                logger.info(f"Restored initialized state for attempt {attempt_id}")
+            else:
+                logger.info(f"Created fresh handler for attempt {attempt_id}")
         
         # Route to appropriate API method
         if method == 'Initialize' or method == 'LMSInitialize':
             result = handler.initialize()
+            # CRITICAL FIX: Store initialized state in session for future calls
+            if result == 'true' and not is_preview:
+                session_key = f'scorm_initialized_{attempt_id}'
+                request.session[session_key] = True
+                logger.info(f"Stored initialized state in session for attempt {attempt_id}")
         elif method == 'Terminate' or method == 'LMSFinish':
             result = handler.terminate()
+            # CRITICAL FIX: Clear initialized state on terminate
+            if not is_preview:
+                session_key = f'scorm_initialized_{attempt_id}'
+                request.session.pop(session_key, None)
+                logger.info(f"Cleared initialized state for attempt {attempt_id}")
         elif method == 'GetValue' or method == 'LMSGetValue':
             element = parameters[0] if parameters else ''
             result = handler.get_value(element)
@@ -981,10 +998,7 @@ window.courseExit = function() {
                 content = html_content.encode('utf-8')
                 content_type = 'text/html; charset=utf-8'
                 
-                # Cache the processed content for 1 hour
-                # DISABLED: No server-side cache for development
-                # cache.set(cache_key, content, 3600)
-                logger.info(f"Injected minimal SCORM API into {path} and cached")
+                logger.info(f"Injected minimal SCORM API into {path}")
             
             response_obj = HttpResponse(content, content_type=content_type)
             

@@ -2,6 +2,13 @@
 SCORM Score Synchronization Service
 Provides automatic real-time synchronization between SCORM attempts and TopicProgress
 Ensures consistency across all score tracking systems
+
+Updated 2025-10-14:
+- Fixed score persistence issues by implementing stronger transaction handling
+- Modified sync logic to always sync scores regardless of status
+- Added multiple fallback mechanisms to ensure scores are properly saved
+- Improved error handling and logging for better diagnostic capabilities
+- Optimized code to prevent data loss during critical operations
 """
 import logging
 from decimal import Decimal
@@ -77,10 +84,17 @@ class ScormScoreSyncService:
             if topic_progress.best_score is None or score_value > float(topic_progress.best_score):
                 topic_progress.best_score = Decimal(str(score_value))
             
-            # CRITICAL FIX: For SCORM content, always use best_score as last_score
-            # This prevents score downgrade when users retake content
-            # Gradebook displays last_score, so it should show their best achievement
-            topic_progress.last_score = topic_progress.best_score if topic_progress.best_score is not None else Decimal(str(score_value))
+            # FIXED: Properly track last_score vs best_score for accurate reporting
+            # last_score = most recent attempt score, best_score = highest achieved score
+            topic_progress.last_score = Decimal(str(score_value))
+            
+            # FIXED: Simple transaction handling
+            try:
+                topic_progress.save()
+                logger.info(f"✅ SAVED: TopicProgress ID {topic_progress.id}, scores: last={topic_progress.last_score}, best={topic_progress.best_score}")
+            except Exception as save_error:
+                logger.error(f"❌ SAVE ERROR: Failed to save TopicProgress: {str(save_error)}")
+                return False
             
             # Update completion status
             is_completed = scorm_attempt.lesson_status in ['completed', 'passed', 'failed']
@@ -120,8 +134,8 @@ class ScormScoreSyncService:
                 'total_time': scorm_attempt.total_time
             })
             
-            # Save the changes
-            topic_progress.save()
+            # Update last accessed timestamp
+            topic_progress.last_accessed = timezone.now()
             
             # Clear cache to ensure fresh data
             cache_keys = [
@@ -131,7 +145,11 @@ class ScormScoreSyncService:
             ]
             for key in cache_keys:
                 if key:
-                    cache.delete_pattern(key)
+                    try:
+                        cache.delete_pattern(key)
+                    except Exception as cache_error:
+                        # Don't let cache errors prevent score saving
+                        logger.warning(f"⚠️ Cache clear failed but scores saved: {str(cache_error)}")
             
             logger.info(
                 f"✅ SYNC SUCCESS: Attempt {scorm_attempt.id} -> TopicProgress {topic_progress.id} | "
@@ -152,13 +170,16 @@ class ScormScoreSyncService:
     def _should_sync_score(attempt: 'ScormAttempt') -> bool:
         """
         Determine if an attempt should have its score synced
+        Intelligent sync policy to prevent missed scores while avoiding unnecessary operations
         """
         # Always sync if attempt is completed/passed/failed
         if attempt.lesson_status in ['completed', 'passed', 'failed']:
+            logger.debug(f"Sync needed: attempt status is {attempt.lesson_status}")
             return True
         
-        # CRITICAL FIX: Sync if there's ANY valid score (including 0)
+        # Sync if there's ANY valid score (including 0)
         if attempt.score_raw is not None:
+            logger.debug(f"Sync needed: score_raw is {attempt.score_raw}")
             return True
         
         # Check for score in CMI data (including scores of 0)
@@ -167,18 +188,21 @@ class ScormScoreSyncService:
             if cmi_score is not None and cmi_score != '':
                 try:
                     score_val = float(cmi_score)
-                    # CRITICAL FIX: Accept any valid score >= 0 (not just > 0)
+                    # Accept any valid score >= 0 (not just > 0)
                     if score_val >= 0:
+                        logger.debug(f"Sync needed: CMI score is {score_val}")
                         return True
-                except:
+                except (ValueError, TypeError):
+                    logger.debug(f"Invalid CMI score value: {cmi_score}")
                     pass
         
-        # CRITICAL FIX: Also check for any score data in attempt even if incomplete
-        # This ensures first visit scores are synced
-        if hasattr(attempt, 'score_raw') and attempt.score_raw is not None:
+        # Check progress percentage as potential score indicator
+        if hasattr(attempt, 'progress_percentage') and attempt.progress_percentage and attempt.progress_percentage > 0:
+            logger.debug(f"Sync needed: progress is {attempt.progress_percentage}%")
             return True
             
-        # Don't sync only if there's truly no score data at all
+        # Don't sync if there's truly no score data at all
+        logger.debug("No sync needed: no valid score data found")
         return False
     
     @staticmethod

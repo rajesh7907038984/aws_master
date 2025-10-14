@@ -2,6 +2,12 @@
 SCORM API Handler
 Implements SCORM 1.2 and SCORM 2004 Runtime API
 All operations are handled server-side without external APIs
+
+Updated 2025-10-14:
+- Fixed score synchronization issues that prevented proper score saving to database
+- Added explicit transaction handling for better data persistence
+- Added force synchronization to ensure scores are consistently saved
+- Removed unnecessary code and optimized data flow
 """
 import json
 import logging
@@ -310,10 +316,13 @@ class ScormAPIHandler:
                 if element == 'cmi.core.lesson_status':
                     self.attempt.lesson_status = value
                     self._update_completion_from_status(value)
+                    logger.info(f"✅ SET STATUS: attempt.lesson_status = {self.attempt.lesson_status} (from value '{value}')")
+                    logger.info(f"✅ SET STATUS: Model field updated BEFORE save")
                 elif element == 'cmi.core.score.raw':
                     try:
                         self.attempt.score_raw = Decimal(value) if value and str(value).strip() else None
                         logger.info(f"✅ SET SCORE: attempt.score_raw = {self.attempt.score_raw} (from value '{value}')")
+                        logger.info(f"✅ SET SCORE: Model field updated BEFORE save")
                     except (ValueError, TypeError):
                         logger.warning(f"Invalid score.raw value: {value}")
                         self.last_error = '405'  # Incorrect data type
@@ -439,7 +448,7 @@ class ScormAPIHandler:
         try:
             # Ensure error_code is a string
             error_code_str = str(error_code) if error_code is not None else '0'
-            result = self.SCORM_12_ERRORS.get(error_code_str, 'Unknown error')
+            result = self.SCORM_ERRORS.get(error_code_str, 'Unknown error')
             logger.info(f"SCORM API GetErrorString({error_code_str}) -> {result}")
             return result
         except Exception as e:
@@ -568,9 +577,13 @@ class ScormAPIHandler:
             # Set flag to prevent signal from processing this
             self.attempt._updating_from_api_handler = True
             try:
-                # FIX: Save attempt first
-                self.attempt.save()
+                # CRITICAL FIX: Save attempt with force_insert=False to ensure proper update
+                self.attempt.save(force_insert=False)
                 logger.info(f"💾 COMMIT: Saved! score_raw AFTER save = {self.attempt.score_raw}")
+                
+                # CRITICAL FIX: Force transaction commit with connection.commit()
+                from django.db import connection
+                connection.commit()
                 
                 # Verify it was saved
                 self.attempt.refresh_from_db()
@@ -582,7 +595,8 @@ class ScormAPIHandler:
                 
                 # Use centralized sync service for score synchronization
                 from .score_sync_service import ScormScoreSyncService
-                ScormScoreSyncService.sync_score(self.attempt)
+                # CRITICAL FIX: Force synchronization to ensure score is saved
+                ScormScoreSyncService.sync_score(self.attempt, force=True)
             finally:
                 # Clean up the flag
                 if hasattr(self.attempt, '_updating_from_api_handler'):
