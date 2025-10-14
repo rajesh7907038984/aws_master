@@ -41,26 +41,17 @@
             font-weight: bold;
         }
         
-        .scorm-controls {
-            display: flex;
-            gap: 10px;
-        }
-        
         .btn {
             padding: 8px 16px;
             border: none;
             border-radius: 4px;
             cursor: pointer;
             font-size: 14px;
-            transition: background-color 0.3s;
-        }
-        
-        .btn-exit {
             background: #020117;
             color: white;
         }
         
-        .btn-exit:hover {
+        .btn:hover {
             background: #030128;
         }
         
@@ -70,27 +61,11 @@
             background: white;
         }
         
-        .scorm-iframe, #scormFrameset {
+        .scorm-iframe {
             width: 100%;
             height: 100%;
             border: none;
             display: block;
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 1;
-        }
-        
-        #scormFrameset {
-            border: 0;
-            margin: 0;
-            padding: 0;
-        }
-        
-        #scormFrame, #apiFrame {
-            border: 0;
-            margin: 0;
-            padding: 0;
         }
         
         .loading-overlay {
@@ -133,20 +108,14 @@
     <div class="scorm-container">
         <div class="scorm-header">
             <div class="scorm-title">{{ topic.title }}</div>
-            <div class="scorm-controls">
-                <button class="btn btn-exit" onclick="exitCourse()">Back to Topic</button>
-            </div>
+            <button class="btn" onclick="exitCourse()">Back to Topic</button>
         </div>
         
         <div class="scorm-content">
             <div class="loading-overlay" id="loadingOverlay">
                 <div class="loading-spinner"></div>
             </div>
-            <!-- SCORM Frameset Structure -->
-            <frameset id="scormFrameset" rows="*,0" frameborder="0" border="0" framespacing="0">
-                <frame id="scormFrame" name="content" src="about:blank" frameborder="0" border="0" scrolling="auto" noresize>
-                <frame id="apiFrame" name="API" src="about:blank" frameborder="0" border="0" scrolling="no" noresize>
-            </frameset>
+            <iframe id="scormIframe" class="scorm-iframe" src="about:blank"></iframe>
         </div>
         
         <div class="status-bar">
@@ -160,351 +129,39 @@
     <script>
         console.log('SCORM Player initialized');
         
-        // CRITICAL FIX: Initialize SCORM API immediately to prevent timing issues
-        // This ensures API is available before SCORM content loads
-        let scormAPIReady = false;
-        
-        function initializeSCORMImmediately() {
-            if (window.ScormAPIWrapper && !scormAPIReady) {
-                console.log('Initializing SCORM API immediately...');
-                window.ScormAPIWrapper.init({{ attempt_id|default:"null" }});
-                window.ScormAPIWrapper.exposeAPIs();
-                scormAPIReady = true;
-                console.log('SCORM API initialized immediately for attempt {{ attempt_id|default:"null" }}');
-                
-                // CRITICAL: Ensure API is available in the current window context
-                // SCORM content looks for API in the same window
-                if (window.API && window.API_1484_11) {
-                    console.log('SCORM APIs confirmed available in current window');
-                    // Make sure they're also available globally
-                    window.parent.API = window.API;
-                    window.parent.API_1484_11 = window.API_1484_11;
-                    console.log('SCORM APIs exposed to parent window for iframe access');
-                }
-            }
-        }
-        
-        // Initialize API immediately
-        initializeSCORMImmediately();
-        
-        // CRITICAL: Function to ensure API is available in iframe
-        function ensureAPIInIframe() {
-            console.log('Iframe loaded - ensuring API availability...');
-            
-            try {
-                const iframe = document.getElementById('scormIframe');
-                const iframeWindow = iframe.contentWindow;
-                const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
-                
-                if (iframeWindow && iframeDocument) {
-                    // CRITICAL: Inject API into iframe window
-                    if (window.API && window.API_1484_11) {
-                        iframeWindow.API = window.API;
-                        iframeWindow.API_1484_11 = window.API_1484_11;
-                        console.log('SCORM APIs injected into iframe window');
-                        
-                        // Also ensure parent window has APIs
-                        window.parent.API = window.API;
-                        window.parent.API_1484_11 = window.API_1484_11;
-                        console.log('SCORM APIs exposed to parent window');
-                        
-                        // CRITICAL: Make sure APIs are available in all contexts
-                        if (window.top && window.top !== window) {
-                            window.top.API = window.API;
-                            window.top.API_1484_11 = window.API_1484_11;
-                            console.log('SCORM APIs exposed to top window');
-                        }
-                        
-                        updateStatus('SCORM APIs injected - content should initialize');
-                    } else {
-                        console.error('SCORM APIs not available for iframe injection');
-                        updateStatus('SCORM API injection failed');
-                    }
-                }
-            } catch (e) {
-                console.log('Cross-origin iframe - ensuring parent window has APIs');
-                // Even with cross-origin restrictions, ensure parent window has APIs
-                if (window.API && window.API_1484_11) {
-                    window.parent.API = window.API;
-                    window.parent.API_1484_11 = window.API_1484_11;
-                    console.log('SCORM APIs exposed to parent window for cross-origin access');
-                }
-            }
-        }
-        
-        // CRITICAL FIX: Prevent popup windows and ensure content loads in same window
-        // Override window.open to prevent popups
-        const originalWindowOpen = window.open;
-        window.open = function(url, name, specs) {
-            console.log('Blocked popup attempt:', url);
-            // Instead of opening popup, navigate in same window or iframe
-            if (url && url !== 'about:blank') {
-                const iframe = document.getElementById('scormIframe');
-                if (iframe) {
-                    iframe.src = url;
-                    console.log('Redirected popup to iframe:', url);
-                }
-            }
-            return null; // Return null to indicate popup was blocked
-        };
-        
-        // Override target="_blank" links to open in same window
-        document.addEventListener('click', function(e) {
-            if (e.target.tagName === 'A' && e.target.target === '_blank') {
-                e.preventDefault();
-                e.target.target = '_self';
-                console.log('Redirected _blank link to same window:', e.target.href);
-            }
-        });
-        
-        // Initialize SCORM API Wrapper - PREVENT DUPLICATION
-        let scormInitialized = false;
-        
+        // Initialize SCORM API
         function initializeSCORM() {
-            if (scormInitialized) {
-                console.log('SCORM already initialized, skipping...');
-                return;
-            }
-            
-            console.log('Loading SCORM API Wrapper...');
-            
             if (window.ScormAPIWrapper) {
-                // Initialize with attempt ID
                 window.ScormAPIWrapper.init({{ attempt_id|default:"null" }});
                 window.ScormAPIWrapper.exposeAPIs();
-                
-                console.log('SCORM API Wrapper ready for attempt {{ attempt_id|default:"null" }}');
+                console.log('SCORM API initialized for attempt {{ attempt_id|default:"null" }}');
                 updateStatus('SCORM API ready');
-                
-                // CRITICAL FIX: Ensure APIs are available in parent window for iframe access
-                // The SCORM content in iframe looks for API in parent window
-                if (window.API && window.API_1484_11) {
-                    console.log('APIs available: window.API and window.API_1484_11');
-                    updateStatus('APIs exposed - ready for SCORM content');
-                    
-                    // CRITICAL: Make sure APIs are accessible from iframe
-                    // SCORM content expects to find API in parent window
-                    window.parent.API = window.API;
-                    window.parent.API_1484_11 = window.API_1484_11;
-                    console.log('APIs exposed to parent window for iframe access');
-                } else {
-                    console.error('APIs not properly exposed');
-                    updateStatus('API initialization failed');
-                }
-                
-                scormInitialized = true;
-            } else {
-                console.error('ScormAPIWrapper not loaded');
-                updateStatus('Failed to load SCORM API wrapper');
+                return true;
             }
+            return false;
         }
         
-        // CRITICAL FIX: Only initialize once, prevent multiple event listeners
-        if (!window.scormPlayerInitialized) {
-            window.scormPlayerInitialized = true;
+        // Load SCORM content
+        function loadSCORMContent() {
+            console.log('Loading SCORM content...');
+            const iframe = document.getElementById('scormIframe');
+            const loadingOverlay = document.getElementById('loadingOverlay');
             
-            // Initialize immediately
-            initializeSCORM();
-            
-            // Also initialize on load as backup
-            window.addEventListener('load', function() {
-                console.log('Window loaded - re-initializing SCORM API');
-                initializeSCORM();
-            });
-            
-            // CRITICAL: Ensure API is available before iframe loads
-            // This prevents the "Error initializing communications with LMS" dialog
-            const ensureAPIReady = function() {
-                if (window.API && window.API_1484_11) {
-                    console.log('SCORM API confirmed ready - content should initialize successfully');
-                    updateStatus('SCORM API ready - content should load without errors');
+            if (iframe) {
+                iframe.src = '{{ content_url|default:"about:blank" }}';
+                console.log('SCORM content URL loaded:', '{{ content_url|default:"about:blank" }}');
+                
+                iframe.addEventListener('load', function() {
+                    console.log('SCORM content loaded');
+                    updateStatus('SCORM content loaded');
                     
-                    // CRITICAL: Make sure APIs are available in all contexts
-                    if (window.parent && window.parent !== window) {
-                        window.parent.API = window.API;
-                        window.parent.API_1484_11 = window.API_1484_11;
-                        console.log('APIs exposed to parent window for SCORM content');
-                    }
-                    
-                    return true;
-                }
-                return false;
-            };
-            
-            // Check immediately
-            if (!ensureAPIReady()) {
-                // Poll for API availability
-                let apiPollCount = 0;
-                const maxApiPolls = 100; // Poll for up to 10 seconds
-                
-                const pollForAPI = function() {
-                    apiPollCount++;
-                    if (ensureAPIReady()) {
-                        console.log('SCORM API confirmed available after', apiPollCount, 'polls');
-                        // CRITICAL: Load iframe content only after API is ready
-                        loadSCORMContent();
-                    } else if (apiPollCount < maxApiPolls) {
-                        console.log('Polling for SCORM API...', apiPollCount);
-                        setTimeout(pollForAPI, 100);
-                    } else {
-                        console.error('SCORM API not available after', maxApiPolls, 'polls');
-                        updateStatus('SCORM API initialization failed');
-                        // Load content anyway as fallback
-                        loadSCORMContent();
-                    }
-                };
-                
-                // Start polling immediately
-                setTimeout(pollForAPI, 50);
-            } else {
-                // API is ready, load content immediately
-                loadSCORMContent();
-            }
-            
-            // Function to load SCORM content with frameset approach
-            function loadSCORMContent() {
-                console.log('Loading SCORM content with frameset approach...');
-                
-        // CRITICAL: Create API frame content with SCORM API
-        const apiFrameContent = `<!DOCTYPE html>
-<html>
-<head>
-    <title>SCORM API Frame</title>
-</head>
-<body>
-    <div style="display: none;">SCORM API Frame</div>
-    <script>
-        // SCORM API Implementation for frameset
-        console.log('SCORM API Frame loaded');
-        
-        // Expose APIs to parent frameset
-        if (window.parent && window.parent !== window) {
-            // Get APIs from parent window
-            if (window.parent.API && window.parent.API_1484_11) {
-                window.API = window.parent.API;
-                window.API_1484_11 = window.parent.API_1484_11;
-                console.log('SCORM APIs available in API frame');
-            }
-        }
-        
-        // Make APIs available to content frame
-        window.content = window.parent.frames['content'];
-        if (window.content) {
-            window.content.API = window.API;
-            window.content.API_1484_11 = window.API_1484_11;
-            console.log('SCORM APIs exposed to content frame');
-        }
-    </script>
-</body>
-</html>`;
-                
-                // Load content into frameset
-                const scormFrame = document.getElementById('scormFrame');
-                const apiFrame = document.getElementById('apiFrame');
-                
-                if (scormFrame && apiFrame) {
-                    // Load API frame first
-                    apiFrame.src = 'data:text/html;charset=utf-8,' + encodeURIComponent(apiFrameContent);
-                    
-                    // Then load SCORM content
+                    // Hide loading overlay
                     setTimeout(() => {
-                        scormFrame.src = '{{ content_url|default:"about:blank" }}';
-                        console.log('SCORM content URL loaded in frameset:', '{{ content_url|default:"about:blank" }}');
-                    }, 100);
-                }
+                        loadingOverlay.style.display = 'none';
+                    }, 500);
+                });
             }
-        
-        // Handle frameset loading - SCORM Frameset Approach
-        const scormFrame = document.getElementById('scormFrame');
-        const apiFrame = document.getElementById('apiFrame');
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        let framesetLoaded = false;
-        
-        // Handle content frame loading
-        if (scormFrame) {
-            scormFrame.addEventListener('load', function() {
-                if (framesetLoaded) {
-                    console.log('Frameset already loaded, skipping duplicate handling');
-                    return;
-                }
-                
-                console.log('SCORM content loaded in frameset');
-                updateStatus('SCORM content loaded in frameset');
-                framesetLoaded = true;
-                
-                // Hide loading overlay
-                setTimeout(() => {
-                    loadingOverlay.style.display = 'none';
-                }, 500);
-                
-                // CRITICAL: Ensure API is available in content frame
-                try {
-                    const contentWindow = scormFrame.contentWindow;
-                    if (contentWindow && window.API && window.API_1484_11) {
-                        contentWindow.API = window.API;
-                        contentWindow.API_1484_11 = window.API_1484_11;
-                        console.log('SCORM APIs injected into content frame');
-                        
-                        // Also make available in parent frameset
-                        if (window.parent && window.parent !== window) {
-                            window.parent.API = window.API;
-                            window.parent.API_1484_11 = window.API_1484_11;
-                            console.log('SCORM APIs exposed to parent frameset');
-                        }
-                    }
-                } catch (e) {
-                    console.log('Cross-origin frameset - API injection may be limited');
-                }
-                
-                // CRITICAL FIX: Inject popup prevention in content frame
-                try {
-                    const contentWindow = scormFrame.contentWindow;
-                    const contentDocument = scormFrame.contentDocument || scormFrame.contentWindow.document;
-                    
-                    if (contentWindow && contentDocument) {
-                        // Override window.open in content frame to prevent popups
-                        contentWindow.open = function(url, name, specs) {
-                            console.log('Blocked frameset popup attempt:', url);
-                            // Navigate within the content frame instead
-                            if (url && url !== 'about:blank') {
-                                scormFrame.src = url;
-                                console.log('Redirected frameset popup to content frame src:', url);
-                            }
-                            return null;
-                        };
-                        
-                        // Override target="_blank" links in content frame
-                        contentDocument.addEventListener('click', function(e) {
-                            if (e.target.tagName === 'A' && e.target.target === '_blank') {
-                                e.preventDefault();
-                                e.target.target = '_self';
-                                console.log('Redirected frameset _blank link to same window:', e.target.href);
-                            }
-                        });
-                    }
-                } catch (e) {
-                    console.log('Cross-origin frameset - popup prevention may be limited');
-                }
-            });
         }
-        
-        // Handle messages from SCORM content
-        window.addEventListener('message', function(event) {
-            if (event.data && typeof event.data === 'object') {
-                if (event.data.action === 'exit' || event.data.type === 'exit') {
-                    console.log('Exit message received from SCORM content');
-                    exitCourse();
-                } else if (event.data.action === 'complete') {
-                    console.log('Completion message received from SCORM content');
-                    updateStatus('Course completed!');
-                } else if (event.data.action === 'openWindow' || event.data.type === 'popup') {
-                    // Block popup requests from SCORM content
-                    console.log('Blocked popup request from SCORM content:', event.data);
-                    event.preventDefault();
-                    event.stopPropagation();
-                }
-            }
-        });
         
         // Update status bar
         function updateStatus(message) {
@@ -530,6 +187,14 @@
             setTimeout(() => {
                 window.location.href = '{% url "courses:topic_view" topic.id %}';
             }, 1000);
+        }
+        
+        // Initialize everything
+        if (initializeSCORM()) {
+            loadSCORMContent();
+        } else {
+            console.error('Failed to initialize SCORM API');
+            updateStatus('SCORM API initialization failed');
         }
         
         // Handle page unload
