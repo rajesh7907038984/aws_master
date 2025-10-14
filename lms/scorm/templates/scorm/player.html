@@ -408,12 +408,14 @@
                 LMSInitialize: function(param) {
                     const result = makeApiCallSync('LMSInitialize', [param]);
                     
-                    // CRITICAL FIX: Inject exit button handler after initialization
-                    setTimeout(() => {
-                        if (typeof injectExitButtonHandler === 'function') {
-                            injectExitButtonHandler();
-                        }
-                    }, 1000);
+                    // DISABLED: Don't inject exit button handler during initialization
+                    // This was interfering with normal SCORM interactive elements (Articulate Storyline buttons, etc.)
+                    // Exit buttons are handled via postMessage and URL monitoring instead
+                    // setTimeout(() => {
+                    //     if (typeof injectExitButtonHandler === 'function') {
+                    //         injectExitButtonHandler();
+                    //     }
+                    // }, 1000);
                     
                     return result;
                 },
@@ -2239,7 +2241,8 @@
                             // This prevents blocking interactive buttons inside SCORM content
                             document.addEventListener('click', handleExitClick, false);
                             
-                            // Also monitor for navigation to exit/goodbye pages
+                            // FIXED: Monitor for navigation to exit/goodbye pages - use bubbling phase
+                            // This prevents blocking normal interactive elements in SCORM content
                             document.addEventListener('click', function(e) {
                                 const target = e.target;
                                 if (target.tagName === 'A' && target.href) {
@@ -2267,7 +2270,7 @@
                                         return false;
                                     }
                                 }
-                            }, true);
+                            }, false);
                             
                             console.log('[SCORM Exit Handler] Exit button handler injected successfully via script element');
                         })();
@@ -2376,57 +2379,53 @@
             }
         }
             
-            // CRITICAL FIX: Inject exit button handler into iframe (cross-origin safe)
-            setTimeout(() => {
-                injectExitButtonHandler();
-            }, 2000); // Wait for iframe to load
+            // DISABLED: Aggressive exit button handler injection was blocking normal interactive elements
+            // Exit buttons are now handled via postMessage and URL monitoring only
+            // This prevents interference with Articulate Storyline and other authoring tool buttons
+            // setTimeout(() => {
+            //     injectExitButtonHandler();
+            // }, 2000);
+            // setTimeout(() => injectExitButtonHandler(), 5000);
+            // setTimeout(() => injectExitButtonHandler(), 10000);
+            // setTimeout(() => injectExitButtonHandler(), 15000);
             
-            // Retry injection multiple times to handle dynamic content
-            setTimeout(() => injectExitButtonHandler(), 5000);
-            setTimeout(() => injectExitButtonHandler(), 10000);
-            setTimeout(() => injectExitButtonHandler(), 15000);
+            // DISABLED: Periodic exit button checking was interfering with interactive elements
+            // fixExitButtons();
+            // const interval = setInterval(fixExitButtons, 3000);
+            // setTimeout(() => clearInterval(interval), 120000);
             
-            // Initial fix and periodic check (fallback for same-origin)
-            fixExitButtons();
-            const interval = setInterval(fixExitButtons, 3000); // Check every 3 seconds
-            setTimeout(() => clearInterval(interval), 120000); // Stop after 2 minutes
+            // DISABLED: MutationObserver for exit buttons was interfering with interactive elements
+            // const observer = new MutationObserver(function(mutations) {
+            //     let shouldCheck = false;
+            //     mutations.forEach(function(mutation) {
+            //         if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+            //             for (let node of mutation.addedNodes) {
+            //                 if (node.nodeType === 1) {
+            //                     if (node.tagName === 'BUTTON' || node.tagName === 'INPUT' || node.tagName === 'A') {
+            //                         shouldCheck = true;
+            //                         break;
+            //                     }
+            //                     if (node.querySelectorAll && node.querySelectorAll('button, input, a').length > 0) {
+            //                         shouldCheck = true;
+            //                         break;
+            //                     }
+            //                 }
+            //             }
+            //         }
+            //     });
+            //     if (shouldCheck) {
+            //         fixExitButtons();
+            //     }
+            // });
+            // observer.observe(document.body, {
+            //     childList: true,
+            //     subtree: true
+            // });
             
-            // Also add a more aggressive detection for dynamically loaded content
-            const observer = new MutationObserver(function(mutations) {
-                let shouldCheck = false;
-                mutations.forEach(function(mutation) {
-                    if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                        // Check if any new buttons were added
-                        for (let node of mutation.addedNodes) {
-                            if (node.nodeType === 1) { // Element node
-                                if (node.tagName === 'BUTTON' || node.tagName === 'INPUT' || node.tagName === 'A') {
-                                    shouldCheck = true;
-                                    break;
-                                }
-                                // Also check if any child elements are buttons
-                                if (node.querySelectorAll && node.querySelectorAll('button, input, a').length > 0) {
-                                    shouldCheck = true;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                });
-                if (shouldCheck) {
-                    fixExitButtons();
-                }
-            });
-            
-            // Start observing for new buttons
-            observer.observe(document.body, {
-                childList: true,
-                subtree: true
-            });
-            
-            // Stop observing after 2 minutes
-            setTimeout(() => {
-                observer.disconnect();
-            }, 120000);
+            // DISABLED: Observer disconnect (observer is disabled above)
+            // setTimeout(() => {
+            //     observer.disconnect();
+            // }, 120000);
         }
         
         // STREAMLINED: Exit button handler - delegates to main handler
