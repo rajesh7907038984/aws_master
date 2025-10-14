@@ -60,6 +60,14 @@ class ScormLogger:
 
 
 @login_required
+def scorm_api_test(request):
+    """
+    Diagnostic tool for testing SCORM API calls
+    """
+    return render(request, 'scorm/api_test.html')
+
+
+@login_required
 def scorm_view(request, topic_id):
     """
     Main SCORM content viewer - SECURE ACCESS ONLY

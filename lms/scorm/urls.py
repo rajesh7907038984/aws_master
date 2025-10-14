@@ -7,6 +7,7 @@ urlpatterns = [
     # SCORM Content Viewing
     path('view/<int:topic_id>/', views.scorm_view, name='view'),
     path('player/<int:topic_id>/', views.scorm_view, name='player'),  # Legacy URL support
+    path('api-test/', views.scorm_api_test, name='api_test'),  # API diagnostic tool
     path('content/<int:topic_id>/<path:path>', views.scorm_content, name='content'),
     
     # Direct SCORM content access (no authentication required for direct access)
