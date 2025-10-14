@@ -245,14 +245,36 @@ def scorm_view(request, topic_id):
         
         # Handle authenticated user logic
         if is_authenticated:
-            # CRITICAL FIX: Create new attempt if last one was completed OR failed
-            # A failed attempt with completed_at means the user finished but didn't pass
-            # They should be able to start fresh, not resume the failed attempt
-            if last_attempt and (
-                last_attempt.lesson_status in ['completed', 'passed'] or 
-                (last_attempt.lesson_status == 'failed' and last_attempt.completed_at is not None)
-            ):
-                # Create new attempt for completed/passed/failed attempts
+            # CRITICAL FIX: Only create new attempt for truly completed courses, not partial completions
+            # For Rise 360 courses, 'completed' status might mean one lesson completed, not entire course
+            should_create_new_attempt = False
+            
+            if last_attempt:
+                # Check if this is a truly completed course (not just one lesson)
+                is_truly_completed = (
+                    # Only create new attempt if:
+                    # 1. Status is 'passed' (user passed the entire course)
+                    # 2. Status is 'completed' AND completed_at is set (user finished entire course)
+                    # 3. Status is 'failed' AND completed_at is set (user finished but failed)
+                    (last_attempt.lesson_status == 'passed') or
+                    (last_attempt.lesson_status == 'completed' and last_attempt.completed_at is not None) or
+                    (last_attempt.lesson_status == 'failed' and last_attempt.completed_at is not None)
+                )
+                
+                # For Rise 360 courses with lesson_location, check if user is at the end
+                if last_attempt.lesson_location and '#/lessons/' in last_attempt.lesson_location:
+                    # If user has lesson_location, they're in a multi-lesson course
+                    # Only create new attempt if they truly completed everything
+                    # For now, assume 'completed' with completed_at means truly done
+                    should_create_new_attempt = is_truly_completed and last_attempt.completed_at is not None
+                    logger.info(f"Rise 360 course detected - lesson_location: {last_attempt.lesson_location}, should_create_new: {should_create_new_attempt}")
+                else:
+                    # For other SCORM packages, use original logic
+                    should_create_new_attempt = is_truly_completed
+                    logger.info(f"Standard SCORM package - should_create_new: {should_create_new_attempt}")
+            
+            if should_create_new_attempt:
+                # Create new attempt for truly completed courses
                 attempt_number = last_attempt.attempt_number + 1
                 attempt = ScormAttempt.objects.create(
                     user=request.user,
