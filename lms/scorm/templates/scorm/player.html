@@ -1878,6 +1878,8 @@
         // Enhanced message listener for iframe exit communication
         window.addEventListener('message', function(event) {
             console.log('📩 Received message from iframe:', event.data, 'Origin:', event.origin);
+            console.log('📩 Message type:', typeof event.data);
+            console.log('📩 Message string representation:', String(event.data));
             
             // Handle exit messages from SCORM content
             let shouldComplete = false;
@@ -1886,6 +1888,7 @@
             // Handle both string and object messages
             if (event.data && typeof event.data === 'string') {
                 const message = event.data.toLowerCase();
+                console.log('📩 Processing string message:', message);
                 
                 // Check for completion messages (full completion)
                 if (message === 'complete_assessment' || message === 'lesson_complete' || 
@@ -1894,11 +1897,14 @@
                     console.log('✅ Received completion message from SCORM content:', event.data);
                     shouldComplete = true;
                 }
-                // Check for exit messages (save and go back without forcing completion)
+                // Check for exit messages (save and go back without forcing completion) - ENHANCED
                 else if (message.includes('exit') || message.includes('terminate') || 
                          message.includes('finish') || message.includes('close') || 
                          message === 'back' || message === 'return' || 
-                         message.includes('courseexit') || message === 'exit_assessment') {
+                         message.includes('courseexit') || message === 'exit_assessment' ||
+                         message === 'courseexit' || message === 'exit' || 
+                         message.includes('course exit') || message.includes('exit course') ||
+                         message.includes('course') || message.includes('assessment')) {
                     console.log('🚪 Received exit message from SCORM content:', event.data);
                     shouldExit = true;
                 }
@@ -1925,6 +1931,17 @@
                 else if (event.data.type === 'course:ready') {
                     console.log('📚 SCORM course is ready');
                     // Course is ready, no action needed but good to log
+                }
+            }
+            
+            // FALLBACK: If no specific pattern matched, check for any exit-related content
+            if (!shouldComplete && !shouldExit) {
+                const messageStr = String(event.data).toLowerCase();
+                if (messageStr.includes('exit') || messageStr.includes('course') || 
+                    messageStr.includes('finish') || messageStr.includes('close') ||
+                    messageStr.includes('back') || messageStr.includes('return')) {
+                    console.log('🚪 FALLBACK: Detected exit-related message:', event.data);
+                    shouldExit = true;
                 }
             }
             
@@ -1974,6 +1991,13 @@
             else if (shouldExit) {
                 console.log('🚪 SCORM content exit button clicked - triggering Back to Topic functionality...');
                 
+                // Prevent multiple rapid clicks
+                if (exitButtonClicked) {
+                    console.log('🚪 Exit button already clicked, ignoring duplicate click');
+                    return;
+                }
+                exitButtonClicked = true;
+                
                 // Trigger the same functionality as the Back to Topic button
                 // This will save progress, bookmark, and score without forcing completion
                 const fakeEvent = { preventDefault: function() {} };
@@ -1984,6 +2008,7 @@
         // CRITICAL FIX: Prevent window close without saving SCORM data
         let scormDataSaved = false;
         let isExiting = false;
+        let exitButtonClicked = false; // Prevent multiple rapid clicks
         
         // Add beforeunload event to capture score even when users close browser
         window.addEventListener('beforeunload', function(event) {
@@ -2157,6 +2182,13 @@
                                     e.stopPropagation();
                                     console.log('🚪 EXIT button clicked - using Back to Topic logic...');
                                     
+                                    // Prevent multiple rapid clicks
+                                    if (exitButtonClicked) {
+                                        console.log('🚪 Exit button already clicked, ignoring duplicate click');
+                                        return;
+                                    }
+                                    exitButtonClicked = true;
+                                    
                                     // Show user feedback
                                     const originalText = button.textContent || button.value;
                                     if (button.tagName === 'INPUT') {
@@ -2266,6 +2298,13 @@
                                 e.preventDefault();
                                 e.stopPropagation();
                                 console.log('🚪 EXIT button clicked (text-based detection) - using Back to Topic logic...');
+                                
+                                // Prevent multiple rapid clicks
+                                if (exitButtonClicked) {
+                                    console.log('🚪 Exit button already clicked, ignoring duplicate click');
+                                    return;
+                                }
+                                exitButtonClicked = true;
                                 
                                 // Show user feedback
                                 if (element.tagName === 'INPUT') {
