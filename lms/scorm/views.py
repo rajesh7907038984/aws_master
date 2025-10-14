@@ -428,15 +428,16 @@ def scorm_view(request, topic_id):
         if header in response:
             del response[header]
     
-    # Set comprehensive CSP headers for SCORM content
+    # CRITICAL FIX: CSP without 'unsafe-eval' for main player page
+    # The iframe will have its own CSP that allows 'unsafe-eval' if needed
     response['Content-Security-Policy'] = (
-        "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; "
-        "script-src * 'unsafe-inline' 'unsafe-eval' data: blob:; "
+        "default-src * 'unsafe-inline' data: blob:; "
+        "script-src * 'unsafe-inline' data: blob:; "
         "worker-src * blob: data:; "
         "style-src * 'unsafe-inline'; "
         "img-src * data: blob:; "
         "font-src * data:; "
-        "connect-src *; "
+        "connect-src * 'self'; "
         "media-src * data: blob:; "
         "frame-src *; "
         "object-src 'none'"
@@ -444,20 +445,32 @@ def scorm_view(request, topic_id):
     
     response['X-Frame-Options'] = 'SAMEORIGIN'
     response['Access-Control-Allow-Origin'] = '*'
+    response['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    response['Access-Control-Allow-Headers'] = 'Content-Type, X-CSRFToken'
     
     return response
 
 
 @csrf_exempt
-@require_http_methods(["POST"])
+@require_http_methods(["POST", "OPTIONS"])
 def scorm_api(request, attempt_id):
     """
     SCORM API endpoint
     Handles all SCORM API calls from content
     Supports both regular attempts and preview mode
     """
+    # Handle OPTIONS request for CORS preflight
+    if request.method == "OPTIONS":
+        response = JsonResponse({'status': 'ok'})
+        response['Access-Control-Allow-Origin'] = '*'
+        response['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+        response['Access-Control-Allow-Headers'] = 'Content-Type, X-CSRFToken'
+        return response
+    
     # CRITICAL: Log all incoming API requests for debugging
-    logger.info(f"🔵 SCORM API CALLED: attempt_id={attempt_id}, method={request.method}, path={request.path}")
+    logger.info(f"🔵 SCORM API CALLED: attempt_id={attempt_id}, method={request.method}, path={request.path}, content_type={request.content_type}")
+    logger.info(f"🔵 Headers: {dict(request.headers)}")
+    logger.info(f"🔵 Body preview: {request.body[:200] if request.body else 'Empty'}")
     
     # For SCORM API calls, we need to handle authentication differently
     # since the calls come from iframe content. We'll check if the attempt exists
@@ -470,7 +483,9 @@ def scorm_api(request, attempt_id):
         #     return JsonResponse({'error': 'Unauthorized'}, status=401)
     except ScormAttempt.DoesNotExist:
         logger.error(f"❌ SCORM API: Attempt {attempt_id} not found")
-        return JsonResponse({'error': 'Attempt not found'}, status=404)
+        response = JsonResponse({'error': 'Attempt not found'}, status=404)
+        response['Access-Control-Allow-Origin'] = '*'
+        return response
     
     try:
         # Check if this is a preview attempt first
@@ -627,18 +642,30 @@ def scorm_api(request, attempt_id):
                 'error': f'Unknown method: {method}'
             })
         
-        return JsonResponse({
+        response = JsonResponse({
             'success': True,
             'result': result,
             'error_code': handler.last_error
         })
+        # Add CORS headers to response
+        response['Access-Control-Allow-Origin'] = '*'
+        response['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+        response['Access-Control-Allow-Headers'] = 'Content-Type, X-CSRFToken'
+        return response
         
     except Exception as e:
-        logger.error(f"SCORM API error: {str(e)}")
-        return JsonResponse({
+        logger.error(f"❌ SCORM API error: {str(e)}")
+        import traceback
+        logger.error(f"❌ Traceback: {traceback.format_exc()}")
+        response = JsonResponse({
             'success': False,
             'error': str(e)
         }, status=500)
+        # Add CORS headers to error response
+        response['Access-Control-Allow-Origin'] = '*'
+        response['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+        response['Access-Control-Allow-Headers'] = 'Content-Type, X-CSRFToken'
+        return response
 
 
 def scorm_content(request, topic_id=None, path=None, attempt_id=None):
@@ -798,13 +825,17 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
                 base_url = f"/scorm/content/{topic_id}/{dir_path}"
                 base_tag = f'<base href="{base_url}">'
                 
-                # Inject base tag right after <head> tag
-                if '<head>' in html_content:
-                    html_content = html_content.replace('<head>', f'<head>\n    {base_tag}', 1)
-                elif '<HEAD>' in html_content:
-                    html_content = html_content.replace('<HEAD>', f'<HEAD>\n    {base_tag}', 1)
+                # CRITICAL FIX: Inject CSP meta tag to allow 'unsafe-eval' ONLY in iframe
+                csp_meta_tag = '''<meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval' data: blob:; connect-src *;">'''
                 
-                logger.info(f"Injected base tag with Django proxy URL: {base_url}")
+                # Inject both CSP and base tag right after <head> tag
+                injection = f'\n    {csp_meta_tag}\n    {base_tag}'
+                if '<head>' in html_content:
+                    html_content = html_content.replace('<head>', f'<head>{injection}', 1)
+                elif '<HEAD>' in html_content:
+                    html_content = html_content.replace('<HEAD>', f'<HEAD>{injection}', 1)
+                
+                logger.info(f"Injected CSP meta tag and base tag with Django proxy URL: {base_url}")
                 
                 # CRITICAL FIX: For xAPI/Tin Can packages (Articulate Storyline), 
                 # don't inject complex SCORM code - just provide parent API reference
