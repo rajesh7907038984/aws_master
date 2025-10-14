@@ -423,17 +423,22 @@ def scorm_view(request, topic_id):
     
     response = render(request, 'scorm/player.html', context)
     
-    # Set permissive CSP headers for SCORM content
+    # Remove any conflicting CSP headers first
+    for header in ['Content-Security-Policy', 'Content-Security-Policy-Report-Only', 'X-Content-Security-Policy']:
+        if header in response:
+            del response[header]
+    
+    # Set comprehensive CSP headers for SCORM content
     response['Content-Security-Policy'] = (
-        "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://*.amazonaws.com *; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.amazonaws.com *; "
-        "worker-src 'self' blob: data: https://*.amazonaws.com *; "
-        "style-src 'self' 'unsafe-inline' https://*.amazonaws.com *; "
-        "img-src 'self' data: blob: https://*.amazonaws.com *; "
-        "font-src 'self' data: https://*.amazonaws.com *; "
-        "connect-src 'self' https://*.amazonaws.com *; "
-        "media-src 'self' data: blob: https://*.amazonaws.com *; "
-        "frame-src 'self' https://*.amazonaws.com *; "
+        "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; "
+        "script-src * 'unsafe-inline' 'unsafe-eval' data: blob:; "
+        "worker-src * blob: data:; "
+        "style-src * 'unsafe-inline'; "
+        "img-src * data: blob:; "
+        "font-src * data:; "
+        "connect-src *; "
+        "media-src * data: blob:; "
+        "frame-src *; "
         "object-src 'none'"
     )
     
@@ -699,35 +704,73 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
             logger.error(f"Error generating S3 URL: {str(e)}")
             return HttpResponse('Error generating content URL', status=500)
         
-        # OPTIMIZATION: For ALL files, redirect directly to S3 for maximum performance
-        # The SCORM API is injected in the player template, not in individual content files
-        if not path.endswith(('.html', '.htm')):
-            from django.http import HttpResponseRedirect
-            return HttpResponseRedirect(s3_url)
+        # CRITICAL FIX: Proxy JavaScript and JSON files to avoid CORB
+        # For other files (images, videos, etc.), redirect to S3
+        should_proxy = path.endswith(('.html', '.htm', '.js', '.json', '.xml'))
         
-        # For HTML files, inject minimal SCORM API reference
+        if not should_proxy:
+            # Images, videos, fonts, etc. - redirect directly to S3
+            from django.http import HttpResponseRedirect
+            response = HttpResponseRedirect(s3_url)
+            # Set minimal headers for redirect
+            response['Access-Control-Allow-Origin'] = '*'
+            return response
+        
+        # For HTML/JS/JSON files, proxy through Django with proper headers
         try:
             import requests
             from django.core.cache import cache
-            
-            # DISABLED: Skip cache check for development
-            # cache_key = f"scorm_content_v3_{scorm_package.id}_{path}_{scorm_package.updated_at.timestamp()}"
-            # cached_content = cache.get(cache_key)
-            # 
-            # if cached_content:
-            #     logger.info(f"Serving cached content for {path}")
-            #     response_obj = HttpResponse(cached_content, content_type='text/html; charset=utf-8')
-            #     response_obj['Access-Control-Allow-Origin'] = '*'
-            #     response_obj['X-Frame-Options'] = 'SAMEORIGIN'
-            #     response_obj['Cache-Control'] = 'no-cache, no-store, must-revalidate'  # No cache for development
-            #     return response_obj
             
             # Fetch from S3 with optimized timeout
             response = requests.get(s3_url, timeout=30)
             response.raise_for_status()
             
             content = response.content
-            content_type = response.headers.get('content-type', 'text/html; charset=utf-8')
+            
+            # Determine proper Content-Type based on file extension
+            if path.endswith('.js'):
+                content_type = 'application/javascript; charset=utf-8'
+            elif path.endswith('.json'):
+                content_type = 'application/json; charset=utf-8'
+            elif path.endswith('.xml'):
+                content_type = 'application/xml; charset=utf-8'
+            else:
+                content_type = response.headers.get('content-type', 'text/html; charset=utf-8')
+            
+            # For JavaScript and JSON files, serve directly with proper headers
+            if path.endswith(('.js', '.json')):
+                response_obj = HttpResponse(content, content_type=content_type)
+                
+                # Remove any conflicting security headers
+                for header in ['Content-Security-Policy', 'Content-Security-Policy-Report-Only', 'X-Content-Security-Policy']:
+                    if header in response_obj:
+                        del response_obj[header]
+                
+                # Set comprehensive CSP that allows everything SCORM needs
+                response_obj['Content-Security-Policy'] = (
+                    "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; "
+                    "script-src * 'unsafe-inline' 'unsafe-eval' data: blob:; "
+                    "worker-src * blob: data:; "
+                    "style-src * 'unsafe-inline'; "
+                    "connect-src *"
+                )
+                
+                # CORS headers for cross-origin access
+                response_obj['Access-Control-Allow-Origin'] = '*'
+                response_obj['Access-Control-Allow-Methods'] = 'GET, HEAD, OPTIONS'
+                response_obj['Access-Control-Allow-Headers'] = '*'
+                response_obj['Access-Control-Expose-Headers'] = '*'
+                
+                # Frame and caching headers
+                response_obj['X-Frame-Options'] = 'SAMEORIGIN'
+                response_obj['Cache-Control'] = 'public, max-age=3600'  # Cache for 1 hour
+                
+                # Remove X-Content-Type-Options for JS files to prevent CORB
+                if 'X-Content-Type-Options' in response_obj:
+                    del response_obj['X-Content-Type-Options']
+                
+                logger.info(f"Serving JavaScript file {path} with proper headers")
+                return response_obj
             
             # Inject lightweight SCORM API for HTML files
             if 'text/html' in content_type:
@@ -888,26 +931,40 @@ window.courseExit = function() {
                 logger.info(f"Injected minimal SCORM API into {path} and cached")
             
             response_obj = HttpResponse(content, content_type=content_type)
-            response_obj['Access-Control-Allow-Origin'] = '*'
-            response_obj['X-Frame-Options'] = 'SAMEORIGIN'
-            # CRITICAL: Add CSP header with unsafe-eval for SCORM interactive elements
+            
+            # Remove any conflicting security headers
+            for header in ['Content-Security-Policy', 'Content-Security-Policy-Report-Only', 'X-Content-Security-Policy']:
+                if header in response_obj:
+                    del response_obj[header]
+            
+            # Set comprehensive CSP headers for SCORM content
             response_obj['Content-Security-Policy'] = (
-                "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://*.amazonaws.com *; "
-                "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.amazonaws.com *; "
-                "worker-src 'self' blob: data: https://*.amazonaws.com *; "
-                "style-src 'self' 'unsafe-inline' https://*.amazonaws.com *; "
-                "img-src 'self' data: blob: https://*.amazonaws.com *; "
-                "font-src 'self' data: https://*.amazonaws.com *; "
-                "connect-src 'self' https://*.amazonaws.com *; "
-                "media-src 'self' data: blob: https://*.amazonaws.com *; "
-                "frame-src 'self' https://*.amazonaws.com *; "
+                "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; "
+                "script-src * 'unsafe-inline' 'unsafe-eval' data: blob:; "
+                "worker-src * blob: data:; "
+                "style-src * 'unsafe-inline'; "
+                "img-src * data: blob:; "
+                "font-src * data:; "
+                "connect-src *; "
+                "media-src * data: blob:; "
+                "frame-src *; "
                 "object-src 'none'"
             )
-            # OPTIMIZATION: Enable browser caching for better performance
+            
+            # CORS headers for cross-origin access
+            response_obj['Access-Control-Allow-Origin'] = '*'
+            response_obj['Access-Control-Allow-Methods'] = 'GET, HEAD, OPTIONS'
+            response_obj['Access-Control-Allow-Headers'] = '*'
+            response_obj['Access-Control-Expose-Headers'] = '*'
+            
+            # Frame and caching headers
+            response_obj['X-Frame-Options'] = 'SAMEORIGIN'
             response_obj['Cache-Control'] = 'no-cache, no-store, must-revalidate'  # No cache for development
-            # SECURITY HEADERS
+            
+            # Security headers
             response_obj['X-Content-Type-Options'] = 'nosniff'
             response_obj['X-XSS-Protection'] = '1; mode=block'
+            
             return response_obj
             
         except requests.RequestException as e:
