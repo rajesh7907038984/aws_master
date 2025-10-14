@@ -320,6 +320,11 @@ def scorm_view(request, topic_id):
         if launch_url.startswith('/'):
             launch_url = launch_url[1:]  # Remove leading slash if present
         
+        # CRITICAL FIX: Remove "scormcontent/" prefix if it already exists in launch_url
+        # This prevents duplication like /scorm/content/121/scormcontent/scormcontent/index.html
+        if launch_url.startswith('scormcontent/'):
+            launch_url = launch_url[13:]  # Remove "scormcontent/" prefix (13 characters)
+        
         # Get lesson ID from database if available, default to empty
         lesson_id = ""
         if hasattr(attempt, 'lesson_location') and attempt.lesson_location and '#/lessons/' in attempt.lesson_location:
@@ -336,11 +341,18 @@ def scorm_view(request, topic_id):
                 if '#/lessons/' in location:
                     lesson_id = location
         
+        # CRITICAL FIX: Clean lesson_id to ensure it only contains the hash fragment
+        # Remove any filename prefix like "index.html#" to prevent duplication
+        if lesson_id and '#' in lesson_id:
+            # Extract only the hash part (e.g., "#/lessons/K-d9I0z0XgHP-W64WbJ6WjZCSgV5uiK8")
+            hash_parts = lesson_id.split('#')
+            # Get the last hash part (in case there are multiple # characters)
+            lesson_id = '#' + hash_parts[-1] if hash_parts[-1] else ''
+        
         content_url = f"/scorm/content/{topic_id}/scormcontent/{launch_url}"
         # Only add hash fragment if it contains a lesson ID
-        if '#/lessons/' in lesson_id:
-            lesson_hash = lesson_id if lesson_id.startswith('#') else f"#{lesson_id}"
-            content_url = f"{content_url}{lesson_hash}"
+        if lesson_id and '#/lessons/' in lesson_id:
+            content_url = f"{content_url}{lesson_id}"
         
         logger.info(f"Generated content URL: {content_url}")
     except Exception as e:
@@ -349,8 +361,12 @@ def scorm_view(request, topic_id):
         # Try to add lesson ID even in fallback mode
         try:
             if hasattr(attempt, 'lesson_location') and attempt.lesson_location and '#/lessons/' in attempt.lesson_location:
-                lesson_hash = attempt.lesson_location if attempt.lesson_location.startswith('#') else f"#{attempt.lesson_location}"
-                content_url = f"{content_url}{lesson_hash}"
+                lesson_location = attempt.lesson_location
+                # Clean lesson location to get only hash fragment
+                if '#' in lesson_location:
+                    hash_parts = lesson_location.split('#')
+                    lesson_hash = '#' + hash_parts[-1] if hash_parts[-1] else ''
+                    content_url = f"{content_url}{lesson_hash}"
         except Exception as lesson_err:
             logger.error(f"Error adding lesson ID to fallback URL: {str(lesson_err)}")
     
