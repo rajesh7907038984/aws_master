@@ -313,6 +313,7 @@ class ScormAPIHandler:
                 elif element == 'cmi.core.score.raw':
                     try:
                         self.attempt.score_raw = Decimal(value) if value and str(value).strip() else None
+                        logger.info(f"✅ SET SCORE: attempt.score_raw = {self.attempt.score_raw} (from value '{value}')")
                     except (ValueError, TypeError):
                         logger.warning(f"Invalid score.raw value: {value}")
                         self.last_error = '405'  # Incorrect data type
@@ -557,6 +558,9 @@ class ScormAPIHandler:
     @transaction.atomic
     def _commit_data(self):
         """Save attempt data to database with proper transaction handling"""
+        logger.info(f"💾 COMMIT: Starting commit for attempt {self.attempt.id}")
+        logger.info(f"💾 COMMIT: score_raw BEFORE save = {self.attempt.score_raw}")
+        
         self.attempt.last_accessed = timezone.now()
         
         # Only save to database if not a preview attempt
@@ -566,6 +570,11 @@ class ScormAPIHandler:
             try:
                 # FIX: Save attempt first
                 self.attempt.save()
+                logger.info(f"💾 COMMIT: Saved! score_raw AFTER save = {self.attempt.score_raw}")
+                
+                # Verify it was saved
+                self.attempt.refresh_from_db()
+                logger.info(f"💾 COMMIT: score_raw AFTER refresh = {self.attempt.score_raw}")
                 
                 # FIX: Add small delay before sync to ensure data is committed
                 import time
