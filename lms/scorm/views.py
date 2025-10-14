@@ -728,6 +728,42 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
         
         is_authenticated = True
         logger.info(f"✅ AUTHENTICATED ACCESS: User {request.user.username} (ID: {request.user.id}) accessing SCORM content: topic_id={topic_id}, path={path}")
+        
+        # ENHANCED PATH VALIDATION: Check for malformed or corrupted paths
+        if path:
+            # Check for common malformed path patterns
+            malformed_patterns = [
+                'false',  # Path starting with 'false'
+                'falseZWW39B5VGRH3E72JYDuqCefpHRnY',  # Specific corrupted pattern
+                'false8AW8QPPYYR2DX8SZQAz',  # Another corrupted pattern
+                'Zg1Dar5WT23Zvitoeex6FHxrBf',  # Base64-like corrupted data
+                'mPMtQ4aqQ7+9aJbFTShLB0xGyc6Ajacl9OYxiHHH60Rxk0OJ',  # More corrupted data
+                '49ni43oj0BtebD+mS+TvHBqdmJQ='  # Base64-like ending
+            ]
+            
+            # Check if path contains any malformed patterns
+            is_malformed = any(pattern in path for pattern in malformed_patterns)
+            
+            if is_malformed:
+                logger.error(f"🚨 MALFORMED PATH DETECTED: path='{path}', request_path='{request.path}', query_params='{request.GET}'")
+                # Return a proper error response with fallback to launch file
+                return HttpResponse('Invalid or corrupted file path detected. Redirecting to course content.', status=400)
+            
+            # Check for suspicious path characteristics
+            if (len(path) > 200 or  # Path too long
+                '=' in path or  # Contains base64 padding
+                path.count('/') > 10 or  # Too many path segments
+                any(char in path for char in ['+', '%', '&', '?']) and len(path) > 50):  # Suspicious characters in long paths
+                logger.warning(f"⚠️ SUSPICIOUS PATH: path='{path}' - may be corrupted")
+                # Try to extract a valid filename from the path
+                if '/' in path:
+                    potential_filename = path.split('/')[-1]
+                    if potential_filename and '.' in potential_filename and len(potential_filename) < 100:
+                        logger.info(f"🔧 ATTEMPTING PATH CORRECTION: '{path}' -> '{potential_filename}'")
+                        path = potential_filename
+                    else:
+                        logger.error(f"❌ PATH CORRECTION FAILED: Cannot extract valid filename from '{path}'")
+                        return HttpResponse('Invalid file path format', status=400)
         # Handle both topic_id and attempt_id parameters for backward compatibility
         current_attempt_id = None
         if attempt_id is not None and topic_id is None:
@@ -749,18 +785,21 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
             if is_authenticated and not topic.user_has_access(request.user):
                 return HttpResponse('Access denied - You do not have permission to access this content', status=403)
             
-            # Get the current attempt for this user and topic
-            from .models import ScormAttempt
-            try:
-                if is_authenticated:
-                    current_attempt = ScormAttempt.objects.filter(
-                        user=request.user,
-                        scorm_package__topic=topic
-                    ).order_by('-attempt_number').first()
-                    if current_attempt:
-                        current_attempt_id = current_attempt.id
-            except Exception as e:
-                logger.error(f"Error getting current attempt for topic {topic_id}: {str(e)}")
+        # Get the current attempt for this user and topic
+        from .models import ScormAttempt
+        try:
+            if is_authenticated:
+                current_attempt = ScormAttempt.objects.filter(
+                    user=request.user,
+                    scorm_package__topic=topic
+                ).order_by('-attempt_number').first()
+                if current_attempt:
+                    current_attempt_id = current_attempt.id
+                    logger.info(f"Found current attempt {current_attempt_id} for user {request.user.username} and topic {topic_id}")
+                else:
+                    logger.warning(f"No attempt found for user {request.user.username} and topic {topic_id}")
+        except Exception as e:
+            logger.error(f"Error getting current attempt for topic {topic_id}: {str(e)}")
         
         # Check if topic has SCORM package
         try:
@@ -769,11 +808,56 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
             return HttpResponse('SCORM package not found', status=404)
         
         # Handle directory requests by redirecting to index.html
-        if path.endswith('/'):
+        if path and path.endswith('/'):
             path = path + 'index.html'
+        
+        # DEBUG: Log path processing
+        if path and (path == 'false' or 'false' in path):
+            logger.error(f"🚨 PROCESSING MALFORMED PATH: '{path}' - request.path='{request.path}', request.GET='{dict(request.GET)}'")
+            # Try to extract a valid path from the request
+            if request.path:
+                path_parts = request.path.split('/')
+                if len(path_parts) > 3:
+                    potential_path = '/'.join(path_parts[3:])  # Skip /scorm/content/topic_id/
+                    if potential_path and potential_path != 'false':
+                        logger.info(f"🔧 ATTEMPTING PATH CORRECTION: '{path}' -> '{potential_path}'")
+                        path = potential_path
         
         # Generate direct S3 URL with proper error handling
         try:
+            # First verify the file exists before generating URL
+            if not scorm_s3.verify_file_exists(scorm_package, path):
+                logger.warning(f"File not found in S3: {path}")
+                
+                # ENHANCED FALLBACK: Try to find a valid alternative file
+                if path.endswith(('.html', '.htm')):
+                    # For HTML files, try common alternatives
+                    alternatives = [
+                        'index.html',
+                        'story.html', 
+                        'player.html',
+                        'main.html',
+                        scorm_package.launch_url
+                    ]
+                    
+                    for alt_path in alternatives:
+                        if scorm_s3.verify_file_exists(scorm_package, alt_path):
+                            logger.info(f"🔧 FALLBACK: Using alternative file '{alt_path}' instead of '{path}'")
+                            path = alt_path
+                            break
+                    else:
+                        # No valid alternative found, return error with helpful message
+                        logger.error(f"❌ NO VALID FALLBACK: No valid HTML files found for package {scorm_package.id}")
+                        return HttpResponse(
+                            f'SCORM content file not found: {path}. Please contact support if this issue persists.',
+                            status=404,
+                            content_type='text/plain'
+                        )
+                else:
+                    # For non-HTML files, return 404
+                    logger.error(f"❌ NON-HTML FILE NOT FOUND: {path}")
+                    return HttpResponse(f'File not found: {path}', status=404)
+            
             s3_url = scorm_s3.generate_direct_url(scorm_package, path)
             if not s3_url:
                 logger.error(f"Failed to generate S3 URL for path: {path}")
@@ -937,66 +1021,194 @@ window.courseExit = function() {
 // Only provide courseExit function if content explicitly calls it
 </script>'''
                 else:
-                    # For SCORM 1.2 and 2004 packages, also use minimal injection
-                    # The heavy tracking code is handled in the player template
-                    api_injection = '''
+                    # For SCORM 1.2 and 2004 packages, inject REAL API that communicates with LMS
+                    # This is the permanent solution - inject working API that saves data
+                    # Get the current attempt ID for API communication
+                    api_attempt_id = current_attempt_id or 'null'
+                    logger.info(f"Injecting SCORM API with attempt_id: {api_attempt_id} for path: {path}")
+                    api_injection = f'''
 <script>
-// Lightweight SCORM API - Points to parent window API
-// Version: 4.1 - Simplified for all SCORM types with exit button support
-console.log('[SCORM] API bridge loaded for content');
+// REAL SCORM API - Communicates with LMS backend
+// Version: 5.0 - Permanent solution for SCORM data saving
+console.log('[SCORM] Real API bridge loaded for content - attempt {api_attempt_id}');
 
-// Try to use parent window's API if available (iframe scenario)
-if (window.parent && window.parent !== window) {
-    if (window.parent.API && !window.API) {
-        window.API = window.parent.API;
-        console.log('[SCORM] Using parent SCORM 1.2 API');
-    }
-    if (window.parent.API_1484_11 && !window.API_1484_11) {
-        window.API_1484_11 = window.parent.API_1484_11;
-        console.log('[SCORM] Using parent SCORM 2004 API');
-    }
-}
+// Configuration
+const SCORM_CONFIG = {{
+    attemptId: {api_attempt_id},
+    apiEndpoint: '/scorm/api/{api_attempt_id}/',
+    debug: true
+}};
 
-// Minimal fallback API stub (only if no API exists)
-if (!window.API) {
-    window.API = {
-        LMSInitialize: function() { return 'true'; },
-        LMSFinish: function() { return 'true'; },
-        LMSGetValue: function(e) { return ''; },
-        LMSSetValue: function(e,v) { return 'true'; },
-        LMSCommit: function() { return 'true'; },
-        LMSGetLastError: function() { return '0'; },
-        LMSGetErrorString: function(c) { return ''; },
-        LMSGetDiagnostic: function(c) { return ''; }
-    };
-    console.log('[SCORM] Minimal SCORM 1.2 fallback API created');
-}
+// Helper functions
+function log(message) {{
+    if (SCORM_CONFIG.debug) {{
+        console.log('[SCORM API] ' + message);
+    }}
+}}
 
-if (!window.API_1484_11) {
-    window.API_1484_11 = {
-        Initialize: function() { return 'true'; },
-        Terminate: function() { return 'true'; },
-        GetValue: function(e) { return ''; },
-        SetValue: function(e,v) { return 'true'; },
-        Commit: function() { return 'true'; },
-        GetLastError: function() { return '0'; },
-        GetErrorString: function(c) { return ''; },
-        GetDiagnostic: function(c) { return ''; }
-    };
-    console.log('[SCORM] Minimal SCORM 2004 fallback API created');
-}
+function makeAPICall(method, parameters = []) {{
+    log(`Making API call: ${{method}} with params: ${{JSON.stringify(parameters)}}`);
+    
+    try {{
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', SCORM_CONFIG.apiEndpoint, false); // Synchronous for SCORM compliance
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.setRequestHeader('X-CSRFToken', getCsrfToken());
+        
+        const requestData = {{
+            method: method,
+            parameters: parameters
+        }};
+        
+        xhr.send(JSON.stringify(requestData));
+        
+        if (xhr.status === 200) {{
+            const response = JSON.parse(xhr.responseText);
+            log(`API call result: ${{response.result}}, error: ${{response.error_code || '0'}}`);
+            return response.result || 'false';
+        }} else {{
+            log(`API call failed: HTTP ${{xhr.status}}`);
+            return 'false';
+        }}
+    }} catch (error) {{
+        log(`API call error: ${{error.message}}`);
+        return 'false';
+    }}
+}}
 
-// Enhanced exit button support for SCORM content
-window.courseExit = function() {
-    console.log('[SCORM] courseExit() called - sending exit message to parent');
-    if (window.parent && window.parent !== window) {
-        window.parent.postMessage({action: 'courseExit', type: 'exit'}, '*');
+function getCsrfToken() {{
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {{
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'csrftoken') {{
+            return decodeURIComponent(value);
+        }}
+    }}
+    return '';
+}}
+
+// SCORM 1.2 API Implementation
+window.API = {{
+    LMSInitialize: function(parameter) {{
+        log('LMSInitialize called');
+        const result = makeAPICall('LMSInitialize', [parameter]);
+        if (result === 'true') {{
+            log('SCORM initialized successfully');
+        }}
+        return result;
+    }},
+    
+    LMSFinish: function(parameter) {{
+        log('LMSFinish called');
+        const result = makeAPICall('LMSFinish', [parameter]);
+        log('SCORM terminated');
+        return result;
+    }},
+    
+    LMSGetValue: function(element) {{
+        log(`LMSGetValue called for: ${{element}}`);
+        return makeAPICall('LMSGetValue', [element]);
+    }},
+    
+    LMSSetValue: function(element, value) {{
+        log(`LMSSetValue called: ${{element}} = ${{value}}`);
+        const result = makeAPICall('LMSSetValue', [element, value]);
+        
+        // Auto-commit for critical values
+        if (element === 'cmi.core.lesson_status' || element === 'cmi.core.score.raw') {{
+            log('Auto-committing critical data');
+            setTimeout(() => {{
+                makeAPICall('LMSCommit', ['']);
+            }}, 100);
+        }}
+        
+        return result;
+    }},
+    
+    LMSCommit: function(parameter) {{
+        log('LMSCommit called');
+        return makeAPICall('LMSCommit', [parameter]);
+    }},
+    
+    LMSGetLastError: function() {{
+        return makeAPICall('LMSGetLastError', []);
+    }},
+    
+    LMSGetErrorString: function(errorCode) {{
+        return makeAPICall('LMSGetErrorString', [errorCode]);
+    }},
+    
+    LMSGetDiagnostic: function(errorCode) {{
+        return makeAPICall('LMSGetDiagnostic', [errorCode]);
+    }}
+}};
+
+// SCORM 2004 API Implementation
+window.API_1484_11 = {{
+    Initialize: function(parameter) {{
+        log('Initialize called (SCORM 2004)');
+        const result = makeAPICall('Initialize', [parameter]);
+        if (result === 'true') {{
+            log('SCORM 2004 initialized successfully');
+        }}
+        return result;
+    }},
+    
+    Terminate: function(parameter) {{
+        log('Terminate called (SCORM 2004)');
+        const result = makeAPICall('Terminate', [parameter]);
+        log('SCORM 2004 terminated');
+        return result;
+    }},
+    
+    GetValue: function(element) {{
+        log(`GetValue called for: ${{element}} (SCORM 2004)`);
+        return makeAPICall('GetValue', [element]);
+    }},
+    
+    SetValue: function(element, value) {{
+        log(`SetValue called: ${{element}} = ${{value}} (SCORM 2004)`);
+        const result = makeAPICall('SetValue', [element, value]);
+        
+        // Auto-commit for critical values
+        if (element === 'cmi.completion_status' || element === 'cmi.score.raw') {{
+            log('Auto-committing critical data (SCORM 2004)');
+            setTimeout(() => {{
+                makeAPICall('Commit', ['']);
+            }}, 100);
+        }}
+        
+        return result;
+    }},
+    
+    Commit: function(parameter) {{
+        log('Commit called (SCORM 2004)');
+        return makeAPICall('Commit', [parameter]);
+    }},
+    
+    GetLastError: function() {{
+        return makeAPICall('GetLastError', []);
+    }},
+    
+    GetErrorString: function(errorCode) {{
+        return makeAPICall('GetErrorString', [errorCode]);
+    }},
+    
+    GetDiagnostic: function(errorCode) {{
+        return makeAPICall('GetDiagnostic', [errorCode]);
+    }}
+}};
+
+// Enhanced exit button support
+window.courseExit = function() {{
+    log('courseExit() called - sending exit message to parent');
+    if (window.parent && window.parent !== window) {{
+        window.parent.postMessage({{action: 'courseExit', type: 'exit'}}, '*');
         window.parent.postMessage('exit_assessment', '*');
-    }
-};
+    }}
+}};
 
-// Let SCORM content handle its own exit buttons naturally
-// Only provide courseExit function if SCORM explicitly calls it
+log('SCORM API injection complete - ready for communication with LMS');
 </script>'''
                 
                 # Inject before </head> or at beginning of <body>
