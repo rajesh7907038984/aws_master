@@ -130,7 +130,7 @@
             <div class="loading-overlay" id="loadingOverlay">
                 <div class="loading-spinner"></div>
             </div>
-            <iframe id="scormIframe" class="scorm-iframe" src="about:blank" onload="ensureAPIInIframe()"></iframe>
+            <iframe id="scormIframe" class="scorm-iframe" src="about:blank"></iframe>
         </div>
         
         <div class="status-bar">
@@ -170,6 +170,51 @@
         
         // Initialize API immediately
         initializeSCORMImmediately();
+        
+        // CRITICAL: Function to ensure API is available in iframe
+        function ensureAPIInIframe() {
+            console.log('Iframe loaded - ensuring API availability...');
+            
+            try {
+                const iframe = document.getElementById('scormIframe');
+                const iframeWindow = iframe.contentWindow;
+                const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
+                
+                if (iframeWindow && iframeDocument) {
+                    // CRITICAL: Inject API into iframe window
+                    if (window.API && window.API_1484_11) {
+                        iframeWindow.API = window.API;
+                        iframeWindow.API_1484_11 = window.API_1484_11;
+                        console.log('SCORM APIs injected into iframe window');
+                        
+                        // Also ensure parent window has APIs
+                        window.parent.API = window.API;
+                        window.parent.API_1484_11 = window.API_1484_11;
+                        console.log('SCORM APIs exposed to parent window');
+                        
+                        // CRITICAL: Make sure APIs are available in all contexts
+                        if (window.top && window.top !== window) {
+                            window.top.API = window.API;
+                            window.top.API_1484_11 = window.API_1484_11;
+                            console.log('SCORM APIs exposed to top window');
+                        }
+                        
+                        updateStatus('SCORM APIs injected - content should initialize');
+                    } else {
+                        console.error('SCORM APIs not available for iframe injection');
+                        updateStatus('SCORM API injection failed');
+                    }
+                }
+            } catch (e) {
+                console.log('Cross-origin iframe - ensuring parent window has APIs');
+                // Even with cross-origin restrictions, ensure parent window has APIs
+                if (window.API && window.API_1484_11) {
+                    window.parent.API = window.API;
+                    window.parent.API_1484_11 = window.API_1484_11;
+                    console.log('SCORM APIs exposed to parent window for cross-origin access');
+                }
+            }
+        }
         
         // CRITICAL FIX: Prevent popup windows and ensure content loads in same window
         // Override window.open to prevent popups
@@ -359,7 +404,10 @@
                 loadingOverlay.style.display = 'none';
             }, 500);
             
-            // CRITICAL FIX: Inject popup prevention and ensure API availability
+            // CRITICAL: Call the ensureAPIInIframe function
+            ensureAPIInIframe();
+            
+            // CRITICAL FIX: Inject popup prevention
             try {
                 const iframeWindow = iframe.contentWindow;
                 const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
@@ -384,33 +432,9 @@
                             console.log('Redirected iframe _blank link to same window:', e.target.href);
                         }
                     });
-                    
-                    // CRITICAL: Ensure SCORM APIs are available in iframe
-                    // The iframe content needs to find the API in its parent window
-                    if (window.API && window.API_1484_11) {
-                        // Make sure parent window has the APIs
-                        window.parent.API = window.API;
-                        window.parent.API_1484_11 = window.API_1484_11;
-                        
-                        // Also inject into iframe window
-                        iframeWindow.API = window.API;
-                        iframeWindow.API_1484_11 = window.API_1484_11;
-                        
-                        console.log('SCORM APIs injected into iframe and parent window');
-                        updateStatus('SCORM APIs injected - content should initialize');
-                    } else {
-                        console.error('SCORM APIs not available for iframe injection');
-                        updateStatus('SCORM API injection failed');
-                    }
                 }
             } catch (e) {
-                console.log('Cross-origin iframe - APIs available globally, popup prevention may be limited');
-                // Even with cross-origin restrictions, ensure parent window has APIs
-                if (window.API && window.API_1484_11) {
-                    window.parent.API = window.API;
-                    window.parent.API_1484_11 = window.API_1484_11;
-                    console.log('SCORM APIs exposed to parent window for cross-origin access');
-                }
+                console.log('Cross-origin iframe - popup prevention may be limited');
             }
         });
         
@@ -469,51 +493,6 @@
                 }
             }
         });
-        
-        // CRITICAL: Function to ensure API is available in iframe
-        function ensureAPIInIframe() {
-            console.log('Iframe loaded - ensuring API availability...');
-            
-            try {
-                const iframe = document.getElementById('scormIframe');
-                const iframeWindow = iframe.contentWindow;
-                const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
-                
-                if (iframeWindow && iframeDocument) {
-                    // CRITICAL: Inject API into iframe window
-                    if (window.API && window.API_1484_11) {
-                        iframeWindow.API = window.API;
-                        iframeWindow.API_1484_11 = window.API_1484_11;
-                        console.log('SCORM APIs injected into iframe window');
-                        
-                        // Also ensure parent window has APIs
-                        window.parent.API = window.API;
-                        window.parent.API_1484_11 = window.API_1484_11;
-                        console.log('SCORM APIs exposed to parent window');
-                        
-                        // CRITICAL: Make sure APIs are available in all contexts
-                        if (window.top && window.top !== window) {
-                            window.top.API = window.API;
-                            window.top.API_1484_11 = window.API_1484_11;
-                            console.log('SCORM APIs exposed to top window');
-                        }
-                        
-                        updateStatus('SCORM APIs injected - content should initialize');
-                    } else {
-                        console.error('SCORM APIs not available for iframe injection');
-                        updateStatus('SCORM API injection failed');
-                    }
-                }
-            } catch (e) {
-                console.log('Cross-origin iframe - ensuring parent window has APIs');
-                // Even with cross-origin restrictions, ensure parent window has APIs
-                if (window.API && window.API_1484_11) {
-                    window.parent.API = window.API;
-                    window.parent.API_1484_11 = window.API_1484_11;
-                    console.log('SCORM APIs exposed to parent window for cross-origin access');
-                }
-            }
-        }
         
         console.log('SCORM Player ready');
     </script>
