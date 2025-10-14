@@ -117,7 +117,7 @@
         <div class="scorm-header">
             <div class="scorm-title">{{ topic.title }}</div>
             <div class="scorm-controls">
-                <button class="btn btn-exit" onclick="exitCourse()">Exit Course</button>
+                <button class="btn btn-exit" onclick="exitCourse()">Back to Topic</button>
             </div>
         </div>
         
@@ -137,30 +137,30 @@
     <script src="{% static 'scorm/js/scorm-api-wrapper.js' %}"></script>
     
     <script>
-        console.log('🚀 SCORM Player initialized');
+        console.log('SCORM Player initialized');
         
         // Initialize SCORM API Wrapper
         window.addEventListener('load', function() {
-            console.log('📚 Loading SCORM API Wrapper...');
+            console.log('Loading SCORM API Wrapper...');
             
             if (window.ScormAPIWrapper) {
                 // Initialize with attempt ID
                 window.ScormAPIWrapper.init({{ attempt_id }});
                 window.ScormAPIWrapper.exposeAPIs();
                 
-                console.log('✅ SCORM API Wrapper ready for attempt {{ attempt_id }}');
+                console.log('SCORM API Wrapper ready for attempt {{ attempt_id }}');
                 updateStatus('SCORM API ready');
                 
                 // Verify APIs are exposed
                 if (window.API && window.API_1484_11) {
-                    console.log('✅ APIs available: window.API and window.API_1484_11');
+                    console.log('APIs available: window.API and window.API_1484_11');
                     updateStatus('APIs exposed - ready for SCORM content');
                 } else {
-                    console.error('❌ APIs not properly exposed');
+                    console.error('APIs not properly exposed');
                     updateStatus('API initialization failed');
                 }
             } else {
-                console.error('❌ ScormAPIWrapper not loaded');
+                console.error('ScormAPIWrapper not loaded');
                 updateStatus('Failed to load SCORM API wrapper');
             }
         });
@@ -170,7 +170,7 @@
         const loadingOverlay = document.getElementById('loadingOverlay');
         
         iframe.addEventListener('load', function() {
-            console.log('📄 SCORM content loaded');
+            console.log('SCORM content loaded');
             updateStatus('SCORM content loaded');
             
             // Hide loading overlay
@@ -184,10 +184,10 @@
                 if (iframeWindow && !iframeWindow.API) {
                     iframeWindow.API = window.API;
                     iframeWindow.API_1484_11 = window.API_1484_11;
-                    console.log('✅ APIs injected into iframe');
+                    console.log('APIs injected into iframe');
                 }
             } catch (e) {
-                console.log('ℹ️  Cross-origin iframe - APIs available globally');
+                console.log('Cross-origin iframe - APIs available globally');
             }
         });
         
@@ -195,10 +195,10 @@
         window.addEventListener('message', function(event) {
             if (event.data && typeof event.data === 'object') {
                 if (event.data.action === 'exit' || event.data.type === 'exit') {
-                    console.log('📤 Exit message received from SCORM content');
+                    console.log('Exit message received from SCORM content');
                     exitCourse();
                 } else if (event.data.action === 'complete') {
-                    console.log('✅ Completion message received from SCORM content');
+                    console.log('Completion message received from SCORM content');
                     updateStatus('Course completed!');
                 }
             }
@@ -211,22 +211,22 @@
         
         // Exit course function
         function exitCourse() {
-            console.log('🚪 Exiting course...');
+            console.log('Exiting course...');
             updateStatus('Saving progress and exiting...');
             
             // Commit any pending SCORM data
             if (window.API) {
                 try {
                     window.API.LMSCommit('');
-                    console.log('💾 SCORM data committed before exit');
+                    console.log('SCORM data committed before exit');
                 } catch (e) {
-                    console.log('⚠️  Could not commit SCORM data:', e.message);
+                    console.log('Could not commit SCORM data:', e.message);
                 }
             }
             
-            // Redirect back to course
+            // Redirect back to topic
             setTimeout(() => {
-                window.location.href = '{% url "courses:course_list" %}';
+                window.location.href = '{% url "courses:topic_view" topic.id %}';
             }, 1000);
         }
         
@@ -237,12 +237,12 @@
                     window.API.LMSCommit('');
                     window.API.LMSFinish('');
                 } catch (e) {
-                    console.log('⚠️  Error during unload cleanup:', e.message);
+                    console.log('Error during unload cleanup:', e.message);
                 }
             }
         });
         
-        console.log('🎯 SCORM Player ready');
+        console.log('SCORM Player ready');
     </script>
 </body>
 </html>
