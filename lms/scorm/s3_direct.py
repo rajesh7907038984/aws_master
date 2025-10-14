@@ -31,14 +31,14 @@ class ScormS3DirectAccess:
     
     def generate_direct_url(self, scorm_package, file_path=''):
         """
-        Generate direct S3 URL for SCORM content with caching
+        Generate presigned S3 URL for SCORM content with temporary access
         
         Args:
             scorm_package: ScormPackage instance
             file_path: Optional file path within the package
             
         Returns:
-            Direct HTTPS URL to S3 content
+            Presigned HTTPS URL to S3 content with temporary authentication
         """
         try:
             # Build S3 key path - handle media prefix correctly
@@ -54,14 +54,25 @@ class ScormS3DirectAccess:
             else:
                 s3_key = f"{base_path}/{scorm_package.launch_url}"
             
-            # Generate direct HTTPS URL with CloudFront if available
-            if hasattr(settings, 'AWS_CLOUDFRONT_DOMAIN') and settings.AWS_CLOUDFRONT_DOMAIN:
-                direct_url = f"https://{settings.AWS_CLOUDFRONT_DOMAIN}/{s3_key}"
-            else:
+            # FIXED: Generate presigned URL for private bucket access
+            # Presigned URLs include temporary authentication tokens
+            try:
+                presigned_url = self.s3_client.generate_presigned_url(
+                    'get_object',
+                    Params={
+                        'Bucket': self.bucket_name,
+                        'Key': s3_key
+                    },
+                    ExpiresIn=3600  # URL valid for 1 hour
+                )
+                logger.info(f"Generated presigned S3 URL for: {s3_key}")
+                return presigned_url
+            except Exception as presign_error:
+                logger.error(f"Error generating presigned URL: {str(presign_error)}")
+                # Fallback to direct URL (won't work for private buckets)
                 direct_url = f"https://{self.bucket_name}.s3.{self.region}.amazonaws.com/{s3_key}"
-            
-            logger.info(f"Generated direct S3 URL: {direct_url}")
-            return direct_url
+                logger.warning(f"Falling back to direct URL (may fail for private buckets): {direct_url}")
+                return direct_url
             
         except Exception as e:
             logger.error(f"Error generating S3 URL: {str(e)}")
@@ -98,6 +109,8 @@ class ScormS3DirectAccess:
             # Add media prefix
             base_path = f"{self.media_location}/{scorm_package.extracted_path}"
         
+        # For base URL, we use direct URL since it's used for relative path resolution
+        # Individual files will use presigned URLs when accessed
         return f"https://{self.bucket_name}.s3.{self.region}.amazonaws.com/{base_path}/"
     
     def verify_file_exists(self, scorm_package, file_path=''):
