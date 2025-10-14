@@ -49,6 +49,13 @@ else
 fi
 
 # ==============================================
+# PRESERVE SESSIONS BEFORE RESTART
+# ==============================================
+
+echo "🛡️  Preserving user sessions before restart..."
+python manage.py preserve_sessions 2>/dev/null || echo "   Session preservation command not available"
+
+# ==============================================
 # STOP EXISTING PROCESSES
 # ==============================================
 

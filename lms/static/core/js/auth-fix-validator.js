@@ -20,10 +20,10 @@ class AuthFixValidator {
         // Check authentication state on page load
         this.validateAuthState();
         
-        // Set up periodic validation
+        // Set up periodic validation - increased to reduce aggressiveness
         setInterval(() => {
             this.validateAuthState();
-        }, 30000); // Check every 30 seconds
+        }, 300000); // Check every 5 minutes instead of 30 seconds
         
         // Listen for authentication events
         this.setupEventListeners();
@@ -102,14 +102,20 @@ class AuthFixValidator {
     handleAuthFailure() {
         console.warn('Authentication validation failed');
         
-        // Show user-friendly message
-        if (window.showNotification) {
+        // Check if we're already on the login page to avoid redirect loop
+        if (window.location.pathname.includes('/login/')) {
+            return;
+        }
+        
+        // Show user-friendly message only if notifications are enabled
+        if (window.showNotification && typeof window.showNotification === 'function') {
             window.showNotification('Your session has expired. Please log in again.', 'warning', 8000);
         }
         
-        // Redirect to login after a delay
+        // Redirect to login after a delay, preserving the current URL as next parameter
         setTimeout(() => {
-            window.location.href = '/login/';
+            const currentPath = window.location.pathname + window.location.search;
+            window.location.href = `/login/?next=${encodeURIComponent(currentPath)}`;
         }, 2000);
     }
 
@@ -151,9 +157,13 @@ class AuthFixValidator {
     }
 
     clearAuthData() {
-        // Clear authentication data
+        // Clear authentication data - only remove specific items, not all sessionStorage
         localStorage.removeItem('auth_token');
-        sessionStorage.clear();
+        
+        // Remove only specific session items instead of clearing everything
+        sessionStorage.removeItem('auth_token');
+        sessionStorage.removeItem('user_cache');
+        sessionStorage.removeItem('csrf_token');
         
         // Clear any cached user data
         const userDataElements = document.querySelectorAll('[data-user-cache]');

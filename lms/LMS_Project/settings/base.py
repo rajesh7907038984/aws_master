@@ -319,19 +319,19 @@ AUTH_PASSWORD_VALIDATORS = [
 # SESSION CONFIGURATION - OPTIMIZED FOR PRODUCTION PERSISTENCE
 # ==============================================
 
-# Use Redis for session storage for better persistence across deployments
-SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
-SESSION_CACHE_ALIAS = 'sessions'  # Use the sessions cache alias defined below
+# Use database for session storage for better persistence across deployments
+# Database sessions are more reliable than cache-based sessions
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 
 # Extended session duration to prevent auto-logout
-SESSION_COOKIE_AGE = 86400  # 24 hours (extended for better user experience)
+SESSION_COOKIE_AGE = 604800  # 7 days (extended from 24 hours to reduce logout issues)
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # Keep sessions alive across browser restarts
 SESSION_SAVE_EVERY_REQUEST = True  # CRITICAL: Enable session saving for proper login/logout
 
 # Session serialization and security
 SESSION_SERIALIZER = 'django.contrib.sessions.serializers.JSONSerializer'
 SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SAMESITE = 'None'  # Changed from 'Lax' to 'None' to support SCORM in new tabs/iframes
+SESSION_COOKIE_SAMESITE = 'Lax'  # Changed from None to Lax for better security and compatibility
 SESSION_COOKIE_NAME = 'lms_sessionid'  # Custom session cookie name
 SESSION_COOKIE_DOMAIN = None
 SESSION_COOKIE_PATH = '/'
