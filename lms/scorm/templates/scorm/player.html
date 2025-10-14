@@ -348,13 +348,37 @@
                     return makeApiCallSync('Initialize', [param]);
                 },
                 LMSInitialize: function(param) {
-                    return makeApiCallSync('LMSInitialize', [param]);
+                    const result = makeApiCallSync('LMSInitialize', [param]);
+                    
+                    // CRITICAL FIX: Inject exit button handler after initialization
+                    setTimeout(() => {
+                        if (typeof injectExitButtonHandler === 'function') {
+                            injectExitButtonHandler();
+                        }
+                    }, 1000);
+                    
+                    return result;
                 },
                 Terminate: function(param) {
                     return makeApiCallSync('Terminate', [param]);
                 },
                 LMSFinish: function(param) {
-                    return makeApiCallSync('LMSFinish', [param]);
+                    console.log('[SCORM API] LMSFinish called - SCORM content is exiting');
+                    // Check if exit mode is set
+                    const exitMode = this.LMSGetValue('cmi.core.exit');
+                    console.log('[SCORM API] Exit mode:', exitMode);
+                    
+                    const result = makeApiCallSync('LMSFinish', [param]);
+                    
+                    // If this is a user-initiated exit (not suspend), redirect after a delay
+                    if (exitMode !== 'suspend' && exitMode !== '') {
+                        console.log('[SCORM API] User exit detected, will redirect after data save');
+                        setTimeout(() => {
+                            handleScormExit();
+                        }, 1000);
+                    }
+                    
+                    return result;
                 },
                 GetValue: function(element) {
                     return makeApiCallWithCache('GetValue', [element]);
@@ -1841,6 +1865,22 @@
         // Enhanced message listener for iframe exit communication
         window.addEventListener('message', function(event) {
             
+            // CRITICAL FIX: Handle EXIT BUTTON clicks from iframe via postMessage
+            if (event.data && event.data.type === 'SCORM_EXIT_BUTTON_CLICKED') {
+                console.log('[Parent Window] Received EXIT BUTTON click from iframe');
+                
+                // Prevent multiple rapid clicks
+                if (exitButtonClicked) {
+                    return;
+                }
+                exitButtonClicked = true;
+                
+                // Trigger the same functionality as Back to Topic button
+                const fakeEvent = { preventDefault: function() {} };
+                handleBackToTopic(fakeEvent);
+                return;
+            }
+            
             // Handle exit messages from SCORM content
             let shouldComplete = false;
             let shouldExit = false;
@@ -2032,7 +2072,93 @@
             startAutoScoreCapture();
         }, 5000); // Start after 5 seconds to allow SCORM content to load
         
-        // FIX: Add missing function declaration for EXIT ASSESSMENT button detection
+        // CRITICAL FIX: Use postMessage for cross-origin iframe communication
+        // This works even when SCORM content is on different origin (S3)
+        function injectExitButtonHandler() {
+            const iframe = document.getElementById('scormFrame');
+            if (!iframe || !iframe.contentWindow) {
+                console.log('[SCORM Exit Handler] Iframe not found');
+                return;
+            }
+            
+            console.log('[SCORM Exit Handler] Attempting to inject exit button handler...');
+            
+            // Method 1: Try to inject via script element (works for same-origin)
+            try {
+                if (iframe.contentDocument) {
+                    const script = iframe.contentDocument.createElement('script');
+                    script.textContent = `
+                        (function() {
+                            if (window.exitButtonHandlerInjected) return;
+                            window.exitButtonHandlerInjected = true;
+                            
+                            console.log('[SCORM Exit Handler] Injecting exit button handler...');
+                            
+                            // Function to handle exit button clicks
+                            function handleExitClick(e) {
+                                const target = e.target;
+                                const buttonText = (target.textContent || target.value || target.innerText || '').toLowerCase();
+                                const buttonId = (target.id || '').toLowerCase();
+                                const buttonClass = (target.className || '').toLowerCase();
+                                
+                                // Check if this is an exit button
+                                const isExitButton = (
+                                    buttonText.includes('exit') || 
+                                    buttonText.includes('finish') ||
+                                    buttonText.includes('complete') ||
+                                    buttonText.includes('close') ||
+                                    buttonId.includes('exit') ||
+                                    buttonId.includes('finish') ||
+                                    buttonClass.includes('exit') ||
+                                    buttonClass.includes('finish')
+                                );
+                                
+                                if (isExitButton) {
+                                    console.log('[SCORM Exit Handler] Exit button clicked:', buttonText);
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    
+                                    // Notify parent window via postMessage
+                                    if (window.parent) {
+                                        window.parent.postMessage({
+                                            type: 'SCORM_EXIT_BUTTON_CLICKED',
+                                            action: 'exit',
+                                            source: 'scorm_content'
+                                        }, '*');
+                                    }
+                                    
+                                    return false;
+                                }
+                            }
+                            
+                            // Add click listener to document
+                            document.addEventListener('click', handleExitClick, true);
+                            
+                            console.log('[SCORM Exit Handler] Exit button handler injected successfully via script element');
+                        })();
+                    `;
+                    
+                    (iframe.contentDocument.head || iframe.contentDocument.body).appendChild(script);
+                    console.log('[SCORM Exit Handler] Script element injection successful');
+                    return;
+                }
+            } catch (e) {
+                console.log('[SCORM Exit Handler] Script element injection failed (cross-origin):', e.message);
+            }
+            
+            // Method 2: Send message to iframe (requires iframe to be listening)
+            try {
+                iframe.contentWindow.postMessage({
+                    type: 'SCORM_INJECT_EXIT_HANDLER',
+                    action: 'inject'
+                }, '*');
+                console.log('[SCORM Exit Handler] PostMessage sent to iframe');
+            } catch (e) {
+                console.log('[SCORM Exit Handler] PostMessage failed:', e.message);
+            }
+        }
+        
+        // OLD METHOD: Direct DOM access (kept as fallback for same-origin)
         function fixExitButtons() {
             let buttonsFound = 0;
             const iframe = document.getElementById('scormFrame');
@@ -2123,7 +2249,17 @@
             }
         }
             
-            // Initial fix and periodic check
+            // CRITICAL FIX: Inject exit button handler into iframe (cross-origin safe)
+            setTimeout(() => {
+                injectExitButtonHandler();
+            }, 2000); // Wait for iframe to load
+            
+            // Retry injection multiple times to handle dynamic content
+            setTimeout(() => injectExitButtonHandler(), 5000);
+            setTimeout(() => injectExitButtonHandler(), 10000);
+            setTimeout(() => injectExitButtonHandler(), 15000);
+            
+            // Initial fix and periodic check (fallback for same-origin)
             fixExitButtons();
             const interval = setInterval(fixExitButtons, 3000); // Check every 3 seconds
             setTimeout(() => clearInterval(interval), 120000); // Stop after 2 minutes
