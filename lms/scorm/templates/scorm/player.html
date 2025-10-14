@@ -263,7 +263,7 @@
             class="scorm-iframe" 
             src="{{ content_url }}"
             allow="fullscreen; autoplay; encrypted-media; microphone; camera"
-            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
+            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
             onload="handleFrameLoad()"
             onerror="handleFrameError()"
             style="display: none;">
@@ -301,69 +301,39 @@
                     injectScormAPI(iframeDoc);
                     injectExitButtonHandler();
                     
-                    // CRITICAL FIX: Inject courseExit handler directly into iframe
+                    // NON-INTRUSIVE APPROACH: Only provide API, don't interfere with content
                     setTimeout(() => {
                         try {
                             const iframeWindow = frame.contentWindow;
                             if (iframeWindow) {
-                                const script = iframeWindow.document.createElement('script');
-                                script.textContent = `
-                                    
-                                    window.courseExit = function() {
-                                        parent.postMessage({action: 'courseExit', type: 'exit'}, '*');
-                                        parent.postMessage('exit_assessment', '*');
+                                // ONLY provide a courseExit function if content explicitly calls it
+                                // Do NOT scan for and override exit buttons
+                                if (!iframeWindow.courseExit) {
+                                    iframeWindow.courseExit = function() {
+                                        console.log('courseExit called by SCORM content');
+                                        // Save data
+                                        try {
+                                            if (parent.API && parent.API.LMSCommit) {
+                                                parent.API.LMSCommit('');
+                                            }
+                                        } catch (e) {}
+                                        
+                                        // Allow content to continue its own exit flow
+                                        return true;
                                     };
-                                    
-                                    function enhanceExitButtons() {
-                                        const exitSelectors = [
-                                            '.courseExit', '.courseExit--standard', '.courseExit--overview', '.courseExit--mobile',
-                                            'button[class*="courseExit"]', 'a[class*="courseExit"]'
-                                        ];
-                                        
-                                        let buttonsEnhanced = 0;
-                                        exitSelectors.forEach(selector => {
-                                            try {
-                                                document.querySelectorAll(selector).forEach(button => {
-                                                    button.addEventListener('click', function(e) {
-                                                        e.preventDefault();
-                                                        e.stopPropagation();
-                                                        window.courseExit();
-                                                    }, true);
-                                                    buttonsEnhanced++;
-                                                });
-                                            } catch (e) {
-                                                // Ignore selector errors
-                                            }
-                                        });
-                                        
-                                        document.querySelectorAll('button, a, input[type="button"]').forEach(element => {
-                                            const text = (element.textContent || element.value || '').toLowerCase();
-                                            if (text.includes('exit assessment') || text.includes('exit course') || 
-                                                text === 'exit' || element.classList.contains('courseExit')) {
-                                                element.addEventListener('click', function(e) {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    window.courseExit();
-                                                }, true);
-                                                buttonsEnhanced++;
-                                            }
-                                        });
-                                        
-                                        if (buttonsEnhanced > 0) {
+                                }
+                                
+                                // Listen for unload to save data, but don't prevent it
+                                iframeWindow.addEventListener('beforeunload', function() {
+                                    try {
+                                        if (parent.API && parent.API.LMSCommit) {
+                                            parent.API.LMSCommit('');
                                         }
-                                    }
-                                    
-                                    if (document.readyState === 'loading') {
-                                        document.addEventListener('DOMContentLoaded', enhanceExitButtons);
-                                    } else {
-                                        enhanceExitButtons();
-                                    }
-                                    
-                                    setInterval(enhanceExitButtons, 3000);
-                                `;
-                                iframeWindow.document.head.appendChild(script);
+                                    } catch (e) {}
+                                });
                             }
                         } catch (e) {
+                            console.log('Cannot access iframe content (cross-origin or other error)', e);
                         }
                     }, 2000);
                 }
