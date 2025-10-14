@@ -425,15 +425,15 @@ def scorm_view(request, topic_id):
     
     # Set permissive CSP headers for SCORM content
     response['Content-Security-Policy'] = (
-        "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
-        "worker-src 'self' blob: data: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
-        "style-src 'self' 'unsafe-inline' https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
-        "img-src 'self' data: blob: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
-        "font-src 'self' data: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
-        "connect-src 'self' https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
-        "media-src 'self' data: blob: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
-        "frame-src 'self' https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
+        "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://*.amazonaws.com *; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.amazonaws.com *; "
+        "worker-src 'self' blob: data: https://*.amazonaws.com *; "
+        "style-src 'self' 'unsafe-inline' https://*.amazonaws.com *; "
+        "img-src 'self' data: blob: https://*.amazonaws.com *; "
+        "font-src 'self' data: https://*.amazonaws.com *; "
+        "connect-src 'self' https://*.amazonaws.com *; "
+        "media-src 'self' data: blob: https://*.amazonaws.com *; "
+        "frame-src 'self' https://*.amazonaws.com *; "
         "object-src 'none'"
     )
     
@@ -879,15 +879,15 @@ window.courseExit = function() {
             response_obj['X-Frame-Options'] = 'SAMEORIGIN'
             # CRITICAL: Add CSP header with unsafe-eval for SCORM interactive elements
             response_obj['Content-Security-Policy'] = (
-                "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
-                "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
-                "worker-src 'self' blob: data: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
-                "style-src 'self' 'unsafe-inline' https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
-                "img-src 'self' data: blob: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
-                "font-src 'self' data: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
-                "connect-src 'self' https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
-                "media-src 'self' data: blob: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
-                "frame-src 'self' https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
+                "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://*.amazonaws.com *; "
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.amazonaws.com *; "
+                "worker-src 'self' blob: data: https://*.amazonaws.com *; "
+                "style-src 'self' 'unsafe-inline' https://*.amazonaws.com *; "
+                "img-src 'self' data: blob: https://*.amazonaws.com *; "
+                "font-src 'self' data: https://*.amazonaws.com *; "
+                "connect-src 'self' https://*.amazonaws.com *; "
+                "media-src 'self' data: blob: https://*.amazonaws.com *; "
+                "frame-src 'self' https://*.amazonaws.com *; "
                 "object-src 'none'"
             )
             # OPTIMIZATION: Enable browser caching for better performance
