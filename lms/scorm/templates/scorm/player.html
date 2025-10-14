@@ -630,6 +630,9 @@
         
         // CRITICAL FIX: Enhanced synchronous wrapper for SCORM API calls with proper resume support
         function makeApiCallSync(method, parameters) {
+            // CRITICAL: Log every API call attempt for debugging
+            console.log('[SCORM API] 🔵 makeApiCallSync called:', method, parameters);
+            
             try {
                 // CRITICAL FIX: For ALL API methods that need to persist data, make actual API calls
                 // This includes: Initialize, Terminate, Commit, SetValue, GetValue
@@ -665,18 +668,26 @@
                     
                     // Make synchronous API call using XMLHttpRequest
                     try {
+                        console.log('[SCORM API] 📤 Sending XHR to:', API_ENDPOINT, 'method:', method);
+                        
                         const xhr = new XMLHttpRequest();
                         xhr.open('POST', API_ENDPOINT, false); // Synchronous request
                         xhr.setRequestHeader('Content-Type', 'application/json');
                         xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
                         
-                        xhr.send(JSON.stringify({
+                        const payload = JSON.stringify({
                             method: method,
                             parameters: parameters
-                        }));
+                        });
+                        
+                        console.log('[SCORM API] 📦 Payload:', payload);
+                        xhr.send(payload);
+                        
+                        console.log('[SCORM API] 📥 XHR Response:', xhr.status, xhr.responseText);
                         
                         if (xhr.status === 200) {
                             const response = JSON.parse(xhr.responseText);
+                            console.log('[SCORM API] ✅ Parsed response:', response);
                             if (response.success) {
                                 const result = response.result;
                                 

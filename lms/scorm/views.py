@@ -456,15 +456,20 @@ def scorm_api(request, attempt_id):
     Handles all SCORM API calls from content
     Supports both regular attempts and preview mode
     """
+    # CRITICAL: Log all incoming API requests for debugging
+    logger.info(f"🔵 SCORM API CALLED: attempt_id={attempt_id}, method={request.method}, path={request.path}")
+    
     # For SCORM API calls, we need to handle authentication differently
     # since the calls come from iframe content. We'll check if the attempt exists
     # and belongs to the current user through the attempt_id
     try:
         attempt = ScormAttempt.objects.get(id=attempt_id)
+        logger.info(f"🔵 SCORM API: Found attempt {attempt_id} for user {attempt.user.username}")
         # For now, allow API calls if the attempt exists (we'll add proper auth later)
         # if not request.user.is_authenticated or attempt.user != request.user:
         #     return JsonResponse({'error': 'Unauthorized'}, status=401)
     except ScormAttempt.DoesNotExist:
+        logger.error(f"❌ SCORM API: Attempt {attempt_id} not found")
         return JsonResponse({'error': 'Attempt not found'}, status=404)
     
     try:
@@ -560,12 +565,17 @@ def scorm_api(request, attempt_id):
             #     return JsonResponse({'error': 'Unauthorized'}, status=403)
         
         # Parse request
-        data = json.loads(request.body)
-        method = data.get('method')
-        parameters = data.get('parameters', [])
-        
-        # Enhanced logging for API calls
-        ScormLogger.log_api_call(method, parameters, attempt_id, request.user.id if request.user.is_authenticated else None)
+        try:
+            data = json.loads(request.body)
+            method = data.get('method')
+            parameters = data.get('parameters', [])
+            
+            # CRITICAL: Enhanced logging for ALL API calls
+            logger.info(f"📞 SCORM API CALL: method={method}, params={parameters[:2] if len(parameters) > 2 else parameters}, attempt={attempt_id}")
+            ScormLogger.log_api_call(method, parameters, attempt_id, request.user.id if request.user.is_authenticated else None)
+        except json.JSONDecodeError as e:
+            logger.error(f"❌ SCORM API: Invalid JSON in request body: {e}")
+            return JsonResponse({'success': False, 'error': 'Invalid JSON'}, status=400)
         
         # Initialize appropriate API handler WITHOUT caching to ensure fresh data
         if is_preview:
