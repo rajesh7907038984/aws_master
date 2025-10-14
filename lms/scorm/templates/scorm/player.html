@@ -299,29 +299,12 @@
                 const iframeDoc = frame.contentDocument || frame.contentWindow.document;
                 if (iframeDoc) {
                     injectScormAPI(iframeDoc);
-                    // DISABLED: Let SCORM handle its own exit buttons
-                    // injectExitButtonHandler();
                     
                     // NON-INTRUSIVE APPROACH: Only provide API, don't interfere with content
                     setTimeout(() => {
                         try {
                             const iframeWindow = frame.contentWindow;
                             if (iframeWindow) {
-                                // ONLY provide a courseExit function if content explicitly calls it
-                                // Do NOT scan for and override exit buttons
-                                if (!iframeWindow.courseExit) {
-                                    iframeWindow.courseExit = function() {
-                                        console.log('courseExit called by SCORM content');
-                                        // Save data
-                                        try {
-                                            if (parent.API && parent.API.LMSCommit) {
-                                                parent.API.LMSCommit('');
-                                            }
-                                        } catch (e) {}
-                                        
-                                        // Allow content to continue its own exit flow
-                                        return true;
-                                    };
                                 }
                                 
                                 // Listen for unload to save data, but don't prevent it
@@ -727,9 +710,11 @@
                                     window.parent.API_1484_11.Commit('');
                                 }
                             }
-//                         } catch (error) {
-//                             window.parent.postMessage('exit', '*');
-//                         }
+                            // Send exit message to parent
+                            window.parent.postMessage({ action: 'exit', type: 'exit' }, '*');
+                        } catch (error) {
+                            window.parent.postMessage('exit', '*');
+                        }
                     };
                     
                     // Also add a completion helper for when assessment is truly complete
@@ -1853,6 +1838,116 @@
             }
         }
         
+        // Enhanced message listener for iframe exit communication
+        window.addEventListener('message', function(event) {
+            
+            // Handle exit messages from SCORM content
+            let shouldComplete = false;
+            let shouldExit = false;
+            
+            // Handle both string and object messages
+            if (event.data && typeof event.data === 'string') {
+                const message = event.data.toLowerCase();
+                
+                // Check for completion messages (full completion)
+                if (message === 'complete_assessment' || message === 'lesson_complete' || 
+                    message === 'course_complete' || message.includes('quiz_complete') ||
+                    message === 'scorm_complete' || message.includes('assessment_complete')) {
+                    shouldComplete = true;
+                }
+                // Check for exit messages (save and go back without forcing completion) - ENHANCED
+                else if (message.includes('exit') || message.includes('terminate') || 
+                         message.includes('finish') || message.includes('close') || 
+                         message === 'back' || message === 'return' || 
+                         message.includes('courseexit') || message === 'exit_assessment' ||
+                         message === 'courseexit' || message === 'exit' || 
+                         message.includes('course exit') || message.includes('exit course') ||
+                         message.includes('course') || message.includes('assessment')) {
+                    shouldExit = true;
+                }
+            } else if (event.data && typeof event.data === 'object') {
+                // Handle structured messages
+                
+                // Check for completion actions
+                if (event.data.action === 'complete' || event.data.action === 'course_complete' ||
+                    event.data.type === 'assessment_complete' || event.data.type === 'lesson_complete' ||
+                    event.data.status === 'completed' || event.data.completed === true) {
+                    shouldComplete = true;
+                }
+                // Check for exit actions - Enhanced for exit support
+                else if (event.data.action === 'exit' || event.data.action === 'terminate' || 
+                         event.data.action === 'finish' || event.data.action === 'close' ||
+                         event.data.action === 'back' || event.data.type === 'exit' ||
+                         
+                         event.data.command === 'exit') {
+                    shouldExit = true;
+                }
+                // Special handling for course:ready and other course events
+                else if (event.data.type === 'course:ready') {
+                    // Course is ready, no action needed but good to log
+                }
+            }
+            
+            // FALLBACK: If no specific pattern matched, check for any exit-related content
+            if (!shouldComplete && !shouldExit) {
+                const messageStr = String(event.data).toLowerCase();
+                if (messageStr.includes('exit') || messageStr.includes('course') || 
+                    messageStr.includes('finish') || messageStr.includes('close') ||
+                    messageStr.includes('back') || messageStr.includes('return')) {
+                    shouldExit = true;
+                }
+            }
+            
+            // Handle completion (terminate session and redirect)
+            if (shouldComplete) {
+                
+                // FIXED: Don't force extract score - let SCORM content report score naturally
+                // For real completions, the SCORM content should have already set the score via SetValue
+                
+                // Ensure all SCORM data is saved and properly terminated for completion
+                if (window.API && window.API._initialized) {
+                    try {
+                        
+                        // Force commit any pending data
+                        if (window.API.LMSCommit) {
+                            window.API.LMSCommit('');
+                        }
+                        if (window.API_1484_11 && window.API_1484_11.Commit) {
+                            window.API_1484_11.Commit('');
+                        }
+                        
+                        // Terminate the session (this should be safe now since it's explicit completion)
+                        if (window.API.LMSFinish) {
+                            const result = window.API.LMSFinish('');
+                        }
+                        if (window.API_1484_11 && window.API_1484_11.Terminate) {
+                            window.API_1484_11.Terminate('');
+                        }
+                        
+                    } catch (error) {
+                    }
+                }
+                
+                // Redirect to topic view after a short delay to ensure data is saved
+                setTimeout(() => {
+                    window.location.href = '{% url "courses:topic_view" topic.id %}';
+                }, 1000);
+            }
+            // Handle exit messages from SCORM content
+            else if (shouldExit) {
+                
+                // Prevent multiple rapid clicks
+                if (exitButtonClicked) {
+                    return;
+                }
+                exitButtonClicked = true;
+                
+                // Trigger the same functionality as the Back to Topic button
+                // This will save progress, bookmark, and score without forcing completion
+                const fakeEvent = { preventDefault: function() {} };
+                handleBackToTopic(fakeEvent);
+            }
+        });
         
         // CRITICAL FIX: Prevent window close without saving SCORM data
         let scormDataSaved = false;
@@ -1937,38 +2032,28 @@
             startAutoScoreCapture();
         }, 5000); // Start after 5 seconds to allow SCORM content to load
         
-        // DISABLED: Let SCORM content handle its own exit buttons naturally
-        function handleExitButtonClicks() {
-            // Function disabled - SCORM content should handle its own exit flow
-            return;
-            function fixExitButtons() {
-                const exitButtonSelectors = [
-                    '.courseExit', '.courseExit--standard', '.courseExit--overview', '.courseExit--mobile',
-                    'button[class*="exit"]', 'a[class*="exit"]', 'button[class*="courseExit"]', 'a[class*="courseExit"]',
-                    '[data-action="exit"]', '[data-action="courseExit"]', '.exit-button', '#exit-button',
-                    'input[type="button"]', 'input[type="submit"]', 'button', 'a'
-                ];
-                
-                let buttonsFound = 0;
-                
-                // DISABLED: Let SCORM content handle its own exit buttons in iframe
-                // No interference with SCORM package's internal navigation
-                
-                // Check parent page for exit buttons - ENHANCED DETECTION
-                exitButtonSelectors.forEach(selector => {
-                    try {
-                        document.querySelectorAll(selector).forEach(button => {
-                            // Skip if handler already attached
-                            if (button.hasAttribute('data-exit-handler-attached')) {
-                                return;
-                            }
-                            
-                            const buttonText = (button.textContent || button.value || '').toLowerCase();
-                            const buttonId = (button.id || '').toLowerCase();
-                            const buttonClass = (button.className || '').toLowerCase();
-                            
-                            // Enhanced text matching for EXIT ASSESSMENT - More comprehensive
-                            const isExitButton = (
+        // FIX: Add missing function declaration for EXIT ASSESSMENT button detection
+        function fixExitButtons() {
+            let buttonsFound = 0;
+            const iframe = document.getElementById('scormFrame');
+            
+            if (iframe && iframe.contentWindow && iframe.contentDocument) {
+                try {
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    const buttons = iframeDoc.querySelectorAll('button, input[type="button"], input[type="submit"], a');
+                    
+                    buttons.forEach(function(button) {
+                        // Skip if already handled
+                        if (button.getAttribute('data-exit-handler-attached') === 'true') {
+                            return;
+                        }
+                        
+                        const buttonText = (button.textContent || button.value || '').toLowerCase();
+                        const buttonId = (button.id || '').toLowerCase();
+                        const buttonClass = (button.className || '').toLowerCase();
+                        
+                        // Enhanced text matching for EXIT ASSESSMENT - More comprehensive
+                        const isExitButton = (
                                 buttonText.includes('exit') || 
                                 buttonText.includes('exit assessment') ||
                                 buttonText.includes('exit course') ||
@@ -1987,7 +2072,7 @@
                                 buttonId.includes('exit') ||
                                 buttonId.includes('finish') ||
                                 buttonId.includes('complete') ||
-                                button.classList.contains('courseExit') ||
+                                
                                 button.classList.contains('exit-button') ||
                                 button.classList.contains('finish-button') ||
                                 button.classList.contains('complete-button') ||
@@ -1996,45 +2081,47 @@
                                 (button.hasAttribute('onclick') && button.getAttribute('onclick').toLowerCase().includes('exit'))
                             );
                             
-                            if (isExitButton) {
-                                buttonsFound++;
+                        if (isExitButton) {
+                            buttonsFound++;
+                            
+                            // FIXED: Don't replace button, just add event listener
+                            button.addEventListener('click', function(e) {
+                                e.preventDefault();
+                                e.stopPropagation();
                                 
-                                // FIXED: Don't replace button, just add event listener
-                                button.addEventListener('click', function(e) {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    
-                                    // Prevent multiple rapid clicks
-                                    if (exitButtonClicked) {
-                                        return;
-                                    }
-                                    exitButtonClicked = true;
-                                    
-                                    // Show user feedback
-                                    const originalText = button.textContent || button.value;
-                                    if (button.tagName === 'INPUT') {
-                                        button.value = 'Saving & Exiting...';
-                                    } else {
-                                        button.textContent = 'Saving & Exiting...';
-                                    }
-                                    button.disabled = true;
-                                    
-                                    // Use the same reliable logic as Back to Topic button
-                                    const fakeEvent = { preventDefault: function() {} };
-                                    handleBackToTopic(fakeEvent);
-                                });
+                                // Prevent multiple rapid clicks
+                                if (exitButtonClicked) {
+                                    return;
+                                }
+                                exitButtonClicked = true;
                                 
-                                // Mark as handled to prevent duplicate handlers
-                                button.setAttribute('data-exit-handler-attached', 'true');
-                            }
-                        });
-                    } catch (e) {
-                    }
-                });
-                
-                if (buttonsFound > 0) {
+                                // Show user feedback
+                                const originalText = button.textContent || button.value;
+                                if (button.tagName === 'INPUT') {
+                                    button.value = 'Saving & Exiting...';
+                                } else {
+                                    button.textContent = 'Saving & Exiting...';
+                                }
+                                button.disabled = true;
+                                
+                                // Use the same reliable logic as Back to Topic button
+                                const fakeEvent = { preventDefault: function() {} };
+                                handleBackToTopic(fakeEvent);
+                            });
+                            
+                            // Mark as handled to prevent duplicate handlers
+                            button.setAttribute('data-exit-handler-attached', 'true');
+                        }
+                    });
+                } catch (e) {
+                    console.error('Error accessing iframe content:', e);
                 }
             }
+            
+            if (buttonsFound > 0) {
+                console.log(`Found and attached handlers to ${buttonsFound} exit buttons`);
+            }
+        }
             
             // Initial fix and periodic check
             fixExitButtons();
@@ -2080,228 +2167,4 @@
         }
         
         // STREAMLINED: Exit button handler - delegates to main handler
-        function injectExitButtonHandler() {
-        }
         
-        // DISABLED: Let SCORM handle its own exit flow to internal pages like bye.html
-        // handleExitButtonClicks();
-        
-        // DISABLED: Let SCORM handle its own exit buttons
-        // function detectExitButtonsByText() {
-        //     // Look for any element containing "EXIT ASSESSMENT" text
-        //     const allElements = document.querySelectorAll('*');
-        //     let foundExitButtons = 0;
-        //     
-        //     allElements.forEach(element => {
-        //         const text = (element.textContent || element.value || '').trim();
-        //         if (text && (
-        //             text.toLowerCase().includes('exit assessment') ||
-        //             text.toLowerCase().includes('exit course') ||
-        //             text.toLowerCase().includes('finish assessment') ||
-        //             text.toLowerCase().includes('complete assessment')
-        //         )) {
-        //             // Check if this element is clickable
-        //             if (element.tagName === 'BUTTON' || element.tagName === 'INPUT' || 
-        //                 element.tagName === 'A' || element.onclick || 
-        //                 element.style.cursor === 'pointer' || 
-        //                 element.classList.contains('clickable')) {
-        //                 
-        //                 if (!element.hasAttribute('data-exit-handler-attached')) {
-        //                     foundExitButtons++;
-        //                     
-        //                     element.addEventListener('click', function(e) {
-        //                         e.preventDefault();
-        //                         e.stopPropagation();
-        //                         
-        //                         // Prevent multiple rapid clicks
-        //                         if (exitButtonClicked) {
-        //                             return;
-        //                         }
-        //                         exitButtonClicked = true;
-        //                         
-        //                         // Show user feedback
-        //                         if (element.tagName === 'INPUT') {
-        //                             element.value = 'Saving & Exiting...';
-        //                         } else {
-        //                             element.textContent = 'Saving & Exiting...';
-        //                         }
-        //                         element.disabled = true;
-        //                         
-        //                         // Use the same reliable logic as Back to Topic button
-        //                         const fakeEvent = { preventDefault: function() {} };
-        //                         handleBackToTopic(fakeEvent);
-        //                     });
-        //                     
-        //                     element.setAttribute('data-exit-handler-attached', 'true');
-        //                 }
-        //             }
-        //         }
-        //     });
-        //     
-        //     if (foundExitButtons > 0) {
-        //     }
-        // }
-        
-        // DISABLED: Let SCORM handle its own exit buttons
-        // setTimeout(detectExitButtonsByText, 2000);
-        // setInterval(detectExitButtonsByText, 5000);
-        
-        // REMOVED: Old redundant exit button code cleaned up
-        
-        // Initialize automated score capture
-        setTimeout(() => {
-            startAutoScoreCapture();
-        }, 5000); // Start after 5 seconds to allow SCORM content to load
-
-    // SCORM content loaded - start monitoring
-        
-        
-        // =================================================================
-        // ENHANCED CLIENT-SIDE TIME TRACKING
-        // Tracks time even when SCORM content doesn't report it
-        // =================================================================
-        
-        // CRITICAL FIX: Make time tracking variables and functions global so handleBackToTopic can access them
-        let sessionStartTime = new Date();
-        let totalActiveSeconds = 0;
-        let lastHeartbeatTime = new Date();
-        let isPageVisible = !document.hidden;
-        let heartbeatInterval = null;
-        let lastSyncTime = null;
-        
-        // Format seconds into SCORM time format (hhhh:mm:ss.ss)
-        function formatScormTime(totalSeconds) {
-            const hours = Math.floor(totalSeconds / 3600);
-            const minutes = Math.floor((totalSeconds % 3600) / 60);
-            const seconds = totalSeconds % 60;
-            
-            return String(hours).padStart(4, '0') + ':' +
-                   String(minutes).padStart(2, '0') + ':' +
-                   String(seconds).padStart(2, '0') + '.00';
-        }
-        
-        (function() {
-            
-            // Track page visibility changes
-            document.addEventListener('visibilitychange', function() {
-                if (document.hidden) {
-                    // Page became hidden - pause time tracking
-                    isPageVisible = false;
-                    
-                    const now = new Date();
-                    const activeSeconds = Math.floor((now - lastHeartbeatTime) / 1000);
-                    if (activeSeconds > 0 && activeSeconds < 300) { // Cap at 5 minutes
-                        totalActiveSeconds += activeSeconds;
-                    }
-                    
-                } else {
-                    // Page became visible - resume time tracking
-                    isPageVisible = true;
-                    lastHeartbeatTime = new Date();
-                }
-            });
-            
-            // Heartbeat: Update time every 30 seconds
-            heartbeatInterval = setInterval(function() {
-                if (isPageVisible) {
-                    const now = new Date();
-                    const activeSeconds = Math.floor((now - lastHeartbeatTime) / 1000);
-                    
-                    if (activeSeconds > 0 && activeSeconds < 60) { // Only add reasonable increments
-                        totalActiveSeconds += activeSeconds;
-                        lastHeartbeatTime = now;
-                        
-                        
-                        // Sync to server every 5 minutes
-                        if (!lastSyncTime || (now - lastSyncTime) > 300000) {
-                            syncTimeToServer();
-                            lastSyncTime = now;
-                        }
-                    } else if (activeSeconds >= 60) {
-                        // Large time gap detected - user probably idle
-                        lastHeartbeatTime = now;
-                    }
-                }
-            }, 30000); // Every 30 seconds
-            
-            // Sync time to server via custom endpoint
-            function syncTimeToServer() {
-                if (IS_PREVIEW) {
-                    return;
-                }
-                
-                const scormTime = formatScormTime(totalActiveSeconds);
-                
-                // Send time via SCORM API if not already set by content
-                try {
-                    // Check if SCORM content has set session_time
-                    const currentSessionTime = window.API ? window.API.GetValue('cmi.core.session_time') : '';
-                    
-                    if (!currentSessionTime || currentSessionTime === '' || currentSessionTime === '0000:00:00.00') {
-                        // SCORM content hasn't set time - use our tracking
-                        
-                        if (window.API && window.API._initialized) {
-                            // Set the session time
-                            window.API.SetValue('cmi.core.session_time', scormTime);
-                            window.API.LMSCommit('');
-                            
-                        }
-                    } else {
-                    }
-                } catch (error) {
-                }
-            }
-            
-            // Format for display
-            function formatTimeDisplay(totalSeconds) {
-                const hours = Math.floor(totalSeconds / 3600);
-                const minutes = Math.floor((totalSeconds % 3600) / 60);
-                const seconds = totalSeconds % 60;
-                
-                if (hours > 0) {
-                    return hours + 'h ' + minutes + 'm ' + seconds + 's';
-                } else if (minutes > 0) {
-                    return minutes + 'm ' + seconds + 's';
-                } else {
-                    return seconds + 's';
-                }
-            }
-            
-            // Final sync on page unload
-            window.addEventListener('beforeunload', function() {
-                // Final time calculation
-                if (isPageVisible) {
-                    const now = new Date();
-                    const activeSeconds = Math.floor((now - lastHeartbeatTime) / 1000);
-                    if (activeSeconds > 0 && activeSeconds < 300) {
-                        totalActiveSeconds += activeSeconds;
-                    }
-                }
-                
-                syncTimeToServer();
-            });
-            
-            // Also sync when SCORM API terminates
-            const originalTerminate = window.API ? window.API.Terminate : null;
-            const originalLMSFinish = window.API ? window.API.LMSFinish : null;
-            
-            if (window.API) {
-                window.API.Terminate = function(param) {
-                    syncTimeToServer();
-                    return originalTerminate ? originalTerminate.call(this, param) : 'true';
-                };
-                
-                window.API.LMSFinish = function(param) {
-                    syncTimeToServer();
-                    return originalLMSFinish ? originalLMSFinish.call(this, param) : 'true';
-                };
-            }
-            
-        })();
-        
-        // Debug info for instructors
-        {% if is_instructor_or_admin %}
-        {% endif %}
-    </script>
-</body>
-</html>
