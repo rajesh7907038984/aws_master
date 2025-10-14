@@ -877,6 +877,19 @@ window.courseExit = function() {
             response_obj = HttpResponse(content, content_type=content_type)
             response_obj['Access-Control-Allow-Origin'] = '*'
             response_obj['X-Frame-Options'] = 'SAMEORIGIN'
+            # CRITICAL: Add CSP header with unsafe-eval for SCORM interactive elements
+            response_obj['Content-Security-Policy'] = (
+                "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
+                "worker-src 'self' blob: data: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
+                "style-src 'self' 'unsafe-inline' https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
+                "img-src 'self' data: blob: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
+                "font-src 'self' data: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
+                "connect-src 'self' https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
+                "media-src 'self' data: blob: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
+                "frame-src 'self' https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
+                "object-src 'none'"
+            )
             # OPTIMIZATION: Enable browser caching for better performance
             response_obj['Cache-Control'] = 'no-cache, no-store, must-revalidate'  # No cache for development
             # SECURITY HEADERS
