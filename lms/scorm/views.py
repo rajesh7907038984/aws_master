@@ -978,8 +978,8 @@ window.courseExit = function() {
             response_obj['X-Frame-Options'] = 'SAMEORIGIN'
             response_obj['Cache-Control'] = 'no-cache, no-store, must-revalidate'  # No cache for development
             
-            # Security headers
-            response_obj['X-Content-Type-Options'] = 'nosniff'
+            # Security headers (relaxed for SCORM content)
+            # Removed X-Content-Type-Options to allow SCORM content flexibility
             response_obj['X-XSS-Protection'] = '1; mode=block'
             
             return response_obj

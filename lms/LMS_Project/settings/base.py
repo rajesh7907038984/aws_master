@@ -562,16 +562,17 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 
 # Content Security Policy - Allow SCORM content while maintaining security
-CSP_DEFAULT_SRC = ("'self'",)
-CSP_SCRIPT_SRC = ("'self'", "'unsafe-inline'", "'unsafe-eval'", "*.amazonaws.com")
-CSP_STYLE_SRC = ("'self'", "'unsafe-inline'", "*.amazonaws.com")
-CSP_IMG_SRC = ("'self'", "data:", "*.amazonaws.com")
-CSP_FONT_SRC = ("'self'", "*.amazonaws.com")
-CSP_CONNECT_SRC = ("'self'", "*.amazonaws.com")
-CSP_FRAME_SRC = ("'self'", "*.amazonaws.com")  # Allow SCORM content from S3
-CSP_OBJECT_SRC = ("'self'", "*.amazonaws.com")  # Allow SCORM objects
-CSP_BASE_URI = ("'self'",)
-CSP_FRAME_ANCESTORS = ("'self'", "*.amazonaws.com")  # Allow SCORM content embedding
+# DISABLED: These settings are overridden by individual views for SCORM content
+# CSP_DEFAULT_SRC = ("'self'",)
+# CSP_SCRIPT_SRC = ("'self'", "'unsafe-inline'", "'unsafe-eval'", "*.amazonaws.com")
+# CSP_STYLE_SRC = ("'self'", "'unsafe-inline'", "*.amazonaws.com")
+# CSP_IMG_SRC = ("'self'", "data:", "*.amazonaws.com")
+# CSP_FONT_SRC = ("'self'", "*.amazonaws.com")
+# CSP_CONNECT_SRC = ("'self'", "*.amazonaws.com")
+# CSP_FRAME_SRC = ("'self'", "*.amazonaws.com")  # Allow SCORM content from S3
+# CSP_OBJECT_SRC = ("'self'", "*.amazonaws.com")  # Allow SCORM objects
+# CSP_BASE_URI = ("'self'",)
+# CSP_FRAME_ANCESTORS = ("'self'", "*.amazonaws.com")  # Allow SCORM content embedding
 
 
 # Content Security Policy - Allow S3 content for SCORM
