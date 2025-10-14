@@ -948,6 +948,7 @@
                         
                         // Automatically save the score (async)
                         autoSaveScore(detectedScore).catch(err => {
+                            // Handle error silently
                         });
                     } else if (!detectedScore) {
                     }
@@ -1339,47 +1340,6 @@
             return null;
         }
         
-        function autoSaveScore(score) {
-            
-            try {
-                // Set the score in SCORM API
-                if (window.API && window.API.LMSSetValue) {
-                    window.API.LMSSetValue('cmi.core.score.raw', score.toString());
-                    window.API.LMSSetValue('cmi.core.lesson_status', 'completed');
-                }
-                
-                if (window.API_1484_11 && window.API_1484_11.SetValue) {
-                    window.API_1484_11.SetValue('cmi.score.raw', score.toString());
-                    window.API_1484_11.SetValue('cmi.completion_status', 'completed');
-                }
-                
-                // Commit the changes
-                if (window.API && window.API.LMSCommit) {
-                    window.API.LMSCommit('');
-                }
-                
-                if (window.API_1484_11 && window.API_1484_11.Commit) {
-                    window.API_1484_11.Commit('');
-                }
-                
-                // Trigger backend sync
-                fetch('{% url "scorm:sync_on_exit" %}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                        'X-CSRFToken': '{{ csrf_token }}'
-                    },
-                    body: 'attempt_id={{ attempt.id }}'
-                })
-                .then(response => response.json())
-                .then(data => {
-                })
-                .catch(error => {
-                });
-                
-            } catch (error) {
-            }
-        }
         
         // SCORM API Proxy Method - Direct API calls to extract scores
         function extractScoreViaScormApi() {
