@@ -136,6 +136,13 @@ class ScormAttempt(models.Model):
         blank=True,
         default=100
     )
+    score_scaled = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Scaled score (0-1 range)"
+    )
     
     # Basic time tracking
     total_time = models.CharField(
@@ -180,6 +187,23 @@ class ScormAttempt(models.Model):
     last_accessed = models.DateTimeField(auto_now=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     
+    # Additional tracking fields for enhanced SCORM tracking
+    completed_slides = models.JSONField(default=dict, blank=True)
+    detailed_tracking = models.JSONField(default=dict, blank=True)
+    last_visited_slide = models.CharField(max_length=255, default='', blank=True)
+    navigation_history = models.JSONField(default=list, blank=True)
+    progress_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        blank=True
+    )
+    session_data = models.JSONField(default=dict, blank=True)
+    session_start_time = models.DateTimeField(null=True, blank=True)
+    session_end_time = models.DateTimeField(null=True, blank=True)
+    time_spent_seconds = models.IntegerField(default=0, blank=True)
+    total_slides = models.IntegerField(default=0, blank=True)
+    
     class Meta:
         db_table = 'scorm_attempt'
         verbose_name = 'SCORM Attempt'
@@ -191,6 +215,14 @@ class ScormAttempt(models.Model):
         """Ensure JSON fields are never None"""
         if self.cmi_data is None:
             self.cmi_data = {}
+        if self.completed_slides is None:
+            self.completed_slides = {}
+        if self.detailed_tracking is None:
+            self.detailed_tracking = {}
+        if self.navigation_history is None:
+            self.navigation_history = []
+        if self.session_data is None:
+            self.session_data = {}
         super().save(*args, **kwargs)
     
     def __str__(self):
