@@ -212,3 +212,10 @@ window.API = {
     except Exception as e:
         logger.error(f"Error in scorm_content: {e}")
         return HttpResponse('Error loading content', status=500)
+
+@login_required
+def scorm_api_test(request):
+    """
+    Diagnostic tool for testing SCORM API calls
+    """
+    return render(request, 'scorm/api_test.html')
