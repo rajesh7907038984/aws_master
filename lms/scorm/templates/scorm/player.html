@@ -1019,8 +1019,10 @@
                         console.log('🎯 New score detected:', detectedScore);
                         lastDetectedScore = detectedScore;
                         
-                        // Automatically save the score
-                        autoSaveScore(detectedScore);
+                        // Automatically save the score (async)
+                        autoSaveScore(detectedScore).catch(err => {
+                            console.error('❌ Failed to auto-save score:', err);
+                        });
                     } else if (!detectedScore) {
                         console.log('ℹ️ No score detected in this attempt');
                     }
@@ -1037,21 +1039,21 @@
             }, 2000); // Check every 2 seconds for faster detection
         }
         
-        // CRITICAL FIX: Auto-save captured score to SCORM API
-        function autoSaveScore(scoreValue) {
+        // CRITICAL FIX: Auto-save captured score using ASYNC API calls (avoids sync XHR deprecation warnings)
+        async function autoSaveScore(scoreValue) {
             try {
                 console.log(`💾 Auto-saving captured score: ${scoreValue}%`);
                 
-                // Save via SCORM 1.2 API
-                if (window.API && window.API._initialized) {
-                    const setResult = window.API.LMSSetValue('cmi.core.score.raw', String(scoreValue));
-                    console.log(`📊 SetValue(cmi.core.score.raw, ${scoreValue}): ${setResult}`);
-                    
+                // Use async API call to avoid synchronous XHR warnings
+                const setValueResult = await makeApiCall('LMSSetValue', ['cmi.core.score.raw', String(scoreValue)]);
+                console.log(`📊 SetValue(cmi.core.score.raw, ${scoreValue}): ${setValueResult}`);
+                
+                if (setValueResult === 'true' || setValueResult === true) {
                     // Commit immediately to save to database
-                    const commitResult = window.API.LMSCommit('');
+                    const commitResult = await makeApiCall('LMSCommit', ['']);
                     console.log(`💾 LMSCommit result: ${commitResult}`);
                     
-                    if (setResult === 'true' && commitResult === 'true') {
+                    if (commitResult === 'true' || commitResult === true) {
                         console.log(`✅ Score ${scoreValue}% successfully saved to database!`);
                         
                         // Show user notification
@@ -1065,32 +1067,65 @@
                         
                         return true;
                     } else {
-                        console.error(`❌ Failed to save score: SetValue=${setResult}, Commit=${commitResult}`);
+                        console.error(`❌ Failed to commit score: ${commitResult}`);
                     }
+                } else {
+                    console.error(`❌ Failed to set score value: ${setValueResult}`);
                 }
                 
-                // Try SCORM 2004 API as fallback
-                if (window.API_1484_11 && window.API_1484_11._initialized) {
-                    const setResult = window.API_1484_11.SetValue('cmi.score.raw', String(scoreValue));
-                    const commitResult = window.API_1484_11.Commit('');
-                    console.log(`📊 SCORM 2004: SetValue=${setResult}, Commit=${commitResult}`);
-                    
-                    if (setResult === 'true' && commitResult === 'true') {
-                        console.log(`✅ Score ${scoreValue}% saved via SCORM 2004 API!`);
-                        showScoreNotification(`Score ${scoreValue}% saved!`);
-                        
-                        if (autoScoreCaptureInterval) {
-                            clearInterval(autoScoreCaptureInterval);
-                        }
-                        return true;
-                    }
-                }
-                
-                console.error('❌ No SCORM API available to save score');
                 return false;
                 
             } catch (error) {
                 console.error('❌ Error in autoSaveScore:', error);
+                
+                // Fallback: Try direct API call if async fails
+                try {
+                    console.log('🔄 Attempting fallback via direct API...');
+                    if (window.API && window.API._initialized) {
+                        // Use direct backend call
+                        const response = await fetch(API_ENDPOINT, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': getCookie('csrftoken')
+                            },
+                            body: JSON.stringify({
+                                method: 'LMSSetValue',
+                                parameters: ['cmi.core.score.raw', String(scoreValue)]
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        if (data.success) {
+                            // Commit after set
+                            const commitResponse = await fetch(API_ENDPOINT, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': getCookie('csrftoken')
+                                },
+                                body: JSON.stringify({
+                                    method: 'LMSCommit',
+                                    parameters: ['']
+                                })
+                            });
+                            
+                            const commitData = await commitResponse.json();
+                            if (commitData.success) {
+                                console.log(`✅ Score ${scoreValue}% saved via fallback method!`);
+                                showScoreNotification(`Score ${scoreValue}% saved!`);
+                                
+                                if (autoScoreCaptureInterval) {
+                                    clearInterval(autoScoreCaptureInterval);
+                                }
+                                return true;
+                            }
+                        }
+                    }
+                } catch (fallbackError) {
+                    console.error('❌ Fallback also failed:', fallbackError);
+                }
+                
                 return false;
             }
         }
