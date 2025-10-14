@@ -776,9 +776,16 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
             if 'text/html' in content_type:
                 html_content = content.decode('utf-8')
                 
-                # CRITICAL FIX: Inject base tag for proper relative path resolution
-                # This ensures all relative URLs (JavaScript, CSS, images) load correctly
-                base_url = scorm_s3.get_base_url(scorm_package)
+                # CRITICAL FIX: Use Django proxy URL instead of direct S3 URL
+                # This ensures all resources go through Django which generates presigned URLs
+                # Extract the directory path from the requested file
+                if '/' in path:
+                    dir_path = '/'.join(path.split('/')[:-1]) + '/'
+                else:
+                    dir_path = ''
+                
+                # Use Django proxy endpoint as base URL to avoid S3 Access Denied errors
+                base_url = f"/scorm/content/{topic_id}/{dir_path}"
                 base_tag = f'<base href="{base_url}">'
                 
                 # Inject base tag right after <head> tag
@@ -787,7 +794,7 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
                 elif '<HEAD>' in html_content:
                     html_content = html_content.replace('<HEAD>', f'<HEAD>\n    {base_tag}', 1)
                 
-                logger.info(f"Injected base tag with URL: {base_url}")
+                logger.info(f"Injected base tag with Django proxy URL: {base_url}")
                 
                 # CRITICAL FIX: For xAPI/Tin Can packages (Articulate Storyline), 
                 # don't inject complex SCORM code - just provide parent API reference

@@ -158,8 +158,10 @@ SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 
-# Frame Options - Prevent clickjacking attacks
-X_FRAME_OPTIONS = 'DENY'
+# Frame Options - Allow SAMEORIGIN for SCORM content (don't override view-level settings)
+# SCORM content needs SAMEORIGIN, non-SCORM content uses DENY
+# Let individual views control X-Frame-Options rather than applying globally
+# X_FRAME_OPTIONS = 'DENY'  # DISABLED - Let views control this
 
 # Exempt SCORM content from SSL redirect to prevent iframe resource loading issues
 SECURE_REDIRECT_EXEMPT = [r'^scorm/content/']
