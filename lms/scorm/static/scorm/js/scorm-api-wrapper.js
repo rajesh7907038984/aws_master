@@ -99,12 +99,8 @@
             var result = makeAPICall('LMSFinish', [parameter]);
             config.initialized = false;
             
-            // SCORM EXIT FIX: Check if content initiated exit
-            if (result === 'true') {
-                setTimeout(function() {
-                    checkForContentExit();
-                }, 500);
-            }
+            // Let SCORM content handle its own exit naturally
+            log('SCORM session terminated - content will handle its own exit flow');
             
             return result;
         },
@@ -188,12 +184,8 @@
             
             var result = API.LMSFinish(parameter);
             
-            // SCORM EXIT FIX: Check if content initiated exit
-            if (result === 'true') {
-                setTimeout(function() {
-                    checkForContentExit();
-                }, 500);
-            }
+            // Let SCORM content handle its own exit naturally
+            log('SCORM 2004 session terminated - content will handle its own exit flow');
             
             return result;
         },
@@ -405,8 +397,9 @@
         }
     };
     
-    // SCORM EXIT FIX: Function to check if content wants to exit
-    function checkForContentExit() {
+    // DEPRECATED: No longer interfering with SCORM's natural exit flow
+    // The SCORM content now handles its own exit completely
+    function checkForContentExit_DEPRECATED() {
         if (!config.apiEndpoint) return;
         
         try {
@@ -591,8 +584,8 @@
         }
     }
     
-    // Expose the exit check function globally so the player can use it
-    window.checkForContentExit = checkForContentExit;
+    // DEPRECATED: No longer exposing exit check - SCORM content handles its own exit
+    // window.checkForContentExit = checkForContentExit_DEPRECATED;
     
     log('SCORM API Wrapper loaded successfully');
     

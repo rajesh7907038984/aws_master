@@ -176,9 +176,9 @@
         const contentFrame = document.getElementById('contentFrame');
         const exitButton = document.getElementById('exitButton');
         
-        // Exit function - Allow SCORM content to handle its own exit
+        // Exit function - Let SCORM content handle its own exit completely
         function exitCourse() {
-            console.log('🚪 Exit button clicked');
+            console.log('🚪 Exit button clicked - letting SCORM handle exit naturally');
             
             // Save current progress if API exists
             if (window.API) {
@@ -190,89 +190,65 @@
                         window.API.LMSCommit('');
                     }
                     
-                    // Check if SCORM content wants to handle exit
-                    let contentHandlesExit = false;
-                    
-                    // Try to get the iframe's window to check for goodbye.html or exit handling
-                    try {
-                        const iframe = document.getElementById('contentFrame');
-                        if (iframe && iframe.contentWindow) {
-                            // Set a flag to indicate exit was initiated
-                            if (iframe.contentWindow.API) {
-                                iframe.contentWindow.API.LMSSetValue('_lms_exit_initiated', 'true');
-                            }
-                        }
-                    } catch (e) {
-                        console.log('Could not access iframe content:', e);
-                    }
-                    
-                    // Terminate the SCORM session
+                    // Terminate the SCORM session - this will trigger the content's natural exit
                     if (typeof window.API.Terminate === 'function') {
                         window.API.Terminate('');
                     } else if (typeof window.API.LMSFinish === 'function') {
                         window.API.LMSFinish('');
                     }
                     
-                    console.log('✅ SCORM progress saved');
+                    console.log('✅ SCORM session terminated - content will handle its own exit');
                     
-                    // Wait a moment to allow SCORM content to handle its own exit
-                    // (e.g., navigate to goodbye.html)
+                    // Hide the exit button since SCORM is handling exit
+                    document.getElementById('exitButton').style.display = 'none';
+                    
+                    // Add a "Return to Course" button that appears after a delay
                     setTimeout(() => {
-                        checkIfShouldRedirect();
-                    }, 1000);
+                        showReturnButton();
+                    }, 2000);
                     
                 } catch (e) {
-                    console.log('⚠️ Could not save progress:', e.message);
-                    // On error, still allow exit after delay
+                    console.log('⚠️ Error during exit:', e.message);
+                    // On error, show return button after delay
                     setTimeout(() => {
-                        checkIfShouldRedirect();
-                    }, 1000);
+                        showReturnButton();
+                    }, 2000);
                 }
             } else {
-                // No API, just exit after a short delay
-                setTimeout(() => {
-                    finalizeExit();
-                }, 500);
+                // No API, show return button
+                showReturnButton();
             }
         }
         
-        // Check if we should redirect or if content is handling exit
-        function checkIfShouldRedirect() {
-            console.log('🔍 Checking if SCORM content is handling exit...');
+        // Show a return to course button (user-initiated navigation only)
+        function showReturnButton() {
+            console.log('📚 Showing return to course option');
             
-            try {
-                const iframe = document.getElementById('contentFrame');
-                if (iframe && iframe.contentWindow && iframe.contentWindow.location) {
-                    const currentUrl = iframe.contentWindow.location.href;
-                    console.log('Current iframe URL:', currentUrl);
-                    
-                    // Check if content navigated to goodbye.html or similar exit page
-                    if (currentUrl.includes('goodbye') || 
-                        currentUrl.includes('exit') || 
-                        currentUrl.includes('end') ||
-                        currentUrl.includes('complete') ||
-                        currentUrl.includes('finish')) {
-                        console.log('📄 SCORM content is showing exit page, not redirecting');
-                        // Content is handling exit, don't redirect
-                        // Hide the exit button to prevent confusion
-                        document.getElementById('exitButton').style.display = 'none';
-                        return;
-                    }
+            // Check if we already have a return button
+            if (document.getElementById('returnButton')) {
+                return;
+            }
+            
+            // Create a return button in the header
+            const header = document.querySelector('.player-header');
+            if (header) {
+                const returnBtn = document.createElement('button');
+                returnBtn.id = 'returnButton';
+                returnBtn.className = 'exit-btn';
+                returnBtn.style.backgroundColor = '#28a745';
+                returnBtn.textContent = 'Return to Course';
+                returnBtn.onclick = function() {
+                    window.location.href = `/courses/topic/{{ topic.id }}/`;
+                };
+                
+                // Replace the exit button with return button
+                const exitBtn = document.getElementById('exitButton');
+                if (exitBtn) {
+                    exitBtn.parentNode.replaceChild(returnBtn, exitBtn);
+                } else {
+                    header.appendChild(returnBtn);
                 }
-            } catch (e) {
-                console.log('Could not check iframe location:', e);
             }
-            
-            // If we get here, content isn't handling exit, so redirect
-            console.log('➡️ SCORM content not handling exit, redirecting to course...');
-            finalizeExit();
-        }
-        
-        // Finalize exit and return to course
-        function finalizeExit() {
-            console.log('🔚 Returning to course...');
-            const topicUrl = `/courses/topic/{{ topic.id }}/`;
-            window.location.href = topicUrl;
         }
         
         // Enhanced exit button handler with debugging
