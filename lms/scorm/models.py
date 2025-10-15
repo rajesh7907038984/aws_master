@@ -77,7 +77,7 @@ class ScormPackage(models.Model):
         verbose_name_plural = 'SCORM Packages'
     
     def __str__(self):
-        return f"{self.title} ({self.version})"
+        return "{} ({})".format(self.title, self.version)
 
 
 class ScormAttempt(models.Model):
@@ -187,22 +187,7 @@ class ScormAttempt(models.Model):
     last_accessed = models.DateTimeField(auto_now=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     
-    # Additional tracking fields for enhanced SCORM tracking
-    completed_slides = models.JSONField(default=dict, blank=True)
-    detailed_tracking = models.JSONField(default=dict, blank=True)
-    last_visited_slide = models.CharField(max_length=255, default='', blank=True)
-    navigation_history = models.JSONField(default=list, blank=True)
-    progress_percentage = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        default=0,
-        blank=True
-    )
-    session_data = models.JSONField(default=dict, blank=True)
-    session_start_time = models.DateTimeField(null=True, blank=True)
-    session_end_time = models.DateTimeField(null=True, blank=True)
-    time_spent_seconds = models.IntegerField(default=0, blank=True)
-    total_slides = models.IntegerField(default=0, blank=True)
+    # Basic tracking fields only
     
     class Meta:
         db_table = 'scorm_attempt'
@@ -272,30 +257,14 @@ class ScormAttempt(models.Model):
             })
     
     def save(self, *args, **kwargs):
-        """Initialize JSON fields if None and ensure tracking data persistence"""
+        """Simple save method"""
         self.cmi_data = self.cmi_data or {}
-        self.completed_slides = self.completed_slides or {}
-        self.detailed_tracking = self.detailed_tracking or {}
-        self.navigation_history = self.navigation_history or []
-        self.session_data = self.session_data or {}
-        
-        # ENHANCED TRACKING: Ensure all tracking data is properly initialized
-        if not self.session_start_time and self.started_at:
-            self.session_start_time = self.started_at
-        
-        # Update last accessed timestamp
         from django.utils import timezone
         self.last_accessed = timezone.now()
-        
         super().save(*args, **kwargs)
-        
-        # ENHANCED TRACKING: Log successful save for debugging
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info(f"💾 SCORM ATTEMPT SAVED: ID={self.id}, User={self.user.username}, Status={self.lesson_status}, Score={self.score_raw}")
     
     def __str__(self):
-        return f"{self.user.username} - {self.scorm_package.title} - Attempt {self.attempt_number}"
+        return "{} - {} - Attempt {}".format(self.user.username, self.scorm_package.title, self.attempt_number)
     
     def get_percentage_score(self):
         """Calculate percentage score using Decimal for precision"""
@@ -322,67 +291,24 @@ class ScormAttempt(models.Model):
         return self.lesson_status in ['passed', 'completed']
     
     def update_tracking_data(self, element, value):
-        """ENHANCED TRACKING: Update comprehensive tracking data for learner progress"""
-        import logging
-        from django.utils import timezone
-        
-        logger = logging.getLogger(__name__)
-        
-        # Update CMI data
+        """Simple tracking data update"""
         if not self.cmi_data:
             self.cmi_data = {}
         self.cmi_data[element] = value
         
-        # Track navigation history
-        if element in ['cmi.core.lesson_location', 'cmi.location']:
-            if not self.navigation_history:
-                self.navigation_history = []
-            
-            navigation_entry = {
-                'timestamp': timezone.now().isoformat(),
-                'location': value,
-                'element': element
-            }
-            self.navigation_history.append(navigation_entry)
-            
-            # Keep only last 50 navigation entries
-            if len(self.navigation_history) > 50:
-                self.navigation_history = self.navigation_history[-50:]
+        # Update basic fields
+        if element == 'cmi.core.lesson_status':
+            self.lesson_status = value
+        elif element == 'cmi.completion_status':
+            self.completion_status = value
+        elif element == 'cmi.success_status':
+            self.success_status = value
+        elif element in ['cmi.core.lesson_location', 'cmi.location']:
+            self.lesson_location = value
+        elif element == 'cmi.suspend_data':
+            self.suspend_data = value
         
-        # Update detailed tracking
-        if not self.detailed_tracking:
-            self.detailed_tracking = {}
-        
-        self.detailed_tracking[element] = {
-            'value': value,
-            'timestamp': timezone.now().isoformat(),
-            'session_time': self.session_time
-        }
-        
-        # Update session data
-        if not self.session_data:
-            self.session_data = {}
-        
-        self.session_data['last_update'] = timezone.now().isoformat()
-        self.session_data['total_updates'] = self.session_data.get('total_updates', 0) + 1
-        
-        # Update time tracking
-        if element in ['cmi.core.total_time', 'cmi.total_time']:
-            self.total_time = value
-        elif element in ['cmi.core.session_time', 'cmi.session_time']:
-            self.session_time = value
-            
-        # Update progress tracking
-        if element in ['cmi.core.lesson_status', 'cmi.completion_status']:
-            if value in ['completed', 'passed']:
-                self.completed_at = timezone.now()
-                self.session_end_time = timezone.now()
-        
-        logger.info(f"📊 TRACKING UPDATED: {element} = {value} for attempt {self.id}")
-        
-        # Save immediately to ensure data persistence
         self.save()
-        
         return True
 
 

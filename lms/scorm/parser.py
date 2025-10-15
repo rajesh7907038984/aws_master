@@ -384,14 +384,13 @@ class ScormParser:
     
     def _find_optimal_launch_url(self, root):
         """
-        Enhanced launch URL detection for modern SCORM packages
-        Handles Articulate Rise, Storyline, and other complex packages
+        Simple launch URL detection for SCORM packages
         
         Args:
             root: XML root element
             
         Returns:
-            str: Optimal launch URL or None if not found
+            str: Launch URL or None if not found
         """
         resources = root.find('.//{http://www.imsglobal.org/xsd/imscp_v1p1}resources') or \
                   root.find('.//{http://www.imsproject.org/xsd/imscp_rootv1p1p2}resources') or \

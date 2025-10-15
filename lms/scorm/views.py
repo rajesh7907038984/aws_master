@@ -4,7 +4,7 @@ No authentication required, direct iframe embedding from S3
 """
 import logging
 from django.shortcuts import render, get_object_or_404
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse, HttpResponse, HttpResponseRedirect
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.conf import settings
@@ -17,102 +17,7 @@ from courses.models import Topic
 logger = logging.getLogger(__name__)
 
 
-def detect_package_type(launch_url):
-    """
-    Enhanced auto-detection of SCORM package type based on launch URL patterns
-    With comprehensive support for all major authoring tools based on standardized patterns
-    """
-    launch_url_lower = launch_url.lower() if launch_url else ''
-    
-    # Log the detection process for debugging
-    logger.info(f"Detecting package type for URL: {launch_url_lower}")
-    
-    # Articulate Rise patterns
-    if 'scormdriver' in launch_url_lower and 'indexapi' in launch_url_lower:
-        return 'articulate_rise_driver'
-    elif 'scormdriver' in launch_url_lower:
-        return 'articulate_rise'
-    elif 'scormcontent/index.html' in launch_url_lower:
-        return 'articulate_rise_content'
-    elif 'scormcontent/' in launch_url_lower:
-        return 'articulate_rise_content'
-    
-    # Articulate Storyline patterns
-    elif 'story.html' in launch_url_lower or 'story_html5.html' in launch_url_lower:
-        return 'articulate_storyline'
-    elif 'story_content/' in launch_url_lower:
-        return 'articulate_storyline'
-    
-    # Adobe Captivate patterns
-    elif 'captivate' in launch_url_lower or 'multiscreen.html' in launch_url_lower:
-        return 'adobe_captivate'
-    elif 'assets/playbar' in launch_url_lower:
-        return 'adobe_captivate'
-    
-    # Lectora patterns (Trivantis)
-    elif 'lectora' in launch_url_lower or 'trivantis' in launch_url_lower:
-        return 'lectora'
-    elif 'course.html' in launch_url_lower and not ('captivate' in launch_url_lower):
-        return 'lectora'
-    
-    # iSpring patterns
-    elif 'ispring' in launch_url_lower or 'presentation.html' in launch_url_lower:
-        return 'ispring'
-    elif 'index_lms.html' in launch_url_lower and 'data/' in launch_url_lower:
-        return 'ispring'
-    elif '/data/' in launch_url_lower and '/resources/' in launch_url_lower:
-        return 'ispring'
-        
-    # DominKnow patterns
-    elif 'index_lms.html' in launch_url_lower and not ('ispring' in launch_url_lower):
-        return 'dominknow'
-    
-    # Elucidat patterns
-    elif 'elucidat' in launch_url_lower:
-        return 'elucidat'
-    
-    # Adapt Learning / Evolve patterns (similar structures)
-    elif 'adapt' in launch_url_lower:
-        return 'adapt'
-    elif 'evolve' in launch_url_lower:
-        return 'evolve'
-        
-    # Gomo Learning patterns
-    elif 'gomo' in launch_url_lower:
-        return 'gomo'
-        
-    # CenarioVR (immersive learning)
-    elif 'cenario' in launch_url_lower or 'vr/' in launch_url_lower:
-        return 'cenariovr'
-    
-    # Generic file patterns by SCORM standard
-    elif 'aicc.html' in launch_url_lower:
-        return 'aicc'
-    elif 'cmi5.xml' in launch_url_lower or 'cmi5/' in launch_url_lower:
-        return 'cmi5'
-    elif 'xapi/' in launch_url_lower or 'tincan/' in launch_url_lower:
-        return 'xapi'
-    
-    # Index-based packages (most common pattern across tools)
-    elif 'index_lms.html' in launch_url_lower:
-        return 'lms_specific'
-    elif 'index.html' in launch_url_lower:
-        return 'standard_html'
-    elif launch_url_lower.endswith('.html'):
-        # Generic HTML file - try to infer type from path structure
-        if '/' in launch_url_lower:
-            folder = launch_url_lower.split('/')[0]
-            if folder == 'scormcontent':
-                return 'articulate_rise_content'
-            elif folder == 'story_content':
-                return 'articulate_storyline'
-            elif folder == 'data':
-                return 'ispring'
-        return 'html_generic'
-    
-    # Default
-    logger.warning(f"Unknown SCORM package type: {launch_url_lower}")
-    return 'unknown'
+# Removed complex package detection - using simple detection in views
 
 
 def get_s3_direct_url(scorm_package, path=''):
@@ -161,9 +66,13 @@ def scorm_player(request, topic_id):
             logger.error(f"Invalid SCORM package data for topic {topic_id}: missing launch_url or extracted_path")
             return HttpResponse("Invalid SCORM package data", status=500)
         
-        # Detect package type with enhanced detection
-        package_type = detect_package_type(scorm_package.launch_url)
-        logger.info(f"Detected package type: {package_type} for {scorm_package.launch_url}")
+        # Simple package type detection
+        package_type = 'standard'
+        if 'scormcontent' in scorm_package.launch_url.lower():
+            package_type = 'articulate_rise'
+        elif 'story.html' in scorm_package.launch_url.lower():
+            package_type = 'articulate_storyline'
+        logger.info(f"Package type: {package_type}")
         
         # Construct the launch URL with proper path handling
         launch_path = scorm_package.launch_url
@@ -228,6 +137,7 @@ def scorm_player(request, topic_id):
             'launch_url': launch_url,
             'package_type': package_type,
             'attempt_id': attempt_id,
+            'topic_id': topic_id,
             'scorm_version': scorm_package.version,
             'direct_embed': True,  # Flag for direct embedding
         }
@@ -251,7 +161,7 @@ def scorm_view(request, topic_id):
 @xframe_options_exempt
 def scorm_api_lite(request, topic_id):
     """
-    Lightweight SCORM API for basic tracking (works without authentication)
+    Simplified SCORM API with xAPI wrapper support
     """
     try:
         if request.method == "OPTIONS":
@@ -276,42 +186,111 @@ def scorm_api_lite(request, topic_id):
             method = data.get('method', '')
             parameters = data.get('parameters', [])
             
-            # Basic SCORM API responses (minimal tracking)
+            # Check if this is xAPI/Tin Can request
+            if 'xapi' in request.path or scorm_package.version == 'xapi':
+                from .xapi_wrapper import xapi_endpoint
+                attempt_id = data.get('attempt_id', 0)
+                if not attempt_id and request.user.is_authenticated:
+                    # Try to get or create attempt for authenticated users
+                    try:
+                        attempt, created = ScormAttempt.objects.get_or_create(
+                            user=request.user,
+                            scorm_package=scorm_package,
+                            defaults={
+                                'attempt_number': 1,
+                                'lesson_status': 'not attempted',
+                                'completion_status': 'incomplete'
+                            }
+                        )
+                        attempt_id = attempt.id
+                    except Exception as e:
+                        logger.warning(f"Could not create attempt for xAPI: {e}")
+                return xapi_endpoint(request, attempt_id)
+            
+            # Handle attempt creation for authenticated users
+            attempt_id = None
+            if request.user.is_authenticated:
+                try:
+                    attempt, created = ScormAttempt.objects.get_or_create(
+                        user=request.user,
+                        scorm_package=scorm_package,
+                        defaults={
+                            'attempt_number': 1,
+                            'lesson_status': 'not attempted',
+                            'completion_status': 'incomplete'
+                        }
+                    )
+                    attempt_id = attempt.id
+                    logger.info(f"SCORM API using attempt {attempt_id} for user {request.user.username}")
+                except Exception as e:
+                    logger.warning(f"Could not create attempt for SCORM API: {e}")
+            
+            # Standard SCORM API responses
             if method in ['Initialize', 'LMSInitialize']:
-                return JsonResponse({'result': 'true', 'error': '0'})
+                return JsonResponse({'result': 'true', 'error': '0', 'attempt_id': attempt_id})
             
             elif method in ['Terminate', 'LMSFinish', 'LMSTerminate']:
-                return JsonResponse({'result': 'true', 'error': '0'})
+                return JsonResponse({'result': 'true', 'error': '0', 'attempt_id': attempt_id})
             
             elif method in ['Commit', 'LMSCommit']:
-                return JsonResponse({'result': 'true', 'error': '0'})
+                return JsonResponse({'result': 'true', 'error': '0', 'attempt_id': attempt_id})
             
             elif method in ['GetValue', 'LMSGetValue']:
                 element = parameters[0] if parameters else ''
                 
-                # Return minimal default values
-                defaults = {
-                    'cmi.core.student_id': 'guest',
-                    'cmi.core.student_name': 'Guest User',
-                    'cmi.core.lesson_status': 'incomplete',
-                    'cmi.core.score.raw': '',
-                    'cmi.core.score.min': '0',
-                    'cmi.core.score.max': '100',
-                    'cmi.core.total_time': '0000:00:00.00',
-                    'cmi.core.lesson_mode': 'normal',
-                    'cmi.core.credit': 'credit',
-                    'cmi.suspend_data': '',
-                    'cmi.launch_data': '',
-                    'cmi.core.lesson_location': '',
-                    'cmi.core.entry': 'ab-initio'
-                }
+                # Get value from attempt if available
+                value = ''
+                if attempt_id:
+                    try:
+                        attempt = ScormAttempt.objects.get(id=attempt_id)
+                        from .api_handler import ScormAPIHandler
+                        api_handler = ScormAPIHandler(attempt)
+                        value = api_handler.get_value(element)
+                        logger.info(f"SCORM GetValue from attempt {attempt_id}: {element} = {value}")
+                    except ScormAttempt.DoesNotExist:
+                        logger.warning(f"Attempt {attempt_id} not found for GetValue")
+                    except Exception as e:
+                        logger.error(f"Error getting value from attempt: {e}")
                 
-                value = defaults.get(element, '')
-                return JsonResponse({'result': value, 'error': '0'})
+                # Fallback to default values if no attempt or value not found
+                if not value:
+                    defaults = {
+                        'cmi.core.student_id': str(request.user.id) if request.user.is_authenticated else 'guest',
+                        'cmi.core.student_name': request.user.get_full_name() or request.user.username if request.user.is_authenticated else 'Guest User',
+                        'cmi.core.lesson_status': 'incomplete',
+                        'cmi.core.score.raw': '',
+                        'cmi.core.score.min': '0',
+                        'cmi.core.score.max': '100',
+                        'cmi.core.total_time': '0000:00:00.00',
+                        'cmi.core.lesson_mode': 'normal',
+                        'cmi.core.credit': 'credit',
+                        'cmi.suspend_data': '',
+                        'cmi.launch_data': '',
+                        'cmi.core.lesson_location': '',
+                        'cmi.core.entry': 'ab-initio'
+                    }
+                    value = defaults.get(element, '')
+                
+                return JsonResponse({'result': value, 'error': '0', 'attempt_id': attempt_id})
             
             elif method in ['SetValue', 'LMSSetValue']:
-                # Accept but don't store (no auth required)
-                return JsonResponse({'result': 'true', 'error': '0'})
+                element = parameters[0] if len(parameters) > 0 else ''
+                value = parameters[1] if len(parameters) > 1 else ''
+                
+                # Store value in attempt if available
+                if attempt_id and element and value is not None:
+                    try:
+                        attempt = ScormAttempt.objects.get(id=attempt_id)
+                        from .api_handler import ScormAPIHandler
+                        api_handler = ScormAPIHandler(attempt)
+                        result = api_handler.set_value(element, value)
+                        logger.info(f"SCORM SetValue to attempt {attempt_id}: {element} = {value}, result: {result}")
+                    except ScormAttempt.DoesNotExist:
+                        logger.warning(f"Attempt {attempt_id} not found for SetValue")
+                    except Exception as e:
+                        logger.error(f"Error setting value in attempt: {e}")
+                
+                return JsonResponse({'result': 'true', 'error': '0', 'attempt_id': attempt_id})
             
             elif method in ['GetLastError', 'LMSGetLastError']:
                 return JsonResponse({'result': '0', 'error': '0'})
@@ -332,6 +311,20 @@ def scorm_api_lite(request, topic_id):
         return JsonResponse({'error': str(e), 'result': 'false'}, status=500)
 
 
+@csrf_exempt
+@xframe_options_exempt
+def xapi_endpoint(request, attempt_id):
+    """
+    xAPI endpoint for SCORM packages that use Tin Can API
+    """
+    try:
+        from .xapi_wrapper import xapi_endpoint as xapi_handler
+        return xapi_handler(request, attempt_id)
+    except Exception as e:
+        logger.error(f"xAPI endpoint error: {e}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+
 @xframe_options_exempt
 def scorm_direct_content(request, topic_id, path=''):
     """
@@ -347,6 +340,20 @@ def scorm_direct_content(request, topic_id, path=''):
         # Import S3 utility
         from .s3_direct import scorm_s3
         
+        # Handle hash fragments in paths (they should be ignored server-side)
+        if '#' in path:
+            path = path.split('#')[0]
+            logger.info(f"Removed hash fragment from path: {path}")
+        
+        # Handle directory requests (trailing slashes)
+        if path.endswith('/'):
+            # If it's a directory request, try to serve an index.html
+            original_path = path
+            path = path.rstrip('/')
+            if not path:  # If path becomes empty after stripping
+                path = 'index.html'
+            logger.info(f"Directory request detected: {original_path} → {path}")
+        
         # Fix for path handling - ensure proper path resolution
         # Check if the requested path might be missing the base folder structure
         if path and not path.startswith(scorm_package.launch_url.split('/')[0]) and '/' in scorm_package.launch_url:
@@ -357,22 +364,51 @@ def scorm_direct_content(request, topic_id, path=''):
                 logger.info(f"Path adjusted to include base folder: {path}")
         
         # Generate presigned URL for the requested path
+        logger.info(f"Generating S3 URL for topic {topic_id}, path: '{path}'")
         if path:
             s3_url = scorm_s3.generate_direct_url(scorm_package, path)
         else:
             s3_url = scorm_s3.generate_launch_url(scorm_package)
         
+        if s3_url:
+            logger.info(f"Successfully generated S3 URL for path: {path}")
+        else:
+            logger.error(f"Failed to generate S3 URL for path: {path}")
+        
         # If URL generation failed, try multiple alternative path resolutions
         if not s3_url:
             logger.warning(f"First attempt to generate URL for path failed: {path}")
-            package_type = detect_package_type(scorm_package.launch_url)
             
             # Try a series of fallback paths based on package type
             fallback_paths = []
             
+            # Handle hash fragments and trailing slashes
+            # Remove hash fragments as they are client-side only
+            if '#' in path:
+                path = path.split('#')[0]
+            
+            # Handle trailing slashes
+            if path.endswith('/'):
+                path = path.rstrip('/')
+                if not path:  # If path becomes empty after stripping
+                    path = 'index.html'
+            
             # Get the base directory if any
             base_dir = path.split('/')[0] if '/' in path else ''
             file_name = path.split('/')[-1] if '/' in path else path
+            
+            # Simple package type detection based on launch URL
+            package_type = 'standard'
+            if 'scormcontent' in scorm_package.launch_url.lower():
+                package_type = 'articulate_rise'
+            elif 'story.html' in scorm_package.launch_url.lower():
+                package_type = 'articulate_storyline'
+            elif 'multiscreen.html' in scorm_package.launch_url.lower():
+                package_type = 'adobe_captivate'
+            elif 'presentation.html' in scorm_package.launch_url.lower():
+                package_type = 'ispring'
+            
+            logger.info(f"Detected package type: {package_type} for launch URL: {scorm_package.launch_url}")
             
             # Add potential fallback paths based on package type
             if 'scormcontent' not in path and 'scormcontent' in scorm_package.launch_url:
@@ -380,6 +416,10 @@ def scorm_direct_content(request, topic_id, path=''):
             
             # Articulate Rise specific fallbacks
             if package_type == 'articulate_rise_content' or package_type == 'articulate_rise' or package_type == 'articulate_rise_driver':
+                # Handle empty paths or directory requests for Rise content
+                if not path or path == 'scormcontent' or path == 'scormcontent/':
+                    fallback_paths.append(f"scormcontent/index.html")
+                
                 fallback_paths.append(f"scormcontent/{file_name}")
                 fallback_paths.append(f"scormcontent/index.html")
                 if not path.startswith('scormcontent/'):
@@ -511,7 +551,6 @@ def scorm_direct_content(request, topic_id, path=''):
         
         # For media files (images, audio, video), redirect to S3
         if path.endswith(('.png', '.jpg', '.jpeg', '.gif', '.mp3', '.mp4', '.wav', '.webm', '.svg', '.ico')):
-            from django.http import HttpResponseRedirect
             response = HttpResponseRedirect(s3_url)
             response['Access-Control-Allow-Origin'] = '*'
             response['Cache-Control'] = 'private, max-age=7200'
@@ -521,11 +560,39 @@ def scorm_direct_content(request, topic_id, path=''):
         import requests
         
         try:
+            # Debug logging
+            logger.info(f"Processing request for topic {topic_id}, path: '{path}'")
+            
+            # Special handling for directory requests (common in SPA SCORM packages)
+            if path == 'scormcontent' or path == 'scormcontent/' or path.endswith('/'):
+                logger.info(f"Directory request detected: {path}")
+                # Try to automatically redirect to index.html
+                if path.endswith('/'):
+                    redirect_path = f"{path}index.html"
+                else:
+                    redirect_path = f"{path}/index.html"
+                redirect_path = redirect_path.replace('//', '/')
+                
+                logger.info(f"Redirecting directory request: {path} → {redirect_path}")
+                # Use 302 redirect with proper headers to avoid circular redirects
+                redirect_url = f"/scorm/content/{topic_id}/{redirect_path}"
+                logger.info(f"Redirect URL: {redirect_url}")
+                response = HttpResponseRedirect(redirect_url)
+                response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+                response['Pragma'] = 'no-cache'
+                response['Expires'] = '0'
+                return response
+            
             # Fetch from S3 with proper encoding handling and better error handling
             try:
                 s3_response = requests.get(s3_url, timeout=30)
                 if s3_response.status_code != 200:
                     logger.error(f"S3 fetch failed: {s3_response.status_code} for path {path}")
+                    # Try with index.html if path seems to be a directory
+                    if not path.endswith('.html') and not path.endswith('.htm') and '.' not in path.split('/')[-1]:
+                        alternative_path = f"{path}/index.html".replace('//', '/')
+                        logger.info(f"Trying alternative path: {alternative_path}")
+                        return HttpResponseRedirect(f"/scorm/content/{topic_id}/{alternative_path}")
                     return HttpResponse("Content not accessible", status=404)
             except requests.exceptions.RequestException as req_err:
                 logger.error(f"S3 request failed: {req_err} for path {path}")

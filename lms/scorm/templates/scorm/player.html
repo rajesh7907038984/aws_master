@@ -1,9 +1,11 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ scorm_package.title }} - SCORM Player</title>
+    <script src="{% static 'scorm/js/scorm-xapi-wrapper.js' %}"></script>
     <style>
         * {
             margin: 0;
@@ -179,12 +181,14 @@
         const scormVersion = "{{ scorm_version }}";
         const launchUrl = "{{ launch_url }}";
         const attemptId = "{{ attempt_id|default:'' }}";
+        const topicId = "{{ topic_id }}";
         
         console.log('SCORM Player Initialized:', {
             packageType: packageType,
             version: scormVersion,
             url: launchUrl,
-            attemptId: attemptId
+            attemptId: attemptId,
+            topicId: topicId
         });
         
         // Hide loading overlay when frame loads
@@ -242,7 +246,7 @@
             }
         }
         
-        // Setup SCORM API bridge for packages that need it
+        // Setup SCORM/xAPI API bridge for packages that need it
         function setupScormBridge() {
             try {
                 const frame = document.getElementById('scorm-frame');
@@ -250,65 +254,83 @@
                 
                 // Only set up API if frame doesn't already have one
                 if (!frameWindow.API && !frameWindow.API_1484_11) {
-                    console.log('Setting up SCORM API bridge');
+                    console.log('Setting up SCORM/xAPI API bridge');
                     
-                    // Minimal SCORM 1.2 API
-                    frameWindow.API = {
-                        LMSInitialize: function() { 
-                            console.log('SCORM: Initialize');
-                            return "true"; 
-                        },
-                        LMSFinish: function() { 
-                            console.log('SCORM: Finish');
-                            return "true"; 
-                        },
-                        LMSGetValue: function(key) { 
-                            console.log('SCORM: GetValue', key);
-                            const defaults = {
-                                "cmi.core.student_name": "Guest User",
-                                "cmi.core.student_id": "guest",
-                                "cmi.core.lesson_status": "incomplete",
-                                "cmi.core.credit": "credit",
-                                "cmi.core.entry": "ab-initio",
-                                "cmi.core.lesson_mode": "normal",
-                                "cmi.core.lesson_location": "",
-                                "cmi.core.total_time": "0000:00:00.00",
-                                "cmi.core.score.raw": "",
-                                "cmi.core.score.min": "0",
-                                "cmi.core.score.max": "100",
-                                "cmi.suspend_data": "",
-                                "cmi.launch_data": ""
-                            };
-                            return defaults[key] || "";
-                        },
-                        LMSSetValue: function(key, value) { 
-                            console.log('SCORM: SetValue', key, value);
-                            return "true"; 
-                        },
-                        LMSCommit: function() { 
-                            console.log('SCORM: Commit');
-                            return "true"; 
-                        },
-                        LMSGetLastError: function() { return "0"; },
-                        LMSGetErrorString: function() { return "No error"; },
-                        LMSGetDiagnostic: function() { return ""; }
-                    };
-                    
-                    // SCORM 2004 API
-                    frameWindow.API_1484_11 = {
-                        Initialize: function() { return "true"; },
-                        Terminate: function() { return "true"; },
-                        GetValue: function(key) { 
-                            return frameWindow.API.LMSGetValue(key.replace('cmi.', 'cmi.core.')); 
-                        },
-                        SetValue: function(key, value) { return "true"; },
-                        Commit: function() { return "true"; },
-                        GetLastError: function() { return "0"; },
-                        GetErrorString: function() { return "No error"; },
-                        GetDiagnostic: function() { return ""; }
-                    };
-                    
-                    console.log('SCORM API bridge established');
+                    // Load the unified wrapper
+                    if (typeof window.ScormXAPIWrapper !== 'undefined') {
+                        // Initialize the wrapper
+                        if (attemptId && topicId) {
+                            console.log('Initializing SCORM wrapper with attempt ID:', attemptId, 'topic ID:', topicId);
+                            window.ScormXAPIWrapper.init(attemptId, topicId);
+                            window.ScormXAPIWrapper.exposeAPIs();
+                        } else {
+                            console.log('Missing attempt ID or topic ID for SCORM wrapper initialization');
+                        }
+                        
+                        // Expose APIs to frame
+                        frameWindow.API = window.API;
+                        frameWindow.API_1484_11 = window.API_1484_11;
+                        
+                        console.log('SCORM/xAPI API bridge established');
+                    } else {
+                        // Fallback to minimal API
+                        frameWindow.API = {
+                            LMSInitialize: function() { 
+                                console.log('SCORM: Initialize');
+                                return "true"; 
+                            },
+                            LMSFinish: function() { 
+                                console.log('SCORM: Finish');
+                                return "true"; 
+                            },
+                            LMSGetValue: function(key) { 
+                                console.log('SCORM: GetValue', key);
+                                const defaults = {
+                                    "cmi.core.student_name": "Guest User",
+                                    "cmi.core.student_id": "guest",
+                                    "cmi.core.lesson_status": "incomplete",
+                                    "cmi.core.credit": "credit",
+                                    "cmi.core.entry": "ab-initio",
+                                    "cmi.core.lesson_mode": "normal",
+                                    "cmi.core.lesson_location": "",
+                                    "cmi.core.total_time": "0000:00:00.00",
+                                    "cmi.core.score.raw": "",
+                                    "cmi.core.score.min": "0",
+                                    "cmi.core.score.max": "100",
+                                    "cmi.suspend_data": "",
+                                    "cmi.launch_data": ""
+                                };
+                                return defaults[key] || "";
+                            },
+                            LMSSetValue: function(key, value) { 
+                                console.log('SCORM: SetValue', key, value);
+                                return "true"; 
+                            },
+                            LMSCommit: function() { 
+                                console.log('SCORM: Commit');
+                                return "true"; 
+                            },
+                            LMSGetLastError: function() { return "0"; },
+                            LMSGetErrorString: function() { return "No error"; },
+                            LMSGetDiagnostic: function() { return ""; }
+                        };
+                        
+                        // SCORM 2004 API
+                        frameWindow.API_1484_11 = {
+                            Initialize: function() { return "true"; },
+                            Terminate: function() { return "true"; },
+                            GetValue: function(key) { 
+                                return frameWindow.API.LMSGetValue(key.replace('cmi.', 'cmi.core.')); 
+                            },
+                            SetValue: function(key, value) { return "true"; },
+                            Commit: function() { return "true"; },
+                            GetLastError: function() { return "0"; },
+                            GetErrorString: function() { return "No error"; },
+                            GetDiagnostic: function() { return ""; }
+                        };
+                        
+                        console.log('Fallback SCORM API bridge established');
+                    }
                 }
             } catch (e) {
                 // Cross-origin frame, can't access - that's OK
@@ -334,9 +356,10 @@
                 } catch (e) {
                     // Cross-origin restrictions may prevent access - that's normal
                     console.log('Cannot access iframe content due to cross-origin restrictions');
+                    // Don't show error for cross-origin restrictions - content is likely loading
                 }
             }
-        }, 8000);
+        }, 15000); // Increased timeout to 15 seconds for SCORM content
         
         // Listen for fullscreen change events
         document.addEventListener('fullscreenchange', () => {

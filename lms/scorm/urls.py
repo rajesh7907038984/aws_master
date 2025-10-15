@@ -15,6 +15,9 @@ urlpatterns = [
     # Lightweight SCORM API (works without authentication)
     path('api/<int:topic_id>/', views.scorm_api_lite, name='api'),
     
+    # xAPI/Tin Can endpoint
+    path('xapi/<int:attempt_id>/', views.xapi_endpoint, name='xapi'),
+    
     # Validation endpoints (kept for admin use)
     path('validate/', validation_views.validate_scorm_ajax, name='validate'),
     path('validation-test/', validation_views.validation_test_page, name='validation_test'),
