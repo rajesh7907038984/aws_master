@@ -326,15 +326,47 @@ class SCORMPlayerView(LoginRequiredMixin, DetailView):
 
 
 @csrf_exempt
-@require_http_methods(["POST"])
 def scorm_api_endpoint(request, topic_id):
     """
     SCORM API endpoint for handling LMS API calls
     Handles both SCORM 1.2 and SCORM 2004 API calls
     """
+    # Handle CORS preflight requests
+    if request.method == 'OPTIONS':
+        response = JsonResponse({})
+        response['Access-Control-Allow-Origin'] = '*'
+        response['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+        response['Access-Control-Allow-Headers'] = 'Content-Type, X-CSRFToken'
+        return response
+    
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
     try:
-        # Parse request data
-        data = json.loads(request.body.decode('utf-8'))
+        # Parse request data with better error handling
+        data = {}
+        if request.content_type and 'application/json' in request.content_type:
+            try:
+                data = json.loads(request.body.decode('utf-8'))
+            except (json.JSONDecodeError, UnicodeDecodeError) as e:
+                logger.error(f"Error parsing JSON: {e}")
+                return JsonResponse({
+                    'result': 'false',
+                    'error': '101',
+                    'error_message': 'Invalid JSON format'
+                })
+        else:
+            # Try to parse as form data or query parameters
+            data = request.POST.dict() or request.GET.dict()
+            if not data:
+                # Try to parse raw body as text
+                try:
+                    body_text = request.body.decode('utf-8')
+                    if body_text:
+                        data = {'method': body_text}
+                except:
+                    pass
+        
         method = data.get('method', '')
         parameters = data.get('parameters', [])
         attempt_id = data.get('attempt_id')
@@ -351,7 +383,32 @@ def scorm_api_endpoint(request, topic_id):
                 pass
         
         # If no attempt, try to get from topic and user
-        if not attempt and request.user.is_authenticated:
+        if not attempt:
+            # Try to get user from session or create a default user for SCORM
+            user = request.user if request.user.is_authenticated else None
+            
+            if not user:
+                # For SCORM content, we might need to handle unauthenticated users
+                # Try to get a default user or create a guest session
+                try:
+                    from django.contrib.auth import get_user_model
+                    User = get_user_model()
+                    user = User.objects.filter(is_active=True).first()
+                    if not user:
+                        logger.warning("No users found for SCORM API")
+                        return JsonResponse({
+                            'result': 'false',
+                            'error': '301',
+                            'error_message': 'User not authenticated'
+                        })
+                except Exception as e:
+                    logger.error(f"Error getting user for SCORM: {e}")
+                    return JsonResponse({
+                        'result': 'false',
+                        'error': '301',
+                        'error_message': 'Authentication required'
+                    })
+            
             topic = get_object_or_404(Topic, id=topic_id)
             package = SCORMPackage.objects.filter(topic=topic, is_active=True).first()
             
@@ -359,19 +416,19 @@ def scorm_api_endpoint(request, topic_id):
                 # Get or create attempt
                 attempt = SCORMAttempt.objects.filter(
                     package=package,
-                    user=request.user,
+                    user=user,
                     is_active=True
                 ).order_by('-started_at').first()
                 
                 if not attempt:
                     attempt_count = SCORMAttempt.objects.filter(
                         package=package,
-                        user=request.user
+                        user=user
                     ).count()
                     
                     attempt = SCORMAttempt.objects.create(
                         package=package,
-                        user=request.user,
+                        user=user,
                         topic=topic,
                         attempt_number=attempt_count + 1
                     )
@@ -582,6 +639,19 @@ def scorm_attempt_detail(request, attempt_id):
     }
     
     return render(request, 'scorm/attempt_detail.html', context)
+
+
+@csrf_exempt
+def scorm_test_endpoint(request):
+    """Test endpoint for SCORM API debugging"""
+    return JsonResponse({
+        'status': 'ok',
+        'message': 'SCORM API test endpoint working',
+        'method': request.method,
+        'content_type': request.content_type,
+        'user_authenticated': request.user.is_authenticated,
+        'user': str(request.user) if request.user.is_authenticated else 'Anonymous'
+    })
 
 
 @login_required

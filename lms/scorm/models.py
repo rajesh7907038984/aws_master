@@ -132,7 +132,12 @@ class SCORMPackage(models.Model):
         
         # Construct S3 URL or local URL based on storage
         if self.extracted_path:
-            base_url = default_storage.url(self.extracted_path)
+            # Remove 'media/' prefix if it exists since default_storage.url() adds it automatically
+            path = self.extracted_path
+            if path.startswith('media/'):
+                path = path[6:]  # Remove 'media/' prefix
+            
+            base_url = default_storage.url(path)
             return f"{base_url}/{self.launch_file}"
         return ""
     

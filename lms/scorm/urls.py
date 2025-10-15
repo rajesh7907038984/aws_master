@@ -16,6 +16,7 @@ urlpatterns = [
     
     # API Endpoints
     path('api/<int:topic_id>/', views.scorm_api_endpoint, name='api_endpoint'),
+    path('test/', views.scorm_test_endpoint, name='test_endpoint'),
     
     # Attempt Management
     path('attempts/', views.scorm_user_attempts, name='user_attempts'),
