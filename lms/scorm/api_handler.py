@@ -164,6 +164,18 @@ class ScormAPIHandler:
             # CRITICAL FIX: Always reinitialize CMI data to ensure proper defaults
             self.attempt.cmi_data.update(self._initialize_cmi_data())
             
+            # CRITICAL FIX: Clear stale exit flags on initialization to prevent auto-closing on revisit
+            if self.attempt.cmi_data.get('_content_initiated_exit') == 'true':
+                logger.info(f"🧹 CLEARING STALE EXIT FLAG: Removing previous exit flag to prevent auto-closing on revisit")
+                self.attempt.cmi_data['_content_initiated_exit'] = 'false'
+                
+                # Also clear auto-exit detection flags from detailed tracking
+                if self.attempt.detailed_tracking and self.attempt.detailed_tracking.get('auto_exit_detected'):
+                    from django.utils import timezone
+                    logger.info(f"🧹 CLEARING AUTO-EXIT TRACKING: Removing previous auto-exit detection data")
+                    self.attempt.detailed_tracking['auto_exit_detected'] = False
+                    self.attempt.detailed_tracking['exit_cleared_on_init'] = timezone.now().isoformat()
+            
             # ENHANCED: Auto-detect resume capability based on SCORM package type and data
             should_resume = self._auto_detect_resume_capability()
             
@@ -1323,12 +1335,25 @@ class ScormAPIHandler:
                 exit_method = f'scorm_exit_{exit_value}'
                 logger.info(f"✅ SCORM exit element detected: {exit_value}")
             
-            # Method 3: Lesson status indicates completion/exit
+            # Method 3: Lesson status indicates completion/exit (but be conservative on revisit)
             lesson_status = self.attempt.cmi_data.get('cmi.core.lesson_status') or self.attempt.cmi_data.get('cmi.completion_status')
+            
+            # CRITICAL FIX: Only trigger completion-based exit if it's a fresh completion, not on revisit
             if lesson_status in ['completed', 'passed', 'failed']:
-                exit_detected = True
-                exit_method = f'completion_exit_{lesson_status}'
-                logger.info(f"✅ Completion-based exit detected: {lesson_status}")
+                # Check if this is a fresh completion or stale data from previous session
+                from django.utils import timezone
+                from datetime import timedelta
+                
+                # If last accessed more than 5 minutes ago, this might be stale completion data
+                time_since_access = timezone.now() - self.attempt.last_accessed if self.attempt.last_accessed else timedelta(hours=1)
+                is_fresh_completion = time_since_access < timedelta(minutes=5)
+                
+                if is_fresh_completion:
+                    exit_detected = True
+                    exit_method = f'completion_exit_{lesson_status}'
+                    logger.info(f"✅ Fresh completion-based exit detected: {lesson_status}")
+                else:
+                    logger.info(f"🚫 Ignoring stale completion status on revisit: {lesson_status} (last accessed {time_since_access} ago)")
             
             # Method 4: Authoring tool specific exit patterns
             

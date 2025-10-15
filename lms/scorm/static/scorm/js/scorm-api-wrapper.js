@@ -357,17 +357,29 @@
             
             log('🔍 SCORM exit indicators - exit: "' + scormExit + '", lesson_status: "' + lessonStatus + '", completion: "' + completionStatus + '"');
             
-            // Detect exit from multiple sources
+            // CRITICAL FIX: Be more conservative about exit detection to prevent auto-closing on revisit
+            // Only exit if there's a fresh exit request, not stale data from previous sessions
             var shouldExit = (
-                exitCheck === 'true' ||
-                scormExit === 'logout' ||
-                scormExit === 'suspend' ||
-                scormExit === 'normal' ||
-                lessonStatus === 'completed' ||
-                lessonStatus === 'passed' ||
-                lessonStatus === 'failed' ||
-                completionStatus === 'completed'
+                exitCheck === 'true' && 
+                (
+                    lessonStatus === 'completed' ||
+                    lessonStatus === 'passed' ||
+                    lessonStatus === 'failed' ||
+                    completionStatus === 'completed' ||
+                    scormExit === 'normal'  // Only normal exit, not logout/suspend from previous sessions
+                )
             );
+            
+            // ENHANCED: Additional check to prevent false positives on revisit
+            if (exitCheck === 'true' && shouldExit) {
+                log('⚠️ Exit detected, but verifying it\'s not a stale flag from previous session...');
+                
+                // If lesson is incomplete and no recent completion, this might be stale
+                if (lessonStatus === 'incomplete' && scormExit === 'logout') {
+                    log('🚫 Ignoring stale exit flag - lesson is incomplete and exit mode is from previous logout');
+                    shouldExit = false;
+                }
+            }
             
             if (shouldExit) {
                 log('🚪 Content initiated exit detected - starting navigation process');
