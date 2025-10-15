@@ -31,7 +31,7 @@ class ScormS3DirectAccess:
     
     def generate_direct_url(self, scorm_package, file_path=''):
         """
-        Generate presigned S3 URL for SCORM content with temporary access
+        Generate user-based presigned S3 URL for SCORM content with extended access
         
         Args:
             scorm_package: ScormPackage instance
@@ -54,8 +54,7 @@ class ScormS3DirectAccess:
             else:
                 s3_key = f"{base_path}/{scorm_package.launch_url}"
             
-            # FIXED: Generate presigned URL for private bucket access
-            # Presigned URLs include temporary authentication tokens
+            # Generate presigned URL with extended expiry for user sessions
             try:
                 presigned_url = self.s3_client.generate_presigned_url(
                     'get_object',
@@ -63,9 +62,9 @@ class ScormS3DirectAccess:
                         'Bucket': self.bucket_name,
                         'Key': s3_key
                     },
-                    ExpiresIn=3600  # URL valid for 1 hour
+                    ExpiresIn=7200  # URL valid for 2 hours (extended for user sessions)
                 )
-                logger.info(f"Generated presigned S3 URL for: {s3_key}")
+                logger.info(f"Generated user-based presigned S3 URL for: {s3_key}")
                 return presigned_url
             except Exception as presign_error:
                 logger.error(f"Error generating presigned URL: {str(presign_error)}")

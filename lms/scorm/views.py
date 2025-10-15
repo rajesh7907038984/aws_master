@@ -369,8 +369,7 @@ document.addEventListener('DOMContentLoaded', function() {{
 @login_required
 def dedicated_scorm_player(request, topic_id):
     """
-    Dedicated SCORM Player - Clean, simple, and reliable
-    Properly handles all SCORM package types with correct launch URLs
+    Dedicated SCORM Player - User-based launch URLs with direct S3 access
     """
     # Get topic and package
     topic = get_object_or_404(
@@ -384,7 +383,7 @@ def dedicated_scorm_player(request, topic_id):
     
     scorm_package = topic.scorm_package
     
-    # Get or create attempt
+    # Get or create attempt for user
     attempt = None
     attempt_id = None
     
@@ -420,34 +419,30 @@ def dedicated_scorm_player(request, topic_id):
         
         attempt_id = attempt.id
     
-    # CRITICAL FIX: Get the correct launch URL from manifest
+    # Get correct launch URL from manifest
     correct_launch_url = _get_correct_launch_url(scorm_package)
     
-    # Generate content URLs
-    current_url = f"/scorm/content/{topic_id}/{scorm_package.launch_url}"
-    if correct_launch_url != scorm_package.launch_url:
-        correct_url = f"/scorm/content/{topic_id}/{correct_launch_url}"
-    else:
-        correct_url = current_url
-    
-    # Add attempt ID if available
-    if attempt_id:
-        current_url = f"{current_url}?attempt_id={attempt_id}"
-        correct_url = f"{correct_url}?attempt_id={attempt_id}"
+    # Generate direct S3 URL for user-based access
+    from .s3_direct import scorm_s3
+    s3_launch_url = scorm_s3.generate_direct_url(scorm_package, correct_launch_url)
+    s3_base_url = scorm_s3.get_base_url(scorm_package)
     
     # Detect package type
     package_type = _detect_package_type(scorm_package)
     
-    logger.info(f"DEDICATED PLAYER: topic={topic_id}, package_type={package_type}, current_launch={scorm_package.launch_url}, correct_launch={correct_launch_url}")
+    logger.info(f"USER-BASED PLAYER: user={request.user.username}, topic={topic_id}, s3_url={s3_launch_url}")
     
     context = {
         'topic': topic,
         'scorm_package': scorm_package,
         'attempt': attempt,
         'attempt_id': attempt_id,
-        'launch_url': current_url,
-        'correct_launch_url': correct_url,
+        'launch_url': s3_launch_url,  # Direct S3 URL
+        's3_base_url': s3_base_url,   # Base URL for relative paths
+        'api_endpoint': f'/scorm/api/{attempt_id}/' if attempt_id else None,
         'package_type': package_type,
+        'user_id': request.user.id,
+        'username': request.user.username,
     }
     
     return render(request, 'scorm/dedicated_player.html', context)

@@ -153,54 +153,197 @@
     </div>
 
     <script>
-        console.log('🚀 Dedicated SCORM Player initialized');
+        console.log('🚀 User-based SCORM Player with S3 Direct Access initialized');
         
-        // Configuration
+        // Configuration with user-based tracking
         const config = {
             topicId: {{ topic.id }},
             attemptId: {{ attempt_id|default:"null" }},
-            launchUrl: '{{ launch_url|safe }}',
-            packageType: '{{ package_type }}',
-            correctLaunchUrl: '{{ correct_launch_url|safe }}'
+            userId: {{ user_id|default:"null" }},
+            username: '{{ username|default:"" }}',
+            launchUrl: '{{ launch_url|safe }}',  // Direct S3 URL
+            s3BaseUrl: '{{ s3_base_url|safe }}',  // Base S3 URL
+            apiEndpoint: '{{ api_endpoint|safe }}',  // API endpoint for tracking
+            packageType: '{{ package_type }}'
         };
         
-        console.log('📋 Player Config:', config);
+        console.log('📋 User-based Player Config:', config);
         
         // Elements
         const loadingScreen = document.getElementById('loadingScreen');
         const errorScreen = document.getElementById('errorScreen');  
         const contentFrame = document.getElementById('contentFrame');
         
-        // Load SCORM content in isolated iframe
-        function loadContent() {
-            const url = config.correctLaunchUrl || config.launchUrl;
-            console.log('📦 Loading SCORM content:', url);
+        // Create enhanced SCORM API with better tracking
+        function createScormAPI() {
+            if (!config.attemptId || !config.apiEndpoint) {
+                console.log('⚠️ No attempt ID or API endpoint, skipping SCORM API creation');
+                return;
+            }
             
-            // Ensure SCORM API is available to iframe
-            window.API = window.API || null;
-            window.API_1484_11 = window.API_1484_11 || null;
+            // Get CSRF token
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+            
+            const csrfToken = getCookie('csrftoken');
+            
+            // Enhanced SCORM API with better error handling and logging
+            window.API = {
+                _initialized: false,
+                _lastError: '0',
+                _sessionId: Date.now().toString(),
+                
+                Initialize: function(p) { 
+                    this._initialized = true; 
+                    console.log(`[SCORM API] Initialize called for user ${config.username} (attempt ${config.attemptId})`);
+                    this._logAPI('Initialize', [p]);
+                    return 'true'; 
+                },
+                
+                Terminate: function(p) { 
+                    this._initialized = false; 
+                    console.log(`[SCORM API] Terminate called for user ${config.username}`);
+                    this._logAPI('Terminate', [p]);
+                    return 'true'; 
+                },
+                
+                GetValue: function(element) { 
+                    if (!this._initialized) {
+                        console.log('[SCORM API] GetValue called but not initialized');
+                        return '';
+                    }
+                    
+                    console.log(`[SCORM API] GetValue: ${element}`);
+                    this._logAPI('GetValue', [element]);
+                    
+                    // Make API call to Django backend
+                    this._makeAPICall('GetValue', [element], (result) => {
+                        console.log(`[SCORM API] GetValue result for ${element}:`, result);
+                    });
+                    
+                    return '';  // Return empty for async calls
+                },
+                
+                SetValue: function(element, value) { 
+                    if (!this._initialized) {
+                        console.log('[SCORM API] SetValue called but not initialized');
+                        return 'false';
+                    }
+                    
+                    console.log(`[SCORM API] SetValue: ${element} = ${value}`);
+                    this._logAPI('SetValue', [element, value]);
+                    
+                    // Make API call to Django backend
+                    this._makeAPICall('SetValue', [element, value], (result) => {
+                        console.log(`[SCORM API] SetValue result for ${element}:`, result);
+                    });
+                    
+                    return 'true';
+                },
+                
+                Commit: function(p) { 
+                    if (!this._initialized) {
+                        console.log('[SCORM API] Commit called but not initialized');
+                        return 'false';
+                    }
+                    
+                    console.log(`[SCORM API] Commit called for user ${config.username}`);
+                    this._logAPI('Commit', [p]);
+                    
+                    // Make API call to Django backend
+                    this._makeAPICall('Commit', [], (result) => {
+                        console.log(`[SCORM API] Commit result:`, result);
+                    });
+                    
+                    return 'true';
+                },
+                
+                // SCORM 1.2 compatibility
+                LMSInitialize: function(p) { return this.Initialize(p); },
+                LMSFinish: function(p) { return this.Terminate(p); },
+                LMSGetValue: function(e) { return this.GetValue(e); },
+                LMSSetValue: function(e, v) { return this.SetValue(e, v); },
+                LMSCommit: function(p) { return this.Commit(p); },
+                
+                GetLastError: function() { return this._lastError; },
+                LMSGetLastError: function() { return this._lastError; },
+                GetErrorString: function(c) { return 'No error'; },
+                LMSGetErrorString: function(c) { return 'No error'; },
+                GetDiagnostic: function(c) { return 'No error'; },
+                LMSGetDiagnostic: function(c) { return 'No error'; },
+                
+                // Enhanced methods for better tracking
+                _logAPI: function(method, params) {
+                    console.log(`[SCORM API] ${method}(${params.join(', ')}) - User: ${config.username}, Attempt: ${config.attemptId}`);
+                },
+                
+                _makeAPICall: function(method, parameters, callback) {
+                    fetch(config.apiEndpoint, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify({
+                            method: method,
+                            parameters: parameters
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (callback) callback(data.result);
+                    })
+                    .catch(error => {
+                        console.error(`[SCORM API] Error in ${method}:`, error);
+                    });
+                }
+            };
+            
+            // Also set as API_1484_11 for SCORM 2004
+            window.API_1484_11 = window.API;
+            
+            console.log('✅ Enhanced SCORM API created for user-based tracking');
+        }
+        
+        // Load SCORM content directly from S3
+        function loadContent() {
+            const url = config.launchUrl;  // Direct S3 URL
+            console.log(`📦 Loading SCORM content from S3 for user ${config.username}:`, url);
             
             contentFrame.addEventListener('load', function() {
-                console.log('✅ Content loaded successfully');
+                console.log('✅ Content loaded successfully from S3');
                 loadingScreen.style.display = 'none';
                 
-                // Ensure iframe can access SCORM API
+                // Try to expose API to iframe (may not work due to cross-origin)
                 try {
                     if (contentFrame.contentWindow && !contentFrame.contentWindow.API) {
                         contentFrame.contentWindow.API = window.API;
                         contentFrame.contentWindow.API_1484_11 = window.API_1484_11;
+                        console.log('✅ API exposed to iframe');
                     }
                 } catch (e) {
-                    console.log('Note: Cross-origin frame, API exposed via parent window');
+                    console.log('ℹ️ Cross-origin frame, API exposed via parent window');
                 }
             });
             
             contentFrame.addEventListener('error', function() {
-                console.error('❌ Content failed to load');
+                console.error('❌ Content failed to load from S3');
                 showError();
             });
             
-            // Load content
+            // Load content directly from S3
             contentFrame.src = url;
         }
         
@@ -209,11 +352,14 @@
             errorScreen.style.display = 'flex';
         }
         
+        // Initialize SCORM API first
+        createScormAPI();
+        
         // Start loading
-        console.log('🎬 Starting content load process...');
+        console.log('🎬 Starting S3 content load for user-based tracking...');
         loadContent();
         
-        console.log('✅ Dedicated SCORM Player ready');
+        console.log('✅ User-based SCORM Player with enhanced API tracking ready');
     </script>
 </body>
 </html>
