@@ -348,34 +348,73 @@
         try {
             // Check if the content set the exit flag
             var exitCheck = makeAPICall('LMSGetValue', ['_content_initiated_exit']);
+            log('🔍 Checking content exit flag: "' + exitCheck + '"');
+            
             if (exitCheck === 'true') {
-                log('Content initiated exit detected - navigating away from SCORM player');
+                log('🚪 Content initiated exit detected - starting navigation process');
                 
-                // Clear the exit flag
-                makeAPICall('LMSSetValue', ['_content_initiated_exit', 'false']);
+                // Clear the exit flag first
+                var clearResult = makeAPICall('LMSSetValue', ['_content_initiated_exit', 'false']);
+                log('🧹 Exit flag cleared, result: ' + clearResult);
                 
-                // Navigate back to topic
-                if (window.parent && window.parent.exitCourse) {
-                    window.parent.exitCourse();
-                } else if (window.top && window.top.exitCourse) {
-                    window.top.exitCourse();
-                } else {
-                    // Fallback - try to navigate using topic ID from URL
-                    var urlParts = window.location.pathname.split('/');
-                    var topicId = null;
-                    for (var i = 0; i < urlParts.length; i++) {
-                        if (urlParts[i] === 'scorm' && urlParts[i+1] === 'view' && urlParts[i+2]) {
-                            topicId = urlParts[i+2];
-                            break;
+                // Enhanced navigation with multiple methods
+                var navigationSuccess = false;
+                
+                // Method 1: Try parent window exitCourse
+                try {
+                    if (window.parent && window.parent.exitCourse && typeof window.parent.exitCourse === 'function') {
+                        log('🎯 Attempting parent.exitCourse()...');
+                        window.parent.exitCourse();
+                        navigationSuccess = true;
+                        return;
+                    }
+                } catch (e) {
+                    log('❌ Parent exitCourse failed: ' + e.message);
+                }
+                
+                // Method 2: Try top window exitCourse
+                try {
+                    if (window.top && window.top.exitCourse && typeof window.top.exitCourse === 'function') {
+                        log('🔝 Attempting top.exitCourse()...');
+                        window.top.exitCourse();
+                        navigationSuccess = true;
+                        return;
+                    }
+                } catch (e) {
+                    log('❌ Top exitCourse failed: ' + e.message);
+                }
+                
+                // Method 3: Direct URL navigation
+                if (!navigationSuccess) {
+                    try {
+                        var urlParts = window.location.pathname.split('/');
+                        var topicId = null;
+                        for (var i = 0; i < urlParts.length; i++) {
+                            if (urlParts[i] === 'scorm' && urlParts[i+1] === 'view' && urlParts[i+2]) {
+                                topicId = urlParts[i+2];
+                                break;
+                            }
                         }
+                        
+                        if (topicId) {
+                            var topicUrl = '/courses/topic/' + topicId + '/';
+                            log('🌐 Direct navigation to: ' + topicUrl);
+                            window.top.location.href = topicUrl;
+                            navigationSuccess = true;
+                        } else {
+                            log('🌐 Fallback navigation to courses list');
+                            window.top.location.href = '/courses/';
+                            navigationSuccess = true;
+                        }
+                    } catch (e) {
+                        log('❌ Direct navigation failed: ' + e.message);
                     }
-                    
-                    if (topicId) {
-                        window.top.location.href = '/courses/topic/' + topicId + '/';
-                    } else {
-                        // Ultimate fallback
-                        window.top.location.href = '/courses/';
-                    }
+                }
+                
+                // Method 4: Final fallback alert
+                if (!navigationSuccess) {
+                    log('🚨 All navigation methods failed - showing user alert');
+                    alert('Course exit requested by content. Please manually close this window to return to the course.');
                 }
             }
         } catch (e) {

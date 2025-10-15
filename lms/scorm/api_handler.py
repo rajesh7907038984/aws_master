@@ -285,6 +285,13 @@ class ScormAPIHandler:
         # NEW: Mark this as a content-initiated exit for the frontend to handle
         self.attempt.cmi_data['_content_initiated_exit'] = 'true'
         
+        # ENHANCED: Detect alternative bookmarking if standard bookmarking is empty
+        if not self.attempt.lesson_location or self.attempt.lesson_location == '':
+            logger.info("Standard lesson_location is empty, trying alternative bookmark detection...")
+            bookmark_found = self._detect_alternative_bookmark_methods()
+            if bookmark_found:
+                logger.info(f"Alternative bookmark method successful: {self.attempt.lesson_location}")
+        
         # Save all data
         self._commit_data()
         
@@ -496,6 +503,9 @@ class ScormAPIHandler:
                     logger.info(f"🚪 EXIT FLAG SET: {element} = {value} for attempt {self.attempt.id}")
                     # Force save immediately for exit flag
                     self.attempt.save(update_fields=['cmi_data', 'last_accessed'])
+                    # Return true for successful setting
+                    self.last_error = '0'
+                    return 'true'
             else:  # SCORM 2004
                 if element == 'cmi.completion_status':
                     self.attempt.completion_status = value
@@ -567,10 +577,22 @@ class ScormAPIHandler:
                     # Force save suspend data immediately
                     self.attempt.save(update_fields=['suspend_data', 'cmi_data', 'last_accessed'])
                     logger.info(f"💾 SUSPEND DATA PERSISTED: suspend_data saved to database")
+                elif element == '_content_initiated_exit':
+                    # CRITICAL FIX: Handle content-initiated exit flag setting (SCORM 2004)
+                    self.attempt.cmi_data['_content_initiated_exit'] = value
+                    logger.info(f"🚪 EXIT FLAG SET (2004): {element} = {value} for attempt {self.attempt.id}")
+                    # Force save immediately for exit flag
+                    self.attempt.save(update_fields=['cmi_data', 'last_accessed'])
+                    # Return true for successful setting
+                    self.last_error = '0'
+                    return 'true'
             
             # ENHANCED TRACKING: Use comprehensive tracking method AFTER all model fields are updated
             self.attempt.update_tracking_data(element, value)
             logger.info(f"SCORM API SetValue({element}, {value}) - stored with enhanced tracking AFTER model update")
+            
+            # SMART BOOKMARKING: Create synthetic bookmark for packages that don't use standard bookmarking
+            self._create_smart_bookmark_from_activity(element, value)
             
             self.last_error = '0'
             return 'true'
@@ -799,6 +821,13 @@ class ScormAPIHandler:
         logger.info(f"💾 COMMIT: Starting commit for attempt {self.attempt.id}")
         logger.info(f"💾 COMMIT: score_raw BEFORE save = {self.attempt.score_raw}")
         
+        # ENHANCED: Auto-detect alternative bookmarks before saving if standard bookmarking is missing
+        if (not self.attempt.lesson_location or self.attempt.lesson_location == '') and len(self.attempt.cmi_data) > 3:
+            logger.info("📍 Attempting alternative bookmark detection during commit...")
+            bookmark_detected = self._detect_alternative_bookmark_methods()
+            if bookmark_detected:
+                logger.info(f"✅ Alternative bookmark found during commit: {self.attempt.lesson_location}")
+        
         self.attempt.last_accessed = timezone.now()
         
         # Only save to database if not a preview attempt
@@ -954,6 +983,148 @@ class ScormAPIHandler:
             
         except Exception as e:
             logger.error(f"Error updating slide tracking: {str(e)}")
+            
+    def _detect_alternative_bookmark_methods(self):
+        """Detect and implement alternative bookmarking methods for different authoring tools"""
+        try:
+            logger.info(f"Detecting alternative bookmark methods for attempt {self.attempt.id}")
+            
+            # Check for various authoring tool patterns in CMI data
+            bookmark_detected = False
+            
+            # Method 1: Check for Articulate Storyline patterns
+            storyline_keys = [k for k in self.attempt.cmi_data.keys() if 'slide' in k.lower() or 'scene' in k.lower()]
+            if storyline_keys:
+                logger.info(f"Detected Articulate Storyline patterns: {storyline_keys}")
+                # Use the most recent slide/scene data as bookmark
+                for key in storyline_keys:
+                    value = self.attempt.cmi_data[key]
+                    if value and value != '':
+                        self.attempt.lesson_location = f"storyline_{key}_{value}"
+                        bookmark_detected = True
+                        break
+            
+            # Method 2: Check for Adobe Captivate patterns  
+            captivate_keys = [k for k in self.attempt.cmi_data.keys() if 'cpapi' in k.lower() or 'captivate' in k.lower()]
+            if captivate_keys:
+                logger.info(f"Detected Adobe Captivate patterns: {captivate_keys}")
+                for key in captivate_keys:
+                    value = self.attempt.cmi_data[key]
+                    if value and value != '':
+                        self.attempt.lesson_location = f"captivate_{key}_{value}"
+                        bookmark_detected = True
+                        break
+            
+            # Method 3: Check for interaction-based bookmarking
+            interaction_keys = [k for k in self.attempt.cmi_data.keys() if k.startswith('cmi.interactions.')]
+            if interaction_keys and not bookmark_detected:
+                logger.info(f"Detected interaction-based bookmarking: {len(interaction_keys)} interactions")
+                # Use the latest interaction as bookmark
+                if interaction_keys:
+                    latest_interaction = interaction_keys[-1]  # Most recent
+                    self.attempt.lesson_location = f"interaction_{latest_interaction}"
+                    bookmark_detected = True
+            
+            # Method 4: Check for objective-based bookmarking
+            objective_keys = [k for k in self.attempt.cmi_data.keys() if k.startswith('cmi.objectives.')]
+            if objective_keys and not bookmark_detected:
+                logger.info(f"Detected objective-based bookmarking: {len(objective_keys)} objectives")
+                # Find the most recently accessed objective
+                for key in objective_keys:
+                    obj_data = self.attempt.cmi_data.get(key, {})
+                    if isinstance(obj_data, dict) and obj_data.get('status') in ['incomplete', 'completed']:
+                        self.attempt.lesson_location = f"objective_{key}"
+                        bookmark_detected = True
+                        break
+            
+            # Method 5: Use session time as a basic bookmark for packages that don't support standard bookmarking
+            if not bookmark_detected and self.attempt.session_time and self.attempt.session_time != '0000:00:00.00':
+                logger.info("Using session time as fallback bookmark method")
+                self.attempt.lesson_location = f"session_time_{self.attempt.session_time}"
+                bookmark_detected = True
+            
+            if bookmark_detected:
+                logger.info(f"Alternative bookmark detected: {self.attempt.lesson_location}")
+                # Mark this as using alternative bookmarking
+                if not self.attempt.detailed_tracking:
+                    self.attempt.detailed_tracking = {}
+                self.attempt.detailed_tracking['bookmark_method'] = 'alternative_detection'
+                self.attempt.detailed_tracking['last_bookmark_update'] = timezone.now().isoformat()
+                return True
+            else:
+                logger.info("No alternative bookmark methods detected")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error detecting alternative bookmark methods: {str(e)}")
+            return False
+    
+    def _create_smart_bookmark_from_activity(self, element, value):
+        """Create intelligent bookmarks from SCORM API activity for packages that don't use standard bookmarking"""
+        try:
+            # Only create smart bookmarks if standard bookmarking is not being used
+            if self.attempt.lesson_location and self.attempt.lesson_location != '':
+                return  # Standard bookmarking is working
+            
+            # Track different types of user activity that indicate progress
+            bookmark_created = False
+            
+            # Activity Type 1: Score setting indicates quiz/assessment completion
+            if element in ['cmi.core.score.raw', 'cmi.score.raw'] and value and value != '0':
+                smart_bookmark = f"assessment_score_{value}"
+                logger.info(f"📍 Smart bookmark from score activity: {smart_bookmark}")
+                bookmark_created = True
+            
+            # Activity Type 2: Status changes indicate section completion
+            elif element in ['cmi.core.lesson_status', 'cmi.completion_status'] and value in ['incomplete', 'completed', 'passed', 'failed']:
+                smart_bookmark = f"status_change_{value}_{timezone.now().strftime('%H%M%S')}"
+                logger.info(f"📍 Smart bookmark from status change: {smart_bookmark}")
+                bookmark_created = True
+            
+            # Activity Type 3: Interaction data indicates specific content engagement
+            elif element.startswith('cmi.interactions.') and 'result' in element:
+                interaction_id = element.split('.')[2]  # Extract interaction ID
+                smart_bookmark = f"interaction_{interaction_id}_{value}"
+                logger.info(f"📍 Smart bookmark from interaction: {smart_bookmark}")
+                bookmark_created = True
+            
+            # Activity Type 4: Session time updates indicate active engagement
+            elif element in ['cmi.core.session_time', 'cmi.session_time'] and value and value != '0000:00:00.00':
+                # Only create bookmark for significant time (more than 1 minute)
+                if any(x in value for x in ['01:', '02:', '03:', '04:', '05:', '06:', '07:', '08:', '09:']):
+                    smart_bookmark = f"session_progress_{value.replace(':', '')}"
+                    logger.info(f"📍 Smart bookmark from session time: {smart_bookmark}")
+                    bookmark_created = True
+            
+            # Activity Type 5: Any API activity after significant time
+            elif hasattr(self, '_api_call_count'):
+                self._api_call_count += 1
+            else:
+                self._api_call_count = 1
+            
+            # Create bookmark based on API activity frequency
+            if not bookmark_created and hasattr(self, '_api_call_count') and self._api_call_count > 10:
+                smart_bookmark = f"api_activity_count_{self._api_call_count}"
+                logger.info(f"📍 Smart bookmark from API activity: {smart_bookmark}")
+                bookmark_created = True
+            
+            # Apply the smart bookmark
+            if bookmark_created:
+                # Don't overwrite existing bookmarks, but update if empty
+                if not self.attempt.lesson_location or self.attempt.lesson_location == '':
+                    self.attempt.lesson_location = smart_bookmark
+                    
+                    # Track smart bookmarking in detailed tracking
+                    if not self.attempt.detailed_tracking:
+                        self.attempt.detailed_tracking = {}
+                    self.attempt.detailed_tracking['smart_bookmark'] = smart_bookmark
+                    self.attempt.detailed_tracking['smart_bookmark_source'] = element
+                    self.attempt.detailed_tracking['smart_bookmark_timestamp'] = timezone.now().isoformat()
+                    
+                    logger.info(f"✅ Smart bookmark created: {smart_bookmark} (source: {element})")
+                    
+        except Exception as e:
+            logger.error(f"Error creating smart bookmark: {str(e)}")
     
     def _update_progress_calculation(self):
         """Calculate and update progress percentage based on completed slides and suspend data"""
