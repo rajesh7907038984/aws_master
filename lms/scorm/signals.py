@@ -1,74 +1,102 @@
 """
-SCORM Signals - Simplified Score Processing
-Basic SCORM score synchronization
+SCORM Signals
+Handle post-save and other signals for SCORM models
 """
-import logging
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
-from django.utils import timezone
+from django.core.files.storage import default_storage
+import logging
+
+from .models import SCORMPackage, SCORMAttempt
 
 logger = logging.getLogger(__name__)
 
 
-@receiver(post_save, sender='scorm.ScormAttempt')
-def simple_score_processor(sender, instance, created, **kwargs):
+@receiver(post_delete, sender=SCORMPackage)
+def delete_package_files(sender, instance, **kwargs):
     """
-    Simple score processor for SCORM attempts
+    Delete associated files when a SCORM package is deleted
     """
-    # Skip if this is a new attempt creation
-    if created:
-        return
-    
-    # Skip if this save was triggered by another signal
-    if getattr(instance, '_signal_processing', False):
-        return
-    
     try:
-        # Use a flag to prevent recursive signal calls
-        instance._signal_processing = True
+        # Delete package file
+        if instance.package_file:
+            if default_storage.exists(instance.package_file.name):
+                default_storage.delete(instance.package_file.name)
+                logger.info(f"Deleted package file: {instance.package_file.name}")
         
-        logger.info(f"Processing score for attempt {instance.id}")
-        
-        # Update topic progress if score is available
-        if instance.score_raw is not None and instance.score_raw > 0:
-            _update_topic_progress(instance, float(instance.score_raw))
-        
+        # Delete extracted content directory
+        if instance.extracted_path:
+            # List and delete all files in the directory
+            try:
+                dirs, files = default_storage.listdir(instance.extracted_path)
+                
+                # Delete all files
+                for file in files:
+                    file_path = f"{instance.extracted_path}/{file}"
+                    if default_storage.exists(file_path):
+                        default_storage.delete(file_path)
+                
+                # Delete all subdirectories (recursively)
+                for dir_name in dirs:
+                    dir_path = f"{instance.extracted_path}/{dir_name}"
+                    delete_directory_recursive(dir_path)
+                
+                logger.info(f"Deleted extracted content: {instance.extracted_path}")
+            except Exception as e:
+                logger.error(f"Error deleting extracted content: {str(e)}")
+    
     except Exception as e:
-        logger.error(f"Error processing attempt {instance.id}: {str(e)}")
-    finally:
-        # Clean up the flag
-        if hasattr(instance, '_signal_processing'):
-            delattr(instance, '_signal_processing')
+        logger.error(f"Error in delete_package_files signal: {str(e)}")
 
 
-def _update_topic_progress(attempt, score_value):
-    """Update TopicProgress with score"""
+def delete_directory_recursive(directory_path):
+    """
+    Recursively delete a directory and its contents in S3
+    """
     try:
-        from courses.models import TopicProgress
+        dirs, files = default_storage.listdir(directory_path)
         
-        topic = attempt.scorm_package.topic
+        # Delete all files
+        for file in files:
+            file_path = f"{directory_path}/{file}"
+            if default_storage.exists(file_path):
+                default_storage.delete(file_path)
         
-        topic_progress, created = TopicProgress.objects.get_or_create(
-            user=attempt.user,
-            topic=topic
-        )
-        
-        # Update scores
-        topic_progress.last_score = float(score_value)
-        
-        # Update best score if this is better
-        if not topic_progress.best_score or float(score_value) > topic_progress.best_score:
-            topic_progress.best_score = float(score_value)
-        
-        # Check if SCORM reports completion
-        if attempt.lesson_status in ['passed', 'completed']:
-            topic_progress.completed = True
-            topic_progress.completion_method = 'scorm'
-            topic_progress.completed_at = timezone.now()
-            logger.info(f"SCORM completed - TopicProgress marked as completed")
-        
-        topic_progress.save()
-        logger.info(f"Updated TopicProgress - score: {score_value}")
-        
+        # Delete all subdirectories (recursively)
+        for dir_name in dirs:
+            dir_path = f"{directory_path}/{dir_name}"
+            delete_directory_recursive(dir_path)
+    
     except Exception as e:
-        logger.error(f"Error updating TopicProgress: {e}")
+        logger.error(f"Error deleting directory {directory_path}: {str(e)}")
+
+
+@receiver(post_save, sender=SCORMAttempt)
+def sync_topic_progress(sender, instance, created, **kwargs):
+    """
+    Sync SCORM attempt completion with topic progress
+    """
+    if not created and instance.topic and instance.is_completed():
+        try:
+            from courses.models import TopicProgress
+            
+            topic_progress, tp_created = TopicProgress.objects.get_or_create(
+                user=instance.user,
+                topic=instance.topic
+            )
+            
+            # Update completion status
+            if not topic_progress.completed:
+                topic_progress.completed = True
+                topic_progress.completion_date = instance.completed_at
+                
+                # Update score if available
+                if instance.score_raw is not None:
+                    topic_progress.score = instance.score_raw
+                
+                topic_progress.save()
+                logger.info(f"Synced SCORM completion to topic progress: {instance}")
+        
+        except Exception as e:
+            logger.error(f"Error syncing topic progress: {str(e)}")
+

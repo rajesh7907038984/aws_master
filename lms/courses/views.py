@@ -295,8 +295,9 @@ def check_topic_edit_permission(user, topic, course, check_for='edit'):
                     elif user.branch and hasattr(course, 'branch'):
                         return course.branch == user.branch
                     return True
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Error checking course permissions: {e}")
+        # Continue with permission check
     
     # Additional check for topic-specific permissions through group roles
     # This is redundant now since check_course_edit_permission handles group access,
@@ -430,8 +431,9 @@ def course_list(request):
                     ).exists():
                         has_manage_courses = True
                         break
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Error checking role capabilities: {e}")
+            # Continue without role-based permissions
 
     # Get unique course IDs first - Updated to use new role-based permission system
     if request.user.role == 'learner':
@@ -1106,8 +1108,9 @@ def course_details(request, course_id):
                 recipient=request.user,
                 course_name=course.title
             ).order_by('-issue_date').first()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Error in certificate lookup: {e}")
+            user_certificate = None
 
     context = {
         'course': course,
@@ -1320,8 +1323,9 @@ def course_view(request, course_id):
                 recipient=request.user,
                 course_name=course.title
             ).order_by('-issue_date').first()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Error in certificate lookup: {e}")
+            user_certificate = None
 
     # Log debug information
     logger.info(f"Course view: User {request.user.username} (role: {request.user.role}) - is_enrolled: {is_enrolled}, progress: {progress}")
@@ -5442,6 +5446,9 @@ def get_course_progress(request, course_id):
         if cached_result:
             logger.debug(f"Cache hit for course progress: {cache_key}")
             return JsonResponse(cached_result)
+    except ImportError as e:
+        logger.warning(f"Cache manager not available: {str(e)}")
+        # Continue without cache
     except Exception as e:
         logger.warning(f"Cache lookup error for course {course_id}: {str(e)}")
         # Continue without cache on error
@@ -5464,7 +5471,10 @@ def get_course_progress(request, course_id):
             }
             # Cache the result using centralized cache manager
             try:
+                from scorm.cache_utils import ScormCacheManager
                 ScormCacheManager.set_with_timeout(cache_key, result, ScormCacheManager.TIMEOUT_SHORT)
+            except ImportError as e:
+                logger.warning(f"Cache manager not available for setting: {str(e)}")
             except Exception as cache_error:
                 logger.warning(f"Cache set error: {cache_error}")
             return JsonResponse(result)
@@ -5549,17 +5559,27 @@ def get_course_progress(request, course_id):
         
         # Cache the result using centralized cache manager
         try:
+            from scorm.cache_utils import ScormCacheManager
             ScormCacheManager.set_with_timeout(cache_key, result, ScormCacheManager.TIMEOUT_SHORT)
+        except ImportError as e:
+            logger.warning(f"Cache manager not available for setting: {str(e)}")
         except Exception as cache_error:
             logger.warning(f"Cache set error for course {course_id}: {cache_error}")
         
         return JsonResponse(result)
     except Exception as e:
-        import traceback
-        logger.error(f"Error getting course progress for course {course_id}: {str(e)}\n{traceback.format_exc()}")
+        # Use enhanced error logging
+        from core.utils.error_logging import log_error
+        log_error(
+            error=e,
+            request=request,
+            user=request.user if request.user.is_authenticated else None,
+            context={'function': 'get_course_progress', 'course_id': course_id}
+        )
+        
         return JsonResponse({
             'success': False,
-            'error': str(e)
+            'error': 'An error occurred while fetching course progress'
         }, status=500)
 
 @login_required

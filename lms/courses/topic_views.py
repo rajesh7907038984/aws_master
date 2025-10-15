@@ -87,6 +87,21 @@ def topic_view(request, topic_id):
         if request.user.is_authenticated:
             request.session['has_viewed_content'] = True
         
+        # Get SCORM package if this is a SCORM topic
+        scorm_package = None
+        scorm_attempt = None
+        if topic.content_type == 'SCORM':
+            try:
+                from scorm.models import SCORMPackage
+                from scorm.utils import get_topic_scorm_package, get_or_create_scorm_attempt
+                
+                scorm_package = get_topic_scorm_package(topic)
+                if scorm_package and request.user.is_authenticated:
+                    scorm_attempt = get_or_create_scorm_attempt(request.user, scorm_package, topic)
+                    logger.info(f"SCORM: Got/created attempt {scorm_attempt.id} for user {request.user.username}")
+            except Exception as e:
+                logger.error(f"Error loading SCORM package: {str(e)}")
+        
         # Build proper course content navigation context
         from courses.models import Section
         
@@ -206,7 +221,9 @@ def topic_view(request, topic_id):
             'total_topics_count': total_topics_count,
             'completed_topics_count': completed_topics_count,
             'can_access_interactive_content': can_access_interactive_content,
-            'access_warning': access_warning
+            'access_warning': access_warning,
+            'scorm_package': scorm_package,
+            'scorm_attempt': scorm_attempt
         }
         
         

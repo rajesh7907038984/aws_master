@@ -10,7 +10,7 @@ from quiz.models import Quiz, QuizAttempt, QuizRubricEvaluation
 from discussions.models import Discussion
 from conferences.models import Conference, ConferenceRubricEvaluation
 # SCORM imports for new implementation
-from scorm.models import ScormAttempt
+# from scorm.models import ScormAttempt  # temporarily disabled
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from decimal import Decimal

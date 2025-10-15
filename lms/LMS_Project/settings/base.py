@@ -126,6 +126,21 @@ LOGGING = {
             'level': 'WARNING',
             'propagate': False,
         },
+        'lms_error': {
+            'handlers': ['error_file', 'memory_file'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'lms_database_error': {
+            'handlers': ['error_file'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'lms_scorm_error': {
+            'handlers': ['error_file'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
     },
     'root': {
         'handlers': ['file', 'console'],
@@ -182,7 +197,7 @@ INSTALLED_APPS = [
     'groups',
     'branches',
     'business',
-    'scorm',  # Native SCORM support
+    'scorm',  # Native SCORM support with S3 and multiple player types
     'branch_portal',
     'LMS_Project',
     'core',
@@ -221,7 +236,8 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.gzip.GZipMiddleware',  # Enable GZIP compression for large SCORM files
     'django.middleware.security.SecurityMiddleware',
-    # 'scorm.middleware.ScormSSLExemptMiddleware',  # Disabled - not needed for simplified player
+    'scorm.middleware.ScormCSPMiddleware',  # Permissive CSP for SCORM content
+    'scorm.middleware.ScormCORSMiddleware',  # CORS for SCORM API
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -230,6 +246,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'core.middleware.session_auth_middleware.SessionAuthMiddleware',  # Session recovery
     'core.middleware.session_persistence.SessionPersistenceMiddleware',  # Session persistence
+    'core.middleware.error_logging_middleware.ErrorLoggingMiddleware',  # Enhanced error logging
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -579,6 +596,7 @@ SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 # Content Security Policy - Allow S3 content for SCORM
 # Note: Individual views can override this with more permissive policies
 SECURE_CONTENT_SECURITY_POLICY = None  # Disable default CSP, let views handle it
+SECURE_CONTENT_SECURITY_POLICY_REPORT_ONLY = False  # Disable CSP report mode
 
 # HTTPS/SSL Session Settings (addressing Django Session warnings)
 SECURE_HSTS_SECONDS = 31536000  # 1 year

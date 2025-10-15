@@ -1915,6 +1915,17 @@ class Topic(models.Model):
             logger.error(f"Error in Topic.delete(): {str(e)}")
             raise
 
+    @property
+    def scorm_package(self):
+        """Get SCORM package for this topic"""
+        if self.content_type == 'SCORM':
+            try:
+                from scorm.models import SCORMPackage
+                return SCORMPackage.objects.filter(topic=self, is_active=True, is_processed=True).first()
+            except Exception:
+                return None
+        return None
+    
     def user_has_access(self, user):
         """Check if user has access to this topic - requires course enrollment and proper permissions"""
         if user.is_superuser:

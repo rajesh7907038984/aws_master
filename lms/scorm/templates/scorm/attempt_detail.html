@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}SCORM Attempt Details{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h2><i class="fas fa-chart-line"></i> SCORM Attempt Details</h2>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Attempt Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Package:</strong> {{ attempt.package.title }}</p>
+                            <p><strong>User:</strong> {{ attempt.user.get_full_name }}</p>
+                            <p><strong>Attempt Number:</strong> {{ attempt.attempt_number }}</p>
+                            <p><strong>Status:</strong> 
+                                <span class="badge bg-{% if attempt.is_completed %}success{% else %}warning{% endif %}">
+                                    {{ attempt.lesson_status }}
+                                </span>
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Started:</strong> {{ attempt.started_at|date:"Y-m-d H:i" }}</p>
+                            <p><strong>Last Accessed:</strong> {{ attempt.last_accessed|date:"Y-m-d H:i" }}</p>
+                            {% if attempt.completed_at %}
+                            <p><strong>Completed:</strong> {{ attempt.completed_at|date:"Y-m-d H:i" }}</p>
+                            {% endif %}
+                            <p><strong>Total Time:</strong> {{ attempt.total_time }}</p>
+                        </div>
+                    </div>
+                    
+                    {% if attempt.score_raw is not None %}
+                    <div class="mt-3">
+                        <h6>Score</h6>
+                        <div class="progress" style="height: 30px;">
+                            <div class="progress-bar" role="progressbar" 
+                                 style="width: {% if attempt.score_max %}{{ attempt.score_raw|floatformat:0 }}%{% else %}0%{% endif %}">
+                                {{ attempt.score_raw }}{% if attempt.score_max %} / {{ attempt.score_max }}{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if interactions %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Interactions ({{ interactions.count }})</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Type</th>
+                                    <th>Response</th>
+                                    <th>Result</th>
+                                    <th>Timestamp</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for interaction in interactions %}
+                                <tr>
+                                    <td>{{ interaction.interaction_id }}</td>
+                                    <td>{{ interaction.interaction_type }}</td>
+                                    <td>{{ interaction.learner_response|truncatewords:10 }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if interaction.result == 'correct' %}success{% elif interaction.result == 'incorrect' %}danger{% else %}secondary{% endif %}">
+                                            {{ interaction.result }}
+                                        </span>
+                                    </td>
+                                    <td>{{ interaction.timestamp|date:"Y-m-d H:i:s" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if objectives %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Learning Objectives</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Objective ID</th>
+                                    <th>Status</th>
+                                    <th>Score</th>
+                                    <th>Progress</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for objective in objectives %}
+                                <tr>
+                                    <td>{{ objective.objective_id }}</td>
+                                    <td>{{ objective.status }}</td>
+                                    <td>
+                                        {% if objective.score_raw is not None %}
+                                            {{ objective.score_raw }}{% if objective.score_max %}/{{ objective.score_max }}{% endif %}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if objective.progress_measure is not None %}
+                                            {{ objective.progress_measure|floatformat:0 }}%
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5>API Events (Last 100)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Event</th>
+                                    <th>Element</th>
+                                    <th>Value</th>
+                                    <th>Result</th>
+                                    <th>Timestamp</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for event in events %}
+                                <tr>
+                                    <td><code>{{ event.event_type }}</code></td>
+                                    <td><small>{{ event.element|truncatewords:5 }}</small></td>
+                                    <td><small>{{ event.value|truncatewords:5 }}</small></td>
+                                    <td>{{ event.result }}</td>
+                                    <td><small>{{ event.timestamp|date:"H:i:s" }}</small></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <a href="{% url 'scorm:user_attempts' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Attempts
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

@@ -1,6 +1,6 @@
 """
 SCORM Module for LMS
-Handles SCORM 1.2 and SCORM 2004 package parsing, playback, and tracking
+Handles SCORM package uploads, different player types, and user interaction tracking
 """
-__version__ = '1.0.0'
+default_app_config = 'scorm.apps.ScormConfig'
 
