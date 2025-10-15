@@ -221,7 +221,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.gzip.GZipMiddleware',  # Enable GZIP compression for large SCORM files
     'django.middleware.security.SecurityMiddleware',
-    'scorm.middleware.ScormSSLExemptMiddleware',  # SCORM SSL bypass (must be after SecurityMiddleware)
+    # 'scorm.middleware.ScormSSLExemptMiddleware',  # Disabled - not needed for simplified player
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',

@@ -211,6 +211,66 @@ class ScormAttempt(models.Model):
         unique_together = ['user', 'scorm_package', 'attempt_number']
         ordering = ['-started_at']
     
+    def clean(self):
+        """Validate SCORM attempt data"""
+        from decimal import Decimal
+        from django.core.exceptions import ValidationError
+        
+        super().clean()
+        
+        # Validate score fields
+        if self.score_raw is not None:
+            try:
+                raw_score = Decimal(str(self.score_raw))
+                if raw_score < 0:
+                    raise ValidationError({'score_raw': 'Raw score cannot be negative'})
+            except (ValueError, TypeError):
+                raise ValidationError({'score_raw': 'Invalid raw score format'})
+        
+        if self.score_min is not None and self.score_max is not None:
+            try:
+                min_score = Decimal(str(self.score_min))
+                max_score = Decimal(str(self.score_max))
+                if min_score >= max_score:
+                    raise ValidationError({
+                        'score_min': 'Minimum score must be less than maximum score'
+                    })
+            except (ValueError, TypeError):
+                raise ValidationError({'score_min': 'Invalid score range format'})
+        
+        # Validate scaled score is between 0 and 1
+        if self.score_scaled is not None:
+            try:
+                scaled_score = Decimal(str(self.score_scaled))
+                if scaled_score < 0 or scaled_score > 1:
+                    raise ValidationError({
+                        'score_scaled': 'Scaled score must be between 0 and 1'
+                    })
+            except (ValueError, TypeError):
+                raise ValidationError({'score_scaled': 'Invalid scaled score format'})
+        
+        # Validate time format (SCORM format: HH:MM:SS.SS)
+        if self.total_time and self.total_time != '0000:00:00.00':
+            import re
+            time_pattern = r'^\d{4}:\d{2}:\d{2}\.\d{2}$'
+            if not re.match(time_pattern, self.total_time):
+                raise ValidationError({
+                    'total_time': 'Time must be in SCORM format (HHHH:MM:SS.SS)'
+                })
+        
+        # Validate lesson status
+        valid_statuses = [choice[0] for choice in self.STATUS_CHOICES]
+        if self.lesson_status not in valid_statuses:
+            raise ValidationError({
+                'lesson_status': f'Invalid lesson status. Must be one of: {valid_statuses}'
+            })
+        
+        # Validate attempt number
+        if self.attempt_number < 1:
+            raise ValidationError({
+                'attempt_number': 'Attempt number must be at least 1'
+            })
+    
     def save(self, *args, **kwargs):
         """Initialize JSON fields if None and ensure tracking data persistence"""
         self.cmi_data = self.cmi_data or {}
@@ -238,9 +298,21 @@ class ScormAttempt(models.Model):
         return f"{self.user.username} - {self.scorm_package.title} - Attempt {self.attempt_number}"
     
     def get_percentage_score(self):
-        """Calculate percentage score"""
+        """Calculate percentage score using Decimal for precision"""
+        from decimal import Decimal, ROUND_HALF_UP
+        
         if self.score_raw is not None and self.score_max:
-            return (float(self.score_raw) / float(self.score_max)) * 100
+            try:
+                raw_score = Decimal(str(self.score_raw))
+                max_score = Decimal(str(self.score_max))
+                
+                if max_score == 0:
+                    return None
+                
+                percentage = (raw_score / max_score) * Decimal('100')
+                return percentage.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            except (ValueError, TypeError, ZeroDivisionError):
+                return None
         return None
     
     def is_passed(self):

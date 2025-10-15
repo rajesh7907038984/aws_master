@@ -61,39 +61,23 @@ def detect_package_type(launch_url):
 
 def get_s3_direct_url(scorm_package, path=''):
     """
-    Generate direct S3 URL for SCORM content
+    Generate presigned S3 URL for SCORM content to avoid access denied issues
     """
     try:
-        # Get S3 settings
-        bucket_name = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', None)
-        region_name = getattr(settings, 'AWS_S3_REGION_NAME', 'us-east-1')
-        custom_domain = getattr(settings, 'AWS_S3_CUSTOM_DOMAIN', None)
+        # Import the S3 direct access utility
+        from .s3_direct import scorm_s3
         
-        if not bucket_name:
-            logger.error("AWS_STORAGE_BUCKET_NAME not configured")
-            return None
-        
-        # Build the S3 path
-        base_path = scorm_package.extracted_path
-        if not base_path:
-            logger.error(f"No extracted_path for package {scorm_package.id}")
-            return None
-        
-        # Combine paths
+        # Generate presigned URL using the existing utility
         if path:
-            full_path = f"{base_path}/{path}".replace('//', '/')
+            s3_url = scorm_s3.generate_direct_url(scorm_package, path)
         else:
-            full_path = f"{base_path}/{scorm_package.launch_url}".replace('//', '/')
+            s3_url = scorm_s3.generate_launch_url(scorm_package)
         
-        # Generate URL
-        if custom_domain:
-            # Use CloudFront or custom domain
-            s3_url = f"https://{custom_domain}/{full_path}"
-        else:
-            # Use direct S3 URL
-            s3_url = f"https://{bucket_name}.s3.{region_name}.amazonaws.com/{full_path}"
-        
-        logger.info(f"Generated S3 URL: {s3_url}")
+        if not s3_url:
+            logger.error(f"Failed to generate presigned URL for package {scorm_package.id}")
+            return None
+            
+        logger.info(f"Generated presigned S3 URL for SCORM package {scorm_package.id}")
         return s3_url
         
     except Exception as e:
@@ -119,11 +103,12 @@ def scorm_player(request, topic_id):
         package_type = detect_package_type(scorm_package.launch_url)
         logger.info(f"Detected package type: {package_type} for {scorm_package.launch_url}")
         
-        # Get direct S3 URL
-        launch_url = get_s3_direct_url(scorm_package)
+        # For HTML files, use Django proxy to inject SCORM API
+        # For other resources, they'll be loaded directly from S3
+        launch_url = f"/scorm/content/{topic_id}/{scorm_package.launch_url}"
         
-        if not launch_url:
-            return HttpResponse("Could not generate SCORM content URL", status=500)
+        # Log the launch URL for debugging
+        logger.info(f"Using proxied launch URL: {launch_url} for package type: {package_type}")
         
         # Create or get attempt for tracking (optional, works without auth)
         attempt_id = None
@@ -257,7 +242,7 @@ def scorm_api_lite(request, topic_id):
 @xframe_options_exempt
 def scorm_direct_content(request, topic_id, path=''):
     """
-    Direct proxy to S3 content with minimal processing
+    Direct proxy to S3 content with minimal processing - uses presigned URLs
     """
     try:
         topic = get_object_or_404(Topic, id=topic_id)
@@ -266,21 +251,28 @@ def scorm_direct_content(request, topic_id, path=''):
         if not scorm_package:
             return HttpResponse("No SCORM package", status=404)
         
-        # Get S3 URL for the requested path
-        s3_url = get_s3_direct_url(scorm_package, path)
+        # Import S3 utility
+        from .s3_direct import scorm_s3
+        
+        # Generate presigned URL for the requested path
+        if path:
+            s3_url = scorm_s3.generate_direct_url(scorm_package, path)
+        else:
+            s3_url = scorm_s3.generate_launch_url(scorm_package)
         
         if not s3_url:
+            logger.error(f"Could not generate URL for path: {path}")
             return HttpResponse("Content not found", status=404)
         
-        # For non-HTML files, redirect directly to S3
+        # For non-HTML files, redirect directly to presigned S3 URL
         if not path.endswith(('.html', '.htm')):
             from django.http import HttpResponseRedirect
             response = HttpResponseRedirect(s3_url)
             response['Access-Control-Allow-Origin'] = '*'
-            response['Cache-Control'] = 'public, max-age=3600'
+            response['Cache-Control'] = 'private, max-age=7200'  # Match presigned URL expiry
             return response
         
-        # For HTML files, fetch and inject minimal SCORM API
+        # For HTML files, fetch and inject SCORM API
         import requests
         
         try:
@@ -292,65 +284,181 @@ def scorm_direct_content(request, topic_id, path=''):
             
             content = s3_response.text
             
-            # Inject minimal SCORM API only if needed
-            if 'scormdriver' in path or 'story.html' in path or 'index' in path:
-                api_script = f'''
+            # Fix relative paths to use our proxy endpoint
+            # This ensures all resources go through our server
+            content = content.replace('src="', f'src="/scorm/content/{topic_id}/')
+            content = content.replace("src='", f"src='/scorm/content/{topic_id}/")
+            content = content.replace('href="', f'href="/scorm/content/{topic_id}/')
+            content = content.replace("href='", f"href='/scorm/content/{topic_id}/")
+            
+            # Fix paths that already have ./ or ../
+            content = content.replace(f'/scorm/content/{topic_id}/./', f'/scorm/content/{topic_id}/')
+            content = content.replace(f'/scorm/content/{topic_id}/../', f'/scorm/content/{topic_id}/')
+            content = content.replace(f'/scorm/content/{topic_id}/http', 'http')  # Don't break absolute URLs
+            content = content.replace(f'/scorm/content/{topic_id}//', f'/scorm/content/{topic_id}/')  # Fix double slashes
+            
+            # Get base path for relative URL resolution
+            if '/' in path:
+                base_path = '/'.join(path.split('/')[:-1]) + '/'
+            else:
+                base_path = ''
+            
+            # Enhanced SCORM API injection - works for all package types
+            api_script = f'''
 <script>
-// Minimal SCORM API for compatibility
+// SCORM API Bridge - Full implementation for cross-origin compatibility
 (function() {{
-    if (window.API || window.API_1484_11) return;
+    console.log('Initializing SCORM API Bridge...');
     
+    // Check if API already exists
+    if (window.API || window.API_1484_11) {{
+        console.log('SCORM API already exists, skipping initialization');
+        return;
+    }}
+    
+    // SCORM 1.2 API
     var API = {{
-        LMSInitialize: function() {{ return "true"; }},
-        LMSFinish: function() {{ return "true"; }},
-        LMSGetValue: function(key) {{ 
-            var defaults = {{
-                "cmi.core.student_name": "Guest",
-                "cmi.core.student_id": "guest",
-                "cmi.core.lesson_status": "incomplete",
-                "cmi.core.credit": "credit",
-                "cmi.core.entry": "ab-initio",
-                "cmi.core.lesson_mode": "normal",
-                "cmi.core.total_time": "0000:00:00.00"
-            }};
-            return defaults[key] || "";
+        _initialized: false,
+        _data: {{}},
+        
+        LMSInitialize: function(param) {{
+            console.log('SCORM 1.2: Initialize');
+            this._initialized = true;
+            this._data['cmi.core.student_name'] = 'Guest User';
+            this._data['cmi.core.student_id'] = 'guest';
+            this._data['cmi.core.lesson_status'] = 'incomplete';
+            this._data['cmi.core.credit'] = 'credit';
+            this._data['cmi.core.entry'] = 'ab-initio';
+            this._data['cmi.core.lesson_mode'] = 'normal';
+            this._data['cmi.core.lesson_location'] = '';
+            this._data['cmi.core.total_time'] = '0000:00:00.00';
+            this._data['cmi.core.session_time'] = '0000:00:00.00';
+            this._data['cmi.core.score.raw'] = '';
+            this._data['cmi.core.score.min'] = '0';
+            this._data['cmi.core.score.max'] = '100';
+            this._data['cmi.suspend_data'] = '';
+            this._data['cmi.launch_data'] = '';
+            return 'true';
         }},
-        LMSSetValue: function(key, val) {{ return "true"; }},
-        LMSCommit: function() {{ return "true"; }},
-        LMSGetLastError: function() {{ return "0"; }},
-        LMSGetErrorString: function() {{ return "No error"; }},
-        LMSGetDiagnostic: function() {{ return ""; }}
+        
+        LMSFinish: function(param) {{
+            console.log('SCORM 1.2: Finish');
+            this._initialized = false;
+            return 'true';
+        }},
+        
+        LMSGetValue: function(key) {{
+            console.log('SCORM 1.2: GetValue', key);
+            return this._data[key] || '';
+        }},
+        
+        LMSSetValue: function(key, value) {{
+            console.log('SCORM 1.2: SetValue', key, '=', value);
+            this._data[key] = value;
+            return 'true';
+        }},
+        
+        LMSCommit: function(param) {{
+            console.log('SCORM 1.2: Commit');
+            return 'true';
+        }},
+        
+        LMSGetLastError: function() {{ return '0'; }},
+        LMSGetErrorString: function(code) {{ return 'No error'; }},
+        LMSGetDiagnostic: function(code) {{ return ''; }}
     }};
     
-    // SCORM 1.2 compatibility
+    // SCORM 2004 API
+    var API_1484_11 = {{
+        _initialized: false,
+        _data: {{}},
+        
+        Initialize: function(param) {{
+            console.log('SCORM 2004: Initialize');
+            this._initialized = true;
+            this._data['cmi.learner_name'] = 'Guest User';
+            this._data['cmi.learner_id'] = 'guest';
+            this._data['cmi.completion_status'] = 'incomplete';
+            this._data['cmi.success_status'] = 'unknown';
+            this._data['cmi.entry'] = 'ab-initio';
+            this._data['cmi.mode'] = 'normal';
+            this._data['cmi.location'] = '';
+            this._data['cmi.total_time'] = 'PT0H0M0S';
+            this._data['cmi.session_time'] = 'PT0H0M0S';
+            this._data['cmi.score.raw'] = '';
+            this._data['cmi.score.min'] = '0';
+            this._data['cmi.score.max'] = '100';
+            this._data['cmi.score.scaled'] = '';
+            this._data['cmi.suspend_data'] = '';
+            this._data['cmi.launch_data'] = '';
+            return 'true';
+        }},
+        
+        Terminate: function(param) {{
+            console.log('SCORM 2004: Terminate');
+            this._initialized = false;
+            return 'true';
+        }},
+        
+        GetValue: function(key) {{
+            console.log('SCORM 2004: GetValue', key);
+            return this._data[key] || '';
+        }},
+        
+        SetValue: function(key, value) {{
+            console.log('SCORM 2004: SetValue', key, '=', value);
+            this._data[key] = value;
+            return 'true';
+        }},
+        
+        Commit: function(param) {{
+            console.log('SCORM 2004: Commit');
+            return 'true';
+        }},
+        
+        GetLastError: function() {{ return '0'; }},
+        GetErrorString: function(code) {{ return 'No error'; }},
+        GetDiagnostic: function(code) {{ return ''; }}
+    }};
+    
+    // Set APIs globally
     window.API = API;
+    window.API_1484_11 = API_1484_11;
     
-    // SCORM 2004 compatibility
-    window.API_1484_11 = {{
-        Initialize: function() {{ return "true"; }},
-        Terminate: function() {{ return "true"; }},
-        GetValue: function(key) {{ return API.LMSGetValue(key); }},
-        SetValue: function(key, val) {{ return "true"; }},
-        Commit: function() {{ return "true"; }},
-        GetLastError: function() {{ return "0"; }},
-        GetErrorString: function() {{ return "No error"; }},
-        GetDiagnostic: function() {{ return ""; }}
-    }};
+    // Also set on parent for packages that look there
+    if (window.parent && window.parent !== window) {{
+        window.parent.API = API;
+        window.parent.API_1484_11 = API_1484_11;
+    }}
+    
+    console.log('SCORM API Bridge initialized successfully');
 }})();
+
+// Fix for packages that look for API in parent frames
+if (!window.API && window.parent && window.parent.API) {{
+    window.API = window.parent.API;
+}}
+if (!window.API_1484_11 && window.parent && window.parent.API_1484_11) {{
+    window.API_1484_11 = window.parent.API_1484_11;
+}}
 </script>
+<base href="/scorm/content/{topic_id}/{base_path}">
 '''
-                
-                # Inject before </head> or at start
-                if '</head>' in content:
-                    content = content.replace('</head>', api_script + '</head>')
-                else:
-                    content = api_script + content
+            
+            # Inject API at the beginning of <head> or at start of document
+            if '<head>' in content:
+                content = content.replace('<head>', '<head>' + api_script)
+            elif '<HEAD>' in content:
+                content = content.replace('<HEAD>', '<HEAD>' + api_script)
+            else:
+                # No head tag, inject at beginning
+                content = api_script + content
             
             # Return processed content
             response = HttpResponse(content, content_type='text/html; charset=utf-8')
             response['Access-Control-Allow-Origin'] = '*'
             response['X-Frame-Options'] = 'ALLOWALL'
-            response['Cache-Control'] = 'public, max-age=3600'
+            response['Cache-Control'] = 'private, max-age=3600'
             return response
             
         except requests.RequestException as e:

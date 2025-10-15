@@ -264,50 +264,87 @@ class Quiz(models.Model):
         return None
 
     def can_start_new_attempt(self, user):
-        """Check if user can start a new attempt"""
-        # Clean up stale attempts first
-        self.clean_stale_attempts(user)
+        """Check if user can start a new attempt with improved concurrent handling"""
+        from django.db import transaction
+        import logging
         
-        # If user has reached max concurrent attempts, try to clean up stuck attempts
-        if self.get_concurrent_attempts(user) >= self.max_concurrent_attempts:
-            # Check if any of the concurrent attempts are actually stuck (no recent activity)
-            stuck_time = timezone.now() - timezone.timedelta(minutes=30)
-            stuck_attempts = self.attempts.filter(
-                user=user,
-                is_completed=False,
-                last_activity__lt=stuck_time
-            )
-            if stuck_attempts.exists():
-                # Clean up stuck attempts
-                from .models import UserAnswer
-                UserAnswer.objects.filter(attempt__in=stuck_attempts).delete()
-                stuck_attempts.delete()
-                # Recheck after cleanup
-                if self.get_concurrent_attempts(user) >= self.max_concurrent_attempts:
+        logger = logging.getLogger(__name__)
+        
+        try:
+            with transaction.atomic():
+                # Clean up stale attempts first
+                self.clean_stale_attempts(user)
+                
+                # Get current concurrent attempts with lock
+                concurrent_attempts = self.attempts.select_for_update().filter(
+                    user=user,
+                    is_completed=False
+                )
+                
+                # Check if any attempts are actually stuck (no recent activity for 30+ minutes)
+                stuck_time = timezone.now() - timezone.timedelta(minutes=30)
+                stuck_attempts = concurrent_attempts.filter(last_activity__lt=stuck_time)
+                
+                if stuck_attempts.exists():
+                    logger.info(f"Cleaning up {stuck_attempts.count()} stuck attempts for user {user.id}")
+                    # Clean up stuck attempts
+                    from .models import UserAnswer
+                    UserAnswer.objects.filter(attempt__in=stuck_attempts).delete()
+                    stuck_attempts.delete()
+                
+                # Recheck concurrent attempts after cleanup
+                current_concurrent = self.get_concurrent_attempts(user)
+                
+                if current_concurrent >= self.max_concurrent_attempts:
+                    logger.warning(f"User {user.id} has reached max concurrent attempts ({current_concurrent}/{self.max_concurrent_attempts})")
                     return False
-            else:
-                return False
-        
-        if not self.is_available_for_user(user):
+                
+                # Check if quiz is available
+                if not self.is_available_for_user(user):
+                    logger.warning(f"Quiz {self.id} not available for user {user.id}")
+                    return False
+                
+                return True
+                
+        except Exception as e:
+            logger.error(f"Error checking if user {user.id} can start new attempt for quiz {self.id}: {str(e)}", exc_info=True)
             return False
-            
-        return True
         
     def clean_stale_attempts(self, user):
-        """Clean up stale incomplete attempts"""
-        stale_time = timezone.now() - timezone.timedelta(hours=1)
-        stale_attempts = self.attempts.filter(
-            user=user,
-            is_completed=False,
-            last_activity__lt=stale_time
-        )
-        count = stale_attempts.count()
-        if count > 0:
-            # Delete associated answers first for data integrity
-            from .models import UserAnswer
-            UserAnswer.objects.filter(attempt__in=stale_attempts).delete()
-            stale_attempts.delete()
-        return count
+        """Clean up stale incomplete attempts with improved error handling"""
+        from django.db import transaction
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        
+        try:
+            with transaction.atomic():
+                stale_time = timezone.now() - timezone.timedelta(hours=1)
+                stale_attempts = self.attempts.select_for_update().filter(
+                    user=user,
+                    is_completed=False,
+                    last_activity__lt=stale_time
+                )
+                
+                count = stale_attempts.count()
+                if count > 0:
+                    logger.info(f"Cleaning up {count} stale attempts for user {user.id}")
+                    
+                    # Get attempt IDs before deletion for logging
+                    attempt_ids = list(stale_attempts.values_list('id', flat=True))
+                    
+                    # Delete associated answers first for data integrity
+                    from .models import UserAnswer
+                    deleted_answers = UserAnswer.objects.filter(attempt__in=stale_attempts).delete()
+                    deleted_attempts = stale_attempts.delete()
+                    
+                    logger.info(f"Cleaned up {deleted_answers[0]} answers and {deleted_attempts[0]} attempts: {attempt_ids}")
+                
+                return count
+                
+        except Exception as e:
+            logger.error(f"Error cleaning stale attempts for user {user.id}: {str(e)}", exc_info=True)
+            return 0
     
     def clean_expired_attempts(self, user=None):
         """Clean up expired incomplete attempts"""
@@ -622,6 +659,45 @@ class QuizAttempt(models.Model):
             models.Index(fields=['user', '-start_time']),
             models.Index(fields=['is_completed']),
         ]
+    
+    def clean(self):
+        """Validate quiz attempt data"""
+        from decimal import Decimal
+        from django.core.exceptions import ValidationError
+        
+        super().clean()
+        
+        # Validate score is within valid range
+        if self.score is not None:
+            try:
+                score_decimal = Decimal(str(self.score))
+                if score_decimal < 0:
+                    raise ValidationError({'score': 'Score cannot be negative'})
+                if score_decimal > 100:
+                    raise ValidationError({'score': 'Score cannot exceed 100%'})
+            except (ValueError, TypeError):
+                raise ValidationError({'score': 'Invalid score format'})
+        
+        # Validate time fields
+        if self.end_time and self.start_time:
+            if self.end_time < self.start_time:
+                raise ValidationError({'end_time': 'End time cannot be before start time'})
+        
+        # Validate active time doesn't exceed total time
+        if self.active_time_seconds and self.duration:
+            total_seconds = int(self.duration.total_seconds())
+            if self.active_time_seconds > total_seconds:
+                raise ValidationError({
+                    'active_time_seconds': 'Active time cannot exceed total duration'
+                })
+        
+        # Validate IP address format if provided
+        if self.ip_address:
+            import ipaddress
+            try:
+                ipaddress.ip_address(self.ip_address)
+            except ValueError:
+                raise ValidationError({'ip_address': 'Invalid IP address format'})
 
     def __str__(self):
         return f"{self.user.username} - {self.quiz.title}"
@@ -632,19 +708,91 @@ class QuizAttempt(models.Model):
         return self.score >= self.quiz.passing_score
         
     def calculate_score(self):
-        """Calculate the score based on the user's answers"""
+        """Calculate the score based on the user's answers with proper decimal precision and atomic transactions"""
+        from decimal import Decimal, ROUND_HALF_UP
+        from django.db import transaction
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        
         if not self.is_completed:
-            return 0
+            return Decimal('0')
             
-        total_points = sum(q.points for q in self.quiz.questions.all())
-        if total_points == 0:
-            return 0
-            
-        earned_points = sum(answer.question.points for answer in self.user_answers.filter(is_correct=True))
-        percentage = round((earned_points / total_points) * 100)
-        self.score = percentage
-        self.save()
-        return percentage
+        try:
+            # Use atomic transaction to prevent race conditions
+            with transaction.atomic():
+                # Lock the attempt record to prevent concurrent modifications
+                attempt = QuizAttempt.objects.select_for_update().get(id=self.id)
+                
+                # Use Decimal for all calculations to maintain precision
+                total_points = Decimal('0')
+                earned_points = Decimal('0')
+                
+                # Calculate total points using Decimal
+                for question in attempt.quiz.questions.all():
+                    total_points += Decimal(str(question.points))
+                
+                if total_points == 0:
+                    logger.warning(f"Quiz {attempt.quiz.id} has no points assigned to questions")
+                    attempt.score = Decimal('0')
+                    attempt.save(update_fields=['score'])
+                    return Decimal('0')
+                
+                # Calculate earned points using Decimal
+                for answer in attempt.user_answers.filter(is_correct=True):
+                    earned_points += Decimal(str(answer.question.points))
+                
+                # Calculate percentage with proper decimal handling
+                percentage = (earned_points / total_points) * Decimal('100')
+                
+                # Round to 2 decimal places using proper rounding
+                percentage = percentage.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                
+                # Ensure percentage is within valid range (0-100)
+                percentage = max(Decimal('0'), min(Decimal('100'), percentage))
+                
+                # Track old score for audit trail
+                old_score = attempt.score
+                
+                # Update score field atomically
+                attempt.score = percentage
+                attempt.save(update_fields=['score'])
+                
+                # Log score change for audit trail
+                if old_score != percentage:
+                    from gradebook.score_history import ScoreHistory
+                    ScoreHistory.log_score_change(
+                        obj=attempt,
+                        old_score=old_score,
+                        new_score=percentage,
+                        changed_by=None,  # System calculation
+                        change_type='recalculated',
+                        reason='Automatic score calculation',
+                        metadata={
+                            'earned_points': float(earned_points),
+                            'total_points': float(total_points),
+                            'quiz_id': attempt.quiz.id,
+                            'user_id': attempt.user.id
+                        }
+                    )
+                
+                logger.info(f"Score calculated for attempt {attempt.id}: "
+                           f"earned={earned_points}, total={total_points}, "
+                           f"percentage={percentage}%")
+                
+                return percentage
+                
+        except Exception as e:
+            logger.error(f"Error calculating score for attempt {self.id}: {str(e)}", exc_info=True)
+            # Return 0 on error to prevent data corruption
+            try:
+                with transaction.atomic():
+                    attempt = QuizAttempt.objects.select_for_update().get(id=self.id)
+                    attempt.score = Decimal('0')
+                    attempt.save(update_fields=['score'])
+            except Exception as save_error:
+                logger.error(f"Failed to save error state for attempt {self.id}: {str(save_error)}")
+            return Decimal('0')
     
     def calculate_assessment_classification(self):
         """Calculate initial assessment classification and level percentages"""
@@ -669,13 +817,27 @@ class QuizAttempt(models.Model):
                 if user_answer and user_answer.is_correct:
                     level_points[question.assessment_level] += question.points
         
-        # Calculate percentages for each level
-        l2_percentage = round((level_points['level_2'] / total_level_points['level_2']) * 100) if total_level_points['level_2'] > 0 else 0
-        l1_percentage = round((level_points['level_1'] / total_level_points['level_1']) * 100) if total_level_points['level_1'] > 0 else 0
-        below_l1_percentage = round((level_points['below_level_1'] / total_level_points['below_level_1']) * 100) if total_level_points['below_level_1'] > 0 else 0
+        # Calculate percentages for each level using Decimal
+        from decimal import Decimal, ROUND_HALF_UP
+        
+        l2_percentage = Decimal('0')
+        l1_percentage = Decimal('0')
+        below_l1_percentage = Decimal('0')
+        
+        if total_level_points['level_2'] > 0:
+            l2_percentage = (Decimal(str(level_points['level_2'])) / Decimal(str(total_level_points['level_2']))) * Decimal('100')
+            l2_percentage = l2_percentage.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
+        
+        if total_level_points['level_1'] > 0:
+            l1_percentage = (Decimal(str(level_points['level_1'])) / Decimal(str(total_level_points['level_1']))) * Decimal('100')
+            l1_percentage = l1_percentage.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
+        
+        if total_level_points['below_level_1'] > 0:
+            below_l1_percentage = (Decimal(str(level_points['below_level_1'])) / Decimal(str(total_level_points['below_level_1']))) * Decimal('100')
+            below_l1_percentage = below_l1_percentage.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
         
         # Total percentage (already calculated in self.score)
-        total_percentage = float(self.score)
+        total_percentage = Decimal(str(self.score))
         
         # Get thresholds from quiz configuration
         level2_threshold = self.quiz.level_2_percentage or 75
@@ -702,10 +864,10 @@ class QuizAttempt(models.Model):
         return {
             "student_id": self.user.id,
             "classification": classification,
-            "L2_Percentage": round(l2_percentage, 1),
-            "L1_Percentage": round(l1_percentage, 1),
-            "Below_Level1_Percentage": round(below_l1_percentage, 1),
-            "Total_Percentage": round(total_percentage, 1),
+            "L2_Percentage": float(l2_percentage),
+            "L1_Percentage": float(l1_percentage),
+            "Below_Level1_Percentage": float(below_l1_percentage),
+            "Total_Percentage": float(total_percentage),
             "thresholds": {
                 "level2_threshold": level2_threshold,
                 "level1_threshold": level1_threshold,
@@ -948,161 +1110,180 @@ class UserAnswer(models.Model):
         return f"{self.attempt.user.username} - {self.question.question_text[:50]}..."
 
     def check_answer(self):
-        """Check if the answer is correct and update points"""
+        """Check if the answer is correct and update points with atomic transaction"""
+        from django.db import transaction
+        from decimal import Decimal
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        
         try:
-            if self.question.question_type == 'multiple_select':
-                # Check if there's a single answer ID (older format)
-                if self.answer and not self.text_answer:
-                    self.is_correct = self.question.check_answer(str(self.answer.id))
-                else:
+            # Use atomic transaction to prevent race conditions
+            with transaction.atomic():
+                # Lock the user answer record
+                user_answer = UserAnswer.objects.select_for_update().get(id=self.id)
+                
+                if user_answer.question.question_type == 'multiple_select':
+                    # Check if there's a single answer ID (older format)
+                    if user_answer.answer and not user_answer.text_answer:
+                        user_answer.is_correct = user_answer.question.check_answer(str(user_answer.answer.id))
+                    else:
+                        # Try to parse the JSON string from text_answer field
+                        try:
+                            if not user_answer.text_answer:
+                                answer_ids = []
+                            elif isinstance(user_answer.text_answer, list):
+                                answer_ids = user_answer.text_answer  # Already a list
+                            else:
+                                try:
+                                    answer_ids = json.loads(user_answer.text_answer)
+                                except json.JSONDecodeError:
+                                    # In case it's not valid JSON, try splitting by comma
+                                    answer_ids = [id.strip() for id in user_answer.text_answer.split(',') if id.strip()]
+                                
+                            # Convert all IDs to strings for consistent comparison
+                            answer_ids = [str(id) for id in answer_ids if id]
+                            
+                            if not answer_ids and user_answer.answer:
+                                answer_ids = [str(user_answer.answer.id)]  # Fall back to single answer
+                            
+                            # Log the values for debugging
+                            logger.debug(f"Checking multiple select answer: {answer_ids}")
+                                
+                            # Get correct answer IDs for comparison
+                            correct_answer_ids = [str(id) for id in user_answer.question.get_correct_answers()]
+                            logger.debug(f"Correct answers: {correct_answer_ids}")
+                            
+                            # Get human-readable answer texts
+                            try:
+                                selected_answers = list(user_answer.question.answers.filter(id__in=answer_ids))
+                                selected_texts = [ans.answer_text for ans in selected_answers]
+                                logger.debug(f"Selected answer texts: {selected_texts}")
+                                
+                                correct_answers = list(user_answer.question.answers.filter(is_correct=True))
+                                correct_texts = [ans.answer_text for ans in correct_answers]
+                                logger.debug(f"Correct answer texts: {correct_texts}")
+                            except Exception as e:
+                                logger.error(f"Error getting answer texts: {e}")
+                                
+                            # Compare as sets to ignore order
+                            user_answer.is_correct = set(answer_ids) == set(correct_answer_ids)
+                            logger.debug(f"Is correct: {user_answer.is_correct}, User answers: {set(answer_ids)}, Correct answers: {set(correct_answer_ids)}")
+                            
+                            # If using answer IDs, update answer object reference
+                            if answer_ids and not user_answer.answer_id and answer_ids[0].isdigit():
+                                try:
+                                    user_answer.answer_id = answer_ids[0]
+                                except Exception as e:
+                                    logger.error(f"Error setting answer_id: {e}")
+                        except Exception as e:
+                            # If there's an error parsing, mark as incorrect
+                            logger.error(f"Error processing multiple select: {e}")
+                            user_answer.is_correct = False
+                
+                elif user_answer.question.question_type == 'multi_blank':
                     # Try to parse the JSON string from text_answer field
                     try:
-                        if not self.text_answer:
-                            answer_ids = []
-                        elif isinstance(self.text_answer, list):
-                            answer_ids = self.text_answer  # Already a list
+                        if user_answer.text_answer:
+                            if isinstance(user_answer.text_answer, str) and user_answer.text_answer.startswith('['):
+                                blank_answers = json.loads(user_answer.text_answer)
+                            elif isinstance(user_answer.text_answer, list):
+                                blank_answers = user_answer.text_answer
+                            else:
+                                # If it's comma-separated, split it
+                                blank_answers = [ans.strip() for ans in str(user_answer.text_answer).split(',') if ans.strip()]
                         else:
-                            try:
-                                answer_ids = json.loads(self.text_answer)
-                            except json.JSONDecodeError:
-                                # In case it's not valid JSON, try splitting by comma
-                                answer_ids = [id.strip() for id in self.text_answer.split(',') if id.strip()]
-                            
-                        # Convert all IDs to strings for consistent comparison
-                        answer_ids = [str(id) for id in answer_ids if id]
+                            blank_answers = []
                         
-                        if not answer_ids and self.answer:
-                            answer_ids = [str(self.answer.id)]  # Fall back to single answer
+                        user_answer.is_correct = user_answer.question.check_answer(blank_answers)
+                    except (json.JSONDecodeError, ValueError) as e:
+                        # If parsing fails, mark as incorrect
+                        logger.error(f"Error parsing multi_blank answer: {user_answer.text_answer} - {str(e)}")
+                        user_answer.is_correct = False
                         
-                        # Log the values for debugging
-                        import logging
-                        logger = logging.getLogger(__name__)
-                        logger.debug(f"Checking multiple select answer: {answer_ids}")
-                            
-                        # Get correct answer IDs for comparison
-                        correct_answer_ids = [str(id) for id in self.question.get_correct_answers()]
-                        logger.debug(f"Correct answers: {correct_answer_ids}")
+                elif user_answer.question.question_type == 'multiple_choice':
+                    if user_answer.answer:
+                        user_answer.is_correct = user_answer.question.check_answer(user_answer.answer.id)
+                    else:
+                        user_answer.is_correct = False
                         
-                        # Get human-readable answer texts
-                        try:
-                            selected_answers = list(self.question.answers.filter(id__in=answer_ids))
-                            selected_texts = [ans.answer_text for ans in selected_answers]
-                            logger.debug(f"Selected answer texts: {selected_texts}")
-                            
-                            correct_answers = list(self.question.answers.filter(is_correct=True))
-                            correct_texts = [ans.answer_text for ans in correct_answers]
-                            logger.debug(f"Correct answer texts: {correct_texts}")
-                        except Exception as e:
-                            logger.error(f"Error getting answer texts: {e}")
-                            
-                        # Compare as sets to ignore order
-                        self.is_correct = set(answer_ids) == set(correct_answer_ids)
-                        logger.debug(f"Is correct: {self.is_correct}, User answers: {set(answer_ids)}, Correct answers: {set(correct_answer_ids)}")
+                elif user_answer.question.question_type == 'true_false':
+                    # Handle true/false questions specifically
+                    if user_answer.answer:
+                        answer_text = user_answer.answer.answer_text.lower().strip()
+                    elif user_answer.text_answer:
+                        answer_text = user_answer.text_answer.lower().strip()
+                    else:
+                        user_answer.is_correct = False
+                        user_answer.save()
+                        return False
                         
-                        # If using answer IDs, update answer object reference
-                        if answer_ids and not self.answer_id and answer_ids[0].isdigit():
-                            try:
-                                self.answer_id = answer_ids[0]
-                            except Exception as e:
-                                logger.error(f"Error setting answer_id: {e}")
+                    # Check against correct answer
+                    user_answer.is_correct = user_answer.question.check_answer(answer_text)
+                
+                elif user_answer.question.question_type == 'matching':
+                    try:
+                        # Ensure matching_answers is in the right format
+                        if not user_answer.matching_answers:
+                            user_answer.is_correct = False
+                        else:
+                            # For matching questions, we need to ensure the data is in the right format
+                            # Clean up the pairs data: ensure left_item and right_item are present in each pair
+                            matching_pairs = []
+                            for pair in user_answer.matching_answers:
+                                if isinstance(pair, dict) and 'left_item' in pair and 'right_item' in pair:
+                                    matching_pairs.append({
+                                        'left_item': str(pair['left_item']).strip(),
+                                        'right_item': str(pair['right_item']).strip()
+                                    })
+                            
+                            user_answer.matching_answers = matching_pairs
+                            user_answer.is_correct = user_answer.question.check_answer(matching_pairs)
                     except Exception as e:
-                        # If there's an error parsing, mark as incorrect
-                        logger.error(f"Error processing multiple select: {e}")
-                        self.is_correct = False
-            
-            elif self.question.question_type == 'multi_blank':
-                # Try to parse the JSON string from text_answer field
-                try:
-                    if self.text_answer:
-                        if isinstance(self.text_answer, str) and self.text_answer.startswith('['):
-                            blank_answers = json.loads(self.text_answer)
-                        elif isinstance(self.text_answer, list):
-                            blank_answers = self.text_answer
+                        logger.error(f"Error checking matching answer: {e}")
+                        user_answer.is_correct = False
+                
+                elif user_answer.question.question_type == 'drag_drop_matching':
+                    try:
+                        # Handle drag drop matching questions
+                        if not user_answer.matching_answers:
+                            user_answer.is_correct = False
                         else:
-                            # If it's comma-separated, split it
-                            blank_answers = [ans.strip() for ans in str(self.text_answer).split(',') if ans.strip()]
-                    else:
-                        blank_answers = []
-                    
-                    self.is_correct = self.question.check_answer(blank_answers)
-                except (json.JSONDecodeError, ValueError):
-                    # If parsing fails, mark as incorrect
-                    print(f"Error parsing multi_blank answer: {self.text_answer}")
-                    self.is_correct = False
-                    
-            elif self.question.question_type == 'multiple_choice':
-                if self.answer:
-                    self.is_correct = self.question.check_answer(self.answer.id)
-                else:
-                    self.is_correct = False
-                    
-            elif self.question.question_type == 'true_false':
-                # Handle true/false questions specifically
-                if self.answer:
-                    answer_text = self.answer.answer_text.lower().strip()
-                elif self.text_answer:
-                    answer_text = self.text_answer.lower().strip()
-                else:
-                    self.is_correct = False
-                    return False
-                    
-                # Check against correct answer
-                self.is_correct = self.question.check_answer(answer_text)
-            
-            elif self.question.question_type == 'matching':
-                try:
-                    # Ensure matching_answers is in the right format
-                    if not self.matching_answers:
-                        self.is_correct = False
-                    else:
-                        # For matching questions, we need to ensure the data is in the right format
-                        # Clean up the pairs data: ensure left_item and right_item are present in each pair
-                        matching_pairs = []
-                        for pair in self.matching_answers:
-                            if isinstance(pair, dict) and 'left_item' in pair and 'right_item' in pair:
-                                matching_pairs.append({
-                                    'left_item': str(pair['left_item']).strip(),
-                                    'right_item': str(pair['right_item']).strip()
-                                })
-                        
-                        self.matching_answers = matching_pairs
-                        self.is_correct = self.question.check_answer(matching_pairs)
-                except Exception as e:
-                    print(f"Error checking matching answer: {e}")
-                    self.is_correct = False
-            
-            elif self.question.question_type == 'drag_drop_matching':
-                try:
-                    # Handle drag drop matching questions
-                    if not self.matching_answers:
-                        self.is_correct = False
-                    else:
-                        # Convert matching_answers list to dictionary format expected by check_answer
-                        drag_drop_dict = {}
-                        for pair in self.matching_answers:
-                            if isinstance(pair, dict) and 'left_item' in pair and 'right_item' in pair:
-                                drag_drop_dict[str(pair['left_item']).strip()] = str(pair['right_item']).strip()
-                        
-                        self.is_correct = self.question.check_answer(drag_drop_dict)
-                except Exception as e:
-                    print(f"Error checking drag drop matching answer: {e}")
-                    self.is_correct = False
-            
-            else:
-                self.is_correct = self.question.check_answer(self.text_answer)
+                            # Convert matching_answers list to dictionary format expected by check_answer
+                            drag_drop_dict = {}
+                            for pair in user_answer.matching_answers:
+                                if isinstance(pair, dict) and 'left_item' in pair and 'right_item' in pair:
+                                    drag_drop_dict[str(pair['left_item']).strip()] = str(pair['right_item']).strip()
+                            
+                            user_answer.is_correct = user_answer.question.check_answer(drag_drop_dict)
+                    except Exception as e:
+                        logger.error(f"Error checking drag drop matching answer: {e}")
+                        user_answer.is_correct = False
                 
-            if self.is_correct:
-                self.points_earned = self.question.points
-            else:
-                self.points_earned = 0
+                else:
+                    user_answer.is_correct = user_answer.question.check_answer(user_answer.text_answer)
+                    
+                # Set points earned using Decimal for precision
+                if user_answer.is_correct:
+                    user_answer.points_earned = Decimal(str(user_answer.question.points))
+                else:
+                    user_answer.points_earned = Decimal('0')
+                    
+                # Save the updated answer
+                user_answer.save()
+                return user_answer.is_correct
                 
-            self.save()
-            return self.is_correct
         except Exception as e:
-            print(f"Error checking answer: {e}")
-            self.is_correct = False
-            self.points_earned = 0
-            self.save()
+            logger.error(f"Error checking answer for UserAnswer {self.id}: {str(e)}", exc_info=True)
+            # Try to save error state
+            try:
+                with transaction.atomic():
+                    user_answer = UserAnswer.objects.select_for_update().get(id=self.id)
+                    user_answer.is_correct = False
+                    user_answer.points_earned = Decimal('0')
+                    user_answer.save()
+            except Exception as save_error:
+                logger.error(f"Failed to save error state for UserAnswer {self.id}: {str(save_error)}")
             return False
 
     def get_feedback(self):
@@ -1160,7 +1341,9 @@ class UserAnswer(models.Model):
             
             return []
         except Exception as e:
-            print(f"Error getting selected options: {e}")
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error getting selected options for UserAnswer {self.id}: {str(e)}", exc_info=True)
             return []
 
 class QuizTag(models.Model):

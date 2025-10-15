@@ -19,67 +19,121 @@ class AuthoringToolHandler:
         
     def detect_authoring_tool(self):
         """
-        Detect which authoring tool was used based on CMI data patterns
+        Enhanced detection of authoring tool based on CMI data, launch URL, and suspend data patterns
         """
-        # Check for Articulate Storyline patterns
+        # Get launch URL and suspend data for better detection
+        launch_url = str(self.attempt.scorm_package.launch_url).lower() if self.attempt.scorm_package else ''
+        suspend_data = self.attempt.suspend_data or ''
+        lesson_location = self.attempt.lesson_location or ''
+        
+        # Enhanced Articulate Storyline detection
         storyline_patterns = [
             any('slide' in k.lower() for k in self.cmi_data.keys()),
             any('scene' in k.lower() for k in self.cmi_data.keys()),
             any('storyline' in k.lower() for k in self.cmi_data.keys()),
-            'story.html' in str(self.attempt.scorm_package.launch_url).lower()
+            'story.html' in launch_url,
+            'story_html5.html' in launch_url,
+            'version_str' in suspend_data,
+            '6fOEl' in suspend_data  # Common Storyline marker
         ]
         
         if any(storyline_patterns):
+            logger.info("Detected Articulate Storyline package")
             return 'storyline'
             
-        # Check for Articulate Rise patterns
+        # Enhanced Articulate Rise detection
         rise_patterns = [
-            'scormcontent/' in str(self.attempt.scorm_package.launch_url),
-            'scormdriver/' in str(self.attempt.scorm_package.launch_url),
-            any('rise' in k.lower() for k in self.cmi_data.keys())
+            'scormcontent/' in launch_url,
+            'scormdriver/' in launch_url,
+            'index_lms.html' in launch_url,
+            'index_lms_html5.html' in launch_url,
+            any('rise' in k.lower() for k in self.cmi_data.keys()),
+            '"c":[' in suspend_data,  # Rise completion tracking
+            'lessons' in suspend_data  # Rise lessons structure
         ]
         
         if any(rise_patterns):
+            logger.info("Detected Articulate Rise 360 package")
             return 'rise'
             
-        # Check for Adobe Captivate patterns
+        # Enhanced Adobe Captivate detection
         captivate_patterns = [
             any('cpapi' in k.lower() for k in self.cmi_data.keys()),
             any('captivate' in k.lower() for k in self.cmi_data.keys()),
-            any('adobe' in k.lower() for k in self.cmi_data.keys())
+            any('adobe' in k.lower() for k in self.cmi_data.keys()),
+            'multiscreen.html' in launch_url,
+            'cpMobileCommand' in suspend_data,
+            'cpQuizInfoStudentID' in suspend_data
         ]
         
         if any(captivate_patterns):
+            logger.info("Detected Adobe Captivate package")
             return 'captivate'
             
-        # Check for Lectora patterns
+        # Enhanced Lectora detection
         lectora_patterns = [
             any('lectora' in k.lower() for k in self.cmi_data.keys()),
-            any('trivantis' in k.lower() for k in self.cmi_data.keys())
+            any('trivantis' in k.lower() for k in self.cmi_data.keys()),
+            'a001index.html' in launch_url,
+            'TrivantisTracking' in suspend_data
         ]
         
         if any(lectora_patterns):
+            logger.info("Detected Lectora package")
             return 'lectora'
             
-        # Check for iSpring patterns
+        # Enhanced iSpring detection
         ispring_patterns = [
             any('ispring' in k.lower() for k in self.cmi_data.keys()),
-            any('presentation' in k.lower() for k in self.cmi_data.keys())
+            any('presentation' in k.lower() for k in self.cmi_data.keys()),
+            'presentation.html' in launch_url,
+            lesson_location.startswith('slide'),
+            'iSpring' in suspend_data
         ]
         
         if any(ispring_patterns):
+            logger.info("Detected iSpring package")
             return 'ispring'
+        
+        # H5P detection
+        if 'h5p' in launch_url or 'H5P' in suspend_data:
+            logger.info("Detected H5P package")
+            return 'h5p'
+        
+        # Articulate Presenter detection
+        if 'presenter.html' in launch_url or 'player.html' in launch_url:
+            logger.info("Detected Articulate Presenter package")
+            return 'presenter'
+        
+        # Camtasia detection
+        if 'camtasia' in launch_url or 'TechSmith' in suspend_data:
+            logger.info("Detected Camtasia package")
+            return 'camtasia'
             
+        logger.info("Using standard SCORM handler")
         return 'standard'
     
     def update_tracking_data(self, element, value):
         """
-        Update tracking data based on authoring tool type
+        Update tracking data based on authoring tool type with automatic bookmarking and progress
         """
         tool_type = self.detect_authoring_tool()
         
         logger.info(f"Updating tracking data for {tool_type} tool: {element} = {value}")
         
+        # Automatically save suspend data for resume capability
+        if element in ['cmi.suspend_data', 'cmi.core.suspend_data']:
+            self.attempt.suspend_data = value
+            self.attempt.save(update_fields=['suspend_data', 'last_accessed'])
+            logger.info("Suspend data auto-saved for resume capability")
+        
+        # Automatically save lesson location for bookmarking
+        if element in ['cmi.core.lesson_location', 'cmi.location']:
+            self.attempt.lesson_location = value
+            self.attempt.save(update_fields=['lesson_location', 'last_accessed'])
+            logger.info(f"Bookmark auto-saved: {value}")
+        
+        # Route to specific handler based on tool type
         if tool_type == 'storyline':
             return self._update_storyline_tracking(element, value)
         elif tool_type == 'rise':
@@ -90,6 +144,12 @@ class AuthoringToolHandler:
             return self._update_lectora_tracking(element, value)
         elif tool_type == 'ispring':
             return self._update_ispring_tracking(element, value)
+        elif tool_type == 'h5p':
+            return self._update_h5p_tracking(element, value)
+        elif tool_type == 'presenter':
+            return self._update_presenter_tracking(element, value)
+        elif tool_type == 'camtasia':
+            return self._update_camtasia_tracking(element, value)
         else:
             return self._update_standard_tracking(element, value)
     
@@ -112,9 +172,10 @@ class AuthoringToolHandler:
         # Storyline score handling
         elif element == 'cmi.core.score.raw':
             try:
-                self.attempt.score_raw = float(value)
+                from decimal import Decimal
+                self.attempt.score_raw = Decimal(str(value))
                 # Auto-determine pass/fail based on score
-                if self.attempt.score_raw >= 70:  # Default passing score
+                if self.attempt.score_raw >= Decimal('70'):  # Default passing score
                     self.attempt.success_status = 'passed'
                     if self.attempt.lesson_status != 'failed':
                         self.attempt.lesson_status = 'passed'
@@ -164,7 +225,8 @@ class AuthoringToolHandler:
         # Rise score handling
         elif element in ['cmi.core.score.raw', 'cmi.score.raw']:
             try:
-                self.attempt.score_raw = float(value)
+                from decimal import Decimal
+                self.attempt.score_raw = Decimal(str(value))
             except (ValueError, TypeError):
                 pass
         
@@ -196,9 +258,10 @@ class AuthoringToolHandler:
         # Captivate score (often quiz-based)
         elif element == 'cmi.core.score.raw':
             try:
-                self.attempt.score_raw = float(value)
+                from decimal import Decimal
+                self.attempt.score_raw = Decimal(str(value))
                 # Captivate often has strict pass/fail logic
-                passing_score = 80.0  # Captivate default
+                passing_score = Decimal('80.0')  # Captivate default
                 if self.attempt.score_raw >= passing_score:
                     self.attempt.success_status = 'passed'
                     self.attempt.lesson_status = 'passed'
@@ -230,7 +293,8 @@ class AuthoringToolHandler:
             self.attempt.lesson_status = value
         elif element == 'cmi.core.score.raw':
             try:
-                self.attempt.score_raw = float(value)
+                from decimal import Decimal
+                self.attempt.score_raw = Decimal(str(value))
             except (ValueError, TypeError):
                 pass
         
@@ -249,7 +313,8 @@ class AuthoringToolHandler:
             self.attempt.lesson_status = value
         elif element == 'cmi.core.score.raw':
             try:
-                self.attempt.score_raw = float(value)
+                from decimal import Decimal
+                self.attempt.score_raw = Decimal(str(value))
             except (ValueError, TypeError):
                 pass
         
@@ -270,7 +335,8 @@ class AuthoringToolHandler:
                 self.attempt.completion_status = 'completed'
         elif element == 'cmi.core.score.raw':
             try:
-                self.attempt.score_raw = float(value)
+                from decimal import Decimal
+                self.attempt.score_raw = Decimal(str(value))
             except (ValueError, TypeError):
                 pass
         
@@ -283,7 +349,8 @@ class AuthoringToolHandler:
             self.attempt.success_status = value
         elif element == 'cmi.score.raw':
             try:
-                self.attempt.score_raw = float(value)
+                from decimal import Decimal
+                self.attempt.score_raw = Decimal(str(value))
             except (ValueError, TypeError):
                 pass
         
@@ -332,3 +399,86 @@ class AuthoringToolHandler:
                 
         except Exception as e:
             logger.warning(f"Could not parse session time {session_time}: {e}")
+    
+    def _update_h5p_tracking(self, element, value):
+        """
+        Handle H5P specific tracking with automatic progress
+        """
+        logger.info(f"Processing H5P tracking: {element} = {value}")
+        
+        # H5P specific tracking
+        if element == 'cmi.core.lesson_status':
+            self.attempt.lesson_status = value
+            if value in ['completed', 'passed']:
+                self.attempt.completion_status = 'completed'
+                self.attempt.progress_percentage = 100
+        
+        # H5P uses standard SCORM elements
+        elif element == 'cmi.core.score.raw':
+            try:
+                from decimal import Decimal
+                self.attempt.score_raw = Decimal(str(value))
+            except (ValueError, TypeError):
+                pass
+        
+        # Auto-save for persistence
+        self.attempt.last_accessed = timezone.now()
+        self.attempt.save()
+        return True
+    
+    def _update_presenter_tracking(self, element, value):
+        """
+        Handle Articulate Presenter specific tracking with slide progress
+        """
+        logger.info(f"Processing Articulate Presenter tracking: {element} = {value}")
+        
+        # Presenter specific tracking
+        if element == 'cmi.core.lesson_status':
+            self.attempt.lesson_status = value
+        
+        # Presenter uses slide-based navigation
+        elif element == 'cmi.core.lesson_location':
+            self.attempt.lesson_location = value
+            # Auto-calculate progress based on slide location
+            if value and '/' in value:
+                try:
+                    current, total = value.split('/')
+                    progress = (int(current) / int(total)) * 100
+                    self.attempt.progress_percentage = progress
+                    logger.info(f"Presenter progress: {progress}% (slide {current}/{total})")
+                except:
+                    pass
+        
+        # Auto-save for persistence
+        self.attempt.last_accessed = timezone.now()
+        self.attempt.save()
+        return True
+    
+    def _update_camtasia_tracking(self, element, value):
+        """
+        Handle Camtasia specific tracking with video progress
+        """
+        logger.info(f"Processing Camtasia tracking: {element} = {value}")
+        
+        # Camtasia video-based tracking
+        if element == 'cmi.core.lesson_status':
+            self.attempt.lesson_status = value
+            if value == 'completed':
+                self.attempt.completion_status = 'completed'
+                self.attempt.progress_percentage = 100
+        
+        # Camtasia uses time-based progress
+        elif element == 'cmi.core.lesson_location':
+            self.attempt.lesson_location = value
+            # Parse time-based location for video progress
+            if value and ':' in value:
+                logger.info(f"Camtasia video position: {value}")
+                # Store video position for resume
+                if not self.attempt.detailed_tracking:
+                    self.attempt.detailed_tracking = {}
+                self.attempt.detailed_tracking['video_position'] = value
+        
+        # Auto-save for persistence
+        self.attempt.last_accessed = timezone.now()
+        self.attempt.save()
+        return True
