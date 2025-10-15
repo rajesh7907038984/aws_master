@@ -188,7 +188,7 @@ def scorm_api(request, attempt_id):
 @login_required
 def scorm_content(request, topic_id, path):
     """
-    Simplified SCORM content serving - Fixed to properly handle S3 content
+    Simplified SCORM content serving - Fixed to properly handle S3 content and path mappings
     """
     try:
         topic = get_object_or_404(Topic, id=topic_id)
@@ -203,6 +203,22 @@ def scorm_content(request, topic_id, path):
             return HttpResponse('Invalid path', status=400)
         
         logger.info(f"SCORM Content Request: topic_id={topic_id}, path='{path}', scorm_package='{scorm_package.title}'")
+        
+        # ENHANCED: Handle common SCORM path mapping issues
+        # Fix common problematic requests from SCORM content
+        if path == 'scormcontent/false':
+            # Redirect to the actual content index
+            path = 'scormcontent/index.html'
+            logger.info(f"SCORM Path Fix: Redirected 'scormcontent/false' to '{path}'")
+        elif path.startswith('scormcontent/') and path.endswith('/false'):
+            # Handle other false path variations
+            base_path = path.replace('/false', '')
+            path = f"{base_path}/index.html"
+            logger.info(f"SCORM Path Fix: Redirected false path to '{path}'")
+        elif path == 'false' or path == 'false/':
+            # Direct false request - redirect to main content
+            path = 'scormcontent/index.html'
+            logger.info(f"SCORM Path Fix: Redirected 'false' to '{path}'")
         
         # Generate S3 URL
         from .s3_direct import scorm_s3
