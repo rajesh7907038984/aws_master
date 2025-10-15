@@ -896,6 +896,10 @@ class ScormAPIHandler:
                 # ENHANCED TRACKING: Log successful data persistence
                 logger.info(f"✅ TRACKING DATA PERSISTED: All learner progress saved to database for attempt {self.attempt.id}")
                 
+                # CRITICAL FIX: Update TopicProgress based on SCORM completion status
+                self._update_topic_progress()
+                logger.info(f"✅ TOPIC PROGRESS UPDATED: Progress only shows completed when SCORM is passed")
+                
             finally:
                 # Clean up the flag
                 if hasattr(self.attempt, '_updating_from_api_handler'):
