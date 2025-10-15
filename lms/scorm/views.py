@@ -6,17 +6,15 @@ import json
 import os
 import zipfile
 import tempfile
-import shutil
 import xml.etree.ElementTree as ET
 from typing import Optional, Dict, Any
 from datetime import datetime
 
 from django.shortcuts import render, get_object_or_404, redirect
-from django.http import JsonResponse, HttpResponse, Http404
+from django.http import JsonResponse, Http404
 from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, DeleteView
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.files.storage import default_storage
