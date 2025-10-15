@@ -515,26 +515,26 @@ class ScormAPIHandler:
             self.attempt.save()
         
         try:
-            # Handle different SCORM API methods
-            if method == 'Initialize':
+            # Handle different SCORM API methods - Support both SCORM 1.2 and 2004 naming
+            if method in ['Initialize', 'LMSInitialize']:
                 return self.initialize()
-            elif method == 'Terminate':
+            elif method in ['Terminate', 'LMSFinish']:
                 return self.terminate()
-            elif method == 'GetValue':
+            elif method in ['GetValue', 'LMSGetValue']:
                 element = parameters[0] if parameters else ''
                 return self.get_value(element)
-            elif method == 'SetValue':
+            elif method in ['SetValue', 'LMSSetValue']:
                 element = parameters[0] if len(parameters) > 0 else ''
                 value = parameters[1] if len(parameters) > 1 else ''
                 return self.set_value(element, value)
-            elif method == 'Commit':
+            elif method in ['Commit', 'LMSCommit']:
                 return self.commit()
-            elif method == 'GetLastError':
+            elif method in ['GetLastError', 'LMSGetLastError']:
                 return self.get_last_error()
-            elif method == 'GetErrorString':
+            elif method in ['GetErrorString', 'LMSGetErrorString']:
                 error_code = parameters[0] if parameters else '0'
                 return self.get_error_string(error_code)
-            elif method == 'GetDiagnostic':
+            elif method in ['GetDiagnostic', 'LMSGetDiagnostic']:
                 error_code = parameters[0] if parameters else '0'
                 return self.get_diagnostic(error_code)
             else:

@@ -73,7 +73,7 @@
     const API = {
         LMSInitialize: function(parameter) {
             log('LMSInitialize called');
-            const result = makeAPICall('Initialize', [parameter]);
+            const result = makeAPICall('LMSInitialize', [parameter]);
             if (result === 'true') {
                 config.initialized = true;
             }
@@ -82,14 +82,14 @@
         
         LMSFinish: function(parameter) {
             log('LMSFinish called');
-            const result = makeAPICall('Terminate', [parameter]);
+            const result = makeAPICall('LMSFinish', [parameter]);
             config.initialized = false;
             return result;
         },
         
         LMSGetValue: function(element) {
             log(`LMSGetValue called for: ${element}`);
-            return makeAPICall('GetValue', [element]);
+            return makeAPICall('LMSGetValue', [element]);
         },
         
         LMSSetValue: function(element, value) {
@@ -99,13 +99,13 @@
             config.data[element] = value;
             
             // Send to backend
-            const result = makeAPICall('SetValue', [element, value]);
+            const result = makeAPICall('LMSSetValue', [element, value]);
             
             // Auto-commit for certain critical values
             if (element === 'cmi.core.lesson_status' || element === 'cmi.core.score.raw') {
                 log('Auto-committing critical data');
                 setTimeout(() => {
-                    makeAPICall('Commit', ['']);
+                    makeAPICall('LMSCommit', ['']);
                 }, 100);
             }
             
@@ -114,19 +114,19 @@
         
         LMSCommit: function(parameter) {
             log('LMSCommit called - saving data to backend');
-            return makeAPICall('Commit', [parameter]);
+            return makeAPICall('LMSCommit', [parameter]);
         },
         
         LMSGetLastError: function() {
-            return makeAPICall('GetLastError', []);
+            return makeAPICall('LMSGetLastError', []);
         },
         
         LMSGetErrorString: function(errorNumber) {
-            return makeAPICall('GetErrorString', [errorNumber]);
+            return makeAPICall('LMSGetErrorString', [errorNumber]);
         },
         
         LMSGetDiagnostic: function(errorNumber) {
-            return makeAPICall('GetDiagnostic', [errorNumber]);
+            return makeAPICall('LMSGetDiagnostic', [errorNumber]);
         }
     };
     
