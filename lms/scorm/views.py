@@ -142,7 +142,10 @@ def scorm_player(request, topic_id):
             'direct_embed': True,  # Flag for direct embedding
         }
         
-        return render(request, 'scorm/player.html', context)
+        response = render(request, 'scorm/player.html', context)
+        # Override any CSP with permissive policy for SCORM content
+        response['Content-Security-Policy'] = "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval' data: blob:; worker-src * blob: data:; style-src * 'unsafe-inline'; img-src * data: blob:; font-src * data:; connect-src *; media-src * data: blob:; frame-src *; object-src 'none'"
+        return response
         
     except Exception as e:
         logger.error(f"Error in SCORM player: {e}", exc_info=True)
@@ -828,6 +831,8 @@ if (!window.API_1484_11 && window.parent && window.parent.API_1484_11) {{
             response['Access-Control-Allow-Origin'] = '*'
             response['X-Frame-Options'] = 'ALLOWALL'
             response['Cache-Control'] = 'private, max-age=3600'
+            # Override any CSP with permissive policy for SCORM content
+            response['Content-Security-Policy'] = "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval' data: blob:; worker-src * blob: data:; style-src * 'unsafe-inline'; img-src * data: blob:; font-src * data:; connect-src *; media-src * data: blob:; frame-src *; object-src 'none'"
             return response
             
         except requests.RequestException as e:
