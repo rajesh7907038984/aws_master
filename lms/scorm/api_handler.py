@@ -638,9 +638,17 @@ class ScormAPIHandler:
                     self.last_error = '0'
                     return 'true'
             
-            # ENHANCED TRACKING: Use comprehensive tracking method AFTER all model fields are updated
-            self.attempt.update_tracking_data(element, value)
-            logger.info(f"SCORM API SetValue({element}, {value}) - stored with enhanced tracking AFTER model update")
+            # ENHANCED AUTHORING TOOL TRACKING: Use authoring tool specific handler
+            try:
+                from .authoring_tool_handler import AuthoringToolHandler
+                tool_handler = AuthoringToolHandler(self.attempt)
+                tool_handler.update_tracking_data(element, value)
+                logger.info(f"✅ SCORM API SetValue({element}, {value}) - processed by authoring tool handler")
+            except Exception as e:
+                logger.warning(f"Authoring tool handler failed, using fallback: {e}")
+                # Fallback to original tracking
+                self.attempt.update_tracking_data(element, value)
+                logger.info(f"SCORM API SetValue({element}, {value}) - stored with fallback tracking")
             
             # SMART BOOKMARKING: Create synthetic bookmark for packages that don't use standard bookmarking
             self._create_smart_bookmark_from_activity(element, value)

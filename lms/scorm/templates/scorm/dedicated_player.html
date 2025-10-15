@@ -4,7 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' *.amazonaws.com *.s3.amazonaws.com https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' *.amazonaws.com https: data: blob:; style-src 'self' 'unsafe-inline' *.amazonaws.com https: data:; img-src 'self' data: blob: *.amazonaws.com https:; font-src 'self' data: *.amazonaws.com https:; connect-src 'self' *.amazonaws.com https:; media-src 'self' data: blob: *.amazonaws.com https:; frame-src 'self' *.amazonaws.com https: data:; object-src 'self' *.amazonaws.com data:; child-src 'self' *.amazonaws.com https: data:; worker-src 'self' data: blob:; manifest-src 'self';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' *.amazonaws.com *.s3.amazonaws.com https: data: blob: 'unsafe-eval' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval' *.amazonaws.com *.s3.amazonaws.com https: data: blob:; style-src 'self' 'unsafe-inline' *.amazonaws.com *.s3.amazonaws.com https: data:; img-src 'self' data: blob: *.amazonaws.com *.s3.amazonaws.com https:; font-src 'self' data: *.amazonaws.com *.s3.amazonaws.com https:; connect-src 'self' *.amazonaws.com *.s3.amazonaws.com https:; media-src 'self' data: blob: *.amazonaws.com *.s3.amazonaws.com https:; frame-src 'self' *.amazonaws.com *.s3.amazonaws.com https: data:; object-src 'self' *.amazonaws.com *.s3.amazonaws.com data:; child-src 'self' *.amazonaws.com *.s3.amazonaws.com https: data:; worker-src 'self' data: blob: 'unsafe-eval'; manifest-src 'self';">
+
     <title>{{ topic.title }} - SCORM Course</title>
     <style>
         * {
@@ -175,32 +176,119 @@
         const contentFrame = document.getElementById('contentFrame');
         const exitButton = document.getElementById('exitButton');
         
-        // Exit function - Clean and simple
+        // Exit function - Enhanced for different authoring tools
         function exitCourse() {
-            console.log('🚪 Exit button clicked - returning to course');
+            console.log('🚪 EXIT BUTTON CLICKED - Enhanced authoring tool support');
+            console.log('📦 Package Type:', config.packageType);
             
-            // Commit any SCORM data if available
+            // Enhanced SCORM data saving for different authoring tools
             if (window.API) {
                 try {
-                    console.log('💾 Saving SCORM progress...');
-                    window.API.LMSCommit('');
-                    window.API.LMSFinish('');
+                    console.log('💾 Saving SCORM progress with authoring tool support...');
+                    
+                    // Try both SCORM 1.2 and 2004 methods
+                    if (typeof window.API.LMSCommit === 'function') {
+                        console.log('💾 Using SCORM 1.2 commit...');
+                        window.API.LMSCommit('');
+                    }
+                    if (typeof window.API.Commit === 'function') {
+                        console.log('💾 Using SCORM 2004 commit...');
+                        window.API.Commit('');
+                    }
+                    
+                    // Set exit status for different authoring tools
+                    try {
+                        if (config.packageType.includes('storyline')) {
+                            console.log('📝 Setting Storyline exit status...');
+                            window.API.LMSSetValue('cmi.core.exit', 'normal');
+                        } else if (config.packageType.includes('rise')) {
+                            console.log('📝 Setting Rise exit status...');
+                            window.API.LMSSetValue('cmi.core.exit', 'normal');
+                            if (typeof window.API.SetValue === 'function') {
+                                window.API.SetValue('cmi.exit', 'normal');
+                            }
+                        }
+                    } catch (e) {
+                        console.log('Note: Could not set exit status:', e.message);
+                    }
+                    
+                    // Final commit after setting exit status
+                    if (typeof window.API.LMSCommit === 'function') {
+                        window.API.LMSCommit('');
+                    }
+                    if (typeof window.API.Commit === 'function') {
+                        window.API.Commit('');
+                    }
+                    
+                    // Terminate session
+                    if (typeof window.API.LMSFinish === 'function') {
+                        console.log('🔚 Using SCORM 1.2 finish...');
+                        window.API.LMSFinish('');
+                    }
+                    if (typeof window.API.Terminate === 'function') {
+                        console.log('🔚 Using SCORM 2004 terminate...');
+                        window.API.Terminate('');
+                    }
+                    
+                    console.log('✅ SCORM data saved successfully');
                 } catch (e) {
-                    console.log('Note: Could not save SCORM data:', e.message);
+                    console.log('⚠️ Could not save SCORM data:', e.message);
                 }
+            } else {
+                console.log('ℹ️ No SCORM API available (content may handle its own tracking)');
             }
             
-            // Navigate back to topic
+            // Navigate back to topic with delay to ensure data is saved
             const topicUrl = `/courses/topic/{{ topic.id }}/`;
             console.log('🎯 Navigating to:', topicUrl);
-            window.location.href = topicUrl;
+            
+            setTimeout(() => {
+                try {
+                    window.location.href = topicUrl;
+                } catch (e) {
+                    console.log('⚠️ Navigation failed, trying alternative method');
+                    window.open(topicUrl, '_self');
+                }
+            }, 500);
         }
         
-        // Attach exit handler
-        exitButton.addEventListener('click', function(e) {
-            e.preventDefault();
-            exitCourse();
-        });
+        // Enhanced exit button handler with debugging
+        if (exitButton) {
+            console.log('✅ Exit button found, attaching handlers...');
+            
+            // Remove any existing handlers
+            exitButton.onclick = null;
+            
+            // Add visual feedback
+            exitButton.addEventListener('mousedown', function() {
+                console.log('🖱️ Exit button mouse down');
+                this.style.transform = 'translateY(1px)';
+            });
+            
+            exitButton.addEventListener('mouseup', function() {
+                console.log('🖱️ Exit button mouse up');
+                this.style.transform = 'translateY(0)';
+            });
+            
+            // Main click handler
+            exitButton.addEventListener('click', function(e) {
+                console.log('🔘 EXIT BUTTON CLICKED! Event:', e);
+                e.preventDefault();
+                e.stopPropagation();
+                exitCourse();
+            });
+            
+            // Backup handler (in case of event issues)
+            exitButton.addEventListener('touchend', function(e) {
+                console.log('📱 Exit button touch end');
+                e.preventDefault();
+                exitCourse();
+            });
+            
+            console.log('✅ Exit button handlers attached successfully');
+        } else {
+            console.error('❌ Exit button not found!');
+        }
         
         // Load SCORM content
         function loadContent() {

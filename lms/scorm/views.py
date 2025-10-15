@@ -743,6 +743,7 @@ def dedicated_scorm_player(request, topic_id):
 def _get_correct_launch_url(scorm_package):
     """
     Extract the correct launch URL from SCORM manifest
+    FIXED: Properly handles XML namespaces and finds SCO resource
     """
     try:
         import xml.etree.ElementTree as ET
@@ -753,24 +754,49 @@ def _get_correct_launch_url(scorm_package):
         
         root = ET.fromstring(manifest_xml)
         
-        # Look for resource with adlcp:scormtype="sco"
-        for resource in root.findall('.//resource'):
-            scormtype = resource.get('{http://www.adlnet.org/xsd/adlcp_rootv1p2}scormtype', '') or resource.get('scormtype', '')
+        # CRITICAL FIX: Handle XML namespaces properly
+        # Register namespaces
+        namespaces = {
+            'imscp': 'http://www.imsproject.org/xsd/imscp_rootv1p1p2',
+            'adlcp': 'http://www.adlnet.org/xsd/adlcp_rootv1p2'
+        }
+        
+        # Look for resource with adlcp:scormtype="sco" using proper namespace
+        resources = root.findall('.//imscp:resource', namespaces)
+        if not resources:
+            # Fallback: try without namespace
+            resources = root.findall('.//resource')
+        
+        for resource in resources:
+            # Check for scormtype attribute with namespace
+            scormtype = resource.get('{http://www.adlnet.org/xsd/adlcp_rootv1p2}scormtype', '')
+            if not scormtype:
+                # Fallback: check without namespace
+                scormtype = resource.get('scormtype', '')
+            
             if scormtype == 'sco':
                 href = resource.get('href', '')
                 if href:
-                    logger.info(f"Found correct launch URL from manifest: {href}")
+                    logger.info(f"✅ Found correct SCO launch URL: {href}")
                     return href
         
-        # Fallback to first resource
-        for resource in root.findall('.//resource'):
+        # ENHANCED: Look for scormdriver specifically for Articulate Rise packages
+        for resource in resources:
             href = resource.get('href', '')
-            if href:
-                logger.info(f"Using first resource as launch URL: {href}")
+            if href and 'scormdriver' in href and href.endswith('.html'):
+                logger.info(f"✅ Found scormdriver launch URL: {href}")
+                return href
+        
+        # Fallback to first HTML resource
+        for resource in resources:
+            href = resource.get('href', '')
+            if href and href.endswith('.html'):
+                logger.info(f"⚠️ Using first HTML resource: {href}")
                 return href
                 
     except Exception as e:
         logger.error(f"Error parsing manifest for launch URL: {e}")
+        logger.info(f"Falling back to stored launch URL: {scorm_package.launch_url}")
     
     return scorm_package.launch_url
 
