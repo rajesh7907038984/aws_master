@@ -939,11 +939,10 @@ class ScormAPIHandler:
                 'last_updated': timezone.now().isoformat(),
             }
             
-            # Update completion
-            if self.version == '1.2':
-                is_completed = self.attempt.lesson_status in ['completed', 'passed']
-            else:
-                is_completed = self.attempt.completion_status == 'completed'
+            # ENHANCED: Update completion with package-type specific logic
+            is_completed = self._determine_completion_status()
+            
+            logger.info(f"📊 COMPLETION CHECK: Package type detection and passing method analysis")
             
             if is_completed and not progress.completed:
                 progress.completed = True
@@ -978,6 +977,83 @@ class ScormAPIHandler:
             
         except Exception as e:
             logger.error(f"Error updating topic progress: {str(e)}")
+    
+    def _determine_completion_status(self):
+        """Determine completion status based on SCORM package type and version"""
+        try:
+            # Get package type information
+            launch_url = self.attempt.scorm_package.launch_url
+            is_scormcontent = 'scormcontent/' in launch_url
+            is_scormdriver = 'scormdriver/' in launch_url
+            
+            logger.info(f"📦 PACKAGE TYPE: scormcontent={is_scormcontent}, scormdriver={is_scormdriver}")
+            
+            # Method 1: SCORM 1.2 (Traditional) - scormdriver type
+            if self.version == '1.2' and is_scormdriver:
+                lesson_status = self.attempt.lesson_status
+                logger.info(f"📊 SCORM 1.2 (scormdriver): lesson_status = '{lesson_status}'")
+                
+                # Traditional SCORM 1.2 passing methods
+                is_completed = lesson_status in ['completed', 'passed']
+                
+                # Additional check for score-based passing
+                if lesson_status == 'incomplete' and self.attempt.score_raw:
+                    # Check if score meets passing criteria (if mastery score is set)
+                    mastery_score = self.attempt.cmi_data.get('cmi.student_data.mastery_score')
+                    if mastery_score:
+                        try:
+                            mastery_threshold = float(mastery_score)
+                            current_score = float(self.attempt.score_raw)
+                            if current_score >= mastery_threshold:
+                                logger.info(f"📊 SCORE-BASED PASSING: {current_score} >= {mastery_threshold}")
+                                is_completed = True
+                        except (ValueError, TypeError):
+                            pass
+                
+                logger.info(f"📊 SCORM 1.2 completion result: {is_completed}")
+                return is_completed
+            
+            # Method 2: SCORM 2004 - scormcontent type (Articulate Rise, etc.)
+            elif self.version == '2004' or is_scormcontent:
+                completion_status = self.attempt.completion_status
+                success_status = self.attempt.success_status
+                
+                logger.info(f"📊 SCORM 2004/scormcontent: completion_status = '{completion_status}', success_status = '{success_status}'")
+                
+                # SCORM 2004 / Articulate Rise passing methods
+                is_completed = (
+                    completion_status == 'completed' or
+                    success_status == 'passed'
+                )
+                
+                logger.info(f"📊 SCORM 2004 completion result: {is_completed}")
+                return is_completed
+            
+            # Method 3: Fallback - check both methods
+            else:
+                logger.info(f"📊 FALLBACK METHOD: Checking both SCORM 1.2 and 2004 criteria")
+                
+                # Check SCORM 1.2 criteria
+                scorm12_completed = self.attempt.lesson_status in ['completed', 'passed']
+                
+                # Check SCORM 2004 criteria
+                scorm2004_completed = (
+                    self.attempt.completion_status == 'completed' or
+                    self.attempt.success_status == 'passed'
+                )
+                
+                is_completed = scorm12_completed or scorm2004_completed
+                
+                logger.info(f"📊 FALLBACK result: SCORM1.2={scorm12_completed}, SCORM2004={scorm2004_completed}, final={is_completed}")
+                return is_completed
+                
+        except Exception as e:
+            logger.error(f"Error determining completion status: {str(e)}")
+            # Fallback to original logic
+            if self.version == '1.2':
+                return self.attempt.lesson_status in ['completed', 'passed']
+            else:
+                return self.attempt.completion_status == 'completed'
     
     def _update_slide_tracking(self, slide_location):
         """Enhanced slide tracking with detailed navigation history"""
