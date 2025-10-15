@@ -21,9 +21,16 @@ def scorm_view(request, topic_id):
     """
     Simplified SCORM content viewer
     """
-    # Basic authentication check
+    # ENHANCED: Comprehensive authentication check for revisit scenarios
     if not request.user.is_authenticated:
+        logger.warning(f"Unauthenticated access attempt to SCORM topic {topic_id}")
         messages.error(request, "You must be logged in to access SCORM content.")
+        return redirect('users:login')
+    
+    # ENHANCED: Check for session validity in revisit scenarios
+    if not request.user.is_active:
+        logger.warning(f"Inactive user {request.user.email} attempted to access SCORM topic {topic_id}")
+        messages.error(request, "Your account is not active. Please contact support.")
         return redirect('users:login')
     
     # Get topic and check access
@@ -45,17 +52,25 @@ def scorm_view(request, topic_id):
     
     scorm_package = topic.scorm_package
     
-    # Smart attempt handling - Resume if revisiting, create new if fresh visit
+    # ENHANCED: Smart attempt handling with package type awareness
     attempt = None
     attempt_id = None
+    
+    # CRITICAL FIX: Detect package type for special handling
+    is_scormcontent_type = 'scormcontent/' in scorm_package.launch_url
+    is_scormdriver_type = 'scormdriver/' in scorm_package.launch_url
+    
+    logger.info(f"SCORM Package Type Detection: scormcontent={is_scormcontent_type}, scormdriver={is_scormdriver_type}, launch_url={scorm_package.launch_url}")
     
     if request.user.is_authenticated:
         # Check if user is revisiting (has session data or recent attempt)
         from django.utils import timezone
         from datetime import timedelta
         
-        # Look for recent attempts (within last 30 minutes)
-        recent_cutoff = timezone.now() - timedelta(minutes=30)
+        # ENHANCED: Different timeout for different package types
+        timeout_minutes = 60 if is_scormcontent_type else 30  # Longer timeout for scormcontent type
+        recent_cutoff = timezone.now() - timedelta(minutes=timeout_minutes)
+        
         recent_attempt = ScormAttempt.objects.filter(
             user=request.user,
             scorm_package=scorm_package,
@@ -133,6 +148,9 @@ def scorm_view(request, topic_id):
         'attempt': attempt,
         'attempt_id': attempt_id,
         'content_url': content_url,
+        'is_scormcontent_type': is_scormcontent_type,
+        'is_scormdriver_type': is_scormdriver_type,
+        'package_type': 'scormcontent' if is_scormcontent_type else 'scormdriver' if is_scormdriver_type else 'unknown',
     }
     
     return render(request, 'scorm/player.html', context)
@@ -188,9 +206,19 @@ def scorm_api(request, attempt_id):
 @login_required
 def scorm_content(request, topic_id, path):
     """
-    Simplified SCORM content serving - Fixed to properly handle S3 content and path mappings
+    Enhanced SCORM content serving - Fixed for different package types and revisit scenarios
     """
     try:
+        # ENHANCED: Special handling for revisit scenarios with different SCORM package types
+        logger.info(f"SCORM Content Request: topic_id={topic_id}, path='{path}', user={request.user.email if request.user.is_authenticated else 'anonymous'}")
+        
+        # CRITICAL FIX: Handle authentication issues for scormcontent/ type packages
+        if not request.user.is_authenticated:
+            logger.warning(f"Unauthenticated SCORM content request for topic {topic_id}, path: {path}")
+            # For AJAX requests from SCORM content, return 401 instead of redirect
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 'scormcontent/' in path:
+                return JsonResponse({'error': 'Authentication required', 'redirect': '/users/login/'}, status=401)
+            return redirect('users:login')
         topic = get_object_or_404(Topic, id=topic_id)
         scorm_package = topic.scorm_package
         
