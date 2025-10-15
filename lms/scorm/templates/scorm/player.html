@@ -286,26 +286,90 @@
                 } catch (e) {
                     console.log('Could not commit SCORM data:', e.message);
                 }
+                
+                // CRITICAL FIX: Try to terminate SCORM session properly
+                try {
+                    window.API.LMSFinish('');
+                    console.log('SCORM session terminated before exit');
+                } catch (e) {
+                    console.log('Could not terminate SCORM session:', e.message);
+                }
             }
             
-            // Redirect back to topic
-            setTimeout(function() {
+            // ENHANCED: Multiple fallback methods for navigation
+            console.log('Attempting to navigate back to topic...');
+            
+            // Method 1: Direct navigation
+            try {
                 window.location.href = '{% url "courses:topic_view" topic.id %}';
+                return;
+            } catch (e) {
+                console.log('Direct navigation failed:', e.message);
+            }
+            
+            // Method 2: Use history back if available
+            setTimeout(function() {
+                try {
+                    if (window.history && window.history.length > 1) {
+                        window.history.back();
+                        console.log('Used history.back() for navigation');
+                        return;
+                    }
+                } catch (e) {
+                    console.log('History navigation failed:', e.message);
+                }
+                
+                // Method 3: Force redirect using top window
+                try {
+                    window.top.location.href = '{% url "courses:topic_view" topic.id %}';
+                    console.log('Used top.location for navigation');
+                } catch (e) {
+                    console.log('Top window navigation failed:', e.message);
+                    
+                    // Method 4: Alert user to manually close
+                    alert('Course completed. Please close this window to return to the course.');
+                }
             }, 1000);
         }
         
-        // SCORM EXIT FIX: Periodic check for content-initiated exits
+        // SCORM EXIT FIX: Enhanced periodic check for content-initiated exits
         function startExitMonitoring() {
             var exitCheckInterval = setInterval(function() {
                 if (window.checkForContentExit) {
-                    window.checkForContentExit();
+                    try {
+                        window.checkForContentExit();
+                    } catch (e) {
+                        console.log('Error checking for content exit:', e.message);
+                    }
                 }
-            }, 2000); // Check every 2 seconds
+            }, 1000); // Check every 1 second for better responsiveness
             
-            // Stop checking after 30 minutes (cleanup)
+            // ENHANCED: Also check when user interacts with the page
+            var interactionEvents = ['click', 'keydown', 'scroll'];
+            var lastCheckTime = 0;
+            
+            interactionEvents.forEach(function(eventType) {
+                document.addEventListener(eventType, function() {
+                    var now = Date.now();
+                    // Throttle interaction-based checks to once per second
+                    if (now - lastCheckTime > 1000) {
+                        lastCheckTime = now;
+                        if (window.checkForContentExit) {
+                            try {
+                                window.checkForContentExit();
+                            } catch (e) {
+                                console.log('Error checking for content exit on interaction:', e.message);
+                            }
+                        }
+                    }
+                });
+            });
+            
+            // Stop checking after 2 hours (extended time for long courses)
             setTimeout(function() {
                 clearInterval(exitCheckInterval);
-            }, 30 * 60 * 1000);
+                console.log('Exit monitoring stopped after 2 hours');
+            }, 2 * 60 * 60 * 1000);
         }
         
         // Initialize everything

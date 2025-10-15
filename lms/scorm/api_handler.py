@@ -358,6 +358,10 @@ class ScormAPIHandler:
                     # Handle individual interaction elements
                     value = self._get_interaction_element(element)
                     logger.info(f"SCORM API GetValue({element}) - returning interaction element: '{value}'")
+                elif element == '_content_initiated_exit':
+                    # CRITICAL FIX: Handle content-initiated exit flag detection
+                    value = self.attempt.cmi_data.get('_content_initiated_exit', 'false')
+                    logger.info(f"SCORM API GetValue({element}) - returning exit flag: '{value}'")
                 else:
                     # Return empty string for unknown elements
                     value = ''
@@ -486,6 +490,12 @@ class ScormAPIHandler:
                         self.last_error = '402'  # Invalid set value
                         return 'false'
                     logger.info(f"🎯 INTERACTION SAVED: {element} = {value} for attempt {self.attempt.id}")
+                elif element == '_content_initiated_exit':
+                    # CRITICAL FIX: Handle content-initiated exit flag setting
+                    self.attempt.cmi_data['_content_initiated_exit'] = value
+                    logger.info(f"🚪 EXIT FLAG SET: {element} = {value} for attempt {self.attempt.id}")
+                    # Force save immediately for exit flag
+                    self.attempt.save(update_fields=['cmi_data', 'last_accessed'])
             else:  # SCORM 2004
                 if element == 'cmi.completion_status':
                     self.attempt.completion_status = value
