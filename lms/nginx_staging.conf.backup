@@ -1,0 +1,114 @@
+server {
+    listen 80;
+    server_name staging.nexsy.io lms-alb-222670874.eu-west-2.elb.amazonaws.com;
+    
+    # Redirect HTTP to HTTPS for staging.nexsy.io
+    if ($host = staging.nexsy.io) {
+        return 301 https://$server_name$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    server_name staging.nexsy.io;
+    
+    # SSL Configuration - Let's Encrypt
+    ssl_certificate /etc/letsencrypt/live/staging.nexsy.io/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/staging.nexsy.io/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    
+    # Security headers (default for most content)
+    # add_header X-Frame-Options "DENY" always; # Disabled globally to allow SCORM
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    
+    # Client max body size for file uploads (2GB for large SCORM packages and zip files)
+    client_max_body_size 2G;
+    client_body_timeout 300s;
+    client_header_timeout 300s;
+    client_body_buffer_size 128k;
+    
+    # Static files
+    location /static/ {
+        alias /home/ec2-user/lmsstaticfiles/;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        
+        gzip on;
+        gzip_vary on;
+        gzip_min_length 1024;
+        gzip_types
+            text/plain
+            text/css
+            text/xml
+            text/javascript
+            application/javascript
+            application/xml+rss
+            application/json;
+    }
+    
+    # Media files
+    location /media/ {
+        alias /home/ec2-user/lms/media/;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+    
+    # Health check endpoint
+    location /health/ {
+        access_log off;
+        return 200 "healthy\n";
+        add_header Content-Type text/plain;
+    }
+    
+    # SCORM player and content - NO CSP restrictions (handled by Django)
+    location ~ ^/(scorm|media/scorm_content)/ {
+        # Large file upload support for SCORM packages
+        client_max_body_size 2G;
+        client_body_timeout 600s;
+        
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port $server_port;
+        
+        # Set permissive CSP for SCORM content to allow JavaScript execution
+        # Commented out for SCORM: add_header X-Frame-Options "SAMEORIGIN" always;
+        
+        # Extended timeouts for large SCORM uploads
+        proxy_connect_timeout 600s;
+        proxy_send_timeout 600s;
+        proxy_read_timeout 600s;
+        proxy_request_buffering off;
+    }
+    
+    # Main application
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port $server_port;
+        
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        
+        # Extended timeouts for large file uploads
+        proxy_connect_timeout 300s;
+        proxy_send_timeout 300s;
+        proxy_read_timeout 300s;
+    }
+    
+    # Logging
+    access_log /var/log/nginx/lms_access.log;
+    error_log /var/log/nginx/lms_error.log;
+}

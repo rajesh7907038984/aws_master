@@ -264,12 +264,41 @@ def scorm_direct_content(request, topic_id, path=''):
             logger.error(f"Could not generate URL for path: {path}")
             return HttpResponse("Content not found", status=404)
         
-        # For non-HTML files, redirect directly to presigned S3 URL
-        if not path.endswith(('.html', '.htm')):
+        # For JavaScript, CSS, and other resource files, fetch and serve directly
+        if path.endswith(('.js', '.css', '.json', '.xml', '.xsd', '.dtd')):
+            import requests
+            try:
+                # Fetch the resource from S3
+                s3_response = requests.get(s3_url, timeout=30)
+                if s3_response.status_code == 200:
+                    # Determine content type
+                    content_type = 'text/plain'
+                    if path.endswith('.js'):
+                        content_type = 'application/javascript'
+                    elif path.endswith('.css'):
+                        content_type = 'text/css'
+                    elif path.endswith('.json'):
+                        content_type = 'application/json'
+                    elif path.endswith('.xml'):
+                        content_type = 'application/xml'
+                    
+                    response = HttpResponse(s3_response.content, content_type=content_type)
+                    response['Access-Control-Allow-Origin'] = '*'
+                    response['Cache-Control'] = 'private, max-age=3600'
+                    return response
+                else:
+                    logger.error(f"Failed to fetch resource from S3: {path}")
+                    return HttpResponse("Resource not found", status=404)
+            except Exception as e:
+                logger.error(f"Error fetching resource: {e}")
+                return HttpResponse("Error loading resource", status=500)
+        
+        # For media files (images, audio, video), redirect to S3
+        if path.endswith(('.png', '.jpg', '.jpeg', '.gif', '.mp3', '.mp4', '.wav', '.webm', '.svg', '.ico')):
             from django.http import HttpResponseRedirect
             response = HttpResponseRedirect(s3_url)
             response['Access-Control-Allow-Origin'] = '*'
-            response['Cache-Control'] = 'private, max-age=7200'  # Match presigned URL expiry
+            response['Cache-Control'] = 'private, max-age=7200'
             return response
         
         # For HTML files, fetch and inject SCORM API
@@ -293,16 +322,31 @@ def scorm_direct_content(request, topic_id, path=''):
             if 'scormdriver' in path.lower():
                 # Articulate Rise - paths are relative to scormdriver
                 base_path = '/'.join(path.split('/')[:-1])  # Get directory path
-                content = content.replace('src="', f'src="/scorm/content/{topic_id}/{base_path}/')
-                content = content.replace("src='", f"src='/scorm/content/{topic_id}/{base_path}/")
-                content = content.replace('href="', f'href="/scorm/content/{topic_id}/{base_path}/')
-                content = content.replace("href='", f"href='/scorm/content/{topic_id}/{base_path}/")
+                # Only replace relative paths, not absolute ones or already processed ones
+                import re
+                # Replace relative src paths
+                content = re.sub(r'src="(?!http|/scorm/content/|data:|#)([^"]*)"', 
+                                f'src="/scorm/content/{topic_id}/{base_path}/\\1"', content)
+                content = re.sub(r"src='(?!http|/scorm/content/|data:|#)([^']*)'", 
+                                f"src='/scorm/content/{topic_id}/{base_path}/\\1'", content)
+                # Replace relative href paths
+                content = re.sub(r'href="(?!http|/scorm/content/|data:|#|javascript:)([^"]*)"', 
+                                f'href="/scorm/content/{topic_id}/{base_path}/\\1"', content)
+                content = re.sub(r"href='(?!http|/scorm/content/|data:|#|javascript:)([^']*)'", 
+                                f"href='/scorm/content/{topic_id}/{base_path}/\\1'", content)
             else:
                 # Standard SCORM packages
-                content = content.replace('src="', f'src="/scorm/content/{topic_id}/')
-                content = content.replace("src='", f"src='/scorm/content/{topic_id}/")
-            content = content.replace('href="', f'href="/scorm/content/{topic_id}/')
-            content = content.replace("href='", f"href='/scorm/content/{topic_id}/")
+                import re
+                content = re.sub(r'src="(?!http|/scorm/content/|data:|#)([^"]*)"', 
+                                f'src="/scorm/content/{topic_id}/\\1"', content)
+                content = re.sub(r"src='(?!http|/scorm/content/|data:|#)([^']*)'", 
+                                f"src='/scorm/content/{topic_id}/\\1'", content)
+            # Additional href replacements for non-scormdriver packages
+            if 'scormdriver' not in path.lower():
+                content = re.sub(r'href="(?!http|/scorm/content/|data:|#|javascript:)([^"]*)"', 
+                                f'href="/scorm/content/{topic_id}/\\1"', content)
+                content = re.sub(r"href='(?!http|/scorm/content/|data:|#|javascript:)([^']*)'", 
+                                f"href='/scorm/content/{topic_id}/\\1'", content)
             
             # Fix paths that already have ./ or ../
             content = content.replace(f'/scorm/content/{topic_id}/./', f'/scorm/content/{topic_id}/')
