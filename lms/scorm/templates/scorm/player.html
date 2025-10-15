@@ -77,7 +77,7 @@
     </div>
 
     <script>
-    // Initialize SCORM API
+    // SCORM API Implementation for iframe content
     (function() {
         const attemptId = '{{ attempt.id }}';
         const topicId = '{{ package.topic_id }}';
@@ -87,15 +87,103 @@
         console.log('Attempt ID:', attemptId);
         console.log('API Endpoint:', apiEndpoint);
         
+        // Expose SCORM API in parent window for iframe access
+        window.API = {
+            LMSInitialize: function() {
+                return this._makeAPICall('LMSInitialize', []);
+            },
+            LMSFinish: function() {
+                return this._makeAPICall('LMSFinish', []);
+            },
+            LMSGetValue: function(element) {
+                return this._makeAPICall('LMSGetValue', [element]);
+            },
+            LMSSetValue: function(element, value) {
+                return this._makeAPICall('LMSSetValue', [element, value]);
+            },
+            LMSCommit: function() {
+                return this._makeAPICall('LMSCommit', []);
+            },
+            LMSGetLastError: function() {
+                return this._makeAPICall('LMSGetLastError', []);
+            },
+            LMSGetErrorString: function(errorCode) {
+                return this._makeAPICall('LMSGetErrorString', [errorCode]);
+            },
+            LMSGetDiagnostic: function(errorCode) {
+                return this._makeAPICall('LMSGetDiagnostic', [errorCode]);
+            },
+            _makeAPICall: function(method, parameters) {
+                try {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', apiEndpoint, false); // Synchronous for SCORM compatibility
+                    xhr.setRequestHeader('Content-Type', 'application/json');
+                    xhr.setRequestHeader('X-CSRFToken', this._getCSRFToken());
+                    
+                    const data = {
+                        method: method,
+                        parameters: parameters,
+                        attempt_id: attemptId
+                    };
+                    
+                    xhr.send(JSON.stringify(data));
+                    
+                    if (xhr.status === 200) {
+                        const response = JSON.parse(xhr.responseText);
+                        return response.result || response;
+                    } else {
+                        console.error('SCORM API Error:', xhr.status, xhr.responseText);
+                        return 'false';
+                    }
+                } catch (error) {
+                    console.error('SCORM API Exception:', error);
+                    return 'false';
+                }
+            },
+            _getCSRFToken: function() {
+                const cookies = document.cookie.split(';');
+                for (let cookie of cookies) {
+                    const [name, value] = cookie.trim().split('=');
+                    if (name === 'csrftoken') {
+                        return value;
+                    }
+                }
+                return '';
+            }
+        };
+        
+        // Also expose as window.parent.API for iframe access
+        if (window.parent && window.parent !== window) {
+            window.parent.API = window.API;
+        }
+        
         // Hide loading spinner when iframe loads
         document.getElementById('scorm-frame').addEventListener('load', function() {
             document.getElementById('scorm-loading').style.display = 'none';
             console.log('SCORM content loaded');
+            
+            // Ensure API is available in iframe's parent
+            try {
+                const iframe = document.getElementById('scorm-frame');
+                if (iframe.contentWindow) {
+                    iframe.contentWindow.parent = window;
+                    iframe.contentWindow.API = window.API;
+                }
+            } catch (e) {
+                console.log('Cross-origin iframe detected, API exposure limited');
+            }
         });
         
         // Handle window unload to ensure data is saved
         window.addEventListener('beforeunload', function(e) {
             console.log('SCORM player closing, saving data...');
+            if (window.API && window.API.LMSFinish) {
+                try {
+                    window.API.LMSFinish();
+                } catch (e) {
+                    console.error('Error during LMSFinish:', e);
+                }
+            }
         });
         
         // Handle iframe errors
@@ -104,6 +192,8 @@
             document.getElementById('scorm-loading').innerHTML = 
                 '<div class="alert alert-danger">Error loading SCORM content. Please try refreshing the page.</div>';
         });
+        
+        console.log('SCORM API exposed in parent window');
     })();
     </script>
 </body>

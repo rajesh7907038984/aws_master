@@ -229,14 +229,18 @@ class SCORMPackageUploadView(LoginRequiredMixin, CreateView):
             href = resource.get('href', '')
             
             # Prioritize SCO resources as they are the main launchable content
-            if 'sco' in res_type and href and ('.html' in href.lower() or '.htm' in href.lower()):
+            # Avoid launch.html as it often breaks SCORM API detection
+            if ('sco' in res_type and href and 
+                ('.html' in href.lower() or '.htm' in href.lower()) and
+                'launch.html' not in href.lower()):
                 logger.info(f"Found SCO launch file in manifest: {href}")
                 return href
         
-        # Fallback to any HTML resource
+        # Fallback to any HTML resource (avoiding launch.html)
         for resource in resources:
             href = resource.get('href', '')
-            if href and ('.html' in href.lower() or '.htm' in href.lower()):
+            if (href and ('.html' in href.lower() or '.htm' in href.lower()) and
+                'launch.html' not in href.lower()):
                 logger.info(f"Found HTML launch file in manifest: {href}")
                 return href
         
@@ -246,6 +250,7 @@ class SCORMPackageUploadView(LoginRequiredMixin, CreateView):
     def detect_launch_file(self, directory: str) -> str:
         """Detect launch file by common patterns - only used when manifest parsing fails"""
         # Prioritize based on TL;DR recommendations
+        # Avoid launch.html as it often breaks SCORM API detection in iframes
         common_names = [
             # Articulate Storyline - usually story.html
             'story.html', 'story_html5.html',
@@ -270,10 +275,11 @@ class SCORMPackageUploadView(LoginRequiredMixin, CreateView):
                     logger.info(f"Found launch file by pattern: {rel_path}")
                     return rel_path.replace('\\', '/')
         
-        # Fallback: find any HTML file
+        # Fallback: find any HTML file (avoiding launch.html)
         for root, dirs, files in os.walk(directory):
             for file in files:
-                if file.lower().endswith('.html') or file.lower().endswith('.htm'):
+                if ((file.lower().endswith('.html') or file.lower().endswith('.htm')) and
+                    'launch.html' not in file.lower()):
                     rel_path = os.path.relpath(os.path.join(root, file), directory)
                     logger.info(f"Found HTML file as fallback: {rel_path}")
                     return rel_path.replace('\\', '/')

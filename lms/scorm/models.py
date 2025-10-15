@@ -137,8 +137,14 @@ class SCORMPackage(models.Model):
             if path.startswith('media/'):
                 path = path[6:]  # Remove 'media/' prefix
             
-            base_url = default_storage.url(path)
-            return f"{base_url}/{self.launch_file}"
+            # Construct the full path and get URL
+            full_path = f"{path}/{self.launch_file}"
+            
+            try:
+                return default_storage.url(full_path)
+            except Exception as e:
+                logger.error(f"Error generating launch URL: {e}")
+                return ""
         return ""
     
     def detect_package_type(self) -> str:
