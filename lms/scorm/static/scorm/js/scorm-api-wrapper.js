@@ -346,11 +346,30 @@
         if (!config.apiEndpoint) return;
         
         try {
-            // Check if the content set the exit flag
+            // ENHANCED: Check multiple exit indicators for different authoring tools
             var exitCheck = makeAPICall('LMSGetValue', ['_content_initiated_exit']);
             log('🔍 Checking content exit flag: "' + exitCheck + '"');
             
-            if (exitCheck === 'true') {
+            // Also check standard SCORM exit elements
+            var scormExit = makeAPICall('LMSGetValue', ['cmi.core.exit']);
+            var lessonStatus = makeAPICall('LMSGetValue', ['cmi.core.lesson_status']);
+            var completionStatus = makeAPICall('LMSGetValue', ['cmi.completion_status']);
+            
+            log('🔍 SCORM exit indicators - exit: "' + scormExit + '", lesson_status: "' + lessonStatus + '", completion: "' + completionStatus + '"');
+            
+            // Detect exit from multiple sources
+            var shouldExit = (
+                exitCheck === 'true' ||
+                scormExit === 'logout' ||
+                scormExit === 'suspend' ||
+                scormExit === 'normal' ||
+                lessonStatus === 'completed' ||
+                lessonStatus === 'passed' ||
+                lessonStatus === 'failed' ||
+                completionStatus === 'completed'
+            );
+            
+            if (shouldExit) {
                 log('🚪 Content initiated exit detected - starting navigation process');
                 
                 // Clear the exit flag first

@@ -164,12 +164,15 @@ class ScormAPIHandler:
             # CRITICAL FIX: Always reinitialize CMI data to ensure proper defaults
             self.attempt.cmi_data.update(self._initialize_cmi_data())
             
-            # CRITICAL FIX: Always respect the entry mode set by the view
-            if self.attempt.entry == 'resume':
-                logger.info(f"SCORM Resume: lesson_location='{self.attempt.lesson_location}', suspend_data='{self.attempt.suspend_data[:50] if self.attempt.suspend_data else 'None'}...'")
+            # ENHANCED: Auto-detect resume capability based on SCORM package type and data
+            should_resume = self._auto_detect_resume_capability()
+            
+            if should_resume:
+                self.attempt.entry = 'resume'
+                logger.info(f"🔄 AUTO-RESUME DETECTED: lesson_location='{self.attempt.lesson_location}', suspend_data='{self.attempt.suspend_data[:50] if self.attempt.suspend_data else 'None'}...'")
             else:
                 self.attempt.entry = 'ab-initio'
-                logger.info(f"SCORM New attempt: starting from beginning")
+                logger.info(f"🆕 FRESH START: No resume data detected or first attempt")
             
             # CRITICAL FIX: Force proper values in CMI data after initialization
             if self.version == '1.2':
@@ -292,6 +295,9 @@ class ScormAPIHandler:
             if bookmark_found:
                 logger.info(f"Alternative bookmark method successful: {self.attempt.lesson_location}")
         
+        # ENHANCED: Auto-detect content-initiated exit for different authoring tools
+        self._auto_detect_content_exit()
+        
         # Save all data
         self._commit_data()
         
@@ -342,9 +348,9 @@ class ScormAPIHandler:
                 elif element == 'cmi.core.entry' or element == 'cmi.entry':
                     value = self.attempt.entry or 'ab-initio'  # CRITICAL FIX: Always return valid entry
                 elif element == 'cmi.core.lesson_location' or element == 'cmi.location':
-                    # CRITICAL FIX: Always return bookmark data from model fields
-                    value = self.attempt.lesson_location or ''
-                    logger.info(f"SCORM API GetValue({element}) - returning bookmark: '{value}'")
+                    # ENHANCED: Smart bookmark retrieval with authoring tool support
+                    value = self._get_smart_bookmark_location()
+                    logger.info(f"SCORM API GetValue({element}) - returning smart bookmark: '{value}'")
                 elif element == 'cmi.suspend_data':
                     # CRITICAL FIX: Always return suspend data from model fields
                     value = self.attempt.suspend_data or ''
@@ -1125,6 +1131,272 @@ class ScormAPIHandler:
                     
         except Exception as e:
             logger.error(f"Error creating smart bookmark: {str(e)}")
+    
+    def _auto_detect_resume_capability(self):
+        """Auto-detect if this SCORM package supports resume and if user has resumable data"""
+        try:
+            logger.info(f"🔍 Auto-detecting resume capability for attempt {self.attempt.id}")
+            
+            # Check 1: Standard SCORM bookmarking
+            has_standard_bookmark = bool(
+                self.attempt.lesson_location and 
+                self.attempt.lesson_location.strip() and 
+                self.attempt.lesson_location != ''
+            )
+            
+            has_standard_suspend = bool(
+                self.attempt.suspend_data and 
+                self.attempt.suspend_data.strip() and 
+                self.attempt.suspend_data not in ['', 'None', 'null']
+            )
+            
+            if has_standard_bookmark or has_standard_suspend:
+                logger.info(f"✅ Standard SCORM bookmarking detected (bookmark: {has_standard_bookmark}, suspend: {has_standard_suspend})")
+                return True
+            
+            # Check 2: Progress-based resume detection
+            has_meaningful_progress = (
+                self.attempt.progress_percentage > 0 or
+                (self.attempt.score_raw is not None and self.attempt.score_raw > 0) or
+                self.attempt.lesson_status in ['incomplete', 'passed', 'failed', 'completed']
+            )
+            
+            if has_meaningful_progress:
+                logger.info(f"✅ Progress-based resume detected (progress: {self.attempt.progress_percentage}%, score: {self.attempt.score_raw}, status: {self.attempt.lesson_status})")
+                return True
+            
+            # Check 3: Session time indicates previous engagement
+            has_session_time = bool(
+                self.attempt.session_time and 
+                self.attempt.session_time != '0000:00:00.00' and
+                self.attempt.session_time != ''
+            )
+            
+            if has_session_time:
+                logger.info(f"✅ Session time resume detected (session_time: {self.attempt.session_time})")
+                return True
+            
+            # Check 4: CMI data indicates previous activity
+            if self.attempt.cmi_data and len(self.attempt.cmi_data) > 5:
+                # Look for authoring tool specific patterns
+                
+                # Articulate Storyline patterns
+                storyline_keys = [k for k in self.attempt.cmi_data.keys() if 
+                                any(pattern in k.lower() for pattern in ['slide', 'scene', 'storyline', 'articulate'])]
+                
+                # Adobe Captivate patterns
+                captivate_keys = [k for k in self.attempt.cmi_data.keys() if 
+                                any(pattern in k.lower() for pattern in ['captivate', 'cpapi', 'adobe'])]
+                
+                # Lectora patterns
+                lectora_keys = [k for k in self.attempt.cmi_data.keys() if 
+                              any(pattern in k.lower() for pattern in ['lectora', 'trivantis'])]
+                
+                # iSpring patterns
+                ispring_keys = [k for k in self.attempt.cmi_data.keys() if 
+                               any(pattern in k.lower() for pattern in ['ispring', 'presentation'])]
+                
+                # Generic interaction or objective data
+                interaction_keys = [k for k in self.attempt.cmi_data.keys() if k.startswith('cmi.interactions.')]
+                objective_keys = [k for k in self.attempt.cmi_data.keys() if k.startswith('cmi.objectives.')]
+                
+                authoring_tool_detected = any([storyline_keys, captivate_keys, lectora_keys, ispring_keys])
+                has_interaction_data = len(interaction_keys) > 0 or len(objective_keys) > 0
+                
+                if authoring_tool_detected:
+                    detected_tools = []
+                    if storyline_keys: detected_tools.append('Articulate Storyline')
+                    if captivate_keys: detected_tools.append('Adobe Captivate') 
+                    if lectora_keys: detected_tools.append('Lectora')
+                    if ispring_keys: detected_tools.append('iSpring')
+                    
+                    logger.info(f"✅ Authoring tool resume detected: {', '.join(detected_tools)}")
+                    return True
+                
+                if has_interaction_data:
+                    logger.info(f"✅ Interaction data resume detected ({len(interaction_keys)} interactions, {len(objective_keys)} objectives)")
+                    return True
+            
+            # Check 5: Smart bookmark from previous activity
+            if self.attempt.detailed_tracking:
+                smart_bookmark = self.attempt.detailed_tracking.get('smart_bookmark')
+                if smart_bookmark:
+                    logger.info(f"✅ Smart bookmark resume detected: {smart_bookmark}")
+                    return True
+            
+            # Check 6: Multiple access attempts (user has been here before)
+            if hasattr(self.attempt, 'last_accessed') and self.attempt.last_accessed:
+                from django.utils import timezone
+                from datetime import timedelta
+                
+                # If last accessed more than 1 minute ago, user is returning
+                time_diff = timezone.now() - self.attempt.last_accessed
+                if time_diff > timedelta(minutes=1):
+                    logger.info(f"✅ Return visit resume detected (last accessed: {time_diff} ago)")
+                    return True
+            
+            logger.info(f"❌ No resume capability detected - fresh start recommended")
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error in auto-detect resume capability: {str(e)}")
+            # Default to resume if there's any doubt (safer for user experience)
+            return bool(self.attempt.lesson_status != 'not_attempted')
+    
+    def _get_smart_bookmark_location(self):
+        """Get bookmark location with smart detection for different authoring tools"""
+        try:
+            # Method 1: Standard lesson_location
+            if self.attempt.lesson_location and self.attempt.lesson_location.strip():
+                logger.info(f"📍 Using standard bookmark: {self.attempt.lesson_location}")
+                return self.attempt.lesson_location
+            
+            # Method 2: Extract from suspend data (different formats)
+            if self.attempt.suspend_data:
+                # Try JSON format first
+                try:
+                    import json
+                    suspend_json = json.loads(self.attempt.suspend_data)
+                    
+                    # Check for common location keys in JSON
+                    location_keys = ['location', 'bookmark', 'slide', 'page', 'position', 'currentSlide']
+                    for key in location_keys:
+                        if key in suspend_json and suspend_json[key]:
+                            bookmark = str(suspend_json[key])
+                            logger.info(f"📍 Using JSON suspend bookmark ({key}): {bookmark}")
+                            return bookmark
+                            
+                except (json.JSONDecodeError, ValueError):
+                    # Try query string format
+                    if 'current_slide=' in self.attempt.suspend_data:
+                        import re
+                        match = re.search(r'current_slide=([^&]+)', self.attempt.suspend_data)
+                        if match:
+                            bookmark = f"slide_{match.group(1)}"
+                            logger.info(f"📍 Using query string bookmark: {bookmark}")
+                            return bookmark
+            
+            # Method 3: Use smart bookmark from detailed tracking
+            if self.attempt.detailed_tracking:
+                smart_bookmark = self.attempt.detailed_tracking.get('smart_bookmark')
+                if smart_bookmark:
+                    logger.info(f"📍 Using smart bookmark: {smart_bookmark}")
+                    return smart_bookmark
+            
+            # Method 4: Generate from progress/score data
+            if self.attempt.progress_percentage > 0:
+                estimated_bookmark = f"progress_{int(self.attempt.progress_percentage)}percent"
+                logger.info(f"📍 Using progress-based bookmark: {estimated_bookmark}")
+                return estimated_bookmark
+            
+            # Method 5: Use session time as fallback
+            if self.attempt.session_time and self.attempt.session_time != '0000:00:00.00':
+                time_bookmark = f"session_{self.attempt.session_time.replace(':', '')}"
+                logger.info(f"📍 Using time-based bookmark: {time_bookmark}")
+                return time_bookmark
+            
+            logger.info(f"📍 No bookmark available - returning empty")
+            return ''
+            
+        except Exception as e:
+            logger.error(f"Error getting smart bookmark: {str(e)}")
+            return self.attempt.lesson_location or ''
+    
+    def _auto_detect_content_exit(self):
+        """Auto-detect if SCORM content is requesting exit using different methods"""
+        try:
+            logger.info(f"🚪 Auto-detecting content exit request for attempt {self.attempt.id}")
+            
+            exit_detected = False
+            exit_method = None
+            
+            # Method 1: Standard _content_initiated_exit flag
+            if self.attempt.cmi_data.get('_content_initiated_exit') == 'true':
+                exit_detected = True
+                exit_method = 'standard_flag'
+                logger.info(f"✅ Standard exit flag detected")
+            
+            # Method 2: SCORM exit element set to specific values
+            exit_value = self.attempt.cmi_data.get('cmi.core.exit') or self.attempt.cmi_data.get('cmi.exit')
+            if exit_value in ['logout', 'suspend', 'normal', 'time-out']:
+                exit_detected = True
+                exit_method = f'scorm_exit_{exit_value}'
+                logger.info(f"✅ SCORM exit element detected: {exit_value}")
+            
+            # Method 3: Lesson status indicates completion/exit
+            lesson_status = self.attempt.cmi_data.get('cmi.core.lesson_status') or self.attempt.cmi_data.get('cmi.completion_status')
+            if lesson_status in ['completed', 'passed', 'failed']:
+                exit_detected = True
+                exit_method = f'completion_exit_{lesson_status}'
+                logger.info(f"✅ Completion-based exit detected: {lesson_status}")
+            
+            # Method 4: Authoring tool specific exit patterns
+            
+            # Articulate Storyline exit patterns
+            storyline_exit_keys = [k for k in self.attempt.cmi_data.keys() if 
+                                 any(pattern in k.lower() for pattern in ['exit', 'close', 'finish', 'complete'])]
+            if storyline_exit_keys:
+                for key in storyline_exit_keys:
+                    value = self.attempt.cmi_data.get(key)
+                    if value in ['true', 'yes', '1', 'completed', 'finished']:
+                        exit_detected = True
+                        exit_method = f'storyline_exit_{key}'
+                        logger.info(f"✅ Storyline exit pattern detected: {key}={value}")
+                        break
+            
+            # Adobe Captivate exit patterns
+            captivate_exit_keys = [k for k in self.attempt.cmi_data.keys() if 
+                                 any(pattern in k.lower() for pattern in ['cpapi', 'captivate']) and 
+                                 any(exit_word in k.lower() for exit_word in ['exit', 'close', 'end'])]
+            if captivate_exit_keys:
+                exit_detected = True
+                exit_method = 'captivate_exit'
+                logger.info(f"✅ Captivate exit pattern detected")
+            
+            # Method 5: High score indicates quiz completion (common exit trigger)
+            if self.attempt.score_raw and self.attempt.score_raw >= 80:
+                exit_detected = True
+                exit_method = f'high_score_exit_{self.attempt.score_raw}'
+                logger.info(f"✅ High score exit detected: {self.attempt.score_raw}")
+            
+            # Method 6: Session time indicates extended engagement (user may want to exit)
+            if self.attempt.session_time:
+                try:
+                    # Parse session time (format: HH:MM:SS.ss)
+                    time_parts = self.attempt.session_time.split(':')
+                    if len(time_parts) >= 2:
+                        minutes = int(time_parts[0]) * 60 + int(time_parts[1])
+                        if minutes >= 30:  # 30+ minutes indicates substantial engagement
+                            exit_detected = True
+                            exit_method = f'long_session_exit_{minutes}min'
+                            logger.info(f"✅ Long session exit detected: {minutes} minutes")
+                except Exception as e:
+                    logger.warning(f"Could not parse session time: {e}")
+            
+            # Apply the exit detection
+            if exit_detected:
+                # Set the standard exit flag for frontend detection
+                self.attempt.cmi_data['_content_initiated_exit'] = 'true'
+                
+                # Track the detection method
+                if not self.attempt.detailed_tracking:
+                    self.attempt.detailed_tracking = {}
+                
+                self.attempt.detailed_tracking.update({
+                    'auto_exit_detected': True,
+                    'exit_detection_method': exit_method,
+                    'exit_detection_timestamp': timezone.now().isoformat()
+                })
+                
+                logger.info(f"🚪 Content exit auto-detected using method: {exit_method}")
+                return True
+            else:
+                logger.info(f"❌ No content exit detected")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error in auto-detect content exit: {str(e)}")
+            return False
     
     def _update_progress_calculation(self):
         """Calculate and update progress percentage based on completed slides and suspend data"""
