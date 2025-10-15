@@ -1835,16 +1835,29 @@
                               </span>
                             </div>
                             
-                            <!-- Action buttons -->
+                            <!-- ENHANCED: Action buttons with proper SCORM resume links -->
                             <div class="action-buttons mt-1">
                               {% if score_data.is_passed %}
-                                <a href="{% url 'scorm:view' activity.object.id %}" class="view-btn retake-btn" style="background-color: #28a745; color: white; font-size: 0.7rem; padding: 2px 6px;">
-                                  RETAKE
+                                <a href="{% url 'scorm:view' activity.object.id %}" class="view-btn retake-btn" style="background-color: #28a745; color: white; font-size: 0.7rem; padding: 2px 6px; text-decoration: none; border-radius: 3px;">
+                                  <i class="fas fa-redo-alt"></i> RETAKE
                                 </a>
                               {% else %}
-                                <a href="{% url 'scorm:view' activity.object.id %}" class="view-btn resume-btn" style="background-color: #dc3545; color: white; font-size: 0.7rem; padding: 2px 6px;">
-                                  RESUME
+                                <a href="{% url 'scorm:view' activity.object.id %}" class="view-btn resume-btn" style="background-color: #ffc107; color: #212529; font-size: 0.7rem; padding: 2px 6px; text-decoration: none; border-radius: 3px; font-weight: bold;">
+                                  <i class="fas fa-play"></i> RESUME
                                 </a>
+                              {% endif %}
+                              
+                              <!-- Show package type indicator -->
+                              {% if activity.object.scorm_package.launch_url %}
+                                <div class="text-xs mt-1" style="color: #6c757d;">
+                                  {% if 'scormcontent/' in activity.object.scorm_package.launch_url %}
+                                    <i class="fas fa-mobile-alt"></i> Rise
+                                  {% elif 'scormdriver/' in activity.object.scorm_package.launch_url %}
+                                    <i class="fas fa-desktop"></i> SCORM
+                                  {% else %}
+                                    <i class="fas fa-file"></i> Content
+                                  {% endif %}
+                                </div>
                               {% endif %}
                             </div>
                           </div>
@@ -1869,25 +1882,59 @@
                             {% endif %}
                           {% endif %}
                         {% elif score_data.in_progress or score_data.has_bookmark %}
-                          <!-- Show resume button for learners who have started but not passed -->
-                          <span class="grade-score grade-none">In Progress</span>
+                          <!-- ENHANCED: Show resume button for learners who have started but not passed -->
+                          <div class="submission-date">
+                            {{ score_data.date|date:"M d, Y" }}
+                          </div>
+                          <span class="grade-score grade-none" style="color: #ffc107; font-weight: bold;">In Progress</span>
+                          
                           {% if user.role == 'learner' %}
-                            {% get_scorm_topic activity.object as scorm_topic %}
-                            {% if scorm_topic %}
-                              <a href="{% url 'courses:topic_view' scorm_topic.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
-                                RESUME
+                            <!-- Direct SCORM resume link -->
+                            <div class="action-buttons mt-1">
+                              <a href="{% url 'scorm:view' activity.object.id %}" class="view-btn resume-btn" style="background-color: #17a2b8; color: white; font-size: 0.7rem; padding: 2px 6px; text-decoration: none; border-radius: 3px; font-weight: bold;">
+                                <i class="fas fa-play"></i> RESUME
                               </a>
-                            {% endif %}
-                          {% endif %}
-                          <!-- Show progress percentage if available -->
-                          {% if score_data.progress_percentage %}
-                            <div class="text-xs text-blue-600 mt-1">
-                              Progress: {{ score_data.progress_percentage|floatformat:1 }}%
+                              
+                              <!-- Show package type and progress -->
+                              <div class="text-xs mt-1" style="color: #6c757d;">
+                                {% if activity.object.scorm_package.launch_url %}
+                                  {% if 'scormcontent/' in activity.object.scorm_package.launch_url %}
+                                    <i class="fas fa-mobile-alt"></i> Rise Content
+                                  {% elif 'scormdriver/' in activity.object.scorm_package.launch_url %}
+                                    <i class="fas fa-desktop"></i> SCORM Package
+                                  {% endif %}
+                                {% endif %}
+                                {% if score_data.progress_percentage %}
+                                  <br><i class="fas fa-chart-line"></i> {{ score_data.progress_percentage|floatformat:1 }}% Complete
+                                {% endif %}
+                              </div>
                             </div>
                           {% endif %}
                         {% else %}
-                          <!-- Don't show anything for non-started SCORM content -->
-                          <span class="grade-score grade-none">-</span>
+                          <!-- ENHANCED: Show START button for non-started SCORM content -->
+                          {% if user.role == 'learner' %}
+                            <span class="grade-score grade-none" style="color: #6c757d;">Not Started</span>
+                            <div class="action-buttons mt-1">
+                              <a href="{% url 'scorm:view' activity.object.id %}" class="view-btn start-btn" style="background-color: #007bff; color: white; font-size: 0.7rem; padding: 2px 6px; text-decoration: none; border-radius: 3px; font-weight: bold;">
+                                <i class="fas fa-play-circle"></i> START
+                              </a>
+                              
+                              <!-- Show package type -->
+                              <div class="text-xs mt-1" style="color: #6c757d;">
+                                {% if activity.object.scorm_package.launch_url %}
+                                  {% if 'scormcontent/' in activity.object.scorm_package.launch_url %}
+                                    <i class="fas fa-mobile-alt"></i> Rise Content
+                                  {% elif 'scormdriver/' in activity.object.scorm_package.launch_url %}
+                                    <i class="fas fa-desktop"></i> SCORM Package
+                                  {% else %}
+                                    <i class="fas fa-file"></i> Interactive Content
+                                  {% endif %}
+                                {% endif %}
+                              </div>
+                            </div>
+                          {% else %}
+                            <span class="grade-score grade-none">-</span>
+                          {% endif %}
                         {% endif %}
                         
                       {% elif activity.type == 'scorm_topic' %}
