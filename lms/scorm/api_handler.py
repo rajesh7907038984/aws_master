@@ -50,29 +50,49 @@ class ScormAPIHandler:
         self.last_error = '0'
         self.initialized = False
         
-        # Always ensure CMI data is properly initialized
+        # CRITICAL FIX: Always ensure CMI data is properly initialized in constructor
         if not self.attempt.cmi_data or len(self.attempt.cmi_data) == 0:
             self.attempt.cmi_data = self._initialize_cmi_data()
             # Save the initialized data immediately
             self.attempt.save()
+            logger.info(f"SCORM CMI Data initialized in constructor for attempt {self.attempt.id}")
+            
+        # CRITICAL FIX: Ensure essential SCORM elements are always present
+        if self.version == '1.2':
+            if 'cmi.core.lesson_mode' not in self.attempt.cmi_data:
+                self.attempt.cmi_data['cmi.core.lesson_mode'] = 'normal'
+            if 'cmi.core.credit' not in self.attempt.cmi_data:
+                self.attempt.cmi_data['cmi.core.credit'] = 'credit'
+        else:
+            if 'cmi.mode' not in self.attempt.cmi_data:
+                self.attempt.cmi_data['cmi.mode'] = 'normal'
+            if 'cmi.credit' not in self.attempt.cmi_data:
+                self.attempt.cmi_data['cmi.credit'] = 'credit'
     
     def _initialize_cmi_data(self):
         """Initialize CMI data structure based on SCORM version"""
         if self.version == '1.2':
+            # CRITICAL FIX: Ensure proper lesson_status mapping
+            lesson_status = self.attempt.lesson_status
+            if lesson_status == 'not_attempted':
+                lesson_status = 'not attempted'  # SCORM uses space, not underscore
+            elif not lesson_status:
+                lesson_status = 'not attempted'
+                
             return {
                 'cmi.core.student_id': str(self.attempt.user.id),
                 'cmi.core.student_name': self.attempt.user.get_full_name() or self.attempt.user.username,
                 'cmi.core.lesson_location': self.attempt.lesson_location or '',
                 'cmi.core.credit': 'credit',
-                'cmi.core.lesson_status': self.attempt.lesson_status or 'not attempted',
-                'cmi.core.entry': self.attempt.entry,
+                'cmi.core.lesson_status': lesson_status,
+                'cmi.core.entry': self.attempt.entry or 'ab-initio',
                 'cmi.core.score.raw': str(self.attempt.score_raw) if self.attempt.score_raw else '',
                 'cmi.core.score.max': str(self.attempt.score_max) if self.attempt.score_max else '100',
                 'cmi.core.score.min': str(self.attempt.score_min) if self.attempt.score_min else '0',
-                'cmi.core.total_time': self.attempt.total_time,
-                'cmi.core.lesson_mode': 'normal',
-                'cmi.core.exit': '',
-                'cmi.core.session_time': '',
+                'cmi.core.total_time': self.attempt.total_time or '0000:00:00.00',
+                'cmi.core.lesson_mode': 'normal',  # CRITICAL FIX: Always set to 'normal'
+                'cmi.core.exit': self.attempt.exit_mode or '',
+                'cmi.core.session_time': self.attempt.session_time or '0000:00:00.00',
                 'cmi.suspend_data': self.attempt.suspend_data or '',
                 'cmi.launch_data': '',
                 'cmi.comments': '',
@@ -84,17 +104,17 @@ class ScormAPIHandler:
                 'cmi.learner_name': self.attempt.user.get_full_name() or self.attempt.user.username,
                 'cmi.location': self.attempt.lesson_location or '',
                 'cmi.credit': 'credit',
-                'cmi.completion_status': self.attempt.completion_status,
-                'cmi.success_status': self.attempt.success_status,
-                'cmi.entry': self.attempt.entry,
+                'cmi.completion_status': self.attempt.completion_status or 'incomplete',
+                'cmi.success_status': self.attempt.success_status or 'unknown',
+                'cmi.entry': self.attempt.entry or 'ab-initio',
                 'cmi.score.raw': str(self.attempt.score_raw) if self.attempt.score_raw else '',
                 'cmi.score.max': str(self.attempt.score_max) if self.attempt.score_max else '100',
                 'cmi.score.min': str(self.attempt.score_min) if self.attempt.score_min else '0',
                 'cmi.score.scaled': str(self.attempt.score_scaled) if self.attempt.score_scaled else '',
-                'cmi.total_time': self.attempt.total_time,
-                'cmi.mode': 'normal',
-                'cmi.exit': '',
-                'cmi.session_time': '',
+                'cmi.total_time': self.attempt.total_time or 'PT0H0M0S',
+                'cmi.mode': 'normal',  # CRITICAL FIX: Always set to 'normal'
+                'cmi.exit': self.attempt.exit_mode or '',
+                'cmi.session_time': self.attempt.session_time or 'PT0H0M0S',
                 'cmi.suspend_data': self.attempt.suspend_data or '',
                 'cmi.launch_data': '',
             }
@@ -110,9 +130,8 @@ class ScormAPIHandler:
             self.initialized = True
             self.last_error = '0'
             
-            # CRITICAL FIX: Ensure CMI data is properly initialized with resume data BEFORE any GetValue calls
-            if not self.attempt.cmi_data:
-                self.attempt.cmi_data = self._initialize_cmi_data()
+            # CRITICAL FIX: Always reinitialize CMI data to ensure proper defaults
+            self.attempt.cmi_data = self._initialize_cmi_data()
             
             # CRITICAL FIX: Always respect the entry mode set by the view
             if self.attempt.entry == 'resume':
@@ -121,43 +140,39 @@ class ScormAPIHandler:
                 self.attempt.entry = 'ab-initio'
                 logger.info(f"SCORM New attempt: starting from beginning")
             
+            # CRITICAL FIX: Force proper values in CMI data after initialization
             if self.version == '1.2':
-                # CRITICAL FIX: Always set entry mode in CMI data
-                self.attempt.cmi_data['cmi.core.entry'] = self.attempt.entry
+                # CRITICAL: Ensure all required SCORM 1.2 elements have proper values
+                self.attempt.cmi_data['cmi.core.entry'] = self.attempt.entry or 'ab-initio'
+                self.attempt.cmi_data['cmi.core.lesson_mode'] = 'normal'  # Always 'normal'
+                self.attempt.cmi_data['cmi.core.credit'] = 'credit'  # Always 'credit'
                 
-                # CRITICAL FIX: Ensure bookmark data is ALWAYS available in CMI data
-                if self.attempt.lesson_location:
-                    self.attempt.cmi_data['cmi.core.lesson_location'] = self.attempt.lesson_location
-                if self.attempt.suspend_data:
-                    self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data
+                # Set proper lesson status
+                status = self.attempt.lesson_status or 'not_attempted'
+                if status == 'not_attempted':
+                    status = 'not attempted'  # SCORM uses space
+                self.attempt.cmi_data['cmi.core.lesson_status'] = status
                 
-                # Ensure other required fields are set
-                if not self.attempt.cmi_data.get('cmi.core.lesson_status'):
-                    self.attempt.cmi_data['cmi.core.lesson_status'] = 'not attempted'
-                if not self.attempt.cmi_data.get('cmi.core.lesson_mode'):
-                    self.attempt.cmi_data['cmi.core.lesson_mode'] = 'normal'
-                if not self.attempt.cmi_data.get('cmi.core.credit'):
-                    self.attempt.cmi_data['cmi.core.credit'] = 'credit'
-            else:
-                # CRITICAL FIX: Always set entry mode in CMI data
-                self.attempt.cmi_data['cmi.entry'] = self.attempt.entry
+                # Ensure bookmark data is available
+                self.attempt.cmi_data['cmi.core.lesson_location'] = self.attempt.lesson_location or ''
+                self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data or ''
                 
-                # CRITICAL FIX: Ensure bookmark data is ALWAYS available in CMI data
-                if self.attempt.lesson_location:
-                    self.attempt.cmi_data['cmi.location'] = self.attempt.lesson_location
-                if self.attempt.suspend_data:
-                    self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data
+            else:  # SCORM 2004
+                # CRITICAL: Ensure all required SCORM 2004 elements have proper values
+                self.attempt.cmi_data['cmi.entry'] = self.attempt.entry or 'ab-initio'
+                self.attempt.cmi_data['cmi.mode'] = 'normal'  # Always 'normal'
+                self.attempt.cmi_data['cmi.credit'] = 'credit'  # Always 'credit'
+                self.attempt.cmi_data['cmi.completion_status'] = self.attempt.completion_status or 'incomplete'
+                self.attempt.cmi_data['cmi.success_status'] = self.attempt.success_status or 'unknown'
                 
-                # Ensure other required fields are set
-                if not self.attempt.cmi_data.get('cmi.completion_status'):
-                    self.attempt.cmi_data['cmi.completion_status'] = 'incomplete'
-                if not self.attempt.cmi_data.get('cmi.mode'):
-                    self.attempt.cmi_data['cmi.mode'] = 'normal'
-                if not self.attempt.cmi_data.get('cmi.credit'):
-                    self.attempt.cmi_data['cmi.credit'] = 'credit'
+                # Ensure bookmark data is available
+                self.attempt.cmi_data['cmi.location'] = self.attempt.lesson_location or ''
+                self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data or ''
             
             # CRITICAL FIX: Save the updated data immediately
             self.attempt.save()
+            
+            logger.info(f"SCORM CMI Data Initialized: lesson_mode={self.attempt.cmi_data.get('cmi.core.lesson_mode' if self.version == '1.2' else 'cmi.mode')}, lesson_status={self.attempt.cmi_data.get('cmi.core.lesson_status' if self.version == '1.2' else 'cmi.completion_status')}")
             
             logger.info(f"SCORM API initialized successfully for attempt {self.attempt.id}, version {self.version}")
             return 'true'
@@ -240,7 +255,7 @@ class ScormAPIHandler:
             # Log the retrieved value for debugging
             logger.info(f"SCORM API GetValue({element}) - raw value from cmi_data: '{value}'")
             
-            # Ensure critical elements have proper defaults if empty or whitespace
+            # CRITICAL FIX: Always provide proper defaults for empty values
             if not value or str(value).strip() == '':
                 logger.info(f"SCORM API GetValue({element}) - value is empty, applying default")
                 if element == 'cmi.core.lesson_status':
@@ -250,13 +265,13 @@ class ScormAPIHandler:
                     if value not in valid_statuses:
                         value = 'not attempted'
                 elif element == 'cmi.core.lesson_mode':
-                    value = 'normal'
+                    value = 'normal'  # CRITICAL FIX: Always return 'normal'
                 elif element == 'cmi.core.credit':
-                    value = 'credit'
+                    value = 'credit'  # CRITICAL FIX: Always return 'credit'
                 elif element == 'cmi.completion_status':
                     value = self.attempt.completion_status or 'incomplete'
                 elif element == 'cmi.mode':
-                    value = 'normal'
+                    value = 'normal'  # CRITICAL FIX: Always return 'normal'
                 elif element == 'cmi.success_status':
                     value = self.attempt.success_status or 'unknown'
                 elif element in ['cmi.core.score.max', 'cmi.score.max']:
@@ -268,7 +283,7 @@ class ScormAPIHandler:
                 elif element == 'cmi.core.student_name' or element == 'cmi.learner_name':
                     value = self.attempt.user.get_full_name() or self.attempt.user.username
                 elif element == 'cmi.core.entry' or element == 'cmi.entry':
-                    value = self.attempt.entry
+                    value = self.attempt.entry or 'ab-initio'  # CRITICAL FIX: Always return valid entry
                 elif element == 'cmi.core.lesson_location' or element == 'cmi.location':
                     # CRITICAL FIX: Always return bookmark data from model fields
                     value = self.attempt.lesson_location or ''
@@ -277,6 +292,19 @@ class ScormAPIHandler:
                     # CRITICAL FIX: Always return suspend data from model fields
                     value = self.attempt.suspend_data or ''
                     logger.info(f"SCORM API GetValue({element}) - returning suspend data: '{value[:50] if value else 'None'}...'")
+                elif element in ['cmi.core.total_time', 'cmi.total_time']:
+                    value = self.attempt.total_time or '0000:00:00.00'
+                elif element in ['cmi.core.session_time', 'cmi.session_time']:
+                    value = self.attempt.session_time or '0000:00:00.00'
+                elif element in ['cmi.core.exit', 'cmi.exit']:
+                    value = self.attempt.exit_mode or ''
+                else:
+                    # Return empty string for unknown elements
+                    value = ''
+            
+            # CRITICAL FIX: Update CMI data with the resolved value to prevent future empty returns
+            if value and value != '':
+                self.attempt.cmi_data[element] = value
             
             self.last_error = '0'
             logger.info(f"SCORM API GetValue({element}) - returning: '{value}'")
@@ -288,20 +316,22 @@ class ScormAPIHandler:
     
     def set_value(self, element, value):
         """LMSSetValue / SetValue"""
-        # CRITICAL FIX: Allow bookmark data to be stored even before initialization
-        if not self.initialized and element not in ['cmi.core.lesson_location', 'cmi.location', 'cmi.suspend_data']:
+        # CRITICAL FIX: Allow bookmark data and exit data to be stored even before initialization
+        allowed_before_init = ['cmi.core.lesson_location', 'cmi.location', 'cmi.suspend_data', 'cmi.core.exit', 'cmi.exit']
+        if not self.initialized and element not in allowed_before_init:
             self.last_error = '301'
             logger.warning(f"SCORM API SetValue called before initialization for element: {element}")
             return 'false'
         
         try:
-            # CRITICAL FIX: Handle bookmark data storage before initialization
-            if not self.initialized and element in ['cmi.core.lesson_location', 'cmi.location', 'cmi.suspend_data']:
+            # CRITICAL FIX: Handle data storage before initialization (bookmark, suspend, exit)
+            allowed_before_init = ['cmi.core.lesson_location', 'cmi.location', 'cmi.suspend_data', 'cmi.core.exit', 'cmi.exit']
+            if not self.initialized and element in allowed_before_init:
                 # Ensure CMI data exists
                 if not self.attempt.cmi_data:
                     self.attempt.cmi_data = {}
                 
-                # Store bookmark data immediately
+                # Store data immediately
                 self.attempt.cmi_data[element] = value
                 logger.info(f"SCORM API SetValue({element}, {value}) - stored before initialization")
                 
@@ -310,11 +340,19 @@ class ScormAPIHandler:
                     self.attempt.lesson_location = value
                 elif element == 'cmi.suspend_data':
                     self.attempt.suspend_data = value
+                elif element in ['cmi.core.exit', 'cmi.exit']:
+                    self.attempt.exit_mode = value
                 
                 # ENHANCED TRACKING: Force save to database
-                self.attempt.save(update_fields=[
-                    'cmi_data', 'lesson_location', 'suspend_data', 'last_accessed'
-                ])
+                save_fields = ['cmi_data', 'last_accessed']
+                if element in ['cmi.core.lesson_location', 'cmi.location']:
+                    save_fields.extend(['lesson_location'])
+                elif element == 'cmi.suspend_data':
+                    save_fields.extend(['suspend_data'])
+                elif element in ['cmi.core.exit', 'cmi.exit']:
+                    save_fields.extend(['exit_mode'])
+                
+                self.attempt.save(update_fields=save_fields)
                 logger.info(f"💾 TRACKING DATA SAVED: {element} = {value} for attempt {self.attempt.id}")
                 
                 self.last_error = '0'
@@ -512,10 +550,23 @@ class ScormAPIHandler:
         self.last_error = '0'
         self.initialized = False
         
-        # Ensure CMI data is properly initialized
+        # CRITICAL FIX: Always ensure CMI data is properly initialized for API calls
         if not self.attempt.cmi_data or len(self.attempt.cmi_data) == 0:
             self.attempt.cmi_data = self._initialize_cmi_data()
             self.attempt.save()
+            logger.info(f"SCORM CMI Data re-initialized for API call - attempt {self.attempt.id}")
+            
+        # CRITICAL FIX: Ensure essential SCORM elements are always present
+        if self.version == '1.2':
+            if 'cmi.core.lesson_mode' not in self.attempt.cmi_data:
+                self.attempt.cmi_data['cmi.core.lesson_mode'] = 'normal'
+            if 'cmi.core.credit' not in self.attempt.cmi_data:
+                self.attempt.cmi_data['cmi.core.credit'] = 'credit'
+        else:
+            if 'cmi.mode' not in self.attempt.cmi_data:
+                self.attempt.cmi_data['cmi.mode'] = 'normal'
+            if 'cmi.credit' not in self.attempt.cmi_data:
+                self.attempt.cmi_data['cmi.credit'] = 'credit'
         
         try:
             # Handle different SCORM API methods - Support both SCORM 1.2 and 2004 naming

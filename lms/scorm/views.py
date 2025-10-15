@@ -260,11 +260,11 @@ def scorm_content(request, topic_id, path):
             
             # Enhanced API injection - different approach for Storyline
             if is_storyline:
-                scorm_api = '''
+                scorm_api = """
 <script>
 // Enhanced Storyline SCORM API Support
-window.csrfToken = '{}';
-window._scormAttemptId = '{}';
+window.csrfToken = '{csrf_token}';
+window._scormAttemptId = '{attempt_id}';
 window._isStoryline = true;
 
 // Storyline-specific API setup
@@ -273,7 +273,7 @@ window._isStoryline = true;
     
     // Create robust API for Storyline
     var StorylineAPI = {{
-        _attemptId: '{}',
+        _attemptId: '{attempt_id}',
         _initialized: false,
         _lastError: '0',
         
@@ -282,203 +282,203 @@ window._isStoryline = true;
             return this.LMSInitialize(param);
         }},
         
-        LMSInitialize: function(param) {{'''.format() + '''
+        LMSInitialize: function(param) {{
             console.log('Storyline SCORM Initialize called');
-            try {
+            try {{
                 this._initialized = true;
                 return 'true';
-            } catch (e) {
+            }} catch (e) {{
                 console.error('Storyline Initialize error:', e);
                 this._lastError = '101';
                 return 'false';
-            }
-        },
+            }}
+        }},
         
-        Terminate: function(param) {
+        Terminate: function(param) {{
             return this.LMSFinish(param);
-        },
+        }},
         
-        LMSFinish: function(param) {
+        LMSFinish: function(param) {{
             console.log('Storyline SCORM Terminate called');
             this._initialized = false;
             return 'true'; 
-        },
+        }},
         
-        GetValue: function(element) {
+        GetValue: function(element) {{
             return this.LMSGetValue(element);
-        },
+        }},
         
-        LMSGetValue: function(element) {
+        LMSGetValue: function(element) {{
             console.log('Storyline GetValue:', element);
-            if (!this._initialized) {
+            if (!this._initialized) {{
                 this._lastError = '301';
                 return '';
-            }
+            }}
             
-            try {
+            try {{
                 var xhr = new XMLHttpRequest();
-                xhr.open('POST', '/scorm/api/{}/', false);
+                xhr.open('POST', '/scorm/api/{attempt_id}/', false);
                 xhr.setRequestHeader('Content-Type', 'application/json');
                 xhr.setRequestHeader('X-CSRFToken', window.csrfToken || '');
                 
-                xhr.send(JSON.stringify({
+                xhr.send(JSON.stringify({{
                     method: 'LMSGetValue',
                     parameters: [element]
-                }));
+                }}));
                 
-                if (xhr.status === 200) {
+                if (xhr.status === 200) {{
                     var result = JSON.parse(xhr.responseText);
                     console.log('Storyline GetValue result:', element, '=', result.result);
                     return result.result || '';
-                } else {
+                }} else {{
                     console.error('Storyline GetValue error:', xhr.status);
                     this._lastError = '101';
                     return '';
-                }
-            } catch (e) {
+                }}
+            }} catch (e) {{
                 console.error('Storyline GetValue exception:', e);
                 this._lastError = '101';
                 return '';
-            }
-        },
+            }}
+        }},
         
-        SetValue: function(element, value) {
+        SetValue: function(element, value) {{
             return this.LMSSetValue(element, value);
-        },
+        }},
         
-        LMSSetValue: function(element, value) {'''.format() + '''
+        LMSSetValue: function(element, value) {{
             console.log('Storyline SetValue:', element, '=', value);
-            if (!this._initialized) {
+            if (!this._initialized) {{
                 this._lastError = '301';
                 return 'false';
-            }
+            }}
             
-            try {
+            try {{
                 var xhr = new XMLHttpRequest();
-                xhr.open('POST', '/scorm/api/{}/', false);
+                xhr.open('POST', '/scorm/api/{attempt_id}/', false);
                 xhr.setRequestHeader('Content-Type', 'application/json');
                 xhr.setRequestHeader('X-CSRFToken', window.csrfToken || '');
                 
-                xhr.send(JSON.stringify({
+                xhr.send(JSON.stringify({{
                     method: 'LMSSetValue',
                     parameters: [element, value]
-                }));
+                }}));
                 
-                if (xhr.status === 200) {
+                if (xhr.status === 200) {{
                     var result = JSON.parse(xhr.responseText);
                     console.log('Storyline SetValue success:', element, '=', value);
                     
                     // Auto-commit critical Storyline data
-                    if (element.indexOf('lesson_status') > -1 || element.indexOf('score') > -1) {
-                        setTimeout(function() {
+                    if (element.indexOf('lesson_status') > -1 || element.indexOf('score') > -1) {{
+                        setTimeout(function() {{
                             this.LMSCommit('');
-                        }.bind(this), 100);
-                    }
+                        }}.bind(this), 100);
+                    }}
                     
                     return result.result || 'false';
-                } else {
+                }} else {{
                     console.error('Storyline SetValue error:', xhr.status);
                     this._lastError = '101';
                     return 'false';
-                }
-            } catch (e) {
+                }}
+            }} catch (e) {{
                 console.error('Storyline SetValue exception:', e);
                 this._lastError = '101';
                 return 'false';
-            }
-        },
+            }}
+        }},
         
-        Commit: function(param) {
+        Commit: function(param) {{
             return this.LMSCommit(param);
-        },
+        }},
         
-        LMSCommit: function(param) {'''.format() + '''
+        LMSCommit: function(param) {{
             console.log('Storyline Commit called');
-            if (!this._initialized) {
+            if (!this._initialized) {{
                 this._lastError = '301';
                 return 'false';
-            }
+            }}
             
-            try {
+            try {{
                 var xhr = new XMLHttpRequest();
-                xhr.open('POST', '/scorm/api/{}/', false);
+                xhr.open('POST', '/scorm/api/{attempt_id}/', false);
                 xhr.setRequestHeader('Content-Type', 'application/json');
                 xhr.setRequestHeader('X-CSRFToken', window.csrfToken || '');
                 
-                xhr.send(JSON.stringify({
+                xhr.send(JSON.stringify({{
                     method: 'LMSCommit',
                     parameters: []
-                }));
+                }}));
                 
-                if (xhr.status === 200) {
+                if (xhr.status === 200) {{
                     var result = JSON.parse(xhr.responseText);
                     console.log('Storyline Commit success');
                     return result.result || 'false';
-                } else {
+                }} else {{
                     console.error('Storyline Commit error:', xhr.status);
                     this._lastError = '101';
                     return 'false';
-                }
-            } catch (e) {
+                }}
+            }} catch (e) {{
                 console.error('Storyline Commit exception:', e);
                 this._lastError = '101';
                 return 'false';
-            }
-        },
+            }}
+        }},
         
-        GetLastError: function() {
+        GetLastError: function() {{
             return this._lastError;
-        },
+        }},
         
-        LMSGetLastError: function() {
+        LMSGetLastError: function() {{
             return this._lastError;
-        },
+        }},
         
-        GetErrorString: function(code) {
+        GetErrorString: function(code) {{
             return 'No error';
-        },
+        }},
         
-        LMSGetErrorString: function(code) {
+        LMSGetErrorString: function(code) {{
             return 'No error';
-        },
+        }},
         
-        GetDiagnostic: function(code) {
+        GetDiagnostic: function(code) {{
             return 'No error';
-        },
+        }},
         
-        LMSGetDiagnostic: function(code) {
+        LMSGetDiagnostic: function(code) {{
             return 'No error';
-        }
-    };
+        }}
+    }};
     
     // Expose API in ALL contexts that Storyline might check
     window.API = StorylineAPI;
     window.API_1484_11 = StorylineAPI;
     
     // Parent window exposure (critical for iframes)
-    if (window.parent && window.parent !== window) {
+    if (window.parent && window.parent !== window) {{
         window.parent.API = StorylineAPI;
         window.parent.API_1484_11 = StorylineAPI;
         console.log('Storyline API exposed to parent window');
-    }
+    }}
     
-    if (window.top && window.top !== window) {
+    if (window.top && window.top !== window) {{
         window.top.API = StorylineAPI;
         window.top.API_1484_11 = StorylineAPI;
         console.log('Storyline API exposed to top window');
-    }
+    }}
     
     // Document exposure
-    if (document) {
+    if (document) {{
         document.API = StorylineAPI;
         document.API_1484_11 = StorylineAPI;
-    }
+    }}
     
     // Create API finder functions
-    window.getAPI = function() { return StorylineAPI; };
-    window.getAPIHandle = function() { return StorylineAPI; };
-    window.findAPI = function() { return StorylineAPI; };
-    window.scanForAPI = function() { return StorylineAPI; };
+    window.getAPI = function() {{ return StorylineAPI; }};
+    window.getAPIHandle = function() {{ return StorylineAPI; }};
+    window.findAPI = function() {{ return StorylineAPI; }};
+    window.scanForAPI = function() {{ return StorylineAPI; }};
     
     // Storyline-specific properties
     window.scormAPI = StorylineAPI;
@@ -488,32 +488,32 @@ window._isStoryline = true;
     
     // Periodic re-exposure for dynamic content
     var exposureCount = 0;
-    var refresher = setInterval(function() {
-        if (++exposureCount > 10) {
+    var refresher = setInterval(function() {{
+        if (++exposureCount > 10) {{
             clearInterval(refresher);
             return;
-        }
+        }}
         
         if (!window.parent.API) window.parent.API = StorylineAPI;
         if (!window.top.API) window.top.API = StorylineAPI;
-    }, 500);
+    }}, 500);
     
-}})();
-</script>'''
+}}})();
+</script>""".format(csrf_token=csrf_token, attempt_id=attempt_id)
             else:
-                scorm_api = '''
+                scorm_api = """
 <script>
 // Standard SCORM API Support
-window.csrfToken = '{}';
+window.csrfToken = '{csrf_token}';
 
 // Enhanced error handling for SCORM API
 window.API = {{
-    _attemptId: '{}',
+    _attemptId: '{attempt_id}',
     _initialized: false,
-    _lastError: '0','''.format() + '''
+    _lastError: '0',
     
     Initialize: function(param) {{ 
-        console.log('SCORM API Initialize called for attempt {}');
+        console.log('SCORM API Initialize called for attempt {attempt_id}');
         try {{
             this._initialized = true;
             return 'true';
@@ -522,7 +522,7 @@ window.API = {{
             this._lastError = '101';
             return 'false';
         }}
-    }},'''.format() + '''
+    }},
     
     Terminate: function(param) {{ 
         console.log('SCORM API Terminate called');
@@ -539,7 +539,7 @@ window.API = {{
         
         try {{
             var xhr = new XMLHttpRequest();
-            xhr.open('POST', '/scorm/api/{}/''.format(attempt_id), false);
+            xhr.open('POST', '/scorm/api/{attempt_id}/', false);
             xhr.setRequestHeader('Content-Type', 'application/json');
             xhr.setRequestHeader('X-CSRFToken', window.csrfToken || '');
             
@@ -574,7 +574,7 @@ window.API = {{
         // Make API call to backend
         try {{
             var xhr = new XMLHttpRequest();
-            xhr.open('POST', '/scorm/api/{}/''.format(attempt_id), false); // Synchronous for SCORM compatibility
+            xhr.open('POST', '/scorm/api/{attempt_id}/', false); // Synchronous for SCORM compatibility
             xhr.setRequestHeader('Content-Type', 'application/json');
             xhr.setRequestHeader('X-CSRFToken', window.csrfToken || '');
             
@@ -609,7 +609,7 @@ window.API = {{
         // Make API call to backend
         try {{
             var xhr = new XMLHttpRequest();
-            xhr.open('POST', '/scorm/api/{}/''.format(attempt_id), false);
+            xhr.open('POST', '/scorm/api/{attempt_id}/', false);
             xhr.setRequestHeader('Content-Type', 'application/json');
             xhr.setRequestHeader('X-CSRFToken', window.csrfToken || '');
             
@@ -650,8 +650,8 @@ window.API = {{
 // Also expose as API_1484_11 for SCORM 2004 compatibility
 window.API_1484_11 = window.API;
 
-console.log('SCORM API injected successfully with attempt ID: {}');
-</script>'''.format()
+console.log('SCORM API injected successfully with attempt ID: {attempt_id}');
+</script>""".format(csrf_token=csrf_token, attempt_id=attempt_id)
             
             # Enhanced error suppression - more aggressive for Storyline
             if is_storyline:
