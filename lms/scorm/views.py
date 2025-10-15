@@ -168,17 +168,20 @@ def scorm_content(request, topic_id, path):
                 from django.middleware.csrf import get_token
                 csrf_token = get_token(request)
             
-            # Minimal SCORM API injection - only for tracking to database
-            # Let SCORM packages use their own API, we just track the values
-            # Only inject API if package doesn't have its own
-            scorm_api = """
+            # Skip API injection if it's the goodbye page
+            if 'goodbye' in path.lower() or 'exit' in path.lower() or 'bye' in path.lower():
+                # Don't inject API into exit pages - let them display cleanly
+                scorm_api = ""
+            else:
+                # Minimal SCORM API injection - only if absolutely needed
+                scorm_api = """
 <script>
 // Minimal SCORM API Bridge - Only saves to database, doesn't interfere
 window.csrfToken = '{csrf_token}';
 window._scormAttemptId = '{attempt_id}';
 
-// Only create API if one doesn't exist
-if (!window.API && !window.API_1484_11) {{
+// Only create API if one doesn't exist and content doesn't have its own
+if (!window.API && !window.API_1484_11 && !window.parent.API) {{
     window.API = {{
         _initialized: false,
         _lastError: '0',

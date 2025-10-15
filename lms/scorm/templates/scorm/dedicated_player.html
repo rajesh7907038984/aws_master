@@ -176,44 +176,21 @@
         const contentFrame = document.getElementById('contentFrame');
         const exitButton = document.getElementById('exitButton');
         
-        // Exit function - Let SCORM content handle its own exit completely
+        // Simple exit function - just hide button and let SCORM handle everything
         function exitCourse() {
-            console.log('🚪 Exit button clicked - letting SCORM handle exit naturally');
+            console.log('🚪 Exit button clicked');
             
-            // IMMEDIATELY hide the exit button to prevent confusion
-            const exitBtn = document.getElementById('exitButton');
-            if (exitBtn) {
-                exitBtn.style.display = 'none';
-            }
+            // Hide the exit button immediately
+            document.getElementById('exitButton').style.display = 'none';
             
-            // Save current progress if API exists
+            // Save and terminate SCORM session if API exists
             if (window.API) {
-                try {
-                    // First commit any pending data
-                    if (typeof window.API.Commit === 'function') {
-                        window.API.Commit('');
-                    } else if (typeof window.API.LMSCommit === 'function') {
-                        window.API.LMSCommit('');
-                    }
-                    
-                    // Terminate the SCORM session - this will trigger the content's natural exit
-                    if (typeof window.API.Terminate === 'function') {
-                        window.API.Terminate('');
-                    } else if (typeof window.API.LMSFinish === 'function') {
-                        window.API.LMSFinish('');
-                    }
-                    
-                    console.log('✅ SCORM session terminated - content will handle its own exit');
-                    
-                } catch (e) {
-                    console.log('⚠️ Error during exit:', e.message);
-                }
+                if (window.API.LMSCommit) window.API.LMSCommit('');
+                if (window.API.LMSFinish) window.API.LMSFinish('');
             }
             
-            // Always show return button after a delay (regardless of API success)
-            setTimeout(() => {
-                showReturnButton();
-            }, 3000); // Increased to 3 seconds to allow SCORM content to navigate
+            // Show return button after 3 seconds
+            setTimeout(showReturnButton, 3000);
         }
         
         // Show a return to course button (user-initiated navigation only)
@@ -285,15 +262,28 @@
             console.error('❌ Exit button not found!');
         }
         
-        // Load SCORM content
+        // Load SCORM content in isolated iframe
         function loadContent() {
             const url = config.correctLaunchUrl || config.launchUrl;
             console.log('📦 Loading SCORM content:', url);
             
+            // Ensure SCORM API is available to iframe
+            window.API = window.API || null;
+            window.API_1484_11 = window.API_1484_11 || null;
+            
             contentFrame.addEventListener('load', function() {
                 console.log('✅ Content loaded successfully');
-                // Remove artificial delay for faster content display
                 loadingScreen.style.display = 'none';
+                
+                // Ensure iframe can access SCORM API
+                try {
+                    if (contentFrame.contentWindow && !contentFrame.contentWindow.API) {
+                        contentFrame.contentWindow.API = window.API;
+                        contentFrame.contentWindow.API_1484_11 = window.API_1484_11;
+                    }
+                } catch (e) {
+                    console.log('Note: Cross-origin frame, API exposed via parent window');
+                }
             });
             
             contentFrame.addEventListener('error', function() {
@@ -301,14 +291,7 @@
                 showError();
             });
             
-            // Set timeout for loading - reduced from 10s to 5s for faster experience
-            setTimeout(() => {
-                if (loadingScreen.style.display !== 'none') {
-                    console.log('⏰ Loading timeout - hiding loading screen');
-                    loadingScreen.style.display = 'none';
-                }
-            }, 5000);
-            
+            // Load content
             contentFrame.src = url;
         }
         
