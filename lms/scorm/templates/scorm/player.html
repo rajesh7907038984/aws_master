@@ -148,6 +148,7 @@
                 <span style="margin-left: 15px;">Version: {{ scorm_version|default:"1.2" }}</span>
             </div>
             <button class="fullscreen-btn" onclick="toggleFullscreen()">Fullscreen</button>
+            <button class="fullscreen-btn" onclick="exitCourse()" style="background: #e74c3c; margin-left: 10px;">EXIT COURSE</button>
         </div>
         
         <div class="scorm-frame-container">
@@ -286,6 +287,80 @@
                 }
                 container.classList.remove('fullscreen');
             }
+        }
+        
+        // Exit course function
+        function exitCourse() {
+            console.log('Exit course button clicked');
+            
+            // Set a flag to indicate we're exiting
+            window.scormExitInProgress = true;
+            
+            // Try to commit any unsaved SCORM data before exiting
+            try {
+                const frame = document.getElementById('scorm-frame');
+                const frameWindow = frame.contentWindow;
+                
+                // First, try to commit any pending data
+                if (frameWindow.API && typeof frameWindow.API.LMSCommit === 'function') {
+                    console.log('Committing SCORM 1.2 data before exit');
+                    frameWindow.API.LMSCommit('');
+                } else if (frameWindow.API_1484_11 && typeof frameWindow.API_1484_11.Commit === 'function') {
+                    console.log('Committing SCORM 2004 data before exit');
+                    frameWindow.API_1484_11.Commit('');
+                } else if (window.API && typeof window.API.LMSCommit === 'function') {
+                    console.log('Committing parent SCORM 1.2 data before exit');
+                    window.API.LMSCommit('');
+                } else if (window.API_1484_11 && typeof window.API_1484_11.Commit === 'function') {
+                    console.log('Committing parent SCORM 2004 data before exit');
+                    window.API_1484_11.Commit('');
+                }
+                
+                // Then call the appropriate finish/terminate method
+                if (frameWindow.API && typeof frameWindow.API.LMSFinish === 'function') {
+                    console.log('Calling SCORM 1.2 LMSFinish before exit');
+                    frameWindow.API.LMSFinish('');
+                } else if (frameWindow.API_1484_11 && typeof frameWindow.API_1484_11.Terminate === 'function') {
+                    console.log('Calling SCORM 2004 Terminate before exit');
+                    frameWindow.API_1484_11.Terminate('');
+                } else if (window.API && typeof window.API.LMSFinish === 'function') {
+                    console.log('Calling parent SCORM 1.2 LMSFinish before exit');
+                    window.API.LMSFinish('');
+                } else if (window.API_1484_11 && typeof window.API_1484_11.Terminate === 'function') {
+                    console.log('Calling parent SCORM 2004 Terminate before exit');
+                    window.API_1484_11.Terminate('');
+                }
+            } catch (e) {
+                console.log('Could not call SCORM finish methods (may be cross-origin):', e.message);
+            }
+            
+            // Give SCORM package a moment to complete its exit flow
+            setTimeout(function() {
+                console.log('Proceeding with navigation after SCORM exit');
+                
+                // Check if window was opened as popup
+                if (window.opener && !window.opener.closed) {
+                    // Close the popup window
+                    console.log('Closing popup window');
+                    window.close();
+                } else {
+                    // Navigate back in browser history
+                    console.log('Navigating back in history');
+                    
+                    // Try to go back to the referring page
+                    if (document.referrer && document.referrer !== window.location.href) {
+                        window.location.href = document.referrer;
+                    } else {
+                        // Fallback: go back in history or to home
+                        if (window.history.length > 1) {
+                            window.history.back();
+                        } else {
+                            // Last resort: navigate to home
+                            window.location.href = '/';
+                        }
+                    }
+                }
+            }, 500);
         }
         
         // Setup SCORM/xAPI API bridge for packages that need it
