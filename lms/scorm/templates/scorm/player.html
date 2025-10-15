@@ -148,10 +148,9 @@
             const loadingOverlay = document.getElementById('loadingOverlay');
             
             if (iframe) {
-                // Add attempt_id parameter to the content URL
+                // Use the content URL as-is (already includes attempt_id parameter)
                 const contentUrl = '{{ content_url|default:"about:blank" }}';
-                const attemptId = {{ attempt_id|default:"null" }};
-                const finalUrl = attemptId ? `${contentUrl}?attempt_id=${attemptId}` : contentUrl;
+                const finalUrl = contentUrl;
                 
                 iframe.src = finalUrl;
                 console.log('SCORM content URL loaded:', finalUrl);
