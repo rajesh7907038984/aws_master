@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ scorm_package.title }} - SCORM Player</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body, html {
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+        }
+        
+        .scorm-container {
+            width: 100%;
+            height: 100vh;
+            position: relative;
+            background: #f5f5f5;
+        }
+        
+        .scorm-header {
+            height: 50px;
+            background: #2c3e50;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .scorm-title {
+            flex: 1;
+            font-size: 18px;
+            font-weight: 500;
+        }
+        
+        .package-info {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-left: 20px;
+        }
+        
+        .scorm-frame-container {
+            width: 100%;
+            height: calc(100vh - 50px);
+            position: relative;
+            background: white;
+        }
+        
+        #scorm-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: white;
+        }
+        
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            transition: opacity 0.3s ease;
+        }
+        
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            margin-top: 20px;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .error-message {
+            display: none;
+            padding: 20px;
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+            margin: 20px;
+            text-align: center;
+        }
+        
+        /* Fullscreen mode */
+        .fullscreen .scorm-header {
+            display: none;
+        }
+        
+        .fullscreen .scorm-frame-container {
+            height: 100vh;
+        }
+        
+        .fullscreen-btn {
+            padding: 5px 15px;
+            background: #34495e;
+            border: none;
+            color: white;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 10px;
+        }
+        
+        .fullscreen-btn:hover {
+            background: #445566;
+        }
+    </style>
+</head>
+<body>
+    <div class="scorm-container" id="scorm-container">
+        <div class="scorm-header">
+            <div class="scorm-title">{{ scorm_package.title|default:topic.title }}</div>
+            <div class="package-info">
+                <span>Type: {{ package_type|title|default:"SCORM" }}</span>
+                <span style="margin-left: 15px;">Version: {{ scorm_version|default:"1.2" }}</span>
+            </div>
+            <button class="fullscreen-btn" onclick="toggleFullscreen()">Fullscreen</button>
+        </div>
+        
+        <div class="scorm-frame-container">
+            <div class="loading-overlay" id="loading-overlay">
+                <div class="spinner"></div>
+                <div class="loading-text">Loading SCORM content...</div>
+            </div>
+            
+            <div class="error-message" id="error-message">
+                Error loading SCORM content. Please try refreshing the page.
+            </div>
+            
+            <iframe 
+                id="scorm-frame"
+                src="{{ launch_url }}"
+                allowfullscreen
+                allow="autoplay; camera; microphone; geolocation; fullscreen"
+                sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-downloads"
+                onload="handleFrameLoad()"
+                onerror="handleFrameError()">
+            </iframe>
+        </div>
+    </div>
+
+    <script>
+        // Package type detection for special handling
+        const packageType = "{{ package_type }}";
+        const scormVersion = "{{ scorm_version }}";
+        const launchUrl = "{{ launch_url }}";
+        const attemptId = "{{ attempt_id|default:'' }}";
+        
+        console.log('SCORM Player Initialized:', {
+            packageType: packageType,
+            version: scormVersion,
+            url: launchUrl,
+            attemptId: attemptId
+        });
+        
+        // Hide loading overlay when frame loads
+        function handleFrameLoad() {
+            console.log('SCORM content loaded successfully');
+            setTimeout(() => {
+                document.getElementById('loading-overlay').classList.add('hidden');
+            }, 500);
+            
+            // Try to set up SCORM API bridge if needed
+            setupScormBridge();
+        }
+        
+        // Show error if frame fails to load
+        function handleFrameError() {
+            console.error('Failed to load SCORM content');
+            document.getElementById('loading-overlay').style.display = 'none';
+            document.getElementById('error-message').style.display = 'block';
+        }
+        
+        // Toggle fullscreen mode
+        function toggleFullscreen() {
+            const container = document.getElementById('scorm-container');
+            const frame = document.getElementById('scorm-frame');
+            
+            if (!document.fullscreenElement) {
+                // Enter fullscreen
+                if (frame.requestFullscreen) {
+                    frame.requestFullscreen();
+                } else if (frame.webkitRequestFullscreen) {
+                    frame.webkitRequestFullscreen();
+                } else if (frame.msRequestFullscreen) {
+                    frame.msRequestFullscreen();
+                }
+                container.classList.add('fullscreen');
+            } else {
+                // Exit fullscreen
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                }
+                container.classList.remove('fullscreen');
+            }
+        }
+        
+        // Setup SCORM API bridge for packages that need it
+        function setupScormBridge() {
+            try {
+                const frame = document.getElementById('scorm-frame');
+                const frameWindow = frame.contentWindow;
+                
+                // Only set up API if frame doesn't already have one
+                if (!frameWindow.API && !frameWindow.API_1484_11) {
+                    console.log('Setting up SCORM API bridge');
+                    
+                    // Minimal SCORM 1.2 API
+                    frameWindow.API = {
+                        LMSInitialize: function() { 
+                            console.log('SCORM: Initialize');
+                            return "true"; 
+                        },
+                        LMSFinish: function() { 
+                            console.log('SCORM: Finish');
+                            return "true"; 
+                        },
+                        LMSGetValue: function(key) { 
+                            console.log('SCORM: GetValue', key);
+                            const defaults = {
+                                "cmi.core.student_name": "Guest User",
+                                "cmi.core.student_id": "guest",
+                                "cmi.core.lesson_status": "incomplete",
+                                "cmi.core.credit": "credit",
+                                "cmi.core.entry": "ab-initio",
+                                "cmi.core.lesson_mode": "normal",
+                                "cmi.core.lesson_location": "",
+                                "cmi.core.total_time": "0000:00:00.00",
+                                "cmi.core.score.raw": "",
+                                "cmi.core.score.min": "0",
+                                "cmi.core.score.max": "100",
+                                "cmi.suspend_data": "",
+                                "cmi.launch_data": ""
+                            };
+                            return defaults[key] || "";
+                        },
+                        LMSSetValue: function(key, value) { 
+                            console.log('SCORM: SetValue', key, value);
+                            return "true"; 
+                        },
+                        LMSCommit: function() { 
+                            console.log('SCORM: Commit');
+                            return "true"; 
+                        },
+                        LMSGetLastError: function() { return "0"; },
+                        LMSGetErrorString: function() { return "No error"; },
+                        LMSGetDiagnostic: function() { return ""; }
+                    };
+                    
+                    // SCORM 2004 API
+                    frameWindow.API_1484_11 = {
+                        Initialize: function() { return "true"; },
+                        Terminate: function() { return "true"; },
+                        GetValue: function(key) { 
+                            return frameWindow.API.LMSGetValue(key.replace('cmi.', 'cmi.core.')); 
+                        },
+                        SetValue: function(key, value) { return "true"; },
+                        Commit: function() { return "true"; },
+                        GetLastError: function() { return "0"; },
+                        GetErrorString: function() { return "No error"; },
+                        GetDiagnostic: function() { return ""; }
+                    };
+                    
+                    console.log('SCORM API bridge established');
+                }
+            } catch (e) {
+                // Cross-origin frame, can't access - that's OK
+                console.log('Cannot access frame content (cross-origin) - SCORM API may be handled internally');
+            }
+        }
+        
+        // Auto-hide loading overlay after max wait time
+        setTimeout(() => {
+            const overlay = document.getElementById('loading-overlay');
+            if (!overlay.classList.contains('hidden')) {
+                overlay.classList.add('hidden');
+            }
+        }, 5000);
+        
+        // Listen for fullscreen change events
+        document.addEventListener('fullscreenchange', () => {
+            const container = document.getElementById('scorm-container');
+            if (!document.fullscreenElement) {
+                container.classList.remove('fullscreen');
+            }
+        });
+        
+        // Prevent right-click context menu on iframe (optional)
+        document.getElementById('scorm-frame').addEventListener('contextmenu', (e) => {
+            // e.preventDefault(); // Uncomment to disable right-click
+        });
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            // Force iframe to recalculate dimensions
+            const frame = document.getElementById('scorm-frame');
+            frame.style.height = frame.offsetHeight + 'px';
+        });
+    </script>
+</body>
+</html>
