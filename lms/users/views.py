@@ -579,6 +579,34 @@ def custom_login(request):
     }
     return render(request, "users/shared/login.html", context)
 
+
+def custom_logout(request):
+    """
+    Custom logout view that requires POST method confirmation.
+    Prevents accidental logout on GET requests (e.g., after server restart).
+    """
+    if request.method == 'POST':
+        # User confirmed logout via POST request
+        from django.contrib.auth import logout as auth_logout
+        
+        # Log the logout action
+        if request.user.is_authenticated:
+            username = request.user.username
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"User {username} logged out successfully")
+        
+        # Perform logout
+        auth_logout(request)
+        messages.success(request, "You have been logged out successfully.")
+        
+        # Redirect to login page
+        return redirect('login')
+    else:
+        # GET request - show confirmation page
+        return render(request, 'registration/logout.html')
+
+
 def get_or_assign_branch_for_global_admin(request):
     """
     Helper function to get or assign a branch for global admin users when needed.

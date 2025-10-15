@@ -143,6 +143,9 @@ def scorm_player(request, topic_id):
         }
         
         response = render(request, 'scorm/player.html', context)
+        # Remove X-Frame-Options to allow iframe embedding (nginx/middleware will not override)
+        if 'X-Frame-Options' in response:
+            del response['X-Frame-Options']
         # Override any CSP with permissive policy for SCORM content
         response['Content-Security-Policy'] = "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval' data: blob:; worker-src * blob: data:; style-src * 'unsafe-inline'; img-src * data: blob:; font-src * data:; connect-src *; media-src * data: blob:; frame-src *; object-src 'none'"
         return response
@@ -829,7 +832,9 @@ if (!window.API_1484_11 && window.parent && window.parent.API_1484_11) {{
             # Return processed content
             response = HttpResponse(content, content_type='text/html; charset=utf-8')
             response['Access-Control-Allow-Origin'] = '*'
-            response['X-Frame-Options'] = 'ALLOWALL'
+            # Remove X-Frame-Options to allow iframe embedding (nginx/middleware will not override)
+            if 'X-Frame-Options' in response:
+                del response['X-Frame-Options']
             response['Cache-Control'] = 'private, max-age=3600'
             # Override any CSP with permissive policy for SCORM content
             response['Content-Security-Policy'] = "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval' data: blob:; worker-src * blob: data:; style-src * 'unsafe-inline'; img-src * data: blob:; font-src * data:; connect-src *; media-src * data: blob:; frame-src *; object-src 'none'"
