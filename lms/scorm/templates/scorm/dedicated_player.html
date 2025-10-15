@@ -149,7 +149,7 @@
                 <div class="error-message">
                     The SCORM content could not be loaded. Please try refreshing the page or contact support if the problem persists.
                 </div>
-                <button class="exit-btn" onclick="exitCourse()">Return to Course</button>
+                <button class="exit-btn" onclick="window.location.href = '/courses/topic/{{ topic.id }}/view/'">Return to Course</button>
             </div>
             
             <iframe id="contentFrame" class="content-frame" src="about:blank"></iframe>
@@ -176,51 +176,32 @@
         const contentFrame = document.getElementById('contentFrame');
         const exitButton = document.getElementById('exitButton');
         
-        // Simple exit function - just hide button and let SCORM handle everything
+        // Exit function - let SCORM handle everything naturally
         function exitCourse() {
-            console.log('🚪 Exit button clicked');
-            
-            // Hide the exit button immediately
-            document.getElementById('exitButton').style.display = 'none';
+            console.log('🚪 Exit button clicked - letting SCORM handle exit flow');
             
             // Save and terminate SCORM session if API exists
             if (window.API) {
-                if (window.API.LMSCommit) window.API.LMSCommit('');
-                if (window.API.LMSFinish) window.API.LMSFinish('');
-            }
-            
-            // Show return button after 3 seconds
-            setTimeout(showReturnButton, 3000);
-        }
-        
-        // Show a return to course button (user-initiated navigation only)
-        function showReturnButton() {
-            console.log('📚 Showing return to course option');
-            
-            // Check if we already have a return button
-            if (document.getElementById('returnButton')) {
-                return;
-            }
-            
-            // Create a return button in the header
-            const header = document.querySelector('.player-header');
-            if (header) {
-                const returnBtn = document.createElement('button');
-                returnBtn.id = 'returnButton';
-                returnBtn.className = 'exit-btn';
-                returnBtn.style.backgroundColor = '#28a745';
-                returnBtn.textContent = 'Return to Course';
-                returnBtn.onclick = function() {
-                    window.location.href = `/courses/topic/{{ topic.id }}/view/?manual=True`;
-                };
-                
-                // Replace the exit button with return button
-                const exitBtn = document.getElementById('exitButton');
-                if (exitBtn) {
-                    exitBtn.parentNode.replaceChild(returnBtn, exitBtn);
-                } else {
-                    header.appendChild(returnBtn);
+                console.log('📝 Committing and finishing SCORM session...');
+                if (window.API.LMSCommit) {
+                    window.API.LMSCommit('');
+                    console.log('✅ SCORM data committed');
                 }
+                if (window.API.LMSFinish) {
+                    window.API.LMSFinish('');
+                    console.log('✅ SCORM session terminated');
+                }
+            }
+            
+            // Let the SCORM package handle its own exit behavior
+            // Some packages may show completion screen, others may redirect
+            console.log('🎯 SCORM package will handle exit flow naturally');
+            
+            // Optional: Hide the exit button after click to prevent double-clicking
+            const exitBtn = document.getElementById('exitButton');
+            if (exitBtn) {
+                exitBtn.disabled = true;
+                exitBtn.textContent = 'Exiting...';
             }
         }
         
