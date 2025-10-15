@@ -101,7 +101,7 @@ def scorm_content(request, topic_id, path):
         
         logger.info(f"SCORM Content Request: topic_id={topic_id}, path='{path}', scorm_package='{scorm_package.title}'")
         
-        # ENHANCED: Handle common SCORM path mapping issues
+        # ENHANCED: Handle common SCORM path mapping issues and natural package navigation
         # Fix common problematic requests from SCORM content
         if path == 'scormcontent/false':
             # Redirect to the actual content index
@@ -116,6 +116,13 @@ def scorm_content(request, topic_id, path):
             # Direct false request - redirect to main content
             path = 'scormcontent/index.html'
             logger.info(f"SCORM Path Fix: Redirected 'false' to '{path}'")
+        
+        # ENHANCED: Handle SCORM package internal navigation (goodbye pages, exit pages, etc.)
+        # Allow natural navigation within the SCORM package
+        elif path.endswith('goodbye.html') or path.endswith('exit.html') or path.endswith('complete.html'):
+            logger.info(f"✅ SCORM internal navigation to exit/goodbye page: {path}")
+        elif 'goodbye' in path.lower() or 'exit' in path.lower() or 'complete' in path.lower():
+            logger.info(f"✅ SCORM internal navigation detected: {path}")
         
         # Generate S3 URL
         from .s3_direct import scorm_s3
@@ -161,6 +168,55 @@ def scorm_content(request, topic_id, path):
                 return HttpResponse('Content not accessible', status=404)
             
             content = response.text
+            
+            # Check if this is a goodbye/exit page - if so, handle it specially
+            is_exit_page = ('goodbye' in path.lower() or 'exit' in path.lower() or 
+                          'complete' in path.lower() or 'finish' in path.lower())
+            
+            if is_exit_page:
+                logger.info(f"📄 Processing SCORM exit/goodbye page: {path}")
+                # For exit pages, inject minimal API and auto-redirect after delay
+                exit_redirect_script = f"""
+<script>
+// SCORM Exit Page Handler
+console.log('📄 SCORM exit/goodbye page loaded');
+
+// Wait for the page to be viewed, then redirect back to course
+setTimeout(function() {{
+    console.log('🔄 Auto-redirecting from goodbye page to course');
+    try {{
+        window.parent.location.href = '/courses/topic/{{ topic_id }}/';
+    }} catch(e) {{
+        window.location.href = '/courses/topic/{{ topic_id }}/';
+    }}
+}}, 3000); // 3 second delay to view goodbye message
+
+// Provide a manual close button if needed
+document.addEventListener('DOMContentLoaded', function() {{
+    var closeBtn = document.createElement('button');
+    closeBtn.innerHTML = 'Return to Course';
+    closeBtn.style.cssText = 'position:fixed;bottom:20px;right:20px;padding:10px 20px;background:#007bff;color:white;border:none;border-radius:5px;cursor:pointer;z-index:9999;';
+    closeBtn.onclick = function() {{
+        try {{
+            window.parent.location.href = '/courses/topic/{{ topic_id }}/';
+        }} catch(e) {{
+            window.location.href = '/courses/topic/{{ topic_id }}/';
+        }}
+    }};
+    document.body.appendChild(closeBtn);
+}});
+</script>"""
+                
+                if '</body>' in content:
+                    content = content.replace('</body>', exit_redirect_script + '</body>')
+                else:
+                    content = content + exit_redirect_script
+                    
+                # Return the exit page with redirect script
+                response = HttpResponse(content, content_type='text/html; charset=utf-8')
+                response['Access-Control-Allow-Origin'] = '*'
+                response['X-Frame-Options'] = 'SAMEORIGIN'
+                return response
             
             # Enhanced SCORM API injection with proper attempt ID
             attempt_id = request.GET.get('attempt_id', '')
