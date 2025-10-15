@@ -193,8 +193,13 @@
         // Hide loading overlay when frame loads
         function handleFrameLoad() {
             console.log('SCORM content loaded successfully');
+            console.log('Hiding loading overlay...');
             setTimeout(() => {
-                document.getElementById('loading-overlay').classList.add('hidden');
+                const overlay = document.getElementById('loading-overlay');
+                if (overlay) {
+                    overlay.classList.add('hidden');
+                    console.log('Loading overlay hidden');
+                }
             }, 500);
             
             // Try to set up SCORM API bridge if needed
@@ -343,6 +348,7 @@
             const frame = document.getElementById('scorm-frame');
             
             if (!overlay.classList.contains('hidden')) {
+                console.log('Auto-hiding loading overlay after timeout');
                 overlay.classList.add('hidden');
                 
                 // Check if iframe content loaded properly
@@ -358,7 +364,7 @@
                     // Don't show error for cross-origin restrictions - content is likely loading
                 }
             }
-        }, 15000); // Increased timeout to 15 seconds for SCORM content
+        }, 5000); // Reduced timeout to 5 seconds for faster user experience
         
         // Listen for fullscreen change events
         document.addEventListener('fullscreenchange', () => {
