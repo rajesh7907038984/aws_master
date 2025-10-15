@@ -114,14 +114,15 @@ class SCORMPackageUploadView(LoginRequiredMixin, CreateView):
                     package.manifest_data = manifest_data
                     package.identifier = manifest_data.get('identifier', '')
                     
-                    # Get launch file from manifest
-                    launch_file = self.get_launch_file_from_manifest(manifest_data)
-                    if launch_file:
-                        package.launch_file = launch_file
-                
-                # If no launch file from manifest, try to detect it
-                if not package.launch_file:
+                # Get launch file from manifest - this is the official launch file
+                launch_file = self.get_launch_file_from_manifest(manifest_data)
+                if launch_file:
+                    package.launch_file = launch_file
+                    logger.info(f"Using manifest-based launch file: {launch_file}")
+                else:
+                    # Only use pattern detection if manifest doesn't specify a launch file
                     package.launch_file = self.detect_launch_file(extract_dir)
+                    logger.info(f"Using pattern-detected launch file: {package.launch_file}")
                 
                 # Upload extracted files to S3
                 s3_base_path = f"scorm/content/{package.id}"
@@ -191,16 +192,26 @@ class SCORMPackageUploadView(LoginRequiredMixin, CreateView):
                 if title_elem is not None:
                     manifest_data['title'] = title_elem.text or ''
             
-            # Get resources
+            # Get resources - capture all resources, not just SCOs
             resources = root.findall('.//resource')
             for resource in resources:
                 res_type = resource.get('type', '')
-                if 'sco' in res_type.lower() or 'asset' in res_type.lower():
-                    manifest_data['resources'].append({
-                        'identifier': resource.get('identifier', ''),
-                        'type': res_type,
-                        'href': resource.get('href', ''),
-                    })
+                href = resource.get('href', '')
+                identifier = resource.get('identifier', '')
+                
+                # Store all resources, but prioritize SCOs
+                resource_data = {
+                    'identifier': identifier,
+                    'type': res_type,
+                    'href': href,
+                }
+                
+                # Add additional metadata if available
+                title_elem = resource.find('title')
+                if title_elem is not None:
+                    resource_data['title'] = title_elem.text or ''
+                
+                manifest_data['resources'].append(resource_data)
             
             return manifest_data
             
@@ -209,29 +220,54 @@ class SCORMPackageUploadView(LoginRequiredMixin, CreateView):
             return {}
     
     def get_launch_file_from_manifest(self, manifest_data: Dict[str, Any]) -> str:
-        """Extract launch file from manifest resources"""
+        """Extract launch file from manifest resources - prioritize official launch file"""
         resources = manifest_data.get('resources', [])
+        
+        # Look for SCO (Sharable Content Object) resources first
+        for resource in resources:
+            res_type = resource.get('type', '').lower()
+            href = resource.get('href', '')
+            
+            # Prioritize SCO resources as they are the main launchable content
+            if 'sco' in res_type and href and ('.html' in href.lower() or '.htm' in href.lower()):
+                logger.info(f"Found SCO launch file in manifest: {href}")
+                return href
+        
+        # Fallback to any HTML resource
         for resource in resources:
             href = resource.get('href', '')
             if href and ('.html' in href.lower() or '.htm' in href.lower()):
+                logger.info(f"Found HTML launch file in manifest: {href}")
                 return href
+        
+        logger.warning("No launch file found in manifest resources")
         return ''
     
     def detect_launch_file(self, directory: str) -> str:
-        """Detect launch file by common patterns"""
+        """Detect launch file by common patterns - only used when manifest parsing fails"""
+        # Prioritize based on TL;DR recommendations
         common_names = [
-            'index.html', 'index.htm',
+            # Articulate Storyline - usually story.html
             'story.html', 'story_html5.html',
+            # iSpring/Captivate - usually index.html  
+            'index.html', 'index.htm',
+            # Articulate Rise - usually index_lms.html
             'index_lms.html', 'scormdriver.html',
+            # Adobe Captivate - usually multiscreen.html
             'multiscreen.html',
+            # iSpring - usually presentation.html
             'presentation.html',
+            # Common fallbacks
             'res/index.html'
         ]
+        
+        logger.info(f"Detecting launch file in directory: {directory}")
         
         for root, dirs, files in os.walk(directory):
             for file in files:
                 if file.lower() in [n.lower() for n in common_names]:
                     rel_path = os.path.relpath(os.path.join(root, file), directory)
+                    logger.info(f"Found launch file by pattern: {rel_path}")
                     return rel_path.replace('\\', '/')
         
         # Fallback: find any HTML file
@@ -239,8 +275,10 @@ class SCORMPackageUploadView(LoginRequiredMixin, CreateView):
             for file in files:
                 if file.lower().endswith('.html') or file.lower().endswith('.htm'):
                     rel_path = os.path.relpath(os.path.join(root, file), directory)
+                    logger.info(f"Found HTML file as fallback: {rel_path}")
                     return rel_path.replace('\\', '/')
         
+        logger.warning("No HTML files found, using default index.html")
         return 'index.html'
     
     def upload_directory_to_s3(self, local_dir: str, s3_base_path: str):
