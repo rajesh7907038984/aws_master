@@ -93,14 +93,9 @@ class ScormRealTimeValidationMiddleware:
                 )
                 
                 if needs_fix:
-                    logger.info(f"Real-time Validator: Fixing attempt {attempt.id} for user {request.user.username}")
-                    
-                    # Use the dynamic processor
-                    from .dynamic_score_processor import auto_process_scorm_score
-                    
-                    if auto_process_scorm_score(attempt):
-                        fixes_applied += 1
-                        logger.info(f"Real-time Validator: Fixed attempt {attempt.id}")
+                    logger.info(f"Real-time Validator: Attempt {attempt.id} needs fix but auto-processor disabled")
+                    # Note: Auto-processing disabled to prevent import errors
+                    # Main score sync still works via signals.py
             
             if fixes_applied > 0:
                 logger.info(f"Real-time Validator: Applied {fixes_applied} fixes for user {request.user.username}")

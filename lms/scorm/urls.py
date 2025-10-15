@@ -12,6 +12,7 @@ urlpatterns = [
     
     # SCORM API (for tracking)
     path('api/<int:attempt_id>/', views.scorm_api, name='api'),
+    path('debug/<int:attempt_id>/', views.scorm_debug, name='debug'),
     
     # SCORM validation endpoints
     path('validate/', validation_views.validate_scorm_ajax, name='validate'),

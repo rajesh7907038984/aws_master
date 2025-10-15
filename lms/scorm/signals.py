@@ -14,6 +14,43 @@ from django.utils import timezone
 logger = logging.getLogger(__name__)
 
 
+def _get_dynamic_passing_score(scorm_package):
+    """
+    Get dynamic passing score based on SCORM package type and course settings
+    Replaces hardcoded 70% with intelligent defaults
+    """
+    try:
+        # Check if course has specific completion requirements
+        topic = scorm_package.topic
+        if hasattr(topic, 'course') and topic.course:
+            course = topic.course
+            # Use course completion percentage as base, but adjust for SCORM
+            if hasattr(course, 'completion_percentage') and course.completion_percentage:
+                # Convert course completion percentage to passing score
+                # If course requires 80% completion, use 80% as passing score
+                return float(course.completion_percentage)
+        
+        # Check SCORM package type for intelligent defaults
+        version = scorm_package.version
+        if version in ['2004', 'xapi']:
+            # SCORM 2004 and xAPI typically use higher standards
+            return 80.0
+        elif version in ['storyline', 'captivate', 'lectora']:
+            # Authoring tools often have different standards
+            return 75.0
+        elif version in ['1.1', '1.2']:
+            # Traditional SCORM versions
+            return 70.0
+        else:
+            # Default fallback
+            return 70.0
+            
+    except Exception as e:
+        logger.warning(f"Error getting dynamic passing score: {e}")
+        # Safe fallback
+        return 70.0
+
+
 @receiver(post_save, sender='scorm.ScormAttempt')
 def dynamic_score_processor(sender, instance, created, **kwargs):
     """
@@ -57,7 +94,8 @@ def dynamic_score_processor(sender, instance, created, **kwargs):
             if mastery_score is not None:
                 passing_score = float(mastery_score)
             else:
-                passing_score = 70.0  # Default passing score
+                # Dynamic default based on SCORM package type and course settings
+                passing_score = _get_dynamic_passing_score(instance.scorm_package)
             
             has_passed = float(instance.score_raw) >= passing_score
             scorm_completed = instance.lesson_status in ['passed', 'failed', 'completed']
@@ -182,8 +220,8 @@ def _update_topic_progress(attempt, score_value):
             # Use the defined mastery score from SCORM package
             passing_score = float(mastery_score)
         else:
-            # Default to 70% if no mastery score is defined
-            passing_score = 70.0
+            # Dynamic default based on SCORM package type and course settings
+            passing_score = _get_dynamic_passing_score(attempt.scorm_package)
         
         # Check if current score meets or exceeds the passing requirement
         has_passed = float(score_value) >= passing_score

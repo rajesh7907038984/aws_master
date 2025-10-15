@@ -106,65 +106,67 @@ class ScormAPIHandler:
             logger.warning(f"SCORM API already initialized for attempt {self.attempt.id}")
             return 'false'
         
-        self.initialized = True
-        self.last_error = '0'
-        
-        # CRITICAL FIX: Ensure CMI data is properly initialized with resume data BEFORE any GetValue calls
-        if not self.attempt.cmi_data:
-            self.attempt.cmi_data = self._initialize_cmi_data()
-        
-        # CRITICAL FIX: Always respect the entry mode set by the view
-        # The view has already determined if this should be a resume or new attempt
-        if self.attempt.entry == 'resume':
-            logger.info(f"SCORM Resume: lesson_location='{self.attempt.lesson_location}', suspend_data='{self.attempt.suspend_data[:50] if self.attempt.suspend_data else 'None'}...'")
-        else:
-            self.attempt.entry = 'ab-initio'
-            logger.info(f"SCORM New attempt: starting from beginning")
-        
-        if self.version == '1.2':
-            # CRITICAL FIX: Always set entry mode in CMI data
-            self.attempt.cmi_data['cmi.core.entry'] = self.attempt.entry
+        try:
+            self.initialized = True
+            self.last_error = '0'
             
-            # CRITICAL FIX: Ensure bookmark data is ALWAYS available in CMI data
-            if self.attempt.lesson_location:
-                self.attempt.cmi_data['cmi.core.lesson_location'] = self.attempt.lesson_location
-            if self.attempt.suspend_data:
-                self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data
+            # CRITICAL FIX: Ensure CMI data is properly initialized with resume data BEFORE any GetValue calls
+            if not self.attempt.cmi_data:
+                self.attempt.cmi_data = self._initialize_cmi_data()
             
-            # Ensure other required fields are set
-            if not self.attempt.cmi_data.get('cmi.core.lesson_status'):
-                self.attempt.cmi_data['cmi.core.lesson_status'] = 'not attempted'
-            if not self.attempt.cmi_data.get('cmi.core.lesson_mode'):
-                self.attempt.cmi_data['cmi.core.lesson_mode'] = 'normal'
-            if not self.attempt.cmi_data.get('cmi.core.credit'):
-                self.attempt.cmi_data['cmi.core.credit'] = 'credit'
-        else:
-            # CRITICAL FIX: Always set entry mode in CMI data
-            self.attempt.cmi_data['cmi.entry'] = self.attempt.entry
+            # CRITICAL FIX: Always respect the entry mode set by the view
+            if self.attempt.entry == 'resume':
+                logger.info(f"SCORM Resume: lesson_location='{self.attempt.lesson_location}', suspend_data='{self.attempt.suspend_data[:50] if self.attempt.suspend_data else 'None'}...'")
+            else:
+                self.attempt.entry = 'ab-initio'
+                logger.info(f"SCORM New attempt: starting from beginning")
             
-            # CRITICAL FIX: Ensure bookmark data is ALWAYS available in CMI data
-            if self.attempt.lesson_location:
-                self.attempt.cmi_data['cmi.location'] = self.attempt.lesson_location
-            if self.attempt.suspend_data:
-                self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data
+            if self.version == '1.2':
+                # CRITICAL FIX: Always set entry mode in CMI data
+                self.attempt.cmi_data['cmi.core.entry'] = self.attempt.entry
+                
+                # CRITICAL FIX: Ensure bookmark data is ALWAYS available in CMI data
+                if self.attempt.lesson_location:
+                    self.attempt.cmi_data['cmi.core.lesson_location'] = self.attempt.lesson_location
+                if self.attempt.suspend_data:
+                    self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data
+                
+                # Ensure other required fields are set
+                if not self.attempt.cmi_data.get('cmi.core.lesson_status'):
+                    self.attempt.cmi_data['cmi.core.lesson_status'] = 'not attempted'
+                if not self.attempt.cmi_data.get('cmi.core.lesson_mode'):
+                    self.attempt.cmi_data['cmi.core.lesson_mode'] = 'normal'
+                if not self.attempt.cmi_data.get('cmi.core.credit'):
+                    self.attempt.cmi_data['cmi.core.credit'] = 'credit'
+            else:
+                # CRITICAL FIX: Always set entry mode in CMI data
+                self.attempt.cmi_data['cmi.entry'] = self.attempt.entry
+                
+                # CRITICAL FIX: Ensure bookmark data is ALWAYS available in CMI data
+                if self.attempt.lesson_location:
+                    self.attempt.cmi_data['cmi.location'] = self.attempt.lesson_location
+                if self.attempt.suspend_data:
+                    self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data
+                
+                # Ensure other required fields are set
+                if not self.attempt.cmi_data.get('cmi.completion_status'):
+                    self.attempt.cmi_data['cmi.completion_status'] = 'incomplete'
+                if not self.attempt.cmi_data.get('cmi.mode'):
+                    self.attempt.cmi_data['cmi.mode'] = 'normal'
+                if not self.attempt.cmi_data.get('cmi.credit'):
+                    self.attempt.cmi_data['cmi.credit'] = 'credit'
             
-            # Ensure other required fields are set
-            if not self.attempt.cmi_data.get('cmi.completion_status'):
-                self.attempt.cmi_data['cmi.completion_status'] = 'incomplete'
-            if not self.attempt.cmi_data.get('cmi.mode'):
-                self.attempt.cmi_data['cmi.mode'] = 'normal'
-            if not self.attempt.cmi_data.get('cmi.credit'):
-                self.attempt.cmi_data['cmi.credit'] = 'credit'
-        
-        # CRITICAL FIX: Save the updated data immediately
-        self.attempt.save()
-        
-        logger.info(f"SCORM API initialized for attempt {self.attempt.id}, version {self.version}")
-        logger.info(f"CMI data keys: {list(self.attempt.cmi_data.keys())}")
-        logger.info(f"Bookmark data: location='{self.attempt.lesson_location}', suspend_data='{self.attempt.suspend_data[:50] if self.attempt.suspend_data else 'None'}...'")
-        logger.info(f"Resume data in CMI: entry='{self.attempt.cmi_data.get('cmi.core.entry' if self.version == '1.2' else 'cmi.entry')}', location='{self.attempt.cmi_data.get('cmi.core.lesson_location' if self.version == '1.2' else 'cmi.location')}'")
-        
-        return 'true'
+            # CRITICAL FIX: Save the updated data immediately
+            self.attempt.save()
+            
+            logger.info(f"SCORM API initialized successfully for attempt {self.attempt.id}, version {self.version}")
+            return 'true'
+            
+        except Exception as e:
+            logger.error(f"SCORM API Initialize failed: {str(e)}")
+            self.last_error = '101'
+            self.initialized = False
+            return 'false'
     
     def terminate(self):
         """LMSFinish / Terminate"""
@@ -187,8 +189,14 @@ class ScormAPIHandler:
         if not self.attempt.lesson_status or self.attempt.lesson_status == 'not_attempted':
             # If we have a valid score, determine pass/fail status
             if self.attempt.score_raw is not None:
-                mastery_score = self.attempt.scorm_package.mastery_score or 70
-                if self.attempt.score_raw >= mastery_score:
+                mastery_score = self.attempt.scorm_package.mastery_score
+                if mastery_score is not None:
+                    passing_score = float(mastery_score)
+                else:
+                    # Use dynamic passing score instead of hardcoded 70
+                    passing_score = self._get_dynamic_passing_score()
+                
+                if self.attempt.score_raw >= passing_score:
                     self.attempt.lesson_status = 'passed'
                     status_to_set = 'passed'
                 else:
@@ -483,6 +491,62 @@ class ScormAPIHandler:
         """LMSGetDiagnostic / GetDiagnostic"""
         return self.get_error_string(error_code)
     
+    def handle_api_call(self, attempt, method, parameters):
+        """
+        Handle SCORM API calls - CRITICAL METHOD FOR TRACKING
+        
+        Args:
+            attempt: ScormAttempt instance
+            method: SCORM API method name
+            parameters: List of parameters for the method
+            
+        Returns:
+            Result of the API call
+        """
+        # Initialize the handler with the attempt
+        self.attempt = attempt
+        self.version = attempt.scorm_package.version
+        self.last_error = '0'
+        self.initialized = False
+        
+        # Ensure CMI data is properly initialized
+        if not self.attempt.cmi_data or len(self.attempt.cmi_data) == 0:
+            self.attempt.cmi_data = self._initialize_cmi_data()
+            self.attempt.save()
+        
+        try:
+            # Handle different SCORM API methods
+            if method == 'Initialize':
+                return self.initialize()
+            elif method == 'Terminate':
+                return self.terminate()
+            elif method == 'GetValue':
+                element = parameters[0] if parameters else ''
+                return self.get_value(element)
+            elif method == 'SetValue':
+                element = parameters[0] if len(parameters) > 0 else ''
+                value = parameters[1] if len(parameters) > 1 else ''
+                return self.set_value(element, value)
+            elif method == 'Commit':
+                return self.commit()
+            elif method == 'GetLastError':
+                return self.get_last_error()
+            elif method == 'GetErrorString':
+                error_code = parameters[0] if parameters else '0'
+                return self.get_error_string(error_code)
+            elif method == 'GetDiagnostic':
+                error_code = parameters[0] if parameters else '0'
+                return self.get_diagnostic(error_code)
+            else:
+                logger.warning(f"Unknown SCORM API method: {method}")
+                self.last_error = '401'  # Not implemented error
+                return 'false'
+                
+        except Exception as e:
+            logger.error(f"Error handling SCORM API call {method}: {str(e)}")
+            self.last_error = '101'  # General exception
+            return 'false'
+    
     def _update_completion_from_status(self, status):
         """Update completion fields based on lesson_status (SCORM 1.2)"""
         if status in ['completed', 'passed']:
@@ -702,7 +766,8 @@ class ScormAPIHandler:
             try:
                 time_seconds = self._parse_scorm_time(self.attempt.total_time)
                 progress.total_time_spent = int(time_seconds)
-            except:
+            except Exception as e:
+                logger.warning(f"Could not parse time for progress update: {e}")
                 pass
             
             progress.save()
@@ -793,7 +858,8 @@ class ScormAPIHandler:
                 try:
                     current_slide_num = int(self.attempt.last_visited_slide.split('_')[-1]) if self.attempt.last_visited_slide else 1
                     progress_percentage = min((current_slide_num / 10) * 100, 100)  # Assume 10 slides if unknown
-                except:
+                except Exception as e:
+                    logger.warning(f"Could not calculate progress from slide: {e}")
                     progress_percentage = 0
             
             self.attempt.progress_percentage = progress_percentage
@@ -834,7 +900,7 @@ class ScormAPIHandler:
                 if completed_slides_match:
                     completed_slides = [s.strip() for s in completed_slides_match.group(1).split(',') if s.strip()]
                 
-                # Update progress immediately
+                # CRITICAL FIX: Update progress immediately and save to database
                 self.attempt.progress_percentage = progress_percentage
                 self.attempt.last_visited_slide = f'slide_{current_slide}' if current_slide != 'current' else 'current'
                 self.attempt.completed_slides = completed_slides
@@ -852,9 +918,50 @@ class ScormAPIHandler:
                     'sync_method': 'automatic'
                 })
                 
-                logger.info(f"[SCORM SYNC] Progress {progress_percentage}% synced from suspend data")
+                # CRITICAL FIX: Force save to database immediately with all progress fields
+                self.attempt.save(update_fields=[
+                    'progress_percentage', 'last_visited_slide', 'completed_slides', 
+                    'detailed_tracking', 'last_accessed', 'suspend_data', 'cmi_data'
+                ])
+                
+                logger.info(f"[SCORM SYNC] Progress {progress_percentage}% synced from suspend data and saved to database")
                 
         except Exception as e:
             logger.error(f"Error parsing and syncing suspend data: {str(e)}")
     
+    def _get_dynamic_passing_score(self):
+        """
+        Get dynamic passing score based on SCORM package type and course settings
+        Replaces hardcoded 70% with intelligent defaults
+        """
+        try:
+            # Check if course has specific completion requirements
+            topic = self.attempt.scorm_package.topic
+            if hasattr(topic, 'course') and topic.course:
+                course = topic.course
+                # Use course completion percentage as base, but adjust for SCORM
+                if hasattr(course, 'completion_percentage') and course.completion_percentage:
+                    # Convert course completion percentage to passing score
+                    # If course requires 80% completion, use 80% as passing score
+                    return float(course.completion_percentage)
+            
+            # Check SCORM package type for intelligent defaults
+            version = self.attempt.scorm_package.version
+            if version in ['2004', 'xapi']:
+                # SCORM 2004 and xAPI typically use higher standards
+                return 80.0
+            elif version in ['storyline', 'captivate', 'lectora']:
+                # Authoring tools often have different standards
+                return 75.0
+            elif version in ['1.1', '1.2']:
+                # Traditional SCORM versions
+                return 70.0
+            else:
+                # Default fallback
+                return 70.0
+                
+        except Exception as e:
+            logger.warning(f"Error getting dynamic passing score: {e}")
+            # Safe fallback
+            return 70.0
 

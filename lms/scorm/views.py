@@ -68,17 +68,30 @@ def scorm_view(request, topic_id):
                 total_time='0000:00:00.00',
                 session_time='0000:00:00.00'
             )
+        else:
+            # CRITICAL FIX: Check if this should be a resume attempt
+            if (attempt.lesson_location and 
+                attempt.progress_percentage > 0 and 
+                attempt.lesson_status in ['incomplete', 'browsed']):
+                attempt.entry = 'resume'
+                attempt.save()
+                logger.info(f"SCORM Resume: Setting entry mode to 'resume' for attempt {attempt.id}")
         
         attempt_id = attempt.id
     
-    # Generate content URL
+    # Generate content URL with attempt ID for resume functionality
     launch_url = scorm_package.launch_url or 'index.html'
     content_url = f"/scorm/content/{topic_id}/{launch_url}"
     
-    # Add lesson ID if provided
+    # Add attempt ID for resume functionality - FIX: Clean parameter handling
+    if attempt_id:
+        content_url = f"{content_url}?attempt_id={attempt_id}"
+    
+    # Add lesson ID if provided - FIX: Check for existing parameters
     lesson_id = request.GET.get('lesson_id', '')
     if lesson_id:
-        content_url = f"{content_url}{lesson_id}"
+        separator = '&' if '?' in content_url else '?'
+        content_url = f"{content_url}{separator}lesson_id={lesson_id}"
     
     context = {
         'topic': topic,
@@ -119,7 +132,7 @@ def scorm_api(request, attempt_id):
         parameters = data.get('parameters', [])
         
         # Handle SCORM API call
-        api_handler = ScormAPIHandler()
+        api_handler = ScormAPIHandler(attempt)
         result = api_handler.handle_api_call(attempt, method, parameters)
         
         return JsonResponse({
@@ -180,36 +193,168 @@ def scorm_content(request, topic_id, path):
             
             # Enhanced SCORM API injection with proper attempt ID
             attempt_id = request.GET.get('attempt_id', '')
-            simple_api = f'''
+            
+            # Get the actual attempt ID from the session or create one
+            if not attempt_id and request.user.is_authenticated:
+                try:
+                    from scorm.models import ScormAttempt
+                    attempt = ScormAttempt.objects.filter(
+                        user=request.user,
+                        scorm_package=scorm_package
+                    ).order_by('-attempt_number').first()
+                    if attempt:
+                        attempt_id = attempt.id
+                except Exception as e:
+                    logger.warning(f"Could not get attempt ID for user {request.user.username}: {e}")
+                    pass
+            
+            # Add CSRF token to the content
+            csrf_token = request.META.get('CSRF_COOKIE', '')
+            if not csrf_token:
+                from django.middleware.csrf import get_token
+                csrf_token = get_token(request)
+            
+            scorm_api = f'''
 <script>
-// Enhanced SCORM API with proper attempt handling
+// Add CSRF token for API calls
+window.csrfToken = '{csrf_token}';
+
+// Enhanced error handling for SCORM API
 window.API = {{
+    _attemptId: '{attempt_id}',
+    _initialized: false,
+    _lastError: '0',
+    
     Initialize: function(param) {{ 
-        console.log('SCORM API Initialize called');
-        return 'true'; 
+        console.log('SCORM API Initialize called for attempt {attempt_id}');
+        try {{
+            this._initialized = true;
+            return 'true';
+        }} catch (e) {{
+            console.error('SCORM Initialize error:', e);
+            this._lastError = '101';
+            return 'false';
+        }}
     }},
+    
     Terminate: function(param) {{ 
         console.log('SCORM API Terminate called');
+        this._initialized = false;
         return 'true'; 
     }},
+    
     GetValue: function(element) {{ 
         console.log('SCORM API GetValue called for:', element);
-        return ''; 
+        if (!this._initialized) {{
+            this._lastError = '301';
+            return '';
+        }}
+        
+        try {{
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/scorm/api/{attempt_id}/', false);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.setRequestHeader('X-CSRFToken', window.csrfToken || '');
+            
+            var response = xhr.send(JSON.stringify({{
+                method: 'GetValue',
+                parameters: [element]
+            }}));
+            
+            if (xhr.status === 200) {{
+                var result = JSON.parse(xhr.responseText);
+                console.log('SCORM GetValue result:', result);
+                return result.result || '';
+            }} else {{
+                console.error('SCORM GetValue error:', xhr.status, xhr.responseText);
+                this._lastError = '101';
+                return '';
+            }}
+        }} catch (e) {{
+            console.error('SCORM GetValue exception:', e);
+            this._lastError = '101';
+            return '';
+        }}
     }},
+    
     SetValue: function(element, value) {{ 
         console.log('SCORM API SetValue called:', element, '=', value);
-        return 'true'; 
+        if (!this._initialized) {{
+            this._lastError = '301';
+            return 'false';
+        }}
+        
+        // Make API call to backend
+        try {{
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/scorm/api/{attempt_id}/', false); // Synchronous for SCORM compatibility
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.setRequestHeader('X-CSRFToken', window.csrfToken || '');
+            
+            var response = xhr.send(JSON.stringify({{
+                method: 'SetValue',
+                parameters: [element, value]
+            }}));
+            
+            if (xhr.status === 200) {{
+                var result = JSON.parse(xhr.responseText);
+                console.log('SCORM SetValue result:', result);
+                return result.result || 'false';
+            }} else {{
+                console.error('SCORM SetValue error:', xhr.status);
+                this._lastError = '101';
+                return 'false';
+            }}
+        }} catch (e) {{
+            console.error('SCORM SetValue exception:', e);
+            this._lastError = '101';
+            return 'false';
+        }}
     }},
+    
     Commit: function(param) {{ 
         console.log('SCORM API Commit called');
-        return 'true'; 
+        if (!this._initialized) {{
+            this._lastError = '301';
+            return 'false';
+        }}
+        
+        // Make API call to backend
+        try {{
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/scorm/api/{attempt_id}/', false);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.setRequestHeader('X-CSRFToken', window.csrfToken || '');
+            
+            var response = xhr.send(JSON.stringify({{
+                method: 'Commit',
+                parameters: []
+            }}));
+            
+            if (xhr.status === 200) {{
+                var result = JSON.parse(xhr.responseText);
+                console.log('SCORM Commit result:', result);
+                return result.result || 'false';
+            }} else {{
+                console.error('SCORM Commit error:', xhr.status);
+                this._lastError = '101';
+                return 'false';
+            }}
+        }} catch (e) {{
+            console.error('SCORM Commit exception:', e);
+            this._lastError = '101';
+            return 'false';
+        }}
     }},
+    
     GetLastError: function() {{ 
-        return '0'; 
+        return this._lastError; 
     }},
+    
     GetErrorString: function(code) {{ 
         return 'No error'; 
     }},
+    
     GetDiagnostic: function(code) {{ 
         return 'No error'; 
     }}
@@ -218,14 +363,14 @@ window.API = {{
 // Also expose as API_1484_11 for SCORM 2004 compatibility
 window.API_1484_11 = window.API;
 
-console.log('SCORM API injected successfully');
+console.log('SCORM API injected successfully with attempt ID: {attempt_id}');
 </script>'''
             
             # Inject API before closing head tag
             if '</head>' in content:
-                content = content.replace('</head>', simple_api + '</head>')
+                content = content.replace('</head>', scorm_api + '</head>')
             else:
-                content = simple_api + content
+                content = scorm_api + content
             
             response = HttpResponse(content, content_type='text/html; charset=utf-8')
             response['Access-Control-Allow-Origin'] = '*'
@@ -249,3 +394,36 @@ def scorm_api_test(request):
     Diagnostic tool for testing SCORM API calls
     """
     return render(request, 'scorm/api_test.html')
+
+@login_required
+def scorm_debug(request, attempt_id):
+    """
+    Debug SCORM attempt data
+    """
+    try:
+        attempt = get_object_or_404(ScormAttempt, id=attempt_id)
+        
+        if attempt.user != request.user:
+            return JsonResponse({'error': 'Unauthorized'}, status=403)
+        
+        debug_data = {
+            'attempt_id': attempt.id,
+            'user': attempt.user.username,
+            'scorm_package': attempt.scorm_package.title,
+            'version': attempt.scorm_package.version,
+            'lesson_status': attempt.lesson_status,
+            'completion_status': attempt.completion_status,
+            'score_raw': attempt.score_raw,
+            'lesson_location': attempt.lesson_location,
+            'suspend_data': attempt.suspend_data[:100] if attempt.suspend_data else None,
+            'cmi_data_keys': list(attempt.cmi_data.keys()) if attempt.cmi_data else [],
+            'entry': attempt.entry,
+            'exit_mode': attempt.exit_mode,
+            'last_accessed': attempt.last_accessed.isoformat() if attempt.last_accessed else None,
+        }
+        
+        return JsonResponse(debug_data)
+        
+    except Exception as e:
+        logger.error(f"SCORM debug error: {e}")
+        return JsonResponse({'error': str(e)}, status=500)

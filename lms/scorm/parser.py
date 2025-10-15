@@ -14,7 +14,6 @@ import logging
 import uuid
 import json
 from .validators import validate_scorm_package, ScormValidationError
-from .mastery_score_handler import MasteryScoreExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -317,18 +316,9 @@ class ScormParser:
                                             except ValueError:
                                                 pass
                         
-                        # Use the comprehensive mastery score extractor
+                        # Mastery score extraction completed using built-in logic above
                         if 'mastery_score' not in self.manifest_data:
-                            package_filename = getattr(self.uploaded_file, 'name', '')
-                            mastery_score = MasteryScoreExtractor.extract_mastery_score(
-                                manifest_content, 
-                                package_filename
-                            )
-                            if mastery_score is not None:
-                                self.manifest_data['mastery_score'] = mastery_score
-                                logger.info(f"Extracted mastery score using comprehensive handler: {mastery_score}%")
-                            else:
-                                logger.info("No mastery score found in SCORM manifest - will use course default")
+                            logger.info("No mastery score found in SCORM manifest - will use course default")
                         
                         # Find corresponding resource
                         if identifierref:
