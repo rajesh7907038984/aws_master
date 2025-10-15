@@ -258,6 +258,25 @@
             
             contentFrame.addEventListener('load', function() {
                 console.log('✅ Content loaded successfully');
+                
+                // Check if the loaded page is an exit/goodbye page
+                try {
+                    const frameUrl = contentFrame.contentWindow.location.href;
+                    const exitPages = ['goodbye', 'finish', 'exit', 'thankyou', 'completion', 'end', 'close'];
+                    
+                    if (exitPages.some(page => frameUrl.toLowerCase().includes(page))) {
+                        console.log('📍 Exit page detected in frame:', frameUrl);
+                        // Automatically exit course when exit page is detected
+                        setTimeout(() => {
+                            console.log('🚪 Auto-exiting due to exit page detection');
+                            exitCourse();
+                        }, 500); // Small delay to ensure any final SCORM data is saved
+                    }
+                } catch (e) {
+                    // Cross-origin restrictions may prevent URL access
+                    console.log('⚠️ Could not check frame URL (cross-origin)');
+                }
+                
                 // Remove artificial delay for faster content display
                 loadingScreen.style.display = 'none';
             });
