@@ -130,8 +130,13 @@ class ScormAPIHandler:
             self.initialized = True
             self.last_error = '0'
             
+            # CRITICAL FIX: Store initialization state persistently
+            if not self.attempt.cmi_data:
+                self.attempt.cmi_data = {}
+            self.attempt.cmi_data['_api_initialized'] = True
+            
             # CRITICAL FIX: Always reinitialize CMI data to ensure proper defaults
-            self.attempt.cmi_data = self._initialize_cmi_data()
+            self.attempt.cmi_data.update(self._initialize_cmi_data())
             
             # CRITICAL FIX: Always respect the entry mode set by the view
             if self.attempt.entry == 'resume':
@@ -157,6 +162,13 @@ class ScormAPIHandler:
                 self.attempt.cmi_data['cmi.core.lesson_location'] = self.attempt.lesson_location or ''
                 self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data or ''
                 
+                # CRITICAL FIX: Ensure score elements are properly initialized
+                self.attempt.cmi_data['cmi.core.score.raw'] = str(self.attempt.score_raw) if self.attempt.score_raw else ''
+                self.attempt.cmi_data['cmi.core.score.max'] = str(self.attempt.score_max) if self.attempt.score_max else '100'
+                self.attempt.cmi_data['cmi.core.score.min'] = str(self.attempt.score_min) if self.attempt.score_min else '0'
+                
+                logger.info(f"SCORM 1.2 initialized: lesson_mode='{self.attempt.cmi_data['cmi.core.lesson_mode']}', credit='{self.attempt.cmi_data['cmi.core.credit']}', lesson_status='{self.attempt.cmi_data['cmi.core.lesson_status']}'")
+                
             else:  # SCORM 2004
                 # CRITICAL: Ensure all required SCORM 2004 elements have proper values
                 self.attempt.cmi_data['cmi.entry'] = self.attempt.entry or 'ab-initio'
@@ -168,6 +180,14 @@ class ScormAPIHandler:
                 # Ensure bookmark data is available
                 self.attempt.cmi_data['cmi.location'] = self.attempt.lesson_location or ''
                 self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data or ''
+                
+                # CRITICAL FIX: Ensure score elements are properly initialized
+                self.attempt.cmi_data['cmi.score.raw'] = str(self.attempt.score_raw) if self.attempt.score_raw else ''
+                self.attempt.cmi_data['cmi.score.max'] = str(self.attempt.score_max) if self.attempt.score_max else '100'
+                self.attempt.cmi_data['cmi.score.min'] = str(self.attempt.score_min) if self.attempt.score_min else '0'
+                
+                logger.info(f"SCORM 2004 initialized: mode='{self.attempt.cmi_data['cmi.mode']}', credit='{self.attempt.cmi_data['cmi.credit']}', completion_status='{self.attempt.cmi_data['cmi.completion_status']}'")
+                
             
             # CRITICAL FIX: Save the updated data immediately
             self.attempt.save()
@@ -192,6 +212,10 @@ class ScormAPIHandler:
         
         self.initialized = False
         self.last_error = '0'
+        
+        # CRITICAL FIX: Clear initialization state persistently
+        if self.attempt.cmi_data:
+            self.attempt.cmi_data['_api_initialized'] = False
         
         # CRITICAL FIX: Set exit mode to indicate proper termination
         self.attempt.exit_mode = 'logout'
@@ -298,6 +322,16 @@ class ScormAPIHandler:
                     value = self.attempt.session_time or '0000:00:00.00'
                 elif element in ['cmi.core.exit', 'cmi.exit']:
                     value = self.attempt.exit_mode or ''
+                # CRITICAL FIX: Add proper interaction handling
+                elif element == 'cmi.interactions._count':
+                    # Return count of interactions stored in cmi_data
+                    interactions = self._get_interactions_data()
+                    value = str(len(interactions))
+                    logger.info(f"SCORM API GetValue(cmi.interactions._count) - returning: {value}")
+                elif element.startswith('cmi.interactions.'):
+                    # Handle individual interaction elements
+                    value = self._get_interaction_element(element)
+                    logger.info(f"SCORM API GetValue({element}) - returning interaction element: '{value}'")
                 else:
                     # Return empty string for unknown elements
                     value = ''
@@ -421,6 +455,15 @@ class ScormAPIHandler:
                     # Force save suspend data immediately
                     self.attempt.save(update_fields=['suspend_data', 'cmi_data', 'last_accessed'])
                     logger.info(f"💾 SUSPEND DATA PERSISTED: suspend_data saved to database")
+                # CRITICAL FIX: Add interaction handling for SetValue - SCORM 1.2
+                elif element.startswith('cmi.interactions.'):
+                    # Handle interaction data storage
+                    success = self._set_interaction_element(element, value)
+                    if not success:
+                        logger.warning(f"Failed to set interaction element: {element} = {value}")
+                        self.last_error = '402'  # Invalid set value
+                        return 'false'
+                    logger.info(f"🎯 INTERACTION SAVED: {element} = {value} for attempt {self.attempt.id}")
             else:  # SCORM 2004
                 if element == 'cmi.completion_status':
                     self.attempt.completion_status = value
@@ -548,7 +591,10 @@ class ScormAPIHandler:
         self.attempt = attempt
         self.version = attempt.scorm_package.version
         self.last_error = '0'
-        self.initialized = False
+        
+        # CRITICAL FIX: Check if API is already initialized by looking at persistent state
+        self.initialized = self.attempt.cmi_data.get('_api_initialized', False)
+        logger.info(f"SCORM API handler created - method: {method}, initialized: {self.initialized}")
         
         # CRITICAL FIX: Always ensure CMI data is properly initialized for API calls
         if not self.attempt.cmi_data or len(self.attempt.cmi_data) == 0:
@@ -1018,4 +1064,94 @@ class ScormAPIHandler:
             logger.warning(f"Error getting dynamic passing score: {e}")
             # Safe fallback
             return 70.0
+    
+    def _get_interactions_data(self):
+        """Get interactions data from cmi_data, ensuring proper structure"""
+        try:
+            if not self.attempt.cmi_data:
+                self.attempt.cmi_data = {}
+            
+            if 'interactions' not in self.attempt.cmi_data:
+                self.attempt.cmi_data['interactions'] = []
+            
+            return self.attempt.cmi_data['interactions']
+        except Exception as e:
+            logger.error(f"Error getting interactions data: {str(e)}")
+            return []
+    
+    def _get_interaction_element(self, element):
+        """Get specific interaction element value"""
+        try:
+            # Parse element: cmi.interactions.n.property
+            parts = element.split('.')
+            if len(parts) < 4:
+                return ''
+            
+            index_str = parts[2]  # The 'n' part
+            property_name = parts[3]  # The property part
+            
+            # Handle _count specially
+            if index_str == '_count':
+                return ''  # This should be handled by _count case above
+            
+            # Convert index to integer
+            try:
+                index = int(index_str)
+            except ValueError:
+                logger.warning(f"Invalid interaction index: {index_str}")
+                return ''
+            
+            interactions = self._get_interactions_data()
+            
+            # Check if interaction exists
+            if index >= len(interactions):
+                return ''
+            
+            interaction = interactions[index]
+            return str(interaction.get(property_name, ''))
+            
+        except Exception as e:
+            logger.error(f"Error getting interaction element {element}: {str(e)}")
+            return ''
+    
+    def _set_interaction_element(self, element, value):
+        """Set specific interaction element value"""
+        try:
+            # Parse element: cmi.interactions.n.property
+            parts = element.split('.')
+            if len(parts) < 4:
+                logger.warning(f"Invalid interaction element format: {element}")
+                return False
+            
+            index_str = parts[2]  # The 'n' part
+            property_name = parts[3]  # The property part
+            
+            # Convert index to integer
+            try:
+                index = int(index_str)
+            except ValueError:
+                logger.warning(f"Invalid interaction index: {index_str}")
+                return False
+            
+            interactions = self._get_interactions_data()
+            
+            # Extend interactions array if necessary
+            while len(interactions) <= index:
+                interactions.append({})
+            
+            # Set the property
+            interactions[index][property_name] = value
+            
+            # Store back in cmi_data
+            self.attempt.cmi_data['interactions'] = interactions
+            
+            # Also store in the individual element for compatibility
+            self.attempt.cmi_data[element] = value
+            
+            logger.info(f"Set interaction element: {element} = {value}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error setting interaction element {element}: {str(e)}")
+            return False
 
