@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' *.amazonaws.com *.s3.amazonaws.com https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' *.amazonaws.com https: data:; style-src 'self' 'unsafe-inline' *.amazonaws.com https: data:; img-src 'self' data: blob: *.amazonaws.com https:; font-src 'self' data: *.amazonaws.com https:; connect-src 'self' *.amazonaws.com https:; media-src 'self' data: blob: *.amazonaws.com https:; frame-src 'self' *.amazonaws.com https:; object-src 'self' *.amazonaws.com data:; child-src 'self' *.amazonaws.com https:; worker-src 'self' data: blob:; manifest-src 'self';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' *.amazonaws.com *.s3.amazonaws.com https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' *.amazonaws.com https: data: blob:; style-src 'self' 'unsafe-inline' *.amazonaws.com https: data:; img-src 'self' data: blob: *.amazonaws.com https:; font-src 'self' data: *.amazonaws.com https:; connect-src 'self' *.amazonaws.com https:; media-src 'self' data: blob: *.amazonaws.com https:; frame-src 'self' *.amazonaws.com https: data:; object-src 'self' *.amazonaws.com data:; child-src 'self' *.amazonaws.com https: data:; worker-src 'self' data: blob:; manifest-src 'self';">
     <title>{{ topic.title }} - SCORM Content</title>
     <style>
         * {
@@ -78,7 +78,12 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            z-index: 1000;
+            z-index: 500; /* CRITICAL FIX: Lower z-index to not interfere with header buttons */
+            pointer-events: none; /* CRITICAL FIX: Allow clicks to pass through when hidden */
+        }
+        
+        .loading-overlay.active {
+            pointer-events: auto; /* Only block clicks when actively loading */
         }
         
         .loading-spinner {
@@ -114,7 +119,7 @@
         </div>
         
         <div class="scorm-content">
-            <div class="loading-overlay" id="loadingOverlay">
+            <div class="loading-overlay active" id="loadingOverlay">
                 <div class="loading-spinner"></div>
             </div>
             <iframe id="scormIframe" class="scorm-iframe" src="about:blank"></iframe>
@@ -251,20 +256,29 @@
                 console.log('SCORM content URL loaded:', finalUrl);
                 
                 iframe.addEventListener('load', function() {
-                    console.log('SCORM content loaded');
+                    console.log('SCORM content loaded successfully');
                     updateStatus('SCORM content loaded');
-                    
-                    // Hide loading overlay
-                    setTimeout(function() {
-                        loadingOverlay.style.display = 'none';
-                    }, 500);
+                    hideLoadingOverlay();
                 });
                 
                 iframe.addEventListener('error', function() {
                     console.error('SCORM content failed to load');
                     updateStatus('Failed to load SCORM content');
-                    loadingOverlay.innerHTML = '<div style="text-align: center; color: #e74c3c;"><h3>Content Loading Failed</h3><p>Please try refreshing the page</p></div>';
+                    loadingOverlay.innerHTML = '<div style="text-align: center; color: #e74c3c;"><h3>Content Loading Failed</h3><p>Please try refreshing the page or use the Back to Topic button</p></div>';
+                    // CRITICAL FIX: Hide overlay even on error so exit button works
+                    setTimeout(function() {
+                        hideLoadingOverlay();
+                    }, 3000);
                 });
+                
+                // CRITICAL FIX: Timeout to hide overlay and ensure exit button works
+                setTimeout(function() {
+                    if (loadingOverlay && loadingOverlay.style.display !== 'none') {
+                        console.log('⏰ Timeout: Force hiding loading overlay to ensure exit button works');
+                        hideLoadingOverlay();
+                        updateStatus('Content loading timeout - Exit button should work now');
+                    }
+                }, 10000); // 10 second timeout
             }
         }
         
@@ -273,11 +287,36 @@
             document.getElementById('statusText').textContent = message;
         }
         
+        // CRITICAL FIX: Function to properly hide loading overlay
+        function hideLoadingOverlay() {
+            var loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                console.log('🎯 Hiding loading overlay to fix exit button interference');
+                loadingOverlay.classList.remove('active');
+                setTimeout(function() {
+                    loadingOverlay.style.display = 'none';
+                }, 100);
+            }
+        }
+        
         // Exit course function - enhanced for SCORM content exit support
         function exitCourse() {
-            console.log('🚪 EXIT BUTTON CLICKED - Starting exit process...');
+            console.log('🚪 MANUAL EXIT BUTTON CLICKED - Starting exit process...');
             
             try {
+                // CRITICAL: Check if content has already initiated exit to avoid conflicts
+                if (window.API) {
+                    try {
+                        var contentInitiatedExit = window.API.LMSGetValue('_content_initiated_exit');
+                        if (contentInitiatedExit === 'true') {
+                            console.log('⚠️ Content already initiated exit - deferring to content exit mechanism');
+                            return; // Let content-initiated exit handle it
+                        }
+                    } catch (e) {
+                        console.log('Could not check content exit flag:', e.message);
+                    }
+                }
+                
                 updateStatus('Saving progress and exiting...');
                 
                 // Commit any pending SCORM data
