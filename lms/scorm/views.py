@@ -174,6 +174,37 @@ def scorm_content(request, topic_id, path):
                     logger.warning(f"Could not get attempt ID for user {request.user.username}: {e}")
                     pass
                     
+            # CRITICAL FIX: Handle Articulate Rise packages - Fix relative paths in content
+            # For indexAPI.html files, fix the relative path references
+            if path.endswith('indexAPI.html') and 'scormdriver' in path:
+                logger.info(f"🔧 Fixing Articulate Rise indexAPI.html paths")
+                
+                # Fix the JavaScript path references in indexAPI.html
+                if '../scormcontent/index.html' in content:
+                    # Replace relative path with absolute Django URL
+                    django_content_url = f'/scorm/content/{topic_id}/scormcontent/index.html'
+                    content = content.replace('../scormcontent/index.html', django_content_url)
+                    logger.info(f"✅ Fixed content path: ../scormcontent/index.html -> {django_content_url}")
+                
+                if '../scormcontent/' in content:
+                    # Replace all other relative scormcontent paths
+                    import re
+                    def replace_scormcontent_path(match):
+                        relative_path = match.group(1)
+                        django_path = f'/scorm/content/{topic_id}/scormcontent/{relative_path}'
+                        logger.info(f"🔄 Path fix: ../scormcontent/{relative_path} -> {django_path}")
+                        return f'"/scorm/content/{topic_id}/scormcontent/{relative_path}"'
+                    
+                    content = re.sub(r'["\']\.\.\/scormcontent\/([^"\']+)["\']', replace_scormcontent_path, content)
+                
+            # Enhanced path resolution script for additional support
+            path_resolution_script = f"""
+<script>
+// Enhanced SCORM Path Resolution
+console.log('🔧 SCORM path resolution active for topic {topic_id}');
+window.SCORM_TOPIC_ID = {topic_id};
+</script>"""
+                        
             # Check if this is a Storyline package for enhanced support
             is_storyline = (scorm_package.version == 'storyline' or 
                           'storyline' in str(scorm_package.launch_url).lower() or
@@ -649,9 +680,9 @@ window.alert = function(message) {
 </script>'''
             
             if '</head>' in content:
-                content = content.replace('</head>', scorm_api + error_suppression + '</head>')
+                content = content.replace('</head>', path_resolution_script + scorm_api + error_suppression + '</head>')
             else:
-                content = scorm_api + error_suppression + content
+                content = path_resolution_script + scorm_api + error_suppression + content
             
             response = HttpResponse(content, content_type='text/html; charset=utf-8')
             response['Access-Control-Allow-Origin'] = '*'
