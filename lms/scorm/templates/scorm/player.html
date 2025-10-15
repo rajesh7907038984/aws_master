@@ -109,7 +109,7 @@
         <div class="scorm-header">
             <div class="scorm-title">{{ topic.title }}</div>
             <div class="header-buttons">
-                <button class="btn" onclick="exitCourse()">Back to Topic</button>
+                <button class="btn" onclick="exitCourse()" id="exitButton">Back to Topic</button>
             </div>
         </div>
         
@@ -275,62 +275,121 @@
         
         // Exit course function - enhanced for SCORM content exit support
         function exitCourse() {
-            console.log('Exiting course...');
-            updateStatus('Saving progress and exiting...');
+            console.log('🚪 EXIT BUTTON CLICKED - Starting exit process...');
             
-            // Commit any pending SCORM data
-            if (window.API) {
-                try {
-                    window.API.LMSCommit('');
-                    console.log('SCORM data committed before exit');
-                } catch (e) {
-                    console.log('Could not commit SCORM data:', e.message);
-                }
-                
-                // CRITICAL FIX: Try to terminate SCORM session properly
-                try {
-                    window.API.LMSFinish('');
-                    console.log('SCORM session terminated before exit');
-                } catch (e) {
-                    console.log('Could not terminate SCORM session:', e.message);
-                }
-            }
-            
-            // ENHANCED: Multiple fallback methods for navigation
-            console.log('Attempting to navigate back to topic...');
-            
-            // Method 1: Direct navigation
             try {
-                window.location.href = '{% url "courses:topic_view" topic.id %}';
-                return;
-            } catch (e) {
-                console.log('Direct navigation failed:', e.message);
-            }
-            
-            // Method 2: Use history back if available
-            setTimeout(function() {
-                try {
-                    if (window.history && window.history.length > 1) {
-                        window.history.back();
-                        console.log('Used history.back() for navigation');
-                        return;
+                updateStatus('Saving progress and exiting...');
+                
+                // Commit any pending SCORM data
+                if (window.API) {
+                    try {
+                        console.log('💾 Committing SCORM data...');
+                        window.API.LMSCommit('');
+                        console.log('✅ SCORM data committed before exit');
+                    } catch (e) {
+                        console.log('❌ Could not commit SCORM data:', e.message);
                     }
-                } catch (e) {
-                    console.log('History navigation failed:', e.message);
+                    
+                    // CRITICAL FIX: Try to terminate SCORM session properly
+                    try {
+                        console.log('🔚 Terminating SCORM session...');
+                        window.API.LMSFinish('');
+                        console.log('✅ SCORM session terminated before exit');
+                    } catch (e) {
+                        console.log('❌ Could not terminate SCORM session:', e.message);
+                    }
+                } else {
+                    console.log('⚠️ No SCORM API available for cleanup');
                 }
                 
-                // Method 3: Force redirect using top window
+                // ENHANCED: Multiple fallback methods for navigation
+                console.log('🌐 Attempting to navigate back to topic...');
+                
+                // Method 1: Direct navigation (immediate)
+                var topicUrl = '{% url "courses:topic_view" topic.id %}';
+                console.log('📍 Target URL:', topicUrl);
+                
                 try {
-                    window.top.location.href = '{% url "courses:topic_view" topic.id %}';
-                    console.log('Used top.location for navigation');
+                    console.log('🎯 Attempting direct navigation...');
+                    window.location.href = topicUrl;
+                    console.log('✅ Direct navigation initiated');
+                    return;
                 } catch (e) {
-                    console.log('Top window navigation failed:', e.message);
-                    
-                    // Method 4: Alert user to manually close
-                    alert('Course completed. Please close this window to return to the course.');
+                    console.log('❌ Direct navigation failed:', e.message);
                 }
-            }, 1000);
+                
+                // Method 2: Delayed navigation with multiple attempts
+                setTimeout(function() {
+                    console.log('⏰ Trying delayed navigation methods...');
+                    
+                    // Try parent window navigation
+                    try {
+                        if (window.parent && window.parent !== window) {
+                            console.log('👆 Trying parent window navigation...');
+                            window.parent.location.href = topicUrl;
+                            console.log('✅ Parent window navigation initiated');
+                            return;
+                        }
+                    } catch (e) {
+                        console.log('❌ Parent window navigation failed:', e.message);
+                    }
+                    
+                    // Try top window navigation
+                    try {
+                        console.log('🔝 Trying top window navigation...');
+                        window.top.location.href = topicUrl;
+                        console.log('✅ Top window navigation initiated');
+                        return;
+                    } catch (e) {
+                        console.log('❌ Top window navigation failed:', e.message);
+                    }
+                    
+                    // Try history back as fallback
+                    try {
+                        if (window.history && window.history.length > 1) {
+                            console.log('⬅️ Trying history back...');
+                            window.history.back();
+                            console.log('✅ History back initiated');
+                            return;
+                        }
+                    } catch (e) {
+                        console.log('❌ History navigation failed:', e.message);
+                    }
+                    
+                    // Final fallback - user notification
+                    console.log('🚨 All navigation methods failed, showing user alert');
+                    alert('Exit button clicked! Please manually navigate back to the course.\n\nTarget: ' + topicUrl);
+                    
+                }, 500);
+                
+            } catch (error) {
+                console.log('💥 Critical error in exitCourse function:', error);
+                alert('Error during exit: ' + error.message + '\nPlease manually close this window.');
+            }
         }
+        
+        // ENHANCED: Make exitCourse function globally accessible and add backup handlers
+        window.exitCourse = exitCourse;
+        
+        // Add additional event listener for the button (backup to onclick)
+        document.addEventListener('DOMContentLoaded', function() {
+            var exitButton = document.getElementById('exitButton');
+            if (exitButton) {
+                console.log('🔘 Adding backup click handler to exit button');
+                
+                // Remove any existing handlers and add fresh one
+                exitButton.removeEventListener('click', exitCourse);
+                exitButton.addEventListener('click', function(e) {
+                    console.log('🖱️ Exit button clicked via event listener');
+                    e.preventDefault();
+                    exitCourse();
+                });
+                
+                console.log('✅ Exit button handlers configured');
+            } else {
+                console.log('❌ Exit button not found in DOM');
+            }
+        });
         
         // SCORM EXIT FIX: Enhanced periodic check for content-initiated exits
         function startExitMonitoring() {
@@ -416,6 +475,42 @@
         };
         
         console.log('SCORM Player ready');
+        
+        // DEBUGGING: Test exit button functionality
+        console.log('🧪 Testing exit button setup...');
+        console.log('exitCourse function defined:', typeof exitCourse);
+        console.log('window.exitCourse defined:', typeof window.exitCourse);
+        
+        // Add visual feedback for button hover
+        var exitBtn = document.getElementById('exitButton');
+        if (exitBtn) {
+            console.log('✅ Exit button found in DOM');
+            exitBtn.addEventListener('mouseenter', function() {
+                console.log('🖱️ Mouse entered exit button');
+                this.style.backgroundColor = '#030128';
+            });
+            exitBtn.addEventListener('mouseleave', function() {
+                this.style.backgroundColor = '#020117';
+            });
+            
+            // Add a test click handler to verify button is clickable
+            exitBtn.addEventListener('click', function(e) {
+                console.log('🔘 BUTTON CLICK DETECTED - Event object:', e);
+                console.log('🔘 Button element:', this);
+                console.log('🔘 Current target:', e.currentTarget);
+            }, true); // Use capture phase
+            
+        } else {
+            console.log('❌ Exit button NOT found in DOM');
+        }
+        
+        // Test function for manual testing
+        window.testExitButton = function() {
+            console.log('🧪 Manual test of exit function...');
+            exitCourse();
+        };
+        
+        console.log('🔧 Debugging setup complete. Use testExitButton() to test manually.');
     </script>
 </body>
 </html>
