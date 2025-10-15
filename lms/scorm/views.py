@@ -205,59 +205,34 @@ def scorm_content(request, topic_id, path):
                     
                     content = re.sub(r'["\']\.\.\/scormcontent\/([^"\']+)["\']', replace_scormcontent_path, content)
                 
-                # Add enhanced debugging for navigation
+                # Optimized debugging for navigation - reduced size and timing
                 debug_script = f"""
 <script>
-// Enhanced Articulate Rise Navigation Debug
-console.log('🔧 Articulate Rise Debug: indexAPI.html loaded with fixes');
-console.log('🎯 Target content URL: /scorm/content/{topic_id}/scormcontent/index.html?attempt_id={attempt_id}');
-
-// Override the LoadContent function to add debugging
+// Articulate Rise Navigation Support
 var originalLoadContent = window.LoadContent;
 if (typeof LoadContent !== 'undefined') {{
     window.LoadContent = function() {{
-        console.log('🚀 LoadContent called - navigating to course content');
         return originalLoadContent.apply(this, arguments);
     }};
 }}
 
-// Monitor iframe navigation
+// Quick iframe navigation fix
 setTimeout(function() {{
     var contentFrame = document.getElementById('content-frame');
     if (contentFrame) {{
-        console.log('📺 Content frame found, current src:', contentFrame.src);
-        
-        // Monitor frame load events
-        contentFrame.addEventListener('load', function() {{
-            console.log('📺 Frame loaded:', this.src);
-            try {{
-                if (this.contentWindow && this.contentWindow.location) {{
-                    console.log('📍 Frame location:', this.contentWindow.location.href);
-                }}
-            }} catch (e) {{
-                console.log('🔒 Frame location access blocked (normal for cross-origin)');
-            }}
-        }});
-        
-        // Force navigation if stuck on blank.html
         setTimeout(function() {{
             if (contentFrame.src.includes('blank.html')) {{
-                console.log('⚠️ Still on blank.html, forcing navigation...');
-                var targetUrl = '/scorm/content/{topic_id}/scormcontent/index.html?attempt_id={attempt_id}';
-                console.log('🎯 Forcing navigation to:', targetUrl);
-                contentFrame.src = targetUrl;
+                contentFrame.src = '/scorm/content/{topic_id}/scormcontent/index.html?attempt_id={attempt_id}';
             }}
-        }}, 3000);
+        }}, 1500);
     }}
-}}, 1000);
+}}, 500);
 </script>"""
                 content = content.replace('</head>', debug_script + '</head>')
                 
-            # Enhanced path resolution script for additional support
+            # Optimized path resolution script
             path_resolution_script = f"""
 <script>
-// Enhanced SCORM Path Resolution
-console.log('🔧 SCORM path resolution active for topic {topic_id}');
 window.SCORM_TOPIC_ID = {topic_id};
 </script>"""
                         

@@ -135,7 +135,7 @@
     <div class="player-container">
         <header class="player-header">
             <h1 class="course-title">{{ topic.title }}</h1>
-            <button class="exit-btn" id="exitButton">← Back to Course</button>
+            <button class="exit-btn" id="exitButton">Save/Exit</button>
         </header>
         
         <div class="content-frame-container" style="flex: 1; position: relative;">
@@ -238,7 +238,7 @@
                 console.log('ℹ️ No SCORM API available (content may handle its own tracking)');
             }
             
-            // Navigate back to topic with delay to ensure data is saved
+            // Navigate back to topic with minimal delay to ensure data is saved
             const topicUrl = `/courses/topic/{{ topic.id }}/`;
             console.log('🎯 Navigating to:', topicUrl);
             
@@ -249,7 +249,7 @@
                     console.log('⚠️ Navigation failed, trying alternative method');
                     window.open(topicUrl, '_self');
                 }
-            }, 500);
+            }, 100);
         }
         
         // Enhanced exit button handler with debugging
@@ -297,9 +297,8 @@
             
             contentFrame.addEventListener('load', function() {
                 console.log('✅ Content loaded successfully');
-                setTimeout(() => {
-                    loadingScreen.style.display = 'none';
-                }, 500);
+                // Remove artificial delay for faster content display
+                loadingScreen.style.display = 'none';
             });
             
             contentFrame.addEventListener('error', function() {
@@ -307,13 +306,13 @@
                 showError();
             });
             
-            // Set timeout for loading
+            // Set timeout for loading - reduced from 10s to 5s for faster experience
             setTimeout(() => {
                 if (loadingScreen.style.display !== 'none') {
                     console.log('⏰ Loading timeout - hiding loading screen');
                     loadingScreen.style.display = 'none';
                 }
-            }, 10000);
+            }, 5000);
             
             contentFrame.src = url;
         }
