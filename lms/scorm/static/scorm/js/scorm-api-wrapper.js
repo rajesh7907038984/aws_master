@@ -86,6 +86,16 @@
         
         LMSFinish: function(parameter) {
             log('LMSFinish called');
+            
+            // CRITICAL FIX: Force commit before termination to ensure data is saved
+            try {
+                log('Auto-committing data before termination...');
+                makeAPICall('LMSCommit', ['']);
+                log('Data committed successfully before termination');
+            } catch (e) {
+                log('Warning: Could not commit data before termination: ' + e.message);
+            }
+            
             var result = makeAPICall('LMSFinish', [parameter]);
             config.initialized = false;
             
@@ -113,12 +123,28 @@
             // Send to backend
             var result = makeAPICall('LMSSetValue', [element, value]);
             
-            // Auto-commit for certain critical values
-            if (element === 'cmi.core.lesson_status' || element === 'cmi.core.score.raw') {
-                log('Auto-committing critical data');
+            // CRITICAL FIX: Enhanced auto-commit for critical data elements
+            var criticalElements = [
+                'cmi.core.lesson_status', 
+                'cmi.core.score.raw',
+                'cmi.core.lesson_location',
+                'cmi.suspend_data',
+                'cmi.core.exit',
+                'cmi.completion_status',
+                'cmi.success_status',
+                'cmi.location'
+            ];
+            
+            if (criticalElements.indexOf(element) !== -1) {
+                log('Auto-committing critical data: ' + element);
                 setTimeout(function() {
-                    makeAPICall('LMSCommit', ['']);
-                }, 100);
+                    try {
+                        var commitResult = makeAPICall('LMSCommit', ['']);
+                        log('Critical data auto-commit result: ' + commitResult + ' for ' + element);
+                    } catch (e) {
+                        log('Warning: Auto-commit failed for ' + element + ': ' + e.message);
+                    }
+                }, 50); // Reduced delay for faster persistence
             }
             
             return result;
@@ -149,6 +175,17 @@
         },
         
         Terminate: function(parameter) {
+            log('Terminate (SCORM 2004) called');
+            
+            // CRITICAL FIX: Force commit before termination (SCORM 2004)
+            try {
+                log('Auto-committing data before SCORM 2004 termination...');
+                API.LMSCommit('');
+                log('Data committed successfully before SCORM 2004 termination');
+            } catch (e) {
+                log('Warning: Could not commit data before SCORM 2004 termination: ' + e.message);
+            }
+            
             var result = API.LMSFinish(parameter);
             
             // SCORM EXIT FIX: Check if content initiated exit
@@ -175,7 +212,10 @@
         },
         
         SetValue: function(element, value) {
+            log('SCORM 2004 SetValue called: ' + element + ' = ' + value);
+            
             // Map SCORM 2004 elements to SCORM 1.2
+            var originalElement = element;
             if (element.startsWith('cmi.learner_')) {
                 element = element.replace('cmi.learner_', 'cmi.core.student_');
             } else if (element === 'cmi.location') {
@@ -190,7 +230,31 @@
                 }
             }
             
-            return API.LMSSetValue(element, value);
+            var result = API.LMSSetValue(element, value);
+            
+            // CRITICAL FIX: Auto-commit for SCORM 2004 critical elements
+            var criticalElements2004 = [
+                'cmi.completion_status',
+                'cmi.success_status', 
+                'cmi.score.raw',
+                'cmi.location',
+                'cmi.suspend_data',
+                'cmi.exit'
+            ];
+            
+            if (criticalElements2004.indexOf(originalElement) !== -1) {
+                log('Auto-committing SCORM 2004 critical data: ' + originalElement);
+                setTimeout(function() {
+                    try {
+                        var commitResult = API.LMSCommit('');
+                        log('SCORM 2004 critical data auto-commit result: ' + commitResult + ' for ' + originalElement);
+                    } catch (e) {
+                        log('Warning: SCORM 2004 auto-commit failed for ' + originalElement + ': ' + e.message);
+                    }
+                }, 50);
+            }
+            
+            return result;
         },
         
         Commit: function(parameter) {
@@ -354,8 +418,9 @@
             var scormExit = makeAPICall('LMSGetValue', ['cmi.core.exit']);
             var lessonStatus = makeAPICall('LMSGetValue', ['cmi.core.lesson_status']);
             var completionStatus = makeAPICall('LMSGetValue', ['cmi.completion_status']);
+            var successStatus = makeAPICall('LMSGetValue', ['cmi.success_status']);
             
-            log('🔍 SCORM exit indicators - exit: "' + scormExit + '", lesson_status: "' + lessonStatus + '", completion: "' + completionStatus + '"');
+            log('🔍 SCORM exit indicators - exit: "' + scormExit + '", lesson_status: "' + lessonStatus + '", completion: "' + completionStatus + '", success: "' + successStatus + '"');
             
             // ENHANCED: Package-type specific exit detection
             var shouldExit = false;
@@ -363,11 +428,44 @@
             
             // Method 1: Explicit content-initiated exit flag (most reliable)
             if (exitCheck === 'true') {
-                // CRITICAL FIX: Trust the exit flag when set, especially for scormcontent/ packages
-                // The backend already validates this is a genuine exit, not stale data
                 shouldExit = true;
                 exitReason = 'content_initiated_exit_flag';
                 log('✅ Exit detected: Content explicitly requested exit via _content_initiated_exit flag');
+            }
+            
+            // CRITICAL FIX: Method 1a - Detect when SCORM content has completed and is ready to exit
+            // This handles cases where content completes internally but doesn't set the exit flag
+            else if (completionStatus === 'completed' || successStatus === 'passed' || lessonStatus === 'completed' || lessonStatus === 'passed') {
+                // Check if this is a recent completion (not stale data from previous session)
+                var currentTime = new Date().getTime();
+                var lastExitCheck = window.scormLastExitCheck || 0;
+                var timeSinceLastCheck = currentTime - lastExitCheck;
+                
+                // If we haven't checked recently, this might be a fresh completion
+                if (timeSinceLastCheck > 2000) { // 2 seconds
+                    shouldExit = true;
+                    exitReason = 'fresh_completion_detected';
+                    log('✅ Exit detected: Fresh completion status detected (' + (completionStatus || successStatus || lessonStatus) + ')');
+                    window.scormLastExitCheck = currentTime;
+                }
+            }
+            
+            // Method 1b: Check if content is signaling exit through suspend data or location
+            else {
+                var suspendData = makeAPICall('LMSGetValue', ['cmi.suspend_data']);
+                var lessonLocation = makeAPICall('LMSGetValue', ['cmi.core.lesson_location']) || makeAPICall('LMSGetValue', ['cmi.location']);
+                
+                // Look for exit indicators in suspend data or location
+                if (suspendData && (suspendData.toLowerCase().includes('exit') || suspendData.toLowerCase().includes('complete') || suspendData.toLowerCase().includes('finished'))) {
+                    shouldExit = true;
+                    exitReason = 'suspend_data_exit_signal';
+                    log('✅ Exit detected: Exit signal in suspend data');
+                }
+                else if (lessonLocation && (lessonLocation.toLowerCase().includes('exit') || lessonLocation.toLowerCase().includes('end') || lessonLocation.toLowerCase().includes('complete'))) {
+                    shouldExit = true;
+                    exitReason = 'location_exit_signal';
+                    log('✅ Exit detected: Exit signal in lesson location');
+                }
             }
             
             // Method 2: SCORM exit element indicates user wants to leave
@@ -402,7 +500,21 @@
             if (shouldExit) {
                 log('🚪 Content initiated exit detected - starting navigation process');
                 
-                // Clear the exit flag first
+                // CRITICAL FIX: Force final commit before exit to ensure all data is saved
+                try {
+                    log('💾 Final commit before exit...');
+                    var finalCommitResult = makeAPICall('LMSCommit', ['']);
+                    log('✅ Final commit result: ' + finalCommitResult);
+                    
+                    // Also try to properly terminate the session
+                    var terminateResult = makeAPICall('LMSFinish', ['']);
+                    log('✅ Final terminate result: ' + terminateResult);
+                    
+                } catch (e) {
+                    log('❌ Error during final data save: ' + e.message);
+                }
+                
+                // Clear the exit flag after saving data
                 var clearResult = makeAPICall('LMSSetValue', ['_content_initiated_exit', 'false']);
                 log('🧹 Exit flag cleared, result: ' + clearResult);
                 

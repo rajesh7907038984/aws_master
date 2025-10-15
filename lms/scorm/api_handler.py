@@ -327,6 +327,29 @@ class ScormAPIHandler:
         try:
             value = self.attempt.cmi_data.get(element, '')
             
+            # CRITICAL FIX: Special handling for exit flag requests
+            if element == '_content_initiated_exit':
+                # Check if content has completed and should trigger exit
+                current_exit_flag = self.attempt.cmi_data.get('_content_initiated_exit', 'false')
+                
+                # ENHANCED: Auto-detect exit conditions if flag isn't explicitly set
+                if current_exit_flag != 'true':
+                    exit_detected = self._auto_detect_content_exit()
+                    if exit_detected:
+                        # Set the flag so subsequent calls will return true
+                        self.attempt.cmi_data['_content_initiated_exit'] = 'true'
+                        # Save immediately
+                        self.attempt.save(update_fields=['cmi_data'])
+                        logger.info(f"🚪 AUTO-DETECTED EXIT: Setting _content_initiated_exit to true based on content state")
+                        value = 'true'
+                    else:
+                        value = current_exit_flag
+                else:
+                    value = current_exit_flag
+                
+                logger.info(f"SCORM API GetValue({element}) - returning exit flag: '{value}'")
+                return value
+            
             # Log the retrieved value for debugging
             logger.info(f"SCORM API GetValue({element}) - raw value from cmi_data: '{value}'")
             
@@ -383,10 +406,6 @@ class ScormAPIHandler:
                     # Handle individual interaction elements
                     value = self._get_interaction_element(element)
                     logger.info(f"SCORM API GetValue({element}) - returning interaction element: '{value}'")
-                elif element == '_content_initiated_exit':
-                    # CRITICAL FIX: Handle content-initiated exit flag detection
-                    value = self.attempt.cmi_data.get('_content_initiated_exit', 'false')
-                    logger.info(f"SCORM API GetValue({element}) - returning exit flag: '{value}'")
                 else:
                     # Return empty string for unknown elements
                     value = ''
@@ -730,6 +749,119 @@ class ScormAPIHandler:
             elif method in ['GetDiagnostic', 'LMSGetDiagnostic']:
                 error_code = parameters[0] if parameters else '0'
                 return self.get_diagnostic(error_code)
+            
+            # CRITICAL FIX: Add support for custom SCORM wrapper functions
+            # These are non-standard functions that some SCORM packages expect
+            elif method == 'CommitData':
+                # Map to standard Commit function
+                logger.info(f"Custom API: CommitData -> Commit")
+                return self.commit()
+            elif method == 'ConcedeControl':
+                # Map to terminate/finish function  
+                logger.info(f"Custom API: ConcedeControl -> Terminate")
+                return self.terminate()
+            elif method == 'CreateResponseIdentifier':
+                # Return a simple identifier for responses
+                logger.info(f"Custom API: CreateResponseIdentifier")
+                return str(len(self.attempt.cmi_data.get('responses', [])))
+            elif method == 'Finish':
+                # Map to terminate
+                logger.info(f"Custom API: Finish -> Terminate")
+                return self.terminate()
+            elif method == 'GetDataChunk':
+                # Return suspend data in chunks
+                element = parameters[0] if parameters else 'cmi.suspend_data'
+                logger.info(f"Custom API: GetDataChunk({element})")
+                return self.get_value(element)
+            elif method == 'GetStatus':
+                # Return lesson status
+                logger.info(f"Custom API: GetStatus")
+                if self.version == '1.2':
+                    return self.get_value('cmi.core.lesson_status')
+                else:
+                    return self.get_value('cmi.completion_status')
+            elif method in ['MatchingResponse', 'RecordMatchingInteraction']:
+                # Handle matching interaction responses
+                logger.info(f"Custom API: {method}")
+                return self._handle_interaction_response('matching', parameters)
+            elif method == 'RecordFillInInteraction':
+                # Handle fill-in interaction responses
+                logger.info(f"Custom API: RecordFillInInteraction")
+                return self._handle_interaction_response('fill-in', parameters)
+            elif method == 'RecordMultipleChoiceInteraction':
+                # Handle multiple choice interaction responses
+                logger.info(f"Custom API: RecordMultipleChoiceInteraction")
+                return self._handle_interaction_response('choice', parameters)
+            elif method == 'ResetStatus':
+                # Reset lesson status to initial state
+                logger.info(f"Custom API: ResetStatus")
+                if self.version == '1.2':
+                    self.set_value('cmi.core.lesson_status', 'not attempted')
+                else:
+                    self.set_value('cmi.completion_status', 'incomplete')
+                return 'true'
+            elif method == 'SetBookmark':
+                # Set bookmark/location
+                bookmark = parameters[0] if parameters else ''
+                logger.info(f"Custom API: SetBookmark({bookmark})")
+                if self.version == '1.2':
+                    return self.set_value('cmi.core.lesson_location', bookmark)
+                else:
+                    return self.set_value('cmi.location', bookmark)
+            elif method == 'SetDataChunk':
+                # Set data chunk (map to suspend data)
+                value = parameters[0] if parameters else ''
+                logger.info(f"Custom API: SetDataChunk({value[:50]}...)")
+                return self.set_value('cmi.suspend_data', value)
+            elif method == 'SetFailed':
+                # Set status to failed
+                logger.info(f"Custom API: SetFailed")
+                if self.version == '1.2':
+                    return self.set_value('cmi.core.lesson_status', 'failed')
+                else:
+                    self.set_value('cmi.completion_status', 'completed')
+                    return self.set_value('cmi.success_status', 'failed')
+            elif method == 'SetLanguagePreference':
+                # Set language preference (store as custom data)
+                lang = parameters[0] if parameters else 'en'
+                logger.info(f"Custom API: SetLanguagePreference({lang})")
+                return self.set_value('cmi.student_preference.language', lang)
+            elif method == 'SetPassed':
+                # Set status to passed
+                logger.info(f"Custom API: SetPassed")
+                if self.version == '1.2':
+                    return self.set_value('cmi.core.lesson_status', 'passed')
+                else:
+                    self.set_value('cmi.completion_status', 'completed')
+                    return self.set_value('cmi.success_status', 'passed')
+            elif method == 'SetReachedEnd':
+                # Mark that content reached end
+                logger.info(f"Custom API: SetReachedEnd")
+                self.set_value('_content_reached_end', 'true')
+                if self.version == '1.2':
+                    return self.set_value('cmi.core.lesson_status', 'completed')
+                else:
+                    return self.set_value('cmi.completion_status', 'completed')
+            elif method == 'SetScore':
+                # Set score value
+                score = parameters[0] if parameters else '0'
+                max_score = parameters[1] if len(parameters) > 1 else '100'
+                min_score = parameters[2] if len(parameters) > 2 else '0'
+                logger.info(f"Custom API: SetScore({score}, {max_score}, {min_score})")
+                
+                if self.version == '1.2':
+                    self.set_value('cmi.core.score.raw', score)
+                    self.set_value('cmi.core.score.max', max_score)
+                    return self.set_value('cmi.core.score.min', min_score)
+                else:
+                    self.set_value('cmi.score.raw', score)
+                    self.set_value('cmi.score.max', max_score)
+                    return self.set_value('cmi.score.min', min_score)
+            elif method == 'WriteToDebug':
+                # Write debug information (log it)
+                message = parameters[0] if parameters else ''
+                logger.info(f"Custom API Debug: {message}")
+                return 'true'
             else:
                 logger.warning(f"Unknown SCORM API method: {method}")
                 self.last_error = '401'  # Not implemented error
@@ -1823,4 +1955,64 @@ class ScormAPIHandler:
         except Exception as e:
             logger.error(f"Error setting interaction element {element}: {str(e)}")
             return False
+    
+    def _handle_interaction_response(self, interaction_type, parameters):
+        """Handle interaction response data for custom SCORM API functions"""
+        try:
+            if not parameters:
+                return 'false'
+            
+            # Get or create interactions data
+            interactions = self._get_interactions_data()
+            
+            # Create new interaction record
+            interaction = {
+                'id': str(len(interactions)),
+                'type': interaction_type,
+                'timestamp': timezone.now().isoformat(),
+                'parameters': parameters
+            }
+            
+            # Add specific fields based on interaction type
+            if interaction_type == 'choice':
+                # Multiple choice interaction
+                if len(parameters) >= 2:
+                    interaction['question_id'] = parameters[0]
+                    interaction['response'] = parameters[1]
+                    interaction['correct'] = parameters[2] if len(parameters) > 2 else 'unknown'
+            elif interaction_type == 'fill-in':
+                # Fill-in interaction
+                if len(parameters) >= 2:
+                    interaction['question_id'] = parameters[0]
+                    interaction['response'] = parameters[1]
+            elif interaction_type == 'matching':
+                # Matching interaction
+                if len(parameters) >= 2:
+                    interaction['source'] = parameters[0]
+                    interaction['target'] = parameters[1]
+            
+            interactions.append(interaction)
+            
+            # Store back in cmi_data
+            self.attempt.cmi_data['interactions'] = interactions
+            
+            # Also store in SCORM format for compatibility
+            interaction_index = len(interactions) - 1
+            base_element = f"cmi.interactions.{interaction_index}"
+            
+            self.attempt.cmi_data[f"{base_element}.id"] = interaction['id']
+            self.attempt.cmi_data[f"{base_element}.type"] = interaction_type
+            self.attempt.cmi_data[f"{base_element}.timestamp"] = interaction['timestamp']
+            
+            if 'response' in interaction:
+                self.attempt.cmi_data[f"{base_element}.learner_response"] = interaction['response']
+            if 'correct' in interaction:
+                self.attempt.cmi_data[f"{base_element}.result"] = interaction['correct']
+            
+            logger.info(f"Recorded {interaction_type} interaction: {interaction}")
+            return 'true'
+            
+        except Exception as e:
+            logger.error(f"Error handling interaction response: {str(e)}")
+            return 'false'
 

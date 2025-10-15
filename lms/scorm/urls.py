@@ -4,10 +4,9 @@ from . import views, validation_views
 app_name = 'scorm'
 
 urlpatterns = [
-    # SCORM Content Viewing
-    path('view/<int:topic_id>/', views.scorm_view, name='view'),
-    path('player/<int:topic_id>/', views.scorm_view, name='player'),  # Legacy URL support
-    path('api-test/', views.scorm_api_test, name='api_test'),  # API diagnostic tool
+    # SCORM Content Viewing - Now using dedicated player only
+    path('view/<int:topic_id>/', views.dedicated_scorm_player, name='view'),
+    path('player/<int:topic_id>/', views.dedicated_scorm_player, name='player'),  # Legacy URL support
     path('content/<int:topic_id>/<path:path>', views.scorm_content, name='content'),
     
     # SCORM API (for tracking)

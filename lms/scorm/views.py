@@ -9,6 +9,7 @@ from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.contrib import messages
+from django.utils import timezone
 
 from .models import ScormPackage, ScormAttempt
 from .api_handler import ScormAPIHandler
@@ -16,144 +17,8 @@ from courses.models import Topic
 
 logger = logging.getLogger(__name__)
 
-@login_required
-def scorm_view(request, topic_id):
-    """
-    Simplified SCORM content viewer
-    """
-    # ENHANCED: Comprehensive authentication check for revisit scenarios
-    if not request.user.is_authenticated:
-        logger.warning(f"Unauthenticated access attempt to SCORM topic {topic_id}")
-        messages.error(request, "You must be logged in to access SCORM content.")
-        return redirect('users:login')
-    
-    # ENHANCED: Check for session validity in revisit scenarios
-    if not request.user.is_active:
-        logger.warning(f"Inactive user {request.user.email} attempted to access SCORM topic {topic_id}")
-        messages.error(request, "Your account is not active. Please contact support.")
-        return redirect('users:login')
-    
-    # Get topic and check access
-    topic = get_object_or_404(
-        Topic.objects.select_related('scorm_package'),
-        id=topic_id
-    )
-    
-    # Check user access - Allow all authenticated users to access SCORM content
-    # This provides broader access for testing and learning purposes
-    if not request.user.is_authenticated:
-        messages.error(request, "You must be logged in to access SCORM content.")
-        return redirect('users:login')
-    
-    # Check if topic has SCORM package
-    if not hasattr(topic, 'scorm_package') or not topic.scorm_package:
-        messages.error(request, "SCORM package not found for this topic")
-        return redirect('courses:topic_view', topic_id=topic_id)
-    
-    scorm_package = topic.scorm_package
-    
-    # ENHANCED: Smart attempt handling with package type awareness
-    attempt = None
-    attempt_id = None
-    
-    # CRITICAL FIX: Detect package type for special handling
-    is_scormcontent_type = 'scormcontent/' in scorm_package.launch_url
-    is_scormdriver_type = 'scormdriver/' in scorm_package.launch_url
-    
-    logger.info(f"SCORM Package Type Detection: scormcontent={is_scormcontent_type}, scormdriver={is_scormdriver_type}, launch_url={scorm_package.launch_url}")
-    
-    if request.user.is_authenticated:
-        # Check if user is revisiting (has session data or recent attempt)
-        from django.utils import timezone
-        from datetime import timedelta
-        
-        # ENHANCED: Different timeout for different package types
-        timeout_minutes = 60 if is_scormcontent_type else 30  # Longer timeout for scormcontent type
-        recent_cutoff = timezone.now() - timedelta(minutes=timeout_minutes)
-        
-        recent_attempt = ScormAttempt.objects.filter(
-            user=request.user,
-            scorm_package=scorm_package,
-            last_accessed__gte=recent_cutoff
-        ).order_by('-last_accessed').first()
-        
-        # Check if user has an incomplete attempt that can be resumed
-        incomplete_attempt = ScormAttempt.objects.filter(
-            user=request.user,
-            scorm_package=scorm_package,
-            lesson_status__in=['not attempted', 'incomplete', 'browsed']
-        ).order_by('-attempt_number').first()
-        
-        if recent_attempt and incomplete_attempt and recent_attempt.id == incomplete_attempt.id:
-            # Resume existing attempt
-            attempt = recent_attempt
-            attempt.entry = 'resume'
-            attempt.last_accessed = timezone.now()
-            attempt.save()
-            logger.info(f"SCORM Resume: Resuming attempt {attempt.id} for user {request.user.username}")
-        else:
-            # Create new attempt
-            last_attempt = ScormAttempt.objects.filter(
-                user=request.user,
-                scorm_package=scorm_package
-            ).order_by('-attempt_number').first()
-            
-            attempt_number = 1
-            if last_attempt:
-                attempt_number = last_attempt.attempt_number + 1
-            
-            attempt = ScormAttempt.objects.create(
-                user=request.user,
-                scorm_package=scorm_package,
-                attempt_number=attempt_number,
-                lesson_location='',
-                suspend_data='',
-                lesson_status='not attempted',
-                completion_status='incomplete',
-                success_status='unknown',
-                total_time='0000:00:00.00',
-                session_time='0000:00:00.00',
-                entry='ab-initio'
-            )
-            logger.info(f"SCORM New Attempt: Created attempt {attempt.id} (attempt #{attempt_number}) for user {request.user.username}")
-        
-        attempt_id = attempt.id
-    
-    # Generate content URL with attempt ID for resume functionality
-    # Handle different SCORM package launch URLs (story.html, index.htm, goodbye.html, etc.)
-    launch_url = scorm_package.launch_url or 'index.html'
-    
-    # Ensure the launch URL is properly formatted
-    if not launch_url.startswith('/'):
-        launch_url = launch_url.lstrip('/')
-    
-    # Generate the content URL
-    content_url = f"/scorm/content/{topic_id}/{launch_url}"
-    
-    logger.info(f"SCORM Content URL: {content_url} (launch_url: {scorm_package.launch_url})")
-    
-    # Add attempt ID for resume functionality - FIX: Clean parameter handling
-    if attempt_id:
-        content_url = f"{content_url}?attempt_id={attempt_id}"
-    
-    # Add lesson ID if provided - FIX: Check for existing parameters
-    lesson_id = request.GET.get('lesson_id', '')
-    if lesson_id:
-        separator = '&' if '?' in content_url else '?'
-        content_url = f"{content_url}{separator}lesson_id={lesson_id}"
-    
-    context = {
-        'topic': topic,
-        'scorm_package': scorm_package,
-        'attempt': attempt,
-        'attempt_id': attempt_id,
-        'content_url': content_url,
-        'is_scormcontent_type': is_scormcontent_type,
-        'is_scormdriver_type': is_scormdriver_type,
-        'package_type': 'scormcontent' if is_scormcontent_type else 'scormdriver' if is_scormdriver_type else 'unknown',
-    }
-    
-    return render(request, 'scorm/player.html', context)
+# OLD SCORM VIEW REMOVED - Now using dedicated_scorm_player only
+# This prevents confusion and conflicts between old and new implementations
 
 @login_required
 @csrf_exempt
@@ -786,12 +651,150 @@ window.alert = function(message) {
         logger.error(f"Error in scorm_content: {e}")
         return HttpResponse('Error loading content', status=500)
 
+# OLD API TEST VIEW REMOVED - No longer needed with dedicated player
+
 @login_required
-def scorm_api_test(request):
+def dedicated_scorm_player(request, topic_id):
     """
-    Diagnostic tool for testing SCORM API calls
+    Dedicated SCORM Player - Clean, simple, and reliable
+    Properly handles all SCORM package types with correct launch URLs
     """
-    return render(request, 'scorm/api_test.html')
+    # Get topic and package
+    topic = get_object_or_404(
+        Topic.objects.select_related('scorm_package'),
+        id=topic_id
+    )
+    
+    if not hasattr(topic, 'scorm_package') or not topic.scorm_package:
+        messages.error(request, "SCORM package not found for this topic")
+        return redirect('courses:topic_view', topic_id=topic_id)
+    
+    scorm_package = topic.scorm_package
+    
+    # Get or create attempt
+    attempt = None
+    attempt_id = None
+    
+    if request.user.is_authenticated:
+        # Get the most recent attempt or create new one
+        attempt = ScormAttempt.objects.filter(
+            user=request.user,
+            scorm_package=scorm_package
+        ).order_by('-attempt_number').first()
+        
+        if not attempt:
+            # Create new attempt
+            attempt = ScormAttempt.objects.create(
+                user=request.user,
+                scorm_package=scorm_package,
+                attempt_number=1,
+                lesson_location='',
+                suspend_data='',
+                lesson_status='not attempted',
+                completion_status='incomplete',
+                success_status='unknown',
+                total_time='0000:00:00.00',
+                session_time='0000:00:00.00',
+                entry='ab-initio'
+            )
+            logger.info(f"Created new SCORM attempt {attempt.id} for user {request.user.username}")
+        else:
+            # Update existing attempt for resume
+            attempt.entry = 'resume'
+            attempt.last_accessed = timezone.now()
+            attempt.save()
+            logger.info(f"Resuming SCORM attempt {attempt.id} for user {request.user.username}")
+        
+        attempt_id = attempt.id
+    
+    # CRITICAL FIX: Get the correct launch URL from manifest
+    correct_launch_url = _get_correct_launch_url(scorm_package)
+    
+    # Generate content URLs
+    current_url = f"/scorm/content/{topic_id}/{scorm_package.launch_url}"
+    if correct_launch_url != scorm_package.launch_url:
+        correct_url = f"/scorm/content/{topic_id}/{correct_launch_url}"
+    else:
+        correct_url = current_url
+    
+    # Add attempt ID if available
+    if attempt_id:
+        current_url = f"{current_url}?attempt_id={attempt_id}"
+        correct_url = f"{correct_url}?attempt_id={attempt_id}"
+    
+    # Detect package type
+    package_type = _detect_package_type(scorm_package)
+    
+    logger.info(f"DEDICATED PLAYER: topic={topic_id}, package_type={package_type}, current_launch={scorm_package.launch_url}, correct_launch={correct_launch_url}")
+    
+    context = {
+        'topic': topic,
+        'scorm_package': scorm_package,
+        'attempt': attempt,
+        'attempt_id': attempt_id,
+        'launch_url': current_url,
+        'correct_launch_url': correct_url,
+        'package_type': package_type,
+    }
+    
+    return render(request, 'scorm/dedicated_player.html', context)
+
+
+def _get_correct_launch_url(scorm_package):
+    """
+    Extract the correct launch URL from SCORM manifest
+    """
+    try:
+        import xml.etree.ElementTree as ET
+        
+        manifest_xml = scorm_package.manifest_data.get('raw_manifest', '')
+        if not manifest_xml:
+            return scorm_package.launch_url
+        
+        root = ET.fromstring(manifest_xml)
+        
+        # Look for resource with adlcp:scormtype="sco"
+        for resource in root.findall('.//resource'):
+            scormtype = resource.get('{http://www.adlnet.org/xsd/adlcp_rootv1p2}scormtype', '') or resource.get('scormtype', '')
+            if scormtype == 'sco':
+                href = resource.get('href', '')
+                if href:
+                    logger.info(f"Found correct launch URL from manifest: {href}")
+                    return href
+        
+        # Fallback to first resource
+        for resource in root.findall('.//resource'):
+            href = resource.get('href', '')
+            if href:
+                logger.info(f"Using first resource as launch URL: {href}")
+                return href
+                
+    except Exception as e:
+        logger.error(f"Error parsing manifest for launch URL: {e}")
+    
+    return scorm_package.launch_url
+
+
+def _detect_package_type(scorm_package):
+    """
+    Detect SCORM package type from structure and manifest
+    """
+    launch_url = scorm_package.launch_url
+    version = scorm_package.version
+    
+    if 'scormdriver' in launch_url:
+        return 'articulate_rise_with_driver'
+    elif 'scormcontent' in launch_url:
+        return 'articulate_rise_content_only'
+    elif 'story.html' in launch_url:
+        return 'articulate_storyline'
+    elif version == '2004':
+        return 'scorm_2004'
+    elif version == '1.2':
+        return 'scorm_12'
+    else:
+        return 'unknown'
+
 
 @login_required
 def scorm_debug(request, attempt_id):
