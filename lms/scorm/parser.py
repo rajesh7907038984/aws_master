@@ -331,30 +331,9 @@ class ScormParser:
                                 if resource is not None:
                                     self.launch_url = resource.get('href', '')
             
-            # Fallback: if no launch URL found, look for resource with adlcp:scormtype="sco"
+            # Enhanced launch URL detection for modern SCORM packages
             if not self.launch_url:
-                resources = root.find('.//{http://www.imsglobal.org/xsd/imscp_v1p1}resources') or \
-                          root.find('.//{http://www.imsproject.org/xsd/imscp_rootv1p1p2}resources') or \
-                          root.find('.//resources')
-                
-                if resources is not None:
-                    # Look for resource with adlcp:scormtype="sco" first
-                    sco_resource = resources.find('.//{http://www.imsglobal.org/xsd/imscp_v1p1}resource[@adlcp:scormtype="sco"]') or \
-                                 resources.find('.//{http://www.imsproject.org/xsd/imscp_rootv1p1p2}resource[@adlcp:scormtype="sco"]') or \
-                                 resources.find('.//resource[@adlcp:scormtype="sco"]')
-                    
-                    if sco_resource is not None:
-                        self.launch_url = sco_resource.get('href', '')
-                        logger.info(f"Found SCO resource with adlcp:scormtype='sco': {self.launch_url}")
-                    else:
-                        # Fallback to first resource if no SCO found
-                        resource = resources.find('.//{http://www.imsglobal.org/xsd/imscp_v1p1}resource') or \
-                                 resources.find('.//{http://www.imsproject.org/xsd/imscp_rootv1p1p2}resource') or \
-                                 resources.find('.//resource')
-                        
-                        if resource is not None:
-                            self.launch_url = resource.get('href', '')
-                            logger.info(f"Using first resource as fallback: {self.launch_url}")
+                self.launch_url = self._find_optimal_launch_url(root)
             
             # Final fallback to common file names
             if not self.launch_url:
@@ -402,6 +381,108 @@ class ScormParser:
         
         # Default to SCORM 1.2
         return '1.2'
+    
+    def _find_optimal_launch_url(self, root):
+        """
+        Enhanced launch URL detection for modern SCORM packages
+        Handles Articulate Rise, Storyline, and other complex packages
+        
+        Args:
+            root: XML root element
+            
+        Returns:
+            str: Optimal launch URL or None if not found
+        """
+        resources = root.find('.//{http://www.imsglobal.org/xsd/imscp_v1p1}resources') or \
+                  root.find('.//{http://www.imsproject.org/xsd/imscp_rootv1p1p2}resources') or \
+                  root.find('.//resources')
+        
+        if resources is None:
+            return None
+        
+        # Find all resources with SCO type
+        sco_resources = []
+        all_resources = resources.findall('.//{http://www.imsglobal.org/xsd/imscp_v1p1}resource') or \
+                       resources.findall('.//{http://www.imsproject.org/xsd/imscp_rootv1p1p2}resource') or \
+                       resources.findall('.//resource')
+        
+        for resource in all_resources:
+            # Check for SCO type with various namespace approaches
+            scormtype = (resource.get('{http://www.adlnet.org/xsd/adlcp_rootv1p2}scormtype') or
+                        resource.get('{http://www.adlnet.org/xsd/adlcp_v1p3}scormtype') or
+                        resource.get('adlcp:scormtype') or
+                        resource.get('scormtype'))
+            
+            href = resource.get('href', '')
+            if scormtype == 'sco' and href:
+                sco_resources.append(href)
+                logger.info(f"Found SCO resource: {href}")
+        
+        # If we have SCO resources, prioritize them intelligently
+        if sco_resources:
+            # Priority 1: scormdriver/indexAPI.html (Articulate Rise with driver)
+            for href in sco_resources:
+                if 'scormdriver' in href and 'indexAPI.html' in href:
+                    logger.info(f"✅ Selected Articulate Rise driver: {href}")
+                    return href
+            
+            # Priority 2: Any scormdriver entry point
+            for href in sco_resources:
+                if 'scormdriver' in href and href.endswith('.html'):
+                    logger.info(f"✅ Selected scormdriver entry: {href}")
+                    return href
+            
+            # Priority 3: story.html (Articulate Storyline)
+            for href in sco_resources:
+                if 'story.html' in href:
+                    logger.info(f"✅ Selected Storyline entry: {href}")
+                    return href
+            
+            # Priority 4: index.html in scormcontent (basic Rise)
+            for href in sco_resources:
+                if 'scormcontent' in href and 'index.html' in href:
+                    logger.info(f"✅ Selected scormcontent entry: {href}")
+                    return href
+            
+            # Priority 5: Any HTML file in root or main directories
+            for href in sco_resources:
+                if href.endswith('.html') and not href.startswith('res/'):
+                    logger.info(f"✅ Selected main HTML entry: {href}")
+                    return href
+            
+            # Priority 6: First SCO resource as fallback
+            first_sco = sco_resources[0]
+            logger.info(f"⚠️ Using first SCO as fallback: {first_sco}")
+            return first_sco
+        
+        # If no SCO resources found, look for common patterns
+        logger.info("No SCO resources found, searching for common patterns...")
+        
+        # Check all resources for common launch patterns
+        for resource in all_resources:
+            href = resource.get('href', '')
+            if not href:
+                continue
+                
+            # Common Articulate Rise patterns
+            if any(pattern in href for pattern in [
+                'scormdriver/indexAPI.html',
+                'scormdriver/index.html',
+                'story.html',
+                'index.html'
+            ]):
+                logger.info(f"✅ Found common pattern: {href}")
+                return href
+        
+        # Final fallback - first HTML resource
+        for resource in all_resources:
+            href = resource.get('href', '')
+            if href and href.endswith('.html'):
+                logger.info(f"⚠️ Using first HTML resource: {href}")
+                return href
+        
+        logger.warning("No suitable launch URL found in manifest")
+        return None
     
     def _parse_tincan_manifest(self, root):
         """
