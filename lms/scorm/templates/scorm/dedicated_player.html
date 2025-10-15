@@ -46,25 +46,6 @@
             margin: 0;
         }
         
-        .exit-btn {
-            background: #dc3545;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: background-color 0.2s;
-        }
-        
-        .exit-btn:hover {
-            background: #c82333;
-        }
-        
-        .exit-btn:active {
-            transform: translateY(1px);
-        }
         
         .content-frame {
             flex: 1;
@@ -129,13 +110,28 @@
             margin-bottom: 20px;
             line-height: 1.5;
         }
+        
+        .error-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        
+        .error-btn:hover {
+            background: #c82333;
+        }
     </style>
 </head>
 <body>
     <div class="player-container">
         <header class="player-header">
             <h1 class="course-title">{{ topic.title }}</h1>
-            <button class="exit-btn" id="exitButton">Save/Exit</button>
         </header>
         
         <div class="content-frame-container" style="flex: 1; position: relative;">
@@ -149,7 +145,7 @@
                 <div class="error-message">
                     The SCORM content could not be loaded. Please try refreshing the page or contact support if the problem persists.
                 </div>
-                <button class="exit-btn" onclick="window.location.href = '/courses/topic/{{ topic.id }}/view/'">Return to Course</button>
+                <button class="error-btn" onclick="window.location.href = '/courses/topic/{{ topic.id }}/view/'">Return to Course</button>
             </div>
             
             <iframe id="contentFrame" class="content-frame" src="about:blank"></iframe>
@@ -174,74 +170,6 @@
         const loadingScreen = document.getElementById('loadingScreen');
         const errorScreen = document.getElementById('errorScreen');  
         const contentFrame = document.getElementById('contentFrame');
-        const exitButton = document.getElementById('exitButton');
-        
-        // Exit function - let SCORM handle everything naturally
-        function exitCourse() {
-            console.log('🚪 Exit button clicked - letting SCORM handle exit flow');
-            
-            // Save and terminate SCORM session if API exists
-            if (window.API) {
-                console.log('📝 Committing and finishing SCORM session...');
-                if (window.API.LMSCommit) {
-                    window.API.LMSCommit('');
-                    console.log('✅ SCORM data committed');
-                }
-                if (window.API.LMSFinish) {
-                    window.API.LMSFinish('');
-                    console.log('✅ SCORM session terminated');
-                }
-            }
-            
-            // Let the SCORM package handle its own exit behavior
-            // Some packages may show completion screen, others may redirect
-            console.log('🎯 SCORM package will handle exit flow naturally');
-            
-            // Optional: Hide the exit button after click to prevent double-clicking
-            const exitBtn = document.getElementById('exitButton');
-            if (exitBtn) {
-                exitBtn.disabled = true;
-                exitBtn.textContent = 'Exiting...';
-            }
-        }
-        
-        // Enhanced exit button handler with debugging
-        if (exitButton) {
-            console.log('✅ Exit button found, attaching handlers...');
-            
-            // Remove any existing handlers
-            exitButton.onclick = null;
-            
-            // Add visual feedback
-            exitButton.addEventListener('mousedown', function() {
-                console.log('🖱️ Exit button mouse down');
-                this.style.transform = 'translateY(1px)';
-            });
-            
-            exitButton.addEventListener('mouseup', function() {
-                console.log('🖱️ Exit button mouse up');
-                this.style.transform = 'translateY(0)';
-            });
-            
-            // Main click handler
-            exitButton.addEventListener('click', function(e) {
-                console.log('🔘 EXIT BUTTON CLICKED! Event:', e);
-                e.preventDefault();
-                e.stopPropagation();
-                exitCourse();
-            });
-            
-            // Backup handler (in case of event issues)
-            exitButton.addEventListener('touchend', function(e) {
-                console.log('📱 Exit button touch end');
-                e.preventDefault();
-                exitCourse();
-            });
-            
-            console.log('✅ Exit button handlers attached successfully');
-        } else {
-            console.error('❌ Exit button not found!');
-        }
         
         // Load SCORM content in isolated iframe
         function loadContent() {
@@ -280,17 +208,6 @@
             loadingScreen.style.display = 'none';
             errorScreen.style.display = 'flex';
         }
-        
-        // Handle page unload
-        window.addEventListener('beforeunload', function() {
-            if (window.API) {
-                try {
-                    window.API.LMSCommit('');
-                } catch (e) {
-                    // Ignore errors during unload
-                }
-            }
-        });
         
         // Start loading
         console.log('🎬 Starting content load process...');

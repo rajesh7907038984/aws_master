@@ -168,10 +168,35 @@ def scorm_content(request, topic_id, path):
                 from django.middleware.csrf import get_token
                 csrf_token = get_token(request)
             
-            # Skip API injection if it's the goodbye page
+            # Handle goodbye/exit pages by redirecting back to course
             if 'goodbye' in path.lower() or 'exit' in path.lower() or 'bye' in path.lower():
-                # Don't inject API into exit pages - let them display cleanly
-                scorm_api = ""
+                # Redirect away from SCORM goodbye pages back to the course
+                logger.info(f"SCORM exit page detected, redirecting to course view: {path}")
+                
+                # Return a simple HTML page that redirects back to the course
+                redirect_html = f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Course Complete</title>
+                    <meta http-equiv="refresh" content="0; url=/courses/topic/{topic_id}/view/">
+                    <script>
+                        // Immediate redirect to course view
+                        window.top.location.href = '/courses/topic/{topic_id}/view/';
+                    </script>
+                </head>
+                <body style="font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f5f5f5;">
+                    <div style="text-align: center;">
+                        <h2 style="color: #28a745;">Course Complete!</h2>
+                        <p>Returning to course...</p>
+                    </div>
+                </body>
+                </html>
+                """
+                response = HttpResponse(redirect_html, content_type='text/html; charset=utf-8')
+                response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+                return response
             else:
                 # Minimal SCORM API injection - only if absolutely needed
                 scorm_api = """
