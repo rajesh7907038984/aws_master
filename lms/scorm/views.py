@@ -122,7 +122,25 @@ def scorm_content(request, topic_id, path):
         if not s3_url:
             return HttpResponse('Content not found', status=404)
         
-        # For non-HTML files, redirect to S3
+        # For JavaScript files, serve through Django to maintain CORS and session context
+        if path.endswith('.js'):
+            try:
+                import requests
+                response = requests.get(s3_url, timeout=30)
+                if response.status_code != 200:
+                    logger.error(f"Failed to fetch JavaScript from S3: {response.status_code}")
+                    return HttpResponse('JavaScript file not accessible', status=404)
+                
+                # Serve JavaScript with proper headers
+                http_response = HttpResponse(response.content, content_type='application/javascript; charset=utf-8')
+                http_response['Access-Control-Allow-Origin'] = '*'
+                http_response['Cache-Control'] = 'public, max-age=86400'
+                return http_response
+            except Exception as e:
+                logger.error(f"Error serving JavaScript file: {e}")
+                return HttpResponse('Error loading JavaScript file', status=500)
+        
+        # For other non-HTML files (images, CSS, etc.), redirect to S3
         if not path.endswith(('.html', '.htm')):
             from django.http import HttpResponseRedirect
             return HttpResponseRedirect(s3_url)
