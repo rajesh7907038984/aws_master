@@ -420,28 +420,34 @@ class ScormParser:
         
         # If we have SCO resources, prioritize them intelligently
         if sco_resources:
-            # Priority 1: scormdriver/indexAPI.html (Articulate Rise with driver)
+            # Priority 1: scormcontent/index.html (Most common for Rise packages)
             for href in sco_resources:
-                if 'scormdriver' in href and 'indexAPI.html' in href:
-                    logger.info(f"✅ Selected Articulate Rise driver: {href}")
+                if 'scormcontent/index.html' in href or href == 'scormcontent/index.html':
+                    logger.info(f"✅ Selected scormcontent/index.html: {href}")
                     return href
             
-            # Priority 2: Any scormdriver entry point
+            # Priority 2: index_lms.html or index_lms_html5.html (Articulate Rise)
             for href in sco_resources:
-                if 'scormdriver' in href and href.endswith('.html'):
-                    logger.info(f"✅ Selected scormdriver entry: {href}")
+                if 'index_lms.html' in href or 'index_lms_html5.html' in href:
+                    logger.info(f"✅ Selected Articulate Rise entry: {href}")
                     return href
             
-            # Priority 3: story.html (Articulate Storyline)
+            # Priority 3: story.html or story_html5.html (Articulate Storyline)
             for href in sco_resources:
-                if 'story.html' in href:
+                if 'story.html' in href or 'story_html5.html' in href:
                     logger.info(f"✅ Selected Storyline entry: {href}")
                     return href
             
-            # Priority 4: index.html in scormcontent (basic Rise)
+            # Priority 4: scormdriver/indexAPI.html (Less common Rise variant)
             for href in sco_resources:
-                if 'scormcontent' in href and 'index.html' in href:
-                    logger.info(f"✅ Selected scormcontent entry: {href}")
+                if 'scormdriver' in href and 'indexAPI.html' in href:
+                    logger.info(f"✅ Selected scormdriver entry: {href}")
+                    return href
+            
+            # Priority 5: Any other scormdriver HTML
+            for href in sco_resources:
+                if 'scormdriver' in href and href.endswith('.html'):
+                    logger.info(f"✅ Selected scormdriver entry: {href}")
                     return href
             
             # Priority 5: Any HTML file in root or main directories
