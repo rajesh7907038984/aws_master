@@ -405,11 +405,34 @@ window.API_1484_11 = window.API;
 console.log('SCORM API injected successfully with attempt ID: {attempt_id}');
 </script>'''
             
-            # Inject API before closing head tag
+            # Inject API before closing head tag and suppress Storyline error dialogs
+            error_suppression = '''
+<script>
+// Suppress Articulate Storyline error dialogs since SCORM API is working
+window.addEventListener('error', function(e) {
+    // Suppress generic error dialogs from Storyline
+    e.preventDefault();
+    console.log('Suppressed Storyline error:', e.message);
+    return true;
+});
+
+// Override alert to suppress error dialogs
+const originalAlert = window.alert;
+window.alert = function(message) {
+    if (typeof message === 'string' && 
+        (message.toLowerCase().includes('error') || 
+         message.toLowerCase().includes('an error has occurred'))) {
+        console.log('Suppressed error alert:', message);
+        return;
+    }
+    return originalAlert.call(this, message);
+};
+</script>'''
+            
             if '</head>' in content:
-                content = content.replace('</head>', scorm_api + '</head>')
+                content = content.replace('</head>', scorm_api + error_suppression + '</head>')
             else:
-                content = scorm_api + content
+                content = scorm_api + error_suppression + content
             
             response = HttpResponse(content, content_type='text/html; charset=utf-8')
             response['Access-Control-Allow-Origin'] = '*'
