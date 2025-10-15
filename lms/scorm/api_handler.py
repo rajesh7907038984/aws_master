@@ -457,44 +457,18 @@ class ScormAPIHandler:
                     logger.info(f"✅ SET STATUS: Model field updated BEFORE tracking save")
                 elif element == 'cmi.core.score.raw':
                     try:
-                        # CRITICAL FIX: Enhanced score validation to prevent wrong scores
+                        # DYNAMIC SCORE HANDLING: Accept whatever value SCORM content provides
                         if not value or str(value).strip() == '':
                             self.attempt.score_raw = None
                             logger.info(f"✅ SET SCORE: attempt.score_raw = None (empty value)")
                         else:
-                            score_value = float(value)
-                            
-                            # Validate score range
-                            if score_value < 0:
-                                logger.warning(f"❌ REJECTED: Negative score not allowed: {score_value}")
-                                self.last_error = '405'  # Invalid data type
-                                return 'false'
-                            
-                            # Check against max score if available
-                            max_score = self.attempt.cmi_data.get('cmi.core.score.max') or self.attempt.score_max
-                            if max_score:
-                                try:
-                                    max_score_float = float(max_score)
-                                    if score_value > max_score_float:
-                                        logger.warning(f"❌ REJECTED: Score exceeds maximum: {score_value} > {max_score_float}")
-                                        self.last_error = '405'  # Invalid data type
-                                        return 'false'
-                                except (ValueError, TypeError):
-                                    logger.warning(f"Invalid max_score format: {max_score}, allowing score: {score_value}")
-                            
-                            # Prevent unrealistic scores
-                            if score_value > 1000:
-                                logger.warning(f"❌ REJECTED: Unrealistic high score: {score_value}")
-                                self.last_error = '405'  # Invalid data type
-                                return 'false'
-                            
-                            # Convert to Decimal with proper precision
-                            self.attempt.score_raw = Decimal(str(round(score_value, 2)))
-                            logger.info(f"✅ SET SCORE: attempt.score_raw = {self.attempt.score_raw} (from value '{value}', validated)")
+                            # Convert to Decimal, accepting any numeric value the SCORM content provides
+                            self.attempt.score_raw = Decimal(str(value))
+                            logger.info(f"✅ SET SCORE: attempt.score_raw = {self.attempt.score_raw} (dynamic value from SCORM content)")
                         
                         logger.info(f"✅ SET SCORE: Model field updated BEFORE tracking save")
                     except (ValueError, TypeError):
-                        logger.warning(f"❌ REJECTED: Invalid score.raw value: {value}")
+                        logger.warning(f"❌ Invalid score format (non-numeric): {value}")
                         self.last_error = '405'  # Incorrect data type
                         return 'false'
                 elif element == 'cmi.core.score.max':
@@ -568,43 +542,17 @@ class ScormAPIHandler:
                     logger.info(f"✅ SET SUCCESS: attempt.success_status = {self.attempt.success_status} (from value '{value}')")
                 elif element == 'cmi.score.raw':
                     try:
-                        # CRITICAL FIX: Enhanced score validation to prevent wrong scores (SCORM 2004)
+                        # DYNAMIC SCORE HANDLING: Accept whatever value SCORM content provides (SCORM 2004)
                         if not value or str(value).strip() == '':
                             self.attempt.score_raw = None
                             logger.info(f"✅ SET SCORE: attempt.score_raw = None (empty value)")
                         else:
-                            score_value = float(value)
-                            
-                            # Validate score range
-                            if score_value < 0:
-                                logger.warning(f"❌ REJECTED: Negative score not allowed: {score_value}")
-                                self.last_error = '405'  # Invalid data type
-                                return 'false'
-                            
-                            # Check against max score if available
-                            max_score = self.attempt.cmi_data.get('cmi.score.max') or self.attempt.score_max
-                            if max_score:
-                                try:
-                                    max_score_float = float(max_score)
-                                    if score_value > max_score_float:
-                                        logger.warning(f"❌ REJECTED: Score exceeds maximum: {score_value} > {max_score_float}")
-                                        self.last_error = '405'  # Invalid data type
-                                        return 'false'
-                                except (ValueError, TypeError):
-                                    logger.warning(f"Invalid max_score format: {max_score}, allowing score: {score_value}")
-                            
-                            # Prevent unrealistic scores
-                            if score_value > 1000:
-                                logger.warning(f"❌ REJECTED: Unrealistic high score: {score_value}")
-                                self.last_error = '405'  # Invalid data type
-                                return 'false'
-                            
-                            # Convert to Decimal with proper precision
-                            self.attempt.score_raw = Decimal(str(round(score_value, 2)))
-                            logger.info(f"✅ SET SCORE: attempt.score_raw = {self.attempt.score_raw} (from value '{value}', validated)")
+                            # Convert to Decimal, accepting any numeric value the SCORM content provides
+                            self.attempt.score_raw = Decimal(str(value))
+                            logger.info(f"✅ SET SCORE: attempt.score_raw = {self.attempt.score_raw} (dynamic value from SCORM content)")
                         
                     except (ValueError, TypeError):
-                        logger.warning(f"❌ REJECTED: Invalid score.raw value: {value}")
+                        logger.warning(f"❌ Invalid score format (non-numeric): {value}")
                         self.last_error = '405'  # Incorrect data type
                         return 'false'
                 elif element == 'cmi.score.max':
