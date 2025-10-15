@@ -77,6 +77,10 @@ def scorm_content(request, topic_id, path):
         # ENHANCED: Special handling for revisit scenarios with different SCORM package types
         logger.info(f"SCORM Content Request: topic_id={topic_id}, path='{path}', user={request.user.email if request.user.is_authenticated else 'anonymous'}")
         
+        # Log additional context for scormcontent requests
+        if 'scormcontent' in path:
+            logger.info(f"🎯 SCORM Course Content Request: {path} - User authenticated: {request.user.is_authenticated}")
+        
         # CRITICAL FIX: Handle authentication issues for scormcontent/ type packages
         if not request.user.is_authenticated:
             logger.warning(f"Unauthenticated SCORM content request for topic {topic_id}, path: {path}")
@@ -181,8 +185,10 @@ def scorm_content(request, topic_id, path):
                 
                 # Fix the JavaScript path references in indexAPI.html
                 if '../scormcontent/index.html' in content:
-                    # Replace relative path with absolute Django URL
+                    # Replace relative path with absolute Django URL and add attempt_id
                     django_content_url = f'/scorm/content/{topic_id}/scormcontent/index.html'
+                    if attempt_id:
+                        django_content_url += f'?attempt_id={attempt_id}'
                     content = content.replace('../scormcontent/index.html', django_content_url)
                     logger.info(f"✅ Fixed content path: ../scormcontent/index.html -> {django_content_url}")
                 
@@ -192,10 +198,60 @@ def scorm_content(request, topic_id, path):
                     def replace_scormcontent_path(match):
                         relative_path = match.group(1)
                         django_path = f'/scorm/content/{topic_id}/scormcontent/{relative_path}'
+                        if attempt_id and 'index.html' in relative_path:
+                            django_path += f'?attempt_id={attempt_id}'
                         logger.info(f"🔄 Path fix: ../scormcontent/{relative_path} -> {django_path}")
-                        return f'"/scorm/content/{topic_id}/scormcontent/{relative_path}"'
+                        return f'"{django_path}"'
                     
                     content = re.sub(r'["\']\.\.\/scormcontent\/([^"\']+)["\']', replace_scormcontent_path, content)
+                
+                # Add enhanced debugging for navigation
+                debug_script = f"""
+<script>
+// Enhanced Articulate Rise Navigation Debug
+console.log('🔧 Articulate Rise Debug: indexAPI.html loaded with fixes');
+console.log('🎯 Target content URL: /scorm/content/{topic_id}/scormcontent/index.html?attempt_id={attempt_id}');
+
+// Override the LoadContent function to add debugging
+var originalLoadContent = window.LoadContent;
+if (typeof LoadContent !== 'undefined') {{
+    window.LoadContent = function() {{
+        console.log('🚀 LoadContent called - navigating to course content');
+        return originalLoadContent.apply(this, arguments);
+    }};
+}}
+
+// Monitor iframe navigation
+setTimeout(function() {{
+    var contentFrame = document.getElementById('content-frame');
+    if (contentFrame) {{
+        console.log('📺 Content frame found, current src:', contentFrame.src);
+        
+        // Monitor frame load events
+        contentFrame.addEventListener('load', function() {{
+            console.log('📺 Frame loaded:', this.src);
+            try {{
+                if (this.contentWindow && this.contentWindow.location) {{
+                    console.log('📍 Frame location:', this.contentWindow.location.href);
+                }}
+            }} catch (e) {{
+                console.log('🔒 Frame location access blocked (normal for cross-origin)');
+            }}
+        }});
+        
+        // Force navigation if stuck on blank.html
+        setTimeout(function() {{
+            if (contentFrame.src.includes('blank.html')) {{
+                console.log('⚠️ Still on blank.html, forcing navigation...');
+                var targetUrl = '/scorm/content/{topic_id}/scormcontent/index.html?attempt_id={attempt_id}';
+                console.log('🎯 Forcing navigation to:', targetUrl);
+                contentFrame.src = targetUrl;
+            }}
+        }}, 3000);
+    }}
+}}, 1000);
+</script>"""
+                content = content.replace('</head>', debug_script + '</head>')
                 
             # Enhanced path resolution script for additional support
             path_resolution_script = f"""
