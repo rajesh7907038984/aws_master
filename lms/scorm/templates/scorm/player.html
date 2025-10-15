@@ -109,7 +109,7 @@
         <div class="scorm-header">
             <div class="scorm-title">{{ topic.title }}</div>
             <div class="header-buttons">
-                <button class="btn" onclick="exitCourse()" id="exitButton">Back to Topic</button>
+                <button class="btn" id="exitButton">Back to Topic</button>
             </div>
         </div>
         
@@ -368,24 +368,27 @@
             }
         }
         
-        // ENHANCED: Make exitCourse function globally accessible and add backup handlers
+        // ENHANCED: Make exitCourse function globally accessible
         window.exitCourse = exitCourse;
         
-        // Add additional event listener for the button (backup to onclick)
+        // Simplified exit button setup to avoid conflicts
         document.addEventListener('DOMContentLoaded', function() {
             var exitButton = document.getElementById('exitButton');
             if (exitButton) {
-                console.log('🔘 Adding backup click handler to exit button');
+                console.log('🔘 Setting up exit button handler');
                 
-                // Remove any existing handlers and add fresh one
-                exitButton.removeEventListener('click', exitCourse);
+                // Clear any existing onclick to avoid conflicts
+                exitButton.onclick = null;
+                
+                // Add single event listener
                 exitButton.addEventListener('click', function(e) {
-                    console.log('🖱️ Exit button clicked via event listener');
+                    console.log('🖱️ Exit button clicked');
                     e.preventDefault();
+                    e.stopPropagation();
                     exitCourse();
                 });
                 
-                console.log('✅ Exit button handlers configured');
+                console.log('✅ Exit button configured');
             } else {
                 console.log('❌ Exit button not found in DOM');
             }
@@ -395,15 +398,58 @@
         function startExitMonitoring() {
             console.log('🔍 Starting exit monitoring for SCORM content...');
             
+            // CRITICAL FIX: More aggressive monitoring for problematic SCORM packages
+            var exitCheckCount = 0;
+            var lastExitResponse = '';
+            
             var exitCheckInterval = setInterval(function() {
                 if (window.checkForContentExit) {
                     try {
+                        exitCheckCount++;
+                        
+                        // Add extra debugging for problematic packages
+                        if (exitCheckCount % 10 === 0) { // Every 5 seconds
+                            console.log('🔍 Exit monitoring active - check #' + exitCheckCount);
+                        }
+                        
                         window.checkForContentExit();
                     } catch (e) {
                         console.log('Error checking for content exit:', e.message);
                     }
                 }
-            }, 500); // Check every 500ms for faster response (especially for scormcontent/ packages)
+            }, 250); // FASTER: Check every 250ms for more responsive detection
+            
+            // ADDITIONAL: Monitor for completion status changes
+            var lastCompletionStatus = '';
+            var lastSuccessStatus = '';
+            var completionMonitor = setInterval(function() {
+                if (window.API && window.API.LMSGetValue) {
+                    try {
+                        var currentCompletion = window.API.LMSGetValue('cmi.completion_status') || '';
+                        var currentSuccess = window.API.LMSGetValue('cmi.success_status') || '';
+                        
+                        // Detect completion status changes
+                        if ((currentCompletion !== lastCompletionStatus && currentCompletion === 'completed') ||
+                            (currentSuccess !== lastSuccessStatus && currentSuccess === 'passed')) {
+                            
+                            console.log('🎯 COMPLETION CHANGE DETECTED: completion=' + currentCompletion + ', success=' + currentSuccess);
+                            
+                            // Force exit check immediately
+                            setTimeout(function() {
+                                if (window.checkForContentExit) {
+                                    console.log('🚀 Triggering immediate exit check due to completion change...');
+                                    window.checkForContentExit();
+                                }
+                            }, 100);
+                        }
+                        
+                        lastCompletionStatus = currentCompletion;
+                        lastSuccessStatus = currentSuccess;
+                    } catch (e) {
+                        // Ignore errors in completion monitoring
+                    }
+                }
+            }, 500);
             
             // ENHANCED: Also check when user interacts with the page
             var interactionEvents = ['click', 'keydown', 'scroll', 'touchend'];
@@ -537,6 +583,27 @@
         };
         
         console.log('🔧 Debugging setup complete. Use testExitButton() to test manually.');
+        
+        // TEMPORARY DEBUG: Test button responsiveness
+        setTimeout(function() {
+            var btn = document.getElementById('exitButton');
+            if (btn) {
+                console.log('🧪 BUTTON TEST: Element found, checking click responsiveness...');
+                console.log('🧪 Button visible:', btn.offsetHeight > 0 && btn.offsetWidth > 0);
+                console.log('🧪 Button disabled:', btn.disabled);
+                console.log('🧪 Button style display:', window.getComputedStyle(btn).display);
+                
+                // Test programmatic click
+                btn.addEventListener('mousedown', function() {
+                    console.log('🧪 MOUSEDOWN detected on exit button');
+                });
+                btn.addEventListener('mouseup', function() {
+                    console.log('🧪 MOUSEUP detected on exit button');
+                });
+            } else {
+                console.log('🧪 BUTTON TEST: Element not found');
+            }
+        }, 2000);
     </script>
 </body>
 </html>
