@@ -87,7 +87,7 @@
         LMSFinish: function(parameter) {
             log('LMSFinish called');
             
-            // CRITICAL FIX: Force commit before termination to ensure data is saved
+            // Auto-commit before termination to ensure data is saved
             try {
                 log('Auto-committing data before termination...');
                 makeAPICall('LMSCommit', ['']);
@@ -98,9 +98,6 @@
             
             var result = makeAPICall('LMSFinish', [parameter]);
             config.initialized = false;
-            
-            // Let SCORM content handle its own exit naturally
-            log('SCORM session terminated - content will handle its own exit flow');
             
             return result;
         },
@@ -173,7 +170,7 @@
         Terminate: function(parameter) {
             log('Terminate (SCORM 2004) called');
             
-            // CRITICAL FIX: Force commit before termination (SCORM 2004)
+            // Auto-commit before termination (SCORM 2004)
             try {
                 log('Auto-committing data before SCORM 2004 termination...');
                 API.LMSCommit('');
@@ -183,9 +180,6 @@
             }
             
             var result = API.LMSFinish(parameter);
-            
-            // Let SCORM content handle its own exit naturally
-            log('SCORM 2004 session terminated - content will handle its own exit flow');
             
             return result;
         },
@@ -397,8 +391,9 @@
         }
     };
     
-    // DEPRECATED: No longer interfering with SCORM's natural exit flow
-    // The SCORM content now handles its own exit completely
+    // Removed exit detection - SCORM content handles its own exit flow
+    // No interference with package default behavior
+    /*
     function checkForContentExit_DEPRECATED() {
         if (!config.apiEndpoint) return;
         
@@ -584,8 +579,9 @@
         }
     }
     
-    // DEPRECATED: No longer exposing exit check - SCORM content handles its own exit
-    // window.checkForContentExit = checkForContentExit_DEPRECATED;
+    */
+    
+    // Exit detection removed - SCORM packages handle their own exits
     
     log('SCORM API Wrapper loaded successfully');
     

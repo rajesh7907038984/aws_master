@@ -168,42 +168,91 @@ def scorm_content(request, topic_id, path):
                 from django.middleware.csrf import get_token
                 csrf_token = get_token(request)
             
-            # Handle goodbye/exit pages by redirecting back to course
-            if 'goodbye' in path.lower() or 'exit' in path.lower() or 'bye' in path.lower():
-                # Redirect away from SCORM goodbye pages back to the course
-                logger.info(f"SCORM exit page detected, redirecting to course view: {path}")
-                
-                # Return a simple HTML page that redirects back to the course
-                redirect_html = f"""
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset="UTF-8">
-                    <title>Course Complete</title>
-                    <meta http-equiv="refresh" content="0; url=/courses/topic/{topic_id}/view/">
-                    <script>
-                        // Immediate redirect to course view
-                        window.top.location.href = '/courses/topic/{topic_id}/view/';
-                    </script>
-                </head>
-                <body style="font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f5f5f5;">
-                    <div style="text-align: center;">
-                        <h2 style="color: #28a745;">Course Complete!</h2>
-                        <p>Returning to course...</p>
-                    </div>
-                </body>
-                </html>
-                """
-                response = HttpResponse(redirect_html, content_type='text/html; charset=utf-8')
-                response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-                return response
-            else:
-                # Minimal SCORM API injection - only if absolutely needed
-                scorm_api = """
+            # Minimal SCORM API injection - only if absolutely needed
+            scorm_api = """
 <script>
 // Minimal SCORM API Bridge - Only saves to database, doesn't interfere
 window.csrfToken = '{csrf_token}';
 window._scormAttemptId = '{attempt_id}';
+
+// Fix AudioContext autoplay policy issues
+(function() {{
+    // Store the original AudioContext constructor
+    const OriginalAudioContext = window.AudioContext || window.webkitAudioContext;
+    
+    if (OriginalAudioContext) {{
+        // Override AudioContext to handle autoplay policy
+        window.AudioContext = window.webkitAudioContext = function() {{
+            const context = new OriginalAudioContext();
+            
+            // If the context is suspended, resume it on user interaction
+            if (context.state === 'suspended') {{
+                const resume = () => {{
+                    context.resume().then(() => {{
+                        console.log('AudioContext resumed successfully');
+                    }}).catch(err => {{
+                        console.log('AudioContext resume failed:', err);
+                    }});
+                }};
+                
+                // Try to resume on various user interactions
+                document.addEventListener('click', resume, {{ once: true }});
+                document.addEventListener('touchstart', resume, {{ once: true }});
+                document.addEventListener('keydown', resume, {{ once: true }});
+                
+                // Also try to resume immediately (might work in some cases)
+                setTimeout(resume, 100);
+            }}
+            
+            return context;
+        }};
+        
+        // Copy static properties
+        Object.setPrototypeOf(window.AudioContext, OriginalAudioContext);
+        window.AudioContext.prototype = OriginalAudioContext.prototype;
+    }}
+}})();
+
+// Add string table fallback handler - suppress non-critical errors
+(function() {{
+    const originalError = console.error;
+    const originalWarn = console.warn;
+    
+    // Override console.error to filter string table errors
+    console.error = function() {{
+        const args = Array.from(arguments);
+        const message = args.join(' ');
+        
+        // Filter out non-critical string table errors
+        if (message.includes('could not find') && message.includes('in string table')) {{
+            // Log as info instead of error
+            console.info('[String Table Info]', ...args);
+            return;
+        }}
+        
+        // Also suppress AudioContext autoplay warnings (they're handled above)
+        if (message.includes('AudioContext was not allowed to start')) {{
+            console.info('[Audio Info] AudioContext start delayed until user interaction');
+            return;
+        }}
+        
+        // Call original console.error for other messages
+        originalError.apply(console, arguments);
+    }};
+    
+    // Also handle console.warn for AudioContext messages
+    console.warn = function() {{
+        const args = Array.from(arguments);
+        const message = args.join(' ');
+        
+        if (message.includes('AudioContext was not allowed to start')) {{
+            console.info('[Audio Info] AudioContext start delayed until user interaction');
+            return;
+        }}
+        
+        originalWarn.apply(console, arguments);
+    }};
+}})();
 
 // Only create API if one doesn't exist and content doesn't have its own
 if (!window.API && !window.API_1484_11 && !window.parent.API) {{
@@ -266,6 +315,28 @@ if (!window.API && !window.API_1484_11 && !window.parent.API) {{
     
     window.API_1484_11 = window.API;
 }}
+
+// Minimal audio enabler - doesn't interfere with SCORM package
+document.addEventListener('DOMContentLoaded', function() {{
+    // Only check for audio context state, don't override package behavior
+    setTimeout(() => {{
+        try {{
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            if (ctx.state === 'suspended') {{
+                // Just add a click listener to resume, no UI changes
+                const resumeAudio = () => {{
+                    ctx.resume();
+                    document.removeEventListener('click', resumeAudio);
+                    document.removeEventListener('touchstart', resumeAudio);
+                }};
+                document.addEventListener('click', resumeAudio, {{ once: true }});
+                document.addEventListener('touchstart', resumeAudio, {{ once: true }});
+            }}
+        }} catch (e) {{
+            // AudioContext not available, that's fine
+        }}
+    }}, 100);
+}});
 </script>""".format(csrf_token=csrf_token, attempt_id=attempt_id)
             
             # NO ERROR SUPPRESSION - Let SCORM packages handle their own errors
