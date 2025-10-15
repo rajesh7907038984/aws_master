@@ -1449,19 +1449,55 @@ class ScormAPIHandler:
                 else:
                     logger.info(f"🚫 Ignoring stale completion status on revisit: {lesson_status} (last accessed {time_since_access} ago)")
             
-            # Method 4: Authoring tool specific exit patterns
+            # Method 4: Package-type and authoring tool specific exit patterns
             
-            # Articulate Storyline exit patterns
-            storyline_exit_keys = [k for k in self.attempt.cmi_data.keys() if 
-                                 any(pattern in k.lower() for pattern in ['exit', 'close', 'finish', 'complete'])]
-            if storyline_exit_keys:
-                for key in storyline_exit_keys:
-                    value = self.attempt.cmi_data.get(key)
-                    if value in ['true', 'yes', '1', 'completed', 'finished']:
+            # ENHANCED: scormcontent/ type exit detection (Articulate Rise, etc.)
+            launch_url = self.attempt.scorm_package.launch_url
+            is_scormcontent = 'scormcontent/' in launch_url
+            
+            if is_scormcontent and not exit_detected:
+                logger.info(f"🔍 Checking scormcontent/ specific exit patterns")
+                
+                # scormcontent packages use different exit patterns
+                completion_status = self.attempt.cmi_data.get('cmi.completion_status')
+                success_status = self.attempt.cmi_data.get('cmi.success_status')
+                
+                if completion_status == 'completed' or success_status == 'passed':
+                    exit_detected = True
+                    exit_method = f'scormcontent_completion_{completion_status or success_status}'
+                    logger.info(f"✅ scormcontent/ exit detected: {exit_method}")
+                
+                # Check for Articulate Rise specific patterns
+                if not exit_detected:
+                    suspend_data = self.attempt.cmi_data.get('cmi.suspend_data', '')
+                    location_data = self.attempt.cmi_data.get('cmi.location', '')
+                    
+                    # Look for Rise-specific completion indicators in suspend data
+                    rise_completion_indicators = ['completed', 'finished', 'done', 'exit', 'close']
+                    if any(indicator in suspend_data.lower() for indicator in rise_completion_indicators):
                         exit_detected = True
-                        exit_method = f'storyline_exit_{key}'
-                        logger.info(f"✅ Storyline exit pattern detected: {key}={value}")
-                        break
+                        exit_method = 'articulate_rise_suspend_data'
+                        logger.info(f"✅ Articulate Rise exit detected via suspend_data: {suspend_data[:50]}...")
+                    
+                    # Check location data for completion
+                    elif any(indicator in location_data.lower() for indicator in rise_completion_indicators):
+                        exit_detected = True
+                        exit_method = 'articulate_rise_location_data'
+                        logger.info(f"✅ Articulate Rise exit detected via location: {location_data}")
+            
+            # Articulate Storyline exit patterns (scormdriver type)
+            if not exit_detected:
+                storyline_exit_keys = [k for k in self.attempt.cmi_data.keys() if 
+                                     any(pattern in k.lower() for pattern in ['exit', 'close', 'finish', 'complete'])]
+                
+                if storyline_exit_keys:
+                    for key in storyline_exit_keys:
+                        value = self.attempt.cmi_data.get(key)
+                        if value in ['true', 'yes', '1', 'completed', 'finished']:
+                            exit_detected = True
+                            exit_method = f'storyline_exit_{key}'
+                            logger.info(f"✅ Storyline exit pattern detected: {key}={value}")
+                            break
             
             # Adobe Captivate exit patterns
             captivate_exit_keys = [k for k in self.attempt.cmi_data.keys() if 

@@ -357,18 +357,28 @@
             
             log('🔍 SCORM exit indicators - exit: "' + scormExit + '", lesson_status: "' + lessonStatus + '", completion: "' + completionStatus + '"');
             
-            // CRITICAL FIX: Be more conservative about exit detection to prevent auto-closing on revisit
-            // Only exit if there's a fresh exit request, not stale data from previous sessions
-            var shouldExit = (
-                exitCheck === 'true' && 
-                (
-                    lessonStatus === 'completed' ||
-                    lessonStatus === 'passed' ||
-                    lessonStatus === 'failed' ||
-                    completionStatus === 'completed' ||
-                    scormExit === 'normal'  // Only normal exit, not logout/suspend from previous sessions
-                )
-            );
+            // ENHANCED: Package-type specific exit detection
+            var shouldExit = false;
+            
+            // Method 1: Standard exit flag with completion verification
+            if (exitCheck === 'true') {
+                // For scormcontent/ packages (Articulate Rise), check completion_status
+                if (completionStatus === 'completed' || lessonStatus === 'passed' || lessonStatus === 'completed') {
+                    shouldExit = true;
+                    log('✅ Exit detected: Standard completion with exit flag');
+                }
+                // For scormdriver/ packages, check lesson_status
+                else if (lessonStatus === 'failed' || scormExit === 'normal') {
+                    shouldExit = true;
+                    log('✅ Exit detected: Traditional SCORM exit');
+                }
+            }
+            
+            // Method 2: Direct completion without exit flag (for scormcontent/ packages)
+            else if (completionStatus === 'completed' && (lessonStatus === 'completed' || lessonStatus === 'passed')) {
+                shouldExit = true;
+                log('✅ Exit detected: scormcontent/ completion without explicit exit flag');
+            }
             
             // ENHANCED: Additional check to prevent false positives on revisit
             if (exitCheck === 'true' && shouldExit) {
