@@ -7,7 +7,7 @@
     'use strict';
     
     // Configuration
-    const config = {
+    var config = {
         version: "1.2",
         debug: true,
         apiEndpoint: null, // Will be set dynamically
@@ -22,22 +22,24 @@
         }
     }
     
-    function makeAPICall(method, parameters = []) {
+    function makeAPICall(method, parameters) {
+        parameters = parameters || [];
+        
         if (!config.apiEndpoint) {
             log('ERROR: API endpoint not configured');
             return 'false';
         }
         
-        const requestData = {
+        var requestData = {
             method: method,
             parameters: parameters
         };
         
-        log(`Making API call: ${method} with params: ${JSON.stringify(parameters)}`);
+        log('Making API call: ' + method + ' with params: ' + JSON.stringify(parameters));
         
-        // Use fetch API for better performance
+        // Use XMLHttpRequest for SCORM compatibility
         try {
-            const xhr = new XMLHttpRequest();
+            var xhr = new XMLHttpRequest();
             xhr.open('POST', config.apiEndpoint, false); // Keep synchronous for SCORM standard compliance
             xhr.setRequestHeader('Content-Type', 'application/json');
             xhr.setRequestHeader('X-CSRFToken', getCsrfToken());
@@ -45,23 +47,25 @@
             xhr.send(JSON.stringify(requestData));
             
             if (xhr.status === 200) {
-                const response = JSON.parse(xhr.responseText);
-                log(`API call result: ${response.result}, error: ${response.error_code || '0'}`);
+                var response = JSON.parse(xhr.responseText);
+                log('API call result: ' + response.result + ', error: ' + (response.error_code || '0'));
                 return response.result || 'false';
             } else {
-                log(`API call failed: HTTP ${xhr.status}`);
+                log('API call failed: HTTP ' + xhr.status);
                 return 'false';
             }
         } catch (error) {
-            log(`API call error: ${error.message}`);
+            log('API call error: ' + error.message);
             return 'false';
         }
     }
     
     function getCsrfToken() {
-        const cookies = document.cookie.split(';');
-        for (let cookie of cookies) {
-            const [name, value] = cookie.trim().split('=');
+        var cookies = document.cookie.split(';');
+        for (var i = 0; i < cookies.length; i++) {
+            var cookie = cookies[i].trim().split('=');
+            var name = cookie[0];
+            var value = cookie[1];
             if (name === 'csrftoken') {
                 return decodeURIComponent(value);
             }
@@ -70,10 +74,10 @@
     }
     
     // SCORM 1.2 API Implementation
-    const API = {
+    var API = {
         LMSInitialize: function(parameter) {
             log('LMSInitialize called');
-            const result = makeAPICall('LMSInitialize', [parameter]);
+            var result = makeAPICall('LMSInitialize', [parameter]);
             if (result === 'true') {
                 config.initialized = true;
             }
@@ -82,29 +86,29 @@
         
         LMSFinish: function(parameter) {
             log('LMSFinish called');
-            const result = makeAPICall('LMSFinish', [parameter]);
+            var result = makeAPICall('LMSFinish', [parameter]);
             config.initialized = false;
             return result;
         },
         
         LMSGetValue: function(element) {
-            log(`LMSGetValue called for: ${element}`);
+            log('LMSGetValue called for: ' + element);
             return makeAPICall('LMSGetValue', [element]);
         },
         
         LMSSetValue: function(element, value) {
-            log(`LMSSetValue called: ${element} = ${value}`);
+            log('LMSSetValue called: ' + element + ' = ' + value);
             
             // Store in local cache for immediate access
             config.data[element] = value;
             
             // Send to backend
-            const result = makeAPICall('LMSSetValue', [element, value]);
+            var result = makeAPICall('LMSSetValue', [element, value]);
             
             // Auto-commit for certain critical values
             if (element === 'cmi.core.lesson_status' || element === 'cmi.core.score.raw') {
                 log('Auto-committing critical data');
-                setTimeout(() => {
+                setTimeout(function() {
                     makeAPICall('LMSCommit', ['']);
                 }, 100);
             }
@@ -131,7 +135,7 @@
     };
     
     // SCORM 2004 API (API_1484_11) - maps to SCORM 1.2 calls
-    const API_1484_11 = {
+    var API_1484_11 = {
         Initialize: function(parameter) {
             return API.LMSInitialize(parameter);
         },
@@ -206,42 +210,102 @@
             return API_1484_11;
         },
         
-        // Expose APIs globally for SCORM content
+        // Expose APIs globally for SCORM content with enhanced Storyline support
         exposeAPIs: function() {
-            // Try multiple locations for maximum compatibility
+            // Primary API exposure
             window.API = API;
             window.API_1484_11 = API_1484_11;
             
-            // CRITICAL FIX: Ensure APIs are available in all window contexts
-            if (window.parent && window.parent !== window) {
-                window.parent.API = API;
-                window.parent.API_1484_11 = API_1484_11;
-                log('APIs exposed to parent window');
-            }
-            
-            if (window.top && window.top !== window) {
-                window.top.API = API;
-                window.top.API_1484_11 = API_1484_11;
-                log('APIs exposed to top window');
-            }
-            
-            // CRITICAL: Also expose to window.opener if it exists
-            if (window.opener) {
-                window.opener.API = API;
-                window.opener.API_1484_11 = API_1484_11;
-                log('APIs exposed to opener window');
-            }
-            
-            // CRITICAL: Make sure APIs are available in the current window context
-            // This is essential for SCORM content to find the API
-            if (typeof window.API === 'undefined') {
-                window.API = API;
-            }
-            if (typeof window.API_1484_11 === 'undefined') {
-                window.API_1484_11 = API_1484_11;
-            }
+            // Enhanced Storyline support - expose to multiple contexts
+            this.exposeStorylineAPIs();
             
             log('APIs exposed globally - API available:', typeof window.API, 'API_1484_11 available:', typeof window.API_1484_11);
+        },
+        
+        // Enhanced API exposure specifically for Articulate Storyline
+        exposeStorylineAPIs: function() {
+            var self = this;
+            
+            // Function to safely expose APIs to a window object
+            function safeExposeAPIs(targetWindow, context) {
+                try {
+                    if (targetWindow && targetWindow !== window) {
+                        targetWindow.API = API;
+                        targetWindow.API_1484_11 = API_1484_11;
+                        
+                        // Storyline sometimes looks for these specific properties
+                        targetWindow.scormAPI = API;
+                        targetWindow.SCORM_API = API;
+                        
+                        log('APIs exposed to ' + context + ' window');
+                        return true;
+                    }
+                    return false;
+                } catch (e) {
+                    log('Failed to expose APIs to ' + context + ': ' + e.message);
+                    return false;
+                }
+            }
+            
+            // Expose to parent windows (critical for iframes)
+            safeExposeAPIs(window.parent, 'parent');
+            safeExposeAPIs(window.top, 'top');
+            safeExposeAPIs(window.opener, 'opener');
+            
+            // Document-level exposure for some Storyline versions
+            try {
+                if (document) {
+                    document.API = API;
+                    document.API_1484_11 = API_1484_11;
+                    log('APIs exposed to document object');
+                }
+            } catch (e) {
+                log('Could not expose APIs to document: ' + e.message);
+            }
+            
+            // Set up periodic re-exposure for dynamic Storyline content
+            var exposureCount = 0;
+            var maxExposures = 10;
+            var exposureInterval = setInterval(function() {
+                exposureCount++;
+                
+                // Re-expose APIs to ensure they're available
+                safeExposeAPIs(window.parent, 'parent-refresh');
+                safeExposeAPIs(window.top, 'top-refresh');
+                
+                // Ensure current window still has APIs
+                if (!window.API) {
+                    window.API = API;
+                    window.API_1484_11 = API_1484_11;
+                }
+                
+                // Stop after max attempts or when we're confident APIs are stable
+                if (exposureCount >= maxExposures || 
+                    (window.API && window.parent && window.parent.API && window.top && window.top.API)) {
+                    clearInterval(exposureInterval);
+                    log('Storyline API exposure complete after ' + exposureCount + ' attempts');
+                }
+            }, 250); // Check every 250ms
+            
+            // Create a global API finder function that Storyline can use
+            window.getAPI = function() {
+                return API;
+            };
+            
+            window.getAPIHandle = function() {
+                return API;
+            };
+            
+            // Some Storyline versions look for these
+            window.findAPI = function() {
+                return API;
+            };
+            
+            window.scanForAPI = function() {
+                return API;
+            };
+            
+            log('Enhanced Storyline API support initialized');
         },
         
         // Test function

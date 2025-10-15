@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' *.amazonaws.com *.s3.amazonaws.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' *.amazonaws.com; style-src 'self' 'unsafe-inline' *.amazonaws.com; img-src 'self' data: blob: *.amazonaws.com; font-src 'self' data: *.amazonaws.com; connect-src 'self' *.amazonaws.com; media-src 'self' data: blob: *.amazonaws.com; frame-src 'self' *.amazonaws.com; object-src 'none';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' *.amazonaws.com *.s3.amazonaws.com https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' *.amazonaws.com https: data:; style-src 'self' 'unsafe-inline' *.amazonaws.com https: data:; img-src 'self' data: blob: *.amazonaws.com https:; font-src 'self' data: *.amazonaws.com https:; connect-src 'self' *.amazonaws.com https:; media-src 'self' data: blob: *.amazonaws.com https:; frame-src 'self' *.amazonaws.com https:; object-src 'self' *.amazonaws.com data:; child-src 'self' *.amazonaws.com https:; worker-src 'self' data: blob:; manifest-src 'self';">
     <title>{{ topic.title }} - SCORM Content</title>
     <style>
         * {
@@ -131,11 +131,15 @@
     <script>
         console.log('SCORM Player initialized');
         
-        // Initialize SCORM API
+        // Initialize SCORM API with enhanced Storyline support
         function initializeSCORM() {
             if (window.ScormAPIWrapper) {
                 window.ScormAPIWrapper.init({{ attempt_id|default:"null" }});
                 window.ScormAPIWrapper.exposeAPIs();
+                
+                // CRITICAL: Storyline-specific API exposure
+                setupStorylineSupport();
+                
                 console.log('SCORM API initialized for attempt {{ attempt_id|default:"null" }}');
                 updateStatus('SCORM API ready');
                 return true;
@@ -143,16 +147,105 @@
             return false;
         }
         
+        // Enhanced Storyline SCORM support
+        function setupStorylineSupport() {
+            // Storyline looks for APIs in multiple contexts
+            var attemptId = '{{ attempt_id|default:"" }}';
+            
+            // Create robust API objects that Storyline expects
+            var storylineAPI = {
+                Initialize: function(param) { 
+                    console.log('Storyline API Initialize called');
+                    if (window.API) {
+                        return window.API.LMSInitialize ? window.API.LMSInitialize(param) : window.API.Initialize(param);
+                    }
+                    return 'false';
+                },
+                Terminate: function(param) { 
+                    console.log('Storyline API Terminate called');
+                    if (window.API) {
+                        return window.API.LMSFinish ? window.API.LMSFinish(param) : window.API.Terminate(param);
+                    }
+                    return 'false';
+                },
+                GetValue: function(element) { 
+                    if (window.API) {
+                        return window.API.LMSGetValue ? window.API.LMSGetValue(element) : window.API.GetValue(element);
+                    }
+                    return '';
+                },
+                SetValue: function(element, value) { 
+                    if (window.API) {
+                        return window.API.LMSSetValue ? window.API.LMSSetValue(element, value) : window.API.SetValue(element, value);
+                    }
+                    return 'false';
+                },
+                Commit: function(param) { 
+                    if (window.API) {
+                        return window.API.LMSCommit ? window.API.LMSCommit(param) : window.API.Commit(param);
+                    }
+                    return 'false';
+                },
+                GetLastError: function() { 
+                    if (window.API) {
+                        return window.API.LMSGetLastError ? window.API.LMSGetLastError() : window.API.GetLastError();
+                    }
+                    return '0';
+                },
+                GetErrorString: function(code) { 
+                    if (window.API) {
+                        return window.API.LMSGetErrorString ? window.API.LMSGetErrorString(code) : window.API.GetErrorString(code);
+                    }
+                    return 'No error';
+                },
+                GetDiagnostic: function(code) { 
+                    if (window.API) {
+                        return window.API.LMSGetDiagnostic ? window.API.LMSGetDiagnostic(code) : window.API.GetDiagnostic(code);
+                    }
+                    return 'No error';
+                }
+            };
+            
+            // Expose API in ALL possible contexts that Storyline might check
+            try {
+                // Current window
+                window.API = window.API || storylineAPI;
+                window.API_1484_11 = window.API_1484_11 || storylineAPI;
+                
+                // Parent windows (critical for iframes)
+                if (window.parent && window.parent !== window) {
+                    window.parent.API = window.parent.API || storylineAPI;
+                    window.parent.API_1484_11 = window.parent.API_1484_11 || storylineAPI;
+                }
+                
+                if (window.top && window.top !== window) {
+                    window.top.API = window.top.API || storylineAPI;
+                    window.top.API_1484_11 = window.top.API_1484_11 || storylineAPI;
+                }
+                
+                // Document-level exposure (some Storyline versions check this)
+                if (document) {
+                    document.API = document.API || storylineAPI;
+                    document.API_1484_11 = document.API_1484_11 || storylineAPI;
+                }
+                
+                console.log('Enhanced Storyline API support enabled');
+                
+            } catch (e) {
+                console.warn('Could not expose all API contexts:', e.message);
+            }
+        }
+        
         // Load SCORM content
         function loadSCORMContent() {
             console.log('Loading SCORM content...');
-            const iframe = document.getElementById('scormIframe');
-            const loadingOverlay = document.getElementById('loadingOverlay');
+            var iframe = document.getElementById('scormIframe');
+            var loadingOverlay = document.getElementById('loadingOverlay');
             
             if (iframe) {
                 // Use the content URL as-is (already includes attempt_id parameter)
-                const contentUrl = '{{ content_url|default:"about:blank" }}';
-                const finalUrl = contentUrl;
+                var contentUrl = '{{ content_url|default:"about:blank" }}';
+                var finalUrl = contentUrl;
                 
                 iframe.src = finalUrl;
                 console.log('SCORM content URL loaded:', finalUrl);
@@ -162,7 +255,7 @@
                     updateStatus('SCORM content loaded');
                     
                     // Hide loading overlay
-                    setTimeout(() => {
+                    setTimeout(function() {
                         loadingOverlay.style.display = 'none';
                     }, 500);
                 });
@@ -196,7 +289,7 @@
             }
             
             // Redirect back to topic
-            setTimeout(() => {
+            setTimeout(function() {
                 window.location.href = '{% url "courses:topic_view" topic.id %}';
             }, 1000);
         }

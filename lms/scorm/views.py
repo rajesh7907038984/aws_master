@@ -246,6 +246,11 @@ def scorm_content(request, topic_id, path):
                 except Exception as e:
                     logger.warning(f"Could not get attempt ID for user {request.user.username}: {e}")
                     pass
+                    
+            # Check if this is a Storyline package for enhanced support
+            is_storyline = (scorm_package.version == 'storyline' or 
+                          'storyline' in str(scorm_package.launch_url).lower() or
+                          'story.html' in str(scorm_package.launch_url).lower())
             
             # Add CSRF token to the content
             csrf_token = request.META.get('CSRF_COOKIE', '')
@@ -253,19 +258,262 @@ def scorm_content(request, topic_id, path):
                 from django.middleware.csrf import get_token
                 csrf_token = get_token(request)
             
-            scorm_api = f'''
+            # Enhanced API injection - different approach for Storyline
+            if is_storyline:
+                scorm_api = '''
 <script>
-// Add CSRF token for API calls
-window.csrfToken = '{csrf_token}';
+// Enhanced Storyline SCORM API Support
+window.csrfToken = '{}';
+window._scormAttemptId = '{}';
+window._isStoryline = true;
+
+// Storyline-specific API setup
+(function() {{
+    console.log('Initializing enhanced Storyline SCORM API support');
+    
+    // Create robust API for Storyline
+    var StorylineAPI = {{
+        _attemptId: '{}',
+        _initialized: false,
+        _lastError: '0',
+        
+        // Storyline expects both SCORM 1.2 and 2004 methods
+        Initialize: function(param) {{
+            return this.LMSInitialize(param);
+        }},
+        
+        LMSInitialize: function(param) {{'''.format(csrf_token, attempt_id, attempt_id) + '''
+            console.log('Storyline SCORM Initialize called');
+            try {
+                this._initialized = true;
+                return 'true';
+            } catch (e) {
+                console.error('Storyline Initialize error:', e);
+                this._lastError = '101';
+                return 'false';
+            }
+        },
+        
+        Terminate: function(param) {
+            return this.LMSFinish(param);
+        },
+        
+        LMSFinish: function(param) {
+            console.log('Storyline SCORM Terminate called');
+            this._initialized = false;
+            return 'true'; 
+        },
+        
+        GetValue: function(element) {
+            return this.LMSGetValue(element);
+        },
+        
+        LMSGetValue: function(element) {
+            console.log('Storyline GetValue:', element);
+            if (!this._initialized) {
+                this._lastError = '301';
+                return '';
+            }
+            
+            try {
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', '/scorm/api/{}/', false);
+                xhr.setRequestHeader('Content-Type', 'application/json');
+                xhr.setRequestHeader('X-CSRFToken', window.csrfToken || '');
+                
+                xhr.send(JSON.stringify({
+                    method: 'LMSGetValue',
+                    parameters: [element]
+                }));
+                
+                if (xhr.status === 200) {
+                    var result = JSON.parse(xhr.responseText);
+                    console.log('Storyline GetValue result:', element, '=', result.result);
+                    return result.result || '';
+                } else {
+                    console.error('Storyline GetValue error:', xhr.status);
+                    this._lastError = '101';
+                    return '';
+                }
+            } catch (e) {
+                console.error('Storyline GetValue exception:', e);
+                this._lastError = '101';
+                return '';
+            }
+        },
+        
+        SetValue: function(element, value) {
+            return this.LMSSetValue(element, value);
+        },
+        
+        LMSSetValue: function(element, value) {'''.format(attempt_id) + '''
+            console.log('Storyline SetValue:', element, '=', value);
+            if (!this._initialized) {
+                this._lastError = '301';
+                return 'false';
+            }
+            
+            try {
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', '/scorm/api/{}/', false);
+                xhr.setRequestHeader('Content-Type', 'application/json');
+                xhr.setRequestHeader('X-CSRFToken', window.csrfToken || '');
+                
+                xhr.send(JSON.stringify({
+                    method: 'LMSSetValue',
+                    parameters: [element, value]
+                }));
+                
+                if (xhr.status === 200) {
+                    var result = JSON.parse(xhr.responseText);
+                    console.log('Storyline SetValue success:', element, '=', value);
+                    
+                    // Auto-commit critical Storyline data
+                    if (element.indexOf('lesson_status') > -1 || element.indexOf('score') > -1) {
+                        setTimeout(function() {
+                            this.LMSCommit('');
+                        }.bind(this), 100);
+                    }
+                    
+                    return result.result || 'false';
+                } else {
+                    console.error('Storyline SetValue error:', xhr.status);
+                    this._lastError = '101';
+                    return 'false';
+                }
+            } catch (e) {
+                console.error('Storyline SetValue exception:', e);
+                this._lastError = '101';
+                return 'false';
+            }
+        },
+        
+        Commit: function(param) {
+            return this.LMSCommit(param);
+        },
+        
+        LMSCommit: function(param) {'''.format(attempt_id) + '''
+            console.log('Storyline Commit called');
+            if (!this._initialized) {
+                this._lastError = '301';
+                return 'false';
+            }
+            
+            try {
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', '/scorm/api/{}/', false);
+                xhr.setRequestHeader('Content-Type', 'application/json');
+                xhr.setRequestHeader('X-CSRFToken', window.csrfToken || '');
+                
+                xhr.send(JSON.stringify({
+                    method: 'LMSCommit',
+                    parameters: []
+                }));
+                
+                if (xhr.status === 200) {
+                    var result = JSON.parse(xhr.responseText);
+                    console.log('Storyline Commit success');
+                    return result.result || 'false';
+                } else {
+                    console.error('Storyline Commit error:', xhr.status);
+                    this._lastError = '101';
+                    return 'false';
+                }
+            } catch (e) {
+                console.error('Storyline Commit exception:', e);
+                this._lastError = '101';
+                return 'false';
+            }
+        },
+        
+        GetLastError: function() {
+            return this._lastError;
+        },
+        
+        LMSGetLastError: function() {
+            return this._lastError;
+        },
+        
+        GetErrorString: function(code) {
+            return 'No error';
+        },
+        
+        LMSGetErrorString: function(code) {
+            return 'No error';
+        },
+        
+        GetDiagnostic: function(code) {
+            return 'No error';
+        },
+        
+        LMSGetDiagnostic: function(code) {
+            return 'No error';
+        }
+    };
+    
+    // Expose API in ALL contexts that Storyline might check
+    window.API = StorylineAPI;
+    window.API_1484_11 = StorylineAPI;
+    
+    // Parent window exposure (critical for iframes)
+    if (window.parent && window.parent !== window) {
+        window.parent.API = StorylineAPI;
+        window.parent.API_1484_11 = StorylineAPI;
+        console.log('Storyline API exposed to parent window');
+    }
+    
+    if (window.top && window.top !== window) {
+        window.top.API = StorylineAPI;
+        window.top.API_1484_11 = StorylineAPI;
+        console.log('Storyline API exposed to top window');
+    }
+    
+    // Document exposure
+    if (document) {
+        document.API = StorylineAPI;
+        document.API_1484_11 = StorylineAPI;
+    }
+    
+    // Create API finder functions
+    window.getAPI = function() { return StorylineAPI; };
+    window.getAPIHandle = function() { return StorylineAPI; };
+    window.findAPI = function() { return StorylineAPI; };
+    window.scanForAPI = function() { return StorylineAPI; };
+    
+    // Storyline-specific properties
+    window.scormAPI = StorylineAPI;
+    window.SCORM_API = StorylineAPI;
+    
+    console.log('Enhanced Storyline SCORM API initialized successfully');
+    
+    // Periodic re-exposure for dynamic content
+    var exposureCount = 0;
+    var refresher = setInterval(function() {
+        if (++exposureCount > 10) {
+            clearInterval(refresher);
+            return;
+        }
+        
+        if (!window.parent.API) window.parent.API = StorylineAPI;
+        if (!window.top.API) window.top.API = StorylineAPI;
+    }, 500);
+    
+}})();
+</script>'''
+            else:
+                scorm_api = '''
+<script>
+// Standard SCORM API Support
+window.csrfToken = '{}';
 
 // Enhanced error handling for SCORM API
 window.API = {{
-    _attemptId: '{attempt_id}',
+    _attemptId: '{}',
     _initialized: false,
-    _lastError: '0',
+    _lastError: '0','''.format(csrf_token, attempt_id) + '''
     
     Initialize: function(param) {{ 
-        console.log('SCORM API Initialize called for attempt {attempt_id}');
+        console.log('SCORM API Initialize called for attempt {}');
         try {{
             this._initialized = true;
             return 'true';
@@ -274,7 +522,7 @@ window.API = {{
             this._lastError = '101';
             return 'false';
         }}
-    }},
+    }},'''.format(attempt_id) + '''
     
     Terminate: function(param) {{ 
         console.log('SCORM API Terminate called');
@@ -291,7 +539,7 @@ window.API = {{
         
         try {{
             var xhr = new XMLHttpRequest();
-            xhr.open('POST', '/scorm/api/{attempt_id}/', false);
+            xhr.open('POST', '/scorm/api/{}/''.format(attempt_id), false);
             xhr.setRequestHeader('Content-Type', 'application/json');
             xhr.setRequestHeader('X-CSRFToken', window.csrfToken || '');
             
@@ -326,7 +574,7 @@ window.API = {{
         // Make API call to backend
         try {{
             var xhr = new XMLHttpRequest();
-            xhr.open('POST', '/scorm/api/{attempt_id}/', false); // Synchronous for SCORM compatibility
+            xhr.open('POST', '/scorm/api/{}/''.format(attempt_id), false); // Synchronous for SCORM compatibility
             xhr.setRequestHeader('Content-Type', 'application/json');
             xhr.setRequestHeader('X-CSRFToken', window.csrfToken || '');
             
@@ -361,7 +609,7 @@ window.API = {{
         // Make API call to backend
         try {{
             var xhr = new XMLHttpRequest();
-            xhr.open('POST', '/scorm/api/{attempt_id}/', false);
+            xhr.open('POST', '/scorm/api/{}/''.format(attempt_id), false);
             xhr.setRequestHeader('Content-Type', 'application/json');
             xhr.setRequestHeader('X-CSRFToken', window.csrfToken || '');
             
@@ -402,22 +650,66 @@ window.API = {{
 // Also expose as API_1484_11 for SCORM 2004 compatibility
 window.API_1484_11 = window.API;
 
-console.log('SCORM API injected successfully with attempt ID: {attempt_id}');
-</script>'''
+console.log('SCORM API injected successfully with attempt ID: {}');
+</script>'''.format(attempt_id)
             
-            # Inject API before closing head tag and suppress Storyline error dialogs
-            error_suppression = '''
+            # Enhanced error suppression - more aggressive for Storyline
+            if is_storyline:
+                error_suppression = '''
 <script>
-// Suppress Articulate Storyline error dialogs since SCORM API is working
+// Enhanced Storyline error suppression
 window.addEventListener('error', function(e) {
-    // Suppress generic error dialogs from Storyline
+    console.log('Suppressed Storyline error:', e.message, e.filename, e.lineno);
     e.preventDefault();
-    console.log('Suppressed Storyline error:', e.message);
     return true;
 });
 
-// Override alert to suppress error dialogs
-const originalAlert = window.alert;
+// Suppress unhandled promise rejections
+window.addEventListener('unhandledrejection', function(e) {
+    console.log('Suppressed Storyline promise rejection:', e.reason);
+    e.preventDefault();
+});
+
+// Override alert and confirm for Storyline
+var originalAlert = window.alert;
+var originalConfirm = window.confirm;
+
+window.alert = function(message) {
+    if (typeof message === 'string') {
+        var msg = message.toLowerCase();
+        if (msg.includes('error') || msg.includes('failed') || msg.includes('cannot') || 
+            msg.includes('unable') || msg.includes('scorm') || msg.includes('lms')) {
+            console.log('Suppressed Storyline alert:', message);
+            return;
+        }
+    }
+    return originalAlert.call(this, message);
+};
+
+window.confirm = function(message) {
+    if (typeof message === 'string') {
+        var msg = message.toLowerCase();
+        if (msg.includes('error') || msg.includes('failed') || msg.includes('scorm')) {
+            console.log('Auto-confirmed Storyline dialog:', message);
+            return true;
+        }
+    }
+    return originalConfirm.call(this, message);
+};
+
+console.log('Enhanced Storyline error suppression active');
+</script>'''
+            else:
+                error_suppression = '''
+<script>
+// Standard SCORM error suppression
+window.addEventListener('error', function(e) {
+    console.log('Suppressed SCORM error:', e.message);
+    e.preventDefault();
+    return true;
+});
+
+var originalAlert = window.alert;
 window.alert = function(message) {
     if (typeof message === 'string' && 
         (message.toLowerCase().includes('error') || 
