@@ -530,7 +530,7 @@
                                     </div>
                                 </div>
                             {% else %}
-                                <!-- No SCORM content - show message -->
+                                <!-- No SCORM content - show detailed error message -->
                                 <div class="w-full max-w-md">
                                     <div class="p-4 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded-lg mb-4">
                                         <div class="flex items-center">
@@ -538,6 +538,7 @@
                                             <div>
                                                 <p class="font-semibold">SCORM Content Missing</p>
                                                 <p class="text-sm mt-1">No SCORM content is available for this topic. Please contact support if you believe this is an error.</p>
+                                                <p class="text-xs mt-2 text-yellow-700">Topic ID: {{ topic.id }} | Content Type: {{ topic.content_type }}</p>
                                             </div>
                                         </div>
                                     </div>

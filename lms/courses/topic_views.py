@@ -93,9 +93,16 @@ def topic_view(request, topic_id):
         if topic.content_type == 'SCORM':
             try:
                 from scorm.models import SCORMPackage
-                from scorm.utils import get_topic_scorm_package, get_or_create_scorm_attempt
+                from scorm.utils import get_topic_scorm_package, get_or_create_scorm_attempt, auto_link_scorm_package
                 
+                # First try to get existing linked package
                 scorm_package = get_topic_scorm_package(topic)
+                
+                # AUTO-DETECT: If no package found, try to find unlinked packages
+                if not scorm_package:
+                    logger.info(f"SCORM: No package linked to topic {topic.id}, searching for unlinked packages")
+                    scorm_package = auto_link_scorm_package(topic)
+                
                 if scorm_package and request.user.is_authenticated:
                     scorm_attempt = get_or_create_scorm_attempt(request.user, scorm_package, topic)
                     logger.info(f"SCORM: Got/created attempt {scorm_attempt.id} for user {request.user.username}")

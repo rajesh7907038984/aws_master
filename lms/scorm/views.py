@@ -61,6 +61,13 @@ class SCORMPackageUploadView(LoginRequiredMixin, CreateView):
             package.file_size = package.package_file.size
             package.save()
             
+            # AUTO-LINK: If topic is specified, ensure it's set to SCORM type
+            if package.topic:
+                if package.topic.content_type != 'SCORM':
+                    package.topic.content_type = 'SCORM'
+                    package.topic.save()
+                    logger.info(f"Updated topic {package.topic.id} to SCORM type")
+            
             # Process the package asynchronously or synchronously
             if settings.SCORM_IMMEDIATE_SYNC:
                 self.process_package(package)

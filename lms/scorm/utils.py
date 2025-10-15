@@ -113,6 +113,32 @@ def get_scorm_launch_url(package: SCORMPackage) -> str:
     return ""
 
 
+def auto_link_scorm_package(topic) -> Optional[SCORMPackage]:
+    """
+    Auto-link an unlinked SCORM package to a topic
+    """
+    try:
+        # Find unlinked packages that could be linked to this topic
+        unlinked_packages = SCORMPackage.objects.filter(
+            is_active=True,
+            is_processed=True,
+            topic__isnull=True
+        ).order_by('-created_at')
+        
+        if unlinked_packages.exists():
+            # Link the most recent package
+            package = unlinked_packages.first()
+            package.topic = topic
+            package.save()
+            logger.info(f"Auto-linked SCORM package {package.id} to topic {topic.id}")
+            return package
+            
+    except Exception as e:
+        logger.error(f"Error auto-linking SCORM package: {str(e)}")
+    
+    return None
+
+
 def sync_scorm_to_topic_progress(attempt: SCORMAttempt):
     """
     Sync SCORM attempt completion to topic progress
