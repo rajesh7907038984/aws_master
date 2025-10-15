@@ -71,23 +71,18 @@ def scorm_api(request, attempt_id):
 @login_required
 def scorm_content(request, topic_id, path):
     """
-    Enhanced SCORM content serving - Fixed for different package types and revisit scenarios
+    Simplified SCORM content serving - Non-interfering with package functionality
     """
     try:
-        # ENHANCED: Special handling for revisit scenarios with different SCORM package types
         logger.info(f"SCORM Content Request: topic_id={topic_id}, path='{path}', user={request.user.email if request.user.is_authenticated else 'anonymous'}")
         
-        # Log additional context for scormcontent requests
-        if 'scormcontent' in path:
-            logger.info(f"🎯 SCORM Course Content Request: {path} - User authenticated: {request.user.is_authenticated}")
-        
-        # CRITICAL FIX: Handle authentication issues for scormcontent/ type packages
+        # Authentication check
         if not request.user.is_authenticated:
             logger.warning(f"Unauthenticated SCORM content request for topic {topic_id}, path: {path}")
-            # For AJAX requests from SCORM content, return 401 instead of redirect
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 'scormcontent/' in path:
                 return JsonResponse({'error': 'Authentication required', 'redirect': '/users/login/'}, status=401)
             return redirect('users:login')
+            
         topic = get_object_or_404(Topic, id=topic_id)
         scorm_package = topic.scorm_package
         
@@ -101,28 +96,17 @@ def scorm_content(request, topic_id, path):
         
         logger.info(f"SCORM Content Request: topic_id={topic_id}, path='{path}', scorm_package='{scorm_package.title}'")
         
-        # ENHANCED: Handle common SCORM path mapping issues and natural package navigation
-        # Fix common problematic requests from SCORM content
+        # Handle path corrections if needed, but minimal interference
         if path == 'scormcontent/false':
-            # Redirect to the actual content index
             path = 'scormcontent/index.html'
             logger.info(f"SCORM Path Fix: Redirected 'scormcontent/false' to '{path}'")
         elif path.startswith('scormcontent/') and path.endswith('/false'):
-            # Handle other false path variations
             base_path = path.replace('/false', '')
             path = f"{base_path}/index.html"
             logger.info(f"SCORM Path Fix: Redirected false path to '{path}'")
         elif path == 'false' or path == 'false/':
-            # Direct false request - redirect to main content
             path = 'scormcontent/index.html'
             logger.info(f"SCORM Path Fix: Redirected 'false' to '{path}'")
-        
-        # ENHANCED: Handle SCORM package internal navigation (goodbye pages, exit pages, etc.)
-        # Allow natural navigation within the SCORM package
-        elif path.endswith('goodbye.html') or path.endswith('exit.html') or path.endswith('complete.html'):
-            logger.info(f"✅ SCORM internal navigation to exit/goodbye page: {path}")
-        elif 'goodbye' in path.lower() or 'exit' in path.lower() or 'complete' in path.lower():
-            logger.info(f"✅ SCORM internal navigation detected: {path}")
         
         # Generate S3 URL
         from .s3_direct import scorm_s3
@@ -133,29 +117,12 @@ def scorm_content(request, topic_id, path):
         if not s3_url:
             return HttpResponse('Content not found', status=404)
         
-        # For JavaScript files, serve through Django to maintain CORS and session context
-        if path.endswith('.js'):
-            try:
-                import requests
-                response = requests.get(s3_url, timeout=30)
-                if response.status_code != 200:
-                    logger.error(f"Failed to fetch JavaScript from S3: {response.status_code}")
-                    return HttpResponse('JavaScript file not accessible', status=404)
-                
-                # Serve JavaScript with optimized headers
-                http_response = HttpResponse(response.content, content_type='application/javascript; charset=utf-8')
-                http_response['Access-Control-Allow-Origin'] = '*'
-                http_response['Cache-Control'] = 'public, max-age=3600, immutable'
-                http_response['ETag'] = f'"{hash(response.content)}"'
-                return http_response
-            except Exception as e:
-                logger.error(f"Error serving JavaScript file: {e}")
-                return HttpResponse('Error loading JavaScript file', status=500)
-        
-        # For other non-HTML files (images, CSS, etc.), redirect to S3
+        # For non-HTML files, redirect directly to S3 to avoid interference
         if not path.endswith(('.html', '.htm')):
             from django.http import HttpResponseRedirect
-            return HttpResponseRedirect(s3_url)
+            response = HttpResponseRedirect(s3_url)
+            response['Access-Control-Allow-Origin'] = '*'
+            return response
         
         # For HTML files, fetch from S3 and inject SCORM API
         try:
@@ -169,59 +136,9 @@ def scorm_content(request, topic_id, path):
             
             content = response.text
             
-            # Check if this is a goodbye/exit page - if so, handle it specially
-            is_exit_page = ('goodbye' in path.lower() or 'exit' in path.lower() or 
-                          'complete' in path.lower() or 'finish' in path.lower())
-            
-            if is_exit_page:
-                logger.info(f"📄 Processing SCORM exit/goodbye page: {path}")
-                # For exit pages, inject minimal API and auto-redirect after delay
-                exit_redirect_script = f"""
-<script>
-// SCORM Exit Page Handler
-console.log('📄 SCORM exit/goodbye page loaded');
-
-// Wait for the page to be viewed, then redirect back to course
-setTimeout(function() {{
-    console.log('🔄 Auto-redirecting from goodbye page to course');
-    try {{
-        window.parent.location.href = '/courses/topic/{{ topic_id }}/';
-    }} catch(e) {{
-        window.location.href = '/courses/topic/{{ topic_id }}/';
-    }}
-}}, 3000); // 3 second delay to view goodbye message
-
-// Provide a manual close button if needed
-document.addEventListener('DOMContentLoaded', function() {{
-    var closeBtn = document.createElement('button');
-    closeBtn.innerHTML = 'Return to Course';
-    closeBtn.style.cssText = 'position:fixed;bottom:20px;right:20px;padding:10px 20px;background:#007bff;color:white;border:none;border-radius:5px;cursor:pointer;z-index:9999;';
-    closeBtn.onclick = function() {{
-        try {{
-            window.parent.location.href = '/courses/topic/{{ topic_id }}/';
-        }} catch(e) {{
-            window.location.href = '/courses/topic/{{ topic_id }}/';
-        }}
-    }};
-    document.body.appendChild(closeBtn);
-}});
-</script>"""
-                
-                if '</body>' in content:
-                    content = content.replace('</body>', exit_redirect_script + '</body>')
-                else:
-                    content = content + exit_redirect_script
-                    
-                # Return the exit page with redirect script
-                response = HttpResponse(content, content_type='text/html; charset=utf-8')
-                response['Access-Control-Allow-Origin'] = '*'
-                response['X-Frame-Options'] = 'SAMEORIGIN'
-                return response
-            
-            # Enhanced SCORM API injection with proper attempt ID
+            # Get attempt ID for tracking only
             attempt_id = request.GET.get('attempt_id', '')
             
-            # Get the actual attempt ID from the session or create one
             if not attempt_id and request.user.is_authenticated:
                 try:
                     from scorm.models import ScormAttempt
@@ -234,135 +151,82 @@ document.addEventListener('DOMContentLoaded', function() {{
                 except Exception as e:
                     logger.warning(f"Could not get attempt ID for user {request.user.username}: {e}")
                     pass
-                    
-            # CRITICAL FIX: Handle Articulate Rise packages - Fix relative paths in content
-            # For indexAPI.html files, fix the relative path references
+            
+            # Only fix critical path issues for Articulate Rise packages
             if path.endswith('indexAPI.html') and 'scormdriver' in path:
-                logger.info(f"🔧 Fixing Articulate Rise indexAPI.html paths")
-                
-                # Fix the JavaScript path references in indexAPI.html
+                logger.info(f"Fixing Articulate Rise paths")
                 if '../scormcontent/index.html' in content:
-                    # Replace relative path with absolute Django URL and add attempt_id
                     django_content_url = f'/scorm/content/{topic_id}/scormcontent/index.html'
                     if attempt_id:
                         django_content_url += f'?attempt_id={attempt_id}'
                     content = content.replace('../scormcontent/index.html', django_content_url)
-                    logger.info(f"✅ Fixed content path: ../scormcontent/index.html -> {django_content_url}")
-                
-                if '../scormcontent/' in content:
-                    # Replace all other relative scormcontent paths
-                    import re
-                    def replace_scormcontent_path(match):
-                        relative_path = match.group(1)
-                        django_path = f'/scorm/content/{topic_id}/scormcontent/{relative_path}'
-                        if attempt_id and 'index.html' in relative_path:
-                            django_path += f'?attempt_id={attempt_id}'
-                        logger.info(f"🔄 Path fix: ../scormcontent/{relative_path} -> {django_path}")
-                        return f'"{django_path}"'
-                    
-                    content = re.sub(r'["\']\.\.\/scormcontent\/([^"\']+)["\']', replace_scormcontent_path, content)
-                
-                # Optimized debugging for navigation - reduced size and timing
-                debug_script = f"""
-<script>
-// Articulate Rise Navigation Support
-var originalLoadContent = window.LoadContent;
-if (typeof LoadContent !== 'undefined') {{
-    window.LoadContent = function() {{
-        return originalLoadContent.apply(this, arguments);
-    }};
-}}
-
-// Quick iframe navigation fix
-setTimeout(function() {{
-    var contentFrame = document.getElementById('content-frame');
-    if (contentFrame) {{
-        setTimeout(function() {{
-            if (contentFrame.src.includes('blank.html')) {{
-                contentFrame.src = '/scorm/content/{topic_id}/scormcontent/index.html?attempt_id={attempt_id}';
-            }}
-        }}, 1500);
-    }}
-}}, 500);
-</script>"""
-                content = content.replace('</head>', debug_script + '</head>')
-                
-            # Optimized path resolution script
-            path_resolution_script = f"""
-<script>
-window.SCORM_TOPIC_ID = {topic_id};
-</script>"""
-                        
-            # Check if this is a Storyline package for enhanced support
-            is_storyline = (scorm_package.version == 'storyline' or 
-                          'storyline' in str(scorm_package.launch_url).lower() or
-                          'story.html' in str(scorm_package.launch_url).lower())
+                    logger.info(f"Fixed content path: ../scormcontent/index.html -> {django_content_url}")
             
-            # Add CSRF token to the content
+            # Add CSRF token for API calls
             csrf_token = request.META.get('CSRF_COOKIE', '')
             if not csrf_token:
                 from django.middleware.csrf import get_token
                 csrf_token = get_token(request)
             
-            # Optimized API injection for Storyline - reduced size
-            if is_storyline:
-                scorm_api = """
+            # Minimal SCORM API injection - only for tracking to database
+            # Let SCORM packages use their own API, we just track the values
+            # Only inject API if package doesn't have its own
+            scorm_api = """
 <script>
-// Optimized Storyline SCORM API
+// Minimal SCORM API Bridge - Only saves to database, doesn't interfere
 window.csrfToken = '{csrf_token}';
 window._scormAttemptId = '{attempt_id}';
 
-(function() {{
-    var API = {{
+// Only create API if one doesn't exist
+if (!window.API && !window.API_1484_11) {{
+    window.API = {{
         _initialized: false,
         _lastError: '0',
         
-        Initialize: function(p) {{ return this.LMSInitialize(p); }},
-        LMSInitialize: function(p) {{ this._initialized = true; return 'true'; }},
-        Terminate: function(p) {{ return this.LMSFinish(p); }},
-        LMSFinish: function(p) {{ this._initialized = false; return 'true'; }},
-        GetValue: function(e) {{ return this.LMSGetValue(e); }},
-        SetValue: function(e, v) {{ return this.LMSSetValue(e, v); }},
-        Commit: function(p) {{ return this.LMSCommit(p); }},
+        Initialize: function(p) {{ this._initialized = true; return 'true'; }},
+        Terminate: function(p) {{ this._initialized = false; return 'true'; }},
+        LMSInitialize: function(p) {{ return this.Initialize(p); }},
+        LMSFinish: function(p) {{ return this.Terminate(p); }},
         
-        LMSGetValue: function(element) {{
+        GetValue: function(element) {{ 
             if (!this._initialized) return '';
             try {{
                 var xhr = new XMLHttpRequest();
                 xhr.open('POST', '/scorm/api/{attempt_id}/', false);
                 xhr.setRequestHeader('Content-Type', 'application/json');
                 xhr.setRequestHeader('X-CSRFToken', window.csrfToken);
-                xhr.send(JSON.stringify({{method: 'LMSGetValue', parameters: [element]}}));
+                xhr.send(JSON.stringify({{method: 'GetValue', parameters: [element]}}));
                 return xhr.status === 200 ? JSON.parse(xhr.responseText).result || '' : '';
             }} catch (e) {{ return ''; }}
         }},
         
-        LMSSetValue: function(element, value) {{
+        SetValue: function(element, value) {{ 
             if (!this._initialized) return 'false';
             try {{
                 var xhr = new XMLHttpRequest();
                 xhr.open('POST', '/scorm/api/{attempt_id}/', false);
                 xhr.setRequestHeader('Content-Type', 'application/json');
                 xhr.setRequestHeader('X-CSRFToken', window.csrfToken);
-                xhr.send(JSON.stringify({{method: 'LMSSetValue', parameters: [element, value]}}));
-                if (xhr.status === 200 && (element.indexOf('lesson_status') > -1 || element.indexOf('score') > -1)) {{
-                    setTimeout(() => this.LMSCommit(''), 50);
-                }}
+                xhr.send(JSON.stringify({{method: 'SetValue', parameters: [element, value]}}));
                 return xhr.status === 200 ? JSON.parse(xhr.responseText).result || 'false' : 'false';
             }} catch (e) {{ return 'false'; }}
         }},
         
-        LMSCommit: function(p) {{
+        Commit: function(p) {{ 
             if (!this._initialized) return 'false';
             try {{
                 var xhr = new XMLHttpRequest();
                 xhr.open('POST', '/scorm/api/{attempt_id}/', false);
                 xhr.setRequestHeader('Content-Type', 'application/json');
                 xhr.setRequestHeader('X-CSRFToken', window.csrfToken);
-                xhr.send(JSON.stringify({{method: 'LMSCommit', parameters: []}}));
+                xhr.send(JSON.stringify({{method: 'Commit', parameters: []}}));
                 return xhr.status === 200 ? JSON.parse(xhr.responseText).result || 'false' : 'false';
             }} catch (e) {{ return 'false'; }}
         }},
+        
+        LMSGetValue: function(e) {{ return this.GetValue(e); }},
+        LMSSetValue: function(e, v) {{ return this.SetValue(e, v); }},
+        LMSCommit: function(p) {{ return this.Commit(p); }},
         
         GetLastError: function() {{ return this._lastError; }},
         LMSGetLastError: function() {{ return this._lastError; }},
@@ -372,114 +236,18 @@ window._scormAttemptId = '{attempt_id}';
         LMSGetDiagnostic: function(c) {{ return 'No error'; }}
     }};
     
-    // Expose API efficiently
-    window.API = window.API_1484_11 = API;
-    if (window.parent !== window) window.parent.API = window.parent.API_1484_11 = API;
-    if (window.top !== window) window.top.API = window.top.API_1484_11 = API;
-    if (document) document.API = document.API_1484_11 = API;
-    
-    window.getAPI = window.getAPIHandle = window.findAPI = window.scanForAPI = () => API;
-    window.scormAPI = window.SCORM_API = API;
-}}());
-</script>""".format(csrf_token=csrf_token, attempt_id=attempt_id)
-            else:
-                scorm_api = """
-<script>
-// Optimized Standard SCORM API
-window.csrfToken = '{csrf_token}';
-
-window.API = {{
-    _initialized: false,
-    _lastError: '0',
-    
-    Initialize: function(p) {{ this._initialized = true; return 'true'; }},
-    Terminate: function(p) {{ this._initialized = false; return 'true'; }},
-    
-    GetValue: function(element) {{ 
-        if (!this._initialized) return '';
-        try {{
-            var xhr = new XMLHttpRequest();
-            xhr.open('POST', '/scorm/api/{attempt_id}/', false);
-            xhr.setRequestHeader('Content-Type', 'application/json');
-            xhr.setRequestHeader('X-CSRFToken', window.csrfToken);
-            xhr.send(JSON.stringify({{method: 'GetValue', parameters: [element]}}));
-            return xhr.status === 200 ? JSON.parse(xhr.responseText).result || '' : '';
-        }} catch (e) {{ return ''; }}
-    }},
-    
-    SetValue: function(element, value) {{ 
-        if (!this._initialized) return 'false';
-        try {{
-            var xhr = new XMLHttpRequest();
-            xhr.open('POST', '/scorm/api/{attempt_id}/', false);
-            xhr.setRequestHeader('Content-Type', 'application/json');
-            xhr.setRequestHeader('X-CSRFToken', window.csrfToken);
-            xhr.send(JSON.stringify({{method: 'SetValue', parameters: [element, value]}}));
-            return xhr.status === 200 ? JSON.parse(xhr.responseText).result || 'false' : 'false';
-        }} catch (e) {{ return 'false'; }}
-    }},
-    
-    Commit: function(p) {{ 
-        if (!this._initialized) return 'false';
-        try {{
-            var xhr = new XMLHttpRequest();
-            xhr.open('POST', '/scorm/api/{attempt_id}/', false);
-            xhr.setRequestHeader('Content-Type', 'application/json');
-            xhr.setRequestHeader('X-CSRFToken', window.csrfToken);
-            xhr.send(JSON.stringify({{method: 'Commit', parameters: []}}));
-            return xhr.status === 200 ? JSON.parse(xhr.responseText).result || 'false' : 'false';
-        }} catch (e) {{ return 'false'; }}
-    }},
-    
-    GetLastError: function() {{ return this._lastError; }},
-    GetErrorString: function(c) {{ return 'No error'; }},
-    GetDiagnostic: function(c) {{ return 'No error'; }}
-}};
-
-window.API_1484_11 = window.API;
+    window.API_1484_11 = window.API;
+}}
 </script>""".format(csrf_token=csrf_token, attempt_id=attempt_id)
             
-            # Optimized error suppression for Storyline
-            if is_storyline:
-                error_suppression = '''
-<script>
-// Storyline error suppression
-window.addEventListener('error', function(e) { e.preventDefault(); return true; });
-window.addEventListener('unhandledrejection', function(e) { e.preventDefault(); });
-
-var originalAlert = window.alert, originalConfirm = window.confirm;
-window.alert = function(m) {
-    if (typeof m === 'string') {
-        var msg = m.toLowerCase();
-        if (msg.includes('error') || msg.includes('failed') || msg.includes('cannot') || 
-            msg.includes('unable') || msg.includes('scorm') || msg.includes('lms')) return;
-    }
-    return originalAlert.call(this, m);
-};
-window.confirm = function(m) {
-    if (typeof m === 'string') {
-        var msg = m.toLowerCase();
-        if (msg.includes('error') || msg.includes('failed') || msg.includes('scorm')) return true;
-    }
-    return originalConfirm.call(this, m);
-};
-</script>'''
-            else:
-                error_suppression = '''
-<script>
-// Standard SCORM error suppression
-window.addEventListener('error', function(e) { e.preventDefault(); return true; });
-var originalAlert = window.alert;
-window.alert = function(m) {
-    if (typeof m === 'string' && (m.toLowerCase().includes('error') || m.toLowerCase().includes('an error has occurred'))) return;
-    return originalAlert.call(this, m);
-};
-</script>'''
+            # NO ERROR SUPPRESSION - Let SCORM packages handle their own errors
+            # This was interfering with package functionality
             
+            # Inject minimal API only if needed
             if '</head>' in content:
-                content = content.replace('</head>', path_resolution_script + scorm_api + error_suppression + '</head>')
+                content = content.replace('</head>', scorm_api + '</head>')
             else:
-                content = path_resolution_script + scorm_api + error_suppression + content
+                content = scorm_api + content
             
             response = HttpResponse(content, content_type='text/html; charset=utf-8')
             response['Access-Control-Allow-Origin'] = '*'
