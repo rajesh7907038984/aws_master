@@ -19,33 +19,41 @@ logger = logging.getLogger(__name__)
 
 def detect_package_type(launch_url):
     """
-    Auto-detect SCORM package type based on launch URL patterns
+    Enhanced auto-detection of SCORM package type based on launch URL patterns
+    With improved detection for various authoring tools
     """
     launch_url_lower = launch_url.lower() if launch_url else ''
     
-    # Articulate Rise with scormdriver
+    # Log the detection process for debugging
+    logger.info(f"Detecting package type for URL: {launch_url_lower}")
+    
+    # Articulate Rise patterns
     if 'scormdriver' in launch_url_lower and 'indexapi' in launch_url_lower:
         return 'articulate_rise_driver'
     elif 'scormdriver' in launch_url_lower:
         return 'articulate_rise'
-    
-    # Articulate Rise content only
-    elif 'scormcontent' in launch_url_lower:
+    elif 'scormcontent/index.html' in launch_url_lower:
+        return 'articulate_rise_content'
+    elif 'scormcontent/' in launch_url_lower:
         return 'articulate_rise_content'
     
-    # Articulate Storyline
+    # Articulate Storyline patterns
     elif 'story.html' in launch_url_lower or 'story_html5.html' in launch_url_lower:
         return 'articulate_storyline'
+    elif 'story_content/' in launch_url_lower:
+        return 'articulate_storyline'
     
-    # Adobe Captivate
+    # Adobe Captivate patterns
     elif 'captivate' in launch_url_lower or 'multiscreen.html' in launch_url_lower:
         return 'adobe_captivate'
+    elif 'assets/playbar' in launch_url_lower:
+        return 'adobe_captivate'
     
-    # Lectora
+    # Lectora patterns
     elif 'lectora' in launch_url_lower or 'trivantis' in launch_url_lower:
         return 'lectora'
     
-    # iSpring
+    # iSpring patterns
     elif 'ispring' in launch_url_lower or 'presentation.html' in launch_url_lower:
         return 'ispring'
     
@@ -54,8 +62,18 @@ def detect_package_type(launch_url):
         return 'lms_specific'
     elif 'index.html' in launch_url_lower:
         return 'standard_html'
+    elif launch_url_lower.endswith('.html'):
+        # Generic HTML file - try to infer type from path structure
+        if '/' in launch_url_lower:
+            folder = launch_url_lower.split('/')[0]
+            if folder == 'scormcontent':
+                return 'articulate_rise_content'
+            elif folder == 'story_content':
+                return 'articulate_storyline'
+        return 'html_generic'
     
     # Default
+    logger.warning(f"Unknown SCORM package type: {launch_url_lower}")
     return 'unknown'
 
 
@@ -88,27 +106,64 @@ def get_s3_direct_url(scorm_package, path=''):
 @xframe_options_exempt
 def scorm_player(request, topic_id):
     """
-    Simplified SCORM Player - Direct S3 embedding without authentication
+    Enhanced SCORM Player - Direct S3 embedding with improved path handling
     """
     try:
         # Get topic and SCORM package
         topic = get_object_or_404(Topic, id=topic_id)
         
-        if not hasattr(topic, 'scorm_package'):
+        if not hasattr(topic, 'scorm_package') or not topic.scorm_package:
+            logger.error(f"No SCORM package found for topic {topic_id}")
             return HttpResponse("No SCORM package found for this topic", status=404)
         
         scorm_package = topic.scorm_package
         
-        # Detect package type
+        # Verify the SCORM package has required data
+        if not scorm_package.launch_url or not scorm_package.extracted_path:
+            logger.error(f"Invalid SCORM package data for topic {topic_id}: missing launch_url or extracted_path")
+            return HttpResponse("Invalid SCORM package data", status=500)
+        
+        # Detect package type with enhanced detection
         package_type = detect_package_type(scorm_package.launch_url)
         logger.info(f"Detected package type: {package_type} for {scorm_package.launch_url}")
         
+        # Construct the launch URL with proper path handling
+        launch_path = scorm_package.launch_url
+        
+        # Handle special cases for different package types
+        if package_type == 'articulate_rise_content' and not launch_path.startswith('scormcontent/'):
+            # Ensure scormcontent prefix is present for Rise content
+            if 'scormcontent/' not in launch_path:
+                logger.info(f"Adding scormcontent prefix for Articulate Rise content")
+                launch_path = f"scormcontent/{launch_path}"
+        
         # For HTML files, use Django proxy to inject SCORM API
-        # For other resources, they'll be loaded directly from S3
-        launch_url = f"/scorm/content/{topic_id}/{scorm_package.launch_url}"
+        launch_url = f"/scorm/content/{topic_id}/{launch_path}"
         
         # Log the launch URL for debugging
         logger.info(f"Using proxied launch URL: {launch_url} for package type: {package_type}")
+        
+        # Verify the content exists in S3
+        from .s3_direct import scorm_s3
+        if not scorm_s3.verify_file_exists(scorm_package, launch_path):
+            logger.error(f"SCORM content file not found in S3: {launch_path} for topic {topic_id}")
+            # Try alternative paths
+            alt_paths = [scorm_package.launch_url]
+            if package_type == 'articulate_rise_content':
+                alt_paths.append('scormcontent/index.html')
+                
+            content_found = False
+            for alt_path in alt_paths:
+                if scorm_s3.verify_file_exists(scorm_package, alt_path):
+                    logger.info(f"Found alternative content path: {alt_path}")
+                    launch_path = alt_path
+                    launch_url = f"/scorm/content/{topic_id}/{launch_path}"
+                    content_found = True
+                    break
+                    
+            if not content_found:
+                logger.error(f"Could not find SCORM content in S3 after trying alternatives")
+                return HttpResponse("SCORM content not found in storage", status=404)
         
         # Create or get attempt for tracking (optional, works without auth)
         attempt_id = None
@@ -142,7 +197,7 @@ def scorm_player(request, topic_id):
         return render(request, 'scorm/player.html', context)
         
     except Exception as e:
-        logger.error(f"Error in SCORM player: {e}")
+        logger.error(f"Error in SCORM player: {e}", exc_info=True)
         return HttpResponse(f"Error loading SCORM content: {str(e)}", status=500)
 
 
@@ -254,15 +309,66 @@ def scorm_direct_content(request, topic_id, path=''):
         # Import S3 utility
         from .s3_direct import scorm_s3
         
+        # Fix for path handling - ensure proper path resolution
+        # Check if the requested path might be missing the base folder structure
+        if path and not path.startswith(scorm_package.launch_url.split('/')[0]) and '/' in scorm_package.launch_url:
+            base_folder = scorm_package.launch_url.split('/')[0]
+            if not path.startswith(base_folder):
+                # Add the base folder to the path for proper resolution
+                path = f"{base_folder}/{path}"
+                logger.info(f"Path adjusted to include base folder: {path}")
+        
         # Generate presigned URL for the requested path
         if path:
             s3_url = scorm_s3.generate_direct_url(scorm_package, path)
         else:
             s3_url = scorm_s3.generate_launch_url(scorm_package)
         
+        # If URL generation failed, try multiple alternative path resolutions
         if not s3_url:
-            logger.error(f"Could not generate URL for path: {path}")
-            return HttpResponse("Content not found", status=404)
+            logger.warning(f"First attempt to generate URL for path failed: {path}")
+            package_type = detect_package_type(scorm_package.launch_url)
+            
+            # Try a series of fallback paths based on package type
+            fallback_paths = []
+            
+            # Get the base directory if any
+            base_dir = path.split('/')[0] if '/' in path else ''
+            file_name = path.split('/')[-1] if '/' in path else path
+            
+            # Add potential fallback paths based on package type
+            if 'scormcontent' not in path and 'scormcontent' in scorm_package.launch_url:
+                fallback_paths.append(f"scormcontent/{path}")
+            
+            if package_type == 'articulate_rise_content':
+                fallback_paths.append(f"scormcontent/{file_name}")
+                if not path.startswith('scormcontent/'):
+                    fallback_paths.append(f"scormcontent/{path}")
+            
+            elif package_type == 'articulate_storyline':
+                fallback_paths.append(f"story_content/{file_name}")
+                if not path.startswith('story_content/'):
+                    fallback_paths.append(f"story_content/{path}")
+            
+            # If it's a deep path with nested directories, try simplifying
+            if path.count('/') > 1:
+                fallback_paths.append(file_name)
+            
+            # Always try the original launch URL as a last resort
+            fallback_paths.append(scorm_package.launch_url)
+            
+            # Try each fallback path
+            for alt_path in fallback_paths:
+                logger.info(f"Trying alternative path: {alt_path}")
+                s3_url = scorm_s3.generate_direct_url(scorm_package, alt_path)
+                if s3_url:
+                    logger.info(f"Successfully generated URL using alternate path: {alt_path}")
+                    path = alt_path  # Update the path to the successful one
+                    break
+            
+            if not s3_url:
+                logger.error(f"Could not generate URL after trying multiple paths: {path}")
+                return HttpResponse("Content not found", status=404)
         
         # For JavaScript, CSS, and other resource files, fetch and serve directly
         if path.endswith(('.js', '.css', '.json', '.xml', '.xsd', '.dtd')):
@@ -305,11 +411,15 @@ def scorm_direct_content(request, topic_id, path=''):
         import requests
         
         try:
-            # Fetch from S3 with proper encoding handling
-            s3_response = requests.get(s3_url, timeout=30)
-            if s3_response.status_code != 200:
-                logger.error(f"S3 fetch failed: {s3_response.status_code}")
-                return HttpResponse("Content not accessible", status=404)
+            # Fetch from S3 with proper encoding handling and better error handling
+            try:
+                s3_response = requests.get(s3_url, timeout=30)
+                if s3_response.status_code != 200:
+                    logger.error(f"S3 fetch failed: {s3_response.status_code} for path {path}")
+                    return HttpResponse("Content not accessible", status=404)
+            except requests.exceptions.RequestException as req_err:
+                logger.error(f"S3 request failed: {req_err} for path {path}")
+                return HttpResponse("Error accessing content storage", status=500)
             
             # Handle encoding properly - detect and use correct encoding
             if s3_response.encoding:
@@ -353,6 +463,11 @@ def scorm_direct_content(request, topic_id, path=''):
             content = content.replace(f'/scorm/content/{topic_id}/../', f'/scorm/content/{topic_id}/')
             content = content.replace(f'/scorm/content/{topic_id}/http', 'http')  # Don't break absolute URLs
             content = content.replace(f'/scorm/content/{topic_id}//', f'/scorm/content/{topic_id}/')  # Fix double slashes
+            
+            # Fix for Articulate Rise content - ensure scormcontent prefix is properly handled
+            if 'scormcontent' in scorm_package.launch_url and 'scormcontent' not in path and not path.startswith('scormcontent'):
+                content = content.replace(f'/scorm/content/{topic_id}/', f'/scorm/content/{topic_id}/scormcontent/')
+                logger.info(f"Added scormcontent prefix to paths for Articulate Rise content")
             
             # Get base path for relative URL resolution
             if '/' in path:
@@ -537,8 +652,32 @@ if (!window.API_1484_11 && window.parent && window.parent.API_1484_11) {{
             return response
             
         except requests.RequestException as e:
-            logger.error(f"Error fetching from S3: {e}")
-            return HttpResponse("Error loading content", status=500)
+            logger.error(f"Error fetching from S3: {e} for path {path}", exc_info=True)
+            
+            # Try to return a more helpful error page with refresh option
+            error_html = f'''
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Content Error</title>
+                <style>
+                    body {{ font-family: Arial, sans-serif; padding: 20px; text-align: center; }}
+                    .error-container {{ max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #f5c6cb; background-color: #f8d7da; color: #721c24; border-radius: 5px; }}
+                    .btn {{ display: inline-block; margin-top: 20px; padding: 10px 20px; background-color: #3498db; color: white; text-decoration: none; border-radius: 5px; }}
+                </style>
+            </head>
+            <body>
+                <div class="error-container">
+                    <h2>Error Loading Content</h2>
+                    <p>The SCORM content could not be loaded from storage. This may be due to a temporary issue.</p>
+                    <p>Error details: Failed to load {path}</p>
+                    <a href="javascript:window.location.reload();" class="btn">Refresh Page</a>
+                </div>
+            </body>
+            </html>
+            '''
+            
+            return HttpResponse(error_html, content_type='text/html', status=500)
     
     except Exception as e:
         logger.error(f"Error in direct content: {e}")

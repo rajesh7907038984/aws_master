@@ -49,10 +49,19 @@ class ScormS3DirectAccess:
                 # Add media prefix
                 base_path = f"{self.media_location}/{scorm_package.extracted_path}"
             
+            # Clean up the path to avoid double slashes
             if file_path:
-                s3_key = f"{base_path}/{file_path}"
+                # Remove leading slashes from file_path to prevent double slashes
+                clean_file_path = file_path.lstrip('/')
+                s3_key = f"{base_path}/{clean_file_path}"
             else:
                 s3_key = f"{base_path}/{scorm_package.launch_url}"
+            
+            # Clean up any double slashes in the path
+            s3_key = s3_key.replace('//', '/')
+            
+            # Log the key for debugging
+            logger.info(f"Generating S3 URL for key: {s3_key}")
             
             # Generate presigned URL with extended expiry for user sessions
             try:
@@ -62,12 +71,37 @@ class ScormS3DirectAccess:
                         'Bucket': self.bucket_name,
                         'Key': s3_key
                     },
-                    ExpiresIn=7200  # URL valid for 2 hours (extended for user sessions)
+                    ExpiresIn=14400  # URL valid for 4 hours (extended for user sessions)
                 )
                 logger.info(f"Generated user-based presigned S3 URL for: {s3_key}")
                 return presigned_url
             except Exception as presign_error:
-                logger.error(f"Error generating presigned URL: {str(presign_error)}")
+                logger.error(f"Error generating presigned URL: {str(presign_error)}", exc_info=True)
+                
+                # Retry with refreshed credentials if possible
+                try:
+                    # Reinitialize the S3 client to refresh credentials
+                    self.s3_client = boto3.client(
+                        's3',
+                        aws_access_key_id=get_env('AWS_ACCESS_KEY_ID'),
+                        aws_secret_access_key=get_env('AWS_SECRET_ACCESS_KEY'),
+                        region_name=self.region
+                    )
+                    
+                    # Try again with refreshed client
+                    presigned_url = self.s3_client.generate_presigned_url(
+                        'get_object',
+                        Params={
+                            'Bucket': self.bucket_name,
+                            'Key': s3_key
+                        },
+                        ExpiresIn=14400
+                    )
+                    logger.info(f"Generated presigned URL with refreshed credentials for: {s3_key}")
+                    return presigned_url
+                except Exception as retry_error:
+                    logger.error(f"Failed to generate URL with refreshed credentials: {str(retry_error)}")
+                    
                 # Fallback to direct URL (won't work for private buckets)
                 direct_url = f"https://{self.bucket_name}.s3.{self.region}.amazonaws.com/{s3_key}"
                 logger.warning(f"Falling back to direct URL (may fail for private buckets): {direct_url}")
@@ -132,12 +166,22 @@ class ScormS3DirectAccess:
                 # Add media prefix
                 base_path = f"{self.media_location}/{scorm_package.extracted_path}"
             
+            # Clean up the path to avoid double slashes
             if file_path:
-                s3_key = f"{base_path}/{file_path}"
+                # Remove leading slashes from file_path to prevent double slashes
+                clean_file_path = file_path.lstrip('/')
+                s3_key = f"{base_path}/{clean_file_path}"
             else:
                 s3_key = f"{base_path}/{scorm_package.launch_url}"
             
+            # Clean up any double slashes in the path
+            s3_key = s3_key.replace('//', '/')
+            
+            logger.info(f"Checking if file exists in S3: {s3_key}")
+            
+            # Try head_object to check if file exists
             self.s3_client.head_object(Bucket=self.bucket_name, Key=s3_key)
+            logger.info(f"File exists in S3: {s3_key}")
             return True
             
         except Exception as e:

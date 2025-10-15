@@ -155,7 +155,10 @@
             </div>
             
             <div class="error-message" id="error-message">
-                Error loading SCORM content. Please try refreshing the page.
+                Error loading SCORM content. Please try refreshing the page or contact support if the issue persists.
+                <div style="margin-top:10px;">
+                    <button onclick="location.reload()" style="padding: 5px 15px; background: #721c24; color: white; border: none; border-radius: 3px; cursor: pointer;">Refresh Page</button>
+                </div>
             </div>
             
             <iframe 
@@ -163,7 +166,7 @@
                 src="{{ launch_url }}"
                 allowfullscreen
                 allow="autoplay; camera; microphone; geolocation; fullscreen"
-                sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-downloads"
+                sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-downloads allow-storage-access-by-user-activation"
                 onload="handleFrameLoad()"
                 onerror="handleFrameError()">
             </iframe>
@@ -201,6 +204,15 @@
             document.getElementById('loading-overlay').style.display = 'none';
             document.getElementById('error-message').style.display = 'block';
         }
+        
+        // Additional error handler for iframe content errors
+        window.addEventListener('error', function(e) {
+            if (e.target.tagName === 'IFRAME') {
+                console.error('SCORM iframe error detected:', e);
+                document.getElementById('loading-overlay').style.display = 'none';
+                document.getElementById('error-message').style.display = 'block';
+            }
+        }, true);
         
         // Toggle fullscreen mode
         function toggleFullscreen() {
@@ -304,13 +316,27 @@
             }
         }
         
-        // Auto-hide loading overlay after max wait time
+        // Auto-hide loading overlay after max wait time and check content
         setTimeout(() => {
             const overlay = document.getElementById('loading-overlay');
+            const frame = document.getElementById('scorm-frame');
+            
             if (!overlay.classList.contains('hidden')) {
                 overlay.classList.add('hidden');
+                
+                // Check if iframe content loaded properly
+                try {
+                    const frameDoc = frame.contentDocument || frame.contentWindow.document;
+                    if (!frameDoc || frameDoc.body.innerHTML === '') {
+                        console.error('Empty SCORM content detected');
+                        document.getElementById('error-message').style.display = 'block';
+                    }
+                } catch (e) {
+                    // Cross-origin restrictions may prevent access - that's normal
+                    console.log('Cannot access iframe content due to cross-origin restrictions');
+                }
             }
-        }, 5000);
+        }, 8000);
         
         // Listen for fullscreen change events
         document.addEventListener('fullscreenchange', () => {
