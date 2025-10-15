@@ -1228,6 +1228,16 @@ def course_view(request, course_id):
     if not first_topic:
         first_topic = topics.first()
 
+    # Redirect to first available topic if exists
+    if first_topic:
+        logger.info(f"Redirecting user {request.user.username} to first topic {first_topic.id} in course {course_id}")
+        return redirect('courses:topic_view', topic_id=first_topic.id)
+    
+    # If no topics available, show error message
+    if not topics.exists():
+        messages.warning(request, "This course doesn't have any topics yet.")
+        return redirect('courses:course_list')
+
     # Create breadcrumbs for the course view page
     breadcrumbs = [
         {'url': reverse('users:role_based_redirect'), 'label': 'Dashboard', 'icon': 'fa-home'},
