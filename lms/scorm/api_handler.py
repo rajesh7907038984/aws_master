@@ -121,10 +121,36 @@ class ScormAPIHandler:
     
     def initialize(self):
         """LMSInitialize / Initialize"""
+        # CRITICAL FIX: Allow re-initialization for returning users
         if self.initialized:
-            self.last_error = '101'
-            logger.warning(f"SCORM API already initialized for attempt {self.attempt.id}")
-            return 'false'
+            # Check if this is a legitimate re-initialization scenario
+            from django.utils import timezone
+            from datetime import timedelta
+            
+            # Allow re-initialization if:
+            # 1. Previous session was properly terminated (exit_mode set)
+            # 2. More than 5 minutes have passed since last access (new session)
+            # 3. User is returning to continue (resume scenario)
+            
+            now = timezone.now()
+            time_since_last_access = now - self.attempt.last_accessed if self.attempt.last_accessed else timedelta(hours=1)
+            
+            allow_reinit = (
+                self.attempt.exit_mode in ['logout', 'suspend', 'normal'] or  # Previous session ended properly
+                time_since_last_access > timedelta(minutes=5) or  # New session (5+ minutes gap)
+                self.attempt.entry == 'resume'  # Explicit resume scenario
+            )
+            
+            if allow_reinit:
+                logger.info(f"SCORM API re-initialization allowed for attempt {self.attempt.id} (exit_mode: {self.attempt.exit_mode}, time_gap: {time_since_last_access}, entry: {self.attempt.entry})")
+                # Reset initialization state to allow fresh start
+                self.initialized = False
+                if self.attempt.cmi_data:
+                    self.attempt.cmi_data['_api_initialized'] = False
+            else:
+                self.last_error = '101'
+                logger.warning(f"SCORM API re-initialization blocked for attempt {self.attempt.id} - session still active")
+                return 'false'
         
         try:
             self.initialized = True
@@ -392,24 +418,19 @@ class ScormAPIHandler:
                 self.last_error = '0'
                 return 'true'
             
-            # ENHANCED TRACKING: Use comprehensive tracking method
-            self.attempt.update_tracking_data(element, value)
-            logger.info(f"SCORM API SetValue({element}, {value}) - stored with enhanced tracking")
-            
-            # Standard SCORM bookmark handling - lesson_location is already stored in the model
-            
+            # CRITICAL FIX: Update model fields FIRST, then use tracking method
             # Update model fields based on element
             if self.version == '1.2':
                 if element == 'cmi.core.lesson_status':
                     self.attempt.lesson_status = value
                     self._update_completion_from_status(value)
                     logger.info(f"✅ SET STATUS: attempt.lesson_status = {self.attempt.lesson_status} (from value '{value}')")
-                    logger.info(f"✅ SET STATUS: Model field updated BEFORE save")
+                    logger.info(f"✅ SET STATUS: Model field updated BEFORE tracking save")
                 elif element == 'cmi.core.score.raw':
                     try:
                         self.attempt.score_raw = Decimal(value) if value and str(value).strip() else None
                         logger.info(f"✅ SET SCORE: attempt.score_raw = {self.attempt.score_raw} (from value '{value}')")
-                        logger.info(f"✅ SET SCORE: Model field updated BEFORE save")
+                        logger.info(f"✅ SET SCORE: Model field updated BEFORE tracking save")
                     except (ValueError, TypeError):
                         logger.warning(f"Invalid score.raw value: {value}")
                         self.last_error = '405'  # Incorrect data type
@@ -428,6 +449,7 @@ class ScormAPIHandler:
                         logger.warning(f"Invalid score.min value: {value}")
                         self.last_error = '405'  # Incorrect data type
                         return 'false'
+
                 elif element == 'cmi.core.lesson_location':
                     # CRITICAL FIX: Store bookmark data in both CMI data and model fields
                     self.attempt.lesson_location = value
@@ -469,11 +491,14 @@ class ScormAPIHandler:
                     self.attempt.completion_status = value
                     if value == 'completed':
                         self.attempt.completed_at = timezone.now()
+                    logger.info(f"✅ SET COMPLETION: attempt.completion_status = {self.attempt.completion_status} (from value '{value}')")
                 elif element == 'cmi.success_status':
                     self.attempt.success_status = value
+                    logger.info(f"✅ SET SUCCESS: attempt.success_status = {self.attempt.success_status} (from value '{value}')")
                 elif element == 'cmi.score.raw':
                     try:
                         self.attempt.score_raw = Decimal(value) if value and str(value).strip() else None
+                        logger.info(f"✅ SET SCORE: attempt.score_raw = {self.attempt.score_raw} (from value '{value}')")
                     except (ValueError, TypeError):
                         logger.warning(f"Invalid score.raw value: {value}")
                         self.last_error = '405'  # Incorrect data type
@@ -532,6 +557,10 @@ class ScormAPIHandler:
                     # Force save suspend data immediately
                     self.attempt.save(update_fields=['suspend_data', 'cmi_data', 'last_accessed'])
                     logger.info(f"💾 SUSPEND DATA PERSISTED: suspend_data saved to database")
+            
+            # ENHANCED TRACKING: Use comprehensive tracking method AFTER all model fields are updated
+            self.attempt.update_tracking_data(element, value)
+            logger.info(f"SCORM API SetValue({element}, {value}) - stored with enhanced tracking AFTER model update")
             
             self.last_error = '0'
             return 'true'
