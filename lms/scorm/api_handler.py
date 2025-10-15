@@ -217,6 +217,9 @@ class ScormAPIHandler:
                 if status_to_set in ['passed', 'failed']:
                     self.attempt.cmi_data['cmi.success_status'] = status_to_set
         
+        # NEW: Mark this as a content-initiated exit for the frontend to handle
+        self.attempt.cmi_data['_content_initiated_exit'] = 'true'
+        
         # Save all data
         self._commit_data()
         

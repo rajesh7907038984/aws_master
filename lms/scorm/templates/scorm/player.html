@@ -273,7 +273,7 @@
             document.getElementById('statusText').textContent = message;
         }
         
-        // Exit course function
+        // Exit course function - enhanced for SCORM content exit support
         function exitCourse() {
             console.log('Exiting course...');
             updateStatus('Saving progress and exiting...');
@@ -294,25 +294,62 @@
             }, 1000);
         }
         
+        // SCORM EXIT FIX: Periodic check for content-initiated exits
+        function startExitMonitoring() {
+            var exitCheckInterval = setInterval(function() {
+                if (window.checkForContentExit) {
+                    window.checkForContentExit();
+                }
+            }, 2000); // Check every 2 seconds
+            
+            // Stop checking after 30 minutes (cleanup)
+            setTimeout(function() {
+                clearInterval(exitCheckInterval);
+            }, 30 * 60 * 1000);
+        }
+        
         // Initialize everything
         if (initializeSCORM()) {
             loadSCORMContent();
+            // Start monitoring for content-initiated exits
+            startExitMonitoring();
         } else {
             console.error('Failed to initialize SCORM API');
             updateStatus('SCORM API initialization failed');
         }
         
-        // Handle page unload
+        // Handle page unload - SCORM EXIT FIX: More careful unload handling
+        var isExitingNormally = false;
+        
         window.addEventListener('beforeunload', function(e) {
-            if (window.API) {
+            // Only do SCORM cleanup if this isn't a content-initiated exit
+            if (!isExitingNormally && window.API) {
                 try {
-                    window.API.LMSCommit('');
-                    window.API.LMSFinish('');
+                    // Check if content already terminated
+                    var alreadyTerminated = false;
+                    try {
+                        var exitFlag = window.API.LMSGetValue('_content_initiated_exit');
+                        alreadyTerminated = (exitFlag === 'true');
+                    } catch (ex) {
+                        // Ignore errors when checking exit flag
+                    }
+                    
+                    if (!alreadyTerminated) {
+                        window.API.LMSCommit('');
+                        console.log('SCORM data committed during unload');
+                    }
                 } catch (e) {
                     console.log('Error during unload cleanup:', e.message);
                 }
             }
         });
+        
+        // Mark normal exits to prevent double cleanup
+        var originalExitCourse = window.exitCourse || exitCourse;
+        window.exitCourse = function() {
+            isExitingNormally = true;
+            originalExitCourse();
+        };
         
         console.log('SCORM Player ready');
     </script>

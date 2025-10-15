@@ -88,6 +88,14 @@
             log('LMSFinish called');
             var result = makeAPICall('LMSFinish', [parameter]);
             config.initialized = false;
+            
+            // SCORM EXIT FIX: Check if content initiated exit
+            if (result === 'true') {
+                setTimeout(function() {
+                    checkForContentExit();
+                }, 500);
+            }
+            
             return result;
         },
         
@@ -141,7 +149,16 @@
         },
         
         Terminate: function(parameter) {
-            return API.LMSFinish(parameter);
+            var result = API.LMSFinish(parameter);
+            
+            // SCORM EXIT FIX: Check if content initiated exit
+            if (result === 'true') {
+                setTimeout(function() {
+                    checkForContentExit();
+                }, 500);
+            }
+            
+            return result;
         },
         
         GetValue: function(element) {
@@ -323,6 +340,51 @@
             console.log('Test completed!');
         }
     };
+    
+    // SCORM EXIT FIX: Function to check if content wants to exit
+    function checkForContentExit() {
+        if (!config.apiEndpoint) return;
+        
+        try {
+            // Check if the content set the exit flag
+            var exitCheck = makeAPICall('LMSGetValue', ['_content_initiated_exit']);
+            if (exitCheck === 'true') {
+                log('Content initiated exit detected - navigating away from SCORM player');
+                
+                // Clear the exit flag
+                makeAPICall('LMSSetValue', ['_content_initiated_exit', 'false']);
+                
+                // Navigate back to topic
+                if (window.parent && window.parent.exitCourse) {
+                    window.parent.exitCourse();
+                } else if (window.top && window.top.exitCourse) {
+                    window.top.exitCourse();
+                } else {
+                    // Fallback - try to navigate using topic ID from URL
+                    var urlParts = window.location.pathname.split('/');
+                    var topicId = null;
+                    for (var i = 0; i < urlParts.length; i++) {
+                        if (urlParts[i] === 'scorm' && urlParts[i+1] === 'view' && urlParts[i+2]) {
+                            topicId = urlParts[i+2];
+                            break;
+                        }
+                    }
+                    
+                    if (topicId) {
+                        window.top.location.href = '/courses/topic/' + topicId + '/';
+                    } else {
+                        // Ultimate fallback
+                        window.top.location.href = '/courses/';
+                    }
+                }
+            }
+        } catch (e) {
+            log('Error checking for content exit: ' + e.message);
+        }
+    }
+    
+    // Expose the exit check function globally so the player can use it
+    window.checkForContentExit = checkForContentExit;
     
     log('SCORM API Wrapper loaded successfully');
     
