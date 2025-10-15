@@ -168,8 +168,9 @@
                 src="{{ launch_url }}"
                 allowfullscreen
                 allow="autoplay; camera; microphone; geolocation; fullscreen"
-                onload="handleFrameLoad()"
-                onerror="handleFrameError()">
+                onload="handleIframeLoad()"
+                onerror="handleFrameError()"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation">
             </iframe>
         </div>
     </div>
@@ -204,6 +205,43 @@
             
             // Try to set up SCORM API bridge if needed
             setupScormBridge();
+        }
+        
+        // Enhanced iframe loading handler
+        function handleIframeLoad() {
+            const frame = document.getElementById('scorm-frame');
+            const overlay = document.getElementById('loading-overlay');
+            const errorMessage = document.getElementById('error-message');
+            
+            console.log('Iframe load event triggered');
+            
+            try {
+                // Check if iframe loaded successfully
+                if (frame.contentWindow) {
+                    console.log('Iframe window accessible');
+                    clearLoadingTimeout();
+                    handleFrameLoad();
+                } else {
+                    console.log('Iframe window not accessible, but content may still be loading');
+                    // Still hide overlay after a short delay
+                    setTimeout(() => {
+                        clearLoadingTimeout();
+                        if (overlay && !overlay.classList.contains('hidden')) {
+                            overlay.classList.add('hidden');
+                        }
+                    }, 1000);
+                }
+            } catch (e) {
+                console.log('Cross-origin iframe detected, content should be loading');
+                // For cross-origin iframes, we can't access contentWindow
+                // but the content should still load
+                setTimeout(() => {
+                    clearLoadingTimeout();
+                    if (overlay && !overlay.classList.contains('hidden')) {
+                        overlay.classList.add('hidden');
+                    }
+                }, 1000);
+            }
         }
         
         // Show error if frame fails to load
@@ -342,12 +380,17 @@
             }
         }
         
-        // Auto-hide loading overlay after max wait time and check content
-        setTimeout(() => {
+        // Enhanced timeout handling for iframe loading
+        let loadingTimeout;
+        let hasLoaded = false;
+        
+        // Set up loading timeout
+        loadingTimeout = setTimeout(() => {
             const overlay = document.getElementById('loading-overlay');
             const frame = document.getElementById('scorm-frame');
+            const errorMessage = document.getElementById('error-message');
             
-            if (!overlay.classList.contains('hidden')) {
+            if (!hasLoaded && overlay && !overlay.classList.contains('hidden')) {
                 console.log('Auto-hiding loading overlay after timeout');
                 overlay.classList.add('hidden');
                 
@@ -356,15 +399,25 @@
                     const frameDoc = frame.contentDocument || frame.contentWindow.document;
                     if (!frameDoc || frameDoc.body.innerHTML === '') {
                         console.error('Empty SCORM content detected');
-                        document.getElementById('error-message').style.display = 'block';
+                        errorMessage.style.display = 'block';
+                    } else {
+                        console.log('SCORM content appears to be loaded');
                     }
                 } catch (e) {
                     // Cross-origin restrictions may prevent access - that's normal
-                    console.log('Cannot access iframe content due to cross-origin restrictions');
+                    console.log('Cannot access iframe content due to cross-origin restrictions - content likely loaded');
                     // Don't show error for cross-origin restrictions - content is likely loading
                 }
             }
-        }, 5000); // Reduced timeout to 5 seconds for faster user experience
+        }, 8000); // Increased timeout to 8 seconds for better reliability
+        
+        // Clear timeout when content loads successfully
+        function clearLoadingTimeout() {
+            if (loadingTimeout) {
+                clearTimeout(loadingTimeout);
+                hasLoaded = true;
+            }
+        }
         
         // Listen for fullscreen change events
         document.addEventListener('fullscreenchange', () => {
@@ -384,6 +437,22 @@
             // Force iframe to recalculate dimensions
             const frame = document.getElementById('scorm-frame');
             frame.style.height = frame.offsetHeight + 'px';
+        });
+        
+        // Fallback mechanism for iframe loading
+        // Some browsers don't trigger onload for certain content types
+        document.addEventListener('DOMContentLoaded', () => {
+            const frame = document.getElementById('scorm-frame');
+            const overlay = document.getElementById('loading-overlay');
+            
+            // Set up a fallback timer in case onload doesn't fire
+            setTimeout(() => {
+                if (!hasLoaded && overlay && !overlay.classList.contains('hidden')) {
+                    console.log('Fallback: Hiding loading overlay after DOM ready');
+                    clearLoadingTimeout();
+                    overlay.classList.add('hidden');
+                }
+            }, 3000);
         });
     </script>
 </body>
