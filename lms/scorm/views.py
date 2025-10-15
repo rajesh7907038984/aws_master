@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 def detect_package_type(launch_url):
     """
     Enhanced auto-detection of SCORM package type based on launch URL patterns
-    With improved detection for various authoring tools
+    With comprehensive support for all major authoring tools based on standardized patterns
     """
     launch_url_lower = launch_url.lower() if launch_url else ''
     
@@ -49,15 +49,51 @@ def detect_package_type(launch_url):
     elif 'assets/playbar' in launch_url_lower:
         return 'adobe_captivate'
     
-    # Lectora patterns
+    # Lectora patterns (Trivantis)
     elif 'lectora' in launch_url_lower or 'trivantis' in launch_url_lower:
+        return 'lectora'
+    elif 'course.html' in launch_url_lower and not ('captivate' in launch_url_lower):
         return 'lectora'
     
     # iSpring patterns
     elif 'ispring' in launch_url_lower or 'presentation.html' in launch_url_lower:
         return 'ispring'
+    elif 'index_lms.html' in launch_url_lower and 'data/' in launch_url_lower:
+        return 'ispring'
+    elif '/data/' in launch_url_lower and '/resources/' in launch_url_lower:
+        return 'ispring'
+        
+    # DominKnow patterns
+    elif 'index_lms.html' in launch_url_lower and not ('ispring' in launch_url_lower):
+        return 'dominknow'
     
-    # Index-based packages
+    # Elucidat patterns
+    elif 'elucidat' in launch_url_lower:
+        return 'elucidat'
+    
+    # Adapt Learning / Evolve patterns (similar structures)
+    elif 'adapt' in launch_url_lower:
+        return 'adapt'
+    elif 'evolve' in launch_url_lower:
+        return 'evolve'
+        
+    # Gomo Learning patterns
+    elif 'gomo' in launch_url_lower:
+        return 'gomo'
+        
+    # CenarioVR (immersive learning)
+    elif 'cenario' in launch_url_lower or 'vr/' in launch_url_lower:
+        return 'cenariovr'
+    
+    # Generic file patterns by SCORM standard
+    elif 'aicc.html' in launch_url_lower:
+        return 'aicc'
+    elif 'cmi5.xml' in launch_url_lower or 'cmi5/' in launch_url_lower:
+        return 'cmi5'
+    elif 'xapi/' in launch_url_lower or 'tincan/' in launch_url_lower:
+        return 'xapi'
+    
+    # Index-based packages (most common pattern across tools)
     elif 'index_lms.html' in launch_url_lower:
         return 'lms_specific'
     elif 'index.html' in launch_url_lower:
@@ -70,6 +106,8 @@ def detect_package_type(launch_url):
                 return 'articulate_rise_content'
             elif folder == 'story_content':
                 return 'articulate_storyline'
+            elif folder == 'data':
+                return 'ispring'
         return 'html_generic'
     
     # Default
@@ -340,15 +378,87 @@ def scorm_direct_content(request, topic_id, path=''):
             if 'scormcontent' not in path and 'scormcontent' in scorm_package.launch_url:
                 fallback_paths.append(f"scormcontent/{path}")
             
-            if package_type == 'articulate_rise_content':
+            # Articulate Rise specific fallbacks
+            if package_type == 'articulate_rise_content' or package_type == 'articulate_rise' or package_type == 'articulate_rise_driver':
                 fallback_paths.append(f"scormcontent/{file_name}")
+                fallback_paths.append(f"scormcontent/index.html")
                 if not path.startswith('scormcontent/'):
                     fallback_paths.append(f"scormcontent/{path}")
+                    
+                # Common Rise content structure paths
+                if file_name.endswith('.js') or file_name.endswith('.css'):
+                    fallback_paths.append(f"scormcontent/lib/{file_name}")
+                elif file_name.endswith('.png') or file_name.endswith('.jpg') or file_name.endswith('.jpeg') or file_name.endswith('.gif'):
+                    fallback_paths.append(f"scormcontent/assets/{file_name}")
             
+            # Articulate Storyline specific fallbacks
             elif package_type == 'articulate_storyline':
                 fallback_paths.append(f"story_content/{file_name}")
+                fallback_paths.append(f"story.html")
+                fallback_paths.append(f"story_html5.html")
                 if not path.startswith('story_content/'):
                     fallback_paths.append(f"story_content/{path}")
+                    
+                # Common Storyline structure paths
+                if file_name.endswith('.js') or file_name.endswith('.css'):
+                    fallback_paths.append(f"story_content/user.js")
+                    fallback_paths.append(f"story_content/story.js")
+                elif file_name.endswith('.png') or file_name.endswith('.jpg') or file_name.endswith('.jpeg') or file_name.endswith('.gif'):
+                    fallback_paths.append(f"story_content/assets/{file_name}")
+            
+            # Adobe Captivate specific fallbacks
+            elif package_type == 'adobe_captivate':
+                fallback_paths.append(f"assets/{file_name}")
+                fallback_paths.append(f"multiscreen.html")
+                fallback_paths.append(f"index.html")
+                
+                # Common Captivate structure paths
+                if file_name.endswith('.js') or file_name.endswith('.css'):
+                    fallback_paths.append(f"assets/js/{file_name}")
+                    fallback_paths.append(f"assets/css/{file_name}")
+                elif file_name.endswith('.png') or file_name.endswith('.jpg') or file_name.endswith('.jpeg') or file_name.endswith('.gif'):
+                    fallback_paths.append(f"assets/image/{file_name}")
+            
+            # iSpring specific fallbacks
+            elif package_type == 'ispring':
+                fallback_paths.append(f"data/{file_name}")
+                fallback_paths.append(f"index_lms.html")
+                fallback_paths.append(f"index.html")
+                fallback_paths.append(f"presentation.html")
+                
+                # Common iSpring structure paths
+                if file_name.endswith('.js') or file_name.endswith('.css'):
+                    fallback_paths.append(f"data/js/{file_name}")
+                elif file_name.endswith('.png') or file_name.endswith('.jpg') or file_name.endswith('.jpeg') or file_name.endswith('.gif'):
+                    fallback_paths.append(f"resources/{file_name}")
+            
+            # Lectora specific fallbacks
+            elif package_type == 'lectora':
+                fallback_paths.append(f"trivantis/{file_name}")
+                fallback_paths.append(f"index.html")
+                fallback_paths.append(f"course.html")
+            
+            # DominKnow specific fallbacks
+            elif package_type == 'dominknow':
+                fallback_paths.append(f"index_lms.html")
+                fallback_paths.append(f"index.html")
+            
+            # Generic fallbacks for other package types
+            else:
+                fallback_paths.append(f"index.html")
+                fallback_paths.append(f"index_lms.html")
+                fallback_paths.append(f"story.html")
+                fallback_paths.append(f"course.html")
+                
+                # Common content directories to try
+                if file_name.endswith('.js') or file_name.endswith('.css'):
+                    fallback_paths.append(f"content/{file_name}")
+                    fallback_paths.append(f"assets/{file_name}")
+                    fallback_paths.append(f"data/{file_name}")
+                elif file_name.endswith('.png') or file_name.endswith('.jpg') or file_name.endswith('.jpeg') or file_name.endswith('.gif'):
+                    fallback_paths.append(f"content/images/{file_name}")
+                    fallback_paths.append(f"assets/images/{file_name}")
+                    fallback_paths.append(f"data/images/{file_name}")
             
             # If it's a deep path with nested directories, try simplifying
             if path.count('/') > 1:
