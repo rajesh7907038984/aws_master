@@ -176,43 +176,126 @@
         const contentFrame = document.getElementById('contentFrame');
         const exitButton = document.getElementById('exitButton');
         
-        // Exit function - Enhanced for different authoring tools
+        // Exit function - Respects SCORM package's own exit flow
         function exitCourse() {
-            console.log('🚪 EXIT BUTTON CLICKED - Enhanced authoring tool support');
+            console.log('🚪 EXIT BUTTON CLICKED - Allowing SCORM content to handle exit');
             console.log('📦 Package Type:', config.packageType);
             
-            // Enhanced SCORM data saving for different authoring tools
+            // Check if SCORM content has its own exit mechanism
+            try {
+                // Try to trigger the content's own exit mechanism first
+                const contentWindow = contentFrame.contentWindow;
+                if (contentWindow) {
+                    // Check for common SCORM content exit functions
+                    if (typeof contentWindow.CloseWindow === 'function') {
+                        console.log('🎯 Triggering content CloseWindow function');
+                        contentWindow.CloseWindow();
+                        return;
+                    }
+                    
+                    if (typeof contentWindow.exitCourse === 'function') {
+                        console.log('🎯 Triggering content exitCourse function');
+                        contentWindow.exitCourse();
+                        return;
+                    }
+                    
+                    if (typeof contentWindow.scormExit === 'function') {
+                        console.log('🎯 Triggering content scormExit function');
+                        contentWindow.scormExit();
+                        return;
+                    }
+                    
+                    // For Articulate content, try their specific exit methods
+                    if (config.packageType.includes('articulate') || config.packageType.includes('storyline') || config.packageType.includes('rise')) {
+                        if (contentWindow.GetPlayer && typeof contentWindow.GetPlayer === 'function') {
+                            try {
+                                const player = contentWindow.GetPlayer();
+                                if (player && typeof player.Exit === 'function') {
+                                    console.log('🎯 Triggering Articulate player Exit');
+                                    player.Exit();
+                                    return;
+                                }
+                            } catch (e) {
+                                console.log('Note: Could not access Articulate player:', e.message);
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                console.log('Note: Could not access content window functions:', e.message);
+            }
+            
+            // If no content-specific exit function found, handle exit gracefully
+            console.log('💾 Handling exit through SCORM API...');
+            
             if (window.API) {
                 try {
-                    console.log('💾 Saving SCORM progress with authoring tool support...');
-                    
-                    // Try both SCORM 1.2 and 2004 methods
-                    if (typeof window.API.LMSCommit === 'function') {
-                        console.log('💾 Using SCORM 1.2 commit...');
-                        window.API.LMSCommit('');
-                    }
-                    if (typeof window.API.Commit === 'function') {
-                        console.log('💾 Using SCORM 2004 commit...');
-                        window.API.Commit('');
-                    }
-                    
-                    // Set exit status for different authoring tools
+                    // Set exit status to allow content to show goodbye page if needed
                     try {
-                        if (config.packageType.includes('storyline')) {
-                            console.log('📝 Setting Storyline exit status...');
-                            window.API.LMSSetValue('cmi.core.exit', 'normal');
-                        } else if (config.packageType.includes('rise')) {
-                            console.log('📝 Setting Rise exit status...');
-                            window.API.LMSSetValue('cmi.core.exit', 'normal');
-                            if (typeof window.API.SetValue === 'function') {
-                                window.API.SetValue('cmi.exit', 'normal');
-                            }
+                        window.API.LMSSetValue('cmi.core.exit', 'normal');
+                        if (typeof window.API.SetValue === 'function') {
+                            window.API.SetValue('cmi.exit', 'normal');
                         }
                     } catch (e) {
                         console.log('Note: Could not set exit status:', e.message);
                     }
                     
-                    // Final commit after setting exit status
+                    // Commit the exit status
+                    if (typeof window.API.LMSCommit === 'function') {
+                        window.API.LMSCommit('');
+                    }
+                    if (typeof window.API.Commit === 'function') {
+                        window.API.Commit('');
+                    }
+                    
+                    console.log('✅ SCORM exit status set');
+                } catch (e) {
+                    console.log('⚠️ Could not set SCORM exit status:', e.message);
+                }
+            }
+            
+            // Give the content a chance to show goodbye page or handle exit
+            console.log('⏳ Allowing content to handle exit flow...');
+            
+            // Check if content navigates on its own (e.g., to goodbye.html)
+            let navigationHandled = false;
+            
+            const checkForNavigation = () => {
+                try {
+                    const currentSrc = contentFrame.src;
+                    if (currentSrc.includes('goodbye') || currentSrc.includes('exit') || currentSrc.includes('complete')) {
+                        console.log('✅ Content navigated to exit page:', currentSrc);
+                        navigationHandled = true;
+                        
+                        // Wait a bit for goodbye page to be viewed, then exit
+                        setTimeout(() => {
+                            finalizeExit();
+                        }, 3000);
+                    }
+                } catch (e) {
+                    // Can't check iframe src due to cross-origin, that's okay
+                }
+            };
+            
+            // Check for navigation after a short delay
+            setTimeout(checkForNavigation, 500);
+            
+            // If no special exit handling detected, proceed with normal exit after delay
+            setTimeout(() => {
+                if (!navigationHandled) {
+                    console.log('🔄 No special exit handling detected, proceeding with normal exit');
+                    finalizeExit();
+                }
+            }, 2000);
+        }
+        
+        // Finalize exit and return to course
+        function finalizeExit() {
+            console.log('🔚 Finalizing SCORM exit...');
+            
+            if (window.API) {
+                try {
+                    // Final commit and terminate
                     if (typeof window.API.LMSCommit === 'function') {
                         window.API.LMSCommit('');
                     }
@@ -222,34 +305,28 @@
                     
                     // Terminate session
                     if (typeof window.API.LMSFinish === 'function') {
-                        console.log('🔚 Using SCORM 1.2 finish...');
                         window.API.LMSFinish('');
                     }
                     if (typeof window.API.Terminate === 'function') {
-                        console.log('🔚 Using SCORM 2004 terminate...');
                         window.API.Terminate('');
                     }
                     
-                    console.log('✅ SCORM data saved successfully');
+                    console.log('✅ SCORM session terminated');
                 } catch (e) {
-                    console.log('⚠️ Could not save SCORM data:', e.message);
+                    console.log('⚠️ Could not terminate SCORM session:', e.message);
                 }
-            } else {
-                console.log('ℹ️ No SCORM API available (content may handle its own tracking)');
             }
             
-            // Navigate back to topic with minimal delay to ensure data is saved
+            // Navigate back to topic
             const topicUrl = `/courses/topic/{{ topic.id }}/`;
             console.log('🎯 Navigating to:', topicUrl);
             
-            setTimeout(() => {
-                try {
-                    window.location.href = topicUrl;
-                } catch (e) {
-                    console.log('⚠️ Navigation failed, trying alternative method');
-                    window.open(topicUrl, '_self');
-                }
-            }, 100);
+            try {
+                window.location.href = topicUrl;
+            } catch (e) {
+                console.log('⚠️ Navigation failed, trying alternative method');
+                window.open(topicUrl, '_self');
+            }
         }
         
         // Enhanced exit button handler with debugging

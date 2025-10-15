@@ -135,10 +135,11 @@ def scorm_content(request, topic_id, path):
                     logger.error(f"Failed to fetch JavaScript from S3: {response.status_code}")
                     return HttpResponse('JavaScript file not accessible', status=404)
                 
-                # Serve JavaScript with proper headers
+                # Serve JavaScript with optimized headers
                 http_response = HttpResponse(response.content, content_type='application/javascript; charset=utf-8')
                 http_response['Access-Control-Allow-Origin'] = '*'
-                http_response['Cache-Control'] = 'public, max-age=86400'
+                http_response['Cache-Control'] = 'public, max-age=3600, immutable'
+                http_response['ETag'] = f'"{hash(response.content)}"'
                 return http_response
             except Exception as e:
                 logger.error(f"Error serving JavaScript file: {e}")
@@ -247,466 +248,175 @@ window.SCORM_TOPIC_ID = {topic_id};
                 from django.middleware.csrf import get_token
                 csrf_token = get_token(request)
             
-            # Enhanced API injection - different approach for Storyline
+            # Optimized API injection for Storyline - reduced size
             if is_storyline:
                 scorm_api = """
 <script>
-// Enhanced Storyline SCORM API Support
+// Optimized Storyline SCORM API
 window.csrfToken = '{csrf_token}';
 window._scormAttemptId = '{attempt_id}';
-window._isStoryline = true;
 
-// Storyline-specific API setup
 (function() {{
-    console.log('Initializing enhanced Storyline SCORM API support');
-    
-    // Create robust API for Storyline
-    var StorylineAPI = {{
-        _attemptId: '{attempt_id}',
+    var API = {{
         _initialized: false,
         _lastError: '0',
         
-        // Storyline expects both SCORM 1.2 and 2004 methods
-        Initialize: function(param) {{
-            return this.LMSInitialize(param);
-        }},
-        
-        LMSInitialize: function(param) {{
-            console.log('Storyline SCORM Initialize called');
-            try {{
-                this._initialized = true;
-                return 'true';
-            }} catch (e) {{
-                console.error('Storyline Initialize error:', e);
-                this._lastError = '101';
-                return 'false';
-            }}
-        }},
-        
-        Terminate: function(param) {{
-            return this.LMSFinish(param);
-        }},
-        
-        LMSFinish: function(param) {{
-            console.log('Storyline SCORM Terminate called');
-            this._initialized = false;
-            return 'true'; 
-        }},
-        
-        GetValue: function(element) {{
-            return this.LMSGetValue(element);
-        }},
+        Initialize: function(p) {{ return this.LMSInitialize(p); }},
+        LMSInitialize: function(p) {{ this._initialized = true; return 'true'; }},
+        Terminate: function(p) {{ return this.LMSFinish(p); }},
+        LMSFinish: function(p) {{ this._initialized = false; return 'true'; }},
+        GetValue: function(e) {{ return this.LMSGetValue(e); }},
+        SetValue: function(e, v) {{ return this.LMSSetValue(e, v); }},
+        Commit: function(p) {{ return this.LMSCommit(p); }},
         
         LMSGetValue: function(element) {{
-            console.log('Storyline GetValue:', element);
-            if (!this._initialized) {{
-                this._lastError = '301';
-                return '';
-            }}
-            
+            if (!this._initialized) return '';
             try {{
                 var xhr = new XMLHttpRequest();
                 xhr.open('POST', '/scorm/api/{attempt_id}/', false);
                 xhr.setRequestHeader('Content-Type', 'application/json');
-                xhr.setRequestHeader('X-CSRFToken', window.csrfToken || '');
-                
-                xhr.send(JSON.stringify({{
-                    method: 'LMSGetValue',
-                    parameters: [element]
-                }}));
-                
-                if (xhr.status === 200) {{
-                    var result = JSON.parse(xhr.responseText);
-                    console.log('Storyline GetValue result:', element, '=', result.result);
-                    return result.result || '';
-                }} else {{
-                    console.error('Storyline GetValue error:', xhr.status);
-                    this._lastError = '101';
-                    return '';
-                }}
-            }} catch (e) {{
-                console.error('Storyline GetValue exception:', e);
-                this._lastError = '101';
-                return '';
-            }}
-        }},
-        
-        SetValue: function(element, value) {{
-            return this.LMSSetValue(element, value);
+                xhr.setRequestHeader('X-CSRFToken', window.csrfToken);
+                xhr.send(JSON.stringify({{method: 'LMSGetValue', parameters: [element]}}));
+                return xhr.status === 200 ? JSON.parse(xhr.responseText).result || '' : '';
+            }} catch (e) {{ return ''; }}
         }},
         
         LMSSetValue: function(element, value) {{
-            console.log('Storyline SetValue:', element, '=', value);
-            if (!this._initialized) {{
-                this._lastError = '301';
-                return 'false';
-            }}
-            
+            if (!this._initialized) return 'false';
             try {{
                 var xhr = new XMLHttpRequest();
                 xhr.open('POST', '/scorm/api/{attempt_id}/', false);
                 xhr.setRequestHeader('Content-Type', 'application/json');
-                xhr.setRequestHeader('X-CSRFToken', window.csrfToken || '');
-                
-                xhr.send(JSON.stringify({{
-                    method: 'LMSSetValue',
-                    parameters: [element, value]
-                }}));
-                
-                if (xhr.status === 200) {{
-                    var result = JSON.parse(xhr.responseText);
-                    console.log('Storyline SetValue success:', element, '=', value);
-                    
-                    // Auto-commit critical Storyline data
-                    if (element.indexOf('lesson_status') > -1 || element.indexOf('score') > -1) {{
-                        setTimeout(function() {{
-                            this.LMSCommit('');
-                        }}.bind(this), 100);
-                    }}
-                    
-                    return result.result || 'false';
-                }} else {{
-                    console.error('Storyline SetValue error:', xhr.status);
-                    this._lastError = '101';
-                    return 'false';
+                xhr.setRequestHeader('X-CSRFToken', window.csrfToken);
+                xhr.send(JSON.stringify({{method: 'LMSSetValue', parameters: [element, value]}}));
+                if (xhr.status === 200 && (element.indexOf('lesson_status') > -1 || element.indexOf('score') > -1)) {{
+                    setTimeout(() => this.LMSCommit(''), 50);
                 }}
-            }} catch (e) {{
-                console.error('Storyline SetValue exception:', e);
-                this._lastError = '101';
-                return 'false';
-            }}
+                return xhr.status === 200 ? JSON.parse(xhr.responseText).result || 'false' : 'false';
+            }} catch (e) {{ return 'false'; }}
         }},
         
-        Commit: function(param) {{
-            return this.LMSCommit(param);
-        }},
-        
-        LMSCommit: function(param) {{
-            console.log('Storyline Commit called');
-            if (!this._initialized) {{
-                this._lastError = '301';
-                return 'false';
-            }}
-            
+        LMSCommit: function(p) {{
+            if (!this._initialized) return 'false';
             try {{
                 var xhr = new XMLHttpRequest();
                 xhr.open('POST', '/scorm/api/{attempt_id}/', false);
                 xhr.setRequestHeader('Content-Type', 'application/json');
-                xhr.setRequestHeader('X-CSRFToken', window.csrfToken || '');
-                
-                xhr.send(JSON.stringify({{
-                    method: 'LMSCommit',
-                    parameters: []
-                }}));
-                
-                if (xhr.status === 200) {{
-                    var result = JSON.parse(xhr.responseText);
-                    console.log('Storyline Commit success');
-                    return result.result || 'false';
-                }} else {{
-                    console.error('Storyline Commit error:', xhr.status);
-                    this._lastError = '101';
-                    return 'false';
-                }}
-            }} catch (e) {{
-                console.error('Storyline Commit exception:', e);
-                this._lastError = '101';
-                return 'false';
-            }}
+                xhr.setRequestHeader('X-CSRFToken', window.csrfToken);
+                xhr.send(JSON.stringify({{method: 'LMSCommit', parameters: []}}));
+                return xhr.status === 200 ? JSON.parse(xhr.responseText).result || 'false' : 'false';
+            }} catch (e) {{ return 'false'; }}
         }},
         
-        GetLastError: function() {{
-            return this._lastError;
-        }},
-        
-        LMSGetLastError: function() {{
-            return this._lastError;
-        }},
-        
-        GetErrorString: function(code) {{
-            return 'No error';
-        }},
-        
-        LMSGetErrorString: function(code) {{
-            return 'No error';
-        }},
-        
-        GetDiagnostic: function(code) {{
-            return 'No error';
-        }},
-        
-        LMSGetDiagnostic: function(code) {{
-            return 'No error';
-        }}
+        GetLastError: function() {{ return this._lastError; }},
+        LMSGetLastError: function() {{ return this._lastError; }},
+        GetErrorString: function(c) {{ return 'No error'; }},
+        LMSGetErrorString: function(c) {{ return 'No error'; }},
+        GetDiagnostic: function(c) {{ return 'No error'; }},
+        LMSGetDiagnostic: function(c) {{ return 'No error'; }}
     }};
     
-    // Expose API in ALL contexts that Storyline might check
-    window.API = StorylineAPI;
-    window.API_1484_11 = StorylineAPI;
+    // Expose API efficiently
+    window.API = window.API_1484_11 = API;
+    if (window.parent !== window) window.parent.API = window.parent.API_1484_11 = API;
+    if (window.top !== window) window.top.API = window.top.API_1484_11 = API;
+    if (document) document.API = document.API_1484_11 = API;
     
-    // Parent window exposure (critical for iframes)
-    if (window.parent && window.parent !== window) {{
-        window.parent.API = StorylineAPI;
-        window.parent.API_1484_11 = StorylineAPI;
-        console.log('Storyline API exposed to parent window');
-    }}
-    
-    if (window.top && window.top !== window) {{
-        window.top.API = StorylineAPI;
-        window.top.API_1484_11 = StorylineAPI;
-        console.log('Storyline API exposed to top window');
-    }}
-    
-    // Document exposure
-    if (document) {{
-        document.API = StorylineAPI;
-        document.API_1484_11 = StorylineAPI;
-    }}
-    
-    // Create API finder functions
-    window.getAPI = function() {{ return StorylineAPI; }};
-    window.getAPIHandle = function() {{ return StorylineAPI; }};
-    window.findAPI = function() {{ return StorylineAPI; }};
-    window.scanForAPI = function() {{ return StorylineAPI; }};
-    
-    // Storyline-specific properties
-    window.scormAPI = StorylineAPI;
-    window.SCORM_API = StorylineAPI;
-    
-    console.log('Enhanced Storyline SCORM API initialized successfully');
-    
-    // Periodic re-exposure for dynamic content
-    var exposureCount = 0;
-    var refresher = setInterval(function() {{
-        if (++exposureCount > 10) {{
-            clearInterval(refresher);
-            return;
-        }}
-        
-        if (!window.parent.API) window.parent.API = StorylineAPI;
-        if (!window.top.API) window.top.API = StorylineAPI;
-    }}, 500);
-    
-}}})();
+    window.getAPI = window.getAPIHandle = window.findAPI = window.scanForAPI = () => API;
+    window.scormAPI = window.SCORM_API = API;
+}}());
 </script>""".format(csrf_token=csrf_token, attempt_id=attempt_id)
             else:
                 scorm_api = """
 <script>
-// Standard SCORM API Support
+// Optimized Standard SCORM API
 window.csrfToken = '{csrf_token}';
 
-// Enhanced error handling for SCORM API
 window.API = {{
-    _attemptId: '{attempt_id}',
     _initialized: false,
     _lastError: '0',
     
-    Initialize: function(param) {{ 
-        console.log('SCORM API Initialize called for attempt {attempt_id}');
-        try {{
-            this._initialized = true;
-            return 'true';
-        }} catch (e) {{
-            console.error('SCORM Initialize error:', e);
-            this._lastError = '101';
-            return 'false';
-        }}
-    }},
-    
-    Terminate: function(param) {{ 
-        console.log('SCORM API Terminate called');
-        this._initialized = false;
-        return 'true'; 
-    }},
+    Initialize: function(p) {{ this._initialized = true; return 'true'; }},
+    Terminate: function(p) {{ this._initialized = false; return 'true'; }},
     
     GetValue: function(element) {{ 
-        console.log('SCORM API GetValue called for:', element);
-        if (!this._initialized) {{
-            this._lastError = '301';
-            return '';
-        }}
-        
+        if (!this._initialized) return '';
         try {{
             var xhr = new XMLHttpRequest();
             xhr.open('POST', '/scorm/api/{attempt_id}/', false);
             xhr.setRequestHeader('Content-Type', 'application/json');
-            xhr.setRequestHeader('X-CSRFToken', window.csrfToken || '');
-            
-            var response = xhr.send(JSON.stringify({{
-                method: 'GetValue',
-                parameters: [element]
-            }}));
-            
-            if (xhr.status === 200) {{
-                var result = JSON.parse(xhr.responseText);
-                console.log('SCORM GetValue result:', result);
-                return result.result || '';
-            }} else {{
-                console.error('SCORM GetValue error:', xhr.status, xhr.responseText);
-                this._lastError = '101';
-                return '';
-            }}
-        }} catch (e) {{
-            console.error('SCORM GetValue exception:', e);
-            this._lastError = '101';
-            return '';
-        }}
+            xhr.setRequestHeader('X-CSRFToken', window.csrfToken);
+            xhr.send(JSON.stringify({{method: 'GetValue', parameters: [element]}}));
+            return xhr.status === 200 ? JSON.parse(xhr.responseText).result || '' : '';
+        }} catch (e) {{ return ''; }}
     }},
     
     SetValue: function(element, value) {{ 
-        console.log('SCORM API SetValue called:', element, '=', value);
-        if (!this._initialized) {{
-            this._lastError = '301';
-            return 'false';
-        }}
-        
-        // Make API call to backend
-        try {{
-            var xhr = new XMLHttpRequest();
-            xhr.open('POST', '/scorm/api/{attempt_id}/', false); // Synchronous for SCORM compatibility
-            xhr.setRequestHeader('Content-Type', 'application/json');
-            xhr.setRequestHeader('X-CSRFToken', window.csrfToken || '');
-            
-            var response = xhr.send(JSON.stringify({{
-                method: 'SetValue',
-                parameters: [element, value]
-            }}));
-            
-            if (xhr.status === 200) {{
-                var result = JSON.parse(xhr.responseText);
-                console.log('SCORM SetValue result:', result);
-                return result.result || 'false';
-            }} else {{
-                console.error('SCORM SetValue error:', xhr.status);
-                this._lastError = '101';
-                return 'false';
-            }}
-        }} catch (e) {{
-            console.error('SCORM SetValue exception:', e);
-            this._lastError = '101';
-            return 'false';
-        }}
-    }},
-    
-    Commit: function(param) {{ 
-        console.log('SCORM API Commit called');
-        if (!this._initialized) {{
-            this._lastError = '301';
-            return 'false';
-        }}
-        
-        // Make API call to backend
+        if (!this._initialized) return 'false';
         try {{
             var xhr = new XMLHttpRequest();
             xhr.open('POST', '/scorm/api/{attempt_id}/', false);
             xhr.setRequestHeader('Content-Type', 'application/json');
-            xhr.setRequestHeader('X-CSRFToken', window.csrfToken || '');
-            
-            var response = xhr.send(JSON.stringify({{
-                method: 'Commit',
-                parameters: []
-            }}));
-            
-            if (xhr.status === 200) {{
-                var result = JSON.parse(xhr.responseText);
-                console.log('SCORM Commit result:', result);
-                return result.result || 'false';
-            }} else {{
-                console.error('SCORM Commit error:', xhr.status);
-                this._lastError = '101';
-                return 'false';
-            }}
-        }} catch (e) {{
-            console.error('SCORM Commit exception:', e);
-            this._lastError = '101';
-            return 'false';
-        }}
+            xhr.setRequestHeader('X-CSRFToken', window.csrfToken);
+            xhr.send(JSON.stringify({{method: 'SetValue', parameters: [element, value]}}));
+            return xhr.status === 200 ? JSON.parse(xhr.responseText).result || 'false' : 'false';
+        }} catch (e) {{ return 'false'; }}
     }},
     
-    GetLastError: function() {{ 
-        return this._lastError; 
+    Commit: function(p) {{ 
+        if (!this._initialized) return 'false';
+        try {{
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/scorm/api/{attempt_id}/', false);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.setRequestHeader('X-CSRFToken', window.csrfToken);
+            xhr.send(JSON.stringify({{method: 'Commit', parameters: []}}));
+            return xhr.status === 200 ? JSON.parse(xhr.responseText).result || 'false' : 'false';
+        }} catch (e) {{ return 'false'; }}
     }},
     
-    GetErrorString: function(code) {{ 
-        return 'No error'; 
-    }},
-    
-    GetDiagnostic: function(code) {{ 
-        return 'No error'; 
-    }}
+    GetLastError: function() {{ return this._lastError; }},
+    GetErrorString: function(c) {{ return 'No error'; }},
+    GetDiagnostic: function(c) {{ return 'No error'; }}
 }};
 
-// Also expose as API_1484_11 for SCORM 2004 compatibility
 window.API_1484_11 = window.API;
-
-console.log('SCORM API injected successfully with attempt ID: {attempt_id}');
 </script>""".format(csrf_token=csrf_token, attempt_id=attempt_id)
             
-            # Enhanced error suppression - more aggressive for Storyline
+            # Optimized error suppression for Storyline
             if is_storyline:
                 error_suppression = '''
 <script>
-// Enhanced Storyline error suppression
-window.addEventListener('error', function(e) {
-    console.log('Suppressed Storyline error:', e.message, e.filename, e.lineno);
-    e.preventDefault();
-    return true;
-});
+// Storyline error suppression
+window.addEventListener('error', function(e) { e.preventDefault(); return true; });
+window.addEventListener('unhandledrejection', function(e) { e.preventDefault(); });
 
-// Suppress unhandled promise rejections
-window.addEventListener('unhandledrejection', function(e) {
-    console.log('Suppressed Storyline promise rejection:', e.reason);
-    e.preventDefault();
-});
-
-// Override alert and confirm for Storyline
-var originalAlert = window.alert;
-var originalConfirm = window.confirm;
-
-window.alert = function(message) {
-    if (typeof message === 'string') {
-        var msg = message.toLowerCase();
+var originalAlert = window.alert, originalConfirm = window.confirm;
+window.alert = function(m) {
+    if (typeof m === 'string') {
+        var msg = m.toLowerCase();
         if (msg.includes('error') || msg.includes('failed') || msg.includes('cannot') || 
-            msg.includes('unable') || msg.includes('scorm') || msg.includes('lms')) {
-            console.log('Suppressed Storyline alert:', message);
-            return;
-        }
+            msg.includes('unable') || msg.includes('scorm') || msg.includes('lms')) return;
     }
-    return originalAlert.call(this, message);
+    return originalAlert.call(this, m);
 };
-
-window.confirm = function(message) {
-    if (typeof message === 'string') {
-        var msg = message.toLowerCase();
-        if (msg.includes('error') || msg.includes('failed') || msg.includes('scorm')) {
-            console.log('Auto-confirmed Storyline dialog:', message);
-            return true;
-        }
+window.confirm = function(m) {
+    if (typeof m === 'string') {
+        var msg = m.toLowerCase();
+        if (msg.includes('error') || msg.includes('failed') || msg.includes('scorm')) return true;
     }
-    return originalConfirm.call(this, message);
+    return originalConfirm.call(this, m);
 };
-
-console.log('Enhanced Storyline error suppression active');
 </script>'''
             else:
                 error_suppression = '''
 <script>
 // Standard SCORM error suppression
-window.addEventListener('error', function(e) {
-    console.log('Suppressed SCORM error:', e.message);
-    e.preventDefault();
-    return true;
-});
-
+window.addEventListener('error', function(e) { e.preventDefault(); return true; });
 var originalAlert = window.alert;
-window.alert = function(message) {
-    if (typeof message === 'string' && 
-        (message.toLowerCase().includes('error') || 
-         message.toLowerCase().includes('an error has occurred'))) {
-        console.log('Suppressed error alert:', message);
-        return;
-    }
-    return originalAlert.call(this, message);
+window.alert = function(m) {
+    if (typeof m === 'string' && (m.toLowerCase().includes('error') || m.toLowerCase().includes('an error has occurred'))) return;
+    return originalAlert.call(this, m);
 };
 </script>'''
             
@@ -718,9 +428,9 @@ window.alert = function(message) {
             response = HttpResponse(content, content_type='text/html; charset=utf-8')
             response['Access-Control-Allow-Origin'] = '*'
             response['X-Frame-Options'] = 'SAMEORIGIN'
-            response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-            response['Pragma'] = 'no-cache'
-            response['Expires'] = '0'
+            # Optimized caching - allow brief caching for performance but ensure SCORM data freshness
+            response['Cache-Control'] = 'private, max-age=300'  # 5 minutes cache
+            response['Vary'] = 'Cookie, Authorization'
             return response
             
         except Exception as e:
