@@ -1429,16 +1429,38 @@ class ScormAPIHandler:
                 exit_method = f'scorm_exit_{exit_value}'
                 logger.info(f"✅ SCORM exit element detected: {exit_value}")
             
-            # Method 3: Lesson status indicates completion/exit (but be conservative on revisit)
-            lesson_status = self.attempt.cmi_data.get('cmi.core.lesson_status') or self.attempt.cmi_data.get('cmi.completion_status')
+            # Method 3: Completion status for different package types
+            lesson_status = self.attempt.cmi_data.get('cmi.core.lesson_status')
+            completion_status = self.attempt.cmi_data.get('cmi.completion_status')
+            success_status = self.attempt.cmi_data.get('cmi.success_status')
             
-            # CRITICAL FIX: Only trigger completion-based exit if it's a fresh completion, not on revisit
-            if lesson_status in ['completed', 'passed', 'failed']:
+            # ENHANCED: Detect package type for specific handling
+            launch_url = self.attempt.scorm_package.launch_url
+            is_scormcontent = 'scormcontent/' in launch_url
+            
+            # For scormcontent/ packages (Articulate Rise, etc.)
+            if is_scormcontent and (completion_status == 'completed' or success_status == 'passed'):
+                # These packages typically complete and expect immediate exit
+                # Check if user is actively in session (not revisiting)
+                from django.utils import timezone
+                from datetime import timedelta
+                
+                time_since_access = timezone.now() - self.attempt.last_accessed if self.attempt.last_accessed else timedelta(hours=1)
+                is_active_session = time_since_access < timedelta(minutes=10)
+                
+                if is_active_session:
+                    exit_detected = True
+                    exit_method = f'scormcontent_completion_{completion_status or success_status}'
+                    logger.info(f"✅ scormcontent/ exit detected: {completion_status or success_status} (active session)")
+                else:
+                    logger.info(f"🚫 Ignoring old completion on revisit: {completion_status or success_status} (accessed {time_since_access} ago)")
+            
+            # For traditional SCORM packages (scormdriver)
+            elif not is_scormcontent and lesson_status in ['completed', 'passed', 'failed']:
                 # Check if this is a fresh completion or stale data from previous session
                 from django.utils import timezone
                 from datetime import timedelta
                 
-                # If last accessed more than 5 minutes ago, this might be stale completion data
                 time_since_access = timezone.now() - self.attempt.last_accessed if self.attempt.last_accessed else timedelta(hours=1)
                 is_fresh_completion = time_since_access < timedelta(minutes=5)
                 
@@ -1449,41 +1471,27 @@ class ScormAPIHandler:
                 else:
                     logger.info(f"🚫 Ignoring stale completion status on revisit: {lesson_status} (last accessed {time_since_access} ago)")
             
-            # Method 4: Package-type and authoring tool specific exit patterns
+            # Method 4: Additional authoring tool specific exit patterns
             
-            # ENHANCED: scormcontent/ type exit detection (Articulate Rise, etc.)
-            launch_url = self.attempt.scorm_package.launch_url
-            is_scormcontent = 'scormcontent/' in launch_url
-            
-            if is_scormcontent and not exit_detected:
-                logger.info(f"🔍 Checking scormcontent/ specific exit patterns")
+            # Check for Articulate Rise specific patterns in suspend/location data
+            if not exit_detected and is_scormcontent:
+                logger.info(f"🔍 Checking Articulate Rise specific exit patterns")
                 
-                # scormcontent packages use different exit patterns
-                completion_status = self.attempt.cmi_data.get('cmi.completion_status')
-                success_status = self.attempt.cmi_data.get('cmi.success_status')
+                suspend_data = self.attempt.cmi_data.get('cmi.suspend_data', '')
+                location_data = self.attempt.cmi_data.get('cmi.location', '')
                 
-                if completion_status == 'completed' or success_status == 'passed':
+                # Look for Rise-specific completion indicators in suspend data
+                rise_completion_indicators = ['completed', 'finished', 'done', 'exit', 'close']
+                if any(indicator in suspend_data.lower() for indicator in rise_completion_indicators):
                     exit_detected = True
-                    exit_method = f'scormcontent_completion_{completion_status or success_status}'
-                    logger.info(f"✅ scormcontent/ exit detected: {exit_method}")
+                    exit_method = 'articulate_rise_suspend_data'
+                    logger.info(f"✅ Articulate Rise exit detected via suspend_data: {suspend_data[:50]}...")
                 
-                # Check for Articulate Rise specific patterns
-                if not exit_detected:
-                    suspend_data = self.attempt.cmi_data.get('cmi.suspend_data', '')
-                    location_data = self.attempt.cmi_data.get('cmi.location', '')
-                    
-                    # Look for Rise-specific completion indicators in suspend data
-                    rise_completion_indicators = ['completed', 'finished', 'done', 'exit', 'close']
-                    if any(indicator in suspend_data.lower() for indicator in rise_completion_indicators):
-                        exit_detected = True
-                        exit_method = 'articulate_rise_suspend_data'
-                        logger.info(f"✅ Articulate Rise exit detected via suspend_data: {suspend_data[:50]}...")
-                    
-                    # Check location data for completion
-                    elif any(indicator in location_data.lower() for indicator in rise_completion_indicators):
-                        exit_detected = True
-                        exit_method = 'articulate_rise_location_data'
-                        logger.info(f"✅ Articulate Rise exit detected via location: {location_data}")
+                # Check location data for completion
+                elif any(indicator in location_data.lower() for indicator in rise_completion_indicators):
+                    exit_detected = True
+                    exit_method = 'articulate_rise_location_data'
+                    logger.info(f"✅ Articulate Rise exit detected via location: {location_data}")
             
             # Articulate Storyline exit patterns (scormdriver type)
             if not exit_detected:
@@ -1508,25 +1516,8 @@ class ScormAPIHandler:
                 exit_method = 'captivate_exit'
                 logger.info(f"✅ Captivate exit pattern detected")
             
-            # Method 5: High score indicates quiz completion (common exit trigger)
-            if self.attempt.score_raw and self.attempt.score_raw >= 80:
-                exit_detected = True
-                exit_method = f'high_score_exit_{self.attempt.score_raw}'
-                logger.info(f"✅ High score exit detected: {self.attempt.score_raw}")
-            
-            # Method 6: Session time indicates extended engagement (user may want to exit)
-            if self.attempt.session_time:
-                try:
-                    # Parse session time (format: HH:MM:SS.ss)
-                    time_parts = self.attempt.session_time.split(':')
-                    if len(time_parts) >= 2:
-                        minutes = int(time_parts[0]) * 60 + int(time_parts[1])
-                        if minutes >= 30:  # 30+ minutes indicates substantial engagement
-                            exit_detected = True
-                            exit_method = f'long_session_exit_{minutes}min'
-                            logger.info(f"✅ Long session exit detected: {minutes} minutes")
-                except Exception as e:
-                    logger.warning(f"Could not parse session time: {e}")
+            # NOTE: Removed score-based and session-time based exits as they caused false positives
+            # Exit should be triggered by explicit completion or exit flags only
             
             # Apply the exit detection
             if exit_detected:

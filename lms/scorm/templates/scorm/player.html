@@ -393,6 +393,8 @@
         
         // SCORM EXIT FIX: Enhanced periodic check for content-initiated exits
         function startExitMonitoring() {
+            console.log('🔍 Starting exit monitoring for SCORM content...');
+            
             var exitCheckInterval = setInterval(function() {
                 if (window.checkForContentExit) {
                     try {
@@ -401,17 +403,17 @@
                         console.log('Error checking for content exit:', e.message);
                     }
                 }
-            }, 1000); // Check every 1 second for better responsiveness
+            }, 500); // Check every 500ms for faster response (especially for scormcontent/ packages)
             
             // ENHANCED: Also check when user interacts with the page
-            var interactionEvents = ['click', 'keydown', 'scroll'];
+            var interactionEvents = ['click', 'keydown', 'scroll', 'touchend'];
             var lastCheckTime = 0;
             
             interactionEvents.forEach(function(eventType) {
                 document.addEventListener(eventType, function() {
                     var now = Date.now();
-                    // Throttle interaction-based checks to once per second
-                    if (now - lastCheckTime > 1000) {
+                    // Throttle interaction-based checks to once per 500ms
+                    if (now - lastCheckTime > 500) {
                         lastCheckTime = now;
                         if (window.checkForContentExit) {
                             try {
@@ -424,11 +426,35 @@
                 });
             });
             
-            // Stop checking after 2 hours (extended time for long courses)
+            // ENHANCED: Special monitoring for iframe SCORM content messages
+            window.addEventListener('message', function(event) {
+                console.log('📨 Received message from SCORM content:', event.data);
+                
+                // Check for common exit messages from SCORM content
+                if (event.data && typeof event.data === 'string') {
+                    var msgLower = event.data.toLowerCase();
+                    if (msgLower.includes('exit') || msgLower.includes('close') || msgLower.includes('complete')) {
+                        console.log('🚪 Exit message detected from SCORM content');
+                        if (window.checkForContentExit) {
+                            window.checkForContentExit();
+                        }
+                    }
+                }
+                
+                // Check for structured messages with exit commands
+                if (event.data && typeof event.data === 'object' && (event.data.action === 'exit' || event.data.command === 'close')) {
+                    console.log('🚪 Structured exit command detected from SCORM content');
+                    if (window.checkForContentExit) {
+                        window.checkForContentExit();
+                    }
+                }
+            });
+            
+            // Stop checking after 3 hours (extended time for long courses)
             setTimeout(function() {
                 clearInterval(exitCheckInterval);
-                console.log('Exit monitoring stopped after 2 hours');
-            }, 2 * 60 * 60 * 1000);
+                console.log('Exit monitoring stopped after 3 hours');
+            }, 3 * 60 * 60 * 1000);
         }
         
         // Initialize everything

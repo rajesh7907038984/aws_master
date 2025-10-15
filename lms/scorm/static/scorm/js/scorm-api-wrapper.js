@@ -359,36 +359,44 @@
             
             // ENHANCED: Package-type specific exit detection
             var shouldExit = false;
+            var exitReason = '';
             
-            // Method 1: Standard exit flag with completion verification
+            // Method 1: Explicit content-initiated exit flag (most reliable)
             if (exitCheck === 'true') {
-                // For scormcontent/ packages (Articulate Rise), check completion_status
-                if (completionStatus === 'completed' || lessonStatus === 'passed' || lessonStatus === 'completed') {
-                    shouldExit = true;
-                    log('✅ Exit detected: Standard completion with exit flag');
-                }
-                // For scormdriver/ packages, check lesson_status
-                else if (lessonStatus === 'failed' || scormExit === 'normal') {
-                    shouldExit = true;
-                    log('✅ Exit detected: Traditional SCORM exit');
-                }
-            }
-            
-            // Method 2: Direct completion without exit flag (for scormcontent/ packages)
-            else if (completionStatus === 'completed' && (lessonStatus === 'completed' || lessonStatus === 'passed')) {
+                // CRITICAL FIX: Trust the exit flag when set, especially for scormcontent/ packages
+                // The backend already validates this is a genuine exit, not stale data
                 shouldExit = true;
-                log('✅ Exit detected: scormcontent/ completion without explicit exit flag');
+                exitReason = 'content_initiated_exit_flag';
+                log('✅ Exit detected: Content explicitly requested exit via _content_initiated_exit flag');
             }
             
-            // ENHANCED: Additional check to prevent false positives on revisit
-            if (exitCheck === 'true' && shouldExit) {
-                log('⚠️ Exit detected, but verifying it\'s not a stale flag from previous session...');
+            // Method 2: SCORM exit element indicates user wants to leave
+            if (!shouldExit && scormExit && scormExit !== '' && scormExit !== 'suspend') {
+                // 'logout', 'normal', or 'time-out' all indicate user wants to exit
+                shouldExit = true;
+                exitReason = 'scorm_exit_element_' + scormExit;
+                log('✅ Exit detected: SCORM exit element set to "' + scormExit + '"');
+            }
+            
+            // Method 3: Completion-based exit (for packages that auto-exit on completion)
+            if (!shouldExit && (completionStatus === 'completed' || lessonStatus === 'passed' || lessonStatus === 'completed')) {
+                // Check if this is genuinely a fresh completion by looking at other indicators
+                var hasExitIntent = (exitCheck === 'true' || scormExit === 'normal' || scormExit === 'logout');
                 
-                // If lesson is incomplete and no recent completion, this might be stale
-                if (lessonStatus === 'incomplete' && scormExit === 'logout') {
-                    log('🚫 Ignoring stale exit flag - lesson is incomplete and exit mode is from previous logout');
-                    shouldExit = false;
+                if (hasExitIntent) {
+                    shouldExit = true;
+                    exitReason = 'completion_with_exit_intent';
+                    log('✅ Exit detected: Completion with exit intent (' + (completionStatus || lessonStatus) + ')');
                 }
+            }
+            
+            // Method 4: scormcontent/ specific patterns (Articulate Rise, etc.)
+            if (!shouldExit && completionStatus === 'completed') {
+                // For scormcontent/ packages, completion alone is often sufficient for exit
+                // These packages typically set completion_status when user finishes
+                shouldExit = true;
+                exitReason = 'scormcontent_completion';
+                log('✅ Exit detected: scormcontent/ package completion');
             }
             
             if (shouldExit) {
