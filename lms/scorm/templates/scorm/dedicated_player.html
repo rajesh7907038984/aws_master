@@ -176,20 +176,37 @@
         const contentFrame = document.getElementById('contentFrame');
         const exitButton = document.getElementById('exitButton');
         
-        // Exit function - Simple save and exit
+        // Exit function - Allow SCORM content to handle its own exit
         function exitCourse() {
             console.log('🚪 Exit button clicked');
             
             // Save current progress if API exists
             if (window.API) {
                 try {
+                    // First commit any pending data
                     if (typeof window.API.Commit === 'function') {
                         window.API.Commit('');
                     } else if (typeof window.API.LMSCommit === 'function') {
                         window.API.LMSCommit('');
                     }
                     
-                    // Terminate properly
+                    // Check if SCORM content wants to handle exit
+                    let contentHandlesExit = false;
+                    
+                    // Try to get the iframe's window to check for goodbye.html or exit handling
+                    try {
+                        const iframe = document.getElementById('contentFrame');
+                        if (iframe && iframe.contentWindow) {
+                            // Set a flag to indicate exit was initiated
+                            if (iframe.contentWindow.API) {
+                                iframe.contentWindow.API.LMSSetValue('_lms_exit_initiated', 'true');
+                            }
+                        }
+                    } catch (e) {
+                        console.log('Could not access iframe content:', e);
+                    }
+                    
+                    // Terminate the SCORM session
                     if (typeof window.API.Terminate === 'function') {
                         window.API.Terminate('');
                     } else if (typeof window.API.LMSFinish === 'function') {
@@ -197,12 +214,57 @@
                     }
                     
                     console.log('✅ SCORM progress saved');
+                    
+                    // Wait a moment to allow SCORM content to handle its own exit
+                    // (e.g., navigate to goodbye.html)
+                    setTimeout(() => {
+                        checkIfShouldRedirect();
+                    }, 1000);
+                    
                 } catch (e) {
                     console.log('⚠️ Could not save progress:', e.message);
+                    // On error, still allow exit after delay
+                    setTimeout(() => {
+                        checkIfShouldRedirect();
+                    }, 1000);
                 }
+            } else {
+                // No API, just exit after a short delay
+                setTimeout(() => {
+                    finalizeExit();
+                }, 500);
+            }
+        }
+        
+        // Check if we should redirect or if content is handling exit
+        function checkIfShouldRedirect() {
+            console.log('🔍 Checking if SCORM content is handling exit...');
+            
+            try {
+                const iframe = document.getElementById('contentFrame');
+                if (iframe && iframe.contentWindow && iframe.contentWindow.location) {
+                    const currentUrl = iframe.contentWindow.location.href;
+                    console.log('Current iframe URL:', currentUrl);
+                    
+                    // Check if content navigated to goodbye.html or similar exit page
+                    if (currentUrl.includes('goodbye') || 
+                        currentUrl.includes('exit') || 
+                        currentUrl.includes('end') ||
+                        currentUrl.includes('complete') ||
+                        currentUrl.includes('finish')) {
+                        console.log('📄 SCORM content is showing exit page, not redirecting');
+                        // Content is handling exit, don't redirect
+                        // Hide the exit button to prevent confusion
+                        document.getElementById('exitButton').style.display = 'none';
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.log('Could not check iframe location:', e);
             }
             
-            // Navigate back to course
+            // If we get here, content isn't handling exit, so redirect
+            console.log('➡️ SCORM content not handling exit, redirecting to course...');
             finalizeExit();
         }
         
@@ -258,25 +320,6 @@
             
             contentFrame.addEventListener('load', function() {
                 console.log('✅ Content loaded successfully');
-                
-                // Check if the loaded page is an exit/goodbye page
-                try {
-                    const frameUrl = contentFrame.contentWindow.location.href;
-                    const exitPages = ['goodbye', 'finish', 'exit', 'thankyou', 'completion', 'end', 'close'];
-                    
-                    if (exitPages.some(page => frameUrl.toLowerCase().includes(page))) {
-                        console.log('📍 Exit page detected in frame:', frameUrl);
-                        // Automatically exit course when exit page is detected
-                        setTimeout(() => {
-                            console.log('🚪 Auto-exiting due to exit page detection');
-                            exitCourse();
-                        }, 500); // Small delay to ensure any final SCORM data is saved
-                    }
-                } catch (e) {
-                    // Cross-origin restrictions may prevent URL access
-                    console.log('⚠️ Could not check frame URL (cross-origin)');
-                }
-                
                 // Remove artificial delay for faster content display
                 loadingScreen.style.display = 'none';
             });

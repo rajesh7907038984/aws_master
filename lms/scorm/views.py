@@ -96,42 +96,6 @@ def scorm_content(request, topic_id, path):
         
         logger.info(f"SCORM Content Request: topic_id={topic_id}, path='{path}', scorm_package='{scorm_package.title}'")
         
-        # DETECT EXIT/GOODBYE PAGES AND REDIRECT TO COURSE
-        # Common exit page names used by various SCORM authoring tools
-        exit_page_names = [
-            'goodbye.html', 'goodbye.htm',
-            'finish.html', 'finish.htm',
-            'exit.html', 'exit.htm',
-            'thankyou.html', 'thankyou.htm',
-            'completion.html', 'completion.htm',
-            'end.html', 'end.htm',
-            'close.html', 'close.htm'
-        ]
-        
-        # Check if the requested path is an exit page
-        path_lower = path.lower()
-        for exit_page in exit_page_names:
-            if exit_page in path_lower or path_lower.endswith(exit_page):
-                logger.info(f"SCORM Exit page detected: {path} - Redirecting to course")
-                
-                # Save any pending data if there's an attempt
-                attempt_id = request.GET.get('attempt_id', '')
-                if attempt_id:
-                    try:
-                        from scorm.models import ScormAttempt
-                        attempt = ScormAttempt.objects.get(id=attempt_id)
-                        # Mark the attempt as properly terminated
-                        attempt.exit_mode = 'logout'
-                        if hasattr(attempt, 'cmi_data') and attempt.cmi_data:
-                            attempt.cmi_data['_content_initiated_exit'] = 'true'
-                        attempt.save()
-                        logger.info(f"Saved exit state for attempt {attempt_id}")
-                    except Exception as e:
-                        logger.warning(f"Could not update attempt on exit: {e}")
-                
-                # Redirect back to the topic/course page
-                return redirect('courses:topic_view', topic_id=topic_id)
-        
         # Handle path corrections if needed, but minimal interference
         if path == 'scormcontent/false':
             path = 'scormcontent/index.html'

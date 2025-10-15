@@ -414,6 +414,14 @@
             var exitCheck = makeAPICall('LMSGetValue', ['_content_initiated_exit']);
             log('🔍 Checking content exit flag: "' + exitCheck + '"');
             
+            // Check if LMS initiated the exit (user clicked exit button)
+            var lmsExitInitiated = makeAPICall('LMSGetValue', ['_lms_exit_initiated']);
+            if (lmsExitInitiated === 'true') {
+                log('🚪 LMS initiated exit - allowing content to handle its own exit flow');
+                // Don't trigger parent exit, let content show its goodbye page if it has one
+                return;
+            }
+            
             // Also check standard SCORM exit elements
             var scormExit = makeAPICall('LMSGetValue', ['cmi.core.exit']);
             var lessonStatus = makeAPICall('LMSGetValue', ['cmi.core.lesson_status']);
