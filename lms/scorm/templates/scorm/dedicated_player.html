@@ -211,7 +211,7 @@
                 returnBtn.style.backgroundColor = '#28a745';
                 returnBtn.textContent = 'Return to Course';
                 returnBtn.onclick = function() {
-                    window.location.href = `/courses/topic/{{ topic.id }}/`;
+                    window.location.href = `/courses/topic/{{ topic.id }}/view/?manual=True`;
                 };
                 
                 // Replace the exit button with return button
