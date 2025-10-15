@@ -52,6 +52,16 @@
         }
     }
     
+    function makeAPICallAsync(method, parameters) {
+        parameters = parameters || [];
+        
+        if (config.packageType === 'xapi') {
+            return makeXAPICallAsync(method, parameters);
+        } else {
+            return makeSCORMCallAsync(method, parameters);
+        }
+    }
+    
     function makeSCORMCall(method, parameters) {
         if (!config.apiEndpoint) {
             log('ERROR: API endpoint not configured');
@@ -95,6 +105,49 @@
         }
     }
     
+    function makeSCORMCallAsync(method, parameters) {
+        if (!config.apiEndpoint) {
+            log('ERROR: API endpoint not configured');
+            return;
+        }
+        
+        var requestData = {
+            method: method,
+            parameters: parameters,
+            attempt_id: config.attemptId || null
+        };
+        
+        log('Making async SCORM API call: ' + method + ' with params: ' + JSON.stringify(parameters) + ', attempt_id: ' + (config.attemptId || 'null'));
+        
+        try {
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', config.apiEndpoint, true); // true = async
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.setRequestHeader('X-CSRFToken', getCsrfToken());
+            
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        var response = JSON.parse(xhr.responseText);
+                        log('Async SCORM API call result: ' + response.result + ', error: ' + (response.error_code || '0') + ', attempt_id: ' + (response.attempt_id || 'null'));
+                        
+                        // Update attempt ID if returned from server
+                        if (response.attempt_id && !config.attemptId) {
+                            config.attemptId = response.attempt_id;
+                            log('Updated attempt ID from server: ' + config.attemptId);
+                        }
+                    } else {
+                        log('Async SCORM API call failed: HTTP ' + xhr.status);
+                    }
+                }
+            };
+            
+            xhr.send(JSON.stringify(requestData));
+        } catch (error) {
+            log('Async SCORM API call error: ' + error.message);
+        }
+    }
+    
     function makeXAPICall(method, parameters) {
         if (!config.xapiEndpoint) {
             log('ERROR: xAPI endpoint not configured');
@@ -125,6 +178,40 @@
         } catch (error) {
             log('xAPI call error: ' + error.message);
             return 'false';
+        }
+    }
+    
+    function makeXAPICallAsync(method, parameters) {
+        if (!config.xapiEndpoint) {
+            log('ERROR: xAPI endpoint not configured');
+            return;
+        }
+        
+        // Convert SCORM calls to xAPI statements
+        var statement = convertSCORMToXAPI(method, parameters);
+        
+        log('Making async xAPI call: ' + method + ' with statement: ' + JSON.stringify(statement));
+        
+        try {
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', config.xapiEndpoint, true); // true = async
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.setRequestHeader('X-CSRFToken', getCsrfToken());
+            
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        var response = JSON.parse(xhr.responseText);
+                        log('Async xAPI call result: ' + response.success);
+                    } else {
+                        log('Async xAPI call failed: HTTP ' + xhr.status);
+                    }
+                }
+            };
+            
+            xhr.send(JSON.stringify(statement));
+        } catch (error) {
+            log('Async xAPI call error: ' + error.message);
         }
     }
     
@@ -222,18 +309,20 @@
         LMSFinish: function(parameter) {
             log('LMSFinish called');
             
-            // Auto-commit before termination
+            // Auto-commit before termination (async to not block navigation)
             try {
                 log('Auto-committing data before termination...');
-                makeAPICall('LMSCommit', ['']);
+                makeAPICallAsync('LMSCommit', ['']);
             } catch (e) {
                 log('Warning: Could not commit data before termination: ' + e.message);
             }
             
-            var result = makeAPICall('LMSFinish', [parameter]);
+            // Make async API call to not block SCORM package navigation
+            makeAPICallAsync('LMSFinish', [parameter]);
             config.initialized = false;
             
-            return result;
+            // Return immediately to allow package to navigate to exit page
+            return 'true';
         },
         
         LMSGetValue: function(element) {
@@ -299,7 +388,22 @@
         },
         
         Terminate: function(parameter) {
-            return API.LMSFinish(parameter);
+            log('SCORM 2004 Terminate called');
+            
+            // Auto-commit before termination (async to not block navigation)
+            try {
+                log('Auto-committing data before termination...');
+                makeAPICallAsync('LMSCommit', ['']);
+            } catch (e) {
+                log('Warning: Could not commit data before termination: ' + e.message);
+            }
+            
+            // Make async API call to not block SCORM package navigation
+            makeAPICallAsync('LMSFinish', [parameter]);
+            config.initialized = false;
+            
+            // Return immediately to allow package to navigate to exit page
+            return 'true';
         },
         
         GetValue: function(element) {

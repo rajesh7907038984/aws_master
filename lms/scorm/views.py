@@ -711,6 +711,7 @@ def scorm_direct_content(request, topic_id, path=''):
         LMSFinish: function(param) {{
             console.log('SCORM 1.2: Finish');
             this._initialized = false;
+            // Return immediately to allow SCORM package to navigate to exit page
             return 'true';
         }},
         
@@ -764,6 +765,7 @@ def scorm_direct_content(request, topic_id, path=''):
         Terminate: function(param) {{
             console.log('SCORM 2004: Terminate');
             this._initialized = false;
+            // Return immediately to allow SCORM package to navigate to exit page
             return 'true';
         }},
         
