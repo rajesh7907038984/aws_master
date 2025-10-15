@@ -180,6 +180,12 @@
         function exitCourse() {
             console.log('🚪 Exit button clicked - letting SCORM handle exit naturally');
             
+            // IMMEDIATELY hide the exit button to prevent confusion
+            const exitBtn = document.getElementById('exitButton');
+            if (exitBtn) {
+                exitBtn.style.display = 'none';
+            }
+            
             // Save current progress if API exists
             if (window.API) {
                 try {
@@ -199,25 +205,15 @@
                     
                     console.log('✅ SCORM session terminated - content will handle its own exit');
                     
-                    // Hide the exit button since SCORM is handling exit
-                    document.getElementById('exitButton').style.display = 'none';
-                    
-                    // Add a "Return to Course" button that appears after a delay
-                    setTimeout(() => {
-                        showReturnButton();
-                    }, 2000);
-                    
                 } catch (e) {
                     console.log('⚠️ Error during exit:', e.message);
-                    // On error, show return button after delay
-                    setTimeout(() => {
-                        showReturnButton();
-                    }, 2000);
                 }
-            } else {
-                // No API, show return button
-                showReturnButton();
             }
+            
+            // Always show return button after a delay (regardless of API success)
+            setTimeout(() => {
+                showReturnButton();
+            }, 3000); // Increased to 3 seconds to allow SCORM content to navigate
         }
         
         // Show a return to course button (user-initiated navigation only)
