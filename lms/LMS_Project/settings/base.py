@@ -228,6 +228,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',  # RE-ENABLED FOR PROPER CSRF PROTECTION
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'core.middleware.session_auth_middleware.SessionAuthMiddleware',  # Session recovery
     'core.middleware.session_persistence.SessionPersistenceMiddleware',  # Session persistence
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',

@@ -282,7 +282,7 @@ window._isStoryline = true;
             return this.LMSInitialize(param);
         }},
         
-        LMSInitialize: function(param) {{'''.format(csrf_token, attempt_id, attempt_id) + '''
+        LMSInitialize: function(param) {{'''.format() + '''
             console.log('Storyline SCORM Initialize called');
             try {
                 this._initialized = true;
@@ -346,7 +346,7 @@ window._isStoryline = true;
             return this.LMSSetValue(element, value);
         },
         
-        LMSSetValue: function(element, value) {'''.format(attempt_id) + '''
+        LMSSetValue: function(element, value) {'''.format() + '''
             console.log('Storyline SetValue:', element, '=', value);
             if (!this._initialized) {
                 this._lastError = '301';
@@ -392,7 +392,7 @@ window._isStoryline = true;
             return this.LMSCommit(param);
         },
         
-        LMSCommit: function(param) {'''.format(attempt_id) + '''
+        LMSCommit: function(param) {'''.format() + '''
             console.log('Storyline Commit called');
             if (!this._initialized) {
                 this._lastError = '301';
@@ -510,7 +510,7 @@ window.csrfToken = '{}';
 window.API = {{
     _attemptId: '{}',
     _initialized: false,
-    _lastError: '0','''.format(csrf_token, attempt_id) + '''
+    _lastError: '0','''.format() + '''
     
     Initialize: function(param) {{ 
         console.log('SCORM API Initialize called for attempt {}');
@@ -522,7 +522,7 @@ window.API = {{
             this._lastError = '101';
             return 'false';
         }}
-    }},'''.format(attempt_id) + '''
+    }},'''.format() + '''
     
     Terminate: function(param) {{ 
         console.log('SCORM API Terminate called');
@@ -651,7 +651,7 @@ window.API = {{
 window.API_1484_11 = window.API;
 
 console.log('SCORM API injected successfully with attempt ID: {}');
-</script>'''.format(attempt_id)
+</script>'''.format()
             
             # Enhanced error suppression - more aggressive for Storyline
             if is_storyline:
