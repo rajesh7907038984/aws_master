@@ -276,18 +276,31 @@ def scorm_direct_content(request, topic_id, path=''):
         import requests
         
         try:
-            # Fetch from S3
+            # Fetch from S3 with proper encoding handling
             s3_response = requests.get(s3_url, timeout=30)
             if s3_response.status_code != 200:
                 logger.error(f"S3 fetch failed: {s3_response.status_code}")
                 return HttpResponse("Content not accessible", status=404)
             
+            # Handle encoding properly - detect and use correct encoding
+            if s3_response.encoding:
+                s3_response.encoding = s3_response.apparent_encoding or 'utf-8'
             content = s3_response.text
             
             # Fix relative paths to use our proxy endpoint
             # This ensures all resources go through our server
-            content = content.replace('src="', f'src="/scorm/content/{topic_id}/')
-            content = content.replace("src='", f"src='/scorm/content/{topic_id}/")
+            # Handle different path patterns based on package type
+            if 'scormdriver' in path.lower():
+                # Articulate Rise - paths are relative to scormdriver
+                base_path = '/'.join(path.split('/')[:-1])  # Get directory path
+                content = content.replace('src="', f'src="/scorm/content/{topic_id}/{base_path}/')
+                content = content.replace("src='", f"src='/scorm/content/{topic_id}/{base_path}/")
+                content = content.replace('href="', f'href="/scorm/content/{topic_id}/{base_path}/')
+                content = content.replace("href='", f"href='/scorm/content/{topic_id}/{base_path}/")
+            else:
+                # Standard SCORM packages
+                content = content.replace('src="', f'src="/scorm/content/{topic_id}/')
+                content = content.replace("src='", f"src='/scorm/content/{topic_id}/")
             content = content.replace('href="', f'href="/scorm/content/{topic_id}/')
             content = content.replace("href='", f"href='/scorm/content/{topic_id}/")
             
@@ -306,9 +319,27 @@ def scorm_direct_content(request, topic_id, path=''):
             # Enhanced SCORM API injection - works for all package types
             api_script = f'''
 <script>
-// SCORM API Bridge - Full implementation for cross-origin compatibility
+// Enhanced SCORM API Bridge - Supports all authoring tools
 (function() {{
-    console.log('Initializing SCORM API Bridge...');
+    console.log('Initializing Enhanced SCORM API Bridge...');
+    
+    // Detect authoring tool from URL patterns
+    var authoringTool = 'standard';
+    var currentUrl = window.location.href;
+    
+    if (currentUrl.indexOf('scormdriver') > -1 || currentUrl.indexOf('index_lms') > -1) {{
+        authoringTool = 'rise';
+        console.log('Detected Articulate Rise 360 package');
+    }} else if (currentUrl.indexOf('story.html') > -1 || currentUrl.indexOf('story_html5.html') > -1) {{
+        authoringTool = 'storyline';
+        console.log('Detected Articulate Storyline package');
+    }} else if (currentUrl.indexOf('multiscreen.html') > -1) {{
+        authoringTool = 'captivate';
+        console.log('Detected Adobe Captivate package');
+    }} else if (currentUrl.indexOf('presentation.html') > -1) {{
+        authoringTool = 'ispring';
+        console.log('Detected iSpring package');
+    }}
     
     // Check if API already exists
     if (window.API || window.API_1484_11) {{
