@@ -53,10 +53,3 @@ def is_dashboard_page(request):
         # If there's any error, default to not showing sidebar to be safe
         return False
 
-@register.filter
-def should_show_right_sidebar(request):
-    """
-    Determine if the right sidebar should be shown
-    Returns True if we should show the sidebar, False if we should hide it
-    """
-    return not is_dashboard_page(request)

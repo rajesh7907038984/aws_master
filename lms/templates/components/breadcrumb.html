@@ -88,7 +88,7 @@
     
     .breadcrumb-icon-text {
         color: #2F80ED;
-        font-size: 0.75rem;
+        font-size: 0.875rem;
     }
     
     .breadcrumb-link:hover .breadcrumb-icon {
@@ -120,13 +120,13 @@
             height: 1.25rem;
         }
         
-        /* Hide middle items on small screens */
-        .breadcrumb-item:not(:first-child):not(:last-child):not(:nth-last-child(2)) {
+        /* Hide items only if there are more than 4 items */
+        .breadcrumb-item:nth-child(n+5):not(:last-child) {
             display: none;
         }
         
         /* Add ellipsis when items are hidden */
-        .breadcrumb-item:nth-child(2):not(:last-child):not(:nth-last-child(2)):before {
+        .breadcrumb-item:nth-child(4):not(:last-child):after {
             content: "...";
             color: #9ca3af;
             margin: 0 0.5rem;
@@ -134,9 +134,9 @@
         }
     }
     
-    /* Very small screens - simplified breadcrumb */
+    /* Very small screens - show at least 2 items */
     @media (max-width: 480px) {
-        .breadcrumb-item:not(:last-child) {
+        .breadcrumb-item:nth-child(n+4):not(:last-child) {
             display: none;
         }
         

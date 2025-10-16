@@ -270,7 +270,7 @@ TEMPLATES = [
                 'django.template.context_processors.csrf',  # RE-ADDED for CSRF token support
                 'core.context_processors.global_context',
                 'core.context_processors.global_sidebar_context',
-                'core.context_processors.right_sidebar_context',  # Added for right sidebar data
+                'core.context_processors.breadcrumbs',
                 'categories.context_processors.categories_processor',
                 'courses.context_processors.breadcrumbs',
                 'lms_messages.context_processors.messages_context',

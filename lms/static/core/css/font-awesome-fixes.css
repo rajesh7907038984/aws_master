@@ -1,0 +1,213 @@
+/* Font Awesome Icon Fixes and Fallbacks */
+
+/* Ensure Font Awesome icons are always visible */
+.fas, .far, .fab, .fa {
+    font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Pro', 'FontAwesome', sans-serif !important;
+    font-weight: 900 !important;
+    font-style: normal !important;
+    font-variant: normal !important;
+    text-rendering: auto !important;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    display: inline-block !important;
+    line-height: 1 !important;
+    text-decoration: none !important;
+}
+
+/* Specific icon styling fixes */
+.fa-check-circle {
+    color: #10b981 !important;
+}
+
+.fa-exclamation-circle {
+    color: #ef4444 !important;
+}
+
+.fa-exclamation-triangle {
+    color: #f59e0b !important;
+}
+
+.fa-info-circle {
+    color: #3b82f6 !important;
+}
+
+.fa-times {
+    color: #6b7280 !important;
+}
+
+.fa-plus {
+    color: #059669 !important;
+}
+
+.fa-search {
+    color: #6b7280 !important;
+}
+
+.fa-edit {
+    color: #3b82f6 !important;
+}
+
+.fa-trash {
+    color: #ef4444 !important;
+}
+
+.fa-play {
+    color: #059669 !important;
+}
+
+.fa-user-graduate {
+    color: #8b5cf6 !important;
+}
+
+.fa-clock {
+    color: #f59e0b !important;
+}
+
+.fa-book-open {
+    color: #3b82f6 !important;
+}
+
+.fa-envelope {
+    color: #3b82f6 !important;
+}
+
+.fa-arrow-left {
+    color: #6b7280 !important;
+}
+
+.fa-save {
+    color: #059669 !important;
+}
+
+.fa-spinner {
+    color: #6b7280 !important;
+    animation: spin 1s linear infinite !important;
+}
+
+.fa-eye {
+    color: #3b82f6 !important;
+}
+
+.fa-filter {
+    color: #6b7280 !important;
+}
+
+.fa-th-large {
+    color: #6b7280 !important;
+}
+
+.fa-list {
+    color: #6b7280 !important;
+}
+
+.fa-home {
+    color: #3b82f6 !important;
+}
+
+.fa-book {
+    color: #3b82f6 !important;
+}
+
+.fa-users {
+    color: #8b5cf6 !important;
+}
+
+.fa-tasks {
+    color: #f59e0b !important;
+}
+
+.fa-question-circle {
+    color: #6b7280 !important;
+}
+
+.fa-chart-bar {
+    color: #059669 !important;
+}
+
+.fa-cog {
+    color: #6b7280 !important;
+}
+
+.fa-bell {
+    color: #f59e0b !important;
+}
+
+.fa-comments {
+    color: #3b82f6 !important;
+}
+
+/* Spinner animation */
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Ensure icons are visible in buttons */
+button .fas, button .far, button .fab, button .fa {
+    margin-right: 0.5rem;
+}
+
+/* Ensure icons are visible in links */
+a .fas, a .far, a .fab, a .fa {
+    margin-right: 0.25rem;
+}
+
+/* Fix for toast notifications */
+.toast-enter .fas, .toast-enter .far, .toast-enter .fab, .toast-enter .fa {
+    font-size: 1.25rem !important;
+    margin-right: 0.75rem !important;
+}
+
+/* Fix for breadcrumb icons */
+.breadcrumb-icon .fas, .breadcrumb-icon .far, .breadcrumb-icon .fab, .breadcrumb-icon .fa {
+    font-size: 0.875rem !important;
+    color: #2F80ED !important;
+    display: inline-block !important;
+    line-height: 1 !important;
+}
+
+/* Ensure icons are visible in course cards */
+.course-card .fas, .course-card .far, .course-card .fab, .course-card .fa {
+    margin-right: 0.5rem;
+}
+
+/* Fix for form buttons */
+.btn .fas, .btn .far, .btn .fab, .btn .fa {
+    margin-right: 0.5rem;
+}
+
+/* Ensure icons are visible in tables */
+table .fas, table .far, table .fab, table .fa {
+    margin-right: 0.25rem;
+}
+
+/* Mobile responsive icon fixes */
+@media (max-width: 768px) {
+    .fas, .far, .fab, .fa {
+        font-size: 1rem !important;
+    }
+    
+    .fa-2x {
+        font-size: 1.5rem !important;
+    }
+    
+    .fa-3x {
+        font-size: 2rem !important;
+    }
+    
+    .fa-4x {
+        font-size: 2.5rem !important;
+    }
+}
+
+/* High DPI display fixes */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .fas, .far, .fab, .fa {
+        -webkit-font-smoothing: antialiased !important;
+        -moz-osx-font-smoothing: grayscale !important;
+    }
+}

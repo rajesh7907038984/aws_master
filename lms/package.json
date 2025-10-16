@@ -1,0 +1,23 @@
+{
+  "name": "lms",
+  "version": "1.0.0",
+  "description": "Learning Management System with Tailwind CSS",
+  "main": "index.js",
+  "scripts": {
+    "build-css": "npx tailwindcss -i ./static/css/src/tailwind.css -o ./static/css/tailwind.css --watch",
+    "build-css-prod": "npx tailwindcss -i ./static/css/src/tailwind.css -o ./static/css/tailwind.css --minify",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "lms",
+    "django",
+    "tailwindcss"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.18"
+  }
+}

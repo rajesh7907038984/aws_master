@@ -80,121 +80,7 @@
     };
     </script>
     
-    <!-- Global fix for UI issues - ensure sidebar/header components are displayed across all pages -->
-    <script>
-        // Ensure UI components are displayed across all pages
-        window.addEventListener('load', function() {
-            // Handle responsive behavior for sidebar and main content
-            const sidebar = document.getElementById('sidebar');
-            const mainContent = document.getElementById('main-content');
-            
-            // Apply responsive rules
-            if (sidebar && mainContent) {
-                if (window.innerWidth < 768) {
-                    // Mobile view
-                    sidebar.classList.add('hidden');
-                    sidebar.classList.remove('md:block');
-                    mainContent.classList.remove('md:ml-[200px]');
-                    mainContent.classList.add('ml-0');
-                    mainContent.classList.add('w-full');
-                    mainContent.classList.remove('md:w-calc-200');
-                } else {
-                    // Desktop view
-                    sidebar.classList.remove('hidden');
-                    sidebar.classList.add('md:block');
-                    
-                    // Check if sidebar is collapsed
-                    if (sidebar.classList.contains('collapsed')) {
-                        mainContent.classList.add('sidebar-collapsed');
-                    } else {
-                        mainContent.classList.remove('sidebar-collapsed');
-                    }
-                    
-                }
-            }
-            
-            // Fix header components
-            const header = document.querySelector('header');
-            if (header) {
-                // Target all header icons including discussion and notification icons
-            const headerIcons = header.querySelectorAll('a.header-icon, a.discussion-icon, a.notification-icon');
-            headerIcons.forEach(icon => {
-                if (icon) {
-                    icon.classList.remove('hidden');
-                    
-                    // Fix the SVG icons inside
-                    const svg = icon.querySelector('svg');
-                    if (svg) {
-                        svg.style.display = 'inline';
-                    }
-                    
-                    // Fix notification dots
-                    const notificationDot = icon.querySelector('span');
-                    if (notificationDot) {
-                        notificationDot.style.display = 'block';
-                    }
-                }
-            });
-                
-                // Fix the mobile-menu-toggle button
-                const mobileMenuToggle = header.querySelector('#mobile-menu-toggle');
-                if (mobileMenuToggle) {
-                    if (window.innerWidth < 768) {
-                        mobileMenuToggle.classList.remove('md:hidden');
-                    } else {
-                        mobileMenuToggle.classList.add('md:hidden');
-                    }
-                }
-            }
-        });
-
-        // Handle window resize events for sidebar
-        window.addEventListener('resize', function() {
-            const sidebar = document.getElementById('sidebar');
-            const mainContent = document.getElementById('main-content');
-            
-            if (sidebar && mainContent) {
-                if (window.innerWidth < 768) {
-                    // Mobile view - hide sidebar
-                    sidebar.classList.add('hidden');
-                    sidebar.classList.remove('md:block');
-                    mainContent.style.marginLeft = '0';
-                    mainContent.style.marginRight = '0';
-                    mainContent.style.width = '100%';
-                } else if (window.innerWidth < 1024) {
-                    // Tablet view - show left sidebar
-                    sidebar.classList.remove('hidden');
-                    sidebar.classList.add('md:block');
-                    
-                    // Check if sidebar is collapsed
-                    if (sidebar.classList.contains('collapsed')) {
-                        mainContent.style.marginLeft = '3.5rem';
-                        mainContent.style.marginRight = '0';
-                        mainContent.style.width = 'calc(100% - 3.5rem)';
-                    } else {
-                        mainContent.style.marginLeft = '16rem';
-                        mainContent.style.marginRight = '0';
-                        mainContent.style.width = 'calc(100% - 16rem)';
-                    }
-                } else {
-                    // Desktop view - show left sidebar
-                    sidebar.classList.remove('hidden');
-                    sidebar.classList.add('md:block');
-                    
-                    // Check if sidebar is collapsed
-                    if (sidebar.classList.contains('collapsed')) {
-                        mainContent.style.marginLeft = '3.5rem';
-                        mainContent.style.marginRight = '0';
-                        mainContent.style.width = 'calc(100% - 3.5rem)';
-                    } else {
-                        mainContent.style.marginLeft = '16rem';
-                        mainContent.style.marginRight = '0';
-                        mainContent.style.width = 'calc(100% - 16rem)';
-                    }
-                }
-            }
-        });
-    </script>
+    <!-- Enhanced responsive behavior handled by sidebar-comprehensive-fix.js -->
     
     <!-- DOMNodeInserted deprecation fix -->
     <script>
@@ -262,11 +148,101 @@
     
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     
-    <!-- Font Awesome -->
+    <!-- Font Awesome - Local fonts for better reliability -->
+    <link rel="stylesheet" href="{% static 'core/css/font-awesome-local.css' %}" type="text/css">
+    
+    <!-- CDN fallback for additional icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" type="text/css">
+    
+    <!-- Font Awesome loading verification script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if Font Awesome is loaded
+            function checkFontAwesome() {
+                const testIcon = document.createElement('i');
+                testIcon.className = 'fas fa-check';
+                testIcon.style.position = 'absolute';
+                testIcon.style.left = '-9999px';
+                testIcon.style.visibility = 'hidden';
+                document.body.appendChild(testIcon);
+                
+                const computedStyle = window.getComputedStyle(testIcon);
+                const fontFamily = computedStyle.getPropertyValue('font-family');
+                
+                document.body.removeChild(testIcon);
+                
+                // Check if Font Awesome font is loaded
+                if (fontFamily.includes('Font Awesome') || fontFamily.includes('FontAwesome')) {
+                    console.log('✅ Font Awesome loaded successfully');
+                    return true;
+                } else {
+                    console.warn('⚠️ Font Awesome not loaded, using fallback');
+                    return false;
+                }
+            }
+            
+            // Check Font Awesome loading after a short delay
+            setTimeout(checkFontAwesome, 1000);
+            
+            // Add fallback styles for missing icons
+            const style = document.createElement('style');
+            style.textContent = `
+                /* Fallback for missing Font Awesome icons */
+                .fas, .far, .fab, .fa {
+                    font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Pro', 'FontAwesome', sans-serif !important;
+                }
+                
+                /* Ensure icons are visible */
+                .fas, .far, .fab, .fa {
+                    display: inline-block !important;
+                    font-style: normal !important;
+                    font-variant: normal !important;
+                    text-rendering: auto !important;
+                    -webkit-font-smoothing: antialiased !important;
+                    -moz-osx-font-smoothing: grayscale !important;
+                }
+                
+                /* Specific icon fallbacks */
+                .fa-check-circle::before { content: "✓"; }
+                .fa-exclamation-circle::before { content: "⚠"; }
+                .fa-exclamation-triangle::before { content: "⚠"; }
+                .fa-info-circle::before { content: "ℹ"; }
+                .fa-times::before { content: "✕"; }
+                .fa-plus::before { content: "+"; }
+                .fa-search::before { content: "🔍"; }
+                .fa-edit::before { content: "✏"; }
+                .fa-trash::before { content: "🗑"; }
+                .fa-play::before { content: "▶"; }
+                .fa-user-graduate::before { content: "🎓"; }
+                .fa-clock::before { content: "🕐"; }
+                .fa-book-open::before { content: "📖"; }
+                .fa-envelope::before { content: "✉"; }
+                .fa-arrow-left::before { content: "←"; }
+                .fa-save::before { content: "💾"; }
+                .fa-spinner::before { content: "⟳"; }
+                .fa-eye::before { content: "👁"; }
+                .fa-filter::before { content: "🔽"; }
+                .fa-th-large::before { content: "⊞"; }
+                .fa-list::before { content: "☰"; }
+                .fa-home::before { content: "🏠"; }
+                .fa-book::before { content: "📚"; }
+                .fa-users::before { content: "👥"; }
+                .fa-tasks::before { content: "📋"; }
+                .fa-question-circle::before { content: "❓"; }
+                .fa-chart-bar::before { content: "📊"; }
+                .fa-cog::before { content: "⚙"; }
+                .fa-bell::before { content: "🔔"; }
+                .fa-comments::before { content: "💬"; }
+            `;
+            document.head.appendChild(style);
+        });
+    </script>
     
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" type="text/css">
+    
+    <!-- Tailwind CSS -->
+    <link href="{% static 'css/tailwind.css' %}" rel="stylesheet">
     
     <!-- Custom CSS -->
     <link href="{% static 'core/css/style.css' %}" rel="stylesheet" type="text/css">
@@ -274,81 +250,264 @@
     <link href="{% static 'core/css/table-standards.css' %}" rel="stylesheet" type="text/css">
     <link href="{% static 'core/css/chart-styles-unified.css' %}" rel="stylesheet" type="text/css">
     <link href="{% static 'courses/css/course_create.css' %}" rel="stylesheet" type="text/css">
-    <link href="{% static 'css/sidebar-unified.css' %}" rel="stylesheet" type="text/css">
+    <!-- Font Awesome fixes and fallbacks -->
+    <link href="{% static 'core/css/font-awesome-fixes.css' %}" rel="stylesheet" type="text/css">
+    <!-- Sidebar styles handled by sidebar-unified.css -->
     <link href="{% static 'css/styles.css' %}" rel="stylesheet" type="text/css">
     <link href="{% static 'css/dashboard-shared.css' %}" rel="stylesheet" type="text/css">
     
-    <!-- Sidebar Conflict Resolver - Load LAST to override all conflicts -->
+    <!-- Enhanced responsive styles -->
     <style>
-        /* SIDEBAR CONFLICT RESOLVER - Override all conflicting rules */
-        #sidebar .arrow-icon,
-        #sidebar.collapsed .arrow-icon,
-        html body #sidebar .arrow-icon,
-        html body #sidebar.collapsed .arrow-icon {
-            display: inline-block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-            color: white !important;
-            stroke: white !important;
-            fill: none !important;
-        }
+        /* Enhanced Mobile Responsiveness for Nexsy LMS */
         
-        /* Right Sidebar Responsive Styles */
-        @media (min-width: 1024px) {
-            /* When right sidebar is visible, adjust main content */
-            body:has([data-right-sidebar="visible"]) #main-content {
-                margin-right: 20rem !important;
-                width: calc(100% - 16rem - 20rem) !important;
-            }
-            
-            /* Right sidebar positioning */
-            [data-right-sidebar="visible"] {
-                display: block !important;
-                visibility: visible !important;
-                opacity: 1 !important;
-            }
-        }
-        
-        @media (max-width: 1023px) {
-            /* Hide right sidebar on smaller screens */
-            [data-right-sidebar="visible"] {
+        /* 1. Improved Sidebar Responsive Behavior */
+        @media (max-width: 768px) {
+            #sidebar {
                 display: none !important;
+                transform: translateX(-100%) !important;
+                width: 0 !important;
                 visibility: hidden !important;
                 opacity: 0 !important;
             }
             
-            /* Reset main content margins on smaller screens */
             #main-content {
-                margin-right: 0 !important;
-                width: calc(100% - 16rem) !important;
+                margin-left: 0 !important;
+                width: 100% !important;
+                padding: 1rem !important;
+            }
+            
+            /* Mobile menu overlay */
+            #mobile-menu {
+                position: fixed;
+                top: 4rem;
+                left: 0;
+                width: 100%;
+                height: calc(100vh - 4rem);
+                background-color: #1C2260;
+                z-index: 40;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+            
+            #mobile-menu.open {
+                transform: translateX(0);
             }
         }
-        
-        #sidebar.collapsed .arrow-icon {
-            opacity: 0.7 !important;
+
+        /* 2. Enhanced Course Grid Responsiveness */
+        .course-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.75rem;
         }
-        
-        /* Ensure submenu toggles work consistently */
-        #sidebar .menu-item.has-submenu .arrow-icon {
-            position: absolute !important;
-            right: 1rem !important;
-            transition: transform 0.3s ease !important;
-            width: 0.75rem !important;
-            height: 0.75rem !important;
+
+        @media (max-width: 1024px) {
+            .course-grid {
+                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+                gap: 1.5rem;
+            }
         }
-        
-        #sidebar .menu-item.has-submenu.expanded .arrow-icon {
-            transform: rotate(180deg) !important;
+
+        @media (max-width: 768px) {
+            .course-grid {
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+                gap: 1rem;
+            }
         }
-        
-        /* Mobile menu arrow icons */
-        #mobile-menu .arrow-icon {
-            display: inline-block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-            color: white !important;
-            stroke: white !important;
-            fill: none !important;
+
+        @media (max-width: 480px) {
+            .course-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+        }
+
+        /* 3. Improved Header Responsiveness */
+        @media (max-width: 768px) {
+            .header-container {
+                padding: 0 0.5rem;
+                flex-wrap: wrap;
+            }
+            
+            .header-left {
+                flex: 1;
+                min-width: 0;
+            }
+            
+            .header-right {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+            
+            /* Hide search bar on very small screens */
+            @media (max-width: 480px) {
+                .search-container {
+                    display: none;
+                }
+                
+                .mobile-search-toggle {
+                    display: flex !important;
+                }
+            }
+        }
+
+        /* 4. Enhanced Course Card Responsiveness */
+        @media (max-width: 768px) {
+            .course-card {
+                margin-bottom: 1rem;
+            }
+            
+            .course-grid .course-image {
+                height: 150px;
+            }
+            
+            .course-grid .course-content {
+                padding: 1rem;
+            }
+            
+            .course-grid .course-meta {
+                grid-template-columns: 1fr;
+                gap: 0.5rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .course-grid .course-image {
+                height: 120px;
+            }
+            
+            .course-grid .course-content {
+                padding: 0.75rem;
+            }
+            
+            .course-grid .course-category {
+                font-size: 0.7rem;
+                padding: 0.25rem 0.5rem;
+            }
+        }
+
+        /* 5. Filter Section Responsiveness */
+        @media (max-width: 768px) {
+            .filter-section {
+                padding: 1rem;
+                margin-bottom: 1rem;
+            }
+            
+            .filter-container {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+            
+            .filter-group {
+                min-width: auto;
+                width: 100%;
+            }
+        }
+
+        /* 6. Pagination Responsiveness */
+        @media (max-width: 480px) {
+            .pagination {
+                flex-wrap: wrap;
+                gap: 0.25rem;
+            }
+            
+            .pagination a,
+            .pagination span {
+                padding: 0.5rem 0.75rem;
+                font-size: 0.875rem;
+            }
+        }
+
+        /* 7. Improved Touch Targets */
+        @media (max-width: 768px) {
+            button,
+            a,
+            .clickable {
+                min-height: 44px;
+                min-width: 44px;
+                padding: 0.75rem;
+            }
+            
+            .course-edit-btn {
+                width: 40px;
+                height: 40px;
+            }
+        }
+
+        /* 8. Better Text Scaling */
+        @media (max-width: 480px) {
+            .course-title {
+                font-size: 1rem;
+                line-height: 1.4;
+            }
+            
+            .course-description {
+                font-size: 0.8rem;
+                line-height: 1.5;
+            }
+            
+            .course-meta {
+                font-size: 0.75rem;
+            }
+        }
+
+        /* 9. Enhanced Mobile Menu */
+        @media (max-width: 768px) {
+            .mobile-menu-toggle {
+                display: flex !important;
+                align-items: center;
+                justify-content: center;
+                width: 2.5rem;
+                height: 2.5rem;
+                background: transparent;
+                border: none;
+                color: #6b7280;
+                cursor: pointer;
+            }
+            
+            .mobile-menu-toggle:hover {
+                background-color: #f3f4f6;
+                border-radius: 50%;
+            }
+        }
+
+        /* 10. Improved Container Spacing */
+        @media (max-width: 768px) {
+            .container {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+            
+            .section-box {
+                margin-bottom: 1rem;
+                padding: 1rem;
+            }
+        }
+
+        /* 11. Better Form Responsiveness */
+        @media (max-width: 480px) {
+            input[type="text"],
+            input[type="email"],
+            input[type="password"],
+            select,
+            textarea {
+                font-size: 16px; /* Prevents zoom on iOS */
+                padding: 0.75rem;
+                width: 100%;
+            }
+        }
+
+        /* 12. Enhanced Loading States */
+        @media (max-width: 768px) {
+            .loading-spinner {
+                width: 2rem;
+                height: 2rem;
+            }
+            
+            .loading-text {
+                font-size: 0.875rem;
+            }
         }
     </style>
     
@@ -660,116 +819,7 @@
     
     {% block extra_css %}{% endblock %}
     
-    <!-- Fix for sidebar submenu toggle issues -->
-    <script>
-        // Global function to reinitialize submenu toggles
-        window.reinitializeSubmenuToggles = function() {
-            // Use a debounce mechanism to prevent too many logs
-            if (window.reinitializeInProgress) return;
-            window.reinitializeInProgress = true;
-            
-            // Only reinitialize if SidebarManager is available
-            if (window.SidebarManager && window.SidebarManager.isInitialized) {
-                window.SidebarManager.setupSubmenuToggles();
-            }
-            
-            // Reset debounce flag after a short delay
-            setTimeout(function() {
-                window.reinitializeInProgress = false;
-            }, 200);
-        };
-        
-        // Call after DOM load and only once when content changes
-        document.addEventListener('DOMContentLoaded', function() {
-            // Wait for SidebarManager to be available
-            const waitForSidebarManager = () => {
-                if (window.SidebarManager && window.SidebarManager.isInitialized) {
-                    window.reinitializeSubmenuToggles();
-                } else {
-                    setTimeout(waitForSidebarManager, 100);
-                }
-            };
-            
-            // Start waiting for SidebarManager
-            waitForSidebarManager();
-            
-            // Create a mutation observer with proper cleanup
-            let observer = null;
-            
-            function initializeObserver() {
-                if (observer) {
-                    observer.disconnect();
-                }
-                
-                observer = new MutationObserver(function(mutations) {
-                    let shouldReinitialize = false;
-                    
-                    mutations.forEach(function(mutation) {
-                        // Check if menu-related elements were added
-                        if (mutation.addedNodes && mutation.addedNodes.length) {
-                            for (let i = 0; i < mutation.addedNodes.length; i++) {
-                                const node = mutation.addedNodes[i];
-                                if (node.nodeType !== Node.ELEMENT_NODE) continue;
-                                
-                                // If this is a menu item or contains menu items
-                                if ((node.classList && (node.classList.contains('menu-item') || 
-                                                       node.classList.contains('has-submenu'))) ||
-                                    node.querySelector('.menu-item, .has-submenu, [data-submenu]')) {
-                                    shouldReinitialize = true;
-                                    break;
-                                }
-                            }
-                        }
-                    });
-                    
-                    if (shouldReinitialize) {
-                        // Wait for SidebarManager before reinitializing
-                        if (window.SidebarManager && window.SidebarManager.isInitialized) {
-                            window.reinitializeSubmenuToggles();
-                        }
-                    }
-                });
-                
-                // Observe the document body for changes
-                observer.observe(document.body, {
-                    childList: true,
-                    subtree: true
-                });
-            }
-            
-            // Initialize observer after a short delay to avoid conflicts
-            setTimeout(initializeObserver, 500);
-            
-            // Clean up observer on page unload
-            window.addEventListener('beforeunload', function() {
-                if (observer) {
-                    observer.disconnect();
-                    observer = null;
-                }
-            });
-            
-            // Clean up observer on navigation (for SPA-like behavior)
-            window.addEventListener('pagehide', function() {
-                if (observer) {
-                    observer.disconnect();
-                    observer = null;
-                }
-            });
-        });
-        
-        // Immediately try to initialize in case DOM is already loaded
-        if (document.readyState === "complete" || document.readyState === "interactive") {
-            setTimeout(function() {
-                if (window.reinitializeSubmenuToggles) {
-                    window.reinitializeSubmenuToggles();
-                }
-            }, 100);
-        }
-        
-        // Enhanced submenu fix - removed to prevent conflicts with SidebarManager
-        
-        // Removed duplicate submenu fix code to prevent conflicts
-    </script>
+    <!-- Sidebar functionality handled by sidebar-comprehensive-fix.js -->
 </head>
 <body class="h-full bg-white" {% if user.is_authenticated %}data-requires-auth="true" data-user-id="{{ user.id }}" data-session-id="{{ request.session.session_key|default:'' }}"{% endif %}>
     <div class="min-h-screen flex flex-col">
@@ -812,9 +862,6 @@
 
                 <!-- Content Container -->
                 <div class="w-full">
-                    <!-- Global Breadcrumbs -->
-                    {% block global_breadcrumbs %}{% endblock %}
-                    
                     {% block content %}{% endblock %}
                 </div>
             </main>
@@ -1084,69 +1131,8 @@
         });
     </script>
     
-    <!-- Comprehensive Sidebar Fix - Replaces all other sidebar scripts -->
+    <!-- Comprehensive Sidebar Fix - Handles all sidebar functionality -->
     <script src="{% static 'js/sidebar-comprehensive-fix.js' %}"></script>
-    
-    
-    <!-- Sidebar Test Script - For debugging -->
-    {% if settings.DEBUG %}
-    <script src="{% static 'js/sidebar-test.js' %}"></script>
-    {% endif %}
-    
-    <!-- Sidebar Toggle Fallback Function -->
-    <script>
-        // Enhanced fallback function for sidebar toggle - now only used as backup
-        function handleSidebarToggle(event) {
-            try {
-                if (event) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                }
-                
-                
-                // Check if we're on mobile
-                const isMobile = window.innerWidth < 768;
-                
-                if (isMobile) {
-                    // Mobile behavior - toggle mobile menu
-                    const mobileMenu = document.getElementById('mobile-menu');
-                    
-                    if (mobileMenu) {
-                        const wasOpen = mobileMenu.classList.contains('open');
-                        mobileMenu.classList.toggle('open');
-                        
-                        if (!wasOpen) {
-                            document.body.classList.add('overflow-hidden');
-                        } else {
-                            document.body.classList.remove('overflow-hidden');
-                        }
-                    } else {
-                        console.log('Mobile menu not found');
-                    }
-                } else {
-                    // Desktop behavior - toggle sidebar collapse
-                    const sidebar = document.getElementById('sidebar');
-                    const mainContent = document.getElementById('main-content');
-                    
-                    
-                    if (sidebar && mainContent) {
-                        const wasCollapsed = sidebar.classList.contains('collapsed');
-                        sidebar.classList.toggle('collapsed');
-                        mainContent.classList.toggle('sidebar-collapsed');
-                        
-                        // Store state
-                        localStorage.setItem('sidebar_collapsed', !wasCollapsed);
-                    } else {
-                        console.log('Sidebar or main content not found');
-                    }
-                }
-            } catch (error) {
-                console.error('Error in sidebar toggle:', error);
-            }
-        }
-        
-        // Make function globally available as fallback
-        window.handleSidebarToggle = handleSidebarToggle;
-    </script>
 </body>
 </html>
+
