@@ -236,16 +236,22 @@
     height: 2rem !important;
     border-radius: 50%;
     background-color: var(--dashboard-accent-light);
-    display: flex;
+    display: flex !important;
     align-items: center;
     justify-content: center;
     margin-right: 0.75rem !important;
     flex-shrink: 0;
+    position: relative;
 }
 
 .dashboard-overview-icon i {
     color: var(--dashboard-accent-color) !important;
     font-size: 0.875rem !important;
+    display: inline-block !important;
+    font-style: normal !important;
+    font-variant: normal !important;
+    text-rendering: auto !important;
+    line-height: 1 !important;
 }
 
 .dashboard-overview-content {
@@ -735,6 +741,10 @@
         width: 1.5rem !important;
         height: 1.5rem !important;
         margin-right: 0.5rem !important;
+    }
+    
+    .dashboard-overview-icon i {
+        font-size: 0.75rem !important;
     }
     
     .dashboard-overview-value {

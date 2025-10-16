@@ -121,6 +121,146 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // Real-time progress tracking for form completion
+    function initializeFormProgressTracking() {
+        const progressContainer = document.createElement('div');
+        progressContainer.id = 'form-progress-container';
+        progressContainer.className = 'fixed bottom-4 right-4 bg-white p-3 rounded-lg shadow-lg z-40 border border-gray-200 max-w-xs';
+        progressContainer.innerHTML = `
+            <div class="flex items-center justify-between mb-2">
+                <div class="text-xs font-medium text-gray-700">Form Progress</div>
+                <div class="text-xs text-gray-500"><span id="form-progress-percent">0%</span></div>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-1.5">
+                <div id="form-progress-bar" class="bg-green-500 h-1.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+            <div id="form-progress-status" class="text-xs text-gray-600 mt-1">Start filling out the form</div>
+        `;
+        
+        // Only show for create mode
+        if (isCreateMode) {
+            document.body.appendChild(progressContainer);
+        }
+        
+        // Track form completion progress
+        function updateFormProgress() {
+            if (!isCreateMode) return;
+            
+            let progress = 0;
+            let status = 'Start filling out the form';
+            let completedFields = 0;
+            let totalFields = 0;
+            
+            // Check required fields
+            const titleField = document.querySelector('[name="title"]');
+            const contentTypeField = document.querySelector('input[name="content_type"]:checked');
+            
+            if (titleField && titleField.value.trim()) {
+                progress += 30;
+                completedFields++;
+                status = 'Title added';
+            }
+            totalFields++;
+            
+            if (contentTypeField) {
+                progress += 20;
+                completedFields++;
+                status = 'Content type selected';
+            }
+            totalFields++;
+            
+            // Check content-specific fields based on selected type
+            if (contentTypeField) {
+                const selectedType = contentTypeField.value.toLowerCase();
+                
+                if (selectedType === 'text') {
+                    const textContent = document.querySelector('[name="text_content"]');
+                    if (textContent && textContent.value.trim() && textContent.value !== '<p></p>' && textContent.value !== '<p>&nbsp;</p>') {
+                        progress += 30;
+                        completedFields++;
+                        status = 'Text content added';
+                    }
+                    totalFields++;
+                } else if (selectedType === 'web') {
+                    const webUrl = document.querySelector('[name="web_url"]');
+                    if (webUrl && webUrl.value.trim()) {
+                        progress += 30;
+                        completedFields++;
+                        status = 'Web URL added';
+                    }
+                    totalFields++;
+                } else if (selectedType === 'embedvideo') {
+                    const embedCode = document.querySelector('[name="embed_code"]');
+                    if (embedCode && embedCode.value.trim()) {
+                        progress += 30;
+                        completedFields++;
+                        status = 'Embed code added';
+                    }
+                    totalFields++;
+                } else if (['video', 'document', 'audio'].includes(selectedType)) {
+                    const fileInput = document.querySelector('input[type="file"]');
+                    if (fileInput && fileInput.files.length > 0) {
+                        progress += 30;
+                        completedFields++;
+                        status = 'File selected';
+                    }
+                    totalFields++;
+                } else if (['quiz', 'assignment', 'conference', 'discussion'].includes(selectedType)) {
+                    const dropdownField = document.querySelector(`[name="${selectedType}"]`);
+                    if (dropdownField && dropdownField.value) {
+                        progress += 30;
+                        completedFields++;
+                        status = `${selectedType.charAt(0).toUpperCase() + selectedType.slice(1)} selected`;
+                    }
+                    totalFields++;
+                }
+            }
+            
+            // Check description field
+            const descriptionField = document.querySelector('[name="description"]');
+            if (descriptionField && descriptionField.value.trim()) {
+                progress += 10;
+                completedFields++;
+                if (status === 'Start filling out the form') {
+                    status = 'Description added';
+                }
+            }
+            totalFields++;
+            
+            // Update progress display
+            const progressBar = document.getElementById('form-progress-bar');
+            const progressText = document.getElementById('form-progress-percent');
+            const statusElement = document.getElementById('form-progress-status');
+            
+            if (progressBar && progressText && statusElement) {
+                progressBar.style.width = progress + '%';
+                progressText.textContent = progress + '%';
+                statusElement.textContent = status;
+                
+                // Change color based on progress
+                if (progress >= 80) {
+                    progressBar.className = 'bg-green-500 h-1.5 rounded-full transition-all duration-300';
+                } else if (progress >= 50) {
+                    progressBar.className = 'bg-yellow-500 h-1.5 rounded-full transition-all duration-300';
+                } else {
+                    progressBar.className = 'bg-blue-500 h-1.5 rounded-full transition-all duration-300';
+                }
+            }
+        }
+        
+        // Update progress on form changes
+        if (topicForm) {
+            topicForm.addEventListener('input', updateFormProgress);
+            topicForm.addEventListener('change', updateFormProgress);
+            
+            // Initial progress check
+            setTimeout(updateFormProgress, 500);
+        }
+    }
+    
+    // Initialize form progress tracking
+    initializeFormProgressTracking();
+    
     function hasUserStartedEditing() {
         const titleField = document.querySelector('input[name="title"], #topic_title');
         const descriptionField = document.querySelector('[name="description"]');
@@ -658,44 +798,103 @@ document.addEventListener('DOMContentLoaded', function() {
                     submitButton.disabled = true;
                     submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Submitting...';
                     
-                    // Add progress tracking
+                    // Enhanced progress tracking with live indication
                     const progressContainer = document.createElement('div');
                     progressContainer.id = 'progress-container';
-                    progressContainer.className = 'fixed top-4 right-4 bg-white p-4 rounded-lg shadow-lg z-50';
+                    progressContainer.className = 'fixed top-4 right-4 bg-white p-4 rounded-lg shadow-lg z-50 border border-gray-200';
                     progressContainer.innerHTML = `
-                        <div class="text-sm font-medium mb-2">Uploading content...</div>
-                        <div class="w-64 bg-gray-200 rounded-full h-2.5">
-                            <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="text-sm font-medium text-gray-900">Creating Topic</div>
+                            <div class="text-xs text-gray-500"><span id="progress-percent">0%</span> complete</div>
                         </div>
-                        <div class="text-xs text-gray-500 mt-1"><span id="progress-percent">0%</span> complete</div>
+                        <div class="w-64 bg-gray-200 rounded-full h-2.5 mb-2">
+                            <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-300 ease-out" style="width: 0%"></div>
+                        </div>
+                        <div id="progress-status" class="text-xs text-gray-600">Preparing submission...</div>
+                        <div id="progress-details" class="text-xs text-gray-500 mt-1"></div>
                     `;
                     
-                    // Only show progress for file uploads
-                        document.body.appendChild(progressContainer);
+                    // Always show progress for topic creation
+                    document.body.appendChild(progressContainer);
+                    
+                    // Hide form progress when submission starts
+                    const formProgressContainer = document.getElementById('form-progress-container');
+                    if (formProgressContainer) {
+                        formProgressContainer.style.display = 'none';
                     }
+                    
+                    // Initialize progress tracking
+                    updateProgressStatus('Preparing submission...', 0);
                     
                     // Create XHR request with progress monitoring
                     const xhr = new XMLHttpRequest();
                     
+                    // Progress tracking functions
+                    function updateProgressStatus(status, percent, details = '') {
+                        const progressBar = document.getElementById('progress-bar');
+                        const progressText = document.getElementById('progress-percent');
+                        const statusElement = document.getElementById('progress-status');
+                        const detailsElement = document.getElementById('progress-details');
+                        
+                        if (progressBar && progressText) {
+                            progressBar.style.width = percent + '%';
+                            progressText.textContent = percent + '%';
+                        }
+                        
+                        if (statusElement) {
+                            statusElement.textContent = status;
+                        }
+                        
+                        if (detailsElement && details) {
+                            detailsElement.textContent = details;
+                        }
+                    }
+                    
+                    // Simulate progress steps for better user experience
+                    let progressSteps = 0;
+                    const totalSteps = 5;
+                    
+                    // Step 1: Form validation
+                    updateProgressStatus('Validating form data...', 20, 'Checking required fields');
+                    progressSteps++;
+                    
+                    // Step 2: Content processing
+                    setTimeout(() => {
+                        updateProgressStatus('Processing content...', 40, 'Preparing content for upload');
+                        progressSteps++;
+                    }, 500);
+                    
                     xhr.upload.addEventListener('progress', function(e) {
                         if (e.lengthComputable) {
-                            const percent = Math.round((e.loaded / e.total) * 100);
-                            const progressBar = document.getElementById('progress-bar');
-                            const progressText = document.getElementById('progress-percent');
+                            const uploadPercent = Math.round((e.loaded / e.total) * 100);
+                            const totalPercent = Math.round(40 + (uploadPercent * 0.4)); // 40-80% for upload
                             
-                            if (progressBar && progressText) {
-                                progressBar.style.width = percent + '%';
-                                progressText.textContent = percent + '%';
-                            }
+                            updateProgressStatus('Uploading content...', totalPercent, 
+                                `Uploaded ${formatBytes(e.loaded)} of ${formatBytes(e.total)}`);
                         }
                     });
                     
+                    // Helper function to format bytes
+                    function formatBytes(bytes, decimals = 2) {
+                        if (bytes === 0) return '0 Bytes';
+                        const k = 1024;
+                        const dm = decimals < 0 ? 0 : decimals;
+                        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+                        const i = Math.floor(Math.log(bytes) / Math.log(k));
+                        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+                    }
+                    
                     xhr.addEventListener('load', function() {
-                        // Remove progress indicator
-                        const progressContainer = document.getElementById('progress-container');
-                        if (progressContainer) {
-                            progressContainer.remove();
-                        }
+                        // Update progress to completion
+                        updateProgressStatus('Processing response...', 90, 'Finalizing topic creation');
+                        
+                        // Remove progress indicator after a short delay
+                        setTimeout(() => {
+                            const progressContainer = document.getElementById('progress-container');
+                            if (progressContainer) {
+                                progressContainer.remove();
+                            }
+                        }, 1000);
                         
                         // Reset button state
                         submitButton.disabled = false;
@@ -706,7 +905,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             const response = JSON.parse(xhr.responseText);
                             
                             if (xhr.status >= 200 && xhr.status < 300) {
-                                // Success
+                                // Success - complete progress
+                                updateProgressStatus('Topic created successfully!', 100, 'Redirecting...');
+                                
+                                // Show success message
                                 displayGlobalSuccess(response.message || 'Topic saved successfully.');
                                 
                                 // Clear saved form data on success
@@ -714,7 +916,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                 
                                 // Redirect if a redirect URL is provided
                                 if (response.redirect_url) {
-                                    window.location.href = response.redirect_url;
+                                    setTimeout(() => {
+                                        window.location.href = response.redirect_url;
+                                    }, 1500);
                                 }
                             } else {
                                 // Error
@@ -750,11 +954,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                     
                     xhr.addEventListener('error', function() {
-                        // Remove progress indicator
-                        const progressContainer = document.getElementById('progress-container');
-                        if (progressContainer) {
-                            progressContainer.remove();
-                        }
+                        // Update progress to show error
+                        updateProgressStatus('Upload failed', 0, 'Network error occurred');
+                        
+                        // Remove progress indicator after showing error
+                        setTimeout(() => {
+                            const progressContainer = document.getElementById('progress-container');
+                            if (progressContainer) {
+                                progressContainer.remove();
+                            }
+                        }, 2000);
                         
                         // Reset button state
                         submitButton.disabled = false;

@@ -138,12 +138,20 @@
         SetBookmark: function(bookmark) {
             console.log('SCORM API: SetBookmark called with:', bookmark);
             this.data['cmi.core.lesson_location'] = bookmark;
+            
+            // FIXED: Send bookmark data to server immediately
+            this.sendDataToServer();
+            
             return "true";
         },
         
         SetDataChunk: function(data) {
             console.log('SCORM API: SetDataChunk called with:', data);
             this.data['cmi.core.suspend_data'] = data;
+            
+            // FIXED: Send suspend data to server immediately
+            this.sendDataToServer();
+            
             return "true";
         },
         
@@ -161,18 +169,30 @@
         SetPassed: function() {
             console.log('SCORM API: SetPassed called');
             this.data['cmi.core.lesson_status'] = 'passed';
+            
+            // FIXED: Send status to server immediately
+            this.sendDataToServer();
+            
             return "true";
         },
         
         SetReachedEnd: function() {
             console.log('SCORM API: SetReachedEnd called');
             this.data['cmi.core.lesson_status'] = 'completed';
+            
+            // FIXED: Send completion status to server immediately
+            this.sendDataToServer();
+            
             return "true";
         },
         
         SetScore: function(score) {
             console.log('SCORM API: SetScore called with:', score);
             this.data['cmi.core.score.raw'] = score;
+            
+            // FIXED: Send score to server immediately
+            this.sendDataToServer();
+            
             return "true";
         },
         

@@ -378,12 +378,20 @@ def scorm_content(request, topic_id, file_path):
         SetBookmark: function(bookmark) {{
             console.log('SCORM API: SetBookmark called with:', bookmark);
             this.data['cmi.core.lesson_location'] = bookmark;
+            
+            // FIXED: Send bookmark data to server immediately
+            this.sendDataToServer();
+            
             return "true";
         }},
         
         SetDataChunk: function(data) {{
             console.log('SCORM API: SetDataChunk called with:', data);
             this.data['cmi.core.suspend_data'] = data;
+            
+            // FIXED: Send suspend data to server immediately
+            this.sendDataToServer();
+            
             return "true";
         }},
         
@@ -490,30 +498,115 @@ def scorm_content(request, topic_id, file_path):
 // Simple API reference for Articulate content
 if (typeof window.API === 'undefined') {{
     window.API = {{
-        SetDataChunk: function(data) {{ return "true"; }},
-        GetDataChunk: function() {{ return ""; }},
-        SetPassed: function() {{ return "true"; }},
-        SetReachedEnd: function() {{ return "true"; }},
-        SetScore: function(score) {{ return "true"; }},
-        SetBookmark: function(bookmark) {{ return "true"; }},
-        SetFailed: function() {{ return "true"; }},
-        CommitData: function() {{ return "true"; }},
+        data: {{}},
+        commit_url: window.location.origin + '/scorm/api/{topic_id}/',
+        user_id: null,
+        topic_id: {topic_id},
+        
+        sendDataToServer: function() {{
+            console.log('SCORM API: Sending data to server');
+            const data = {{
+                'cmi.core.lesson_location': this.data['cmi.core.lesson_location'] || '',
+                'cmi.core.suspend_data': this.data['cmi.core.suspend_data'] || '',
+                'cmi.core.lesson_status': this.data['cmi.core.lesson_status'] || 'incomplete',
+                'cmi.core.score.raw': this.data['cmi.core.score.raw'] || '',
+                'cmi.core.entry': this.data['cmi.core.entry'] || 'ab-initio'
+            }};
+            
+            fetch(this.commit_url, {{
+                method: 'POST',
+                headers: {{
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+                }},
+                body: JSON.stringify({{
+                    'action': 'SetValue',
+                    'element': 'cmi.core.lesson_location',
+                    'value': data['cmi.core.lesson_location']
+                }})
+            }}).then(response => response.json())
+            .then(result => {{
+                console.log('SCORM API: Data sent to server:', result);
+            }}).catch(error => {{
+                console.error('SCORM API: Error sending data:', error);
+            }});
+        }},
+        
+        SetDataChunk: function(data) {{ 
+            console.log('SCORM API: SetDataChunk called with:', data);
+            this.data['cmi.core.suspend_data'] = data;
+            this.sendDataToServer();
+            return "true"; 
+        }},
+        GetDataChunk: function() {{ return this.data['cmi.core.suspend_data'] || ""; }},
+        SetPassed: function() {{ 
+            console.log('SCORM API: SetPassed called');
+            this.data['cmi.core.lesson_status'] = 'passed';
+            this.sendDataToServer();
+            return "true"; 
+        }},
+        SetReachedEnd: function() {{ 
+            console.log('SCORM API: SetReachedEnd called');
+            this.data['cmi.core.lesson_status'] = 'completed';
+            this.sendDataToServer();
+            return "true"; 
+        }},
+        SetScore: function(score) {{ 
+            console.log('SCORM API: SetScore called with:', score);
+            this.data['cmi.core.score.raw'] = score;
+            this.sendDataToServer();
+            return "true"; 
+        }},
+        SetBookmark: function(bookmark) {{ 
+            console.log('SCORM API: SetBookmark called with:', bookmark);
+            this.data['cmi.core.lesson_location'] = bookmark;
+            this.sendDataToServer();
+            return "true"; 
+        }},
+        SetFailed: function() {{ 
+            console.log('SCORM API: SetFailed called');
+            this.data['cmi.core.lesson_status'] = 'failed';
+            this.sendDataToServer();
+            return "true"; 
+        }},
+        CommitData: function() {{ 
+            console.log('SCORM API: CommitData called');
+            this.sendDataToServer();
+            return "true"; 
+        }},
         ConcedeControl: function() {{ return "true"; }},
         CreateResponseIdentifier: function() {{ return "true"; }},
-        Finish: function() {{ return "true"; }},
-        GetStatus: function() {{ return "incomplete"; }},
+        Finish: function() {{ 
+            console.log('SCORM API: Finish called');
+            this.sendDataToServer();
+            return "true"; 
+        }},
+        GetStatus: function() {{ return this.data['cmi.core.lesson_status'] || "incomplete"; }},
         MatchingResponse: function() {{ return "true"; }},
         RecordFillInInteraction: function() {{ return "true"; }},
         RecordMatchingInteraction: function() {{ return "true"; }},
         RecordMultipleChoiceInteraction: function() {{ return "true"; }},
-        ResetStatus: function() {{ return "true"; }},
+        ResetStatus: function() {{ 
+            this.data['cmi.core.lesson_status'] = 'incomplete';
+            return "true"; 
+        }},
         SetLanguagePreference: function(lang) {{ return "true"; }},
         WriteToDebug: function(message) {{ return "true"; }},
         LMSInitialize: function(param) {{ return "true"; }},
-        LMSGetValue: function(element) {{ return ""; }},
-        LMSSetValue: function(element, value) {{ return "true"; }},
-        LMSCommit: function(param) {{ return "true"; }},
-        LMSFinish: function(param) {{ return "true"; }},
+        LMSGetValue: function(element) {{ return this.data[element] || ""; }},
+        LMSSetValue: function(element, value) {{ 
+            this.data[element] = value;
+            this.sendDataToServer();
+            return "true"; 
+        }},
+        LMSCommit: function(param) {{ 
+            this.sendDataToServer();
+            return "true"; 
+        }},
+        LMSFinish: function(param) {{ 
+            this.sendDataToServer();
+            return "true"; 
+        }},
         LMSGetLastError: function() {{ return "0"; }},
         LMSGetErrorString: function(errorCode) {{ return "No Error"; }},
         LMSGetDiagnostic: function(errorCode) {{ return "No Error"; }}
@@ -542,7 +635,7 @@ if (typeof window.API === 'undefined') {{
             # Remove restrictive headers for SCORM content
             response['X-Frame-Options'] = 'SAMEORIGIN'
             # Allow inline scripts and eval for SCORM packages (Articulate requires this)
-            response['Content-Security-Policy'] = "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; frame-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self' blob:;"
+            response['Content-Security-Policy'] = "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; frame-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' metrics.articulate.com https://metrics.articulate.com; worker-src 'self' blob:;"
             # Additional headers for Articulate content
             response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
             response['Pragma'] = 'no-cache'
@@ -618,12 +711,30 @@ def _handle_scorm_get(request, topic_id):
             return JsonResponse({'value': str(tracking.session_time) if tracking.session_time else 'PT0S'})
         elif element == 'cmi.core.entry':
             # Return 'resume' if user has bookmarked content, 'ab-initio' for first time
+            # Enhanced resume detection logic
             has_bookmark = bool(tracking.location or tracking.raw_data.get('cmi.core.lesson_location', ''))
             has_suspend_data = bool(tracking.suspend_data or tracking.raw_data.get('cmi.core.suspend_data', ''))
-            # Resume if user has bookmark OR suspend data, and this is not their first launch
-            should_resume = (has_bookmark or has_suspend_data) and tracking.first_launch is not None
+            has_progress = tracking.completion_status not in ['not attempted', 'unknown']
+            has_time = tracking.total_time and tracking.total_time.total_seconds() > 0
+            has_score = tracking.score is not None and tracking.score > 0
+            
+            # Multiple indicators for resume
+            should_resume = (
+                (has_bookmark or has_suspend_data or has_progress or has_time or has_score) 
+                and tracking.first_launch is not None
+            )
+            
             entry_value = 'resume' if should_resume else 'ab-initio'
-            logger.info(f"SCORM: Getting entry for user {request.scorm_user.id}: {entry_value} (has_bookmark: {has_bookmark}, has_suspend_data: {has_suspend_data}, first_launch: {tracking.first_launch})")
+            
+            # Enhanced logging for resume detection
+            logger.info(f"SCORM Enhanced Resume Detection for user {request.scorm_user.id}:")
+            logger.info(f"  - Has bookmark: {has_bookmark}")
+            logger.info(f"  - Has suspend data: {has_suspend_data}")
+            logger.info(f"  - Has progress: {has_progress}")
+            logger.info(f"  - Has time: {has_time}")
+            logger.info(f"  - Has score: {has_score}")
+            logger.info(f"  - Should resume: {should_resume}")
+            logger.info(f"  - Entry value: {entry_value}")
             return JsonResponse({'value': entry_value})
         elif element == 'cmi.core.exit':
             return JsonResponse({'value': tracking.exit_value or tracking.raw_data.get('cmi.core.exit', '')})
@@ -649,8 +760,22 @@ def _handle_scorm_get(request, topic_id):
             mastery_score = tracking.student_data_mastery_score
             return JsonResponse({'value': str(mastery_score) if mastery_score is not None else ''})
         elif element == 'cmi.core.suspend_data':
-            # Return suspend data for Articulate
+            # Return suspend data for Articulate with size validation
             suspend_data = tracking.suspend_data or tracking.raw_data.get('cmi.core.suspend_data', '')
+            
+            # Validate suspend data size based on SCORM version
+            if package.package_type == 'SCORM_1_2' and len(suspend_data) > 4096:
+                logger.warning(f"SCORM: Suspend data exceeds SCORM 1.2 limit: {len(suspend_data)} chars")
+                # Truncate to fit SCORM 1.2 limit
+                suspend_data = suspend_data[:4096]
+                logger.info(f"SCORM: Truncated suspend data to {len(suspend_data)} chars")
+            elif package.package_type == 'SCORM_2004' and len(suspend_data) > 64000:
+                logger.warning(f"SCORM: Suspend data exceeds SCORM 2004 limit: {len(suspend_data)} chars")
+                # Truncate to fit SCORM 2004 limit
+                suspend_data = suspend_data[:64000]
+                logger.info(f"SCORM: Truncated suspend data to {len(suspend_data)} chars")
+            
+            logger.info(f"SCORM: Returning suspend data for user {request.scorm_user.id}: {len(suspend_data)} chars")
             return JsonResponse({'value': suspend_data})
         elif element == 'cmi.core.launch_data':
             # Return launch data for Articulate
@@ -851,6 +976,11 @@ def _handle_scorm_post(request, topic_id):
                 tracking.location = value
                 tracking.raw_data['cmi.core.lesson_location'] = value
                 logger.info(f"SCORM: Set lesson_location to {value}")
+                
+                # FIXED: Use enhanced bookmark method for proper handling
+                if value and value.strip():
+                    tracking.set_bookmark(value)
+                    logger.info(f"SCORM: Bookmark set for user {request.scorm_user.id} at location: {value}")
             elif element == 'cmi.core.exit' or element == 'cmi.exit':
                 # Handle all exit values: 'time-out', 'suspend', 'logout', 'normal', 'ab-initio'
                 valid_exits = ['time-out', 'suspend', 'logout', 'normal', 'ab-initio']
@@ -885,10 +1015,29 @@ def _handle_scorm_post(request, topic_id):
                 else:
                     logger.warning(f"SCORM: Invalid entry value: {value}")
             elif element == 'cmi.core.suspend_data' or element == 'cmi.suspend_data':
-                # Store suspend data (important for Articulate)
+                # Store suspend data (important for Articulate) with size validation
+                # Validate suspend data size based on SCORM version
+                if package.package_type == 'SCORM_1_2' and len(value) > 4096:
+                    logger.warning(f"SCORM: Suspend data exceeds SCORM 1.2 limit: {len(value)} chars")
+                    # Truncate to fit SCORM 1.2 limit
+                    value = value[:4096]
+                    logger.info(f"SCORM: Truncated suspend data to {len(value)} chars")
+                elif package.package_type == 'SCORM_2004' and len(value) > 64000:
+                    logger.warning(f"SCORM: Suspend data exceeds SCORM 2004 limit: {len(value)} chars")
+                    # Truncate to fit SCORM 2004 limit
+                    value = value[:64000]
+                    logger.info(f"SCORM: Truncated suspend data to {len(value)} chars")
+                
                 tracking.suspend_data = value
                 tracking.raw_data['cmi.core.suspend_data'] = value
-                logger.info(f"SCORM: Set suspend_data to {value[:100]}...")  # Log first 100 chars
+                logger.info(f"SCORM: Set suspend_data to {value[:100]}... ({len(value)} chars)")  # Log first 100 chars
+                
+                # FIXED: Use enhanced bookmark method for proper handling
+                if value and value.strip():
+                    # Get current location if available
+                    current_location = tracking.location or tracking.raw_data.get('cmi.core.lesson_location', '')
+                    tracking.set_bookmark(current_location, value)
+                    logger.info(f"SCORM: Suspend data set for user {request.scorm_user.id}")
             elif element == 'cmi.core.launch_data' or element == 'cmi.launch_data':
                 # Store launch data (important for Articulate)
                 tracking.launch_data = value
@@ -1394,3 +1543,342 @@ def _generate_xapi_statement(tracking, element, value):
         
     except Exception as e:
         logger.error(f"Error generating xAPI statement: {str(e)}")
+
+def xapi_launch(request, topic_id):
+    """Launch an xAPI package"""
+    if not request.user.is_authenticated:
+        messages.error(request, "Authentication required to access xAPI content.")
+        return redirect('login')
+    
+    user = request.user
+    topic = get_object_or_404(Topic, id=topic_id)
+    
+    # Check if user has access to this topic
+    if not topic.course.user_has_access(user):
+        messages.error(request, "You don't have access to this content.")
+        return redirect('courses:course_list')
+    
+    try:
+        scorm_package = ELearningPackage.objects.get(topic=topic)
+    except ELearningPackage.DoesNotExist:
+        messages.error(request, "xAPI package not found.")
+        return redirect('courses:topic_view', topic_id=topic_id)
+    
+    if not scorm_package.is_extracted:
+        messages.error(request, "xAPI package is not properly extracted.")
+        return redirect('courses:topic_view', topic_id=topic_id)
+    
+    # Generate xAPI launch URL
+    launch_url = scorm_package.get_content_url()
+    
+    logger.info(f"xAPI Launch: User {user.username} launching xAPI package for topic {topic_id}")
+    logger.info(f"xAPI Launch: Launch URL: {launch_url}")
+    
+    return render(request, 'scorm/launch.html', {
+        'topic': topic,
+        'scorm_package': scorm_package,
+        'launch_url': launch_url,
+        'package_type': 'xAPI'
+    })
+
+def cmi5_launch(request, topic_id):
+    """Launch a cmi5 package"""
+    if not request.user.is_authenticated:
+        messages.error(request, "Authentication required to access cmi5 content.")
+        return redirect('login')
+    
+    user = request.user
+    topic = get_object_or_404(Topic, id=topic_id)
+    
+    # Check if user has access to this topic
+    if not topic.course.user_has_access(user):
+        messages.error(request, "You don't have access to this content.")
+        return redirect('courses:course_list')
+    
+    try:
+        scorm_package = ELearningPackage.objects.get(topic=topic)
+    except ELearningPackage.DoesNotExist:
+        messages.error(request, "cmi5 package not found.")
+        return redirect('courses:topic_view', topic_id=topic_id)
+    
+    if not scorm_package.is_extracted:
+        messages.error(request, "cmi5 package is not properly extracted.")
+        return redirect('courses:topic_view', topic_id=topic_id)
+    
+    # Generate cmi5 launch URL
+    launch_url = scorm_package.get_content_url()
+    
+    logger.info(f"cmi5 Launch: User {user.username} launching cmi5 package for topic {topic_id}")
+    logger.info(f"cmi5 Launch: Launch URL: {launch_url}")
+    
+    return render(request, 'scorm/launch.html', {
+        'topic': topic,
+        'scorm_package': scorm_package,
+        'launch_url': launch_url,
+        'package_type': 'cmi5'
+    })
+
+def validate_elearning_package(package_path, package_type):
+    """Validate eLearning packages for all standards"""
+    try:
+        if package_type in ['SCORM_1_2', 'SCORM_2004']:
+            return validate_scorm_package(package_path)
+        elif package_type == 'XAPI':
+            return validate_xapi_package(package_path)
+        elif package_type == 'CMI5':
+            return validate_cmi5_package(package_path)
+        elif package_type == 'AICC':
+            return validate_aicc_package(package_path)
+        else:
+            logger.warning(f"Unknown package type: {package_type}")
+            return False
+    except Exception as e:
+        logger.error(f"Error validating {package_type} package: {str(e)}")
+        return False
+
+def validate_scorm_package(package_path):
+    """Validate SCORM package integrity"""
+    try:
+        # Check for imsmanifest.xml
+        manifest_path = os.path.join(package_path, 'imsmanifest.xml')
+        if not os.path.exists(manifest_path):
+            logger.error("SCORM: imsmanifest.xml not found")
+            return False
+        
+        # Parse manifest
+        import xml.etree.ElementTree as ET
+        tree = ET.parse(manifest_path)
+        root = tree.getroot()
+        
+        # Check for required elements
+        if not root.find('.//{http://www.imsglobal.org/xsd/imscp_v1p1}organization'):
+            logger.error("SCORM: No organization found in manifest")
+            return False
+        
+        if not root.find('.//{http://www.imsglobal.org/xsd/imscp_v1p1}resource'):
+            logger.error("SCORM: No resources found in manifest")
+            return False
+        
+        logger.info("SCORM: Package validation successful")
+        return True
+        
+    except Exception as e:
+        logger.error(f"SCORM validation error: {str(e)}")
+        return False
+
+def validate_xapi_package(package_path):
+    """Validate xAPI package integrity"""
+    try:
+        # Check for tincan.xml or package.json
+        tincan_path = os.path.join(package_path, 'tincan.xml')
+        package_json_path = os.path.join(package_path, 'package.json')
+        
+        if not os.path.exists(tincan_path) and not os.path.exists(package_json_path):
+            logger.error("xAPI: No tincan.xml or package.json found")
+            return False
+        
+        # Check for launch file
+        launch_files = ['index.html', 'launch.html', 'tincan.html']
+        found_launch = False
+        for launch_file in launch_files:
+            if os.path.exists(os.path.join(package_path, launch_file)):
+                found_launch = True
+                break
+        
+        if not found_launch:
+            logger.error("xAPI: No launch file found")
+            return False
+        
+        logger.info("xAPI: Package validation successful")
+        return True
+        
+    except Exception as e:
+        logger.error(f"xAPI validation error: {str(e)}")
+        return False
+
+def validate_cmi5_package(package_path):
+    """Validate cmi5 package integrity"""
+    try:
+        # Check for cmi5.xml
+        cmi5_path = os.path.join(package_path, 'cmi5.xml')
+        if not os.path.exists(cmi5_path):
+            logger.error("cmi5: cmi5.xml not found")
+            return False
+        
+        # Parse cmi5.xml
+        import xml.etree.ElementTree as ET
+        tree = ET.parse(cmi5_path)
+        root = tree.getroot()
+        
+        # Check for required elements
+        if not root.find('.//{http://www.imsglobal.org/xsd/cmi5}au'):
+            logger.error("cmi5: No Assignable Units found")
+            return False
+        
+        logger.info("cmi5: Package validation successful")
+        return True
+        
+    except Exception as e:
+        logger.error(f"cmi5 validation error: {str(e)}")
+        return False
+
+def validate_aicc_package(package_path):
+    """Validate AICC package integrity"""
+    try:
+        # Check for courstruct.cst
+        cst_path = os.path.join(package_path, 'coursestruct.cst')
+        if not os.path.exists(cst_path):
+            logger.error("AICC: courstruct.cst not found")
+            return False
+        
+        # Check for launch file
+        launch_files = ['index.html', 'launch.html', 'au.html']
+        found_launch = False
+        for launch_file in launch_files:
+            if os.path.exists(os.path.join(package_path, launch_file)):
+                found_launch = True
+                break
+        
+        if not found_launch:
+            logger.error("AICC: No launch file found")
+            return False
+        
+        logger.info("AICC: Package validation successful")
+        return True
+        
+    except Exception as e:
+        logger.error(f"AICC validation error: {str(e)}")
+        return False
+
+def handle_elearning_error(error_code, package_type, context=None):
+    """Handle eLearning errors gracefully for all standards"""
+    try:
+        error_messages = {
+            # SCORM Error Codes
+            '301': 'Not Implemented - The data model element is not supported',
+            '302': 'Invalid Set Value - The value being set is not valid',
+            '303': 'Element Not Initialized - The data model element has not been initialized',
+            '304': 'Not Initialized - The LMS has not been initialized',
+            '305': 'Not Implemented - The data model element is not supported',
+            '401': 'Not Implemented - The data model element is not supported',
+            '402': 'Invalid Set Value - The value being set is not valid',
+            '403': 'Element Not Initialized - The data model element has not been initialized',
+            '404': 'Not Initialized - The LMS has not been initialized',
+            '405': 'Not Implemented - The data model element is not supported',
+            
+            # xAPI Error Codes
+            'xapi_400': 'Bad Request - Invalid xAPI statement',
+            'xapi_401': 'Unauthorized - Authentication required',
+            'xapi_403': 'Forbidden - Access denied',
+            'xapi_404': 'Not Found - Activity not found',
+            'xapi_500': 'Internal Server Error - LRS error',
+            
+            # cmi5 Error Codes
+            'cmi5_400': 'Bad Request - Invalid cmi5 request',
+            'cmi5_401': 'Unauthorized - Authentication required',
+            'cmi5_403': 'Forbidden - Access denied',
+            'cmi5_404': 'Not Found - AU not found',
+            'cmi5_500': 'Internal Server Error - LMS error',
+            
+            # AICC Error Codes
+            'aicc_400': 'Bad Request - Invalid AICC request',
+            'aicc_401': 'Unauthorized - Authentication required',
+            'aicc_403': 'Forbidden - Access denied',
+            'aicc_404': 'Not Found - Course not found',
+            'aicc_500': 'Internal Server Error - LMS error',
+        }
+        
+        # Get error message
+        error_message = error_messages.get(str(error_code), f"Unknown error: {error_code}")
+        
+        # Log error with context
+        logger.error(f"{package_type} Error {error_code}: {error_message}")
+        if context:
+            logger.error(f"Context: {context}")
+        
+        # Return structured error response
+        return {
+            'error_code': error_code,
+            'error_message': error_message,
+            'package_type': package_type,
+            'context': context,
+            'timestamp': timezone.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error handling {package_type} error {error_code}: {str(e)}")
+        return {
+            'error_code': '999',
+            'error_message': 'Internal error handling system error',
+            'package_type': package_type,
+            'context': str(e),
+            'timestamp': timezone.now().isoformat()
+        }
+
+def get_elearning_error_response(error_code, package_type, context=None):
+    """Get appropriate HTTP response for eLearning errors"""
+    try:
+        error_info = handle_elearning_error(error_code, package_type, context)
+        
+        # Determine HTTP status code based on error
+        if str(error_code).startswith('4'):
+            http_status = 400  # Bad Request
+        elif str(error_code).startswith('5'):
+            http_status = 500  # Internal Server Error
+        else:
+            http_status = 400  # Default to Bad Request
+        
+        return JsonResponse(error_info, status=http_status)
+        
+    except Exception as e:
+        logger.error(f"Error creating error response: {str(e)}")
+        return JsonResponse({
+            'error_code': '999',
+            'error_message': 'Internal error creating error response',
+            'package_type': package_type,
+            'timestamp': timezone.now().isoformat()
+        }, status=500)
+
+def validate_elearning_package_endpoint(request, topic_id):
+    """Endpoint to validate eLearning packages"""
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Authentication required'}, status=401)
+    
+    try:
+        topic = get_object_or_404(Topic, id=topic_id)
+        package = ELearningPackage.objects.get(topic=topic)
+        
+        if not package.is_extracted:
+            return JsonResponse({
+                'valid': False,
+                'error': 'Package not extracted',
+                'package_type': package.package_type
+            })
+        
+        # Get package path
+        package_path = package.package_file.storage.path(package.extracted_path)
+        
+        # Validate package
+        is_valid = validate_elearning_package(package_path, package.package_type)
+        
+        return JsonResponse({
+            'valid': is_valid,
+            'package_type': package.package_type,
+            'topic_id': topic_id,
+            'extracted': package.is_extracted,
+            'launch_file': package.launch_file
+        })
+        
+    except ELearningPackage.DoesNotExist:
+        return JsonResponse({
+            'valid': False,
+            'error': 'Package not found',
+            'topic_id': topic_id
+        })
+    except Exception as e:
+        logger.error(f"Error validating package for topic {topic_id}: {str(e)}")
+        return JsonResponse({
+            'valid': False,
+            'error': str(e),
+            'topic_id': topic_id
+        })

@@ -364,199 +364,26 @@ def get_activity_best_score(activity, student_id, grades, quiz_attempts):
                 'is_best_score': True
             }
             
-        # removed activity type removed
-        # removed topic activity type removed
-        elif activity['type'] == 'discussion':
-            # Check for discussion rubric evaluations
-            discussion = activity['object']
-            max_score = discussion.rubric.total_points if discussion.rubric else 0
-            
-            if discussion.rubric:
-                try:
-                    # Import here to avoid circular imports
-                    from lms_rubrics.models import RubricEvaluation
-                    
-                    # Get all rubric evaluations for this discussion and student
-                    evaluations = RubricEvaluation.objects.filter(
-                        discussion=discussion,
-                        student_id=student_id
-                    ).select_related('criterion')
-                    
-                    if evaluations.exists():
-                        # Calculate total score from rubric evaluations
-                        total_score = sum(evaluation.points for evaluation in evaluations)
-                        latest_evaluation = evaluations.order_by('-created_at').first()
-                        
-                        return {
-                            'score': total_score,
-                            'max_score': max_score,
-                            'date': latest_evaluation.created_at,
-                            'type': 'discussion',
-                            'object': discussion,
-                            'evaluations': evaluations
-                        }
-                except Exception:
-                    # If there's any error getting discussion evaluations, fall back to no score
-                    pass
-            
-            return {
-                'score': None,
-                'max_score': max_score,
-                'type': 'discussion',
-                'object': discussion
-            }
-            
-        elif activity['type'] == 'conference':
-            # Check for conference rubric evaluations
-            conference = activity['object']
-            max_score = conference.rubric.total_points if conference.rubric else 0
-            
-            if conference.rubric:
-                try:
-                    # Import here to avoid circular imports
-                    from conferences.models import ConferenceRubricEvaluation, ConferenceAttendance
-                    
-                    # Get the attendance record for this student and conference
-                    attendance = ConferenceAttendance.objects.filter(
-                        conference=conference,
-                        user_id=student_id
-                    ).first()
-                    
-                    if attendance:
-                        # Get all rubric evaluations for this attendance
-                        evaluations = ConferenceRubricEvaluation.objects.filter(
-                            conference=conference,
-                            attendance=attendance
-                        ).select_related('criterion')
-                        
-                        if evaluations.exists():
-                            # Calculate total score from rubric evaluations
-                            total_score = sum(evaluation.points for evaluation in evaluations)
-                            latest_evaluation = evaluations.order_by('-created_at').first()
-                            
-                            return {
-                                'score': total_score,
-                                'max_score': max_score,
-                                'date': latest_evaluation.created_at,
-                                'type': 'conference',
-                                'object': conference,
-                                'attendance': attendance,
-                                'evaluations': evaluations
-                            }
-                except Exception:
-                    # If there's any error getting conference evaluations, fall back to no score
-                    pass
-            
-            return {
-                'score': None,
-                'max_score': max_score,
-                'type': 'conference',
-                'object': conference
-            }
-            
-        # removed activity type removed
-        # removed topic activity type removed
-        elif activity['type'] == 'discussion':
-            # Look for discussion rubric evaluations
-            discussion = activity['object']
-            
-            if discussion.rubric:
-                try:
-                    # Import here to avoid circular imports
-                    from lms_rubrics.models import RubricEvaluation
-                    
-                    # Get all rubric evaluations for this discussion and student
-                    evaluations = RubricEvaluation.objects.filter(
-                        discussion=discussion,
-                        student_id=student_id
-                    )
-                    
-                    if evaluations.exists():
-                        # Calculate total score from rubric evaluations
-                        total_score = sum(Decimal(str(evaluation.points)) for evaluation in evaluations)
-                        total_earned += total_score
-                except Exception:
-                    # If there's any error getting discussion evaluations, continue without adding to total
-                    pass
-            
-            # Add total possible points for discussion
-            total_possible += activity_max_score
-        
-        elif activity['type'] == 'conference':
-            # Look for conference rubric evaluations
-            conference = activity['object']
-            
-            if conference.rubric:
-                try:
-                    # Import here to avoid circular imports
-                    from conferences.models import ConferenceRubricEvaluation, ConferenceAttendance
-                    
-                    # Get the attendance record for this student and conference
-                    attendance = ConferenceAttendance.objects.filter(
-                        conference=conference,
-                        user_id=student_id
-                    ).first()
-                    
-                    if attendance:
-                        # Get all rubric evaluations for this attendance
-                        evaluations = ConferenceRubricEvaluation.objects.filter(
-                            conference=conference,
-                            attendance=attendance
-                        )
-                        
-                        if evaluations.exists():
-                            # Calculate total score from rubric evaluations
-                            total_score = sum(Decimal(str(evaluation.points)) for evaluation in evaluations)
-                            total_earned += total_score
-                except Exception:
-                    # If there's any error getting conference evaluations, continue without adding to total
-                    pass
-                    
-                    # Add total possible points for conference
-                    total_possible += activity_max_score
-                            
-                # removed activity type removed
-        elif activity['type'] == 'removed_topic':
-            # Handle removed topics - check TopicProgress for scores
-            try:
-                from courses.models import TopicProgress
-                
-                topic_progress = TopicProgress.objects.filter(
-                    topic=activity['object'],
-                    user_id=student_id
-                ).first()
-                
-                if topic_progress and topic_progress.last_score is not None:
-                    # Convert the score (typically 0-100) to a percentage of max_score
-                    score_percentage = Decimal(str(topic_progress.last_score)) / Decimal('100')
-                    activity_score = score_percentage * activity_max_score
-                    
-                    # Add to total only if completed or has a passing score
-                    if topic_progress.completed or float(topic_progress.last_score) >= 70:
-                        total_earned += activity_score
-            except Exception:
-                pass
-            
-            # Add total possible points for removed topic
-            total_possible += activity_max_score
-        
         else:
-            # For any other activity types, just add the max_score to total_possible
-            total_possible += activity_max_score
-        
-        # Calculate percentage with proper precision
-        percentage = round((total_earned / total_possible * 100), 1) if total_possible > 0 else Decimal('0')
-        
-        return {
-            'earned': round(float(total_earned), 1),  # Round to one decimal place for display
-            'possible': round(float(total_possible), 1),  # Round to one decimal place for display
-            'percentage': round(float(percentage), 1)  # Round to one decimal place
-        }
+            # For any other activity types, return default values
+            return {
+                'score': None,
+                'max_score': activity['max_score'],
+                'type': activity['type'],
+                'object': activity['object'],
+                'is_best_score': True
+            }
         
     except (ValueError, AttributeError, TypeError) as e:
         import logging
-        logging.error(f"Error in calculate_student_total: {str(e)}")
-        return {'earned': 0, 'possible': 0, 'percentage': 0}
+        logging.error(f"Error in get_activity_best_score: {str(e)}")
+        return {
+            'score': None,
+            'max_score': activity.get('max_score', 0),
+            'type': activity.get('type', 'unknown'),
+            'object': activity.get('object'),
+            'is_best_score': True
+        }
 
 @register.simple_tag
 def get_removed_registration(removed_registrations, package_id):

@@ -184,6 +184,10 @@ class ELearningPackage(models.Model):
             
             # Find the launch file
             self.launch_file = self._find_launch_file(full_topic_dir)
+            if self.launch_file:
+                logger.info(f"SCORM: Launch file detected: {self.launch_file} for package type {self.package_type}")
+            else:
+                logger.warning(f"SCORM: No launch file found for package type {self.package_type}")
             self.extracted_path = topic_dir  # Store relative path
             self.is_extracted = True
             self.extraction_error = ""
@@ -332,29 +336,123 @@ class ELearningPackage(models.Model):
                         self.title = line.split('=')[1].strip() if '=' in line else ""
     
     def _find_launch_file(self, base_path):
-        """Find the main launch file based on package type"""
+        """Find the main launch file based on package type with intelligent priority selection"""
         launch_files = []
         
         if self.package_type in ['SCORM_1_2', 'SCORM_2004']:
-            launch_files = ['index.html', 'launch.html', 'start.html', 'main.html']
+            launch_files = [
+                # Articulate Storyline files (priority order)
+                'index_lms.html',      # LMS mode (SCORM integration) - HIGHEST PRIORITY
+                'story.html',          # Standalone mode (no SCORM)
+                'analytics-frame.html', # Analytics mode
+                'lms/goodbye.html',    # Exit page (SCORM completion)
+                
+                # Standard SCORM files
+                'index.html', 
+                'launch.html', 
+                'start.html', 
+                'main.html',
+                
+                # SCORM content subdirectory patterns
+                'scormcontent/index.html',
+                'scormcontent/launch.html',
+                'scormcontent/start.html',
+                'content/index.html',
+                'data/index.html',
+                
+                # Additional Articulate files
+                'lms/blank.html',      # Blank page
+                'lms/AICCComm.html'   # AICC communication
+            ]
         elif self.package_type == 'XAPI':
-            launch_files = ['index.html', 'launch.html', 'start.html', 'main.html', 'tincan.html']
+            launch_files = [
+                # xAPI specific files (priority order)
+                'tincan.html',          # xAPI Tin Can launch file
+                'launch.html',          # xAPI launch file
+                'player.html',          # xAPI player
+                'index.html',           # Standard HTML entry point
+                'start.html',           # Alternative start file
+                'main.html',            # Main content file
+                
+                # xAPI subdirectory patterns
+                'tincan/index.html',
+                'tincan/launch.html',
+                'xapi/index.html',
+                'xapi/launch.html',
+                'content/index.html',
+                'data/index.html',
+                'player/index.html'
+            ]
         elif self.package_type == 'CMI5':
-            launch_files = ['index.html', 'launch.html', 'start.html', 'main.html', 'cmi5.html']
+            launch_files = [
+                # cmi5 specific files (priority order)
+                'cmi5.html',            # cmi5 launch file
+                'au.html',              # Assignable Unit launch
+                'launch.html',          # cmi5 launch file
+                'player.html',          # cmi5 player
+                'index.html',           # Standard HTML entry point
+                'start.html',           # Alternative start file
+                'main.html',            # Main content file
+                
+                # cmi5 subdirectory patterns
+                'cmi5/index.html',
+                'cmi5/launch.html',
+                'au/index.html',
+                'au/launch.html',
+                'content/index.html',
+                'data/index.html',
+                'player/index.html'
+            ]
         elif self.package_type == 'AICC':
-            launch_files = ['index.html', 'launch.html', 'start.html', 'main.html']
+            launch_files = [
+                # AICC specific files (priority order)
+                'au.html',              # AICC Assignable Unit
+                'launch.html',          # AICC launch file
+                'player.html',          # AICC player
+                'index.html',           # Standard HTML entry point
+                'start.html',           # Alternative start file
+                'main.html',            # Main content file
+                
+                # AICC subdirectory patterns
+                'aicc/index.html',
+                'aicc/launch.html',
+                'au/index.html',
+                'au/launch.html',
+                'content/index.html',
+                'data/index.html',
+                'player/index.html'
+            ]
         
+        # Intelligent priority-based search
+        found_files = []
         for root, dirs, files in os.walk(base_path):
             for file in files:
                 if file.lower() in [f.lower() for f in launch_files]:
-                    return os.path.relpath(os.path.join(root, file), base_path)
+                    file_path = os.path.relpath(os.path.join(root, file), base_path)
+                    found_files.append(file_path)
+        
+        # Return the highest priority file found
+        if found_files:
+            # Sort by priority (order in launch_files list)
+            for preferred_file in launch_files:
+                for found_file in found_files:
+                    if found_file.lower() == preferred_file.lower():
+                        logger.info(f"SCORM: Selected launch file '{found_file}' (priority: {preferred_file}) for package type {self.package_type}")
+                        return found_file
+            
+            # Fallback to first found file
+            logger.info(f"SCORM: Using fallback launch file '{found_files[0]}' for package type {self.package_type}")
+            return found_files[0]
         
         # If no common launch file found, look for HTML files
         for root, dirs, files in os.walk(base_path):
             for file in files:
                 if file.lower().endswith('.html'):
-                    return os.path.relpath(os.path.join(root, file), base_path)
+                    file_path = os.path.relpath(os.path.join(root, file), base_path)
+                    logger.info(f"SCORM: Using generic HTML file '{file_path}' for package type {self.package_type}")
+                    return file_path
         
+        logger.warning(f"SCORM: No launch file found for package type {self.package_type}")
         return None
     
     def detect_package_type(self):
@@ -742,6 +840,12 @@ class ELearningTracking(models.Model):
         if suspend_data:
             self.raw_data['cmi.core.suspend_data'] = suspend_data
         self.raw_data['cmi.core.entry'] = 'resume'
+        
+        # FIXED: Also update the location field for easier querying
+        self.location = location
+        if suspend_data:
+            self.suspend_data = suspend_data
+            
         self.save()
         logger.info(f"SCORM: Bookmark set for user {self.user.id} at location: {location}")
     
@@ -750,6 +854,11 @@ class ELearningTracking(models.Model):
         self.raw_data.pop('cmi.core.lesson_location', None)
         self.raw_data.pop('cmi.core.suspend_data', None)
         self.raw_data['cmi.core.entry'] = 'ab-initio'
+        
+        # FIXED: Also clear the location and suspend_data fields
+        self.location = ''
+        self.suspend_data = ''
+        
         self.save()
         logger.info(f"SCORM: Bookmark cleared for user {self.user.id}")
 

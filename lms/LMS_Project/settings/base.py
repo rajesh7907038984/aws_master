@@ -334,8 +334,8 @@ SESSION_COOKIE_AGE = 604800  # 7 days (extended from 24 hours to reduce logout i
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # Keep sessions alive across browser restarts
 SESSION_SAVE_EVERY_REQUEST = True  # CRITICAL: Enable session saving for proper login/logout
 
-# Session serialization and security
-SESSION_SERIALIZER = 'django.contrib.sessions.serializers.JSONSerializer'
+# Session serialization and security - Use PickleSerializer for better compatibility
+SESSION_SERIALIZER = 'django.contrib.sessions.serializers.PickleSerializer'
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'  # Changed from None to Lax for better security and compatibility
 SESSION_COOKIE_NAME = 'lms_sessionid'  # Custom session cookie name

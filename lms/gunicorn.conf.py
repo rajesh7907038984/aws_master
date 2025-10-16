@@ -13,7 +13,7 @@ LOGS_DIR = os.environ.get('LOGS_DIR', '/home/ec2-user/lmslogs')
 SERVER_USER = os.environ.get('SERVER_USER', 'ec2-user')
 SERVER_GROUP = os.environ.get('SERVER_GROUP', 'ec2-user')
 GUNICORN_BIND = os.environ.get('GUNICORN_BIND', '0.0.0.0:8000')
-GUNICORN_TIMEOUT = int(os.environ.get('GUNICORN_TIMEOUT', '30'))
+GUNICORN_TIMEOUT = int(os.environ.get('GUNICORN_TIMEOUT', '120'))  # Increased from 30 to 120 seconds
 
 # Calculate workers - optimized for 2 CPU cores (3.8GB RAM)
 workers_env = os.environ.get('GUNICORN_WORKERS', 'auto')
@@ -70,7 +70,8 @@ preload_app = True
 worker_tmp_dir = "/dev/shm"
 
 # Graceful timeout for worker restart
-graceful_timeout = 30
+graceful_timeout = 60  # Increased from 30 to 60 seconds
+timeout = GUNICORN_TIMEOUT  # Use the timeout setting
 
 # Environment variables - dynamically set based on DJANGO_ENV
 raw_env = [

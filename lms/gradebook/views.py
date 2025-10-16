@@ -9,6 +9,7 @@ from courses.models import Course, CourseEnrollment, Topic
 from quiz.models import Quiz, QuizAttempt, QuizRubricEvaluation
 from discussions.models import Discussion
 from conferences.models import Conference, ConferenceRubricEvaluation
+from scorm.models import ELearningPackage, ELearningTracking
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from decimal import Decimal
@@ -290,6 +291,41 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                                     'type': 'conference'
                                 }
                         
+                        elif activity_type == 'scorm':
+                            scorm_package = activity['object']
+                            max_score = activity['max_score']
+                            
+                            # Get SCORM tracking record for this student
+                            try:
+                                tracking = ELearningTracking.objects.filter(
+                                    user=student,
+                                    elearning_package=scorm_package
+                                ).first()
+                                
+                                if tracking and tracking.score_raw is not None:
+                                    student_scores[activity_id] = {
+                                        'score': tracking.score_raw,
+                                        'max_score': max_score,
+                                        'date': tracking.updated_at,
+                                        'type': 'scorm',
+                                        'completion_status': tracking.completion_status,
+                                        'success_status': tracking.success_status,
+                                        'tracking': tracking
+                                    }
+                                else:
+                                    student_scores[activity_id] = {
+                                        'score': None,
+                                        'max_score': max_score,
+                                        'type': 'scorm'
+                                    }
+                            except Exception as e:
+                                logger.error(f"Error getting SCORM tracking for student {student.id}: {str(e)}")
+                                student_scores[activity_id] = {
+                                    'score': None,
+                                    'max_score': max_score,
+                                    'type': 'scorm'
+                                }
+                        
                     
                     except Exception as e:
                         logger.error(f"Error processing activity {activity_id} for student {student.id}: {str(e)}")
@@ -564,6 +600,19 @@ def gradebook_index(request):
             Q(topics__isnull=True)
         ).distinct().prefetch_related('course', 'topics__courses').order_by('created_at')
 
+        # Get SCORM packages with course associations only
+        scorm_packages = ELearningPackage.objects.filter(
+            Q(topic__courses__in=courses)  # Topic-based course relationship
+        ).filter(
+            is_extracted=True  # Only extracted packages
+        ).filter(
+            # Only topics that are active
+            Q(topic__status='active')
+        ).distinct().select_related('topic').prefetch_related(
+            'topic__courses',
+            'tracking_records'
+        ).order_by('created_at')
+
 
         # Helper function to get course info for activities
         def get_activity_course_info(activity, activity_type):
@@ -584,6 +633,10 @@ def gradebook_index(request):
                     topic = activity.topics.first()
                     if hasattr(topic, 'courses') and topic.courses.exists():
                         course_info = topic.courses.first()
+            elif activity_type == 'scorm':
+                if hasattr(activity, 'topic') and activity.topic:
+                    if hasattr(activity.topic, 'courses') and activity.topic.courses.exists():
+                        course_info = activity.topic.courses.first()
             return course_info
 
         # Process activities based on filter
@@ -657,6 +710,27 @@ def gradebook_index(request):
                         'title': conference.title,
                         'course': course_info,
                         'created_at': conference.created_at,
+                        'max_score': max_score,
+                    })
+
+        if activity_filter == 'all' or activity_filter == 'scorm':
+            for scorm_package in scorm_packages:
+                course_info = get_activity_course_info(scorm_package, 'scorm')
+                if course_info:  # Only include if has course association
+                    # For SCORM packages, we'll use a default max score of 100 or the package's max score if available
+                    max_score = 100  # Default max score for SCORM packages
+                    if scorm_package.tracking_records.exists():
+                        # Try to get max score from tracking records
+                        tracking = scorm_package.tracking_records.first()
+                        if tracking.score_max is not None:
+                            max_score = tracking.score_max
+                    
+                    activities_data.append({
+                        'object': scorm_package,
+                        'type': 'scorm',
+                        'title': scorm_package.title or scorm_package.topic.title,
+                        'course': course_info,
+                        'created_at': scorm_package.created_at,
                         'max_score': max_score,
                     })
 
@@ -769,6 +843,33 @@ def gradebook_index(request):
                     except Exception as e:
                         logger.error(f"Error checking conference attendance: {str(e)}")
                         return "Not Started"
+                
+                elif activity_type == 'scorm':
+                    try:
+                        from scorm.models import ELearningTracking
+                        tracking = ELearningTracking.objects.filter(
+                            elearning_package=activity_obj,
+                            user_id=user_id
+                        ).first()
+                        
+                        if tracking:
+                            # Check completion and success status
+                            if tracking.completion_status == 'completed':
+                                if tracking.success_status == 'passed':
+                                    return "Completed"
+                                elif tracking.success_status == 'failed':
+                                    return "Failed"
+                                else:
+                                    return "Completed"
+                            elif tracking.completion_status == 'incomplete':
+                                return "In Progress"
+                            else:
+                                return "Not Started"
+                        else:
+                            return "Not Started"
+                    except Exception as e:
+                        logger.error(f"Error checking SCORM status: {str(e)}")
+                        return "Not Started"
                         
                 
                 return "Not Started"
@@ -816,6 +917,7 @@ def gradebook_index(request):
         ('initial_assessment', 'Initial Assessments'),
         ('discussion', 'Discussions'),
         ('conference', 'Conferences'),
+        ('scorm', 'SCORM Packages'),
     ]
     
     # Course choices for filter dropdown

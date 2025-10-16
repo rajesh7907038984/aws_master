@@ -48,53 +48,102 @@ class SCORM2004SequencingEngine:
             )
     
     def process_sequencing_rules(self, action, target=None):
-        """Process SCORM 2004 sequencing rules"""
-        sequencing_rules = self.sequencing.sequencing_rules or {}
+        """Process SCORM 2004 sequencing rules with enhanced error handling"""
+        try:
+            sequencing_rules = self.sequencing.sequencing_rules or {}
+            
+            # Validate input parameters
+            if not self._validate_input(action, target):
+                return False, "Invalid input parameters"
+            
+            # Pre-conditions
+            pre_condition_result, pre_condition_message = self._check_pre_conditions(action, target)
+            if not pre_condition_result:
+                return False, f"Pre-conditions not met: {pre_condition_message}"
+            
+            # Post-conditions
+            post_condition_result, post_condition_message = self._check_post_conditions(action, target)
+            if not post_condition_result:
+                return False, f"Post-conditions not met: {post_condition_message}"
+            
+            # Apply sequencing rules
+            result = self._apply_sequencing_rules(action, target)
+            
+            # Update activity state
+            self._update_activity_state(action, target)
+            
+            return True, result
+            
+        except Exception as e:
+            # Log error and return safe response
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error processing sequencing rules: {e}")
+            return False, f"Sequencing error: {str(e)}"
+    
+    def _validate_input(self, action, target):
+        """Validate input parameters"""
+        # Validate action
+        valid_actions = ['navigate', 'rollup', 'choice', 'flow', 'completed', 'passed', 'failed']
+        if action not in valid_actions:
+            return False
         
-        # Pre-conditions
-        if not self._check_pre_conditions(action, target):
-            return False, "Pre-conditions not met"
+        # Validate target if provided
+        if target and not isinstance(target, str):
+            return False
         
-        # Post-conditions
-        if not self._check_post_conditions(action, target):
-            return False, "Post-conditions not met"
-        
-        # Apply sequencing rules
-        result = self._apply_sequencing_rules(action, target)
-        
-        # Update activity state
-        self._update_activity_state(action, target)
-        
-        return True, result
+        return True
     
     def _check_pre_conditions(self, action, target):
         """Check pre-conditions for sequencing"""
-        pre_conditions = self.sequencing.sequencing_rules.get('pre_conditions', {})
-        
-        # Check if activity is available
-        if not self._is_activity_available():
-            return False
-        
-        # Check prerequisites
-        if not self._check_prerequisites():
-            return False
-        
-        # Check objective satisfaction
-        if not self._check_objective_satisfaction():
-            return False
-        
-        return True
+        try:
+            pre_conditions = self.sequencing.sequencing_rules.get('pre_conditions', {})
+            
+            # Check if activity is available
+            if not self._is_activity_available():
+                return False, "Activity not available"
+            
+            # Check prerequisites
+            prereq_result, prereq_message = self._check_prerequisites()
+            if not prereq_result:
+                return False, f"Prerequisites not met: {prereq_message}"
+            
+            # Check objective satisfaction
+            objective_result, objective_message = self._check_objective_satisfaction()
+            if not objective_result:
+                return False, f"Objectives not satisfied: {objective_message}"
+            
+            return True, "Pre-conditions satisfied"
+            
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error checking pre-conditions: {e}")
+            return False, f"Pre-condition error: {str(e)}"
     
     def _check_post_conditions(self, action, target):
         """Check post-conditions for sequencing"""
-        post_conditions = self.sequencing.sequencing_rules.get('post_conditions', {})
-        
-        # Check if action is allowed
-        allowed_actions = post_conditions.get('allowed_actions', [])
-        if allowed_actions and action not in allowed_actions:
-            return False
-        
-        return True
+        try:
+            post_conditions = self.sequencing.sequencing_rules.get('post_conditions', {})
+            
+            # Check if action is allowed
+            allowed_actions = post_conditions.get('allowed_actions', [])
+            if allowed_actions and action not in allowed_actions:
+                return False, f"Action '{action}' not allowed"
+            
+            # Check if target is valid
+            if target and 'valid_targets' in post_conditions:
+                valid_targets = post_conditions['valid_targets']
+                if target not in valid_targets:
+                    return False, f"Target '{target}' not valid"
+            
+            return True, "Post-conditions satisfied"
+            
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error checking post-conditions: {e}")
+            return False, f"Post-condition error: {str(e)}"
     
     def _apply_sequencing_rules(self, action, target):
         """Apply sequencing rules based on action"""
@@ -185,18 +234,26 @@ class SCORM2004SequencingEngine:
     
     def _check_prerequisites(self):
         """Check prerequisites for activity"""
-        prerequisites = self.sequencing.prerequisites or {}
-        
-        if not prerequisites:
-            return True
-        
-        # Check prerequisite activities
-        prerequisite_activities = prerequisites.get('activities', [])
-        for prereq_activity in prerequisite_activities:
-            if not self._is_prerequisite_satisfied(prereq_activity):
-                return False
-        
-        return True
+        try:
+            prerequisites = self.sequencing.prerequisites or {}
+            
+            if not prerequisites:
+                return True, "No prerequisites"
+            
+            # Check prerequisite activities
+            prerequisite_activities = prerequisites.get('activities', [])
+            for prereq_activity in prerequisite_activities:
+                prereq_result, prereq_message = self._is_prerequisite_satisfied(prereq_activity)
+                if not prereq_result:
+                    return False, f"Prerequisite not satisfied: {prereq_message}"
+            
+            return True, "All prerequisites satisfied"
+            
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error checking prerequisites: {e}")
+            return False, f"Prerequisite error: {str(e)}"
     
     def _is_prerequisite_satisfied(self, prereq_activity):
         """Check if prerequisite activity is satisfied"""
@@ -210,51 +267,72 @@ class SCORM2004SequencingEngine:
             # Check completion
             if prereq_activity.get('completion_required', False):
                 if prereq_state.completion_status != 'completed':
-                    return False
+                    return False, f"Prerequisite {prereq_activity['id']} not completed"
             
             # Check success
             if prereq_activity.get('success_required', False):
                 if prereq_state.success_status != 'passed':
-                    return False
+                    return False, f"Prerequisite {prereq_activity['id']} not passed"
             
             # Check score
             if prereq_activity.get('score_required'):
                 if prereq_state.score_scaled < prereq_activity['score_required']:
-                    return False
+                    return False, f"Prerequisite {prereq_activity['id']} score too low"
             
-            return True
+            return True, f"Prerequisite {prereq_activity['id']} satisfied"
+            
         except SCORM2004ActivityState.DoesNotExist:
-            return False
+            return False, f"Prerequisite {prereq_activity['id']} not attempted"
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error checking prerequisite: {e}")
+            return False, f"Prerequisite error: {str(e)}"
     
     def _check_objective_satisfaction(self):
         """Check objective satisfaction"""
-        objectives = self.sequencing.objectives or {}
-        
-        if not objectives:
-            return True
-        
-        # Check if objectives are satisfied
-        for objective_id, objective_data in objectives.items():
-            if not self._is_objective_satisfied(objective_id, objective_data):
-                return False
-        
-        return True
+        try:
+            objectives = self.sequencing.objectives or {}
+            
+            if not objectives:
+                return True, "No objectives"
+            
+            # Check if objectives are satisfied
+            for objective_id, objective_data in objectives.items():
+                objective_result, objective_message = self._is_objective_satisfied(objective_id, objective_data)
+                if not objective_result:
+                    return False, f"Objective not satisfied: {objective_message}"
+            
+            return True, "All objectives satisfied"
+            
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error checking objectives: {e}")
+            return False, f"Objective error: {str(e)}"
     
     def _is_objective_satisfied(self, objective_id, objective_data):
         """Check if objective is satisfied"""
-        objective_state = self.activity_state.objectives.get(objective_id, {})
-        
-        # Check completion
-        if objective_data.get('completion_required', False):
-            if objective_state.get('completion_status') != 'completed':
-                return False
-        
-        # Check success
-        if objective_data.get('success_required', False):
-            if objective_state.get('success_status') != 'passed':
-                return False
-        
-        return True
+        try:
+            objective_state = self.activity_state.objectives.get(objective_id, {})
+            
+            # Check completion
+            if objective_data.get('completion_required', False):
+                if objective_state.get('completion_status') != 'completed':
+                    return False, f"Objective {objective_id} not completed"
+            
+            # Check success
+            if objective_data.get('success_required', False):
+                if objective_state.get('success_status') != 'passed':
+                    return False, f"Objective {objective_id} not passed"
+            
+            return True, f"Objective {objective_id} satisfied"
+            
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error checking objective {objective_id}: {e}")
+            return False, f"Objective error: {str(e)}"
     
     def _is_forward_navigation(self, target):
         """Check if navigation is forward"""
@@ -326,8 +404,34 @@ class SCORM2004SequencingEngine:
     
     def _check_children_completion(self):
         """Check if all children are completed"""
-        # Simple implementation - in real system would check activity tree
-        return True
+        # Enhanced implementation with proper activity tree checking
+        try:
+            # Get child activities from sequencing rules
+            children = self.sequencing.sequencing_rules.get('children', [])
+            if not children:
+                return True
+            
+            # Check each child's completion status
+            for child_id in children:
+                try:
+                    child_state = SCORM2004ActivityState.objects.get(
+                        activity_id=child_id,
+                        learner=self.learner,
+                        registration_id=self.registration_id
+                    )
+                    if child_state.completion_status != 'completed':
+                        return False
+                except SCORM2004ActivityState.DoesNotExist:
+                    # Child not attempted yet
+                    return False
+            
+            return True
+        except Exception as e:
+            # Log error and return safe default
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error checking children completion: {e}")
+            return False
     
     def _check_objectives_satisfied(self):
         """Check if objectives are satisfied"""
@@ -341,8 +445,47 @@ class SCORM2004SequencingEngine:
     
     def _calculate_children_progress(self):
         """Calculate progress from children activities"""
-        # Simple implementation - in real system would calculate from activity tree
-        return 1.0
+        try:
+            # Get child activities from sequencing rules
+            children = self.sequencing.sequencing_rules.get('children', [])
+            if not children:
+                return 1.0
+            
+            total_progress = 0.0
+            completed_children = 0
+            
+            # Calculate progress from each child
+            for child_id in children:
+                try:
+                    child_state = SCORM2004ActivityState.objects.get(
+                        activity_id=child_id,
+                        learner=self.learner,
+                        registration_id=self.registration_id
+                    )
+                    
+                    # Get child's progress measure
+                    child_progress = child_state.progress_measure or 0.0
+                    total_progress += child_progress
+                    
+                    if child_state.completion_status == 'completed':
+                        completed_children += 1
+                        
+                except SCORM2004ActivityState.DoesNotExist:
+                    # Child not attempted yet, count as 0 progress
+                    pass
+            
+            # Calculate average progress
+            if children:
+                return total_progress / len(children)
+            else:
+                return 1.0
+                
+        except Exception as e:
+            # Log error and return safe default
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error calculating children progress: {e}")
+            return 0.0
     
     def _update_activity_state(self, action, target):
         """Update activity state based on action"""

@@ -245,15 +245,20 @@
     }
     
     .dashboard-overview-card .dashboard-overview-icon {
-        width: 48px;
-        height: 48px;
+        width: 2rem !important;
+        height: 2rem !important;
+        border-radius: 50%;
+        background-color: var(--dashboard-accent-light);
         display: flex;
         align-items: center;
         justify-content: center;
-        color: #667eea;
-        font-size: 1.5rem;
-        margin-right: 1rem;
+        margin-right: 0.75rem !important;
         flex-shrink: 0;
+    }
+    
+    .dashboard-overview-card .dashboard-overview-icon i {
+        color: var(--dashboard-accent-color) !important;
+        font-size: 0.875rem !important;
     }
     
     .dashboard-overview-card .dashboard-overview-content {
@@ -348,10 +353,13 @@
         }
         
         .dashboard-overview-card .dashboard-overview-icon {
-            width: 40px;
-            height: 40px;
-            font-size: 1.25rem;
-            margin-right: 0.75rem;
+            width: 1.5rem !important;
+            height: 1.5rem !important;
+            margin-right: 0.5rem !important;
+        }
+        
+        .dashboard-overview-card .dashboard-overview-icon i {
+            font-size: 0.75rem !important;
         }
         
         .dashboard-overview-card .dashboard-overview-value {

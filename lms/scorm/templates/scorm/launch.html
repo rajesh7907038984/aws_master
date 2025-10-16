@@ -4,6 +4,9 @@
 {% block title %}Launch SCORM - {{ topic.title }}{% endblock %}
 
 {% block extra_css %}
+<!-- SCORM Error Fixes -->
+<script src="{% url 'scorm:error_fixes' %}"></script>
+<script src="{% url 'scorm:console_cleaner' %}"></script>
 <style>
     .scorm-container {
         width: 100%;
@@ -66,6 +69,7 @@
 </div>
 
 <div id="scorm-content">
+    {% if launch_url %}
     <iframe 
         id="scorm-iframe" 
         class="scorm-iframe" 
@@ -81,6 +85,21 @@
         webkitallowfullscreen="webkitallowfullscreen"
         allow="fullscreen; microphone; camera; autoplay; encrypted-media">
     </iframe>
+    {% else %}
+    <div class="scorm-error">
+        <h3>SCORM Content Not Available</h3>
+        <p>The SCORM package for this topic is not properly configured.</p>
+        <p><strong>Debug Information:</strong></p>
+        <ul>
+            <li>Topic ID: {{ topic.id }}</li>
+            <li>Package Type: {{ scorm_package.package_type|default:"Not set" }}</li>
+            <li>Is Extracted: {{ scorm_package.is_extracted|yesno:"Yes,No" }}</li>
+            <li>Launch File: {{ scorm_package.launch_file|default:"Not set" }}</li>
+            <li>Extracted Path: {{ scorm_package.extracted_path|default:"Not set" }}</li>
+        </ul>
+        <p>Please contact your administrator to fix this issue.</p>
+    </div>
+    {% endif %}
     
     <!-- SCORM API Discovery Script for Content -->
     <script>
@@ -661,12 +680,20 @@ var API = {
     SetBookmark: function(bookmark) {
         console.log('SCORM API: SetBookmark called with:', bookmark);
         this.data['cmi.core.lesson_location'] = bookmark;
+        
+        // FIXED: Send bookmark data to server immediately
+        this.sendElementToServer('cmi.core.lesson_location', bookmark);
+        
         return "true";
     },
     
     SetDataChunk: function(data) {
         console.log('SCORM API: SetDataChunk called with:', data);
         this.data['cmi.core.suspend_data'] = data;
+        
+        // FIXED: Send suspend data to server immediately
+        this.sendElementToServer('cmi.core.suspend_data', data);
+        
         return "true";
     },
     
@@ -1180,75 +1207,138 @@ try {
 
 console.log('SCORM API: Initialized and available globally');
 
-// Inject API into iframe when it loads - ENHANCED
-function injectAPIIntoIframe() {
-    const iframe = document.getElementById('scorm-iframe');
-    if (iframe && iframe.contentWindow) {
-        try {
-            // Inject the API into the iframe - MULTIPLE METHODS
-            iframe.contentWindow.API = API;
-            
-            // Set up parent references for SCORM content discovery
-            iframe.contentWindow.parent = iframe.contentWindow.parent || iframe.contentWindow;
-            iframe.contentWindow.top = iframe.contentWindow.top || iframe.contentWindow;
-            
-            // Set API in all possible locations
-            iframe.contentWindow.parent.API = API;
-            iframe.contentWindow.top.API = API;
-            
-            // Additional API references for complex SCORM content
-            if (iframe.contentWindow.parent && iframe.contentWindow.parent !== iframe.contentWindow) {
+    // Inject API into iframe when it loads - ENHANCED
+    function injectAPIIntoIframe() {
+        const iframe = document.getElementById('scorm-iframe');
+        if (iframe && iframe.contentWindow) {
+            try {
+                // Inject the API into the iframe - MULTIPLE METHODS
+                iframe.contentWindow.API = API;
+                
+                // Set up parent references for SCORM content discovery
+                iframe.contentWindow.parent = iframe.contentWindow.parent || iframe.contentWindow;
+                iframe.contentWindow.top = iframe.contentWindow.top || iframe.contentWindow;
+                
+                // Set API in all possible locations
                 iframe.contentWindow.parent.API = API;
-            }
-            
-            if (iframe.contentWindow.top && iframe.contentWindow.top !== iframe.contentWindow) {
                 iframe.contentWindow.top.API = API;
-            }
-            
-            // Set up additional API references for Articulate content
-            if (iframe.contentWindow.parent && iframe.contentWindow.parent.parent) {
-                iframe.contentWindow.parent.parent.API = API;
-            }
-            
-            // Also set in global scope within iframe
-            if (iframe.contentWindow.window) {
-                iframe.contentWindow.window.API = API;
-            }
-            
-            // CRITICAL FIX: Set up SD reference for CourseExit.js
-            if (iframe.contentWindow.parent) {
-                iframe.contentWindow.parent.SD = API;
-                iframe.contentWindow.parent.ConcedeControl = function() {
+                
+                // Additional API references for complex SCORM content
+                if (iframe.contentWindow.parent && iframe.contentWindow.parent !== iframe.contentWindow) {
+                    iframe.contentWindow.parent.API = API;
+                }
+                
+                if (iframe.contentWindow.top && iframe.contentWindow.top !== iframe.contentWindow) {
+                    iframe.contentWindow.top.API = API;
+                }
+                
+                // Set up additional API references for Articulate content
+                if (iframe.contentWindow.parent && iframe.contentWindow.parent.parent) {
+                    iframe.contentWindow.parent.parent.API = API;
+                }
+                
+                // Also set in global scope within iframe
+                if (iframe.contentWindow.window) {
+                    iframe.contentWindow.window.API = API;
+                }
+                
+                // CRITICAL FIX: Set up SD reference for CourseExit.js
+                if (iframe.contentWindow.parent) {
+                    iframe.contentWindow.parent.SD = API;
+                    iframe.contentWindow.parent.ConcedeControl = function() {
+                        // Directly redirect to prevent goodbye.html from showing
+                        const backToTopicUrl = "{% url 'courses:topic_view' topic.id %}";
+                        window.parent.location.href = backToTopicUrl;
+                        return "true";
+                    };
+                }
+                
+                // Also set SD in the iframe content window itself
+                iframe.contentWindow.SD = API;
+                iframe.contentWindow.ConcedeControl = function() {
                     // Directly redirect to prevent goodbye.html from showing
                     const backToTopicUrl = "{% url 'courses:topic_view' topic.id %}";
                     window.parent.location.href = backToTopicUrl;
                     return "true";
                 };
+                
+                // Additional direct function exposure for compatibility
+                iframe.contentWindow.parent.LMSFinish = function() {
+                    return API.LMSFinish.call(API);
+                };
+                iframe.contentWindow.parent.Finish = function() {
+                    return API.Finish.call(API);
+                };
+                
+                // CRITICAL FIX: Also inject the API directly into the iframe's document
+                try {
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    if (iframeDoc) {
+                        // Create a script element with the API
+                        const script = iframeDoc.createElement('script');
+                        script.textContent = `
+                            // SCORM API for iframe content
+                            window.API = parent.API || window.parent.API || window.top.API;
+                            window.parent = window.parent || window;
+                            window.top = window.top || window;
+                            window.parent.API = window.API;
+                            window.top.API = window.API;
+                            
+                            // Make sure API is available globally
+                            if (typeof window.API === 'undefined') {
+                                window.API = {
+                                    LMSInitialize: function() { return "true"; },
+                                    LMSGetValue: function() { return ""; },
+                                    LMSSetValue: function() { return "true"; },
+                                    LMSCommit: function() { return "true"; },
+                                    LMSFinish: function() { return "true"; },
+                                    SetBookmark: function(bookmark) { 
+                                        if (parent.API && parent.API.SetBookmark) {
+                                            return parent.API.SetBookmark(bookmark);
+                                        }
+                                        return "true"; 
+                                    },
+                                    SetDataChunk: function(data) { 
+                                        if (parent.API && parent.API.SetDataChunk) {
+                                            return parent.API.SetDataChunk(data);
+                                        }
+                                        return "true"; 
+                                    },
+                                    SetPassed: function() { 
+                                        if (parent.API && parent.API.SetPassed) {
+                                            return parent.API.SetPassed();
+                                        }
+                                        return "true"; 
+                                    },
+                                    SetReachedEnd: function() { 
+                                        if (parent.API && parent.API.SetReachedEnd) {
+                                            return parent.API.SetReachedEnd();
+                                        }
+                                        return "true"; 
+                                    },
+                                    SetScore: function(score) { 
+                                        if (parent.API && parent.API.SetScore) {
+                                            return parent.API.SetScore(score);
+                                        }
+                                        return "true"; 
+                                    }
+                                };
+                            }
+                            
+                            console.log('SCORM API: Injected into iframe document');
+                        `;
+                        iframeDoc.head.appendChild(script);
+                    }
+                } catch (e) {
+                    console.log('SCORM API: Could not inject into iframe document:', e.message);
+                }
+                
+                console.log('SCORM API: API injected into iframe with enhanced discovery and SD reference');
+            } catch (e) {
+                console.log('SCORM API: Could not inject API into iframe (cross-origin):', e.message);
             }
-            
-            // Also set SD in the iframe content window itself
-            iframe.contentWindow.SD = API;
-            iframe.contentWindow.ConcedeControl = function() {
-                // Directly redirect to prevent goodbye.html from showing
-                const backToTopicUrl = "{% url 'courses:topic_view' topic.id %}";
-                window.parent.location.href = backToTopicUrl;
-                return "true";
-            };
-            
-            // Additional direct function exposure for compatibility
-            iframe.contentWindow.parent.LMSFinish = function() {
-                return API.LMSFinish.call(API);
-            };
-            iframe.contentWindow.parent.Finish = function() {
-                return API.Finish.call(API);
-            };
-            
-            console.log('SCORM API: API injected into iframe with enhanced discovery and SD reference');
-        } catch (e) {
-            console.log('SCORM API: Could not inject API into iframe (cross-origin):', e.message);
         }
     }
-}
 
 
 // Process offline queue when coming back online
@@ -1358,12 +1448,75 @@ window.onload = function () {
                         window.parent.location.href = backToTopicUrl;
                         return "true";
                     };
+                    
+                    // CRITICAL FIX: Also ensure API is available in the iframe's global scope
+                    try {
+                        if (iframe.contentWindow.window) {
+                            iframe.contentWindow.window.API = API;
+                            iframe.contentWindow.window.parent = iframe.contentWindow.parent;
+                            iframe.contentWindow.window.top = iframe.contentWindow.top;
+                        }
+                        
+                        // Also try to inject into the iframe's document if possible
+                        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                        if (iframeDoc && iframeDoc.head) {
+                            // Check if API script already exists
+                            let existingScript = iframeDoc.querySelector('script[data-scorm-api]');
+                            if (!existingScript) {
+                                const script = iframeDoc.createElement('script');
+                                script.setAttribute('data-scorm-api', 'true');
+                                script.textContent = `
+                                    // Ensure API is always available
+                                    if (typeof window.API === 'undefined' || !window.API.SetBookmark) {
+                                        window.API = parent.API || window.parent.API || window.top.API;
+                                        if (typeof window.API === 'undefined') {
+                                            window.API = {
+                                                SetBookmark: function(bookmark) { 
+                                                    if (parent.API && parent.API.SetBookmark) {
+                                                        return parent.API.SetBookmark(bookmark);
+                                                    }
+                                                    return "true"; 
+                                                },
+                                                SetDataChunk: function(data) { 
+                                                    if (parent.API && parent.API.SetDataChunk) {
+                                                        return parent.API.SetDataChunk(data);
+                                                    }
+                                                    return "true"; 
+                                                },
+                                                SetPassed: function() { 
+                                                    if (parent.API && parent.API.SetPassed) {
+                                                        return parent.API.SetPassed();
+                                                    }
+                                                    return "true"; 
+                                                },
+                                                SetReachedEnd: function() { 
+                                                    if (parent.API && parent.API.SetReachedEnd) {
+                                                        return parent.API.SetReachedEnd();
+                                                    }
+                                                    return "true"; 
+                                                },
+                                                SetScore: function(score) { 
+                                                    if (parent.API && parent.API.SetScore) {
+                                                        return parent.API.SetScore(score);
+                                                    }
+                                                    return "true"; 
+                                                }
+                                            };
+                                        }
+                                    }
+                                `;
+                                iframeDoc.head.appendChild(script);
+                            }
+                        }
+                    } catch (e) {
+                        // Cross-origin or other issues, continue
+                    }
                 }
             } catch (e) {
                 // Clear interval if iframe is no longer accessible
                 clearInterval(apiInjectionInterval);
             }
-        }, 1000); // Check every second
+        }, 500); // Check every 500ms for more aggressive injection
         
         // Also try to send via postMessage
         try {
