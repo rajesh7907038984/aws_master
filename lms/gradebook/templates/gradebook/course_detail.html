@@ -858,7 +858,6 @@
     background: #e7d9ff;
   }
   
-  .activity-type-scorm {
     color: #6f42c1;
     background: #e2d9f3;
   }
@@ -1411,7 +1410,6 @@
               <option value="quiz">Quizzes</option>
               <option value="discussion">Discussions</option>
               <option value="conference">Conferences</option>
-              <option value="scorm">SCORM Content</option>
             </select>
           </div>
 
@@ -1476,7 +1474,6 @@
           </p>
           <div class="text-sm text-blue-600">
             <p class="mb-2"><strong>Note:</strong> Only VAK tests are diagnostic tools and do not appear in the gradebook.</p>
-            <p>Gradeable activities include: Assignments, Quizzes, Initial Assessments, Discussions, Conferences, and SCORM content.</p>
           </div>
           {% if user.role != 'learner' %}
           <div class="mt-4">
@@ -1502,46 +1499,42 @@
                     <span class="activity-type-label activity-type-assignment">ASG {{ activity.activity_number }}</span>
                     <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
                     <div class="activity-points">{{ activity.max_score }} pts</div>
-                  {% elif activity.type == 'quiz' %}
-                    <span class="activity-type-label activity-type-quiz">QUZ {{ activity.activity_number }}</span>
-                    <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
-                    {% if not activity.object.is_active %}
-                      <div class="activity-points grade-unpublished">INACTIVE</div>
+                  {% else %}
+                    {% if activity.type == 'quiz' %}
+                      <span class="activity-type-label activity-type-quiz">QUZ {{ activity.activity_number }}</span>
+                      <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
+                      {% if not activity.object.is_active %}
+                        <div class="activity-points grade-unpublished">INACTIVE</div>
+                      {% else %}
+                        <div class="activity-points">{{ activity.max_score }} pts</div>
+                      {% endif %}
                     {% else %}
-                      <div class="activity-points">{{ activity.max_score }} pts</div>
-                    {% endif %}
-                  {% elif activity.type == 'initial_assessment' %}
-                    <span class="activity-type-label activity-type-assessment">IA {{ activity.activity_number }}</span>
-                    <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
-                    {% if not activity.object.is_active %}
-                      <div class="activity-points grade-unpublished">INACTIVE</div>
-                    {% else %}
-                      <div class="activity-points">{{ activity.max_score }} pts</div>
-                    {% endif %}
-                  {% elif activity.type == 'discussion' %}
-                    <span class="activity-type-label activity-type-discussion">DSC {{ activity.activity_number }}</span>
-                    <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
-                    {% if activity.max_score > 0 %}
-                      <div class="activity-points">{{ activity.max_score }} pts</div>
-                    {% else %}
-                      <div class="activity-points">Participation</div>
-                    {% endif %}
-                  {% elif activity.type == 'conference' %}
-                    <span class="activity-type-label activity-type-conference">CNF {{ activity.activity_number }}</span>
-                    <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
-                    {% if activity.max_score > 0 %}
+                      {% if activity.type == 'initial_assessment' %}
+                        <span class="activity-type-label activity-type-assessment">IA {{ activity.activity_number }}</span>
+                        <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
+                        {% if not activity.object.is_active %}
+                          <div class="activity-points grade-unpublished">INACTIVE</div>
+                        {% else %}
+                          <div class="activity-points">{{ activity.max_score }} pts</div>
+                        {% endif %}
+                      {% else %}
+                        {% if activity.type == 'discussion' %}
+                          <span class="activity-type-label activity-type-discussion">DSC {{ activity.activity_number }}</span>
+                          <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
+                          {% if activity.max_score > 0 %}
+                            <div class="activity-points">{{ activity.max_score }} pts</div>
+                          {% else %}
+                            <div class="activity-points">Participation</div>
+                          {% endif %}
+                        {% else %}
+                          {% if activity.type == 'conference' %}
+                            <span class="activity-type-label activity-type-conference">CNF {{ activity.activity_number }}</span>
+                            <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
+                            {% if activity.max_score > 0 %}
                       <div class="activity-points">{{ activity.max_score }} pts</div>
                     {% else %}
                       <div class="activity-points">Attendance</div>
                     {% endif %}
-                  {% elif activity.type == 'scorm' %}
-                    <span class="activity-type-label activity-type-scorm">SCO {{ activity.activity_number }}</span>
-                    <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
-                    <div class="activity-points">{{ activity.max_score }} pts</div>
-                  {% elif activity.type == 'scorm_topic' %}
-                    <span class="activity-type-label activity-type-scorm">SCO {{ activity.activity_number }}</span>
-                    <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
-                    <div class="activity-points">{{ activity.max_score }} pts</div>
                   {% endif %}
                 </th>
               {% endfor %}
@@ -1571,7 +1564,6 @@
                 
                 {% for activity in activities %}
                   <td class="activity-cell">
-                    {% get_activity_best_score activity student.id grades quiz_attempts scorm_attempts as score_data %}
                     
                     <div class="submission-info">
                       {% if activity.type == 'assignment' %}
@@ -1610,7 +1602,7 @@
                           </div>
                         {% endif %}
                         
-                      {% elif activity.type == 'quiz' %}
+                      {% else %}{% if activity.type == 'quiz' %}
                         {% if score_data.score is not None %}
                           <div class="submission-date">
                             {{ score_data.date|date:"M d, Y" }}
@@ -1649,11 +1641,12 @@
                             </a>
                           </div>
                         {% endif %}
+                        {% endif %}
                         
-                      {% elif activity.type == 'initial_assessment' %}
+                      {% else %}{% if activity.type == 'initial_assessment' %}
                         {% if not activity.object.is_active %}
                           <span class="grade-score grade-unpublished">Inactive</span>
-                        {% elif score_data.score is not None %}
+                        {% else %}{% if score_data.score is not None %}
                           <div class="submission-date">
                             {{ score_data.date|date:"M d, Y" }}
                           </div>
@@ -1685,8 +1678,9 @@
                             </a>
                           {% endif %}
                         {% endif %}
+                        {% endif %}
                         
-                      {% elif activity.type == 'discussion' %}
+                      {% else %}{% if activity.type == 'discussion' %}
                         {% if score_data.score is not None %}
                           <div class="submission-date">
                             {{ score_data.date|date:"M d, Y" }}
@@ -1720,7 +1714,7 @@
                               VIEW
                             </a>
                           {% endif %}
-                        {% elif activity.max_score > 0 %}
+                        {% else %}{% if activity.max_score > 0 %}
                           {% has_student_participation activity student.id as has_participation %}
                           {% if has_participation %}
                             <span class="grade-score grade-none">Not Evaluated</span>
@@ -1742,8 +1736,9 @@
                         {% else %}
                           <span class="grade-score grade-none">No Activity</span>
                         {% endif %}
+                        {% endif %}
                         
-                      {% elif activity.type == 'conference' %}
+                      {% else %}{% if activity.type == 'conference' %}
                         {% if score_data.score is not None %}
                           <div class="submission-date">
                             {{ score_data.date|date:"M d, Y" }}
@@ -1780,7 +1775,7 @@
                               </a>
                             {% endif %}
                           {% endif %}
-                        {% elif activity.max_score > 0 %}
+                        {% else %}{% if activity.max_score > 0 %}
                           {% has_student_participation activity student.id as has_participation %}
                           {% if has_participation %}
                             <span class="grade-score grade-none">Not Evaluated</span>
@@ -1805,15 +1800,13 @@
                         {% else %}
                           <span class="grade-score grade-none">No Activity</span>
                         {% endif %}
+                        {% endif %}
                         
-                      {% elif activity.type == 'scorm' %}
                         {% if score_data.score is not None %}
                           <div class="submission-date">
                             {{ score_data.date|date:"M d, Y" }}
                           </div>
                           
-                          <!-- SCORM Score Display - Only 3 fields: mastery_score, user_achieved_score, is_passed -->
-                          <div class="scorm-score-display">
                             <!-- Mastery Score (Required passing score) -->
                             <div class="text-xs text-gray-600 mb-1">
                               <strong>Mastery Required:</strong> {{ score_data.mastery_score|floatformat:1 }}%
@@ -1835,36 +1828,22 @@
                               </span>
                             </div>
                             
-                            <!-- UNIFIED: All SCORM packages use topic view URL -->
-                            {% get_scorm_topic activity.object as scorm_topic %}
-                            {% if scorm_topic %}
                             <div class="action-buttons mt-1">
                               {% if score_data.is_passed %}
-                                <a href="{% url 'courses:topic_view' scorm_topic.id %}" class="view-btn retake-btn" style="background-color: #28a745; color: white; font-size: 0.7rem; padding: 2px 6px; text-decoration: none; border-radius: 3px;">
                                   <i class="fas fa-redo-alt"></i> RETAKE
                                 </a>
                               {% else %}
-                                <a href="{% url 'courses:topic_view' scorm_topic.id %}" class="view-btn resume-btn" style="background-color: #ffc107; color: #212529; font-size: 0.7rem; padding: 2px 6px; text-decoration: none; border-radius: 3px; font-weight: bold;">
                                   <i class="fas fa-play"></i> RESUME
                                 </a>
                               {% endif %}
                               
-                              <!-- Show package type indicator -->
-                              {% if activity.object.scorm_package.launch_url %}
-                                <div class="text-xs mt-1" style="color: #6c757d;">
-                                  {% if 'scormcontent/' in activity.object.scorm_package.launch_url %}
-                                    <i class="fas fa-mobile-alt"></i> Rise
-                                  {% elif 'scormdriver/' in activity.object.scorm_package.launch_url %}
-                                    <i class="fas fa-desktop"></i> SCORM
-                                  {% else %}
-                                    <i class="fas fa-file"></i> Content
-                                  {% endif %}
-                                </div>
-                              {% endif %}
+                              <!-- Content type indicator -->
+                              <div class="text-xs mt-1" style="color: #6c757d;">
+                                <i class="fas fa-file"></i> Content
+                              </div>
                             </div>
-                            {% endif %}
                           </div>
-                        {% elif score_data.success_status == 'failed' %}
+                        {% else %}{% if score_data.success_status == 'failed' %}
                           <!-- Show failed status with score if available -->
                           <div class="submission-date">
                             {{ score_data.date|date:"M d, Y" }}
@@ -1877,14 +1856,11 @@
                             {% endif %}
                           </span>
                           {% if user.role == 'learner' %}
-                            {% get_scorm_topic activity.object as scorm_topic %}
-                            {% if scorm_topic %}
-                              <a href="{% url 'courses:topic_view' scorm_topic.id %}" class="view-btn" style="color: #dc3545; border-color: #dc3545; background: white;">
                                 RETRY
                               </a>
                             {% endif %}
                           {% endif %}
-                        {% elif score_data.in_progress or score_data.has_bookmark %}
+                        {% else %}{% if score_data.in_progress or score_data.has_bookmark %}
                           <!-- ENHANCED: Show resume button for learners who have started but not passed -->
                           <div class="submission-date">
                             {{ score_data.date|date:"M d, Y" }}
@@ -1892,23 +1868,13 @@
                           <span class="grade-score grade-none" style="color: #ffc107; font-weight: bold;">In Progress</span>
                           
                           {% if user.role == 'learner' %}
-                            <!-- UNIFIED: All SCORM packages use topic view URL -->
-                            {% get_scorm_topic activity.object as scorm_topic %}
-                            {% if scorm_topic %}
                             <div class="action-buttons mt-1">
-                              <a href="{% url 'courses:topic_view' scorm_topic.id %}" class="view-btn resume-btn" style="background-color: #17a2b8; color: white; font-size: 0.7rem; padding: 2px 6px; text-decoration: none; border-radius: 3px; font-weight: bold;">
                                 <i class="fas fa-play"></i> RESUME
                               </a>
                               
-                              <!-- Show package type and progress -->
+                              <!-- Show content type and progress -->
                               <div class="text-xs mt-1" style="color: #6c757d;">
-                                {% if activity.object.scorm_package.launch_url %}
-                                  {% if 'scormcontent/' in activity.object.scorm_package.launch_url %}
-                                    <i class="fas fa-mobile-alt"></i> Rise Content
-                                  {% elif 'scormdriver/' in activity.object.scorm_package.launch_url %}
-                                    <i class="fas fa-desktop"></i> SCORM Package
-                                  {% endif %}
-                                {% endif %}
+                                <i class="fas fa-file"></i> Interactive Content
                                 {% if score_data.progress_percentage %}
                                   <br><i class="fas fa-chart-line"></i> {{ score_data.progress_percentage|floatformat:1 }}% Complete
                                 {% endif %}
@@ -1917,27 +1883,15 @@
                             {% endif %}
                           {% endif %}
                         {% else %}
-                          <!-- ENHANCED: Show START button for non-started SCORM content -->
                           {% if user.role == 'learner' %}
                             <span class="grade-score grade-none" style="color: #6c757d;">Not Started</span>
-                            {% get_scorm_topic activity.object as scorm_topic %}
-                            {% if scorm_topic %}
                             <div class="action-buttons mt-1">
-                              <a href="{% url 'courses:topic_view' scorm_topic.id %}" class="view-btn start-btn" style="background-color: #007bff; color: white; font-size: 0.7rem; padding: 2px 6px; text-decoration: none; border-radius: 3px; font-weight: bold;">
                                 <i class="fas fa-play-circle"></i> START
                               </a>
                               
-                              <!-- Show package type -->
+                              <!-- Content type indicator -->
                               <div class="text-xs mt-1" style="color: #6c757d;">
-                                {% if activity.object.scorm_package.launch_url %}
-                                  {% if 'scormcontent/' in activity.object.scorm_package.launch_url %}
-                                    <i class="fas fa-mobile-alt"></i> Rise Content
-                                  {% elif 'scormdriver/' in activity.object.scorm_package.launch_url %}
-                                    <i class="fas fa-desktop"></i> SCORM Package
-                                  {% else %}
-                                    <i class="fas fa-file"></i> Interactive Content
-                                  {% endif %}
-                                {% endif %}
+                                <i class="fas fa-file"></i> Interactive Content
                               </div>
                             </div>
                             {% endif %}
@@ -1946,15 +1900,11 @@
                           {% endif %}
                         {% endif %}
                         
-                      {% elif activity.type == 'scorm_topic' %}
-                        {% comment %}SCORM topics - check TopicProgress for scores{% endcomment %}
                         {% if score_data.score is not None %}
                           <div class="submission-date">
                             {{ score_data.date|date:"M d, Y" }}
                           </div>
                           
-                          <!-- SCORM Topic Score Display - Only 3 fields: mastery_score, user_achieved_score, is_passed -->
-                          <div class="scorm-score-display">
                             <!-- Mastery Score (Required passing score) -->
                             <div class="text-xs text-gray-600 mb-1">
                               <strong>Mastery Required:</strong> {{ score_data.mastery_score|floatformat:1 }}%
@@ -1989,7 +1939,7 @@
                               {% endif %}
                             </div>
                           </div>
-                        {% elif score_data.success_status == 'failed' %}
+                        {% else %}{% if score_data.success_status == 'failed' %}
                           <!-- Show failed status with score if available -->
                           <div class="submission-date">
                             {{ score_data.date|date:"M d, Y" }}
@@ -2006,7 +1956,7 @@
                               RETRY
                             </a>
                           {% endif %}
-                        {% elif score_data.in_progress or score_data.has_bookmark %}
+                        {% else %}{% if score_data.in_progress or score_data.has_bookmark %}
                           <!-- Show resume button for learners who have started but not passed -->
                           <span class="grade-score grade-none">In Progress</span>
                           {% if user.role == 'learner' %}
@@ -2021,7 +1971,6 @@
                             </div>
                           {% endif %}
                         {% else %}
-                          <!-- Don't show anything for non-started SCORM topics -->
                           <span class="grade-score grade-none">-</span>
                         {% endif %}
                         
@@ -2040,20 +1989,24 @@
                       </div>
                       {% if total_data.percentage >= 90 %}
                         <div class="grade-score grade-excellent total-percentage">{{ total_data.percentage|floatformat:1 }}%</div>
-                      {% elif total_data.percentage >= 80 %}
+                      {% else %}{% if total_data.percentage >= 80 %}
                         <div class="grade-score grade-good total-percentage">{{ total_data.percentage|floatformat:1 }}%</div>
-                      {% elif total_data.percentage >= 70 %}
+                      {% else %}{% if total_data.percentage >= 70 %}
                         <div class="grade-score grade-average total-percentage">{{ total_data.percentage|floatformat:1 }}%</div>
-                      {% elif total_data.percentage >= 60 %}
+                      {% else %}{% if total_data.percentage >= 60 %}
                         <div class="grade-score grade-poor total-percentage">{{ total_data.percentage|floatformat:1 }}%</div>
                       {% else %}
                         <div class="grade-score grade-poor total-percentage">{{ total_data.percentage|floatformat:1 }}%</div>
+                      {% endif %}
+                      {% endif %}
+                      {% endif %}
                       {% endif %}
                     {% else %}
                       <div class="grade-score grade-none">-</div>
                     {% endif %}
                   </div>
                 </td>
+                {% endif %}
                 {% endif %}
                 
                 <!-- Outcome Mastery Data -->
@@ -2121,10 +2074,11 @@
                   <li class="page-item active">
                     <span class="page-link">{{ num }}</span>
                   </li>
-                {% elif num > students_page.number|add:'-3' and num < students_page.number|add:'3' %}
+                {% else %}{% if num > students_page.number|add:'-3' and num < students_page.number|add:'3' %}
                   <li class="page-item">
                     <a class="page-link" href="?page={{ num }}">{{ num }}</a>
                   </li>
+                {% endif %}
                 {% endif %}
               {% endfor %}
               
@@ -2267,9 +2221,7 @@ function applyFilters() {
                 const cellText = cell.textContent.toLowerCase();
                 
                 if (statusFilter === 'submitted') {
-                    // BUGFIX: Check for new assignment statuses AND quiz/scorm scores
                     // Assignment statuses: "Submitted - Awaiting Grade", "Not Graded Yet", "Late Submission"
-                    // Quiz/SCORM: scores like "85.0/100" or "85%", or "Completed"
                     if (cellText.includes('submitted') || 
                         cellText.includes('not graded yet') ||
                         cellText.includes('late submission') ||
@@ -2346,7 +2298,6 @@ function applyFilters() {
             else if (labelText.includes('quz')) activityType = 'quiz';
             else if (labelText.includes('dsc')) activityType = 'discussion';
             else if (labelText.includes('cnf')) activityType = 'conference';
-            else if (labelText.includes('sco')) activityType = 'scorm';
         }
         
         let columnVisible = true;
