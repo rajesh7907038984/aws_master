@@ -237,7 +237,7 @@
     <div id="mobile-menu-overlay" class="absolute inset-0 bg-black bg-opacity-50"></div>
     
     <!-- Menu Content -->
-    <div class="absolute top-0 left-0 w-64 h-full bg-[#1C2260] shadow-lg transform transition-all duration-300 ease-in-out">
+    <div class="absolute top-0 left-0 w-64 h-full bg-primary shadow-lg transform transition-all duration-300 ease-in-out">
         <div class="flex items-center justify-between p-4 border-b border-gray-200" style="background-color: #191f56;">
             <a href="{% url 'users:role_based_redirect' %}" class="flex items-center">
                 <img src="{% static 'img/logo-dark.png' %}" alt="Nexsy LMS" class="h-8" style="display: block !important; visibility: visible !important; opacity: 1 !important;">
@@ -248,7 +248,7 @@
                 </svg>
             </button>
         </div>
-        <div class="py-4 h-full overflow-y-auto bg-[#1C2260]">
+        <div class="py-4 h-full overflow-y-auto bg-primary">
             <!-- Mobile menu content will be dynamically loaded from sidebar once -->
         </div>
     </div>
@@ -1253,7 +1253,7 @@ document.addEventListener('DOMContentLoaded', function() {
             menuItems.forEach(item => {
                 // Make sure active items have the same styling as desktop
                 if (item.classList.contains('active')) {
-                    item.classList.add('border-l-4', 'border-[#02f711]');
+                    item.classList.add('border-l-4', 'border-accent');
                 }
             });
         }

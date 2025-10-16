@@ -1,0 +1,81 @@
+/* Tailwind CSS Fixes for LMS */
+
+/* Custom width utilities for calc() functions */
+.w-calc-200 {
+    width: calc(100% - 200px);
+}
+
+.w-calc-16rem {
+    width: calc(100% - 16rem);
+}
+
+.w-calc-36rem {
+    width: calc(100% - 36rem);
+}
+
+/* Responsive variants */
+@media (min-width: 768px) {
+    .md\:w-calc-200 {
+        width: calc(100% - 200px);
+    }
+    
+    .md\:w-calc-16rem {
+        width: calc(100% - 16rem);
+    }
+    
+    .md\:w-calc-36rem {
+        width: calc(100% - 36rem);
+    }
+}
+
+@media (min-width: 1024px) {
+    .lg\:w-calc-16rem {
+        width: calc(100% - 16rem);
+    }
+    
+    .lg\:w-calc-36rem {
+        width: calc(100% - 36rem);
+    }
+}
+
+/* Fix for arbitrary values that might not be processed */
+.bg-primary {
+    background-color: #1C2260;
+}
+
+.bg-primary-hover:hover {
+    background-color: #232a75;
+}
+
+.border-accent {
+    border-color: #02f711;
+}
+
+.text-link {
+    color: #2F80ED;
+}
+
+/* Ensure proper z-index handling */
+.z-\[999\] {
+    z-index: 999;
+}
+
+.z-\[100\] {
+    z-index: 100;
+}
+
+/* Fix for min-width arbitrary values */
+.min-w-\[20px\] {
+    min-width: 20px;
+}
+
+/* Ensure proper spacing for custom values */
+.top-24 {
+    top: 6rem;
+}
+
+/* Fix for backdrop blur */
+.backdrop-blur-sm {
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
