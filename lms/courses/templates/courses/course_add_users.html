@@ -689,7 +689,7 @@
             `;
 
             // Send bulk enrollment request
-            fetch(`/courses/{{ course.id }}/bulk-enroll/`, {
+            fetch('/courses/' + {{ course.id }} + '/bulk-enroll/', {
                 method: 'POST',
                 headers: {
                     'X-CSRFToken': csrftoken,
