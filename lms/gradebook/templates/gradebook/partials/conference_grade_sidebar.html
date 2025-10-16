@@ -368,9 +368,11 @@
 <!-- JavaScript for Rubric Evaluation -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    console.log(' Conference grading sidebar JavaScript initializing...');
     
     // Rubric Rating Selection Handling
     function initializeRubricRatingHandlers() {
+        console.log(' Initializing rubric rating handlers...');
         
         // Handle rating selection changes
         document.querySelectorAll('[data-rating-select]').forEach(select => {
@@ -395,6 +397,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             setTimeout(() => {
                                 pointsInput.style.backgroundColor = '';
                             }, 1000);
+                            console.log(` Auto-populated points for criterion ${criterionId}: ${points}`);
                         } else {
                             // If instructor has entered custom points, show a subtle indicator
                             pointsInput.style.transition = 'all 0.3s ease';
@@ -404,6 +407,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             setTimeout(() => {
                                 pointsInput.style.borderColor = '';
                             }, 2000);
+                            console.log(` Custom points preserved for criterion ${criterionId}: ${currentPoints} (rating suggests ${points})`);
                         }
                     }
                 } else {
@@ -460,6 +464,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
+        console.log('📊 Collected rubric data:', rubricData);
         return rubricData;
     }
     
@@ -518,6 +523,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(error => {
+                console.error(' Form submission error:', error);
                 alert('Error saving evaluation');
             })
             .finally(() => {
@@ -540,8 +546,10 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
         // Fallback to widget system
         if (typeof window.TinyMCEWidget !== 'undefined' && window.TinyMCEWidget.initializeAll) {
+            console.log(' Initializing TinyMCE using widget system');
             window.TinyMCEWidget.initializeAll();
         } else {
+            console.log(' TinyMCE widget system not available yet, retrying...');
             setTimeout(initializeTinyMCE, 100);
         }
         
@@ -578,12 +586,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         });
                     }
                 });
+                console.log(' TinyMCE initialized for textarea:', textarea.id);
             }
         });
     }
 
     // Feedback Tab Handling
     function initializeFeedbackTabs() {
+        console.log(' Initializing feedback tabs...');
         
         // Handle feedback tab switching
         document.querySelectorAll('.feedback-tab-btn').forEach(button => {
@@ -671,6 +681,7 @@ document.addEventListener('DOMContentLoaded', function() {
         initializeFeedbackTabs();
     }
     
+    console.log(' Conference grading sidebar JavaScript initialized');
 });
 </script>
 

@@ -408,6 +408,7 @@
 <!-- Simplified JavaScript for Rubric Evaluation -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    console.log(' Discussion grading sidebar JavaScript initializing...');
     
     // Get the container for this sidebar
     const container = document.querySelector('.discussion-grade-sidebar') || document.body;
@@ -418,8 +419,10 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
         // Fallback to widget system
         if (window.TinyMCEWidget && window.TinyMCEWidget.initializeAll) {
+            console.log(' Initializing TinyMCE using widget system');
             window.TinyMCEWidget.initializeAll();
         } else {
+            console.log(' TinyMCE widget system not available yet, retrying...');
             setTimeout(function() {
                 if (window.TinyMCEWidget && window.TinyMCEWidget.initializeAll) {
                     window.TinyMCEWidget.initializeAll();
@@ -430,6 +433,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Rubric Rating Selection Handling
     function initializeRubricRatingHandlers() {
+        console.log(' Initializing rubric rating handlers...');
         
         // Handle rating selection changes
         document.querySelectorAll('[data-rating-select]').forEach(select => {
@@ -454,6 +458,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             setTimeout(() => {
                                 pointsInput.style.backgroundColor = '';
                             }, 1000);
+                            console.log(` Auto-populated points for criterion ${criterionId}: ${points}`);
                         } else {
                             // If instructor has entered custom points, show a subtle indicator
                             pointsInput.style.transition = 'all 0.3s ease';
@@ -463,6 +468,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             setTimeout(() => {
                                 pointsInput.style.borderColor = '';
                             }, 2000);
+                            console.log(` Custom points preserved for criterion ${criterionId}: ${currentPoints} (rating suggests ${points})`);
                         }
                     }
                 } else {
@@ -519,11 +525,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
+        console.log('📊 Collected rubric data:', rubricData);
         return rubricData;
     }
     
     // Feedback Tab Handling
     function initializeFeedbackTabs() {
+        console.log(' Initializing feedback tabs...');
         
         // Handle feedback tab switching
         document.querySelectorAll('.feedback-tab-btn').forEach(button => {
@@ -565,8 +573,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                         editor.fire('ResizeEditor');
                                         editor.fire('ResizeContent');
                                     } else {
+                                        console.warn(`Editor ${textarea.id} not fully initialized, skipping refresh`);
                                     }
                                 } catch (error) {
+                                    console.warn(`Error refreshing TinyMCE editor ${textarea.id}:`, error);
                                 }
                             }
                         });
@@ -680,6 +690,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(error => {
+                console.error(' Form submission error:', error);
                 alert('Error saving');
             })
             .finally(() => {
@@ -715,6 +726,7 @@ document.addEventListener('DOMContentLoaded', function() {
         initializeFeedbackTabs();
     }
     
+    console.log(' Discussion grading sidebar JavaScript initialized');
 });
 </script>
 

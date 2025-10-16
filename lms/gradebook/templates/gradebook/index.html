@@ -164,10 +164,6 @@
     }
 
     .activity-type-scorm {
-        background-color: #E0F2FE;
-        color: #0369A1;
-    }
-
         background-color: #FEE2E2;
         color: #DC2626;
     }
@@ -197,12 +193,6 @@
     .status-completed {
         background-color: #dcfce7;
         color: #16a34a;
-    }
-
-    .status-failed {
-        background-color: #fecaca;
-        color: #991b1b;
-        font-weight: 700;
     }
 
     .status-graded {
@@ -471,10 +461,6 @@
 </style>
 {% endblock %}
 
-{% block right_sidebar %}
-    {% include 'components/global_right_sidebar.html' %}
-{% endblock %}
-
 {% block content %}
 <!-- Breadcrumbs -->
 {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
@@ -640,9 +626,9 @@
                       <span class="activity-type-badge activity-type-conference">
                         <i class="fas fa-video mr-1"></i>Conference
                       </span>
-                    {% elif activity.type == 'scorm' %}
+                    {% elif activity.type == 'scorm_topic' %}
                       <span class="activity-type-badge activity-type-scorm">
-                        <i class="fas fa-graduation-cap mr-1"></i>SCORM
+                        <i class="fas fa-play-circle mr-1"></i>SCORM
                       </span>
                     {% endif %}
                   </td>
@@ -699,10 +685,10 @@
                           title="Join conference">
                          <i class="fas fa-video mr-1"></i>Join
                        </a>
-                     {% elif activity.type == 'scorm' %}
-                       <a href="{% url 'scorm:launch' activity.object.topic.id %}" 
+                     {% elif activity.type == 'scorm_topic' %}
+                       <a href="{% url 'courses:topic_view' activity.object.id %}" 
                           class="action-btn" 
-                          title="Launch SCORM package">
+                          title="View SCORM content">
                          <i class="fas fa-play mr-1"></i>Launch
                        </a>
                      {% endif %}

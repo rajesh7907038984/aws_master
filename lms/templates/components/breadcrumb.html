@@ -86,6 +86,11 @@
         transition: background-color 0.15s ease;
     }
     
+    .breadcrumb-icon-text {
+        color: #2F80ED;
+        font-size: 0.75rem;
+    }
+    
     .breadcrumb-link:hover .breadcrumb-icon {
         background-color: #dbeafe;
     }
@@ -167,7 +172,7 @@
                 <a href="{{ item.url }}" class="breadcrumb-link">
                     {% if item.icon %}
                     <div class="breadcrumb-icon">
-                        <i class="fas {{ item.icon }} text-link text-xs"></i>
+                        <i class="fas {{ item.icon }} breadcrumb-icon-text"></i>
                     </div>
                     {% endif %}
                     <span>{{ item.label }}</span>
@@ -176,7 +181,7 @@
                 <span class="breadcrumb-current">
                     {% if item.icon %}
                     <div class="breadcrumb-icon">
-                        <i class="fas {{ item.icon }} text-link text-xs"></i>
+                        <i class="fas {{ item.icon }} breadcrumb-icon-text"></i>
                     </div>
                     {% endif %}
                     <span>{{ item.label }}</span>

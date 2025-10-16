@@ -473,6 +473,7 @@
 <!-- Simplified JavaScript -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    console.log(' Assignment grading sidebar initializing...');
     
     // Get the container for this sidebar
     const container = document.querySelector('.assignment-grade-sidebar') || document.body;
@@ -483,8 +484,10 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
         // Fallback to widget system
         if (window.TinyMCEWidget && window.TinyMCEWidget.initializeAll) {
+            console.log(' Initializing TinyMCE using widget system');
             window.TinyMCEWidget.initializeAll();
         } else {
+            console.log(' TinyMCE widget system not available yet, retrying...');
             setTimeout(function() {
                 if (window.TinyMCEWidget && window.TinyMCEWidget.initializeAll) {
                     window.TinyMCEWidget.initializeAll();
@@ -511,6 +514,7 @@ document.addEventListener('DOMContentLoaded', function() {
         buttons.forEach(button => {
             button.addEventListener('click', function() {
                 const targetTab = this.dataset.tab;
+                console.log(' Switching to feedback tab:', targetTab);
                 
                 // Update button states
                 buttons.forEach(btn => {
@@ -549,8 +553,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 editor.execCommand('mceResize');
                                                 editor.fire('ResizeEditor');
                                             } else {
+                                                console.warn(`Editor ${textarea.id} not fully initialized, skipping refresh`);
                                             }
                                         } catch (error) {
+                                            console.warn(`Error refreshing TinyMCE editor ${textarea.id}:`, error);
                                         }
                                     }
                                 });
@@ -574,6 +580,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (gradingForm) {
         gradingForm.addEventListener('submit', function(e) {
             e.preventDefault();
+            console.log(' Form submission started...');
             
             // Save TinyMCE content before submission
             if (typeof tinymce !== 'undefined') {
@@ -583,9 +590,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const formData = new FormData(this);
             
             // Debug: Log FormData contents
+            console.log('📦 FormData contents:');
             for (let [key, value] of formData.entries()) {
                 if (value instanceof File) {
+                    console.log(`  ${key}: [File] ${value.name} (${(value.size / 1024 / 1024).toFixed(2)} MB)`);
                 } else {
+                    console.log(`  ${key}: ${value}`);
                 }
             }
             
@@ -596,6 +606,7 @@ document.addEventListener('DOMContentLoaded', function() {
             submitBtn.textContent = 'Saving...';
             submitBtn.disabled = true;
             
+            console.log(' Sending request to:', this.action);
             
             fetch(this.action, {
                 method: 'POST',
@@ -605,12 +616,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .then(response => {
+                console.log('📡 Response received:', response.status, response.statusText);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 return response.json();
             })
             .then(data => {
+                console.log(' Response data:', data);
                 if (data.success) {
                     alert('Grade and feedback saved successfully!');
                     // Reload parent page
@@ -626,6 +639,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(error => {
+                console.error(' Form submission error:', error);
                 alert('Error saving grade and feedback: ' + error.message);
             })
             .finally(() => {

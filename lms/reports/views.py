@@ -67,6 +67,9 @@ def activity_report_overview(request, activity_id):
         average_score = None
         removed_stats = None
         
+        # Check if this is removed content
+        is_removed = hasattr(topic, 'removed_content') and topic.removed_content is not None
+        
         if completed_with_scores.exists():
             # removed functionality removed
             pass
@@ -148,13 +151,55 @@ def activity_report_overview(request, activity_id):
 
 def normalize_score(score):
     """
-    Normalize score using unified scoring service.
+    Normalize score using new SCORM implementation.
     Ensures consistent score handling across all report pages.
     """
-    from core.utils.scoring import ScoreCalculationService
-    
-    normalized = ScoreCalculationService.normalize_score(score)
-    return float(normalized) if normalized is not None else 0.0
+    try:
+        # Handle None or empty scores
+        if score is None or score == '':
+            return 0.0
+        
+        # Convert to float
+        score_float = float(score)
+        
+        # SCORM scores are typically 0-100 percentage
+        if 0 <= score_float <= 100:
+            return score_float
+        
+        # Handle edge cases
+        if score_float > 100:
+            return 100.0  # Cap at 100%
+        if score_float < 0:
+            return 0.0    # Floor at 0%
+        
+        # Handle decimal scores (0-1 range)
+        if 0 <= score_float <= 1:
+            return score_float * 100
+        
+        return score_float
+        
+    except (ValueError, TypeError) as e:
+        logger.error(f"Error normalizing score {score}: {e}")
+        return 0.0
+
+def get_unified_score(progress_obj):
+    """
+    Get normalized score using new SCORM implementation.
+    Works with both SCORM tracking and regular progress objects.
+    """
+    try:
+        # For SCORM tracking objects, use the built-in method
+        if hasattr(progress_obj, 'get_score_percentage'):
+            return progress_obj.get_score_percentage()
+        
+        # For regular progress objects, use normalized score
+        if hasattr(progress_obj, 'last_score') and progress_obj.last_score is not None:
+            return normalize_score(progress_obj.last_score)
+        
+        return 0.0
+    except Exception as e:
+        logger.error(f"Error getting unified score: {e}")
+        return 0.0
 
 def get_scorm_scores_for_user(user, course=None):
     """Get SCORM scores for a user, optionally filtered by course"""
@@ -839,183 +884,221 @@ class LearningActivitiesView(LoginRequiredMixin, TemplateView):
     template_name = 'reports/learning_activities.html'
     
     def dispatch(self, request, *args, **kwargs):
-        # Check if user has report viewing capabilities
-        user = request.user
-        
-        # Check if user is authenticated first
-        if not user.is_authenticated:
-            return super().dispatch(request, *args, **kwargs)  # Let LoginRequiredMixin handle redirect
-        
-        # Superadmins and admins always have access
-        if user.is_superuser or user.role in ['globaladmin', 'superadmin']:
-            return super().dispatch(request, *args, **kwargs)
+        try:
+            # Check if user has report viewing capabilities
+            user = request.user
             
-        # Check if user has a system role with report access by default
-        if user.role in ['admin', 'instructor']:
-            return super().dispatch(request, *args, **kwargs)
-        
-        # If we reach here, user doesn't have access
-        messages.error(request, "You don't have permission to access reports. This section is restricted to users with report viewing permissions.")
-        return redirect('users:role_based_redirect')
+            # Check if user is authenticated first
+            if not user.is_authenticated:
+                return super().dispatch(request, *args, **kwargs)  # Let LoginRequiredMixin handle redirect
+            
+            # Superadmins and admins always have access
+            if user.is_superuser or user.role in ['globaladmin', 'superadmin']:
+                return super().dispatch(request, *args, **kwargs)
+                
+            # Check if user has a system role with report access by default
+            if user.role in ['admin', 'instructor']:
+                return super().dispatch(request, *args, **kwargs)
+            
+            # If we reach here, user doesn't have access
+            messages.error(request, "You don't have permission to access reports. This section is restricted to users with report viewing permissions.")
+            return redirect('users:role_based_redirect')
+        except Exception as e:
+            logger.error(f"Error in LearningActivitiesView dispatch: {e}")
+            messages.error(request, "An error occurred while loading the page.")
+            return redirect('reports:dashboard')
     
     def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        
-        # Get query parameters
-        search_query = self.request.GET.get('search', '')
-        per_page = int(self.request.GET.get('per_page', 10))
-        page = int(self.request.GET.get('page', 1))
-        
-        # Apply role-based filtering for topics and progress data
-        user = self.request.user
-        
-        # Get filtered topics based on user role and branch access
-        if user.role == 'globaladmin' or user.is_superuser:
-            # Global Admin can see all topics
-            activities = Topic.objects.all()
-            progress_base_query = TopicProgress.objects.all()
-        elif user.role == 'superadmin':
-            # Super Admin can see topics from courses in their assigned businesses
-            from core.utils.business_filtering import filter_courses_by_business
-            accessible_courses = filter_courses_by_business(user)
-            activities = Topic.objects.filter(coursetopic__course__in=accessible_courses).distinct()
-            progress_base_query = TopicProgress.objects.filter(
-                topic__coursetopic__course__in=accessible_courses
-            ).distinct()
-        elif user.role == 'admin':
-            # Branch Admin can only see topics from their branch
-            if user.branch:
-                activities = Topic.objects.filter(coursetopic__course__branch=user.branch).distinct()
+        try:
+            context = super().get_context_data(**kwargs)
+            
+            # Get query parameters with safe defaults
+            search_query = self.request.GET.get('search', '')
+            per_page = min(int(self.request.GET.get('per_page', 10)), 50)  # Limit per_page
+            page = max(int(self.request.GET.get('page', 1)), 1)  # Ensure positive page
+            
+            # Apply role-based filtering for topics and progress data
+            user = self.request.user
+            
+            # Get filtered topics based on user role and branch access
+            if user.role == 'globaladmin' or user.is_superuser:
+                # Global Admin can see all topics
+                activities = Topic.objects.all()
+                progress_base_query = TopicProgress.objects.all()
+            elif user.role == 'superadmin':
+                # Super Admin can see topics from courses in their assigned businesses
+                from core.utils.business_filtering import filter_courses_by_business
+                accessible_courses = filter_courses_by_business(user)
+                activities = Topic.objects.filter(coursetopic__course__in=accessible_courses).distinct()
                 progress_base_query = TopicProgress.objects.filter(
-                    topic__coursetopic__course__branch=user.branch
+                    topic__coursetopic__course__in=accessible_courses
                 ).distinct()
+            elif user.role == 'admin':
+                # Branch Admin can only see topics from their branch
+                if user.branch:
+                    activities = Topic.objects.filter(coursetopic__course__branch=user.branch).distinct()
+                    progress_base_query = TopicProgress.objects.filter(
+                        topic__coursetopic__course__branch=user.branch
+                    ).distinct()
+                else:
+                    activities = Topic.objects.none()
+                    progress_base_query = TopicProgress.objects.none()
+            elif user.role == 'instructor':
+                # Instructor can see topics from courses they teach or from their branch
+                if user.branch:
+                    activities = Topic.objects.filter(
+                        Q(coursetopic__course__instructor=user) |
+                        Q(coursetopic__course__branch=user.branch)
+                    ).distinct()
+                    progress_base_query = TopicProgress.objects.filter(
+                        Q(topic__coursetopic__course__instructor=user) |
+                        Q(topic__coursetopic__course__branch=user.branch)
+                    ).distinct()
+                else:
+                    activities = Topic.objects.filter(coursetopic__course__instructor=user).distinct()
+                    progress_base_query = TopicProgress.objects.filter(
+                        topic__coursetopic__course__instructor=user
+                    ).distinct()
             else:
+                # Other roles have no access
                 activities = Topic.objects.none()
                 progress_base_query = TopicProgress.objects.none()
-        elif user.role == 'instructor':
-            # Instructor can see topics from courses they teach or from their branch
-            if user.branch:
-                activities = Topic.objects.filter(
-                    Q(coursetopic__course__instructor=user) |
-                    Q(coursetopic__course__branch=user.branch)
-                ).distinct()
-                progress_base_query = TopicProgress.objects.filter(
-                    Q(topic__coursetopic__course__instructor=user) |
-                    Q(topic__coursetopic__course__branch=user.branch)
-                ).distinct()
-            else:
-                activities = Topic.objects.filter(coursetopic__course__instructor=user).distinct()
-                progress_base_query = TopicProgress.objects.filter(
-                    topic__coursetopic__course__instructor=user
-                ).distinct()
-        else:
-            # Other roles have no access
-            activities = Topic.objects.none()
-            progress_base_query = TopicProgress.objects.none()
+            
+            # Apply search filter if provided
+            if search_query:
+                activities = activities.filter(title__icontains=search_query)
+            
+            # Get activity data with progress statistics
+            activity_data = []
+            for topic in activities:
+                topic_progress = progress_base_query.filter(topic=topic)
+                
+                # Calculate basic progress statistics
+                total_progress = topic_progress.count()
+                completed = topic_progress.filter(completed=True).count()
+                
+                # Check if this is removed content
+                is_removed = hasattr(topic, 'removed_content') and topic.removed_content is not None
+                
+                if is_removed:
+                    # For removed content, use different calculation
+                    removed_progress = topic_progress.filter(progress_data__isnull=False)
+                    in_progress = 0
+                    not_passed = 0
+                    not_attempted = total_progress - completed
+                    
+                    # Calculate average score with proper removed score normalization
+                    from core.utils.scoring import ScoreCalculationService
+                    
+                    removed_scores = []
+                    removed_registrations_with_scores = removed_progress.exclude(last_score__isnull=True)
+                    for progress in removed_registrations_with_scores:
+                        normalized_score = ScoreCalculationService.normalize_score(progress.last_score)
+                        if normalized_score is not None:
+                            removed_scores.append(float(normalized_score))
+                    
+                    average_score = sum(removed_scores) / len(removed_scores) if removed_scores else 0
+                else:
+                    # Standard content progress calculation
+                    in_progress = topic_progress.filter(completed=False, last_score__gt=0).count()
+                    not_passed = topic_progress.filter(completed=False, last_score=0).count()
+                    not_attempted = total_progress - completed - in_progress - not_passed
+                    
+                    # Calculate average score with new SCORM implementation
+                    scores = topic_progress.exclude(last_score__isnull=True)
+                    normalized_scores = []
+                    for progress in scores:
+                        unified_score = get_unified_score(progress)
+                        if unified_score is not None and unified_score > 0:
+                            normalized_scores.append(unified_score)
+                    
+                    average_score = sum(normalized_scores) / len(normalized_scores) if normalized_scores else 0
+                
+                activity_data.append({
+                    'topic': topic,
+                    'completed': completed,
+                    'in_progress': in_progress,
+                    'not_passed': not_passed,
+                    'not_attempted': not_attempted,
+                    'average_score': round(average_score, 1),
+                })
+            
+            # Pagination
+            from django.core.paginator import Paginator
+            paginator = Paginator(activity_data, per_page)
+            page_obj = paginator.get_page(page)
+            
+            # Calculate overall statistics
+            total_progress = sum(item['completed'] + item['in_progress'] + item['not_passed'] + item['not_attempted'] for item in activity_data)
+            completed = sum(item['completed'] for item in activity_data)
+            in_progress = sum(item['in_progress'] for item in activity_data)
+            not_passed = sum(item['not_passed'] for item in activity_data)
+            not_attempted = sum(item['not_attempted'] for item in activity_data)
+            
+            overall_completion_rate = round((completed / total_progress * 100) if total_progress > 0 else 0, 1)
+            
+            # Calculate overall average score with proper weighting and normalization
+            total_score_sum = 0
+            total_activity_count = 0
+            
+            for item in activity_data:
+                if item['average_score'] > 0:  # Only include activities that have scores
+                    total_score_sum += item['average_score']
+                    total_activity_count += 1
+            
+            overall_average_score = round(total_score_sum / total_activity_count, 1) if total_activity_count > 0 else 0
         
-        # Apply search filter if provided
-        if search_query:
-            activities = activities.filter(title__icontains=search_query)
-        
-        # Get activity data with progress statistics
-        activity_data = []
-        for topic in activities:
-            topic_progress = progress_base_query.filter(topic=topic)
-            
-            # Calculate basic progress statistics
-            total_progress = topic_progress.count()
-            completed = topic_progress.filter(completed=True).count()
-            
-            # Check if this is removed content
-            is_removed = hasattr(topic, 'removed_content') and topic.removed_content is not None
-            
-            if is_removed:
-                # For removed content, use different calculation
-                removed_progress = topic_progress.filter(progress_data__isnull=False)
-                in_progress = 0
-                not_passed = 0
-                not_attempted = total_progress - completed
-                
-                # Calculate average score with proper removed score normalization
-                from core.utils.scoring import ScoreCalculationService
-                
-                removed_scores = []
-                removed_registrations_with_scores = removed_progress.exclude(last_score__isnull=True)
-                for progress in removed_registrations_with_scores:
-                    normalized_score = ScoreCalculationService.normalize_score(progress.last_score)
-                    if normalized_score is not None:
-                        removed_scores.append(float(normalized_score))
-                
-                average_score = sum(removed_scores) / len(removed_scores) if removed_scores else 0
-            else:
-                # Standard content progress calculation
-                in_progress = topic_progress.filter(completed=False, last_score__gt=0).count()
-                not_passed = topic_progress.filter(completed=False, last_score=0).count()
-                not_attempted = total_progress - completed - in_progress - not_passed
-                
-                # Calculate average score with normalization
-                scores = topic_progress.exclude(last_score__isnull=True).values_list('last_score', flat=True)
-                normalized_scores = []
-                for score in scores:
-                    norm_score = normalize_score(score)
-                    if norm_score is not None:
-                        normalized_scores.append(norm_score)
-                
-                average_score = sum(normalized_scores) / len(normalized_scores) if normalized_scores else 0
-            
-            activity_data.append({
-                'topic': topic,
+            # Add context data
+            context.update({
+                'activities': page_obj,
+                'page_obj': page_obj,
+                'search_query': search_query,
+                'total_progress': total_progress,
                 'completed': completed,
                 'in_progress': in_progress,
                 'not_passed': not_passed,
                 'not_attempted': not_attempted,
-                'average_score': round(average_score, 1),
+                'overall_completion_rate': overall_completion_rate,
+                'average_score': overall_average_score,
+                'scorm_statistics': {  # Add default SCORM statistics
+                    'records_with_time_data': 0,
+                    'total_time_hours': 0,
+                    'average_time_minutes': 0,
+                    'average_completion_rate': 0
+                },
+                'breadcrumbs': [
+                    {'url': reverse('reports:overview'), 'label': 'Reports', 'icon': 'fa-chart-bar'},
+                    {'label': 'Learning Activities', 'icon': 'fa-tasks'}
+                ]
             })
-        
-        # Pagination
-        from django.core.paginator import Paginator
-        paginator = Paginator(activity_data, per_page)
-        page_obj = paginator.get_page(page)
-        
-        # Calculate overall statistics
-        total_progress = sum(item['completed'] + item['in_progress'] + item['not_passed'] + item['not_attempted'] for item in activity_data)
-        completed = sum(item['completed'] for item in activity_data)
-        in_progress = sum(item['in_progress'] for item in activity_data)
-        not_passed = sum(item['not_passed'] for item in activity_data)
-        not_attempted = sum(item['not_attempted'] for item in activity_data)
-        
-        overall_completion_rate = round((completed / total_progress * 100) if total_progress > 0 else 0, 1)
-        
-        # Calculate overall average score with proper weighting and normalization
-        total_score_sum = 0
-        total_activity_count = 0
-        
-        for item in activity_data:
-            if item['average_score'] > 0:  # Only include activities that have scores
-                total_score_sum += item['average_score']
-                total_activity_count += 1
-        
-        overall_average_score = round(total_score_sum / total_activity_count, 1) if total_activity_count > 0 else 0
-        
-        # Add context data
-        context.update({
-            'activities': page_obj,
-            'page_obj': page_obj,
-            'search_query': search_query,
-            'total_progress': total_progress,
-            'completed': completed,
-            'in_progress': in_progress,
-            'not_passed': not_passed,
-            'not_attempted': not_attempted,
-            'overall_completion_rate': overall_completion_rate,
-            'average_score': overall_average_score,
-            'breadcrumbs': [
-                {'url': reverse('reports:overview'), 'label': 'Reports', 'icon': 'fa-chart-bar'},
-                {'label': 'Learning Activities', 'icon': 'fa-tasks'}
-            ]
-        })
-        
-        return context
+            
+            return context
+            
+        except Exception as e:
+            logger.error(f"Error in LearningActivitiesView get_context_data: {e}")
+            # Return minimal context to prevent template errors
+            return {
+                'activities': [],
+                'page_obj': None,
+                'search_query': '',
+                'total_progress': 0,
+                'completed': 0,
+                'in_progress': 0,
+                'not_passed': 0,
+                'not_attempted': 0,
+                'overall_completion_rate': 0,
+                'average_score': 0,
+                'scorm_statistics': {
+                    'records_with_time_data': 0,
+                    'total_time_hours': 0,
+                    'average_time_minutes': 0,
+                    'average_completion_rate': 0
+                },
+                'breadcrumbs': [
+                    {'url': reverse('reports:overview'), 'label': 'Reports', 'icon': 'fa-chart-bar'},
+                    {'label': 'Learning Activities', 'icon': 'fa-tasks'}
+                ]
+            }
 
 @login_required
 @reports_access_required
