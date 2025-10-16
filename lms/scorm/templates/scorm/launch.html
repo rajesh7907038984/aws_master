@@ -579,6 +579,14 @@ var API = {
     
     ConcedeControl: function() {
         console.log('SCORM API: ConcedeControl called');
+        
+        // Set exit value to normal when conceding control
+        this.data['cmi.core.exit'] = 'normal';
+        this.sendElementToServer('cmi.core.exit', 'normal');
+        
+        // Also call LMSFinish to properly terminate the session
+        this.LMSFinish('');
+        
         return "true";
     },
     
@@ -903,6 +911,21 @@ var API = {
         return win.API;
     },
     
+    // Enhanced API discovery for SCORM content
+    findAPIInWindow: function(win) {
+        // Try multiple methods to find the API
+        if (win.API) {
+            return win.API;
+        }
+        if (win.parent && win.parent.API) {
+            return win.parent.API;
+        }
+        if (win.top && win.top.API) {
+            return win.top.API;
+        }
+        return null;
+    },
+    
     // Initialize API discovery
     initializeAPIDiscovery: function() {
         // Set API in all possible locations for SCORM content discovery
@@ -1159,7 +1182,17 @@ function injectAPIIntoIframe() {
                 iframe.contentWindow.window.API = API;
             }
             
-            console.log('SCORM API: API injected into iframe with enhanced discovery');
+            // CRITICAL FIX: Set up SD reference for CourseExit.js
+            if (iframe.contentWindow.parent) {
+                iframe.contentWindow.parent.SD = API;
+                iframe.contentWindow.parent.ConcedeControl = API.ConcedeControl;
+            }
+            
+            // Also set SD in the iframe content window itself
+            iframe.contentWindow.SD = API;
+            iframe.contentWindow.ConcedeControl = API.ConcedeControl;
+            
+            console.log('SCORM API: API injected into iframe with enhanced discovery and SD reference');
         } catch (e) {
             console.log('SCORM API: Could not inject API into iframe (cross-origin):', e.message);
         }
@@ -1221,6 +1254,25 @@ window.onload = function () {
         
         // Inject API into iframe
         injectAPIIntoIframe();
+        
+        // Set up periodic API injection to ensure it's always available
+        const apiInjectionInterval = setInterval(function() {
+            try {
+                if (iframe.contentWindow) {
+                    // Re-inject API periodically
+                    iframe.contentWindow.API = API;
+                    iframe.contentWindow.parent.API = API;
+                    iframe.contentWindow.top.API = API;
+                    iframe.contentWindow.SD = API;
+                    iframe.contentWindow.parent.SD = API;
+                    iframe.contentWindow.ConcedeControl = API.ConcedeControl;
+                    iframe.contentWindow.parent.ConcedeControl = API.ConcedeControl;
+                }
+            } catch (e) {
+                // Clear interval if iframe is no longer accessible
+                clearInterval(apiInjectionInterval);
+            }
+        }, 1000); // Check every second
         
         // Also try to send via postMessage
         try {
