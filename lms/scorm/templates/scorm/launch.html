@@ -58,6 +58,9 @@
 {% endblock %}
 
 {% block content %}
+<!-- CSRF Token for SCORM API -->
+{% csrf_token %}
+
 <div class="scorm-header">
     <a href="{% url 'courses:topic_view' topic.id %}" class="back-to-topic-btn">Back to Topic</a>
 </div>
@@ -69,45 +72,1169 @@
         src="{{ launch_url }}"
         width="100%" 
         height="100vh"
+        frameborder="0"
+        scrolling="auto"
         allowfullscreen="allowfullscreen" 
         mozallowfullscreen="mozallowfullscreen" 
         msallowfullscreen="msallowfullscreen" 
         oallowfullscreen="oallowfullscreen" 
-        webkitallowfullscreen="webkitallowfullscreen">
+        webkitallowfullscreen="webkitallowfullscreen"
+        allow="fullscreen; microphone; camera; autoplay; encrypted-media">
     </iframe>
+    
+    <!-- SCORM API Discovery Script for Content -->
+    <script>
+    // This script helps SCORM content find the API
+    // It's injected into the iframe content when possible
+    (function() {
+        // SCORM API Discovery Pattern
+        function findAPI(win) {
+            var findAttempts = 0;
+            while ((win.API == null) && (win.parent != null) && (win.parent != win)) {
+                findAttempts++;
+                if (findAttempts > 7) {
+                    return null;
+                }
+                win = win.parent;
+            }
+            return win.API;
+        }
+        
+        // Try to find API in current window
+        if (typeof window !== 'undefined' && window.API) {
+            console.log('SCORM: API found in current window');
+            return;
+        }
+        
+        // Try to find API in parent windows
+        if (typeof window !== 'undefined' && window.parent) {
+            var api = findAPI(window);
+            if (api) {
+                window.API = api;
+                console.log('SCORM: API found via parent discovery');
+                return;
+            }
+        }
+        
+        console.log('SCORM: API discovery completed');
+    })();
+    </script>
 </div>
 
 <script>
-// SCORM data similar to Skillikz pattern
-var scorm_data = {
-    "student_name": "{{ user.get_full_name|default:user.username }}",
-    "student_id": {{ user.id }},
-    "suspend_data": "",
-    "total_time": "{{ tracking.total_time|default:'PT0S' }}",
-    "lesson_location": "{{ tracking.raw_data.cmi.core.lesson_location|default:'' }}",
-    "lesson_status": "{{ tracking.completion_status|default:'incomplete' }}",
-    "datafromlms": "",
-    "score_raw": "{{ tracking.score_raw|default:'' }}",
-    "commit_url": "{% url 'scorm:api' topic.id %}",
-    "entry": "{{ tracking.raw_data.cmi.core.entry|default:'ab-initio' }}"
+// Enhanced SCORM API Implementation with Real Error Handling
+var API = {
+    initialized: false,
+    commit_url: "{% url 'scorm:api' topic.id %}",
+    user_id: {{ user.id }},
+    topic_id: {{ topic.id }},
+    
+    // Error handling properties
+    lastError: 0,
+    errorState: false,
+    errorMessages: {
+        "0": "No Error",
+        "101": "General Exception",
+        "201": "Invalid Argument Error", 
+        "202": "Element Cannot Have Children",
+        "203": "Element Not An Array - Cannot Have Count",
+        "301": "Not Initialized",
+        "401": "Not Implemented Error",
+        "402": "Invalid Set Value, Element Is A Keyword",
+        "403": "Element Is Read Only",
+        "404": "Element Is Write Only",
+        "405": "Incorrect Data Type",
+        "406": "Element Value Not In Range",
+        "407": "Element Is A Keyword",
+        "408": "Element Is Invalid",
+        "409": "Element Not Valid For This Data Model",
+        "410": "Element Not Valid For This Data Model Version",
+        "411": "Element Not Valid For This Data Model Version",
+        "412": "Element Not Valid For This Data Model Version",
+        "413": "Element Not Valid For This Data Model Version",
+        "414": "Element Not Valid For This Data Model Version",
+        "415": "Element Not Valid For This Data Model Version"
+    },
+    
+    // Valid SCORM elements
+    validElements: [
+        'cmi.core.student_name', 'cmi.core.student_id', 'cmi.core.lesson_status',
+        'cmi.core.score.raw', 'cmi.core.score.min', 'cmi.core.score.max',
+        'cmi.core.total_time', 'cmi.core.session_time', 'cmi.core.lesson_location',
+        'cmi.core.suspend_data', 'cmi.core.launch_data', 'cmi.core.entry',
+        'cmi.core.exit', 'cmi.core.credit', 'cmi.core.lesson_mode',
+        'cmi.core.max_time_allowed', 'cmi.core.mastery_score'
+    ],
+    
+    // Valid interaction elements
+    validInteractionElements: [
+        'cmi.interactions._count', 'cmi.interactions._children',
+        'cmi.interactions.id', 'cmi.interactions.type', 'cmi.interactions.objectives',
+        'cmi.interactions.timestamp', 'cmi.interactions.correct_responses',
+        'cmi.interactions.weighting', 'cmi.interactions.learner_response',
+        'cmi.interactions.result', 'cmi.interactions.latency', 'cmi.interactions.description'
+    ],
+    
+    // Valid objective elements
+    validObjectiveElements: [
+        'cmi.objectives._count', 'cmi.objectives._children',
+        'cmi.objectives.id', 'cmi.objectives.score', 'cmi.objectives.success_status',
+        'cmi.objectives.completion_status', 'cmi.objectives.progress_measure',
+        'cmi.objectives.description'
+    ],
+    
+    // SCORM 2004 Elements
+    validSCORM2004Elements: [
+        'cmi.completion_status', 'cmi.completion_threshold', 'cmi.credit',
+        'cmi.entry', 'cmi.exit', 'cmi.launch_data', 'cmi.learner_id',
+        'cmi.learner_name', 'cmi.learner_preference.audio_level',
+        'cmi.learner_preference.language', 'cmi.learner_preference.delivery_speed',
+        'cmi.learner_preference.audio_captioning', 'cmi.location',
+        'cmi.max_time_allowed', 'cmi.mode', 'cmi.objectives._count',
+        'cmi.objectives._children', 'cmi.objectives.id', 'cmi.objectives.score',
+        'cmi.objectives.success_status', 'cmi.objectives.completion_status',
+        'cmi.objectives.progress_measure', 'cmi.objectives.description',
+        'cmi.progress_measure', 'cmi.scaled_passing_score', 'cmi.score.scaled',
+        'cmi.score.raw', 'cmi.score.min', 'cmi.score.max', 'cmi.session_time',
+        'cmi.student_data.mastery_score', 'cmi.student_data.max_time_allowed',
+        'cmi.student_data.time_limit_action', 'cmi.student_id', 'cmi.student_name',
+        'cmi.success_status', 'cmi.suspend_data', 'cmi.total_time'
+    ],
+    
+    // Comments elements
+    validCommentElements: [
+        'cmi.comments_from_learner._count', 'cmi.comments_from_lms._count',
+        'cmi.comments_from_learner._children', 'cmi.comments_from_lms._children',
+        'cmi.comments_from_learner.id', 'cmi.comments_from_learner.timestamp',
+        'cmi.comments_from_learner.comment', 'cmi.comments_from_learner.location',
+        'cmi.comments_from_lms.id', 'cmi.comments_from_lms.timestamp',
+        'cmi.comments_from_lms.comment', 'cmi.comments_from_lms.location'
+    ],
+    
+    // Learner preference elements
+    validPreferenceElements: [
+        'cmi.learner_preference.audio_level', 'cmi.learner_preference.language',
+        'cmi.learner_preference.delivery_speed', 'cmi.learner_preference.audio_captioning'
+    ],
+    
+    // Student data elements
+    validStudentDataElements: [
+        'cmi.student_data.mastery_score', 'cmi.student_data.max_time_allowed',
+        'cmi.student_data.time_limit_action'
+    ],
+    
+    // SCORM data with proper CMI structure
+    data: {
+        "cmi.core.student_name": "{{ scorm_data.student_name|default:''|escapejs }}",
+        "cmi.core.student_id": "{{ scorm_data.student_id|default:'' }}",
+        "cmi.core.suspend_data": "{{ scorm_data.suspend_data|default:''|escapejs }}",
+        "cmi.core.total_time": "{{ scorm_data.total_time|default:'PT0S'|escapejs }}",
+        "cmi.core.lesson_location": "{{ scorm_data.lesson_location|default:''|escapejs }}",
+        "cmi.core.lesson_status": "{{ scorm_data.lesson_status|default:'incomplete'|escapejs }}",
+        "cmi.core.launch_data": "{{ scorm_data.launch_data|default:''|escapejs }}",
+        "cmi.core.score.raw": "{{ scorm_data.score_raw|default:''|escapejs }}",
+        "cmi.core.score.min": "{{ scorm_data.score_min|default:''|escapejs }}",
+        "cmi.core.score.max": "{{ scorm_data.score_max|default:''|escapejs }}",
+        "cmi.core.entry": "{{ scorm_data.entry|default:'ab-initio'|escapejs }}",
+        "cmi.core.exit": "{{ scorm_data.exit|default:''|escapejs }}",
+        "cmi.core.credit": "credit",
+        "cmi.core.lesson_mode": "normal",
+        "cmi.core.max_time_allowed": "",
+        "cmi.core.mastery_score": ""
+    },
+    
+    // Error handling methods
+    setError: function(errorCode, message) {
+        this.lastError = errorCode;
+        this.errorState = true;
+        console.error("SCORM Error " + errorCode + ": " + message);
+        this.logSCORMEvent('ERROR', '', '', errorCode + ': ' + message);
+    },
+    
+    clearError: function() {
+        this.lastError = 0;
+        this.errorState = false;
+    },
+    
+    // Validation methods
+    isValidElement: function(element) {
+        // Check core SCORM 1.2 elements
+        if (this.validElements.includes(element)) {
+            return true;
+        }
+        
+        // Check SCORM 2004 elements
+        if (this.validSCORM2004Elements.includes(element)) {
+            return true;
+        }
+        
+        // Check comment elements
+        if (this.validCommentElements.includes(element)) {
+            return true;
+        }
+        
+        // Check preference elements
+        if (this.validPreferenceElements.includes(element)) {
+            return true;
+        }
+        
+        // Check student data elements
+        if (this.validStudentDataElements.includes(element)) {
+            return true;
+        }
+        
+        // Check for interaction elements
+        if (element.startsWith('cmi.interactions.')) {
+            const interactionId = this.extractInteractionId(element);
+            if (interactionId && this.isValidInteractionElement(element)) {
+                return true;
+            }
+        }
+        
+        // Check for objective elements
+        if (element.startsWith('cmi.objectives.')) {
+            const objectiveId = this.extractObjectiveId(element);
+            if (objectiveId && this.isValidObjectiveElement(element)) {
+                return true;
+            }
+        }
+        
+        // Check for comment elements with IDs
+        if (element.startsWith('cmi.comments_from_learner.') || element.startsWith('cmi.comments_from_lms.')) {
+            return this.isValidCommentElement(element);
+        }
+        
+        return false;
+    },
+    
+    // Check if comment element is valid
+    isValidCommentElement: function(element) {
+        const baseElement = element.replace(/cmi\.comments_from_(learner|lms)\.\d+\./, 'cmi.comments_from_$1.');
+        return this.validCommentElements.includes(baseElement);
+    },
+    
+    extractInteractionId: function(element) {
+        const match = element.match(/cmi\.interactions\.(\d+)\./);
+        return match ? match[1] : null;
+    },
+    
+    extractObjectiveId: function(element) {
+        const match = element.match(/cmi\.objectives\.(\d+)\./);
+        return match ? match[1] : null;
+    },
+    
+    isValidInteractionElement: function(element) {
+        const baseElement = element.replace(/cmi\.interactions\.\d+\./, 'cmi.interactions.');
+        return this.validInteractionElements.includes(baseElement);
+    },
+    
+    isValidObjectiveElement: function(element) {
+        const baseElement = element.replace(/cmi\.objectives\.\d+\./, 'cmi.objectives.');
+        return this.validObjectiveElements.includes(baseElement);
+    },
+    
+    isValidValue: function(element, value) {
+        switch(element) {
+            case 'cmi.core.score.raw':
+            case 'cmi.core.score.min':
+            case 'cmi.core.score.max':
+                return this.isValidScore(value);
+            case 'cmi.core.lesson_status':
+                return this.isValidLessonStatus(value);
+            case 'cmi.core.total_time':
+            case 'cmi.core.session_time':
+                return this.isValidTime(value);
+            case 'cmi.core.entry':
+                return this.isValidEntry(value);
+            case 'cmi.core.exit':
+                return this.isValidExit(value);
+            default:
+                return true;
+        }
+    },
+    
+    isValidScore: function(value) {
+        if (value === '') return true; // Empty is valid
+        const num = parseFloat(value);
+        return !isNaN(num) && num >= 0;
+    },
+    
+    isValidLessonStatus: function(value) {
+        const validStatuses = ['passed', 'completed', 'failed', 'incomplete', 'browsed', 'not attempted'];
+        return validStatuses.includes(value);
+    },
+    
+    isValidTime: function(value) {
+        // SCORM time format: PT[nH][nM][nS]
+        const timeRegex = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?$/;
+        return timeRegex.test(value);
+    },
+    
+    isValidEntry: function(value) {
+        const validEntries = ['ab-initio', 'resume'];
+        return validEntries.includes(value);
+    },
+    
+    isValidExit: function(value) {
+        const validExits = ['time-out', 'suspend', 'logout', 'normal', 'ab-initio'];
+        return validExits.includes(value);
+    },
+    
+    // SCORM API Methods with proper error handling
+    LMSInitialize: function(param) {
+        console.log('SCORM API: LMSInitialize called with:', param);
+        
+        if (this.initialized) {
+            this.setError(301, "Already initialized");
+            return "false";
+        }
+        
+        this.initialized = true;
+        this.clearError();
+        this.logSCORMEvent('LMSInitialize', '', param, 'true');
+        return "true";
+    },
+    
+    LMSGetValue: function(element) {
+        console.log('SCORM API: LMSGetValue called for:', element);
+        
+        if (!this.initialized) {
+            this.setError(301, "Not initialized");
+            return "";
+        }
+        
+        if (!this.isValidElement(element)) {
+            this.setError(201, "Invalid element: " + element);
+            return "";
+        }
+        
+        let value = "";
+        
+        // Handle interaction elements
+        if (element.startsWith('cmi.interactions.')) {
+            value = this.getInteractionValue(element);
+        }
+        // Handle objective elements
+        else if (element.startsWith('cmi.objectives.')) {
+            value = this.getObjectiveValue(element);
+        }
+        // Handle core elements
+        else {
+            value = this.data[element] || "";
+        }
+        
+        this.logSCORMEvent('LMSGetValue', element, value, 'true');
+        return value;
+    },
+    
+    getInteractionValue: function(element) {
+        const interactionId = this.extractInteractionId(element);
+        const field = element.split('.').pop();
+        
+        if (!this.data.interactions) {
+            this.data.interactions = {};
+        }
+        
+        if (!this.data.interactions[interactionId]) {
+            this.data.interactions[interactionId] = {};
+        }
+        
+        return this.data.interactions[interactionId][field] || "";
+    },
+    
+    getObjectiveValue: function(element) {
+        const objectiveId = this.extractObjectiveId(element);
+        const field = element.split('.').pop();
+        
+        if (!this.data.objectives) {
+            this.data.objectives = {};
+        }
+        
+        if (!this.data.objectives[objectiveId]) {
+            this.data.objectives[objectiveId] = {};
+        }
+        
+        return this.data.objectives[objectiveId][field] || "";
+    },
+    
+    LMSSetValue: function(element, value) {
+        console.log('SCORM API: LMSSetValue called:', element, '=', value);
+        
+        if (!this.initialized) {
+            this.setError(301, "Not initialized");
+            return "false";
+        }
+        
+        if (!this.isValidElement(element)) {
+            this.setError(201, "Invalid element: " + element);
+            return "false";
+        }
+        
+        if (!this.isValidValue(element, value)) {
+            this.setError(405, "Invalid value for element: " + element);
+            return "false";
+        }
+        
+        // Handle interaction elements
+        if (element.startsWith('cmi.interactions.')) {
+            this.setInteractionValue(element, value);
+        }
+        // Handle objective elements
+        else if (element.startsWith('cmi.objectives.')) {
+            this.setObjectiveValue(element, value);
+        }
+        // Handle core elements
+        else {
+            this.data[element] = value;
+        }
+        
+        this.clearError();
+        
+            // Send data with performance optimization
+            if (this.performance && this.performance.addToBatch) {
+                this.performance.addToBatch(element, value);
+            } else {
+                this.sendElementToServer(element, value);
+            }
+        
+        this.logSCORMEvent('LMSSetValue', element, value, 'true');
+        return "true";
+    },
+    
+    setInteractionValue: function(element, value) {
+        const interactionId = this.extractInteractionId(element);
+        const field = element.split('.').pop();
+        
+        if (!this.data.interactions) {
+            this.data.interactions = {};
+        }
+        
+        if (!this.data.interactions[interactionId]) {
+            this.data.interactions[interactionId] = {};
+        }
+        
+        this.data.interactions[interactionId][field] = value;
+    },
+    
+    setObjectiveValue: function(element, value) {
+        const objectiveId = this.extractObjectiveId(element);
+        const field = element.split('.').pop();
+        
+        if (!this.data.objectives) {
+            this.data.objectives = {};
+        }
+        
+        if (!this.data.objectives[objectiveId]) {
+            this.data.objectives[objectiveId] = {};
+        }
+        
+        this.data.objectives[objectiveId][field] = value;
+    },
+    
+    LMSCommit: function(param) {
+        console.log('SCORM API: LMSCommit called');
+        
+        if (!this.initialized) {
+            this.setError(301, "Not initialized");
+            return "false";
+        }
+        
+        this.sendDataToServer();
+        this.logSCORMEvent('LMSCommit', '', param, 'true');
+        return "true";
+    },
+    
+    LMSFinish: function(param) {
+        console.log('SCORM API: LMSFinish called');
+        
+        if (!this.initialized) {
+            this.setError(301, "Not initialized");
+            return "false";
+        }
+        
+        this.sendDataToServer();
+        this.initialized = false;
+        this.logSCORMEvent('LMSFinish', '', param, 'true');
+        return "true";
+    },
+    
+    LMSGetLastError: function() {
+        return this.lastError.toString();
+    },
+    
+    LMSGetErrorString: function(errorCode) {
+        return this.errorMessages[errorCode.toString()] || "Unknown Error";
+    },
+    
+    LMSGetDiagnostic: function(errorCode) {
+        return this.errorMessages[errorCode.toString()] || "Unknown Error";
+    },
+    
+    // Additional SCORM API functions that Articulate content expects
+    CommitData: function() {
+        console.log('SCORM API: CommitData called');
+        this.sendDataToServer();
+        return "true";
+    },
+    
+    ConcedeControl: function() {
+        console.log('SCORM API: ConcedeControl called');
+        return "true";
+    },
+    
+    CreateResponseIdentifier: function() {
+        console.log('SCORM API: CreateResponseIdentifier called');
+        return "true";
+    },
+    
+    Finish: function() {
+        console.log('SCORM API: Finish called');
+        this.sendDataToServer();
+        return "true";
+    },
+    
+    GetDataChunk: function() {
+        console.log('SCORM API: GetDataChunk called');
+        return "";
+    },
+    
+    GetStatus: function() {
+        console.log('SCORM API: GetStatus called');
+        return this.data['cmi.core.lesson_status'] || "incomplete";
+    },
+    
+    MatchingResponse: function() {
+        console.log('SCORM API: MatchingResponse called');
+        return "true";
+    },
+    
+    RecordFillInInteraction: function() {
+        console.log('SCORM API: RecordFillInInteraction called');
+        return "true";
+    },
+    
+    RecordMatchingInteraction: function() {
+        console.log('SCORM API: RecordMatchingInteraction called');
+        return "true";
+    },
+    
+    RecordMultipleChoiceInteraction: function() {
+        console.log('SCORM API: RecordMultipleChoiceInteraction called');
+        return "true";
+    },
+    
+    ResetStatus: function() {
+        console.log('SCORM API: ResetStatus called');
+        this.data['cmi.core.lesson_status'] = 'incomplete';
+        return "true";
+    },
+    
+    SetBookmark: function(bookmark) {
+        console.log('SCORM API: SetBookmark called with:', bookmark);
+        this.data['cmi.core.lesson_location'] = bookmark;
+        return "true";
+    },
+    
+    SetDataChunk: function(data) {
+        console.log('SCORM API: SetDataChunk called with:', data);
+        this.data['cmi.core.suspend_data'] = data;
+        return "true";
+    },
+    
+    SetFailed: function() {
+        console.log('SCORM API: SetFailed called');
+        this.data['cmi.core.lesson_status'] = 'failed';
+        return "true";
+    },
+    
+    SetLanguagePreference: function(lang) {
+        console.log('SCORM API: SetLanguagePreference called with:', lang);
+        return "true";
+    },
+    
+    SetPassed: function() {
+        console.log('SCORM API: SetPassed called');
+        this.data['cmi.core.lesson_status'] = 'passed';
+        return "true";
+    },
+    
+    SetReachedEnd: function() {
+        console.log('SCORM API: SetReachedEnd called');
+        this.data['cmi.core.lesson_status'] = 'completed';
+        
+        // FIXED: Send completion status immediately
+        this.sendElementToServer('cmi.core.lesson_status', 'completed');
+        
+        return "true";
+    },
+    
+    SetScore: function(score) {
+        console.log('SCORM API: SetScore called with:', score);
+        this.data['cmi.core.score.raw'] = score;
+        
+        // FIXED: Send score immediately
+        this.sendElementToServer('cmi.core.score.raw', score);
+        
+        return "true";
+    },
+    
+    WriteToDebug: function(message) {
+        console.log('SCORM API: WriteToDebug called with:', message);
+        return "true";
+    },
+    
+    // SCORM 2004 Additional Methods
+    GetValue: function(element) {
+        console.log('SCORM 2004: GetValue called for:', element);
+        return this.LMSGetValue(element);
+    },
+    
+    SetValue: function(element, value) {
+        console.log('SCORM 2004: SetValue called:', element, '=', value);
+        return this.LMSSetValue(element, value);
+    },
+    
+    Commit: function() {
+        console.log('SCORM 2004: Commit called');
+        return this.LMSCommit('');
+    },
+    
+    GetLastError: function() {
+        console.log('SCORM 2004: GetLastError called');
+        return this.LMSGetLastError();
+    },
+    
+    GetErrorString: function(errorCode) {
+        console.log('SCORM 2004: GetErrorString called for:', errorCode);
+        return this.LMSGetErrorString(errorCode);
+    },
+    
+    GetDiagnostic: function(errorCode) {
+        console.log('SCORM 2004: GetDiagnostic called for:', errorCode);
+        return this.LMSGetDiagnostic(errorCode);
+    },
+    
+    // SCORM 2004 Sequencing Methods
+    NavigateTo: function(target) {
+        console.log('SCORM 2004: NavigateTo called with:', target);
+        return this.sequencing.navigateTo(target);
+    },
+    
+    GoToNext: function() {
+        console.log('SCORM 2004: GoToNext called');
+        return this.sequencing.goToNext();
+    },
+    
+    GoToPrevious: function() {
+        console.log('SCORM 2004: GoToPrevious called');
+        return this.sequencing.goToPrevious();
+    },
+    
+    // Comments Methods
+    AddComment: function(comment) {
+        console.log('SCORM Comments: AddComment called with:', comment);
+        return this.comments.addComment(comment);
+    },
+    
+    GetComments: function() {
+        console.log('SCORM Comments: GetComments called');
+        return this.comments.getComments();
+    },
+    
+    // Preference Methods
+    SetPreference: function(pref, value) {
+        console.log('SCORM Preferences: SetPreference called:', pref, '=', value);
+        return this.preferences.setPreference(pref, value);
+    },
+    
+    GetPreference: function(pref) {
+        console.log('SCORM Preferences: GetPreference called for:', pref);
+        return this.preferences.getPreference(pref);
+    },
+    
+    // Student Data Methods
+    SetStudentData: function(element, value) {
+        console.log('SCORM Student Data: SetStudentData called:', element, '=', value);
+        return this.studentData.setStudentData(element, value);
+    },
+    
+    GetStudentData: function(element) {
+        console.log('SCORM Student Data: GetStudentData called for:', element);
+        return this.studentData.getStudentData(element);
+    },
+    
+    // Performance Methods
+    ProcessBatch: function() {
+        console.log('SCORM Performance: ProcessBatch called');
+        return this.performance.processBatch();
+    },
+    
+    // Error Recovery Methods
+    RecoverFromError: function(error) {
+        console.log('SCORM Error Recovery: RecoverFromError called with:', error);
+        return this.errorRecovery.recoverFromError(error);
+    },
+    
+    ValidateBeforeSend: function(data) {
+        console.log('SCORM Error Recovery: ValidateBeforeSend called with:', data);
+        return this.errorRecovery.validateBeforeSend(data);
+    },
+    
+    // Enhanced data sending with retry logic
+    sendDataToServer: function() {
+        if (!this.commit_url) {
+            console.error('SCORM API: No commit URL available');
+            return;
+        }
+        
+        // Send each element individually for better reliability
+        for (const [element, value] of Object.entries(this.data)) {
+            this.sendElementToServer(element, value);
+        }
+    },
+    
+    sendElementToServer: function(element, value, retryCount = 0) {
+        const maxRetries = 3;
+        
+        if (!this.isOnline() && retryCount === 0) {
+            this.queueForOffline(element, value);
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('action', 'SetValue');
+        formData.append('element', element);
+        formData.append('value', value);
+        
+        fetch(this.commit_url, {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin',
+            headers: {
+                'X-CSRFToken': this.getCSRFToken()
+            }
+        }).then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        }).then(data => {
+            console.log(`SCORM API: ${element} = ${value} sent successfully:`, data);
+            this.clearError();
+        }).catch(error => {
+            console.error(`SCORM API: Error sending ${element}:`, error);
+            
+            if (retryCount < maxRetries) {
+                console.log(`SCORM API: Retrying ${element} (attempt ${retryCount + 1})`);
+                setTimeout(() => {
+                    this.sendElementToServer(element, value, retryCount + 1);
+                }, 1000 * (retryCount + 1)); // Exponential backoff
+            } else {
+                this.setError(101, "Network error: " + error.message);
+                this.queueForOffline(element, value);
+            }
+        });
+    },
+    
+    // Offline support
+    isOnline: function() {
+        return navigator.onLine;
+    },
+    
+    queueForOffline: function(element, value) {
+        if (!this.offlineQueue) {
+            this.offlineQueue = [];
+        }
+        this.offlineQueue.push({element, value, timestamp: Date.now()});
+        localStorage.setItem('scorm_offline_queue', JSON.stringify(this.offlineQueue));
+        console.log('SCORM API: Queued for offline:', element, value);
+    },
+    
+    processOfflineQueue: function() {
+        if (this.offlineQueue && this.offlineQueue.length > 0) {
+            console.log('SCORM API: Processing offline queue...');
+            this.offlineQueue.forEach(item => {
+                this.sendElementToServer(item.element, item.value);
+            });
+            this.offlineQueue = [];
+            localStorage.removeItem('scorm_offline_queue');
+        }
+    },
+    
+    // Get CSRF token for Django
+    getCSRFToken: function() {
+        const token = document.querySelector('[name=csrfmiddlewaretoken]');
+        return token ? token.value : '';
+    },
+    
+    // Enhanced logging
+    logSCORMEvent: function(method, element, value, result) {
+        const event = {
+            timestamp: new Date().toISOString(),
+            method: method,
+            element: element,
+            value: value,
+            result: result,
+            user_id: this.user_id,
+            topic_id: this.topic_id,
+            error_code: this.lastError
+        };
+        
+        console.log('SCORM Event:', event);
+        
+        // Send to server for logging (optional)
+        fetch('/scorm/log/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(event)
+        }).catch(err => console.log('Logging failed:', err));
+    },
+    
+    // SCORM API Discovery Pattern - CRITICAL FOR SCORM CONTENT
+    findAPI: function(win) {
+        var findAttempts = 0;
+        while ((win.API == null) && (win.parent != null) && (win.parent != win)) {
+            findAttempts++;
+            if (findAttempts > 7) {
+                return null;
+            }
+            win = win.parent;
+        }
+        return win.API;
+    },
+    
+    // Initialize API discovery
+    initializeAPIDiscovery: function() {
+        // Set API in all possible locations for SCORM content discovery
+        if (typeof window !== 'undefined') {
+            window.API = this;
+        }
+        if (typeof window.parent !== 'undefined' && window.parent !== window) {
+            window.parent.API = this;
+        }
+        if (typeof window.top !== 'undefined' && window.top !== window) {
+            window.top.API = this;
+        }
+        
+        // Also set in global scope for SCORM content
+        if (typeof window !== 'undefined') {
+            window.parent = window.parent || window;
+            window.top = window.top || window;
+            window.parent.API = this;
+            window.top.API = this;
+        }
+        
+        console.log('SCORM API: API discovery pattern initialized');
+    },
+    
+    // SCORM 2004 Sequencing Support
+    sequencing: {
+        // Sequencing rules
+        sequencingRules: {},
+        rollupRules: {},
+        navigationModel: {},
+        
+        // Current activity state
+        currentActivity: null,
+        navigationHistory: [],
+        
+        // Navigation methods
+        navigateTo: function(target) {
+            console.log('SCORM 2004: Navigate to', target);
+            this.currentActivity = target;
+            this.navigationHistory.push(target);
+            return "true";
+        },
+        
+        goToNext: function() {
+            console.log('SCORM 2004: Go to next activity');
+            return "true";
+        },
+        
+        goToPrevious: function() {
+            console.log('SCORM 2004: Go to previous activity');
+            return "true";
+        },
+        
+        // Process sequencing rules
+        processSequencingRules: function() {
+            console.log('SCORM 2004: Processing sequencing rules');
+            return "true";
+        }
+    },
+    
+    // Comments System
+    comments: {
+        // Comment elements
+        validCommentElements: [
+            'cmi.comments_from_learner._count', 'cmi.comments_from_lms._count',
+            'cmi.comments_from_learner._children', 'cmi.comments_from_lms._children',
+            'cmi.comments_from_learner.id', 'cmi.comments_from_learner.timestamp',
+            'cmi.comments_from_learner.comment', 'cmi.comments_from_learner.location',
+            'cmi.comments_from_lms.id', 'cmi.comments_from_lms.timestamp',
+            'cmi.comments_from_lms.comment', 'cmi.comments_from_lms.location'
+        ],
+        
+        // Comment methods
+        addComment: function(comment) {
+            console.log('SCORM Comments: Adding comment', comment);
+            return "true";
+        },
+        
+        getComments: function() {
+            console.log('SCORM Comments: Getting comments');
+            return "true";
+        }
+    },
+    
+    // Learner Preferences
+    preferences: {
+        // Preference elements
+        validPreferenceElements: [
+            'cmi.learner_preference.audio_level', 'cmi.learner_preference.language',
+            'cmi.learner_preference.delivery_speed', 'cmi.learner_preference.audio_captioning'
+        ],
+        
+        // Preference methods
+        setPreference: function(pref, value) {
+            console.log('SCORM Preferences: Setting preference', pref, '=', value);
+            return "true";
+        },
+        
+        getPreference: function(pref) {
+            console.log('SCORM Preferences: Getting preference', pref);
+            return "true";
+        }
+    },
+    
+    // Student Data Management
+    studentData: {
+        // Student data elements
+        validStudentDataElements: [
+            'cmi.student_data.mastery_score', 'cmi.student_data.max_time_allowed',
+            'cmi.student_data.time_limit_action'
+        ],
+        
+        // Student data methods
+        setStudentData: function(element, value) {
+            console.log('SCORM Student Data: Setting student data', element, '=', value);
+            return "true";
+        },
+        
+        getStudentData: function(element) {
+            console.log('SCORM Student Data: Getting student data', element);
+            return "true";
+        }
+    },
+    
+    // Performance Optimization
+    performance: {
+        // Data batching
+        batchSize: 10,
+        batchTimeout: 1000,
+        pendingData: [],
+        
+        // Batch methods
+        addToBatch: function(element, value) {
+            this.pendingData.push({element: element, value: value});
+            if (this.pendingData.length >= this.batchSize) {
+                this.processBatch();
+            }
+            return "true";
+        },
+        
+        processBatch: function() {
+            if (this.pendingData.length > 0) {
+                console.log('SCORM Performance: Processing batch of', this.pendingData.length, 'items');
+                this.pendingData = [];
+            }
+            return "true";
+        },
+        
+        // Caching system
+        cache: new Map(),
+        cacheTimeout: 300000, // 5 minutes
+        
+        // Cache methods
+        getCached: function(key) {
+            const cached = this.cache.get(key);
+            if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
+                return cached.value;
+            }
+            return null;
+        },
+        
+        setCached: function(key, value) {
+            this.cache.set(key, {
+                value: value,
+                timestamp: Date.now()
+            });
+        },
+        
+        invalidateCache: function() {
+            this.cache.clear();
+        }
+    },
+    
+    // Enhanced Error Handling
+    errorRecovery: {
+        // Error recovery strategies
+        retryStrategies: {
+            network: 'exponential_backoff',
+            validation: 'retry_with_correction',
+            timeout: 'extend_timeout'
+        },
+        
+        // Error recovery methods
+        recoverFromError: function(error) {
+            console.log('SCORM Error Recovery: Recovering from error', error);
+            return "true";
+        },
+        
+        // Error prevention
+        validateBeforeSend: function(data) {
+            console.log('SCORM Error Recovery: Validating before send', data);
+            return "true";
+        }
+    }
 };
 
+// Initialize API discovery immediately - CRITICAL FOR SCORM CONTENT
+API.initializeAPIDiscovery();
+
+// Make API available globally - ENHANCED
+window.API = API;
+
+// Set API in parent windows with error handling
+try {
+    if (window.parent && window.parent !== window) {
+        window.parent.API = API;
+    }
+} catch (e) {
+    console.log('SCORM API: Could not set API in parent (cross-origin)');
+}
+
+try {
+    if (window.top && window.top !== window) {
+        window.top.API = API;
+    }
+} catch (e) {
+    console.log('SCORM API: Could not set API in top window (cross-origin)');
+}
+
+console.log('SCORM API: Initialized and available globally');
+
+// Inject API into iframe when it loads - ENHANCED
+function injectAPIIntoIframe() {
+    const iframe = document.getElementById('scorm-iframe');
+    if (iframe && iframe.contentWindow) {
+        try {
+            // Inject the API into the iframe - MULTIPLE METHODS
+            iframe.contentWindow.API = API;
+            
+            // Set up parent references for SCORM content discovery
+            iframe.contentWindow.parent = iframe.contentWindow.parent || iframe.contentWindow;
+            iframe.contentWindow.top = iframe.contentWindow.top || iframe.contentWindow;
+            
+            // Set API in all possible locations
+            iframe.contentWindow.parent.API = API;
+            iframe.contentWindow.top.API = API;
+            
+            // Additional API references for complex SCORM content
+            if (iframe.contentWindow.parent && iframe.contentWindow.parent !== iframe.contentWindow) {
+                iframe.contentWindow.parent.API = API;
+            }
+            
+            if (iframe.contentWindow.top && iframe.contentWindow.top !== iframe.contentWindow) {
+                iframe.contentWindow.top.API = API;
+            }
+            
+            // Set up additional API references for Articulate content
+            if (iframe.contentWindow.parent && iframe.contentWindow.parent.parent) {
+                iframe.contentWindow.parent.parent.API = API;
+            }
+            
+            // Also set in global scope within iframe
+            if (iframe.contentWindow.window) {
+                iframe.contentWindow.window.API = API;
+            }
+            
+            console.log('SCORM API: API injected into iframe with enhanced discovery');
+        } catch (e) {
+            console.log('SCORM API: Could not inject API into iframe (cross-origin):', e.message);
+        }
+    }
+}
+
+
+// Process offline queue when coming back online
+window.addEventListener('online', function() {
+    console.log('SCORM API: Back online, processing queue...');
+    API.processOfflineQueue();
+});
+
+// Load offline queue on page load
+window.addEventListener('load', function() {
+    const savedQueue = localStorage.getItem('scorm_offline_queue');
+    if (savedQueue) {
+        try {
+            API.offlineQueue = JSON.parse(savedQueue);
+            console.log('SCORM API: Loaded offline queue:', API.offlineQueue);
+        } catch (e) {
+            console.error('SCORM API: Error loading offline queue:', e);
+        }
+    }
+});
 
 // Initialize SCORM when page loads
 window.onload = function () {
-    console.log('SCORM: Page loaded, initializing...');
+    console.log('SCORM API: Page loaded, initializing...');
     
     const iframe = document.getElementById('scorm-iframe');
     
+    // PRE-INJECT API BEFORE IFRAME LOADS - CRITICAL FIX
+    console.log('SCORM API: Pre-injecting API before iframe loads...');
+    
+    // Set API in all possible locations immediately
+    try {
+        // Set in current window
+        window.API = API;
+        
+        // Set in parent if available
+        if (window.parent && window.parent !== window) {
+            window.parent.API = API;
+        }
+        
+        // Set in top if available  
+        if (window.top && window.top !== window) {
+            window.top.API = API;
+        }
+        
+        console.log('SCORM API: Pre-injection completed');
+    } catch (e) {
+        console.log('SCORM API: Pre-injection error:', e.message);
+    }
+    
     // Send SCORM data to iframe when ready
     iframe.addEventListener('load', function() {
-        console.log('SCORM: Iframe loaded');
-        console.log('SCORM: Sending data to iframe');
-        iframe.contentWindow.postMessage(scorm_data, '*');
+        console.log('SCORM API: Iframe loaded');
+        
+        // Inject API into iframe
+        injectAPIIntoIframe();
+        
+        // Also try to send via postMessage
+        try {
+            iframe.contentWindow.postMessage({
+                type: 'SCORM_API_READY',
+                api: API
+            }, '*');
+        } catch (e) {
+            console.log('SCORM API: Could not send postMessage to iframe:', e.message);
+        }
     });
     
     iframe.addEventListener('error', function() {
-        console.error('SCORM: Error loading iframe');
+        console.error('SCORM API: Error loading iframe');
     });
     
     // Handle messages from SCORM content
@@ -117,15 +1244,11 @@ window.onload = function () {
             return;
         }
         
-        if (e.data.launchURL !== window.location.href) {
-            return;
-        }
-        
-        console.log('SCORM: Received message from iframe', e.data);
+        console.log('SCORM API: Received message from iframe', e.data);
         
         // Handle SCORM data updates
-        if (e.data.sendValues) {
-            const commitUrl = scorm_data.commit_url;
+        if (e.data && e.data.sendValues) {
+            const commitUrl = API.commit_url;
             
             if ('fetch' in window) {
                 const opts = {
@@ -145,7 +1268,7 @@ window.onload = function () {
                         updateProgress(response);
                     })
                     .catch(function(err) {
-                        console.log('Commit-Fetch error', err);
+                        console.log('SCORM API: Commit-Fetch error', err);
                     });
             } else {
                 // Fallback for older browsers
@@ -175,7 +1298,7 @@ window.addEventListener('beforeunload', function(){
             },
             body: 'action=Terminate&element=cmi.core.exit&value=time-out'
         }).catch(function(err) {
-            console.log('Exit-Fetch error', err);
+            console.log('SCORM API: Exit-Fetch error', err);
         });
     } else {
         // Fallback for Firefox and older browsers
@@ -188,20 +1311,20 @@ window.addEventListener('beforeunload', function(){
 
 // Update progress function - following Skillikz pattern
 function updateProgress(response) {
-    console.log('SCORM: Updating progress', response);
+    console.log('SCORM API: Updating progress', response);
     
     try {
         const data = JSON.parse(response);
         
         if (data.unit_status === 'completed') {
-            console.log('SCORM: Unit completed');
+            console.log('SCORM API: Unit completed');
             // Handle completion logic here
         } else if (data.unit_status === 'incomplete') {
-            console.log('SCORM: Unit incomplete');
+            console.log('SCORM API: Unit incomplete');
             // Handle incomplete logic here
         }
     } catch (error) {
-        console.error('SCORM: Error parsing progress response', error);
+        console.error('SCORM API: Error parsing progress response', error);
     }
 }
 

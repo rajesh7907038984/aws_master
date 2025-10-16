@@ -28,7 +28,9 @@
                         {{ topic.title }}
                     </td>
                     <td class="px-6 py-4">
+                        {% if topic.topic_type == 'assessment' %}
                             <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                                Assessment
                             </span>
                         {% else %}
                             <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">

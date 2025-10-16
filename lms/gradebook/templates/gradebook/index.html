@@ -466,6 +466,10 @@
 </style>
 {% endblock %}
 
+{% block right_sidebar %}
+    {% include 'components/global_right_sidebar.html' %}
+{% endblock %}
+
 {% block content %}
 <!-- Breadcrumbs -->
 {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}

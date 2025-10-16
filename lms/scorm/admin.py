@@ -70,8 +70,8 @@ class ELearningPackageAdmin(admin.ModelAdmin):
 class ELearningTrackingAdmin(admin.ModelAdmin):
     list_display = [
         'user', 'elearning_package', 'completion_status', 
-        'success_status', 'score_display', 'progress_display',
-        'last_launch'
+        'success_status', 'score_display', 'grade_display', 'progress_display',
+        'bookmark_display', 'last_launch'
     ]
     list_filter = [
         'completion_status', 'success_status', 'created_at',
@@ -110,7 +110,13 @@ class ELearningTrackingAdmin(admin.ModelAdmin):
     
     def score_display(self, obj):
         if obj.score_raw is not None:
-            return "{:.1f}".format(obj.score_raw)
+            score_text = "{:.1f}".format(obj.score_raw)
+            if obj.score_max is not None:
+                score_text += f" / {obj.score_max:.1f}"
+            percentage = obj.get_score_percentage()
+            if percentage is not None:
+                score_text += f" ({percentage:.1f}%)"
+            return score_text
         return "-"
     score_display.short_description = "Score"
     
@@ -119,11 +125,30 @@ class ELearningTrackingAdmin(admin.ModelAdmin):
         return "{:.1f}%".format(progress)
     progress_display.short_description = "Progress"
     
+    def grade_display(self, obj):
+        if obj.score_raw is not None:
+            grade = obj.get_score_grade()
+            is_passing = obj.is_passing_score()
+            grade_class = "grade-pass" if is_passing else "grade-fail"
+            return f'<span class="{grade_class}">{grade}</span>'
+        return "-"
+    grade_display.short_description = "Grade"
+    grade_display.allow_tags = True
+    
     def raw_data_display(self, obj):
         if obj.raw_data:
             return format_html('<pre>{}</pre>', str(obj.raw_data))
         return "No data"
     raw_data_display.short_description = "Raw SCORM Data"
+    
+    def bookmark_display(self, obj):
+        bookmark_data = obj.get_bookmark_data()
+        if bookmark_data['can_resume']:
+            location = bookmark_data['lesson_location']
+            return format_html('<span style="color: green;">✓ Resume from: {}</span>', location)
+        return format_html('<span style="color: gray;">No bookmark</span>')
+    bookmark_display.short_description = "Bookmark"
+    bookmark_display.allow_tags = True
 
 @admin.register(SCORMReport)
 class SCORMReportAdmin(admin.ModelAdmin):

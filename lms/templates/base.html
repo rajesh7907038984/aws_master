@@ -86,6 +86,7 @@
         window.addEventListener('load', function() {
             // Handle responsive behavior for sidebar and main content
             const sidebar = document.getElementById('sidebar');
+            const rightSidebar = document.getElementById('rightSidebar');
             const mainContent = document.getElementById('main-content');
             
             // Apply responsive rules
@@ -98,6 +99,9 @@
                     mainContent.classList.add('ml-0');
                     mainContent.classList.add('w-full');
                     mainContent.classList.remove('md:w-[calc(100%-200px)]');
+                    if (rightSidebar) {
+                        rightSidebar.style.display = 'none';
+                    }
                 } else {
                     // Desktop view
                     sidebar.classList.remove('hidden');
@@ -108,6 +112,11 @@
                         mainContent.classList.add('sidebar-collapsed');
                     } else {
                         mainContent.classList.remove('sidebar-collapsed');
+                    }
+                    
+                    // Handle right sidebar if it exists
+                    if (rightSidebar) {
+                        rightSidebar.style.display = 'block';
                     }
                 }
             }
@@ -147,31 +156,73 @@
             }
         });
 
-        // Handle window resize events
+        // Handle window resize events for both sidebars
         window.addEventListener('resize', function() {
             const sidebar = document.getElementById('sidebar');
+            const rightSidebar = document.getElementById('rightSidebar');
             const mainContent = document.getElementById('main-content');
             
             if (sidebar && mainContent) {
                 if (window.innerWidth < 768) {
-                    // Mobile view
+                    // Mobile view - hide both sidebars
                     sidebar.classList.add('hidden');
                     sidebar.classList.remove('md:block');
+                    if (rightSidebar) {
+                        rightSidebar.style.display = 'none';
+                    }
                     mainContent.style.marginLeft = '0';
+                    mainContent.style.marginRight = '0';
                     mainContent.style.width = '100%';
-                } else {
-                    // Desktop view
+                } else if (window.innerWidth < 1024) {
+                    // Tablet view - show left sidebar, hide right sidebar
                     sidebar.classList.remove('hidden');
                     sidebar.classList.add('md:block');
+                    if (rightSidebar) {
+                        rightSidebar.style.display = 'none';
+                    }
                     
                     // Check if sidebar is collapsed
                     if (sidebar.classList.contains('collapsed')) {
                         mainContent.style.marginLeft = '3.5rem';
+                        mainContent.style.marginRight = '0';
                         mainContent.style.width = 'calc(100% - 3.5rem)';
                     } else {
                         mainContent.style.marginLeft = '16rem';
+                        mainContent.style.marginRight = '0';
                         mainContent.style.width = 'calc(100% - 16rem)';
                     }
+                } else {
+                    // Desktop view - show both sidebars if right sidebar exists
+                    sidebar.classList.remove('hidden');
+                    sidebar.classList.add('md:block');
+                    if (rightSidebar) {
+                        rightSidebar.style.display = 'block';
+                    }
+                    
+                    // Check if sidebars are collapsed
+                    let leftMargin = '16rem';
+                    let rightMargin = '0'; // Default to no right margin
+                    let width = 'calc(100% - 16rem)'; // Default width
+                    
+                    if (sidebar.classList.contains('collapsed')) {
+                        leftMargin = '3.5rem';
+                        width = 'calc(100% - 3.5rem)';
+                    }
+                    
+                    // Only adjust for right sidebar if it exists
+                    if (rightSidebar) {
+                        rightMargin = '20rem'; // 20rem for right sidebar (w-80)
+                        width = sidebar.classList.contains('collapsed') ? 'calc(100% - 23.5rem)' : 'calc(100% - 36rem)'; // 3.5rem + 20rem or 16rem + 20rem
+                        
+                        if (rightSidebar.classList.contains('collapsed')) {
+                            rightMargin = '0';
+                            width = sidebar.classList.contains('collapsed') ? 'calc(100% - 3.5rem)' : 'calc(100% - 16rem)';
+                        }
+                    }
+                    
+                    mainContent.style.marginLeft = leftMargin;
+                    mainContent.style.marginRight = rightMargin;
+                    mainContent.style.width = width;
                 }
             }
         });
@@ -239,9 +290,7 @@
     <!-- Session Timeout Handler -->
     <script src="{% static 'js/session-timeout.js' %}"></script>
     
-    <!-- Unified Chart System - Load chart components -->
-    <script src="{% static 'core/js/chart-initializer.js' %}"></script>
-    <!-- user-progress-chart.js removed - causing syntax errors -->
+    <!-- Chart system removed - using modern chart components -->
     
     <!-- Tailwind CSS - Use compiled version instead of CDN -->
     <link href="{% static 'css/tailwind.min.css' %}" rel="stylesheet" type="text/css">
@@ -336,6 +385,39 @@
             }
         }
 
+        /* Global sidebar responsive behavior */
+        @media (max-width: 1024px) {
+            #rightSidebar {
+                display: none !important;
+            }
+            
+            #rightSidebarToggle {
+                display: none !important;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            #sidebar {
+                display: none !important;
+            }
+            
+            #main-content {
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+                width: 100% !important;
+            }
+        }
+        
+        @media (min-width: 1025px) {
+            #rightSidebar {
+                display: block !important;
+            }
+            
+            #rightSidebarToggle {
+                display: flex !important;
+            }
+        }
+        
         /* Global mobile responsiveness improvements */
         @media (max-width: 480px) {
             /* Ensure minimum touch targets */
@@ -790,7 +872,7 @@
             {% endblock %}
 
             <!-- Main Content - Responsive adjustments handled by JavaScript and CSS -->
-            <main id="main-content" class="flex-1 transition-all duration-300 ml-0 md:ml-[16rem] w-full md:w-[calc(100%-16rem)] overflow-x-hidden bg-white text-gray-900 p-6">
+            <main id="main-content" class="flex-1 transition-all duration-300 ml-0 md:ml-[16rem] mr-0 lg:mr-0 w-full md:w-[calc(100%-16rem)] lg:w-[calc(100%-16rem)] overflow-x-hidden bg-white text-gray-900 p-6">
                 {% if messages %}
                 <div class="fixed top-20 right-4 z-[100] space-y-4 pointer-events-none">
                     {% for message in messages %}
@@ -824,7 +906,7 @@
                 </div>
             </main>
             
-            <!-- Right Sidebar -->
+            <!-- Right Sidebar Block - Add to individual templates as needed -->
             {% block right_sidebar %}{% endblock %}
         </div>
     </div>
@@ -1091,13 +1173,13 @@
         });
     </script>
     
-    <!-- Unified Sidebar JavaScript -->
-    <script src="{% static 'js/sidebar-unified.js' %}"></script>
+    <!-- Comprehensive Sidebar Fix - Replaces all other sidebar scripts -->
+    <script src="{% static 'js/sidebar-comprehensive-fix.js' %}"></script>
     
-    <!-- Sidebar Debug Fix Script -->
-    
-    <!-- Sidebar Submenu Fix Script -->
-    <script src="{% static 'js/sidebar-submenu-fix.js' %}"></script>
+    <!-- Sidebar Test Script - For debugging -->
+    {% if settings.DEBUG %}
+    <script src="{% static 'js/sidebar-test.js' %}"></script>
+    {% endif %}
     
     <!-- Sidebar Toggle Fallback Function -->
     <script>

@@ -10,6 +10,7 @@ urlpatterns = [
     
     # SCORM API
     path('api/<int:topic_id>/', views.scorm_api, name='api'),
+    path('log/', views.scorm_log, name='log'),
     
     # Reports
     path('reports/<int:course_id>/', views.scorm_reports, name='reports'),

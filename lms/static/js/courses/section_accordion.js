@@ -120,28 +120,44 @@ const initializedSortables = {
     topics: new Set()
 };
 
-// Global event listener cleanup tracking
+// Global event listener cleanup tracking with improved performance
 window.LMSEventListeners = window.LMSEventListeners || {
     listeners: new Map(),
     add: function(element, event, handler, options) {
-        const key = `${element}_${event}`;
+        if (!element || typeof element.addEventListener !== 'function') {
+            console.warn('Invalid element provided to LMSEventListeners.add');
+            return;
+        }
+        
+        const key = `${element}_${event}_${Date.now()}`;
         if (this.listeners.has(key)) {
             this.remove(key);
         }
-        element.addEventListener(event, handler, options);
-        this.listeners.set(key, { element, event, handler, options });
+        
+        // Use passive listeners for better performance where appropriate
+        const optimizedOptions = {
+            passive: event === 'scroll' || event === 'touchstart' || event === 'touchmove',
+            ...options
+        };
+        
+        element.addEventListener(event, handler, optimizedOptions);
+        this.listeners.set(key, { element, event, handler, options: optimizedOptions });
     },
     remove: function(key) {
         if (this.listeners.has(key)) {
             const { element, event, handler, options } = this.listeners.get(key);
-            element.removeEventListener(event, handler, options);
+            if (element && typeof element.removeEventListener === 'function') {
+                element.removeEventListener(event, handler, options);
+            }
             this.listeners.delete(key);
         }
     },
     cleanup: function() {
         for (const [key, listener] of this.listeners) {
             const { element, event, handler, options } = listener;
-            element.removeEventListener(event, handler, options);
+            if (element && typeof element.removeEventListener === 'function') {
+                element.removeEventListener(event, handler, options);
+            }
         }
         this.listeners.clear();
     }
@@ -359,10 +375,14 @@ function fetchWithTimeout(url, options, timeoutMs = 15000) {
     return Promise.race([
         fetch(url, options)
             .then(response => {
-                    status: response.status,
-                    statusText: response.statusText,
-                    headers: response.headers ? Object.fromEntries(response.headers.entries()) : {}
-                });
+                // Log response details for debugging (production: remove)
+                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                    console.log('Response details:', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        headers: response.headers ? Object.fromEntries(response.headers.entries()) : {}
+                    });
+                }
                 
                 return response;
             })
@@ -414,23 +434,51 @@ function robustFetch(url, options = {}) {
 // Make robustFetch globally available
 window.robustFetch = robustFetch;
 
-// Enhanced parse JSON with HTML detection
+// Enhanced parse JSON with HTML detection and better error handling
 function safeParseJson(text) {
     try {
+        // Validate input
+        if (typeof text !== 'string') {
+            return {
+                success: false,
+                error: 'Invalid input: expected string, got ' + typeof text
+            };
+        }
+        
         // Check if the response is HTML
         if (isHtmlResponse(text)) {
             return {
                 success: false,
-                error: 'Server returned HTML instead of JSON. Possible server error.'
+                error: 'Server returned HTML instead of JSON. Possible server error.',
+                isHtml: true
+            };
+        }
+        
+        // Check for empty response
+        if (!text.trim()) {
+            return {
+                success: false,
+                error: 'Empty response from server'
             };
         }
         
         // Try to parse as JSON
-        return JSON.parse(text);
+        const parsed = JSON.parse(text);
+        
+        // Validate parsed object structure
+        if (typeof parsed !== 'object' || parsed === null) {
+            return {
+                success: false,
+                error: 'Invalid JSON structure: expected object'
+            };
+        }
+        
+        return parsed;
     } catch (e) {
         return {
             success: false,
-            error: 'Invalid JSON response: ' + (text ? text.substring(0, 50) + '...' : 'empty response')
+            error: 'Invalid JSON response: ' + (text ? text.substring(0, 100) + '...' : 'empty response'),
+            parseError: e.message
         };
     }
 }
@@ -450,27 +498,44 @@ function initializeSectionSortable() {
         }
         
         if (typeof Sortable !== 'undefined') {
-            // Create Sortable instance for sections
-            const sortableInstance = Sortable.create(sectionsContainer, {
-                animation: 150,
-                handle: '.drag-handle, .section-drag-handle',
-                ghostClass: 'bg-gray-100',
-                chosenClass: 'bg-blue-50',
-                dragClass: 'shadow-lg',
-                onStart: function(evt) {
-                    document.body.classList.add('section-dragging-active');
-                },
-                onEnd: function(evt) {
-                    document.body.classList.remove('section-dragging-active');
-                    saveSectionOrder();
-                }
-            });
-            
-            // Store the instance on the DOM element for future reference
-            sectionsContainer.sortableInstance = sortableInstance;
-            
-            initializedSortables.sections = true;
+            try {
+                // Create Sortable instance for sections
+                const sortableInstance = Sortable.create(sectionsContainer, {
+                    animation: 150,
+                    handle: '.drag-handle, .section-drag-handle',
+                    ghostClass: 'bg-gray-100',
+                    chosenClass: 'bg-blue-50',
+                    dragClass: 'shadow-lg',
+                    onStart: function(evt) {
+                        document.body.classList.add('section-dragging-active');
+                    },
+                    onEnd: function(evt) {
+                        document.body.classList.remove('section-dragging-active');
+                        try {
+                            saveSectionOrder();
+                        } catch (error) {
+                            console.error('Error saving section order:', error);
+                            showNotification('Error saving section order. Please try again.', 'error');
+                        }
+                    },
+                    onError: function(evt) {
+                        console.error('Sortable error:', evt);
+                        showNotification('Drag and drop error occurred. Please try again.', 'error');
+                    }
+                });
+                
+                // Store the instance on the DOM element for future reference
+                sectionsContainer.sortableInstance = sortableInstance;
+                
+                initializedSortables.sections = true;
+                // console.log('Section sortable initialized successfully'); // Production: remove
+            } catch (error) {
+                console.error('Error initializing section sortable:', error);
+                showNotification('Failed to initialize drag and drop. Please refresh the page.', 'error');
+            }
         } else {
+            console.warn('Sortable library not available');
+            showNotification('Drag and drop functionality not available. Please refresh the page.', 'warning');
         }
     } catch (error) {
     }
@@ -511,6 +576,7 @@ function initializeTopicsSortable() {
         
         // Initialize Sortable for this list
         try {
+            // console.log(`Initializing sortable for section ${sectionId}`); // Production: remove
             
             const sortableInstance = new Sortable(list, {
                 animation: 150,
@@ -565,6 +631,7 @@ function initializeTopicsSortable() {
                     try {
                         if (fromSectionId === toSectionId) {
                             // Same section, just reordering
+                            // console.log(`Reordering topics within section ${fromSectionId}`); // Production: remove
                             saveTopicOrder(fromSectionId);
                         } else {
                             // Moving to different section
@@ -573,6 +640,7 @@ function initializeTopicsSortable() {
                                 const topicId = evt.item.dataset.topicId || evt.item.dataset.id || evt.item.id.replace('topic-', '');
                                 
                                 if (!topicId) {
+                                    console.error('Could not identify topic being moved:', evt.item);
                                     showNotification('Error: Could not identify the topic being moved', 'error');
                                     return;
                                 }
@@ -580,6 +648,7 @@ function initializeTopicsSortable() {
                                 // Get new position
                                 const newOrder = Array.from(evt.to.children).indexOf(evt.item) + 1; // Add 1 for 1-based indexing
                                 
+                                // console.log(`Moving topic ${topicId} from section ${fromSectionId} to section ${toSectionId} at position ${newOrder}`); // Production: remove
                                 
                                 // Add visual indicator that the move is being processed
                                 evt.item.classList.add('topic-processing');
@@ -600,6 +669,7 @@ function initializeTopicsSortable() {
                                         }, 1500);
                                     })
                                     .catch(error => {
+                                        console.error('Error saving topic move:', error);
                                         evt.item.classList.remove('topic-processing');
                                         
                                         // Add error indicator
@@ -611,9 +681,13 @@ function initializeTopicsSortable() {
                                             window.location.reload();
                                         }, 1500);
                                     });
+                            } else {
+                                console.error('No target section ID found');
+                                showNotification('Error: Could not determine target section', 'error');
                             }
                         }
                     } catch (error) {
+                        console.error('Error processing drag and drop operation:', error);
                         showNotification('Error processing drag and drop operation', 'error');
                         
                         // Refresh the page to restore to a consistent state
@@ -865,11 +939,14 @@ function saveTopicOrder(sectionId) {
         loadingIndicator.innerHTML = 'Saving topic order...';
         document.body.appendChild(loadingIndicator);
         
-        // Debug logs
-            course_id: courseId,
-            section_id: sectionId,
-            topic_orders: topicOrders
-        });
+        // Debug logs (production: remove)
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            console.log('Saving topic order:', {
+                course_id: courseId,
+                section_id: sectionId,
+                topic_orders: topicOrders
+            });
+        }
         
         // Send update to server
         fetchWithTimeout('/courses/api/topics/reorder/', {
@@ -1014,12 +1091,15 @@ function saveTopicMove(topicId, sectionId, newOrder) {
                 return reject(new Error(error));
             }
             
-            // Debug log the data being sent
-                topic_id: parseInt(topicId, 10),
-                section_id: formattedSectionId,
-                new_order: newOrder + 1,
-                course_id: courseId
-            });
+            // Debug log the data being sent (production: remove)
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                console.log('Moving topic:', {
+                    topic_id: parseInt(topicId, 10),
+                    section_id: formattedSectionId,
+                    new_order: newOrder + 1,
+                    course_id: courseId
+                });
+            }
             
             // Make API request
             fetchWithTimeout(`/courses/api/topics/move/`, {
@@ -1332,4 +1412,4 @@ window.addEventListener('beforeunload', function() {
             notification.cleanup();
         }
     });
-}); 
+});

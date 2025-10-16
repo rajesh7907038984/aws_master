@@ -661,7 +661,15 @@
                                                 {% if topic.scorm_package.tracking_records.first.score_raw %}
                                                 <div class="flex justify-between text-sm">
                                                     <span>Score:</span>
-                                                    <span class="font-medium">{{ topic.scorm_package.tracking_records.first.score_raw|floatformat:1 }}</span>
+                                                    <div class="flex items-center gap-1">
+                                                        <span class="font-medium">{{ topic.scorm_package.tracking_records.first.score_raw|floatformat:1 }}</span>
+                                                        {% if topic.scorm_package.tracking_records.first.score_max %}
+                                                        <span class="text-gray-500">/ {{ topic.scorm_package.tracking_records.first.score_max|floatformat:1 }}</span>
+                                                        {% endif %}
+                                                        {% if topic.scorm_package.tracking_records.first.get_score_percentage %}
+                                                        <span class="text-blue-600">({{ topic.scorm_package.tracking_records.first.get_score_percentage|floatformat:1 }}%)</span>
+                                                        {% endif %}
+                                                    </div>
                                                 </div>
                                                 {% endif %}
                                             </div>

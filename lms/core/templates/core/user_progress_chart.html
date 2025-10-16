@@ -67,47 +67,32 @@
 </div>
 
 <script>
-// Initialize the user progress chart component
+// Simple progress display without complex charting
 (function() {
-    
-    function initializeUserProgressChart() {
-        // Check if Chart.js is available
-        if (typeof Chart === 'undefined') {
-            setTimeout(initializeUserProgressChart, 100);
-            return;
-        }
-        
-        // Check if UserProgressChart class is available
-        if (typeof UserProgressChart === 'undefined') {
-            setTimeout(initializeUserProgressChart, 100);
-            return;
-        }
-        
-        // Check if canvas exists
-        const canvas = document.getElementById('user-progress-chart');
-        if (!canvas) {
-            setTimeout(initializeUserProgressChart, 100);
-            return;
-        }
-        
-        
+    function displayProgressData() {
         // Get user progress data from Django template context
         const userProgressData = {% if enhanced_user_progress_json %}{{ enhanced_user_progress_json|safe }}{% else %}[]{% endif %};
         
-        // Initialize the chart using the object method
-        if (typeof UserProgressChart.create === 'function') {
-            window.userProgressChart = UserProgressChart.create('user-progress-chart', userProgressData);
-        } else {
+        if (!userProgressData || userProgressData.length === 0) {
+            document.getElementById('chart-container').innerHTML = '<p class="text-gray-500 text-center py-8">No progress data available</p>';
+            return;
         }
+        
+        // Simple text-based progress display
+        const container = document.getElementById('chart-container');
+        container.innerHTML = `
+            <div class="text-center py-8">
+                <p class="text-lg text-gray-700">Progress data loaded: ${userProgressData.length} users</p>
+                <p class="text-sm text-gray-500 mt-2">Chart functionality has been simplified</p>
+            </div>
+        `;
     }
     
-    // Start initialization
+    // Initialize when DOM is ready
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(initializeUserProgressChart, 100);
-        });
+        document.addEventListener('DOMContentLoaded', displayProgressData);
     } else {
-        setTimeout(initializeUserProgressChart, 100);
+        displayProgressData();
     }
 })();
 </script>

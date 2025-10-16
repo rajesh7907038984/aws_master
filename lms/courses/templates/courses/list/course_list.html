@@ -457,6 +457,10 @@
 </style>
 {% endblock %}
 
+{% block right_sidebar %}
+    {% include 'components/global_right_sidebar.html' %}
+{% endblock %}
+
 {% block content %}
 <!-- Hidden CSRF form for JavaScript access -->
 <form id="csrf-form" style="display: none;">
@@ -738,7 +742,7 @@
 
             <!-- Right Column (30%) -->
             <div class="col-span-12 lg:col-span-4 transition-all duration-300">
-                {% include 'components/right_sidebar.html' %}
+                <!-- Right sidebar is included globally in base.html -->
             </div>
         </div>
     </div>

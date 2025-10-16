@@ -30,6 +30,7 @@ function initializeTinyMCEEditors() {
         // Check all textareas for debugging
         const allTextareas = document.querySelectorAll('textarea');
         allTextareas.forEach(function(ta, index) {
+            console.log('Textarea ' + index + ':', {
                 id: ta.id,
                 className: ta.className,
                 name: ta.name

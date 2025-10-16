@@ -186,6 +186,7 @@ INSTALLED_APPS = [
     'branch_portal',
     'LMS_Project',
     'core',
+    'lrs',  # Learning Record Store for xAPI and cmi5
     'admin_dashboard',
     'tinymce_editor',
     
@@ -267,6 +268,8 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'django.template.context_processors.csrf',  # RE-ADDED for CSRF token support
                 'core.context_processors.global_context',
+                'core.context_processors.global_sidebar_context',
+                'core.context_processors.right_sidebar_context',  # Added for right sidebar data
                 'categories.context_processors.categories_processor',
                 'courses.context_processors.breadcrumbs',
                 'lms_messages.context_processors.messages_context',

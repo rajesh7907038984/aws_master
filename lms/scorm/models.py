@@ -454,7 +454,10 @@ class ELearningTracking(models.Model):
         related_name='tracking_records'
     )
     
-    # SCORM data model elements
+    # Registration ID for SCORM 2004 and cmi5
+    registration_id = models.UUIDField(default=uuid.uuid4, editable=False)
+    
+    # SCORM 1.2 and 2004 data model elements
     completion_status = models.CharField(
         max_length=20,
         choices=[
@@ -476,16 +479,71 @@ class ELearningTracking(models.Model):
         default='unknown'
     )
     
+    # Score tracking
     score_raw = models.FloatField(null=True, blank=True)
     score_min = models.FloatField(null=True, blank=True)
     score_max = models.FloatField(null=True, blank=True)
     score_scaled = models.FloatField(null=True, blank=True)
     
+    # Progress tracking
     progress_measure = models.FloatField(null=True, blank=True)
+    completion_threshold = models.FloatField(null=True, blank=True)
     
     # Time tracking
     total_time = models.DurationField(null=True, blank=True)
     session_time = models.DurationField(null=True, blank=True)
+    
+    # Location and suspend data
+    location = models.CharField(max_length=500, blank=True)
+    suspend_data = models.TextField(blank=True)
+    launch_data = models.TextField(blank=True)
+    
+    # Entry and exit
+    entry = models.CharField(max_length=20, choices=[
+        ('ab-initio', 'Ab Initio'),
+        ('resume', 'Resume')
+    ], default='ab-initio')
+    
+    exit_value = models.CharField(max_length=20, choices=[
+        ('time-out', 'Time Out'),
+        ('suspend', 'Suspend'),
+        ('logout', 'Logout'),
+        ('normal', 'Normal'),
+        ('ab-initio', 'Ab Initio')
+    ], blank=True)
+    
+    # SCORM 2004 specific fields
+    credit = models.CharField(max_length=20, choices=[
+        ('credit', 'Credit'),
+        ('no-credit', 'No Credit')
+    ], default='credit')
+    
+    mode = models.CharField(max_length=20, choices=[
+        ('browse', 'Browse'),
+        ('normal', 'Normal'),
+        ('review', 'Review')
+    ], default='normal')
+    
+    # Learner preferences
+    learner_preference_audio_level = models.FloatField(null=True, blank=True)
+    learner_preference_language = models.CharField(max_length=10, blank=True)
+    learner_preference_delivery_speed = models.FloatField(null=True, blank=True)
+    learner_preference_audio_captioning = models.BooleanField(null=True, blank=True)
+    
+    # Student data
+    student_data_mastery_score = models.FloatField(null=True, blank=True)
+    student_data_max_time_allowed = models.DurationField(null=True, blank=True)
+    student_data_time_limit_action = models.CharField(max_length=50, blank=True)
+    
+    # Objectives tracking
+    objectives = models.JSONField(default=dict, help_text="SCORM objectives data")
+    
+    # Interactions tracking
+    interactions = models.JSONField(default=dict, help_text="SCORM interactions data")
+    
+    # Comments
+    comments_from_learner = models.JSONField(default=list, help_text="Comments from learner")
+    comments_from_lms = models.JSONField(default=list, help_text="Comments from LMS")
     
     # Additional data
     raw_data = models.JSONField(
@@ -520,18 +578,18 @@ class ELearningTracking(models.Model):
         if 'cmi.success_status' in scorm_data:
             self.success_status = scorm_data['cmi.success_status']
         
-        # Update scores
-        if 'cmi.score.raw' in scorm_data:
-            self.score_raw = float(scorm_data['cmi.score.raw']) if scorm_data['cmi.score.raw'] else None
+        # Update scores - Use correct SCORM 1.2 data model elements
+        if 'cmi.core.score.raw' in scorm_data:
+            self.score_raw = float(scorm_data['cmi.core.score.raw']) if scorm_data['cmi.core.score.raw'] else None
         
-        if 'cmi.score.min' in scorm_data:
-            self.score_min = float(scorm_data['cmi.score.min']) if scorm_data['cmi.score.min'] else None
+        if 'cmi.core.score.min' in scorm_data:
+            self.score_min = float(scorm_data['cmi.core.score.min']) if scorm_data['cmi.core.score.min'] else None
         
-        if 'cmi.score.max' in scorm_data:
-            self.score_max = float(scorm_data['cmi.score.max']) if scorm_data['cmi.score.max'] else None
+        if 'cmi.core.score.max' in scorm_data:
+            self.score_max = float(scorm_data['cmi.core.score.max']) if scorm_data['cmi.core.score.max'] else None
         
-        if 'cmi.score.scaled' in scorm_data:
-            self.score_scaled = float(scorm_data['cmi.score.scaled']) if scorm_data['cmi.score.scaled'] else None
+        if 'cmi.core.score.scaled' in scorm_data:
+            self.score_scaled = float(scorm_data['cmi.core.score.scaled']) if scorm_data['cmi.core.score.scaled'] else None
         
         # Update progress measure
         if 'cmi.progress_measure' in scorm_data:
@@ -610,6 +668,90 @@ class ELearningTracking(models.Model):
     def is_passed(self):
         """Check if the SCORM package is passed"""
         return self.success_status == 'passed'
+    
+    def validate_score(self):
+        """Validate that score_raw is within the valid range"""
+        if self.score_raw is not None and self.score_min is not None and self.score_max is not None:
+            if not (self.score_min <= self.score_raw <= self.score_max):
+                logger.warning(f"SCORM Score Validation: Score {self.score_raw} is outside valid range [{self.score_min}, {self.score_max}] for user {self.user.id}")
+                return False
+        return True
+    
+    def get_score_percentage(self):
+        """Get score as percentage (0-100)"""
+        if self.score_raw is not None and self.score_max is not None and self.score_max > 0:
+            percentage = (self.score_raw / self.score_max) * 100
+            return min(100, max(0, percentage))  # Clamp between 0-100
+        return None
+    
+    def get_score_grade(self, pass_threshold=70):
+        """Get letter grade based on percentage score"""
+        percentage = self.get_score_percentage()
+        if percentage is None:
+            return "N/A"
+        
+        if percentage >= 90:
+            return "A"
+        elif percentage >= 80:
+            return "B"
+        elif percentage >= 70:
+            return "C"
+        elif percentage >= 60:
+            return "D"
+        else:
+            return "F"
+    
+    def is_passing_score(self, pass_threshold=70):
+        """Check if score meets passing threshold"""
+        percentage = self.get_score_percentage()
+        if percentage is None:
+            return False
+        return percentage >= pass_threshold
+    
+    def get_score_summary(self):
+        """Get comprehensive score summary"""
+        summary = {
+            'raw_score': self.score_raw,
+            'min_score': self.score_min,
+            'max_score': self.score_max,
+            'scaled_score': self.score_scaled,
+            'percentage': self.get_score_percentage(),
+            'grade': self.get_score_grade(),
+            'is_passing': self.is_passing_score(),
+            'is_valid': self.validate_score()
+        }
+        return summary
+    
+    def get_bookmark_data(self):
+        """Get bookmark and suspend data for resume functionality"""
+        bookmark_data = {
+            'lesson_location': self.raw_data.get('cmi.core.lesson_location', ''),
+            'suspend_data': self.raw_data.get('cmi.core.suspend_data', ''),
+            'entry': self.raw_data.get('cmi.core.entry', 'ab-initio'),
+            'exit': self.raw_data.get('cmi.core.exit', ''),
+            'launch_data': self.raw_data.get('cmi.core.launch_data', ''),
+            'has_bookmark': bool(self.raw_data.get('cmi.core.lesson_location', '')),
+            'has_suspend_data': bool(self.raw_data.get('cmi.core.suspend_data', '')),
+            'can_resume': bool(self.raw_data.get('cmi.core.lesson_location', '')) or bool(self.raw_data.get('cmi.core.suspend_data', ''))
+        }
+        return bookmark_data
+    
+    def set_bookmark(self, location, suspend_data=''):
+        """Set bookmark data for resume functionality"""
+        self.raw_data['cmi.core.lesson_location'] = location
+        if suspend_data:
+            self.raw_data['cmi.core.suspend_data'] = suspend_data
+        self.raw_data['cmi.core.entry'] = 'resume'
+        self.save()
+        logger.info(f"SCORM: Bookmark set for user {self.user.id} at location: {location}")
+    
+    def clear_bookmark(self):
+        """Clear bookmark data"""
+        self.raw_data.pop('cmi.core.lesson_location', None)
+        self.raw_data.pop('cmi.core.suspend_data', None)
+        self.raw_data['cmi.core.entry'] = 'ab-initio'
+        self.save()
+        logger.info(f"SCORM: Bookmark cleared for user {self.user.id}")
 
 class SCORMReport(models.Model):
     """Model for SCORM reports and analytics"""

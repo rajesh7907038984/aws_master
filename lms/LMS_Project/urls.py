@@ -30,7 +30,7 @@ from django.views.static import serve
 from django.shortcuts import redirect
 from django.contrib.auth import views as auth_views
 from users.views import role_based_redirect, home, learner_dashboard, instructor_dashboard, admin_dashboard, global_admin_dashboard, users_admin_dashboard, custom_login, register, forgot_password
-from test_profile_view import test_profile_dropdown
+# from test_profile_view import test_profile_dropdown
 from core.views import health_check
 from admin_dashboard.views import SuperAdminDashboardView
 from django.views.generic.base import RedirectView
@@ -84,7 +84,7 @@ urlpatterns = [
     path('dashboard/instructor/', instructor_dashboard, name='dashboard_instructor'),
     path('dashboard/admin/', admin_dashboard, name='dashboard_admin'),
     path('health/', health_check, name='health_check'),
-    path('test-profile/', test_profile_dropdown, name='test_profile_dropdown'),
+    # path('test-profile/', test_profile_dropdown, name='test_profile_dropdown'),
     
     # Global authentication URLs (fallback)
     path('login/', custom_login, name='login'),
@@ -122,6 +122,7 @@ urlpatterns = [
     path('outcomes/', include('lms_outcomes.urls', namespace='lms_outcomes')),
     path('certificates/', include('certificates.urls', namespace='certificates')),
     path('scorm/', include('scorm.urls', namespace='scorm')),
+    path('lrs/', include('lrs.urls', namespace='lrs')),  # Learning Record Store for xAPI and cmi5
     path('notifications/', include('lms_notifications.urls', namespace='lms_notifications')),
     path('account/', include('account_settings.urls', namespace='account_settings')),
     path('individual-learning-plan/', include('individual_learning_plan.urls', namespace='individual_learning_plan')),

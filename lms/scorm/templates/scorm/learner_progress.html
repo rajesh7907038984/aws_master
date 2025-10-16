@@ -169,6 +169,52 @@
         color: #666;
     }
     
+    .score-percentage {
+        margin-top: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .percentage-value {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #1c2260;
+    }
+    
+    .grade-badge {
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .grade-a {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .grade-b {
+        background: #cce5ff;
+        color: #004085;
+    }
+    
+    .grade-c {
+        background: #fff3cd;
+        color: #856404;
+    }
+    
+    .grade-d {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .grade-f {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
     .time-display {
         font-family: monospace;
         background: #f8f9fa;
@@ -266,6 +312,12 @@
                             <span class="score-range">/ {{ record.score_max|floatformat:1 }}</span>
                             {% endif %}
                         </div>
+                        {% if record.get_score_percentage %}
+                        <div class="score-percentage">
+                            <span class="percentage-value">{{ record.get_score_percentage|floatformat:1 }}%</span>
+                            <span class="grade-badge grade-{{ record.get_score_grade|lower }}">{{ record.get_score_grade }}</span>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
                 {% endif %}

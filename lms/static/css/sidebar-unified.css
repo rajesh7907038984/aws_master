@@ -14,6 +14,8 @@
     overflow-y: auto;
     overflow-x: hidden;
     display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 #sidebar nav {
@@ -28,6 +30,8 @@
         display: none !important;
         width: 0 !important;
         transform: translateX(-100%) !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
     }
     
     #main-content {
@@ -40,6 +44,8 @@
     #sidebar {
         display: block !important;
         transform: translateX(0) !important;
+        visibility: visible !important;
+        opacity: 1 !important;
     }
     
     #main-content {

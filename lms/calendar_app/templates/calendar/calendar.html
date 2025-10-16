@@ -763,6 +763,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 })
                 .catch(error => {
+                    console.error('Error loading activities:', error);
+                    this.activitiesData = {};
+                    this.renderActivityIndicators();
                 });
         },
         
@@ -939,6 +942,7 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
         MainCalendar.init();
     } catch (error) {
+        console.error('Error initializing calendar:', error);
     }
     
     // Cleanup on page unload
@@ -950,6 +954,5 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<!-- Calendar JavaScript -->
-<script src="{% static 'js/calendar.js' %}"></script>
+<!-- Calendar JavaScript is embedded above -->
 {% endblock %} 
